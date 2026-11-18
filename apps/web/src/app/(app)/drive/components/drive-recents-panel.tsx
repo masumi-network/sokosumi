@@ -1,9 +1,14 @@
 "use client";
 
-import type { DriveItem, DriveRecentsItem } from "@sokosumi/core-client";
+import {
+  type DriveItem,
+  type DriveRecentsItem,
+  postDriveFilesCopy,
+} from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   Copy,
+  CopyPlus,
   Download,
   Edit3,
   Folder,
@@ -33,7 +38,10 @@ import {
   forcedDownloadUrl,
 } from "@/app/drive/components/drive-item-card";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
-import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
+import {
+  buildDriveRecentsDayGroups,
+  copyFileName,
+} from "@/app/drive/components/drive-recents-list.utils";
 import type { DriveShareItem } from "@/app/drive/components/drive-share-dialog";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
@@ -57,6 +65,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
+import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -305,6 +314,26 @@ export function DriveRecentsPanel({
     await loadRecents();
   }
 
+  async function handleMakeCopy(item: { pathname: string; name: string }) {
+    try {
+      const { data } = await postDriveFilesCopy({
+        client: getBrowserCoreClient(),
+        body: {
+          pathname: item.pathname,
+          filename: copyFileName(item.name, t("copyNameLabel")),
+        },
+        throwOnError: true,
+      });
+      toast.success(t("copyMade", { name: data.data.name }));
+    } catch (error) {
+      console.error("Failed to copy Drive file", error);
+      toast.error(t("copyError"));
+      return;
+    }
+    onItemsChanged();
+    await loadRecents();
+  }
+
   if (loading) {
     return <DriveListSkeleton viewMode={viewMode} />;
   }
@@ -412,6 +441,12 @@ export function DriveRecentsPanel({
                         >
                           <Edit3 className="size-4" aria-hidden />
                           {t("renameAction")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => void handleMakeCopy(item)}
+                        >
+                          <CopyPlus className="size-4" aria-hidden />
+                          {t("makeCopyAction")}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onSelect={(event) => {

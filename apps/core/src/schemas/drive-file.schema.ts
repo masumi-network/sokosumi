@@ -175,6 +175,36 @@ export const renameDriveFileRequestSchema = z
   .openapi("RenameDriveFileRequest");
 
 /**
+ * Copy drive file request.
+ */
+export const copyDriveFileRequestSchema = z
+  .object({
+    pathname: z.string().min(1).openapi({
+      example: "drive/users/user_123/report.pdf",
+      description: "Blob pathname of the file to copy",
+    }),
+    filename: z
+      .string()
+      .min(1)
+      .max(255)
+      .refine((name) => !name.includes("/"), "A file name has no slash")
+      .openapi({
+        example: "report (copy).pdf",
+        description:
+          "Name for the copy, in the source's folder. Numbered when taken.",
+      }),
+  })
+  .openapi("CopyDriveFileRequest");
+
+export const copiedDriveFileSchema = driveFileSchema
+  .extend({
+    resourceId: z.string().openapi({
+      description: "The copy's own catalog id",
+    }),
+  })
+  .openapi("CopiedDriveFile");
+
+/**
  * Delete drive file request.
  */
 export const deleteDriveFileRequestSchema = z

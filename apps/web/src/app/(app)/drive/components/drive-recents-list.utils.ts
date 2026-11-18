@@ -33,3 +33,11 @@ export function buildDriveRecentsDayGroups(
     items: groupedItems,
   }));
 }
+
+/** `weekly.md` + "copy" → `weekly (copy).md`; no extension → appended. */
+export function copyFileName(name: string, label: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot > 0
+    ? `${name.slice(0, dot)} (${label})${name.slice(dot)}`
+    : `${name} (${label})`;
+}

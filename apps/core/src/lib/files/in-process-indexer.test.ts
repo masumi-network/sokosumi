@@ -284,8 +284,11 @@ describe("only write paths may buy label evaluations", () => {
    * - reindex: they pressed "process this again", usually because the
    *   labels came out wrong, so labelling is the thing being retried.
    *   Behind that route's own cooldown, which keeps it metered.
+   * - copy: they made a copy, which is a new document like an upload, and
+   *   one with no category or tags is half-created too.
    */
   const WRITE_PATHS = [
+    "v1/drive/files/copy.ts",
     "v1/drive/files/finalize.ts",
     "v1/drive/resources/[id]/reindex/post.ts",
   ].sort();

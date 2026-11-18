@@ -18512,6 +18512,49 @@ export const MoveDriveItemRequestSchema = {
     ]
 } as const;
 
+export const CopiedDriveFileSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/DriveFile'
+        },
+        {
+            type: 'object',
+            properties: {
+                resourceId: {
+                    type: 'string',
+                    description: 'The copy\'s own catalog id'
+                }
+            },
+            required: [
+                'resourceId'
+            ]
+        }
+    ]
+} as const;
+
+export const CopyDriveFileRequestSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Blob pathname of the file to copy'
+        },
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'report (copy).pdf',
+            description: 'Name for the copy, in the source\'s folder. Numbered when taken.'
+        }
+    },
+    required: [
+        'pathname',
+        'filename'
+    ]
+} as const;
+
 export const RenameDriveFileRequestSchema = {
     type: 'object',
     properties: {

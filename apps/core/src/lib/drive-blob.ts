@@ -2,6 +2,7 @@ import { DataRoomStorage, FileSourceScope } from "@sokosumi/database";
 import {
   type BlobAccessType,
   BlobNotFoundError,
+  copy,
   del,
   get,
   type HeadBlobResult,
@@ -346,6 +347,28 @@ export async function driveRename(
     contentType,
     cacheControlMaxAge: options.cacheControlMaxAge,
   });
+}
+
+/**
+ * Copies one object to a new pathname in the same store and keeps the source.
+ * Only for a target beside the source (same folder), so both sides always
+ * share a store. Never overwrites.
+ */
+export async function driveCopy(
+  fromPathname: string,
+  toPathname: string,
+  options: { contentType?: string; cacheControlMaxAge?: number } = {},
+): Promise<{ url: string; pathname: string; access: BlobAccessType }> {
+  const target = await driveWriteStore(toPathname);
+  const result = await copy(fromPathname, toPathname, {
+    token: target.token,
+    access: target.access,
+    addRandomSuffix: false,
+    allowOverwrite: false,
+    contentType: options.contentType,
+    cacheControlMaxAge: options.cacheControlMaxAge,
+  });
+  return { url: result.url, pathname: result.pathname, access: target.access };
 }
 
 function storeFor(access: BlobAccessType): DriveBlobStore {
