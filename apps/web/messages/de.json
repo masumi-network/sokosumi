@@ -12078,6 +12078,7 @@
             "opportunity": "Verwandte Suche"
           },
           "short": "Ideen",
+          "name": "Keyword-Ideen",
           "more": "{count, plural, one {# weitere Idee anzeigen} other {# weitere Ideen anzeigen}}"
         },
         "addButton": "Keyword hinzufügen",
@@ -12981,19 +12982,17 @@
         "keyEventsNotRead": "Nicht gelesen: teilt einen Landingpage-Pfad mit einer anderen ausgewählten Seite"
       },
       "export": {
+        "menu": "Exportieren: {table}",
         "csv": "CSV herunterladen",
         "action": "Aktion",
         "kind": "Art",
         "status": "Status",
-        "csvLabel": "CSV herunterladen: {table}",
         "table": "In eine Tabelle kopieren",
-        "tableLabel": "In eine Tabelle kopieren: {table}",
         "tableTitle": "{table} · {site} · {date}",
         "tableDescription": "Aus SEO kopiert am {date}. Ein Schnappschuss: Er ändert sich nicht, wenn SEO erneut prüft.",
-        "tableCopied": "{count, plural, one {# Keyword in eine neue Tabelle kopiert.} other {# Keywords in eine neue Tabelle kopiert.}}",
+        "tableCopied": "{count, plural, one {# Zeile in eine neue Tabelle kopiert.} other {# Zeilen in eine neue Tabelle kopiert.}}",
         "openTable": "Tabelle öffnen",
-        "tableFailed": "Die Tabelle ist noch nicht vollständig. Drücke erneut auf „In eine Tabelle kopieren“, um sie fertigzustellen.",
-        "list": "Liste"
+        "tableFailed": "Die Tabelle ist noch nicht vollständig. Drücke erneut auf „In eine Tabelle kopieren“, um sie fertigzustellen."
       },
       "datePresets": {
         "label": "Schnellauswahl",
@@ -13217,7 +13216,7 @@
           },
           "38": {
             "title": "Export und Zeitraum-Vorlagen",
-            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Die Tabellen Länder und Geräte, Mitbewerber, Keyword-Ideen und KI-Assistenten haben keinen CSV-Download. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
+            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Die Tabellen „Länder und Geräte“ und „KI-Assistenten“ haben keinen Export. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
           },
           "39": {
             "title": "Verlauf der Zitate in KI-Übersichten",
