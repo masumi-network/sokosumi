@@ -23,7 +23,7 @@ A claim marked **(unconfirmed)** could not be confirmed from the code. Tickets 1
 | `cancellationRequestedAt` | Set with `CANCEL_REQUESTED` by every writer listed under Cancellation, except that admin reset on a row already `CANCEL_REQUESTED` keeps the existing value.                                                                                                                             |
 | `runnerDiagnosticAt`      | Claimed at most once by the sandbox failure report that fails the turn (`services/soko-bot-sandbox-turn.service.ts:772-780`).                                                                                                                                                            |
 
-Constants: `TURN_LEASE_MS` 16 min (CP:189), `RECONCILER_HEARTBEAT_MS` 15 s (CP:190), `SOKO_BOT_TURN_STALE_HEARTBEAT_MS` 45 s (CP:192), watchdog `BATCH_SIZE` 20 candidates per scan (WD:18). The `/sync/soko-bot-turns` cron runs every minute (`apps/core/vercel.json:140-143`).
+Constants: `TURN_LEASE_MS` 16 min (CP:190), `RECONCILER_HEARTBEAT_MS` 15 s (CP:191), `SOKO_BOT_TURN_STALE_HEARTBEAT_MS` 45 s (CP:193), watchdog `BATCH_SIZE` 20 candidates per scan (WD:18). The `/sync/soko-bot-turns` cron runs every minute (`apps/core/vercel.json:140-143`).
 
 ## States and transitions
 
@@ -136,9 +136,9 @@ Runtime cancellation is delivered only for a bound turn. `deliverRuntimeCancella
 | Watchdog stale claim                      | Wins the session-bound claim                                                        | The claim stamps the heartbeat. The drain starts immediately after claims are collected and renews through settlement.                                                                           |
 | Admin reset                               | Installs its token through the reset fence                                          | Settles directly under its token. See G5 for the remaining reset ownership gap.                                                                                                                  |
 
-Each timer tick compares the token and active status under the turn lock. It writes PostgreSQL time and a lease expiry 16 minutes later. A tick queued before settlement sees a cleared token. A tick queued before release sees a cleared heartbeat. A held lease is live until its stamp is 45 seconds old. Legacy unstamped starts use `createdAt`, while an explicit ambiguous-start release is immediately claimable.
+Each timer tick uses one PostgreSQL statement to lock the turn, check its token, active status and heartbeat, then write the database time and a lease expiry 16 minutes later. A tick queued before settlement sees a cleared token. A tick queued before release sees a cleared heartbeat. A held lease is live until its stamp is 45 seconds old. Legacy unstamped starts use `createdAt`, while an explicit ambiguous-start release is immediately claimable.
 
-Ticket 02 shipped the duplicate reader before ticket 03 enabled renewing writers and takeover. During a rolling deploy, an invocation from the previous version can still have a one-shot heartbeat. Once it is 45 seconds old, a new worker can claim that turn even if the older invocation is still blocked. The token fences its acknowledgement and settlement. Sandbox session creation remains non-idempotent per turn.
+Ticket 02 shipped the duplicate reader before ticket 03 enabled renewing writers and takeover. During a rolling deploy, a previous-version start with no heartbeat becomes claimable 45 seconds after `createdAt`. A previous-version start with a one-shot heartbeat becomes claimable 45 seconds after its last stamp. In either case the older invocation can still be blocked when a new worker claims the turn. The token fences its acknowledgement and settlement. Sandbox session creation remains non-idempotent per turn.
 
 Runtime authorization is the only check that rejects on `leaseExpiresAt`. `authorize` (AUTH:31-241) also checks the feature switch and availability (AUTH:36-46), the requested capability (AUTH:106) and workspace access (AUTH:160, :209). Its lifecycle checks:
 
@@ -156,7 +156,7 @@ The watchdog reclaims on heartbeat age or an explicit release. Lease expiry cont
 
 ## Which clock each comparison uses
 
-Every lease, heartbeat, deadline and cutoff time of a turn is PostgreSQL time. `databaseNow` (`lib/db/database-now.ts`) reads `clock_timestamp()`; Core adds the unchanged thresholds to it and sends the result as a parameter. It is `clock_timestamp()`, not `now()`, because inside a transaction `now()` is the transaction's start, already old after a lock wait. No lease, heartbeat or cutoff in CP, WD or AUTH reads `Date.now()` or `new Date()`, so a host's clock skew cannot decide who owns a turn (`services/soko-bot-lease-clock.postgres.test.ts`).
+Every lease, heartbeat, deadline and cutoff time of a turn is PostgreSQL time. The timer calls `clock_timestamp()` inside its renewal statement. Other paths call it through `databaseNow` (`lib/db/database-now.ts`) and apply the thresholds in Core. `clock_timestamp()` reports the current time even after a lock wait. Host clock skew cannot decide who owns a turn (`services/soko-bot-lease-clock.postgres.test.ts`).
 
 | Comparison                                                    | Where                                                 | Clock                                                                                                                                                                                                                     |
 | ------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

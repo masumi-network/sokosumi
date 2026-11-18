@@ -15,6 +15,7 @@ import {
   SOKO_BOT_TURN_TOKEN_HEADER,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
+import { Pool } from "pg";
 import {
   afterAll,
   afterEach,
@@ -83,6 +84,30 @@ async function skewApplicationClock(skewMs: number): Promise<Date> {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(now.getTime() + skewMs);
   return now;
+}
+
+async function tickWithBusyPool(tick: () => void) {
+  const query = vi.spyOn(Pool.prototype, "query");
+  const pool = await databaseNow().then(() => query.mock.contexts.at(-1));
+  query.mockRestore();
+  if (!(pool instanceof Pool) || !pool.options.max) {
+    throw new Error("Core did not use a pg pool with a connection limit");
+  }
+
+  const connections = await Promise.all(
+    Array.from({ length: pool.options.max }, () => pool.connect()),
+  );
+  vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+  const renewal = Promise.resolve(tick());
+  try {
+    await vi.waitFor(() => expect(pool.waitingCount).toBe(1));
+    // Advance past Prisma's interactive transaction connection limit.
+    await vi.advanceTimersByTimeAsync(2_001);
+  } finally {
+    for (const connection of connections) connection.release();
+    vi.useRealTimers();
+    await renewal;
+  }
 }
 
 describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
@@ -322,12 +347,30 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
   });
 
   it.each([
-    { replaying: false, earlyAttach: false },
-    { replaying: false, earlyAttach: true },
-    { replaying: true, earlyAttach: false },
+    {
+      scenario: "fresh start",
+      replaying: false,
+      earlyAttach: false,
+    },
+    {
+      scenario: "early session attach",
+      replaying: false,
+      earlyAttach: true,
+    },
+    {
+      scenario: "G3 duplicate during live recovery",
+      replaying: true,
+      earlyAttach: false,
+    },
+    {
+      scenario: "busy pool",
+      replaying: false,
+      earlyAttach: false,
+      poolBusy: true,
+    },
   ])(
-    "keeps a blocked starter's lease across watchdog scans ($replaying replay, $earlyAttach early attach)",
-    async ({ replaying, earlyAttach }) => {
+    "keeps a blocked starter's lease across watchdog scans and retries ($scenario)",
+    async ({ replaying, earlyAttach, poolBusy }) => {
       await fundStart();
       const control = sokoBotControlPlane;
       const input = startInput();
@@ -389,7 +432,8 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
             eveSessionId: earlyAttach ? acceptedSession().sessionId : null,
           },
         });
-        await beat?.[0]();
+        if (poolBusy && beat) await tickWithBusyPool(beat[0]);
+        else await beat?.[0]();
 
         expect(await syncTurns()).toMatchObject({ claimed: 0 });
         expect(await leaseOf(turnId)).toBe(turn.leaseToken);

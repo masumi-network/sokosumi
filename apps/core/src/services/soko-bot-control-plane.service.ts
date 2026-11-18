@@ -5,6 +5,7 @@ import {
   type SokoBotTurn,
   SokoBotTurnStatus,
 } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import {
   applyVersionCapabilities,
   capabilitiesForClassification,
@@ -739,18 +740,29 @@ export class SokoBotControlPlane {
       if (renewing) return;
       renewing = true;
       try {
-        const held = await prisma.$transaction(async (tx) => {
-          await tx.$queryRaw`
-            SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
-            FOR NO KEY UPDATE
-          `;
-          return this.renewTurnLease(turnId, leaseToken, tx, {
-            status: { in: [...ACTIVE_TURN_STATUSES] },
-            // Release clears the heartbeat, fencing out an in-flight tick.
-            reconcilerHeartbeatAt: { not: null },
-          });
-        });
-        if (!held) clearInterval(timer);
+        // Release clears the heartbeat, fencing out an in-flight tick.
+        // Sample the clock after acquiring the lock, in the same statement.
+        const updated = await prisma.$executeRaw`
+          WITH renewal AS MATERIALIZED (
+            SELECT "id", clock_timestamp() AT TIME ZONE 'UTC' AS stamp
+            FROM (
+              SELECT "id"
+              FROM "soko_bot_turn"
+              WHERE "id" = ${turnId}::uuid
+                AND "leaseToken" = ${leaseToken}
+                AND "status"::text IN (${PrismaRaw.join(ACTIVE_TURN_STATUSES)})
+                AND "reconcilerHeartbeatAt" IS NOT NULL
+              FOR NO KEY UPDATE
+            ) AS held_turn
+          )
+          UPDATE "soko_bot_turn" AS turn
+          SET "reconcilerHeartbeatAt" = renewal.stamp,
+              "leaseExpiresAt" = renewal.stamp + ${TURN_LEASE_MS} * interval '1 millisecond',
+              "updatedAt" = renewal.stamp
+          FROM renewal
+          WHERE turn."id" = renewal."id"
+        `;
+        if (updated === 0) clearInterval(timer);
       } catch {
         // Fenced writes stay authoritative if the database cannot renew the lease.
       } finally {
