@@ -2,13 +2,24 @@ import type { Task, TaskEvent } from "@sokosumi/core-client";
 import type { ReactElement } from "react";
 import { renderToReadableStream } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TaskMetadataParticipantsField } from "@/app/tasks/components/task-metadata-participants-field";
+import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadata-participants-row";
 
 const taskActivitySectionMock = vi.fn();
+const taskMetadataMock = vi.fn();
 const taskDetailActionsMock = vi.fn();
 const viewer = vi.hoisted(() => ({
   id: "user_admin",
   hasAssignedSeat: false,
 }));
+
+/** The component the sidebar's Participants row renders with. */
+function participantsRowType() {
+  const props = taskMetadataMock.mock.calls.at(-1)?.[0] as {
+    participants: ReactElement;
+  };
+  return props.participants.type;
+}
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
@@ -46,7 +57,17 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: { getProjectById: async () => null },
 }));
 vi.mock("@/lib/clients/core.client", () => ({
-  coreClient: { getMySokoBotActivity: async () => ({}) },
+  coreClient: {
+    getMySokoBotActivity: async () => ({
+      data: {
+        id: "bot-1",
+        userId: "viewer-1",
+        avatarSeed: null,
+        avatarImageUrl: null,
+        avatarCode: null,
+      },
+    }),
+  },
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
@@ -95,7 +116,10 @@ vi.mock("@/app/tasks/components/task-jobs", () => ({
   TaskJobs: () => null,
 }));
 vi.mock("@/app/tasks/components/task-metadata", () => ({
-  TaskMetadata: () => null,
+  TaskMetadata: (props: unknown) => {
+    taskMetadataMock(props);
+    return null;
+  },
 }));
 vi.mock("@/app/tasks/components/task-related-tasks", () => ({
   TaskRelatedTasks: () => null,
@@ -208,15 +232,13 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
         canComment: false,
       }),
     );
-    // No follow, join or leave for the reader of an admin view.
+    // No follow for the reader of an admin view.
     const props = taskActivitySectionMock.mock.calls[0]?.[0] as {
-      headerAction: {
-        props: { children: { props: { viewerId: string | null } }[] };
-      };
+      headerAction: { props: { viewerId: string | null } };
     };
-    const controls = props.headerAction.props.children;
-    expect(controls).toHaveLength(2);
-    for (const control of controls) expect(control.props.viewerId).toBeNull();
+    expect(props.headerAction.props.viewerId).toBeNull();
+    // No join or leave either: the Participants row is read-only.
+    expect(participantsRowType()).toBe(TaskMetadataParticipantsRow);
   });
 
   it("renders the user-facing view from the task payload with the newest 5 comments", async () => {
@@ -237,6 +259,7 @@ describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
         latestCommentId: "evt_c6",
       }),
     );
+    expect(participantsRowType()).toBe(TaskMetadataParticipantsField);
   });
 });
 

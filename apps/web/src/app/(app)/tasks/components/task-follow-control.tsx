@@ -6,7 +6,15 @@ import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
+import { READ_RECEIPT_FACE_CAP } from "@/components/chat/read-receipt-faces";
+import { BotFace } from "@/components/soko-bot/bot-face";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { followTask, unfollowTask } from "@/lib/actions/task/follow-action";
 import {
@@ -43,11 +51,18 @@ function takeFollowAfterSetup(): string | null {
 
 const BUTTON_CLASS = "text-muted-foreground h-7 px-2 text-xs font-medium";
 
+/** What draws the viewer's own Soko Bot on the follow button. */
+export interface ViewerSokoBotFace {
+  imageUrl: string | null;
+  avatarCode: string | null;
+  seed: string;
+}
+
 export interface TaskFollowControlProps {
   taskId: string;
   viewerId: string | null;
-  /** The viewer has a personal Soko Bot in this workspace. */
-  viewerHasSokoBot: boolean;
+  /** The viewer's personal Soko Bot in this workspace; null for none. */
+  viewerSokoBot: ViewerSokoBotFace | null;
   followers: TaskFollower[];
   /** Comment gate. Follow is hidden when false and the viewer does not follow. */
   canComment: boolean;
@@ -56,15 +71,16 @@ export interface TaskFollowControlProps {
 /**
  * Follow the Task with your Soko Bot: it posts the Task's updates in your
  * chat with it. Separate from taking part: following never adds you to the
- * participants.
+ * participants. Beside it, the faces of the other people who follow.
  */
 export function TaskFollowControl({
   taskId,
   viewerId,
-  viewerHasSokoBot,
+  viewerSokoBot,
   followers,
   canComment,
 }: TaskFollowControlProps) {
+  const viewerHasSokoBot = viewerSokoBot !== null;
   const t = useTranslations("App.Tasks.Detail");
   const [followMarker, setFollowMarker] = useQueryState(
     FOLLOW_AFTER_SETUP_PARAM,
@@ -119,13 +135,20 @@ export function TaskFollowControl({
     if (startedHere && arm === "add") run(true, () => followTask({ taskId }));
   }
 
-  if (arm === null) return null;
+  const others = followers.filter(({ user }) => user.id !== viewerId);
+  if (arm === null && others.length === 0) return null;
+  const faces = others.slice(0, READ_RECEIPT_FACE_CAP);
+  const remainingCount = others.length - faces.length;
+  const overflowNames = others
+    .slice(faces.length)
+    .map(({ user }) => user.name)
+    .join(", ");
 
   return (
-    <>
+    <div className="flex items-center gap-2">
       {followMarker === "1" ? (
         // Keyed: a fresh render that now shows the bot runs it again.
-        <OnMount key={arm} run={resumeAfterSetup} />
+        <OnMount key={arm ?? "none"} run={resumeAfterSetup} />
       ) : null}
       {arm === "active" ? (
         <Button
@@ -139,6 +162,7 @@ export function TaskFollowControl({
           loading={isPending}
           onClick={() => run(false, () => unfollowTask({ taskId }))}
         >
+          {viewerSokoBot ? <SokoBotMark face={viewerSokoBot} /> : null}
           {t("followActive")}
         </Button>
       ) : arm === "add" ? (
@@ -150,9 +174,10 @@ export function TaskFollowControl({
           loading={isPending}
           onClick={() => run(true, () => followTask({ taskId }))}
         >
+          {viewerSokoBot ? <SokoBotMark face={viewerSokoBot} /> : null}
           {t("follow")}
         </Button>
-      ) : (
+      ) : arm === "setup" ? (
         <Button variant="ghost" size="sm" className={BUTTON_CLASS} asChild>
           <Link
             href={taskFollowSetupPath(taskId)}
@@ -172,8 +197,72 @@ export function TaskFollowControl({
             {t("follow")}
           </Link>
         </Button>
-      )}
-    </>
+      ) : null}
+      {faces.length > 0 ? (
+        <span
+          className="flex -space-x-1.5"
+          role="group"
+          aria-label={t("followedBy")}
+        >
+          {faces.map(({ user }, index) => (
+            <Tooltip key={user.id}>
+              <TooltipTrigger asChild>
+                {/* Focusable, so a keyboard also opens the name. An image
+                    role names it once; the avatar's own alt is not read. */}
+                <span
+                  data-testid={`task-follower-face-${user.id}`}
+                  role="img"
+                  aria-label={user.name}
+                  tabIndex={0}
+                  className="ring-background focus-visible:ring-ring relative inline-flex rounded-full ring-2 outline-hidden focus-visible:z-10!"
+                  style={{ zIndex: faces.length - index }}
+                >
+                  <AssigneeAvatar
+                    assignee={{ ...user, kind: "user" }}
+                    size="sm"
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{user.name}</TooltipContent>
+            </Tooltip>
+          ))}
+          {remainingCount > 0 ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  data-testid="task-follower-overflow"
+                  className="bg-muted text-muted-foreground ring-background focus-visible:ring-ring relative inline-flex size-5 items-center justify-center rounded-full text-2xs font-medium tabular-nums ring-2 outline-hidden focus-visible:z-10!"
+                  style={{ zIndex: 0 }}
+                  role="img"
+                  aria-label={t("moreFollowers", {
+                    count: remainingCount,
+                    names: overflowNames,
+                  })}
+                  tabIndex={0}
+                >
+                  +{remainingCount}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{overflowNames}</TooltipContent>
+            </Tooltip>
+          ) : null}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/** The viewer's own bot, small, beside the follow label; decorative. */
+function SokoBotMark({ face }: { face: ViewerSokoBotFace }) {
+  return (
+    <BotFace
+      imageUrl={face.imageUrl}
+      seed={face.seed}
+      avatarCode={face.avatarCode}
+      orbSize={32}
+      avatarSize={16}
+      className="size-4"
+    />
   );
 }
 

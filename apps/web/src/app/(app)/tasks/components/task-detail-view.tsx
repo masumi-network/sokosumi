@@ -96,7 +96,7 @@ export async function TaskDetailView({
     hasAssignedSeatPromise,
     mentionableUsersPromise,
     projectPromise,
-    viewerHasSokoBotPromise,
+    viewerSokoBotPromise,
   } = startPrivateTaskDetailReads(task, forceReadOnly);
   const translationsPromise = getTranslations("App.Tasks.Detail");
   const linkedTasks = mapVisibleTaskLinks(task.links);
@@ -261,7 +261,7 @@ export async function TaskDetailView({
                 sessionPromise={sessionPromise}
                 currentPlanPromise={currentPlanPromise}
                 mentionableUsersPromise={mentionableUsersPromise}
-                viewerHasSokoBotPromise={viewerHasSokoBotPromise}
+                viewerSokoBotPromise={viewerSokoBotPromise}
               />
             </Suspense>
           </div>

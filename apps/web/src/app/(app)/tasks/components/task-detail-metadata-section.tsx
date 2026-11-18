@@ -8,10 +8,13 @@ import type {
 } from "@/app/tasks/components/task-detail-view";
 import { TaskFromSchedule } from "@/app/tasks/components/task-from-schedule";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
-import { TaskMetadataFollowersRow } from "@/app/tasks/components/task-metadata-followers-row";
+import { TaskMetadataParticipantsField } from "@/app/tasks/components/task-metadata-participants-field";
 import { TaskMetadataParticipantsRow } from "@/app/tasks/components/task-metadata-participants-row";
 import { TaskTagSection } from "@/app/tasks/components/task-tags";
-import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
+import {
+  canCommentOnTaskForViewer,
+  isReadOnlyForViewer,
+} from "@/app/tasks/utils/task-read-only";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { latestStatusChange } from "@/app/tasks/utils/task-view-model";
 
@@ -38,6 +41,14 @@ export async function TaskMetadataSection({
       getTranslations("App.Tasks.Filters.statusOptions"),
       getTranslations("App.Tasks.Priority"),
     ]);
+  const viewer = session?.user
+    ? {
+        id: session.user.id,
+        name: session.user.name ?? t("memberFallback"),
+        // Raw, as Core sends participants: the avatar resolves it.
+        image: session.user.image ?? null,
+      }
+    : null;
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const isReadOnly = isReadOnlyForViewer({
     forceReadOnly,
@@ -83,7 +94,32 @@ export async function TaskMetadataSection({
           )
         }
         participants={
-          <>
+          // Read-only views (admin, developer) show who takes part, no join.
+          viewer && !forceReadOnly ? (
+            <TaskMetadataParticipantsField
+              key={task.id}
+              taskId={task.id}
+              viewer={viewer}
+              participants={task.participants}
+              canJoin={canCommentOnTaskForViewer({
+                taskWorkspaceOrganizationId:
+                  task.workspace.organizationId ?? null,
+                taskOwnerId: task.ownerId,
+                sessionUserId: viewer.id,
+                forceReadOnly,
+                taskStatus: task.status,
+                hasAssignedSeat,
+              })}
+              labels={{
+                participants: t("participants"),
+                noParticipants: t("noParticipants"),
+                joinTask: t("joinTask"),
+                leaveTask: t("leaveTask"),
+                joinError: t("joinError"),
+                leaveError: t("leaveError"),
+              }}
+            />
+          ) : (
             <TaskMetadataParticipantsRow
               participants={task.participants}
               labels={{
@@ -91,16 +127,7 @@ export async function TaskMetadataSection({
                 noParticipants: t("noParticipants"),
               }}
             />
-            <TaskMetadataFollowersRow
-              followers={task.followers ?? []}
-              // Read-only views offer no follow button, so show every follower.
-              viewerId={forceReadOnly ? null : (session?.user.id ?? null)}
-              labels={{
-                followedBy: t("followedBy"),
-                followerBot: (name) => t("followerBot", { name }),
-              }}
-            />
-          </>
+          )
         }
         labels={{
           privateBadge: t("privateBadge"),

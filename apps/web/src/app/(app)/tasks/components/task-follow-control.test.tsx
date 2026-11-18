@@ -1,5 +1,5 @@
 import type { TaskFollower } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode, StrictMode } from "react";
@@ -46,28 +46,30 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations:
+    () => (key: string, values?: { count: number; names: string }) =>
+      values ? `${key}:${values.count}:${values.names}` : key,
 }));
 
 function follower(id: string): TaskFollower {
   return {
     user: { id, name: id, image: null },
     followedAt: new Date("2026-01-02T00:00:00.000Z"),
-    sokoBot: {
-      id: `bot-${id}`,
-      avatarSeed: null,
-      avatarImageUrl: "/bot.png",
-      avatarCode: null,
-    },
   };
 }
+
+const VIEWER_BOT = {
+  imageUrl: "/own-bot.png",
+  avatarCode: null,
+  seed: "bot-1",
+};
 
 const props = (
   overrides: Partial<ComponentProps<typeof TaskFollowControl>> = {},
 ): ComponentProps<typeof TaskFollowControl> => ({
   taskId: "task-1",
   viewerId: "viewer-1",
-  viewerHasSokoBot: true,
+  viewerSokoBot: VIEWER_BOT,
   followers: [],
   canComment: true,
   ...overrides,
@@ -93,11 +95,11 @@ describe("TaskFollowControl", () => {
     });
   });
 
-  it("follows with the viewer's Soko Bot, and shows no face of it", async () => {
+  it("follows with the viewer's Soko Bot, and shows its face", async () => {
     const user = userEvent.setup();
     renderControl();
     const button = screen.getByRole("button", { name: "follow" });
-    expect(button.querySelector("img, canvas")).toBeNull();
+    expect(button.querySelector('img[src="/own-bot.png"]')).not.toBeNull();
     await user.click(button);
     expect(followTaskMock).toHaveBeenCalledWith({ taskId: "task-1" });
     expect(
@@ -118,6 +120,52 @@ describe("TaskFollowControl", () => {
   it("reads another person's follow as not the viewer's", () => {
     renderControl({ followers: [follower("other-1")] });
     expect(screen.getByRole("button", { name: "follow" })).toBeInTheDocument();
+  });
+
+  it("shows the other followers' faces with their names, never the viewer's", async () => {
+    const user = userEvent.setup();
+    renderControl({
+      followers: [follower("viewer-1"), follower("Ada"), follower("Linus")],
+    });
+    const group = screen.getByRole("group", { name: "followedBy" });
+    expect(
+      within(group)
+        .getAllByRole("img")
+        .map((face) => face.getAttribute("aria-label")),
+    ).toEqual(["Ada", "Linus"]);
+    expect(screen.queryByTestId("task-follower-face-viewer-1")).toBeNull();
+    await user.hover(screen.getByTestId("task-follower-face-Ada"));
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Ada");
+  });
+
+  it("names the followers past the shown faces", async () => {
+    const user = userEvent.setup();
+    const names = ["A", "B", "C", "D", "E", "F", "G", "H"];
+    renderControl({ viewerId: null, followers: names.map(follower) });
+    const overflow = screen.getByTestId("task-follower-overflow");
+    const hidden = names.slice(3);
+    expect(overflow).toHaveAccessibleName(
+      `moreFollowers:${hidden.length}:${hidden.join(", ")}`,
+    );
+    expect(overflow).toHaveTextContent(`+${hidden.length}`);
+    await user.hover(overflow);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      hidden.join(", "),
+    );
+  });
+
+  it("opens a follower's name from the keyboard too", async () => {
+    const user = userEvent.setup();
+    renderControl({ viewerId: null, followers: [follower("Ada")] });
+    await user.tab();
+    expect(screen.getByTestId("task-follower-face-Ada")).toHaveFocus();
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Ada");
+  });
+
+  it("shows who follows to a viewer who cannot follow", () => {
+    renderControl({ viewerId: null, followers: [follower("Ada")] });
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByTestId("task-follower-face-Ada")).toBeInTheDocument();
   });
 
   it("reverts and says so when following fails", async () => {
@@ -157,7 +205,7 @@ describe("TaskFollowControl", () => {
   });
 
   it("sends a viewer without a Soko Bot to setup, returning to this Task", () => {
-    renderControl({ viewerHasSokoBot: false });
+    renderControl({ viewerSokoBot: null });
     expect(screen.getByRole("link", { name: "follow" })).toHaveAttribute(
       "href",
       `/setup/assistant?${new URLSearchParams({ next: "/tasks/task-1?follow=1" })}`,
@@ -166,7 +214,7 @@ describe("TaskFollowControl", () => {
 
   it("remembers the Task when setup starts here, but not in a new tab", async () => {
     const user = userEvent.setup();
-    renderControl({ viewerHasSokoBot: false });
+    renderControl({ viewerSokoBot: null });
     const link = screen.getByRole("link", { name: "follow" });
     link.addEventListener("click", (event) => event.preventDefault());
     await user.keyboard("{Meta>}");
@@ -206,7 +254,7 @@ describe("TaskFollowControl", () => {
   it("keeps the hand-off while the page shows no bot, and follows once it does", async () => {
     searchParams = "follow=1";
     window.sessionStorage.setItem(FOLLOW_SESSION_KEY, "task-1");
-    const { rerender } = renderControl({ viewerHasSokoBot: false });
+    const { rerender } = renderControl({ viewerSokoBot: null });
     expect(followTaskMock).not.toHaveBeenCalled();
     expect(followMarker()).toBe("1");
 
@@ -232,7 +280,7 @@ describe("TaskFollowControl", () => {
   it("lets a follower whose bot is gone stop following", async () => {
     const user = userEvent.setup();
     renderControl({
-      viewerHasSokoBot: false,
+      viewerSokoBot: null,
       followers: [follower("viewer-1")],
     });
     await user.click(
