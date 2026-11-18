@@ -12,6 +12,8 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
+import { SETUP_ASSISTANT_MESSAGE_PATHS } from "@/i18n/message-namespaces";
+import { pickMessages } from "@/i18n/pick-messages";
 import en from "@/messages/en.json";
 
 import { AvatarStudio, AvatarStudioDialog } from "./avatar-studio.client";
@@ -46,6 +48,22 @@ function lastCode(onChange: ReturnType<typeof vi.fn>): string {
 }
 
 describe("AvatarStudio", () => {
+  it("names every control with setup's messages, not raw keys", () => {
+    // `/setup/assistant` hands the client only its own bag; a key outside it
+    // shows as `App.SokoBot.AvatarStudio.states.idle` and widens the phone page.
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        messages={pickMessages(en, SETUP_ASSISTANT_MESSAGE_PATHS)}
+        onError={() => {}}
+      >
+        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("radio", { name: "Idle" })).toBeTruthy();
+    expect(document.body.textContent).not.toContain("App.SokoBot");
+  });
+
   it("opens on the code it is given and reports it", () => {
     const onChange = vi.fn();
     render(
