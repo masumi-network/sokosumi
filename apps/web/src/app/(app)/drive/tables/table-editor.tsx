@@ -24,12 +24,12 @@ import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Bot,
   Clock,
   GripVertical,
   ListFilter,
   MoreHorizontal,
   Plus,
-  Sparkles,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -975,7 +975,7 @@ function TableWorkspace({
                 setDialog("enrich");
               }}
             >
-              <Sparkles aria-hidden className="size-4" />
+              <Bot aria-hidden className="size-4" />
               {t("askAgent")}
             </Button>
             <Button
