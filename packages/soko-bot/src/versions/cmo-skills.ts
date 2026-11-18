@@ -406,7 +406,7 @@ SEO has its own tab in CMO, outside the strategy and its calendar: the weekly si
 ## Articles and page changes
 
 - They go to the SEO tab with save_seo_suggestions, never into the strategy calendar. Core attaches the numbers and refuses a suggestion it has none for: research the keyword first. Then tell the owner what you added, why, and that it is in the SEO tab.
-- An article targets one search with real monthly searches and a buyer's intent; its title, outline and why follow the seo writing skill. Write the full text only when the owner asks for it.
+- An article targets one search with real monthly searches and a buyer's intent; its title, outline and why follow the seo writing skill. Write the full text only when the owner asks for it; it reads as the business's own page and never names the Brand Brain, your tools or where a fact came from.
 - A page change names the page, what to change and why, and newText: the exact new title, description, heading or paragraph, ready to copy. Pick them from Search Console (pages ranked 8 to 20 for a search that sells; top-five pages few people click) and from the audit's issues. Wait three to four weeks between changes to the same page; the next weekly audit checks a change the owner marked done.
 
 ## The weekly audit

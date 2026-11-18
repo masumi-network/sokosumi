@@ -987,7 +987,7 @@ export async function requestCmoArticleDraft(
     message: [
       `The owner asked you to write the article "${row.title}" in full (SEO tab, suggestion ${row.id}).`,
       `Target keyword: ${row.keyword}. Outline:\n${row.body}`,
-      "Read the seo writing skill first and follow it. Use only facts from the Brand Brain and the site. Save it with save_seo_suggestions: the same id, title, keyword, why and outline, and the whole article in Markdown as draft.",
+      "Read the seo writing skill first and follow it. Use only facts from the Brand Brain and the site, written as the business's own words: the article never names the Brand Brain, your tools, the SEO tab or where a fact came from. Save it with save_seo_suggestions: the same id, title, keyword, why and outline, and the whole article in Markdown as draft.",
       "Then answer in one short sentence that the draft is ready in the SEO tab.",
     ].join("\n"),
     route: CMO_SEO_ROUTE,
