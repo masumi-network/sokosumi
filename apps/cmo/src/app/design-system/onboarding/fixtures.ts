@@ -21,6 +21,7 @@ export const SCREENS = [
   "asking",
   "brand",
   "plan",
+  "plan-unfitted",
   "planning",
   "launch",
   "launch-connected",
@@ -157,6 +158,20 @@ export function screenOverview(screen: Screen): CmoOverview {
         onboardingStep: "checkout",
         brandBrain: richBrain,
         strategy: richPlan,
+      });
+    // A no on a check that the strategy does not show yet.
+    case "plan-unfitted":
+      return draft({
+        brandBrain: richBrain,
+        strategy: {
+          ...richPlan,
+          changes: [],
+          questions: (richPlan.questions ?? []).map((question, at) =>
+            at === 0
+              ? { ...question, answer: "no", note: "Not this month" }
+              : question,
+          ),
+        },
       });
     default:
       return draft({ brandBrain: richBrain, strategy: richPlan });
