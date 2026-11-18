@@ -1,5 +1,6 @@
 "use client";
 
+import { SeoActions, SeoPage } from "./seo-page";
 import "../onboarding/onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
@@ -50,7 +51,9 @@ import { type ChangePlan, type OpenPortal } from "./subscription-card";
 
 const POLL_MS = 4_000;
 
-export interface CmoAppActions extends AdActions {
+export interface CmoAppActions
+  extends AdActions,
+    Omit<SeoActions, "connectSearchConsole"> {
   loadState: () => Promise<{
     overview: CmoOverview | null;
     messages: CusoMessage[];
@@ -77,7 +80,7 @@ export interface CmoAppActions extends AdActions {
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app",
+    from: "onboarding" | "app" | "seo",
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
@@ -497,6 +500,17 @@ export function CmoApp({
                     setOverview(await actions.approveStrategy(versionId))
                   }
                 />
+              ) : view === "seo" ? (
+                <SeoPage
+                  actions={{
+                    ...actions,
+                    connectSearchConsole: () =>
+                      actions.connectMeasurement(
+                        "google_search_console",
+                        "seo",
+                      ),
+                  }}
+                />
               ) : view === "results" ? (
                 <ResultsPage
                   overview={overview}
@@ -530,6 +544,10 @@ export function CmoApp({
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
                   connectFailed={connectFailed}
+                  openSeo={() => go("seo")}
+                  connectSearchConsole={() =>
+                    actions.connectMeasurement("google_search_console", "seo")
+                  }
                 />
               ) : (
                 <SettingsPage
@@ -559,6 +577,10 @@ const PAGE_LEADS: Partial<Record<View, { title: string; line: string }>> = {
   calendar: {
     title: "Your month",
     line: `Every post ${AGENT_NAME} makes. Each one opens once it is made.`,
+  },
+  seo: {
+    title: "Found on Google",
+    line: "A full audit of your site every week, what to change, and what to write next.",
   },
   results: {
     title: "How it's going",

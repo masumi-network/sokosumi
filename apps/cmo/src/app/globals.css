@@ -1646,6 +1646,103 @@ button.card-focus {
   border-radius: 50%;
 }
 
+/* ── SEO tab ── */
+.seo-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.seo-head h3 {
+  margin: 0;
+}
+
+.seo-item {
+  align-items: flex-start;
+}
+
+.seo-item p {
+  margin: 0;
+}
+
+/* Under about 500px the actions drop below the text instead of squeezing it. */
+.seo-item > .grow {
+  flex: 1 1 280px;
+}
+
+.seo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.seo-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The exact new text to paste: a quiet box, the copy button is what acts. */
+.seo-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.seo-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seo-search input {
+  flex: 1 1 220px;
+  font-size: 1rem;
+}
+
+.seo-recent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.seo-table-wrap {
+  overflow-x: auto;
+}
+
+.seo-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.seo-table th {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-align: left;
+}
+
+.seo-table th,
+.seo-table td {
+  padding: 8px 12px 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.seo-table td.num {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Pages ── */
 /* The gray layer: a panel holds cards. The app's page body is one, tighter. */
 .panel {
