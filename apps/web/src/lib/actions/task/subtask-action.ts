@@ -22,6 +22,7 @@ import {
 interface CreateSubtaskParameters extends AuthenticatedRequest {
   parentTaskId: string;
   name: string;
+  description?: string | null;
   assigneeId?: string | null;
   assigneeSokoBotId?: string | null;
   assigneeUserId?: string | null;
@@ -37,6 +38,7 @@ export const createSubtask = withSession<
   async ({
     parentTaskId,
     name,
+    description,
     assigneeId,
     assigneeSokoBotId,
     assigneeUserId,
@@ -45,7 +47,7 @@ export const createSubtask = withSession<
     try {
       const task = await taskService.createTask({
         name: normalizeTaskNameForCoreApi(name),
-        description: null,
+        description: description?.trim() || null,
         ...resolveAssigneeWrite(assigneeId, assigneeSokoBotId, assigneeUserId),
         status: TaskStatus.READY,
         parentTaskId,

@@ -2840,6 +2840,7 @@ describe("TaskDetailActions", () => {
         expect(createSubtaskMock).toHaveBeenCalledWith({
           parentTaskId: "task-1",
           name: "Draft it",
+          description: null,
           assigneeId: null,
           assigneeSokoBotId: null,
           assigneeUserId: null,

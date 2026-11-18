@@ -72,6 +72,7 @@ export function refusalDescription(
 /** What the "Add sub-task" dialog asks for. */
 export interface NewSubtaskDraft {
   name: string;
+  description: string | null;
   assignee: CoworkerOption | null;
   /** `YYYY-MM-DD`. */
   dueOn: string | null;
@@ -85,6 +86,7 @@ export function createSubtaskFromDraft(
   return createSubtask({
     parentTaskId,
     name: draft.name,
+    description: draft.description,
     ...resolveTaskAssigneeFields(
       draft.assignee?.id,
       draft.assignee ? [draft.assignee] : [],

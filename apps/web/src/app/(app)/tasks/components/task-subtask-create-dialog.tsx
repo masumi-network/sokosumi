@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { TaskAssigneePicker } from "./task-assignee-picker";
 import type { NewSubtaskDraft } from "./use-task-subtasks";
@@ -27,7 +28,8 @@ interface TaskSubtaskCreateDialogProps {
 }
 
 /**
- * Asks for a new sub-task's name, and optionally an assignee and a due date.
+ * Asks for a new sub-task's name, and optionally a description, an assignee
+ * and a due date.
  * Mount it only while open, so every opening starts empty.
  */
 export function TaskSubtaskCreateDialog({
@@ -39,9 +41,11 @@ export function TaskSubtaskCreateDialog({
   const t = useTranslations("App.Tasks.Subtasks");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const nameId = useId();
+  const descriptionId = useId();
   const assigneeFieldId = useId();
   const dueId = useId();
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [dueOn, setDueOn] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -52,6 +56,7 @@ export function TaskSubtaskCreateDialog({
     if (!trimmed || isPending) return;
     const draft: NewSubtaskDraft = {
       name: trimmed,
+      description: description.trim() || null,
       assignee:
         assigneeOptions.find((option) => option.id === assigneeId) ?? null,
       dueOn: dueOn || null,
@@ -81,6 +86,15 @@ export function TaskSubtaskCreateDialog({
               autoComplete="off"
               value={name}
               onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={descriptionId}>{t("description")}</Label>
+            <Textarea
+              id={descriptionId}
+              rows={4}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
             />
           </div>
           <div className="space-y-2">

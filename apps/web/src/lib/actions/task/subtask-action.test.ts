@@ -29,13 +29,14 @@ beforeEach(() => {
 });
 
 describe("createSubtask", () => {
-  it("sends the assignee and the due date to Core", async () => {
+  it("sends the description, the assignee and the due date to Core", async () => {
     createTask.mockResolvedValue({ id: "child" });
     const { createSubtask } = await import("./subtask-action");
 
     const result = await createSubtask({
       parentTaskId: "parent",
       name: "Book the venue",
+      description: "Ask for the corner table.",
       assigneeUserId: "user-1",
       dueOn: "2026-12-01",
     });
@@ -45,6 +46,7 @@ describe("createSubtask", () => {
       expect.objectContaining({
         parentTaskId: "parent",
         status: TaskStatus.READY,
+        description: "Ask for the corner table.",
         assigneeId: null,
         assigneeSokoBotId: null,
         assigneeUserId: "user-1",

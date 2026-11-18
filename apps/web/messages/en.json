@@ -2343,6 +2343,7 @@
         "truncated": "Showing the first {count} sub-tasks.",
         "createDescription": "The sub-task goes last in the list.",
         "name": "Name",
+        "description": "Description",
         "assignee": "Assignee",
         "dueOn": "Due date",
         "cancel": "Cancel",

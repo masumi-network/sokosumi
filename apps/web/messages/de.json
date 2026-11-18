@@ -2343,6 +2343,7 @@
         "truncated": "Die ersten {count} Teilaufgaben werden angezeigt.",
         "createDescription": "Die Teilaufgabe kommt ans Ende der Liste.",
         "name": "Name",
+        "description": "Beschreibung",
         "assignee": "Zuständig",
         "dueOn": "Fälligkeitsdatum",
         "cancel": "Abbrechen",

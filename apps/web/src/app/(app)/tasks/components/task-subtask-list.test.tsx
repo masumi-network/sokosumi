@@ -317,7 +317,7 @@ describe("TaskSubtaskList", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("sends the name, assignee and due date from the + dialog and reads the list again", async () => {
+  it("sends the name, description, assignee and due date from the + dialog and reads the list again", async () => {
     const user = userEvent.setup();
     createSubtask.mockResolvedValue({ ok: true, value: {} });
     renderList([row("a")]);
@@ -327,6 +327,10 @@ describe("TaskSubtaskList", () => {
 
     await user.click(screen.getByRole("button", { name: "add" }));
     await user.type(screen.getByRole("textbox", { name: "name" }), "Book it");
+    await user.type(
+      screen.getByRole("textbox", { name: "description" }),
+      "  Ask for the corner table.  ",
+    );
     await user.click(
       screen.getByRole("combobox", { name: "assignee: unassigned" }),
     );
@@ -340,6 +344,7 @@ describe("TaskSubtaskList", () => {
       expect(createSubtask).toHaveBeenCalledWith({
         parentTaskId: "parent",
         name: "Book it",
+        description: "Ask for the corner table.",
         assigneeId: null,
         assigneeSokoBotId: null,
         assigneeUserId: "user-1",
