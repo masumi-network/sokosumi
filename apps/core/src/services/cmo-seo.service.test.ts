@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
 import { toKeywordIdea } from "@/lib/ads/dataforseo";
 import { searchConsoleOpportunities } from "./cmo-seo.service";
-import { auditSuggestionKey, cmoAuditSummary } from "./cmo-seo-audit.service";
+import {
+  auditSuggestionKey,
+  cmoAuditSummary,
+  pageText,
+} from "./cmo-seo-audit.service";
 
 const report = publicSeoPayloadSchema.parse(
   JSON.parse(
@@ -102,5 +106,21 @@ describe("searchConsoleOpportunities", () => {
     ]);
     expect(found.nearFirstPage.map((r) => r.query)).toEqual(["near"]);
     expect(found.lowClickRate.map((r) => r.query)).toEqual(["top, ignored"]);
+  });
+});
+
+describe("pageText", () => {
+  it("reads the title, meta description and visible text, never scripts or styles", () => {
+    const text = pageText(
+      `<html><head><title>Team Booking &amp; Routing | Acme</title>
+        <meta name="description" content="Book a team in one link.">
+        <style>.a{color:red}</style><script>var hidden = "secret";</script >
+        </head><body><h1>Team   booking</h1><p>For sales &lt;teams&gt;.</p></body></html>`,
+    );
+    expect(text).toContain("team booking & routing | acme");
+    expect(text).toContain("book a team in one link.");
+    expect(text).toContain("for sales <teams>.");
+    expect(text).not.toContain("secret");
+    expect(text).not.toContain("color:red");
   });
 });

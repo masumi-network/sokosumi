@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
+import { Parser } from "htmlparser2";
 import {
   type PublicSeoPayload,
   publicSeoPayloadSchema,
@@ -340,16 +341,35 @@ export async function readCmoSeoAudit(cuso: Cuso): Promise<CmoSeoAudit> {
   };
 }
 
-function pageText(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+const UNSEEN_TAGS = new Set(["script", "style", "noscript", "template"]);
+const flat = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
+
+/** What a visitor and Google read on the page: its text, plus its meta descriptions. */
+export function pageText(html: string): string {
+  const parts: string[] = [];
+  let unseen = 0;
+  const parser = new Parser(
+    {
+      onopentag(name, attributes) {
+        if (UNSEEN_TAGS.has(name)) unseen += 1;
+        parts.push(" ");
+        if (name === "meta" && attributes.content)
+          parts.push(attributes.content, " ");
+      },
+      ontext(text) {
+        if (unseen === 0) parts.push(text);
+      },
+      onclosetag(name) {
+        parts.push(" ");
+        if (UNSEEN_TAGS.has(name) && unseen > 0) unseen -= 1;
+      },
+    },
+    { decodeEntities: true },
+  );
+  parser.write(html);
+  parser.end();
+  // Text arrives in pieces around each entity: joined as is, with a space only at a tag.
+  return flat(parts.join(""));
 }
 
 /** Whether the page now carries the new text (its title, description or heading included). */
@@ -363,12 +383,8 @@ export async function pageShowsText(
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) return false;
-  const html = await response.text();
-  const wanted = pageText(text).trim().slice(0, 160);
-  const metas = [...html.matchAll(/<meta[^>]+content="([^"]*)"/gi)]
-    .map((match) => match[1])
-    .join(" ");
-  return !!wanted && pageText(`${html} ${metas}`).includes(wanted);
+  const wanted = flat(text).slice(0, 160);
+  return !!wanted && pageText(await response.text()).includes(wanted);
 }
 
 /**
