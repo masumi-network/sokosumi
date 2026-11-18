@@ -348,8 +348,12 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
     ).toBe("STARTING");
   });
 
-  it("counts a turn of today against the daily cap after the host has passed midnight", async () => {
+  it("counts a turn of today against the daily cap after the host has passed midnight", async (context) => {
     const now = await databaseNow();
+    // localDayStart keeps the sample's seconds (a separate follow-up), so in
+    // the day's first minutes a turn stamped just before the gate's sample
+    // falls outside it whatever the clock.
+    if (now.getUTCHours() === 0 && now.getUTCMinutes() < 2) context.skip();
     await createTurn(now, {
       status: "RUNNING",
       eveSessionId: "session_clock",
@@ -475,6 +479,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
         heartbeatAgoMs: 0,
         leaseInMs: 2_000,
       });
+      const leaseEnd = now.getTime() + 2_000;
       const release = Promise.withResolvers<void>();
       const locked = Promise.withResolvers<number>();
       const holder = prisma.$transaction(
@@ -488,22 +493,32 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
         },
         { timeout: 20_000 },
       );
-      const holderPid = await locked.promise;
-      const write = mutate(turnId);
-      write.catch(() => undefined);
-      // The write is queued behind the lock, then the lease runs out.
-      for (;;) {
-        const [{ waiting }] = await prisma.$queryRaw<{ waiting: number }[]>`
-          SELECT count(*)::int AS waiting FROM pg_stat_activity
-          WHERE ${holderPid}::int = ANY(pg_blocking_pids(pid))
-        `;
-        if (waiting > 0) break;
+      holder.catch(locked.reject);
+      let write: Promise<unknown> | undefined;
+      try {
+        const holderPid = await locked.promise;
+        write = mutate(turnId);
+        write.catch(() => undefined);
+        // The write must be queued behind the lock while its lease is live.
+        let queued = false;
+        while (!queued && (await databaseNow()).getTime() < leaseEnd) {
+          const [{ waiting }] = await prisma.$queryRaw<{ waiting: number }[]>`
+            SELECT count(*)::int AS waiting FROM pg_stat_activity
+            WHERE ${holderPid}::int = ANY(pg_blocking_pids(pid))
+          `;
+          queued = waiting > 0;
+        }
+        expect(queued).toBe(true);
+        // Then the lease runs out while it waits; bounded in case the clock stalls.
+        const giveUpAt = Date.now() + 10_000;
+        while (
+          (await databaseNow()).getTime() <= leaseEnd &&
+          Date.now() < giveUpAt
+        ) {}
+      } finally {
+        release.resolve();
+        await Promise.allSettled([holder, write]);
       }
-      let pgNow = await databaseNow();
-      while (pgNow.getTime() <= now.getTime() + 2_000)
-        pgNow = await databaseNow();
-      release.resolve();
-      await holder;
 
       await expect(write).rejects.toThrow(
         "Soko Bot turn is no longer writable",

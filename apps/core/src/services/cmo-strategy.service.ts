@@ -325,7 +325,6 @@ export async function fixCmoBrandSection(
   const brandBrain = await requestBrandBrainFix(cuso.projectId, {
     section: input.section,
     note: input.note,
-    at: now,
   });
   return startQueuedFix(cuso, input.userId, brandBrain, now);
 }
@@ -390,7 +389,7 @@ export async function answerCmoBrandQuestion(
     if (answered.answer !== "no") return null;
     return requestBrandBrainFix(
       cuso.projectId,
-      { section: answered.section, note: noFix(answered), at: now },
+      { section: answered.section, note: noFix(answered) },
       tx,
     );
   });

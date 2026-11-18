@@ -2194,7 +2194,9 @@ export class SokoBotControlPlane {
               workspaceId: input.workspaceId,
               source: "CHAT",
               createdAt: {
-                gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
+                gte: new Date(
+                  (await databaseNow()).getTime() - PREVIOUS_REPLY_WINDOW_MS,
+                ),
               },
               askedByUserId,
               ...(conversationMention?.message.roomId

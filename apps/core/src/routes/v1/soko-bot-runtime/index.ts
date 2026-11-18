@@ -64,10 +64,10 @@ const failSchema = z.object({
 });
 
 app.use("/turns/:turnId/*", async (c, next) => {
-  const claims = verifyTurnToken(
+  const claims = await verifyTurnToken(
     c.req.header(SOKO_BOT_TURN_TOKEN_HEADER),
     c.req.param("turnId"),
-    (await databaseNow()).getTime(),
+    async () => (await databaseNow()).getTime(),
   );
   if (!claims) throw unauthorized();
   c.set("turn", claims);

@@ -596,11 +596,9 @@ async function cancelMonthPosts(strategyId: string) {
   });
 }
 
-async function monthProductionTurns(
-  botId: string,
-  prefix: string,
-  since: Date,
-) {
+// Scoped by the approval's id prefix and the parent chain, not by time: the
+// turns' createdAt is PostgreSQL time and the case start is the host's.
+async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
     status: true,
@@ -611,7 +609,6 @@ async function monthProductionTurns(
     where: {
       sokoBotId: botId,
       source: "EVENT",
-      createdAt: { gte: since },
       clientTurnId: { startsWith: prefix },
     },
     select,
@@ -621,7 +618,6 @@ async function monthProductionTurns(
     const children = await prisma.sokoBotTurn.findMany({
       where: {
         sokoBotId: botId,
-        createdAt: { gte: since },
         parentTurnId: { in: frontier.map((turn) => turn.id) },
       },
       select,
@@ -664,11 +660,7 @@ async function pollMonth(
   if (approval.approvedAt) {
     // Production IDs bind retries to the current approval, including rewrites.
     const prefix = `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`;
-    const productionTurns = await monthProductionTurns(
-      lane.cusoBotId,
-      prefix,
-      context.startedAt,
-    );
+    const productionTurns = await monthProductionTurns(lane.cusoBotId, prefix);
     const exhausted = productionTurns.find(
       (turn) => evalInfrastructureFailure(turn)?.stopsRun,
     );

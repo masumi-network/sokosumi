@@ -17,6 +17,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { keepAnswers } from "@/helpers/question-answers";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import type { StudioBrandCopy } from "@/schemas/studio-brand-kit.schema";
 
@@ -251,7 +252,7 @@ const BRAND_FIX_NOTE_MAX = 2_000;
  */
 export async function requestBrandBrainFix(
   projectId: string,
-  input: { section: CmoBrandSectionKey; note: string; at?: Date },
+  input: { section: CmoBrandSectionKey; note: string },
   db?: Prisma.TransactionClient,
 ): Promise<BrandBrain> {
   const write = async (tx: Prisma.TransactionClient) => {
@@ -270,7 +271,8 @@ export async function requestBrandBrainFix(
       );
     const fix = {
       note,
-      at: (input.at ?? new Date()).toISOString(),
+      // PostgreSQL time, like the createdAt of the turn that is briefed on it.
+      at: (await databaseNow(tx)).toISOString(),
       fixed: false,
     };
     const fixed = {
