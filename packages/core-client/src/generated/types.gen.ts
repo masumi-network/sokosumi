@@ -13807,6 +13807,126 @@ export type CmoCustomerPortal = {
     url: string;
 };
 
+export type CmoSeo = {
+    websiteUrl: string;
+    countryCode: string;
+    languageCode: string;
+    audit: CmoSeoAudit;
+    searchConsole: CmoSearchConsole;
+    articles: Array<CmoSeoSuggestion>;
+    pageChanges: Array<CmoSeoSuggestion>;
+    keywordSearches: Array<CmoKeywordSearch>;
+    keywordSearchesLeft: number;
+};
+
+export type CmoSeoAudit = {
+    creditsPerAudit: number;
+    status: 'active' | 'paused' | 'not_started' | 'unavailable';
+    nextRunAt: Date | null;
+    running: boolean;
+    skipped: Array<Date>;
+    latest: {
+        observedAt: Date;
+        checked: number;
+        passed: number;
+        issues: Array<{
+            title: string;
+            pageUrl: string;
+            severity: 'critical' | 'major' | 'minor';
+            detail: string | null;
+        }>;
+        fixes: Array<{
+            title: string;
+            why: string;
+            effort: string;
+            pageUrl: string;
+        }>;
+    } | null;
+    lastFailedAt: Date | null;
+};
+
+export type CmoSearchConsole = {
+    status: 'connected' | 'not_connected' | 'no_property' | 'unavailable';
+    property: string | null;
+    from: string | null;
+    to: string | null;
+    observedAt: Date | null;
+    totals: {
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    } | null;
+    nearFirstPage: Array<{
+        query: string;
+        pageUrl: string;
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    }>;
+    lowClickRate: Array<{
+        query: string;
+        pageUrl: string;
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    }>;
+};
+
+export type CmoSeoSuggestion = {
+    id: string;
+    kind: 'article' | 'page_change';
+    source: 'audit' | 'cuso';
+    title: string;
+    keyword: string | null;
+    pageUrl: string | null;
+    why: string;
+    body: string;
+    newText: string | null;
+    draft: string | null;
+    evidence: Array<CmoSeoEvidence>;
+    status: 'open' | 'done' | 'verified' | 'dismissed';
+    createdAt: Date;
+    doneAt: Date | null;
+    verifiedAt: Date | null;
+};
+
+export type CmoSeoEvidence = {
+    metric: 'searchVolume' | 'difficulty' | 'intent' | 'position' | 'clicks' | 'impressions' | 'ctr' | 'auditIssue';
+    keyword: string | null;
+    pageUrl: string | null;
+    value: string;
+    source: 'keyword_research' | 'search_console' | 'weekly_audit';
+    observedAt: Date;
+};
+
+export type CmoKeywordSearch = {
+    topic: string;
+    countryCode: string;
+    languageCode: string;
+    observedAt: Date;
+    ideas: Array<CmoKeywordIdea>;
+};
+
+export type CmoKeywordIdea = {
+    keyword: string;
+    searchVolume: number | null;
+    difficulty: number | null;
+    intent: 'informational' | 'navigational' | 'commercial' | 'transactional' | null;
+    position: number | null;
+    positionSource: 'search_console' | 'weekly_audit' | null;
+};
+
+export type CmoKeywordSearchRequest = {
+    topic: string;
+};
+
+export type CmoSeoSuggestionStatusRequest = {
+    status: 'open' | 'done' | 'dismissed';
+};
+
 export type CmoAdBudgetRequest = {
     monthly: number;
     /**
@@ -86871,6 +86991,447 @@ export type StartCmoOverForProjectResponses = {
 };
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
+
+export type GetCmoSeoForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo';
+};
+
+export type GetCmoSeoForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoSeoForProjectError = GetCmoSeoForProjectErrors[keyof GetCmoSeoForProjectErrors];
+
+export type GetCmoSeoForProjectResponses = {
+    /**
+     * The SEO tab
+     */
+    200: {
+        data: CmoSeo;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoSeoForProjectResponse = GetCmoSeoForProjectResponses[keyof GetCmoSeoForProjectResponses];
+
+export type SearchCmoKeywordsForProjectData = {
+    body: CmoKeywordSearchRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/keywords';
+};
+
+export type SearchCmoKeywordsForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No keyword searches left today
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Keyword research is unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchCmoKeywordsForProjectError = SearchCmoKeywordsForProjectErrors[keyof SearchCmoKeywordsForProjectErrors];
+
+export type SearchCmoKeywordsForProjectResponses = {
+    /**
+     * The keyword ideas
+     */
+    200: {
+        data: CmoKeywordSearch;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchCmoKeywordsForProjectResponse = SearchCmoKeywordsForProjectResponses[keyof SearchCmoKeywordsForProjectResponses];
+
+export type RequestCmoArticleIdeasForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/ideas';
+};
+
+export type RequestCmoArticleIdeasForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is paused or out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestCmoArticleIdeasForProjectError = RequestCmoArticleIdeasForProjectErrors[keyof RequestCmoArticleIdeasForProjectErrors];
+
+export type RequestCmoArticleIdeasForProjectResponses = {
+    /**
+     * Cuso started
+     */
+    200: {
+        data: {
+            turnId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoArticleIdeasForProjectResponse = RequestCmoArticleIdeasForProjectResponses[keyof RequestCmoArticleIdeasForProjectResponses];
+
+export type RequestCmoArticleDraftForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/draft';
+};
+
+export type RequestCmoArticleDraftForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such article
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is paused or out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestCmoArticleDraftForProjectError = RequestCmoArticleDraftForProjectErrors[keyof RequestCmoArticleDraftForProjectErrors];
+
+export type RequestCmoArticleDraftForProjectResponses = {
+    /**
+     * Cuso started
+     */
+    200: {
+        data: {
+            turnId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoArticleDraftForProjectResponse = RequestCmoArticleDraftForProjectResponses[keyof RequestCmoArticleDraftForProjectResponses];
+
+export type SetCmoSeoSuggestionStatusForProjectData = {
+    body: CmoSeoSuggestionStatusRequest;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/status';
+};
+
+export type SetCmoSeoSuggestionStatusForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such suggestion
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoSeoSuggestionStatusForProjectError = SetCmoSeoSuggestionStatusForProjectErrors[keyof SetCmoSeoSuggestionStatusForProjectErrors];
+
+export type SetCmoSeoSuggestionStatusForProjectResponses = {
+    /**
+     * The suggestion
+     */
+    200: {
+        data: CmoSeoSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoSeoSuggestionStatusForProjectResponse = SetCmoSeoSuggestionStatusForProjectResponses[keyof SetCmoSeoSuggestionStatusForProjectResponses];
 
 export type SkipCmoSubscriptionForProjectData = {
     body?: never;

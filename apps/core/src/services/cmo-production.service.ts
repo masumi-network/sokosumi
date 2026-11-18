@@ -8,7 +8,6 @@ import {
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-
 import prisma from "@/lib/db/prisma";
 import {
   emitCoreWarning,
@@ -16,6 +15,7 @@ import {
   runAsBackgroundWork,
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
@@ -810,6 +810,28 @@ async function keepCmoRhythmsWithRunner(cuso: Cuso): Promise<void> {
   });
 }
 
+/** The weekly SEO audit rides on this sync; its failure never holds back the month. */
+async function keepCmoSeo(cuso: Cuso, now: Date): Promise<void> {
+  if (!getSeoAnalysisExecution().enabled) return;
+  try {
+    const { keepCmoSeoAudit, verifyCmoSeoChanges } = await import(
+      "@/services/cmo-seo-audit.service"
+    );
+    await keepCmoSeoAudit(cuso, now);
+    await verifyCmoSeoChanges(cuso);
+  } catch (error) {
+    recordCoreWarning(
+      { operation: "cmo_seo_sync", sokoBot: { id: cuso.sokoBotId } },
+      {
+        message: "CMO SEO sync skipped a Cuso",
+        why: "Keeping the weekly SEO audit or checking done page changes threw",
+        fix: "The next sync tries again. If it repeats, look up the error name and code under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+  }
+}
+
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
@@ -834,6 +856,7 @@ export async function syncCmoProduction(
     try {
       await keepCmoRhythmsWithRunner(cuso);
       await advanceCmoProduction(cuso);
+      await keepCmoSeo(cuso, now);
       checked += 1;
     } catch (error) {
       // One event per Cuso skipped; the error can quote the plan or a prompt.
