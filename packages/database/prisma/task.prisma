@@ -92,6 +92,7 @@ model Task {
 
   /// Humans added by @ in Task comment activity. Not owner or assignee.
   participants TaskParticipant[]
+  mentions     TaskEventMention[]
   /// People whose personal Soko Bot follows the Task for them.
   followers        TaskFollower[]
   dueDateChanges   TaskDueDateChange[]
