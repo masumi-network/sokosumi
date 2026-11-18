@@ -39,8 +39,10 @@ export function talkingVideoQuotedSeconds(script: string): number {
 }
 
 export interface TalkingVideoPriceFigures {
-  /** USD per second of video, hand-verified for the resolution the studio sends. */
+  /** USD per second of video, from what fal billed for the resolution sent. */
   perSecondUsd: number;
+  /** The least one video costs, however short. */
+  minimumVideoUsd: number;
   /** USD per 1,000 characters of script, for the voice. */
   voicePer1000CharactersUsd: number;
   /** USD per minute of video, for the captions. */
@@ -54,7 +56,7 @@ export function creditsPerTalkingVideoCents(
 ): number {
   const seconds = talkingVideoQuotedSeconds(script);
   const usd =
-    seconds * price.perSecondUsd +
+    Math.max(seconds * price.perSecondUsd, price.minimumVideoUsd) +
     (script.length / 1000) * price.voicePer1000CharactersUsd +
     (seconds / 60) * price.captionsPerMinuteUsd;
   return Math.ceil(usd * 100);

@@ -6299,6 +6299,7 @@ export type ProjectImageStudioTalkingVideoCatalog = {
         endpoint: string;
         price: {
             perSecondUsd: number;
+            minimumVideoUsd: number;
             voicePer1000CharactersUsd: number;
             captionsPerMinuteUsd: number;
             basis: string;

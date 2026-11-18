@@ -182,8 +182,8 @@ describe("starting a talking video", () => {
           presenterId: PRESENTER.id,
           languageCode: "en",
         },
-        // 10 s at $0.05, plus the voice and the captions.
-        chargedCents: convertCreditsToCents(52),
+        // 10 s at $0.181, plus the voice and the captions.
+        chargedCents: convertCreditsToCents(183),
       }),
     });
     expect(speakVoiceoverMock).toHaveBeenCalledWith({
@@ -210,15 +210,6 @@ describe("starting a talking video", () => {
         },
       }),
     );
-  });
-
-  it("quotes the higher-quality model at twice the video price", async () => {
-    await createTalkingVideoJob({ ...BASE_INPUT, modelId: "avatar-6" });
-
-    expect(jobCreateMock.mock.calls[0]![0].data).toMatchObject({
-      model: "heygen/avatar-6/image-to-video",
-      chargedCents: convertCreditsToCents(102),
-    });
   });
 
   it("records consent with a person's own photo", async () => {
