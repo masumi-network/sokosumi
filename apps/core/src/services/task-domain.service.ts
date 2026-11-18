@@ -15,6 +15,7 @@ import {
   requireTaskWriteAccess,
   type TaskAssigner,
 } from "@/helpers/access-control";
+import { lockTaskRows } from "@/helpers/calendar-locks";
 import {
   badRequest,
   conflict,
@@ -519,6 +520,9 @@ export async function updateTaskForActor(
       throw conflict("Task changed; read it again");
     if (input.projectId !== task.projectId) {
       requireNotSubtask(task);
+      // The Task before its sub-tasks, top-down as an archive locks them.
+      if (!(await lockTaskRows(tx, [task.id])))
+        throw conflict("Task changed; read it again");
       await requireSubtreeCanChangeProject(tx, task.id);
     }
     await requireProjectInWorkspace(input.projectId, task.workspaceId, tx);
@@ -621,6 +625,9 @@ export async function updateTaskForActor(
   if (input.projectId !== undefined && input.projectId !== task.projectId) {
     // A sub-task keeps its parent's Project; the trigger would refuse it as a 500.
     requireNotSubtask(task);
+    // The Task before its sub-tasks, top-down as an archive locks them.
+    if (!(await lockTaskRows(tx, [task.id])))
+      throw conflict("Task changed; read it again");
     await requireSubtreeCanChangeProject(tx, task.id);
   }
   return tx.task.update({

@@ -137,9 +137,9 @@ async function attachSubtask(
   }
   // Workspace and Project first, in the order a Task PATCH takes them. Then
   // the Task rows top-down, as an archive locks them: both parents, the Task,
-  // then its sub-tasks level by level. Then write both parents, so a
-  // SERIALIZABLE archive that read either one's sub-tasks earlier fails and
-  // retries.
+  // then its sub-tasks level by level, all by depth and then by id. Then
+  // write both parents, so a SERIALIZABLE archive that read either one's
+  // sub-tasks earlier fails and retries.
   const oldParentTaskId = task.parentTaskId;
   if (
     !(await lockCalendarScope(
@@ -147,18 +147,27 @@ async function attachSubtask(
       task.workspaceId,
       [task.projectId, parent.projectId],
       userContext.userId,
-    )) ||
-    !(await lockTaskRows(tx, [
-      parent.id,
-      ...(oldParentTaskId ? [oldParentTaskId] : []),
-    ])) ||
-    !(await lockTaskRows(tx, [task.id]))
+    ))
   ) {
     throw conflict(MOVE_CONFLICT_MESSAGE);
   }
+  // The new parent's chain, itself included: its length is the Task's new level.
+  const chain = await loadTaskAncestors(parent.id, tx);
+  const taskDepth = (await loadTaskAncestors(oldParentTaskId, tx)).length;
   // Locked before the height below is read: a sub-task added meanwhile wrote
   // its parent, so this lock fails and the move retries.
-  const subtaskLevels = await lockSubtaskTree(tx, task.id);
+  const subtaskLevels = await lockSubtaskTree(
+    tx,
+    task.id,
+    [
+      { id: parent.id, depth: chain.length - 1 },
+      ...(oldParentTaskId
+        ? [{ id: oldParentTaskId, depth: taskDepth - 1 }]
+        : []),
+      { id: task.id, depth: taskDepth },
+    ],
+    taskDepth,
+  );
   await touchTaskRow(tx, parent.id);
   if (oldParentTaskId) await touchTaskRow(tx, oldParentTaskId);
 
@@ -175,8 +184,6 @@ async function attachSubtask(
       "Only the Owner of a private Task can add sub-tasks to it",
     );
   }
-  // The new parent's chain, itself included: its length is the Task's new level.
-  const chain = await loadTaskAncestors(parent.id, tx);
   if (chain.some((ancestor) => ancestor.id === task.id)) {
     throw unprocessableEntity(
       "A Task cannot go under one of its own sub-tasks",

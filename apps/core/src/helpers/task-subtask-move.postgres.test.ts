@@ -85,6 +85,36 @@ function move(input: MoveTaskInput) {
   );
 }
 
+async function sokoBotProjectMoveIn(
+  tx: Prisma.TransactionClient,
+  taskId: string,
+  projectId: string,
+  extra: { name?: string } = {},
+) {
+  const { updatedAt } = await tx.task.findUniqueOrThrow({
+    where: { id: taskId },
+  });
+  return updateTaskForActor(
+    {
+      actor: { kind: "soko_bot", sokoBotId: randomUUID() },
+      userId,
+      workspaceId,
+      intent: "metadata",
+      taskId,
+      projectId,
+      expectedUpdatedAt: updatedAt,
+      ...extra,
+    },
+    tx,
+  );
+}
+
+function sokoBotProjectMove(taskId: string, projectId: string) {
+  return prisma.$transaction((tx) =>
+    sokoBotProjectMoveIn(tx, taskId, projectId),
+  );
+}
+
 /** Resolves once another backend of this database waits for a row lock. */
 async function waitForLockWaiter(): Promise<void> {
   for (let attempt = 0; attempt < LOCK_WAIT_ATTEMPTS; attempt += 1) {
@@ -205,6 +235,79 @@ describe.skipIf(!enabled)("moveTask against PostgreSQL", () => {
     expect((await placement(step)).projectId).toBe(home);
   });
 
+  it("refuses a Soko Bot Project move of a sub-task, or of a Task whose sub-task is parked", async () => {
+    const [home, away] = [
+      await createProject("Soko home"),
+      await createProject("Soko away"),
+    ];
+    const root = await createTask("Soko root", { projectId: home });
+    const step = await createTask("Soko step", {
+      projectId: home,
+      parentTaskId: root,
+      status: TaskStatus.GRANT_PENDING,
+    });
+
+    for (const [taskId, message] of [
+      [step, "A sub-task stays in its parent's project"],
+      [root, "Parked tasks cannot be modified"],
+    ]) {
+      await expect(sokoBotProjectMove(taskId, away)).rejects.toThrow(message);
+    }
+    for (const taskId of [root, step]) {
+      expect((await placement(taskId)).projectId).toBe(home);
+    }
+  });
+
+  for (const [branch, extra] of [
+    ["a Project move alone", {}],
+    ["a Project move with other fields", { name: "Renamed by the bot" }],
+  ] as const) {
+    it(`locks the Task before its sub-tasks in ${branch} by Soko Bot, so an archive of the Task does not deadlock with it`, async () => {
+      const [home, away] = [
+        await createProject(`Lock home ${branch}`),
+        await createProject(`Lock away ${branch}`),
+      ];
+      const root = await createTask("Lock root", { projectId: home });
+      await createTask("Lock step", { projectId: home, parentTaskId: root });
+
+      let moving: Promise<{ ok: boolean; error?: unknown }> | undefined;
+      const archive = settle(
+        prisma.$transaction(
+          async (tx) => {
+            // The archive has taken the Task and goes on to its sub-task.
+            await lockTaskRows(tx, [root]);
+            moving = settle(
+              prisma.$transaction(
+                async (moveTx) => {
+                  await moveTx.$executeRawUnsafe(
+                    `SET LOCAL deadlock_timeout = '${MOVE_DEADLOCK_TIMEOUT}'`,
+                  );
+                  return sokoBotProjectMoveIn(moveTx, root, away, extra);
+                },
+                {
+                  isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+                  timeout: 60_000,
+                },
+              ),
+            );
+            await waitForLockWaiter();
+            const task = await tx.task.findUniqueOrThrow({
+              where: { id: root },
+            });
+            await archiveTaskRecord(tx, task);
+          },
+          { timeout: 30_000 },
+        ),
+      );
+
+      expect(await archive).toEqual({ ok: true, value: undefined });
+      const moved = await moving;
+      expect(moved?.ok).toBe(false);
+      expect(isPrismaTransactionConflict(moved?.error)).toBe(true);
+      expect((await placement(root)).projectId).toBe(home);
+    });
+  }
+
   it("moves a Task to another parent's Project only in a status PATCH can edit", async () => {
     const [home, away] = [
       await createProject("Status home"),
@@ -283,6 +386,59 @@ describe.skipIf(!enabled)("moveTask against PostgreSQL", () => {
       parentTaskId: oldParentId,
     });
     expect((await placement(taskId)).archivedAt).not.toBeNull();
+  });
+
+  it("locks a re-parent top-down by depth, so an archive of the old parent does not deadlock with it", async () => {
+    // S < O < T by id. O has the sub-tasks S and T, and T moves under S. A
+    // lock sorted by id alone took S, then O; the archive takes O, then S
+    // and T, so the two deadlocked (SOKD-279 review).
+    const [siblingId, oldParentId, taskId] = sortedIds(3);
+    await createTask("Old parent", { id: oldParentId });
+    await createTask("Sibling", { id: siblingId, parentTaskId: oldParentId });
+    await createTask("Moving", { id: taskId, parentTaskId: oldParentId });
+
+    let moving: Promise<{ ok: boolean; error?: unknown }> | undefined;
+    const archive = settle(
+      prisma.$transaction(
+        async (tx) => {
+          await lockTaskRows(tx, [oldParentId]);
+          moving = settle(
+            prisma.$transaction(
+              async (moveTx) => {
+                await moveTx.$executeRawUnsafe(
+                  `SET LOCAL deadlock_timeout = '${MOVE_DEADLOCK_TIMEOUT}'`,
+                );
+                return moveTask(moveTx, userContext, {
+                  taskId,
+                  parentTaskId: siblingId,
+                });
+              },
+              {
+                isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+                timeout: 60_000,
+              },
+            ),
+          );
+          await waitForLockWaiter();
+          const oldParent = await tx.task.findUniqueOrThrow({
+            where: { id: oldParentId },
+          });
+          await archiveTaskRecord(tx, oldParent);
+        },
+        { timeout: 30_000 },
+      ),
+    );
+
+    const archived = await archive;
+    expect(archived).toEqual({ ok: true, value: undefined });
+    // The move waited for the archive on the old parent, then failed on it.
+    const moved = await moving;
+    expect(moved?.ok).toBe(false);
+    expect(isPrismaTransactionConflict(moved?.error)).toBe(true);
+    expect(await placement(taskId)).toMatchObject({
+      parentTaskId: oldParentId,
+    });
+    expect((await placement(siblingId)).archivedAt).not.toBeNull();
   });
 
   it("fails a move whose snapshot predates a sub-task added below the Task, instead of nesting six levels deep", async () => {

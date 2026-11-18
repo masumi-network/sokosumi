@@ -591,6 +591,29 @@ describe("PATCH /tasks/{id}", () => {
         },
       }),
     );
+    const app = createApp();
+    app.onError(errorHandler);
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ projectId: PROJECT_ID }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ kind: "task_parked" });
+    expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("retries a Project change that Postgres broke off to end a deadlock", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(
+      Object.assign(
+        new Error(
+          "Invalid `prisma.$queryRaw()` invocation:\n\n\nRaw query failed. Code: `40P01`. Message: `deadlock detected`",
+        ),
+        { name: "PrismaClientKnownRequestError", code: "P2010" },
+      ),
+    );
 
     const response = await createApp().request("http://localhost/tsk_123", {
       method: "PATCH",
@@ -598,8 +621,8 @@ describe("PATCH /tasks/{id}", () => {
       body: JSON.stringify({ projectId: PROJECT_ID }),
     });
 
-    expect(response.status).toBe(403);
-    expect(taskUpdateMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
   });
 
   it("updates priority alone", async () => {

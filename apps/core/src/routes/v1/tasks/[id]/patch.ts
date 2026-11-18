@@ -65,7 +65,7 @@ import {
   setTaskWorkspaceTags,
 } from "@/helpers/task-workspace-tags";
 import { publishTaskEventData } from "@/lib/ably/publish";
-import prisma from "@/lib/db/prisma";
+import { retriedTransaction } from "@/lib/db/transaction";
 import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -250,7 +250,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       priority === undefined &&
       runAt === undefined;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await retriedTransaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskWriteAccess(
         userContext,
         id,
@@ -547,7 +547,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         statusChanged: nextStatus !== task.status,
         parkedEventId,
       };
-    });
+    }, "Task changed during update");
     await deliverCalendarInvalidationsNow(result.workspaceId);
     // Same signal as POST /tasks/{id}/events: open boards refresh on it.
     // A Run at time move stays Queued, so it does not publish.

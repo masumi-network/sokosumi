@@ -410,16 +410,41 @@ Core API:
     the Task itself, one of its own sub-tasks, a depth above 5, another
     workspace, another visibility, a private parent with another Owner.
   - The write runs in `serializableTransaction`. It locks the Workspace and
-    both Projects, then top-down as an archive does: both parents, the
-    Task, then its sub-tasks level by level (`lockSubtaskTree`). Then it
-    writes both parents (`touchTaskRow`). The sub-tasks are locked before
-    the move reads the tree's height, so a sub-task added meanwhile fails
-    the move with 40001 and the retry sees it. Detach locks the old
-    parent, then the Task, and writes the old parent. The code is
-    `helpers/task-subtask-move.ts`.
-  - Two moves in opposite directions (A under B, and B under A) lock the
-    two rows in opposite order. Postgres then reports a deadlock (40P01)
-    and one move retries. INFERRED from the lock order, not tested.
+    both Projects. Then it locks the Task rows in one global order: by
+    depth (the number of Tasks above a row), then by id. The rows are the
+    old parent, the new parent, the Task, and the Task's sub-tasks. One
+    query locks each depth (`lockSubtaskTree` in `helpers/task-subtasks.ts`).
+    An archive locks a tree in the same order: top-down, and by id inside
+    a level. Then the move writes both parents (`touchTaskRow`). The
+    sub-tasks are locked before the move reads the tree's height, so a
+    sub-task added meanwhile fails the move with 40001 and the retry sees
+    it. Detach locks the old parent, then the Task, and writes the old
+    parent. The code is `helpers/task-subtask-move.ts`.
+  - Correction. An earlier version of this section said that the move
+    locks "top-down as an archive does: both parents, the Task, then its
+    sub-tasks". That was wrong. The code locked both parents together,
+    sorted by id only. A sibling with a lower id than the old parent then
+    came first. VERIFIED with a Postgres test in
+    `helpers/task-subtask-move.postgres.test.ts`: old parent O has the
+    sub-tasks S and T, with S < O < T by id. A move of T under S locked S,
+    then waited for O. An archive of O held O and waited for S. The
+    archive failed with `40P01` ("deadlock detected"). The archive route
+    had no retry, so it answered 500 (REPORTED by the review). The depth
+    order above fixes this case.
+  - Correction. An earlier version of this section said that two moves in
+    opposite directions (A under B, and B under A) deadlock with 40P01.
+    That was wrong. REPORTED by a review probe: both moves lock the
+    Workspace first, so they wait for each other there. The second move
+    then fails with 40001 and `serializableTransaction` retries it.
+  - Retry. `serializableTransaction` and `retriedTransaction` (both in
+    `lib/db/transaction.ts`) retry a deadlock (40P01) as well as a
+    serialization failure (40001), up to 8 times, then answer 409.
+    Archive (`DELETE /v1/tasks/{id}`), restore, and PATCH use
+    `retriedTransaction` and keep Read Committed. The Soko Bot Project
+    change locks the Task before its sub-tasks, as an archive does.
+  - Known behaviour, not changed: the status rule applies only to the
+    Task itself. A sub-task that follows its parent to another Project
+    can be in any status that is not parked, RUNNING included.
 - A Task link with relation `parent` or `child`: POST and PATCH return
   400 "Parent links are now sub-tasks. Use POST /v1/tasks/{id}/move with
   parentTaskId." `UserWritableTaskLinkRelation` no longer has them. The

@@ -49,10 +49,22 @@ export function requireNotSubtask(task: { parentTaskId: string | null }) {
   }
 }
 
+/** A Task row, and its depth: the number of Tasks above it. */
+export interface TaskAtDepth {
+  id: string;
+  depth: number;
+}
+
 /**
  * Locks the sub-tasks below a Task, top-down as an archive does: each level
- * after the one above it. Returns their ids by level, so the length is the
- * height of the tree. Lock the Task itself first.
+ * after the one above it, one query per level. Returns their ids by level,
+ * so the length is the height of the tree. Lock the Task itself first, or
+ * pass it in `alongside`.
+ *
+ * `alongside` are more rows to lock in the same pass, at their own depth
+ * (`taskDepth` is the Task's). Every row then locks in one global order: by
+ * depth, then by id. An archive locks a tree in that order too, so the two
+ * never wait for each other in reverse.
  *
  * Under SERIALIZABLE, a sub-task created, restored or moved since this
  * transaction's snapshot wrote its parent row, so the lock on that row fails
@@ -61,24 +73,38 @@ export function requireNotSubtask(task: { parentTaskId: string | null }) {
 export async function lockSubtaskTree(
   tx: Prisma.TransactionClient,
   taskId: string,
+  alongside: TaskAtDepth[] = [],
+  taskDepth = 0,
 ): Promise<string[][]> {
   const levels: string[][] = [];
+  const depths = alongside.map((row) => row.depth);
+  const lastDepth = Math.max(taskDepth, ...depths);
   let level = [taskId];
-  // Stored trees are at most MAX_SUBTASK_DEPTH deep, so the bound only stops
-  // a walk over rows the guard never saw.
-  while (levels.length < LIMITS.MAX_SUBTASK_DEPTH) {
-    const children = await tx.task.findMany({
-      where: { parentTaskId: { in: level } },
-      select: { id: true },
-    });
-    if (children.length === 0) break;
-    level = children.map((child) => child.id);
-    if (!(await lockTaskRows(tx, level))) {
+  for (let depth = Math.min(taskDepth, ...depths); ; depth += 1) {
+    if (depth > taskDepth && level.length > 0) {
+      // Stored trees are at most MAX_SUBTASK_DEPTH deep, so the bound only
+      // stops a walk over rows the guard never saw.
+      const children =
+        levels.length < LIMITS.MAX_SUBTASK_DEPTH
+          ? await tx.task.findMany({
+              where: { parentTaskId: { in: level } },
+              select: { id: true },
+            })
+          : [];
+      level = children.map((child) => child.id);
+      if (level.length > 0) levels.push(level);
+    }
+    const ids = alongside
+      .filter((row) => row.depth === depth)
+      .map((row) => row.id);
+    if (depth > taskDepth) ids.push(...level);
+    if (ids.length > 0 && !(await lockTaskRows(tx, ids))) {
       throw conflict("A sub-task changed meanwhile. Retry.");
     }
-    levels.push(level);
+    if (depth >= lastDepth && depth > taskDepth && level.length === 0) {
+      return levels;
+    }
   }
-  return levels;
 }
 
 /**
