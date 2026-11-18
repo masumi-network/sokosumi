@@ -158,8 +158,8 @@ export function SeoExportMenu({
         <Button
           variant="ghost"
           size="icon"
-          // The height of the buttons beside it: 32 px, 40 px on a phone.
-          className="text-muted-foreground size-8 max-sm:size-10"
+          // A full 40 px target below md, as every icon control; from md up the 32 px of the buttons beside it.
+          className="text-muted-foreground md:size-8"
           aria-label={t("menu", { table: title })}
           // Busy, not unavailable: the menu still opens, and the CSV still downloads while a copy runs.
           aria-busy={pending || undefined}
