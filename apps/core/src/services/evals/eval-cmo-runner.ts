@@ -36,6 +36,7 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
+import { prepareCompetitorCase } from "./eval-cmo-competitors";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -402,10 +403,14 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
 export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
-): Promise<{ comments?: Record<string, string> }> {
+): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
   if (setup === "cmo-plan") {
     await prepareCmoPlan(lane);
     return {};
+  }
+  if (setup === "cmo-competitors" || setup === "cmo-competitors-quiet") {
+    await prepareCmoChat(lane, true);
+    return prepareCompetitorCase(lane, setup === "cmo-competitors-quiet");
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
   if (setup !== "cmo-comments") return {};
