@@ -40,6 +40,8 @@ const day = (iso: string | Date) =>
     year: "numeric",
   });
 
+const count = (value: number) => value.toLocaleString("en-US");
+
 const weekday = (iso: string | Date) =>
   new Date(iso).toLocaleDateString("en-GB", {
     weekday: "long",
@@ -296,8 +298,8 @@ function SearchConsoleCard({
                 <span className="note">{pagePath(row.pageUrl)}</span>
               </span>
               <span className="note num">
-                position {row.position?.toFixed(1)} · seen {row.impressions} ·{" "}
-                {row.clicks} clicks
+                position {row.position?.toFixed(1)} · seen{" "}
+                {count(row.impressions)} · {count(row.clicks)} clicks
               </span>
             </li>
           ))}
@@ -317,11 +319,11 @@ function SearchConsoleCard({
         <div className="grid4">
           <div className="kpi">
             <span className="label">Clicks</span>
-            <span className="v num">{gsc.totals.clicks}</span>
+            <span className="v num">{count(gsc.totals.clicks)}</span>
           </div>
           <div className="kpi">
             <span className="label">Seen in search</span>
-            <span className="v num">{gsc.totals.impressions}</span>
+            <span className="v num">{count(gsc.totals.impressions)}</span>
           </div>
           <div className="kpi">
             <span className="label">Average position</span>
@@ -493,7 +495,11 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
               {search.ideas.map((idea) => (
                 <tr key={idea.keyword}>
                   <td>{idea.keyword}</td>
-                  <td className="num">{idea.searchVolume ?? "None"}</td>
+                  <td className="num">
+                    {idea.searchVolume === null
+                      ? "None"
+                      : count(idea.searchVolume)}
+                  </td>
                   <td className="num">{idea.difficulty ?? "None"}</td>
                   <td>{idea.intent ?? "None"}</td>
                   <td className="num">

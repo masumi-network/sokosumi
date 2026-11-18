@@ -1653,6 +1653,11 @@ button.card-focus {
   margin: 0;
 }
 
+/* Under about 500px the actions drop below the text instead of squeezing it. */
+.seo-item > .grow {
+  flex: 1 1 280px;
+}
+
 .seo-actions {
   display: flex;
   flex-wrap: wrap;
