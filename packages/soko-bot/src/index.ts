@@ -25,6 +25,16 @@ export {
   SOKO_BOT_CMO_SCHEDULES,
 } from "./cmo.js";
 export {
+  CMO_COMPETITOR_SUPPORT,
+  type CmoCompetitorFact,
+  type CmoCompetitorFeedItem,
+  type CmoSaveCompetitorFeedInput,
+  cmoCompetitorFactSchema,
+  cmoCompetitorFeedItemSchema,
+  cmoCompetitorWatchBrief,
+  cmoSaveCompetitorFeedInputSchema,
+} from "./cmo-competitors.js";
+export {
   getSokoBotIntegrationProvider,
   isSokoBotEmailProvider,
   SOKO_BOT_INTEGRATION_PROVIDERS,
