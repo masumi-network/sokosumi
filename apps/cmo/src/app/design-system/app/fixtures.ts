@@ -256,6 +256,16 @@ export const overview: CmoOverview = cmoOverview({
       revertible: true,
       revertedAt: null,
     },
+    {
+      id: "u3",
+      kind: "request",
+      headline: "X posts shortened",
+      done: ["Cut four X posts to under 200 characters"],
+      upNext: ["Keep new X posts that short"],
+      at: at("04T10:03:40"),
+      revertible: false,
+      revertedAt: null,
+    },
   ],
   measurement: [
     {
