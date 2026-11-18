@@ -4,6 +4,7 @@ import { Play, Plug, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { SeoActionWorklist } from "./seo-action-worklist";
+import { SeoBriefPagePriority } from "./seo-brief-summary";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoActionsExport } from "./seo-export-model";
 import { seoOverviewModel } from "./seo-overview-model";
@@ -36,6 +37,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   if (strategyOnly)
     return (
       <div className="space-y-5">
+        <SeoBriefPagePriority model={model} />
         <SeoStrategyActions model={model} />
         <SeoPageDetails model={model} standalone />
         <SeoStrategyPlaceNotes model={model} />
@@ -43,6 +45,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
     );
   return (
     <div className="space-y-5">
+      <SeoBriefPagePriority model={model} />
       <SeoSection
         title={t("actions.title")}
         description={tracked ? t("actions.help") : undefined}

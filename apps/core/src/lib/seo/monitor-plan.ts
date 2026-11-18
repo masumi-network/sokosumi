@@ -67,6 +67,8 @@ export function parseSeoMonitorPlan(
   if (
     !parsed.success ||
     parsed.data.analysis.scopeId ||
+    parsed.data.analysis.setupGoal ||
+    parsed.data.analysis.sharedBrief ||
     !parsed.data.analysis.pageIds?.length ||
     !parsed.data.analysis.coworkerId
   )
@@ -93,6 +95,16 @@ export function parseSeoMonitorPlan(
     scopeVersion: data.scopeVersion,
     analysis: data.analysis,
   };
+}
+
+/** Only a readable v2 packet can start a Run for a saved audit. UUID spelling does not change its owner. */
+export function seoMonitorAuditId(description: string | null): string | null {
+  try {
+    const plan = parseSeoMonitorPlan(description);
+    return plan?.version === 2 ? plan.auditId.toLowerCase() : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The schedule description that stores an approved plan. */
