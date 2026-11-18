@@ -267,14 +267,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Give me a status rundown of all my open tasks and the follow-ups you have scheduled, flag anything idle for more than 3 days, and for the oldest idle task draft a short note I could send to the assignee.",
     expect: {
-      // Production starts a follow-up on a fixed route; here the classifier reads the pasted brief.
-      routes: [
-        "MANAGE_WORK",
-        "DIRECT_RESPONSE",
-        "MIXED",
-        "DELEGATE_TASK",
-        "CLARIFY",
-      ],
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED", "DELEGATE_TASK"],
       anyTools: [
         "list_tasks",
         "list_schedules",
