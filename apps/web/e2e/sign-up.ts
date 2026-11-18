@@ -56,12 +56,13 @@ async function waitForCode(token: string): Promise<string> {
  */
 export async function signUpWithOrganization(page: Page, baseUrl: string) {
   const inbox = await createInbox();
-  // Typing before hydration is lost: React resets the field.
-  await page.goto(`${baseUrl}/signup`, { waitUntil: "networkidle" });
-  // The cookie banner covers the form's buttons on a phone.
+  await page.goto(`${baseUrl}/signup`);
+  // The cookie banner covers the form's buttons on a phone. It shows once the
+  // page has hydrated, so waiting for it also keeps the email typed below:
+  // React resets a field typed into before hydration.
   await page
     .getByRole("button", { name: "Reject non-essential" })
-    .click({ timeout: 5000 })
+    .click({ timeout: 15_000 })
     .catch(() => {});
   await page.locator('[data-testid="auth-field-email"]').fill(inbox.address);
   await page.getByRole("button", { name: "Continue with email" }).click();
