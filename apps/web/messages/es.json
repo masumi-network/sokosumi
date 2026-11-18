@@ -2141,9 +2141,25 @@
         "unfollow": "Dejar de seguir",
         "unfollowError": "No se pudo dejar de seguir. Inténtalo de nuevo.",
         "followError": "No se pudo seguir. Inténtalo de nuevo.",
-        "credits": "Créditos usados en este espacio de trabajo",
         "creditsUsed": "{credits, plural, one {# crédito usado en este espacio de trabajo} other {# créditos usados en este espacio de trabajo}}",
-        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo"
+        "noCreditsUsed": "Sin créditos usados en este espacio de trabajo",
+        "assigneeField": {
+          "change": "Asignar a…",
+          "noMatches": "No hay coincidencias",
+          "membersGroup": "Miembros",
+          "agentsGroup": "Coworkers",
+          "agentRequiredHint": "Las tareas programadas necesitan un coworker o un Soko Bot.",
+          "privateHint": "Solo un coworker o un Soko Bot puede encargarse de una tarea privada.",
+          "updateError": "No se pudo cambiar la asignación"
+        },
+        "projectField": {
+          "change": "Mover a proyecto…",
+          "noMatches": "Ningún proyecto coincide",
+          "open": "Abrir {name}",
+          "updateError": "No se pudo cambiar el proyecto",
+          "needsDescription": "Esta tarea no tiene texto, así que solo puede ir donde quede adjunto un archivo de contexto. Añade una descripción para moverla a cualquier sitio."
+        },
+        "organizationReadOnly": "solo lectura"
       },
       "NewTask": {
         "ContextAttachments": {

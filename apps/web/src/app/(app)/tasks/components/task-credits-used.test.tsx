@@ -2,8 +2,6 @@ import { render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
-
 import { TaskCreditsUsed } from "./task-credits-used";
 
 const { getTaskTotalMock } = vi.hoisted(() => ({
@@ -21,9 +19,9 @@ vi.mock("@/lib/services/history.service", () => ({
 
 const TASK_ID = "01960001-0001-7001-8001-000000000042";
 
-async function renderRow() {
-  const row = await TaskCreditsUsed({ taskId: TASK_ID });
-  return render(<TooltipProvider>{row as ReactElement}</TooltipProvider>);
+async function renderLine() {
+  const line = await TaskCreditsUsed({ taskId: TASK_ID });
+  return render(line as ReactElement);
 }
 
 describe("TaskCreditsUsed", () => {
@@ -34,7 +32,7 @@ describe("TaskCreditsUsed", () => {
   it("links the net credits to this Task's transactions", async () => {
     getTaskTotalMock.mockResolvedValue({ credits: 12.5, count: 3 });
 
-    await renderRow();
+    await renderLine();
 
     expect(getTaskTotalMock).toHaveBeenCalledWith(TASK_ID);
     expect(
@@ -45,7 +43,7 @@ describe("TaskCreditsUsed", () => {
   it("cuts the amount to cents like Transactions does", async () => {
     getTaskTotalMock.mockResolvedValue({ credits: 700.402, count: 1 });
 
-    await renderRow();
+    await renderLine();
 
     expect(
       screen.getByRole("link", { name: "creditsUsed: 700.4" }),
@@ -55,13 +53,13 @@ describe("TaskCreditsUsed", () => {
   it("says no credits were used when the ledger has no rows", async () => {
     getTaskTotalMock.mockResolvedValue({ credits: 0, count: 0 });
 
-    await renderRow();
+    await renderLine();
 
     expect(screen.getByText("noCreditsUsed")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("shows no row when the ledger cannot be read", async () => {
+  it("shows no line when the ledger cannot be read", async () => {
     getTaskTotalMock.mockRejectedValue(new Error("403"));
 
     expect(await TaskCreditsUsed({ taskId: TASK_ID })).toBeNull();

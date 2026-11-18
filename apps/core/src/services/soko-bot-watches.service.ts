@@ -7,6 +7,7 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { createError } from "evlog";
 import type { z } from "zod";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   createCoreLogger,
@@ -148,11 +149,37 @@ export async function watchOutcome(watch: {
 }
 
 /**
+ * A follow-up answers with its reply, which Core posts where it was asked.
+ * With chat tools at hand, an SEO check's follow-up went looking for a room
+ * to post its answer in and never wrote it; it gets none of them.
+ */
+const SEO_CHECK_WITHHELD = new Set<SokoBotCapability>([
+  "post_chat",
+  "list_chats",
+  "read_chat",
+  "ask_coworker",
+  "check_search_rankings",
+]);
+
+/** The asking turn's tools a follow-up keeps: it starts no runs of its own. */
+export function followUpCapabilities(
+  kind: string,
+  names: string[],
+): SokoBotCapability[] {
+  return names.filter(
+    (name): name is SokoBotCapability =>
+      isSokoBotCapability(name) &&
+      !RUN_MANAGEMENT_TOOLS.has(name) &&
+      !(kind === "seo_check" && SEO_CHECK_WITHHELD.has(name)),
+  );
+}
+
+/**
  * How the follow-up of an SEO check ends: its message is the answer the
  * owner has waited for, never a note that the answer exists.
  */
 const SEO_CHECK_ANSWER =
-  "Your message now is the answer the owner has been waiting for, posted in the chat where they asked. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.";
+  "The reply you write at the end of this turn is the message the owner reads: Core posts it in the chat where they asked, so you post nothing yourself and look for no chat room, whatever your plan says about where to answer. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.";
 
 /** The follow-up's brief: what it waited for, what came of it, and the plan. */
 export function followUpMessage(input: {
@@ -333,7 +360,10 @@ export async function followUpConnectedApp(
   provider: string,
 ): Promise<void> {
   if (!PROVIDER_SLUG.test(provider)) return;
-  const since = new Date(Date.now() - APP_CONNECTED_TIMEOUT_MINUTES * 60_000);
+  // PostgreSQL time: the turns' createdAt is.
+  const since = new Date(
+    (await databaseNow()).getTime() - APP_CONNECTED_TIMEOUT_MINUTES * 60_000,
+  );
   const linked = new RegExp(`[?&]connect=${provider}(?![a-z0-9_-])`);
   const turns = await prisma.sokoBotTurn.findMany({
     where: {
@@ -452,11 +482,7 @@ export async function syncSokoBotWatches(input: {
     if (claimed.count === 0) continue;
     const capabilities = [
       ...new Set([
-        ...watch.turn.capabilityNames.filter(
-          (name): name is SokoBotCapability =>
-            isSokoBotCapability(name) &&
-            !RUN_MANAGEMENT_TOOLS.has(name as SokoBotCapability),
-        ),
+        ...followUpCapabilities(watch.kind, watch.turn.capabilityNames),
         ...(watch.kind === "app_connected" ? INTEGRATION_TOOLS : []),
       ]),
     ];

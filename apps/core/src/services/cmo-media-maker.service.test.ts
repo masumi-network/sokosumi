@@ -175,6 +175,47 @@ describe("cmoSlotAction", () => {
   });
 });
 
+describe("a talking video piece", () => {
+  const talking = (patch: Partial<CmoMediaPiece> = {}) =>
+    piece({
+      channel: "instagram",
+      format: "talking_video",
+      visual: undefined,
+      script:
+        "Stop emailing back and forth. Send one booking link and let people pick a time. Try it on your next call.",
+      presenter: "maya",
+      voice: "Sarah",
+      ...patch,
+    });
+
+  it("is made in one talking step from its script, not from a visual", () => {
+    expect(cmoSlotAction(talking(), [])).toEqual({
+      kind: "start",
+      step: "talking",
+      attempt: 1,
+      sourceAssetId: null,
+    });
+    const made = job({ step: "talking", assetId: "video-asset" });
+    expect(cmoSlotAction(talking(), [made])).toEqual({
+      kind: "attach",
+      job: made,
+    });
+  });
+
+  it("waits for a script before anything is made", () => {
+    expect(cmoMediaState(talking({ script: undefined }), [])).toBe("no_visual");
+    expect(cmoMediaState(talking(), [])).toBe("making");
+  });
+
+  it("starts over when its script or presenter changes", () => {
+    const before = cmoVisualKey(talking());
+    expect(cmoVisualKey(talking({ presenter: "jonas" }))).not.toBe(before);
+    expect(
+      cmoVisualKey(talking({ script: `${talking().script} Now.` })),
+    ).not.toBe(before);
+  });
+});
+
 describe("a picture in a reference library style", () => {
   const styled = (patch: Partial<CmoMediaPiece> = {}) =>
     piece({

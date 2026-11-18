@@ -656,6 +656,8 @@ describe("Launch", () => {
         overview={value}
         onConnect={async () => ({ url: null, error: null })}
         onConnectAds={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
         onGoToday={() => {}}
       />,
     );

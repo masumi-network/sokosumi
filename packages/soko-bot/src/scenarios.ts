@@ -1167,6 +1167,57 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-talking-video",
+    title: "Makes a TikTok with a presenter",
+    intent:
+      "Asked for a TikTok, Cuso writes a hook-led script in the brand's voice and starts one talking video.",
+    prompt:
+      "Make me a TikTok about how a booking link saves the back-and-forth emails. A person talking to camera. You can spend up to 300 credits.",
+    rubric:
+      'Cuso started exactly one generate_talking_video with maxCredits of at most 300 and a script that opens with a hook, makes one point about booking links from the Brand Brain and ends with a next step, in the brand\'s own voice and 150 to 600 characters. Never as a customer: "I switched", "I tried", "as a user" or an invented result fails. He picked a stock presenter and a voice that fit. He tells the owner the video is being made, says plainly that posting to TikTok is not something he does yet if he mentions posting, and never names or links Sokosumi or its Content Studio. Making a picture, a plain generate_video, or only describing the video fails. In this eval the video is not really made, so a follow-up check that fails is fine when the answer stays honest.',
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["generate_talking_video"],
+      allowFailedTools: [
+        "generate_talking_video",
+        "wait_for",
+        "get_video",
+        "preview_result",
+      ],
+      forbiddenTools: [
+        "generate_image",
+        "generate_video",
+        "publish_social_post",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
+    id: "cmo-talking-video-piece",
+    title: "Turns a piece into a talking video",
+    intent:
+      "Asked to make one of the month's pieces a talking video, Cuso saves it with a script in the brand's voice for Core to make.",
+    prompt:
+      "Make one of next week's Instagram pieces a talking video: someone explaining in a few seconds why a booking link beats emailing back and forth.",
+    rubric:
+      "Cuso saved the change with save_strategy: one Instagram entry in next week with format talking_video, a script (spoken words only, hook first, one point, one next step, 150 to 600 characters, in the brand's voice and never as a customer), a presenter (a stock presenter id, or owner only when ownerPresenter is in his context) and a voice, keeping the other pieces as they were. He tells the owner which piece changed and that the video is made from the script. Calling generate_talking_video or generate_video in place of the save, a script that speaks as a customer, or claiming the change without a successful save_strategy fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      // The lane's month is a draft: a pieces save is refused, a calendar save works.
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: [
+        "generate_talking_video",
+        "generate_video",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "cmo-picture-style",
     title: "Gives a picture the look of an old print",
     intent:
@@ -1242,12 +1293,12 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "Follow-up: something you were waiting for is done.",
       "It did not finish in time. Where it stands: still not done after 45 minutes.",
       "",
-      'Your plan: Tell the owner where the site ranks on Google for "calendly alternative" and the two pages to change first.',
+      'Your plan: Tell the owner where the site ranks on Google for "scheduling api" and the two pages to change first.',
       "",
-      "Your message now is the answer the owner has been waiting for, posted in the chat where they asked. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.",
+      "The reply you write at the end of this turn is the message the owner reads: Core posts it in the chat where they asked, so you post nothing yourself and look for no chat room, whatever your plan says about where to answer. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.",
     ].join("\n"),
     rubric:
-      'Cuso says plainly that the SEO specialist\'s check did not finish, so where the site ranks for "calendly alternative" is not known yet, and offers what he can from data a tool returned (read_seo, research_keywords) or to ask again. A position, click count or traffic number no tool returned fails, and so does pretending the check came back.',
+      'Cuso says plainly that the SEO specialist\'s check did not finish, so where the site ranks for "scheduling api" is not known yet, and offers what he can from data a tool returned (read_seo, research_keywords) or to ask again. A position, click count or traffic number no tool returned fails, and so does pretending the check came back.',
     expect: {
       // Production starts a follow-up on a fixed route; here the classifier reads the pasted brief.
       routes: [
@@ -1274,12 +1325,12 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       "The SEO specialist checked Google on 2026-11-18 for https://cal.com/:",
       '- "calendly alternative" (mobile, US): not in the top 19, 260 searches a month. Top results: 1. zapier.com; 2. www.reddit.com; 3. youcanbook.me; 4. www.g2.com; 5. tidycal.com',
       "",
-      'Your plan: Tell the owner where the site ranks on Google for "calendly alternative", who ranks above, and two or three concrete next steps.',
+      'Your plan: Answer Robin in #Cuso in English. Tell the owner where the site ranks on Google for "calendly alternative", who ranks above, and two or three concrete next steps.',
       "",
-      "Your message now is the answer the owner has been waiting for, posted in the chat where they asked. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.",
+      "The reply you write at the end of this turn is the message the owner reads: Core posts it in the chat where they asked, so you post nothing yourself and look for no chat room, whatever your plan says about where to answer. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.",
     ].join("\n"),
     rubric:
-      'Cuso\'s answer itself tells the owner that cal.com is not among the 19 results checked for "calendly alternative" on 2026-11-18, names sites that rank at the top (such as zapier.com or youcanbook.me), and gives two or three concrete next steps that fit the business (for example a comparison article or a page change), using only numbers a tool or the result returned. Saving such an article or page change with save_seo_suggestions is good. A message that only says the result or steps are covered or available, an invented position, or a new check_search_rankings call fails.',
+      'Cuso\'s answer itself tells the owner that cal.com is not among the 19 results checked for "calendly alternative" on 2026-11-18, names sites that rank at the top (such as zapier.com or youcanbook.me), and gives two or three concrete next steps that fit the business (for example a comparison article or a page change), using only numbers a tool or the result returned. Saving such an article or page change with save_seo_suggestions is good. A message that only says the result or steps are covered or available, an invented position, posting into a chat room with post_chat, or a new check_search_rankings call fails.',
     expect: {
       // Production starts a follow-up on a fixed route; here the classifier reads the pasted brief.
       routes: [
@@ -1299,6 +1350,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
         "create_task",
         "hire_agent",
         "check_search_rankings",
+        "post_chat",
       ],
       answerMatches: "19",
       answerAvoids: "\\b(?:are|is) (?:covered|available)\\b",

@@ -46,6 +46,10 @@ vi.mock("@/services/task-domain.service", () => ({
   createTaskForActor: m.createTask,
   archiveTaskRecord: vi.fn(),
 }));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish },

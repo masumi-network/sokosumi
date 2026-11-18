@@ -137,6 +137,7 @@ function overview() {
     brandVisual: null,
     brandMedia: null,
     projectLogo: null,
+    presenterSet: false,
     routines: [],
     updates: [
       {
