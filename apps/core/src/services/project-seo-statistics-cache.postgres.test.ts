@@ -3,6 +3,10 @@ import { afterAll, describe, expect, it } from "vitest";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { withAutomaticSeoStatistics } from "./project-seo-statistics-cache";
+import {
+  collectStatisticsInspections,
+  inspectionCacheKey,
+} from "./project-seo-statistics-inspections";
 import type { SeoMutationHooks } from "./project-seo-store";
 import { resolveProvider } from "./soko-bot-integrations.service";
 import { syncLockService } from "./sync-lock.service";
@@ -45,6 +49,28 @@ function context() {
     readWorkspace: async () => "cached",
     activate: async () => "activated",
   };
+}
+
+async function seedAudit(fixture: ReturnType<typeof context>) {
+  await prisma.user.create({
+    data: {
+      id: fixture.actor.userId,
+      name: "SEO statistics cache fixture",
+      email: `${fixture.actor.userId}@example.test`,
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      workspace: { create: { id: fixture.actor.workspaceId } },
+    },
+  });
+  await prisma.seoAudit.create({
+    data: {
+      id: fixture.actor.owner.id,
+      workspaceId: fixture.actor.workspaceId,
+      createdById: fixture.actor.userId,
+      name: "Statistics cache fixture",
+    },
+  });
 }
 
 describe.skipIf(!enabled)(
@@ -182,25 +208,7 @@ describe.skipIf(!enabled)(
     it("reuses only the persisted snapshot of the exact account revision", async () => {
       const fixture = context();
       fixtures.push(fixture);
-      await prisma.user.create({
-        data: {
-          id: fixture.actor.userId,
-          name: "SEO statistics cache fixture",
-          email: `${fixture.actor.userId}@example.test`,
-          emailVerified: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          workspace: { create: { id: fixture.actor.workspaceId } },
-        },
-      });
-      await prisma.seoAudit.create({
-        data: {
-          id: fixture.actor.owner.id,
-          workspaceId: fixture.actor.workspaceId,
-          createdById: fixture.actor.userId,
-          name: "Statistics cache fixture",
-        },
-      });
+      await seedAudit(fixture);
       let collections = 0;
       const request = {
         ...fixture,
@@ -251,6 +259,121 @@ describe.skipIf(!enabled)(
         "collected",
       );
       expect(collections).toBe(2);
+    });
+
+    it("shares real per-page inspection attempts across overlapping reports and excludes their concurrent collector", async () => {
+      const fixture = context();
+      fixtures.push(fixture);
+      await seedAudit(fixture);
+      const propertyId = "sc-domain:example.test";
+      const key = inspectionCacheKey(
+        fixture.actor,
+        fixture.integration,
+        propertyId,
+      );
+      keys.add(`seo-statistics:${key}`);
+      const pages = [
+        "https://example.test/a",
+        "https://example.test/b",
+        "https://example.test/c",
+      ];
+      const ids = pages.map(() => randomUUID());
+      const entered = Promise.withResolvers<void>();
+      const resume = Promise.withResolvers<void>();
+      const reads: string[] = [];
+      async function run(urls: string[], searchType: "web" | "image") {
+        return withAutomaticSeoStatistics({
+          ...fixture,
+          input: {
+            ...fixture.input,
+            propertyId,
+            searchType,
+            provider: "search_console",
+          },
+          pageUrls: urls,
+          pageIds: urls.map((url) => ids[pages.indexOf(url)]),
+          collect: async (fingerprint, hooks) => {
+            const inspections = await collectStatisticsInspections(
+              fixture.actor,
+              key,
+              urls,
+              async (pageUrl) => {
+                reads.push(pageUrl);
+                entered.resolve();
+                await resume.promise;
+                return {
+                  pageUrl,
+                  verdict: "PASS",
+                  coverageState: null,
+                  indexingState: null,
+                  robotsTxtState: null,
+                  lastCrawlTime: null,
+                  googleCanonical: null,
+                  userCanonical: null,
+                };
+              },
+            );
+            const at = new Date();
+            const payload = {
+              provider: "search_console",
+              propertyId,
+              pageUrls: urls,
+              channel: "organic",
+              from: fixture.input.from,
+              to: fixture.input.to,
+              timeZone: "UTC",
+              observedAt: at.toISOString(),
+              coverage: "partial",
+              notes: [],
+              metrics: [],
+              collectionFingerprint: fingerprint,
+              ...inspections,
+            };
+            await prisma.$transaction(async (tx) => {
+              await hooks.authorize?.(tx);
+              await tx.projectSeoObservation.create({
+                data: {
+                  auditId: fixture.actor.owner.id,
+                  ownerId: fixture.actor.userId,
+                  kind: "metrics",
+                  source: "search_console",
+                  sourceKey: randomUUID(),
+                  artifactHash: fingerprint,
+                  payload,
+                  observedAt: at,
+                  pageIds: urls.map((url) => ids[pages.indexOf(url)]),
+                },
+              });
+            });
+            return inspections.inspectionCache.readUrls.join(",");
+          },
+        });
+      }
+      const first = run(pages.slice(0, 2), "web");
+      const secondPages = pages.slice(1);
+      try {
+        await Promise.race([entered.promise, first]);
+        await expect(run(secondPages, "image")).rejects.toMatchObject({
+          status: 409,
+        });
+      } finally {
+        resume.resolve();
+      }
+      await expect(first).resolves.toBe(pages.slice(0, 2).join(","));
+      await expect(run(secondPages, "image")).resolves.toBe(pages[2]);
+      expect(reads.toSorted()).toEqual(pages);
+      await expect(run(pages.slice(0, 2).toReversed(), "web")).resolves.toBe(
+        "cached",
+      );
+      await expect(run(pages, "web")).resolves.toBe("");
+      await expect(run(secondPages.toReversed(), "image")).resolves.toBe(
+        "cached",
+      );
+      expect(
+        await prisma.projectSeoObservation.count({
+          where: { auditId: fixture.actor.owner.id },
+        }),
+      ).toBe(3);
     });
 
     it("coalesces concurrent requests and releases the lease after commit", async () => {

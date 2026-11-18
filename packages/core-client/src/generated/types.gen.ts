@@ -11521,6 +11521,7 @@ export type ProjectSeoMetric = {
     timeZone: string;
     channel: 'all' | 'organic' | 'ai_assistant';
     observedAt: Date;
+    selectedAt?: Date;
     coverage: 'complete' | 'partial' | 'unavailable';
     points: Array<{
         date: string;
@@ -11649,6 +11650,7 @@ export type ProjectSeoIndexAssessedPage = {
     evidence: Array<string>;
     taskId: string;
     checkedAt: Date;
+    googleReturnedUnknown?: true;
     auditPageUrl?: string;
 };
 
@@ -15439,6 +15441,7 @@ export type ProjectSeoIndexAssessment = {
     reason: string;
     suggestedFix: string | null;
     evidence: Array<string>;
+    publicEvidenceAvailable?: boolean;
 };
 
 export type SeoTaskRelatedPagesReceipt = {

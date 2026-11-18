@@ -1,6 +1,8 @@
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
+import { googleReturnedUnknown } from "@/lib/seo/inspection-provenance";
+import { unavailableGscTaskInspection } from "@/lib/seo/native-gsc-task-inspection";
 import {
   type SeoActor,
   seoIndexedPageSchema,
@@ -9,7 +11,11 @@ import type {
   SeoBriefContent,
   SeoBriefFollowUp,
 } from "@/schemas/seo-audit-brief.schema";
-import { seoReusedInspectionTimesSchema } from "@/schemas/seo-task-indexing.schema";
+import {
+  seoAnsweredUnknownPageUrlsSchema,
+  seoReusedInspectionTimesSchema,
+  seoTaskIndexedPageSchema,
+} from "@/schemas/seo-task-indexing.schema";
 import { seoOwnerWhere } from "./project-seo-store";
 
 const indexing = seoIndexedPageSchema
@@ -24,22 +30,63 @@ type ObservedIndex = z.infer<typeof indexing>;
 const metricSnapshot = z.object({
   indexedPages: z.array(indexing),
   collectedAt: z.iso.datetime().optional(),
+  inspectionCache: z
+    .object({ checkedAt: seoReusedInspectionTimesSchema })
+    .optional(),
 });
 const taskInspection = z.object({
+  propertyId: z.string().nullable().optional(),
+  providerAnsweredAll: z.literal(true).optional(),
+  answeredUnknownPageUrls: seoAnsweredUnknownPageUrlsSchema.optional(),
   reusedCheckedAt: seoReusedInspectionTimesSchema.optional(),
-  receipt: z.object({ checkedAt: z.iso.datetime(), pages: z.array(indexing) }),
+  receipt: z.object({
+    checkedAt: z.iso.datetime(),
+    pages: z.array(
+      seoTaskIndexedPageSchema
+        .partial()
+        .required({ pageUrl: true, verdict: true, lastCrawlTime: true })
+        .strip(),
+    ),
+  }),
 });
+const INSPECTION_HISTORY_BATCH_SIZE = 16;
 const newestObservationFirst = [
   { observedAt: "desc" },
   { createdAt: "desc" },
   { id: "desc" },
 ] satisfies Prisma.ProjectSeoObservationOrderByWithRelationInput[];
 
-function taskPageInspection(payload: unknown, url: string) {
+interface InspectionObservation {
+  payload: Prisma.JsonValue;
+  observedAt: Date;
+}
+
+function metricPageInspection(
+  { payload, observedAt }: InspectionObservation,
+  url: string,
+) {
+  const snapshot = metricSnapshot.safeParse(payload);
+  if (!snapshot.success) return null;
+  const page = snapshot.data.indexedPages.find((item) => item.pageUrl === url);
+  if (!page) return null;
+  const checkedAt =
+    snapshot.data.inspectionCache?.checkedAt[url] ?? snapshot.data.collectedAt;
+  return {
+    page,
+    checkedAt: checkedAt ? Date.parse(checkedAt) : observedAt.getTime(),
+  };
+}
+
+function taskPageInspection({ payload }: InspectionObservation, url: string) {
   const task = taskInspection.safeParse(payload);
   if (!task.success) return null;
   const page = task.data.receipt.pages.find((item) => item.pageUrl === url);
   if (!page) return null;
+  if (
+    page.verdict === "VERDICT_UNSPECIFIED" &&
+    !googleReturnedUnknown(task.data, page)
+  )
+    return null;
   return {
     page,
     checkedAt: Date.parse(
@@ -48,45 +95,41 @@ function taskPageInspection(payload: unknown, url: string) {
   };
 }
 
-async function latestTaskPageInspection(
-  actor: SeoActor,
+async function latestPageInspection(
+  where: Prisma.ProjectSeoObservationWhereInput,
   url: string,
   client: Prisma.TransactionClient,
+  read: typeof taskPageInspection,
 ) {
-  const where = {
-    ...seoOwnerWhere(actor),
-    kind: "index_inspection",
-    source: "search_console",
-    ownerId: actor.userId,
-    visibility: "PRIVATE",
-    payload: {
-      path: ["receipt", "pages"],
-      array_contains: [{ pageUrl: url }],
-    },
-  } satisfies Prisma.ProjectSeoObservationWhereInput;
+  const select = { id: true, payload: true, observedAt: true };
   const newest = await client.projectSeoObservation.findFirst({
     where,
     orderBy: newestObservationFirst,
-    select: { id: true, payload: true, observedAt: true },
+    select,
   });
   if (!newest) return null;
-  let latest = taskPageInspection(newest.payload, url);
-  if (!latest || latest.checkedAt >= newest.observedAt.getTime()) return latest;
-
-  // A retry can reuse an older page. Another task may have checked it in between.
-  const intervening = await client.projectSeoObservation.findMany({
-    where: {
-      ...where,
-      id: { not: newest.id },
-      observedAt: { gt: new Date(latest.checkedAt) },
-    },
-    orderBy: newestObservationFirst,
-    select: { payload: true },
-  });
-  for (const row of intervening) {
-    const inspection = taskPageInspection(row.payload, url);
-    if (inspection && inspection.checkedAt > latest.checkedAt)
-      latest = inspection;
+  let latest = read(newest, url);
+  let cursor = newest;
+  // Cache activation moves a row forward. Stop once older rows cannot have a newer Google read.
+  while (!latest || latest.checkedAt < cursor.observedAt.getTime()) {
+    const rows = await client.projectSeoObservation.findMany({
+      where: latest
+        ? { ...where, observedAt: { gt: new Date(latest.checkedAt) } }
+        : where,
+      cursor: { id: cursor.id },
+      skip: 1,
+      take: INSPECTION_HISTORY_BATCH_SIZE,
+      orderBy: newestObservationFirst,
+      select,
+    });
+    for (const row of rows) {
+      if (latest && row.observedAt.getTime() <= latest.checkedAt) return latest;
+      const inspection = read(row, url);
+      if (inspection && (!latest || inspection.checkedAt > latest.checkedAt))
+        latest = inspection;
+    }
+    if (rows.length < INSPECTION_HISTORY_BATCH_SIZE) break;
+    cursor = rows[rows.length - 1]!;
   }
   return latest;
 }
@@ -144,7 +187,6 @@ export async function loadBriefFollowUps(
     content.pages.map(async (page) => {
       const url = urls.get(page.pageId);
       if (!url) return briefFollowUp(page, null, null);
-      const select = { payload: true, observedAt: true };
       const [change, metrics, inspection] = await Promise.all([
         client.projectSeoObservation.findFirst({
           where: {
@@ -157,8 +199,8 @@ export async function loadBriefFollowUps(
           orderBy: newestObservationFirst,
           select: { observedAt: true },
         }),
-        client.projectSeoObservation.findFirst({
-          where: {
+        latestPageInspection(
+          {
             ...owner,
             kind: "metrics",
             source: "search_console",
@@ -170,23 +212,49 @@ export async function loadBriefFollowUps(
               array_contains: [{ pageUrl: url }],
             },
           },
-          orderBy: newestObservationFirst,
-          select,
-        }),
-        latestTaskPageInspection(actor, url, client),
+          url,
+          client,
+          metricPageInspection,
+        ),
+        latestPageInspection(
+          {
+            ...owner,
+            kind: "index_inspection",
+            source: "search_console",
+            ownerId: actor.userId,
+            visibility: "PRIVATE",
+            payload: {
+              path: ["receipt", "pages"],
+              array_contains: [{ pageUrl: url }],
+            },
+            OR: [
+              {
+                NOT: {
+                  payload: {
+                    path: ["receipt", "pages"],
+                    array_contains: [unavailableGscTaskInspection(url)],
+                  },
+                },
+              },
+              { payload: { path: ["providerAnsweredAll"], equals: true } },
+              {
+                payload: {
+                  path: ["answeredUnknownPageUrls"],
+                  array_contains: [url],
+                },
+              },
+            ],
+          },
+          url,
+          client,
+          taskPageInspection,
+        ),
       ]);
-      const native = metricSnapshot.safeParse(metrics?.payload);
       const changedAt = change?.observedAt ?? null;
       const inspected = inspection?.page;
-      const synced = native.success
-        ? native.data.indexedPages.find((item) => item.pageUrl === url)
-        : undefined;
-      if (!native.success || !synced || !metrics)
-        return briefFollowUp(page, changedAt, inspected ?? null);
-      const syncedAt = native.data.collectedAt
-        ? Date.parse(native.data.collectedAt)
-        : metrics.observedAt.getTime();
-      if (inspection && inspection.checkedAt > syncedAt)
+      if (!metrics) return briefFollowUp(page, changedAt, inspected ?? null);
+      const synced = metrics.page;
+      if (inspection && inspection.checkedAt > metrics.checkedAt)
         return briefFollowUp(page, changedAt, inspection.page);
 
       // Older statistics snapshots omitted the state. Only the same Google crawl and verdict can supply it.
