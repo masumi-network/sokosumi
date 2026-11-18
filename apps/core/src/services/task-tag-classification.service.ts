@@ -23,16 +23,13 @@ import {
   verifyTaskTagEvaluationReceipt,
 } from "@/services/task-tag-suggestions.service";
 
-// Creates, edits and retries are interactive work and always go first. A burst of
-// them is still bounded, because every claim is one serial provider call.
+// Each queued create, edit or retry can make multiple serial provider calls.
 const QUEUED_BATCH_SIZE = 50;
-// Historical backfill is a fixed, finite set of rows, so a higher rate drains the
-// backlog sooner without raising total spend at all. Production measured 310-435ms
-// per task end to end, so 200 is roughly 62-87s of the ~260s usable budget below.
-const HISTORICAL_BATCH_SIZE = 200;
 const MAX_ATTEMPTS = 2;
-// Keep a recovered historical lease in the default-topic backfill.
-const HISTORICAL_LEASE_PREFIX = "historical:";
+// Earlier workers used both plain UUIDs and historical: leases for the backlog.
+// Only this worker's leases establish that an expired attempt began on the queue.
+const QUEUED_LEASE_PREFIX = "queued:";
+const QUEUED_RETRY_MARKER = `${QUEUED_LEASE_PREFIX}retry`;
 const LEASE_MS = 60_000;
 // One evaluation can take the classifier's full 12s request timeout plus its writes.
 const DEADLINE_RESERVE_MS = 15_000;
@@ -41,7 +38,7 @@ const DEADLINE_RESERVE_MS = 15_000;
 // deadline would still release its lock in time, but only by ~25s, and cron jitter,
 // a slow release or a function killed at vercel.json's 300s maxDuration all eat
 // that margin; a tick that is still holding the lock makes the next one 409 and
-// skips it entirely. Up to 250 rows could reach the deadline where 10 never could,
+// skips it entirely. A batch of slow evaluations could reach the deadline,
 // so a tick stops claiming new work here and leaves a wide margin instead. The sync
 // deadline above stays the outer bound.
 const TICK_BUDGET_MS = 120_000;
@@ -51,7 +48,7 @@ const TICK_BUDGET_MS = 120_000;
 // exceed the threshold by one Task's cost. Queued rows share this budget.
 // Selection and time caps still bound ticks when the provider omits billing.
 const MAX_TICK_COST_USD = 0.05;
-// Only the columns this worker reads. A 250-row batch must not pull whole task
+// Only the columns this worker reads. A batch must not pull whole task
 // rows, whose descriptions have no length cap in the database.
 const TASK_FIELDS = {
   id: true,
@@ -175,7 +172,7 @@ export async function classifyPendingTaskTags(context: SyncExecutionContext) {
 
 export async function classifyFixtureTaskTags(
   context: SyncExecutionContext,
-  scope: { taskId: string; ownerId: string; backfill?: true },
+  scope: { taskId: string; ownerId: string },
 ) {
   // Missing fixture identity must never broaden this into a queue-wide run.
   if (!scope?.taskId || !scope.ownerId) return;
@@ -185,27 +182,6 @@ export async function classifyFixtureTaskTags(
     name: { startsWith: "SYNTHETIC " },
     status: "DRAFT",
   } satisfies Prisma.TaskWhereInput;
-  if (scope.backfill) {
-    // Preview route only: construct a historical fixture without DB credentials.
-    // A rerun, edited revision or real task can never be reset by this setup.
-    const prepared = await prisma.task.updateMany({
-      where: {
-        ...fixtureScope,
-        archivedAt: null,
-        tagClassificationState: "pending",
-        tagContentRevision: 1,
-        tagClassificationAttempts: 0,
-        tagClassificationLease: null,
-        automaticTags: { isEmpty: true },
-      },
-      data: { tagClassificationState: "unclassified" },
-    });
-    const log = createCoreLogger({
-      operation: "task_tag_classification_fixture_preparation",
-    });
-    log.set({ source: "historical", prepared: prepared.count });
-    log.emit();
-  }
   return runPendingTaskTags(context, fixtureScope);
 }
 
@@ -254,13 +230,21 @@ async function runPendingTaskTags(
     where: {
       ...activeScope,
       archivedAt: null,
-      tagClassificationState: { in: ["pending", "running"] },
       tagClassificationAvailableAt: { lte: new Date() },
       OR: [
-        { tagClassificationAttempts: { lt: MAX_ATTEMPTS } },
+        {
+          tagClassificationState: "pending",
+          tagClassificationAttempts: 0,
+          tagClassificationLease: null,
+        },
+        {
+          tagClassificationState: "pending",
+          tagClassificationAttempts: { lt: MAX_ATTEMPTS },
+          tagClassificationLease: QUEUED_RETRY_MARKER,
+        },
         {
           tagClassificationState: "running",
-          tagClassificationAttempts: { gte: MAX_ATTEMPTS },
+          tagClassificationLease: { startsWith: QUEUED_LEASE_PREFIX },
         },
       ],
     },
@@ -268,35 +252,9 @@ async function runPendingTaskTags(
     take: QUEUED_BATCH_SIZE,
     select: TASK_FIELDS,
   });
-  // Historical work runs behind every queued row, under its own cap and its own
-  // time budget. Existing state + lease fields are the durable cursor across
-  // ticks; no mass enqueue or migration is needed.
-  const queued = tasks.length;
-  const historicalWhere = {
-    ...activeScope,
-    archivedAt: null,
-    tagClassificationState: "unclassified",
-    tagClassificationAttempts: { lt: MAX_ATTEMPTS },
-    tagClassificationAvailableAt: { lte: new Date() },
-  } satisfies Prisma.TaskWhereInput;
-  const timeLeft = () =>
-    context.shouldContinue() &&
-    context.msRemaining() >= DEADLINE_RESERVE_MS &&
-    Date.now() - startedAt < TICK_BUDGET_MS;
-  if (timeLeft()) {
-    tasks.push(
-      ...(await prisma.task.findMany({
-        where: historicalWhere,
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-        take: HISTORICAL_BATCH_SIZE,
-        select: TASK_FIELDS,
-      })),
-    );
-  }
   const progress = {
     selected: tasks.length,
-    queued,
-    historical: tasks.length - queued,
+    queued: tasks.length,
     attempted: 0,
     completed: 0,
     failed: 0,
@@ -307,11 +265,6 @@ async function runPendingTaskTags(
   };
   let stopReason: "deadline" | "tick_budget" | "spend_ceiling" | undefined;
   for (const task of tasks) {
-    const source =
-      task.tagClassificationState === "unclassified" ||
-      task.tagClassificationLease?.startsWith(HISTORICAL_LEASE_PREFIX)
-        ? "historical"
-        : "queued";
     if (
       !context.shouldContinue() ||
       context.msRemaining() < DEADLINE_RESERVE_MS
@@ -334,7 +287,7 @@ async function runPendingTaskTags(
       workspaceId: task.workspaceId,
       revision: task.tagContentRevision,
       model: JEV_TASK_TAG_MODEL,
-      source,
+      source: "queued",
     });
     let outcome: "completed" | "failed" | "stale" = "failed";
     try {
@@ -370,10 +323,7 @@ async function runPendingTaskTags(
         });
         continue;
       }
-      const lease =
-        source === "historical"
-          ? HISTORICAL_LEASE_PREFIX + randomUUID()
-          : randomUUID();
+      const lease = QUEUED_LEASE_PREFIX + randomUUID();
       const claimed = await updateClassification(prisma, {
         where: claimWhere,
         data: {
@@ -403,10 +353,7 @@ async function runPendingTaskTags(
       try {
         progress.attempted++;
         progress.unreportedCost++;
-        const catalog =
-          source === "historical"
-            ? []
-            : await loadTaskTagCatalog(task.workspaceId);
+        const catalog = await loadTaskTagCatalog(task.workspaceId);
         result = await classifyTaskTags(
           task.name,
           task.description,
@@ -476,16 +423,12 @@ async function runPendingTaskTags(
         log.set({ outcome: "failed", reason: result.reason });
       }
       // Compare-and-set also protects a newer content revision from an old failure.
+      const canRetry = task.tagClassificationAttempts + 1 < MAX_ATTEMPTS;
       const released = await updateClassification(prisma, {
         where,
         data: {
-          tagClassificationState:
-            task.tagClassificationAttempts + 1 >= MAX_ATTEMPTS
-              ? "failed"
-              : source === "historical"
-                ? "unclassified"
-                : "pending",
-          tagClassificationLease: null,
+          tagClassificationState: canRetry ? "pending" : "failed",
+          tagClassificationLease: canRetry ? QUEUED_RETRY_MARKER : null,
           tagClassificationAvailableAt: new Date(Date.now() + LEASE_MS),
           updatedAt: task.updatedAt,
         },
@@ -506,20 +449,11 @@ async function runPendingTaskTags(
     operation: "task_tag_classification_batch",
     model: JEV_TASK_TAG_MODEL,
   });
-  const summary = {
+  batchLog.set({
     ...progress,
     deferred:
       progress.selected - progress.completed - progress.failed - progress.stale,
     ...(stopReason ? { stopReason } : {}),
-  };
-  try {
-    batchLog.set({
-      ...summary,
-      remainingHistorical: await prisma.task.count({ where: historicalWhere }),
-    });
-  } catch {
-    // Progress visibility must not fail work already durably classified.
-    batchLog.set({ ...summary, progressError: "database_error" });
-  }
+  });
   batchLog.emit();
 }
