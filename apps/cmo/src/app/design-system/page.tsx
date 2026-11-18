@@ -150,7 +150,8 @@ function Board({ scheme }: BoardProps) {
           <Logo />
         </p>
         <p className="ds-t-small ds-muted">
-          The cursor-head mark, then the wordmark in the text colour.
+          The approved stacked-text lockup: black on a light page, white on a
+          dark one.
         </p>
       </Section>
 
