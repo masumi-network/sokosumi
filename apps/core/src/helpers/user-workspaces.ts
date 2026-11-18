@@ -30,7 +30,6 @@ export async function listUserWorkspaces(
     select: {
       name: true,
       email: true,
-      emailVerified: true,
       preferredOrganizationId: true,
     },
   });
@@ -85,7 +84,9 @@ export async function listUserWorkspaces(
       role: null,
       memberCount: null,
       enabledSocialProviders: [
-        ...socialProvidersForWorkspace(socialProviderWorkspace(null, user)),
+        ...socialProvidersForWorkspace(
+          socialProviderWorkspace(null, personalWorkspace.id),
+        ),
       ],
       logo: null,
       websiteUrl: null,
@@ -111,7 +112,7 @@ export async function listUserWorkspaces(
       memberCount: organization._count.members,
       enabledSocialProviders: [
         ...socialProvidersForWorkspace(
-          socialProviderWorkspace(organization.slug),
+          socialProviderWorkspace(organization.slug, workspace.id),
         ),
       ],
       logo: organization.logo,

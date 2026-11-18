@@ -801,7 +801,7 @@ describe("project social connections service", () => {
         workspace: {
           select: {
             organization: { select: { slug: true } },
-            user: { select: { email: true, emailVerified: true } },
+            id: true,
           },
         },
       },

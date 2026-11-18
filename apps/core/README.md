@@ -163,7 +163,7 @@ the connect menu, and choosing it returns "This integration is not configured
 yet" without starting OAuth. Social scheduling is public.
 `socialProvidersForWorkspace` in `packages/utils/src/social-post.ts`
 (`@sokosumi/utils`) returns `SOCIAL_PUBLIC_PROVIDERS` (X, YouTube, LinkedIn,
-Instagram, and Facebook) for every workspace, including `utxo`. Only those enabled
+Instagram, and Facebook) for every workspace, including `utxo`. The mainnet `utxo` workspace also receives TikTok. Only those enabled
 providers can connect, create, edit, schedule, approve, publish, duplicate, or
 recycle posts; other providers show Coming soon. Existing disabled-provider posts
 fail when due with that reason without contacting the platform, preserving their
@@ -192,8 +192,7 @@ TikTok developer app.
    app's client key and client secret and the same scopes. Copy the redirect
    URI Composio shows into the TikTok app's Login Kit redirect URIs.
 4. Copy the auth-config ID (`ac_…`) into `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` on the
-   Core Vercel project for the chosen network, scoped to the recording branch in Preview, then redeploy Core.
-   The mainnet preview enables TikTok only for projects in the `utxo` organization. The preprod preview enables it only for the verified recording account’s personal workspace.
+   Core Vercel project for the chosen network, then redeploy Core. TikTok is enabled only for projects owned by the mainnet `utxo` workspace. Personal workspaces and preprod are excluded.
 5. While the app is in sandbox, only TikTok accounts added as target users can
    authorize it. Add the accounts you test with.
 6. Connect the account: open **Social**, choose a project, then **Connect

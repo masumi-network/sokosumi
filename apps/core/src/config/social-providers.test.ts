@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isProjectSocialProvider,
   PROJECT_SOCIAL_PROVIDERS,
+  requireSocialProviderEnabled,
   socialProviderWorkspace,
 } from "./social-providers";
 
@@ -23,41 +24,23 @@ describe("isProjectSocialProvider", () => {
 
 afterEach(() => vi.unstubAllEnvs());
 
-it("enables only the verified recording account's personal workspace in preview", () => {
-  vi.stubEnv("VERCEL_ENV", "preview");
-  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feat/tiktok-sandbox-recording");
-  vi.stubEnv("NETWORK", "Preprod");
-  const owner = { email: "Albina.Nikiforova@nmkr.io", emailVerified: true };
-  expect(socialProviderWorkspace(null, owner).tiktokSandbox).toBe(true);
-  expect(
-    socialProviderWorkspace(null, { ...owner, email: "other@nmkr.io" })
-      .tiktokSandbox,
-  ).toBe(false);
-  expect(
-    socialProviderWorkspace(null, { ...owner, emailVerified: false })
-      .tiktokSandbox,
-  ).toBe(false);
-  expect(socialProviderWorkspace(null).tiktokSandbox).toBe(false);
-  expect(socialProviderWorkspace("utxo", owner).tiktokSandbox).toBe(false);
-  vi.stubEnv("VERCEL_ENV", "production");
-  expect(socialProviderWorkspace(null, owner).tiktokSandbox).toBe(false);
-});
+const utxoWorkspace = "03d70dc0-f302-45d5-a161-86beb31d2448";
 
-it("allows only the utxo organization in a Mainnet preview", () => {
-  vi.stubEnv("VERCEL_ENV", "preview");
-  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feat/tiktok-sandbox-recording");
-  vi.stubEnv("NETWORK", "Mainnet");
-  expect(socialProviderWorkspace("utxo").tiktokSandbox).toBe(true);
-  expect(socialProviderWorkspace("other").tiktokSandbox).toBe(false);
-  expect(
-    socialProviderWorkspace(null, {
-      email: "albina.nikiforova@nmkr.io",
-      emailVerified: true,
-    }).tiktokSandbox,
-  ).toBe(false);
-  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "another-branch");
-  expect(socialProviderWorkspace("utxo").tiktokSandbox).toBe(false);
-  vi.stubEnv("VERCEL_GIT_COMMIT_REF", "feat/tiktok-sandbox-recording");
-  vi.stubEnv("VERCEL_ENV", "production");
-  expect(socialProviderWorkspace("utxo").tiktokSandbox).toBe(false);
-});
+it.each([
+  ["Mainnet", "utxo", utxoWorkspace, true],
+  ["Mainnet", "utxo", "other-workspace", false],
+  ["Mainnet", "other", utxoWorkspace, false],
+  ["Mainnet", null, "personal", false],
+  ["Preprod", "utxo", utxoWorkspace, false],
+] as const)(
+  "checks %s workspace %s (%s) for discovery and connection",
+  (network, slug, id, allowed) => {
+    vi.stubEnv("NETWORK", network);
+    vi.stubEnv("VERCEL_ENV", "production");
+    expect(socialProviderWorkspace(slug, id).tiktokEnabled).toBe(allowed);
+    const project = { workspace: { id, organization: slug ? { slug } : null } };
+    const connect = () => requireSocialProviderEnabled("tiktok", project);
+    if (allowed) expect(connect).not.toThrow();
+    else expect(connect).toThrow(/coming soon/);
+  },
+);

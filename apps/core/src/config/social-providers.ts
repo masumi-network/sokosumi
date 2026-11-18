@@ -54,21 +54,19 @@ export function socialProviderForToolkit(toolkitSlug: string) {
   );
 }
 
+const UTXO_MAINNET_WORKSPACE_ID = "03d70dc0-f302-45d5-a161-86beb31d2448";
+
 export function socialProviderWorkspace(
   organizationSlug: string | null,
-  owner?: { email: string; emailVerified: boolean } | null,
+  workspaceId: string,
 ): SocialProviderWorkspace {
-  const recordingPreview =
-    process.env.VERCEL_ENV === "preview" &&
-    process.env.VERCEL_GIT_COMMIT_REF === "feat/tiktok-sandbox-recording";
-  const eligible =
-    process.env.NETWORK === "Mainnet"
-      ? organizationSlug === SOCIAL_BETA_ORGANIZATION_SLUG
-      : process.env.NETWORK === "Preprod" &&
-        organizationSlug === null &&
-        owner?.emailVerified === true &&
-        owner.email.toLowerCase() === "albina.nikiforova@nmkr.io";
-  return { organizationSlug, tiktokSandbox: recordingPreview && eligible };
+  return {
+    organizationSlug,
+    tiktokEnabled:
+      process.env.NETWORK === "Mainnet" &&
+      organizationSlug === SOCIAL_BETA_ORGANIZATION_SLUG &&
+      workspaceId === UTXO_MAINNET_WORKSPACE_ID,
+  };
 }
 
 /** Always resolve availability from the owning Project, never the actor's memberships. */
@@ -76,7 +74,7 @@ export const socialProviderProjectSelect = {
   workspace: {
     select: {
       organization: { select: { slug: true } },
-      user: { select: { email: true, emailVerified: true } },
+      id: true,
     },
   },
 } satisfies Prisma.ProjectSelect;
@@ -90,7 +88,7 @@ export function socialProviderWorkspaceForProject(
 ): SocialProviderWorkspace {
   return socialProviderWorkspace(
     project.workspace.organization?.slug ?? null,
-    project.workspace.user,
+    project.workspace.id,
   );
 }
 

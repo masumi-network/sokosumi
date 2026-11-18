@@ -41,7 +41,7 @@ describe("Social provider availability", () => {
       expect(
         isSocialProviderEnabled("tiktok", {
           organizationSlug,
-          tiktokSandbox: true,
+          tiktokEnabled: true,
         }),
       ).toBe(true);
     },
