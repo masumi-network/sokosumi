@@ -1,7 +1,10 @@
 import type { Task } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 
-import { isReadOnlyForViewer } from "@/app/tasks/utils/task-read-only";
+import {
+  isFinalizedTaskStatus,
+  isReadOnlyForViewer,
+} from "@/app/tasks/utils/task-read-only";
 import {
   MAX_SUBTASK_DEPTH,
   SUBTASK_LIST_LIMIT,
@@ -39,8 +42,11 @@ export async function TaskSubtaskSection({
     taskStatus: task.status,
     hasAssignedSeat,
   });
-  // A new sub-task's level is this Task's chain length.
-  const canAdd = (task.ancestors?.length ?? 0) < MAX_SUBTASK_DEPTH;
+  // A new sub-task's level is this Task's chain length. The Task menu offers
+  // "Add sub-task" on the same terms.
+  const canAdd =
+    !isFinalizedTaskStatus(task.status) &&
+    (task.ancestors?.length ?? 0) < MAX_SUBTASK_DEPTH;
 
   return (
     <TaskSubtaskList

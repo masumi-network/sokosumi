@@ -23,9 +23,18 @@ const task = {
   subtaskProgress: { completed: 0, total: 1 },
 } as unknown as Task;
 
-function renderSection() {
+const child = {
+  id: "child",
+  identifier: null,
+  name: "Child",
+  status: TaskStatus.READY,
+  dueOn: null,
+  subtaskProgress: { completed: 0, total: 0 },
+} as unknown as TaskListItem;
+
+function renderSection(overrides: Partial<Task> = {}) {
   return TaskSubtaskSection({
-    task,
+    task: { ...task, ...overrides },
     hasAssignedSeatPromise: Promise.resolve(true),
     assigneeOptionsPromise: Promise.resolve([]),
   });
@@ -43,23 +52,24 @@ describe("TaskSubtaskSection", () => {
   });
 
   it("renders the checklist once the Task has a sub-task", async () => {
-    listTasks.mockResolvedValue({
-      tasks: [
-        {
-          id: "child",
-          identifier: null,
-          name: "Child",
-          status: TaskStatus.READY,
-          dueOn: null,
-          subtaskProgress: { completed: 0, total: 0 },
-        } as unknown as TaskListItem,
-      ],
-    });
+    listTasks.mockResolvedValue({ tasks: [child] });
 
     const section = await renderSection();
 
     expect(section?.props.initialRows).toEqual([
       expect.objectContaining({ id: "child", name: "Child" }),
     ]);
+    expect(section?.props.canAdd).toBe(true);
   });
+
+  it.each([TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELED])(
+    "offers no new sub-task on a %s Task, like the Task menu",
+    async (status) => {
+      listTasks.mockResolvedValue({ tasks: [child] });
+
+      const section = await renderSection({ status });
+
+      expect(section?.props.canAdd).toBe(false);
+    },
+  );
 });

@@ -21,12 +21,14 @@ export function TaskSubtaskMenuItems({
 
   return (
     <>
+      {model.canCreateSubtask ? (
+        <DropdownMenuItem disabled={disabled} onSelect={model.openCreate}>
+          <ListChecks className="size-4" aria-hidden />
+          {t("add")}
+        </DropdownMenuItem>
+      ) : null}
       {model.canAddSubtask ? (
         <>
-          <DropdownMenuItem disabled={disabled} onSelect={model.openCreate}>
-            <ListChecks className="size-4" aria-hidden />
-            {t("add")}
-          </DropdownMenuItem>
           <DropdownMenuItem
             disabled={disabled}
             onSelect={() => model.openPicker(addExistingOption)}
@@ -61,10 +63,13 @@ export function TaskSubtaskMenuDialogs({
   model,
   taskId,
   assigneeOptions,
+  onCloseAutoFocus,
 }: {
   model: TaskSubtaskActionsModel;
   taskId: string;
   assigneeOptions: CoworkerOption[];
+  /** The menu item that opened a dialog is gone when it closes. */
+  onCloseAutoFocus: (event: Event) => void;
 }) {
   return (
     <>
@@ -73,6 +78,7 @@ export function TaskSubtaskMenuDialogs({
           assigneeOptions={assigneeOptions}
           onSubmit={model.handleCreate}
           onClose={model.closeCreate}
+          onCloseAutoFocus={onCloseAutoFocus}
         />
       ) : null}
       <TaskLinkTaskPickerDialog
@@ -85,6 +91,7 @@ export function TaskSubtaskMenuDialogs({
         isLinkPending={model.isPending}
         excludeTaskIds={model.excludeTaskIds}
         onSelectTask={model.handlePickTask}
+        onCloseAutoFocus={onCloseAutoFocus}
       />
     </>
   );

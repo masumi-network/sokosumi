@@ -1,8 +1,15 @@
 "use client";
 
-import { TaskStatus } from "@sokosumi/core-client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TaskStatus } from "@sokosumi/core-client";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
 import {
   SUBTASK_LIST_LIMIT,
@@ -16,6 +23,19 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 
 export function taskSubtasksQueryKey(parentTaskId: string) {
   return ["task-subtasks", parentTaskId] as const;
+}
+
+/** Reads again the checklists of the parents a change touched. */
+export function invalidateSubtaskLists(
+  queryClient: QueryClient,
+  parentTaskIds: readonly (string | null | undefined)[],
+) {
+  for (const id of new Set(parentTaskIds)) {
+    if (id)
+      void queryClient.invalidateQueries({
+        queryKey: taskSubtasksQueryKey(id),
+      });
+  }
 }
 
 /** What the "Add sub-task" dialog asks for. */
@@ -42,10 +62,37 @@ export function createSubtaskFromDraft(
   });
 }
 
+/**
+ * Adds a sub-task from the dialog. The dialog waits for the answer: it closes
+ * on success and keeps the draft when Core refuses.
+ */
+export function useCreateSubtask(parentTaskId: string) {
+  const t = useTranslations("App.Tasks.Detail.actions.subtasks");
+  const queryClient = useQueryClient();
+
+  return async function handleCreate(draft: NewSubtaskDraft): Promise<boolean> {
+    try {
+      const result = await createSubtaskFromDraft(parentTaskId, draft);
+      if (!result.ok) {
+        toast.error(t("createError"), {
+          description: result.error.message || undefined,
+        });
+        return false;
+      }
+      invalidateSubtaskLists(queryClient, [parentTaskId]);
+      toast.success(t("createSuccess"));
+      return true;
+    } catch (error) {
+      console.error("Failed to create sub-task", error);
+      toast.error(t("createError"));
+      return false;
+    }
+  };
+}
+
 export type SubtaskChange =
   | { kind: "status"; id: string; status: TaskStatus; comment?: string }
-  | { kind: "move"; id: string; ids: string[] }
-  | { kind: "add"; tempId: string; draft: NewSubtaskDraft };
+  | { kind: "move"; id: string; ids: string[] };
 
 /** The checklist as it looks once `change` lands. */
 export function applySubtaskChange(
@@ -61,35 +108,10 @@ export function applySubtaskChange(
       const byId = new Map(rows.map((row) => [row.id, row]));
       return change.ids.flatMap((id) => byId.get(id) ?? []);
     }
-    case "add": {
-      const { name, assignee, dueOn } = change.draft;
-      return [
-        ...rows,
-        {
-          id: change.tempId,
-          identifier: null,
-          name,
-          status: TaskStatus.READY,
-          assignee: assignee
-            ? {
-                id: assignee.id,
-                name: assignee.name,
-                image: assignee.image,
-                slug: assignee.slug,
-                kind: assignee.kind ?? "coworker",
-                avatarSeed: assignee.avatarSeed,
-              }
-            : null,
-          dueOn,
-          subtaskProgress: { completed: 0, total: 0 },
-          isPending: true,
-        },
-      ];
-    }
   }
 }
 
-function sendSubtaskChange(parentTaskId: string, change: SubtaskChange) {
+function sendSubtaskChange(change: SubtaskChange) {
   switch (change.kind) {
     case "status":
       return setTaskStatusFromDrag({
@@ -102,8 +124,6 @@ function sendSubtaskChange(parentTaskId: string, change: SubtaskChange) {
         taskId: change.id,
         afterTaskId: change.ids[change.ids.indexOf(change.id) - 1] ?? null,
       });
-    case "add":
-      return createSubtaskFromDraft(parentTaskId, change.draft);
   }
 }
 
@@ -118,7 +138,7 @@ interface UseTaskSubtasksOptions {
 }
 
 /**
- * A Task's sub-tasks, in order. Toggle, reorder and add show at once and roll
+ * A Task's sub-tasks, in order. Toggle and reorder show at once and roll
  * back when Core refuses; the list then reads Core again.
  */
 export function useTaskSubtasks({
@@ -163,7 +183,7 @@ export function useTaskSubtasks({
   const mutation = useMutation({
     mutationKey: queryKey,
     mutationFn: async (change: SubtaskChange) => {
-      const result = await sendSubtaskChange(parentTaskId, change);
+      const result = await sendSubtaskChange(change);
       if (!result.ok) throw new Error("Sub-task change refused");
     },
     onMutate: async (change) => {
@@ -190,7 +210,5 @@ export function useTaskSubtasks({
       mutation.mutate({ kind: "status", id, status, comment }),
     move: (id: string, ids: string[]) =>
       mutation.mutate({ kind: "move", id, ids }),
-    add: (draft: NewSubtaskDraft) =>
-      mutation.mutate({ kind: "add", tempId: crypto.randomUUID(), draft }),
   };
 }

@@ -23,8 +23,6 @@ export interface SubtaskRow {
   assignee: TaskAssigneeView | null;
   dueOn: string | null;
   subtaskProgress: TaskSubtaskProgress;
-  /** A create request is on the wire: the row has no page and cannot move. */
-  isPending?: boolean;
 }
 
 export function toSubtaskRow(

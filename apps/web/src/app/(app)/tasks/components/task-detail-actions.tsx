@@ -133,6 +133,10 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     handleRemoveRelated,
   } = model;
   const actionsDisabled = model.actionsDisabled || subtaskActions.isPending;
+  const returnFocusToMenu = (event: Event) => {
+    event.preventDefault();
+    menuTriggerRef.current?.focus();
+  };
   return (
     <div className="flex items-center gap-2">
       {canArchiveTask ? (
@@ -591,10 +595,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
           onClose={() => setChatRooms(null)}
           // The dialog opens from a menu item, which is gone by then; return
           // to the Actions button the user opened it from.
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            menuTriggerRef.current?.focus();
-          }}
+          onCloseAutoFocus={returnFocusToMenu}
         />
       ) : null}
 
@@ -628,6 +629,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
           model={subtaskActions}
           taskId={taskId}
           assigneeOptions={model.coworkerOptions}
+          onCloseAutoFocus={returnFocusToMenu}
         />
       ) : null}
 

@@ -1,7 +1,14 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -27,7 +34,7 @@ vi.mock("next-intl", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: vi.fn(), push: vi.fn() }),
 }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/lib/actions/task/action", () => ({ setTaskStatusFromDrag }));
 vi.mock("@/lib/actions/task/subtask-action", () => ({
   createSubtask,
@@ -101,9 +108,22 @@ function addByDialog(name: string) {
   fireEvent.click(screen.getByRole("button", { name: "create" }));
 }
 
+/** What Core's list read returns for a sub-task. */
+function listItem(id: string, name = id) {
+  return {
+    id,
+    identifier: null,
+    name,
+    status: TaskStatus.READY,
+    dueOn: null,
+    subtaskProgress: { completed: 0, total: 0 },
+  };
+}
+
 function rowNames() {
+  // An open dialog hides the rest of the page from the accessibility tree.
   return screen
-    .getAllByRole("listitem")
+    .getAllByRole("listitem", { hidden: true })
     .map((item) => item.textContent?.trim());
 }
 
@@ -168,20 +188,47 @@ describe("TaskSubtaskList", () => {
     await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
   });
 
-  it("does not move a row past a sub-task Core has not created yet", async () => {
-    createSubtask.mockImplementation(() => new Promise(() => {}));
+  it("keeps the dialog open with a pending Add until Core answers", async () => {
+    const answer = Promise.withResolvers<{ ok: false; error: object }>();
+    createSubtask.mockReturnValue(answer.promise);
     renderList([row("a")]);
 
     addByDialog("b");
-    await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
-    fireEvent.keyDown(screen.getByRole("button", { name: "reorderHandle a" }), {
-      key: "ArrowDown",
-    });
 
-    // The announcement is set in the same tick as a move would start.
-    expect(screen.queryByText(/^movedTo/)).not.toBeInTheDocument();
-    expect(rowNames()).toEqual(["a", "b"]);
-    expect(moveSubtask).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "create" })).toHaveAttribute(
+        "aria-busy",
+        "true",
+      ),
+    );
+    expect(screen.getByRole("textbox", { name: "name" })).toHaveValue("b");
+    expect(rowNames()).toEqual(["a"]);
+    await act(async () => answer.resolve({ ok: false, error: {} }));
+  });
+
+  it("puts a refused sub-task's name back in the field", async () => {
+    createSubtask.mockResolvedValue({
+      ok: false,
+      error: { code: "UNPROCESSABLE", message: "Too deep." },
+    });
+    renderList([row("a")]);
+
+    addByDialog("Book the venue");
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("createError", {
+        description: "Too deep.",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "create" }),
+      ).not.toHaveAttribute("aria-busy"),
+    );
+    expect(screen.getByRole("textbox", { name: "name" })).toHaveValue(
+      "Book the venue",
+    );
+    expect(rowNames()).toEqual(["a"]);
   });
 
   it("takes newer page rows after a refresh", async () => {
@@ -196,17 +243,20 @@ describe("TaskSubtaskList", () => {
   });
 
   it("keeps a change in flight over newer page rows", async () => {
-    createSubtask.mockImplementation(() => new Promise(() => {}));
+    setTaskStatusFromDrag.mockImplementation(() => new Promise(() => {}));
     const { rerender } = renderList([row("a")], undefined, 1_000);
-    addByDialog("b");
-    await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
+    const checkbox = screen.getByRole("checkbox", { name: "toggleLabel a" });
+    fireEvent.click(checkbox);
+    await waitFor(() => expect(checkbox).toBeChecked());
 
     // Newer than the optimistic write, so only the in-flight check holds it.
     rerender([row("a")], Date.now() + 60_000);
     // TanStack Query renders a cache write on a timer; let one land first.
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    expect(rowNames()).toEqual(["a", "b"]);
+    expect(
+      screen.getByRole("checkbox", { name: "toggleLabel a" }),
+    ).toBeChecked();
   });
 
   it("keeps the cache over older page rows that Back replays", async () => {
@@ -248,10 +298,13 @@ describe("TaskSubtaskList", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("sends the name, assignee and due date from the + dialog", async () => {
+  it("sends the name, assignee and due date from the + dialog and reads the list again", async () => {
     const user = userEvent.setup();
-    createSubtask.mockImplementation(() => new Promise(() => {}));
+    createSubtask.mockResolvedValue({ ok: true, value: {} });
     renderList([row("a")]);
+    getTasks.mockResolvedValue({
+      data: [listItem("a"), listItem("new", "Book it")],
+    });
 
     await user.click(screen.getByRole("button", { name: "add" }));
     await user.type(screen.getByRole("textbox", { name: "name" }), "Book it");
@@ -274,7 +327,19 @@ describe("TaskSubtaskList", () => {
         dueOn: "2026-12-01",
       }),
     );
-    expect(screen.getAllByRole("listitem")[1]).toHaveTextContent("Book it");
+    await waitFor(() => expect(rowNames()).toEqual(["a", "Book it"]));
+    expect(screen.queryByRole("textbox", { name: "name" })).toBeNull();
+  });
+
+  it("labels the assignee picker in the + dialog", () => {
+    renderList([row("a")]);
+
+    fireEvent.click(screen.getByRole("button", { name: "add" }));
+
+    expect(screen.getByLabelText("assignee")).toHaveAttribute(
+      "role",
+      "combobox",
+    );
   });
 
   it("reopens a person's done sub-task to Ready without asking", async () => {

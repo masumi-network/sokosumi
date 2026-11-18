@@ -12,6 +12,8 @@ export interface TaskPickerTask {
   id: string;
   name: string;
   status: TaskStatus;
+  /** The Task it is a sub-task of; null for a Task on the board. */
+  parentTaskId: string | null;
 }
 
 export interface VisibleTaskLink {
@@ -35,6 +37,7 @@ export function mapTaskListItemToTaskPickerTask(
     id: task.id,
     name: stripInlineMarkdown(task.name),
     status: task.status,
+    parentTaskId: task.parentTaskId,
   };
 }
 

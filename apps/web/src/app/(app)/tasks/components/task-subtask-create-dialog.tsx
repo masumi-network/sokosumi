@@ -22,6 +22,8 @@ interface TaskSubtaskCreateDialogProps {
   /** Resolves true when the dialog may close. */
   onSubmit: (draft: NewSubtaskDraft) => boolean | Promise<boolean>;
   onClose: () => void;
+  /** Where focus goes on close; Radix's default is the opening element. */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 /**
@@ -32,10 +34,12 @@ export function TaskSubtaskCreateDialog({
   assigneeOptions,
   onSubmit,
   onClose,
+  onCloseAutoFocus,
 }: TaskSubtaskCreateDialogProps) {
   const t = useTranslations("App.Tasks.Subtasks");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const nameId = useId();
+  const assigneeFieldId = useId();
   const dueId = useId();
   const [name, setName] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
@@ -59,7 +63,10 @@ export function TaskSubtaskCreateDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && !isPending && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
             <DialogTitle>{t("add")}</DialogTitle>
@@ -76,20 +83,24 @@ export function TaskSubtaskCreateDialog({
               onChange={(event) => setName(event.target.value)}
             />
           </div>
-          <TaskAssigneePicker
-            value={assigneeId}
-            options={assigneeOptions}
-            labels={{
-              ariaLabel: t("assignee"),
-              unassigned: tNewTask("unassigned"),
-              unavailableAssignee: tNewTask("unavailableAssignee"),
-              searchPlaceholder: tNewTask("changeCoworker"),
-              noResults: tNewTask("noCoworkerMatches"),
-              agentsGroupLabel: tNewTask("coworker"),
-            }}
-            onSelect={setAssigneeId}
-            disabled={isPending}
-          />
+          <div className="space-y-2">
+            <Label htmlFor={assigneeFieldId}>{t("assignee")}</Label>
+            <TaskAssigneePicker
+              id={assigneeFieldId}
+              value={assigneeId}
+              options={assigneeOptions}
+              labels={{
+                ariaLabel: t("assignee"),
+                unassigned: tNewTask("unassigned"),
+                unavailableAssignee: tNewTask("unavailableAssignee"),
+                searchPlaceholder: tNewTask("changeCoworker"),
+                noResults: tNewTask("noCoworkerMatches"),
+                agentsGroupLabel: tNewTask("coworker"),
+              }}
+              onSelect={setAssigneeId}
+              disabled={isPending}
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor={dueId}>{t("dueOn")}</Label>
             <Input

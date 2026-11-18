@@ -1,6 +1,7 @@
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -24,7 +25,11 @@ import {
 import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
-import { MAX_SUBTASK_DEPTH } from "@/app/tasks/utils/task-subtask-row";
+import {
+  MAX_SUBTASK_DEPTH,
+  SUBTASK_LIST_LIMIT,
+  type SubtaskRow,
+} from "@/app/tasks/utils/task-subtask-row";
 import {
   type CreateTaskResult,
   createTaskAndLink,
@@ -34,6 +39,7 @@ import {
 } from "@/lib/actions/task/action";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 import { mapVisibleTaskLinks } from "./task-detail-api-types";
+import { taskSubtasksQueryKey } from "./use-task-subtasks";
 
 const {
   pushMock,
@@ -573,7 +579,12 @@ function createTaskAndLinkSuccess(input: {
 }
 
 function buildTaskListItem(
-  overrides?: Partial<{ id: string; name: string; status: TaskStatus }>,
+  overrides?: Partial<{
+    id: string;
+    name: string;
+    status: TaskStatus;
+    parentTaskId: string | null;
+  }>,
 ) {
   return {
     id: "task-2",
@@ -721,28 +732,33 @@ const coworkerOptions = [
   }),
 ];
 
+/** The app's query cache; the sub-task checklist reads and writes it. */
+let queryClient = new QueryClient();
+
 function renderActionsElement(
   props?: Partial<ComponentProps<typeof TaskDetailActions>>,
 ) {
   return (
-    <TaskDetailActions
-      taskId="task-1"
-      share={null}
-      status={TaskStatus.READY}
-      jobsCount={0}
-      taskLinks={[]}
-      coworkerOptions={coworkerOptions}
-      agentNameById={new Map()}
-      defaultAssigneeId="coworker-1"
-      actionsMenuLabel={actionsMenuLabel}
-      labels={labels}
-      organizations={sampleOrganizations}
-      personalWorkspaceLabel={personalWorkspaceLabel}
-      isReadOnly={false}
-      isTaskOwner
-      taskOwnerId="owner-1"
-      {...props}
-    />
+    <QueryClientProvider client={queryClient}>
+      <TaskDetailActions
+        taskId="task-1"
+        share={null}
+        status={TaskStatus.READY}
+        jobsCount={0}
+        taskLinks={[]}
+        coworkerOptions={coworkerOptions}
+        agentNameById={new Map()}
+        defaultAssigneeId="coworker-1"
+        actionsMenuLabel={actionsMenuLabel}
+        labels={labels}
+        organizations={sampleOrganizations}
+        personalWorkspaceLabel={personalWorkspaceLabel}
+        isReadOnly={false}
+        isTaskOwner
+        taskOwnerId="owner-1"
+        {...props}
+      />
+    </QueryClientProvider>
   );
 }
 
@@ -778,6 +794,7 @@ function renderActions(
 describe("TaskDetailActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient = new QueryClient();
     createRelatedVisibilityMock.current = undefined;
     isMobileMock.mockReturnValue(false);
     browserCoreClientMock.getTasks.mockReset();
@@ -2506,6 +2523,178 @@ describe("TaskDetailActions", () => {
       });
     });
 
+    /** A cached checklist of `parentTaskId`, as the sub-task section leaves it. */
+    function cacheSubtasks(parentTaskId: string, ids: string[]) {
+      queryClient.setQueryData<SubtaskRow[]>(
+        taskSubtasksQueryKey(parentTaskId),
+        ids.map((id) => ({
+          id,
+          identifier: null,
+          name: id,
+          status: TaskStatus.READY,
+          assignee: null,
+          dueOn: null,
+          subtaskProgress: { completed: 0, total: 0 },
+        })),
+      );
+    }
+
+    function isStale(parentTaskId: string) {
+      return queryClient.getQueryState(taskSubtasksQueryKey(parentTaskId))
+        ?.isInvalidated;
+    }
+
+    it("reads the old and the new parent's checklists again after a move", async () => {
+      const user = userEvent.setup();
+      listTasks(buildTaskListItem({ id: "task-new", name: "New parent" }));
+      for (const id of ["task-1", "task-parent", "task-new", "task-other"])
+        cacheSubtasks(id, []);
+      renderActions({
+        parentTaskId: "task-parent",
+        ancestorIds: ["task-parent"],
+      });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "moveUnder" }));
+      await user.click(
+        await screen.findByRole("button", { name: "New parent" }),
+      );
+
+      await waitFor(() => expect(isStale("task-new")).toBe(true));
+      expect(isStale("task-parent")).toBe(true);
+      expect(isStale("task-1")).toBe(true);
+      expect(isStale("task-other")).toBe(false);
+    });
+
+    it("reads a picked Task's old parent's checklist again after Add existing", async () => {
+      const user = userEvent.setup();
+      listTasks(
+        buildTaskListItem({
+          id: "task-other",
+          name: "Other task",
+          parentTaskId: "task-old",
+        }),
+      );
+      for (const id of ["task-1", "task-old"]) cacheSubtasks(id, []);
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "addExisting" }));
+      await user.click(
+        await screen.findByRole("button", { name: "Other task" }),
+      );
+
+      await waitFor(() => expect(isStale("task-old")).toBe(true));
+      expect(isStale("task-1")).toBe(true);
+    });
+
+    it("reads the old parent's checklist again after Remove from parent", async () => {
+      const user = userEvent.setup();
+      for (const id of ["task-1", "task-parent"]) cacheSubtasks(id, []);
+      renderActions({ parentTaskId: "task-parent" });
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(
+        screen.getByRole("menuitem", { name: "removeFromParent" }),
+      );
+
+      await waitFor(() => expect(isStale("task-parent")).toBe(true));
+      expect(isStale("task-1")).toBe(true);
+    });
+
+    it("keeps the picker open while the move runs and closes it on success", async () => {
+      const user = userEvent.setup();
+      const answer = Promise.withResolvers<{
+        ok: true;
+        value: { taskId: string };
+      }>();
+      setTaskParentMock.mockReturnValue(answer.promise);
+      listTasks(buildTaskListItem({ id: "task-new", name: "New parent" }));
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "moveUnder" }));
+      await user.click(
+        await screen.findByRole("button", { name: "New parent" }),
+      );
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "New parent" }),
+        ).toBeDisabled(),
+      );
+      await act(async () =>
+        answer.resolve({ ok: true, value: { taskId: "task-1" } }),
+      );
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: "New parent" })).toBeNull(),
+      );
+    });
+
+    it("opens the picker with an empty search after a pick", async () => {
+      const user = userEvent.setup();
+      listTasks(buildTaskListItem({ id: "task-other", name: "Other task" }));
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "addExisting" }));
+      await user.type(
+        screen.getByRole("textbox", { name: "Search tasks..." }),
+        "Oth",
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Other task" }),
+      );
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("textbox", { name: "Search tasks..." }),
+        ).toBeNull(),
+      );
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "addExisting" }));
+
+      expect(
+        screen.getByRole("textbox", { name: "Search tasks..." }),
+      ).toHaveValue("");
+    });
+
+    it("does not offer this Task's own sub-tasks to Add existing or Move under", async () => {
+      const user = userEvent.setup();
+      cacheSubtasks("task-1", ["task-child"]);
+      listTasks(
+        buildTaskListItem({ id: "task-child", name: "Its child" }),
+        buildTaskListItem({ id: "task-other", name: "Other task" }),
+      );
+
+      for (const item of ["addExisting", "moveUnder"]) {
+        const { unmount } = renderActions();
+        await user.click(
+          screen.getByRole("button", { name: actionsMenuLabel }),
+        );
+        await user.click(screen.getByRole("menuitem", { name: item }));
+        await screen.findByRole("button", { name: "Other task" });
+
+        expect(screen.queryByRole("button", { name: "Its child" })).toBeNull();
+        unmount();
+      }
+    });
+
+    it("offers no new sub-task once the checklist is past its first page", async () => {
+      const user = userEvent.setup();
+      cacheSubtasks(
+        "task-1",
+        Array.from({ length: SUBTASK_LIST_LIMIT }, (_, index) => `t${index}`),
+      );
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+      expect(screen.queryByRole("menuitem", { name: "add" })).toBeNull();
+      expect(
+        screen.getByRole("menuitem", { name: "addExisting" }),
+      ).toBeInTheDocument();
+    });
+
     it("adds a picked Task as a sub-task and does not offer an ancestor", async () => {
       const user = userEvent.setup();
       listTasks(
@@ -2576,7 +2765,13 @@ describe("TaskDetailActions", () => {
       );
 
       await waitFor(() =>
-        expect(toast.error).toHaveBeenCalledWith("That would be a cycle."),
+        expect(toast.error).toHaveBeenCalledWith("moveError", {
+          description: "That would be a cycle.",
+        }),
+      );
+      // The picker stays open for another pick.
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "Its child" })).toBeEnabled(),
       );
     });
 
@@ -2629,6 +2824,51 @@ describe("TaskDetailActions", () => {
       await waitFor(() =>
         expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
       );
+    });
+
+    it("keeps the draft when Core refuses a new sub-task", async () => {
+      const user = userEvent.setup();
+      createSubtaskMock.mockResolvedValue({
+        ok: false,
+        error: { code: "UNPROCESSABLE", message: "Too deep." },
+      });
+      renderActions();
+
+      await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+      await user.click(screen.getByRole("menuitem", { name: "add" }));
+      await user.type(
+        screen.getByRole("textbox", { name: "name" }),
+        "Draft it",
+      );
+      await user.click(screen.getByRole("button", { name: "create" }));
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenCalledWith("createError", {
+          description: "Too deep.",
+        }),
+      );
+      expect(screen.getByRole("textbox", { name: "name" })).toHaveValue(
+        "Draft it",
+      );
+    });
+
+    it("reads the checklist again and returns focus to the menu after a new sub-task", async () => {
+      const user = userEvent.setup();
+      createSubtaskMock.mockResolvedValue({ ok: true, value: {} });
+      cacheSubtasks("task-1", []);
+      renderActions();
+      const trigger = screen.getByRole("button", { name: actionsMenuLabel });
+
+      await user.click(trigger);
+      await user.click(screen.getByRole("menuitem", { name: "add" }));
+      await user.type(screen.getByRole("textbox", { name: "name" }), "Do it");
+      await user.click(screen.getByRole("button", { name: "create" }));
+
+      await waitFor(() =>
+        expect(screen.queryByRole("textbox", { name: "name" })).toBeNull(),
+      );
+      expect(isStale("task-1")).toBe(true);
+      await waitFor(() => expect(trigger).toHaveFocus());
     });
 
     it("offers no new sub-task at the deepest level", async () => {

@@ -24,7 +24,10 @@ import {
   unmarkTaskArchived,
 } from "@/app/tasks/utils/archived-task-ids";
 import { chatRoomsForTask } from "@/app/tasks/utils/task-chat-share";
-import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import {
+  canArchiveParkedTaskForViewer,
+  isFinalizedTaskStatus,
+} from "@/app/tasks/utils/task-read-only";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { listOrganizationChatRoomsAction } from "@/components/chat/organization-chat-list.actions";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
@@ -262,10 +265,7 @@ export function useTaskDetailActions({
       isTaskArchivableStatus(status) &&
       !isReadOnly &&
       !forceReadOnly);
-  const isFinalized =
-    status === TaskStatus.COMPLETED ||
-    status === TaskStatus.FAILED ||
-    status === TaskStatus.CANCELED;
+  const isFinalized = isFinalizedTaskStatus(status);
   const canManageRelations = canMutateTask && !isFinalized;
   const personalMoveAllowed = taskOwnerId !== null && hasPersonalWorkspace;
   const canMove =

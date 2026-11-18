@@ -31,7 +31,7 @@ import { TaskDueBadge } from "./task-due-badge";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskSubtaskCreateDialog } from "./task-subtask-create-dialog";
 import { TaskSubtaskProgress } from "./task-subtask-progress";
-import { useTaskSubtasks } from "./use-task-subtasks";
+import { useCreateSubtask, useTaskSubtasks } from "./use-task-subtasks";
 
 interface TaskSubtaskListProps {
   parentTaskId: string;
@@ -39,7 +39,10 @@ interface TaskSubtaskListProps {
   /** When the server read `initialRows`, in epoch milliseconds. */
   renderedAt: number;
   readOnly: boolean;
-  /** False at the deepest level, where Core refuses another sub-task. */
+  /**
+   * False at the deepest level, where Core refuses another sub-task, and on a
+   * finalized Task, like the Task menu's "Add sub-task".
+   */
   canAdd: boolean;
   /** Who a new sub-task can go to. */
   assigneeOptions: CoworkerOption[];
@@ -63,13 +66,14 @@ export function TaskSubtaskList({
 }: TaskSubtaskListProps) {
   const t = useTranslations("App.Tasks.Subtasks");
   const tTasks = useTranslations("App.Tasks");
-  const { rows, setStatus, move, add } = useTaskSubtasks({
+  const { rows, setStatus, move } = useTaskSubtasks({
     parentTaskId,
     initialRows,
     renderedAt,
     personalAssistantFallback: tTasks("personalAssistant"),
     onError: () => toast.error(t("changeError")),
   });
+  const handleCreate = useCreateSubtask(parentTaskId);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   // Kept after close, so the closing dialog still names the assignee.
@@ -107,9 +111,7 @@ export function TaskSubtaskList({
 
   function moveBy(id: string, step: -1 | 1) {
     const neighbour = rows[ids.indexOf(id) + step];
-    // Core does not know a row still being created, so nothing moves past it.
-    if (neighbour && !neighbour.isPending)
-      moveTo(id, moveIdToSlot(ids, id, neighbour.id));
+    if (neighbour) moveTo(id, moveIdToSlot(ids, id, neighbour.id));
   }
 
   function handleDragEnd({ active, over }: DragEndEvent) {
@@ -209,10 +211,7 @@ export function TaskSubtaskList({
       {isCreateOpen ? (
         <TaskSubtaskCreateDialog
           assigneeOptions={assigneeOptions}
-          onSubmit={(draft) => {
-            add(draft);
-            return true;
-          }}
+          onSubmit={handleCreate}
           onClose={() => setIsCreateOpen(false)}
         />
       ) : null}
@@ -253,14 +252,13 @@ function SubtaskItem({
   handleRef,
 }: SubtaskItemProps) {
   const t = useTranslations("App.Tasks.Subtasks");
-  const locked = readOnly || row.isPending === true;
   const { listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: row.id,
-    disabled: locked,
+    disabled: readOnly,
   });
   const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: row.id,
-    disabled: locked,
+    disabled: readOnly,
   });
   const done = row.status === TaskStatus.COMPLETED;
   const agentName =
@@ -291,13 +289,11 @@ function SubtaskItem({
           ? { transform: `translate3d(0, ${Math.round(transform.y)}px, 0)` }
           : undefined
       }
-      onKeyDown={locked ? undefined : (event) => moveFor(event, true)}
-      aria-busy={row.isPending || undefined}
+      onKeyDown={readOnly ? undefined : (event) => moveFor(event, true)}
       className={cn(
         "hover:bg-quinary flex min-h-9 items-center gap-2 rounded-md px-1",
         isDragging && "bg-background relative z-10 shadow-md",
         isOver && !isDragging && "bg-quinary",
-        row.isPending && "opacity-60",
       )}
     >
       {readOnly ? null : (
@@ -305,7 +301,6 @@ function SubtaskItem({
           ref={handleRef}
           type="button"
           {...listeners}
-          disabled={locked}
           onKeyDown={(event) => moveFor(event, false)}
           aria-label={t("reorderHandle", { name: row.name })}
           className={cn(
@@ -318,7 +313,7 @@ function SubtaskItem({
       )}
       <Checkbox
         checked={done}
-        disabled={locked}
+        disabled={readOnly}
         onCheckedChange={onToggle}
         aria-label={t("toggleLabel", { name: row.name })}
         title={
@@ -332,20 +327,16 @@ function SubtaskItem({
           {row.identifier}
         </span>
       ) : null}
-      {row.isPending ? (
-        <span className="min-w-0 flex-1 truncate text-sm">{row.name}</span>
-      ) : (
-        <TaskDetailLink
-          href={taskHref(row)}
-          title={row.name}
-          className={cn(
-            "min-w-0 flex-1 truncate text-sm hover:underline",
-            done && "text-muted-foreground line-through",
-          )}
-        >
-          {row.name}
-        </TaskDetailLink>
-      )}
+      <TaskDetailLink
+        href={taskHref(row)}
+        title={row.name}
+        className={cn(
+          "min-w-0 flex-1 truncate text-sm hover:underline",
+          done && "text-muted-foreground line-through",
+        )}
+      >
+        {row.name}
+      </TaskDetailLink>
       <TaskSubtaskProgress progress={row.subtaskProgress} />
       {row.dueOn ? (
         <TaskDueBadge dueOn={row.dueOn} status={row.status} />

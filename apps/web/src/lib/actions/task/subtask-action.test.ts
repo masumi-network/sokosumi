@@ -63,6 +63,8 @@ describe("setTaskParent", () => {
 
     expect(moveSubtask).toHaveBeenCalledWith("child", { parentTaskId: null });
     expect(revalidatePath).toHaveBeenCalledWith("/tasks/[taskId]", "page");
+    // The board shows root Tasks only, so a detached Task joins it.
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
   });
 
   it("returns Core's refusal and refreshes nothing", async () => {
