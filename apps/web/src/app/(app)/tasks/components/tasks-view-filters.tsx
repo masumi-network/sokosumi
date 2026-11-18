@@ -42,13 +42,20 @@ import { TaskTagDot } from "./task-tag-colors";
 /**
  * Focuses the first visible toolbar button outside the chip list. A removed
  * chip or a cleared empty state unmounts the focused button, which would
- * otherwise drop keyboard focus to the page.
+ * otherwise drop keyboard focus to the page. The Filters menu is preferred:
+ * a quick filter is a toggle, and one more press there would set a filter.
  */
 export function focusToolbarControl(toolbar: Element | null | undefined) {
-  Array.from(toolbar?.querySelectorAll("button") ?? [])
-    .find((button) => !button.closest("ul") && button.offsetParent !== null)
-    ?.focus();
+  const buttons = Array.from(toolbar?.querySelectorAll("button") ?? []).filter(
+    (button) => !button.closest("ul") && button.offsetParent !== null,
+  );
+  (
+    buttons.find((button) => button.closest(`[${FILTERS_MENU_ATTRIBUTE}]`)) ??
+    buttons[0]
+  )?.focus();
 }
+
+const FILTERS_MENU_ATTRIBUTE = "data-filters-menu";
 
 interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
@@ -359,11 +366,10 @@ export function TasksViewFilters({
   ].filter((chip) => !!chip);
 
   return (
-    // Anchored to the board's left edge: the menu first, then the two quick
-    // filters, then what is active. Chips wrap under them, never over Display.
-    // The quick filters and how the Tasks are shown now come first, because
-    // they are what a reader changes most. The menu holds the rest and sits
-    // at the right edge.
+    // Anchored to the board's left edge: the quick filters first, then how
+    // the Tasks are shown, then what is active, because those are what a
+    // reader changes most. Chips wrap under them. The menu holds the rest
+    // and sits at the right edge.
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
       {me ? (
         <Button
@@ -414,8 +420,9 @@ export function TasksViewFilters({
           onClick={() => handleFilterChange({ needsMe: !filters.needsMe })}
         >
           <Hand aria-hidden />
-          {/* Icon only on a phone, so the toolbar stays one row. */}
-          <span className="max-sm:sr-only">{t("needsMe")}</span>
+          {/* Icon only below lg, so the toolbar stays one row beside an
+              open sidebar. */}
+          <span className="max-lg:sr-only">{t("needsMe")}</span>
         </Button>
       ) : null}
       {display}
@@ -449,7 +456,7 @@ export function TasksViewFilters({
           })}
         </ul>
       ) : null}
-      <span className="ms-auto flex">
+      <span className="ms-auto flex" data-filters-menu>
         <FilterDropdownMenu
           buttonLabel={labels.title}
           searchPlaceholder={labels.searchPlaceholder}

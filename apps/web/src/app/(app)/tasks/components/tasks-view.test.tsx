@@ -156,8 +156,10 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
   // The filter row places the Display control, so the stub does too.
   TasksViewFilters: ({ display }: { display?: React.ReactNode }) => (
     <>
-      <button type="button">Filters</button>
       {display}
+      <span data-filters-menu>
+        <button type="button">Filters</button>
+      </span>
     </>
   ),
 }));
