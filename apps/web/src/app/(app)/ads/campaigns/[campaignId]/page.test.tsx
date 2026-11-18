@@ -3,6 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
+vi.mock("@/components/back-link", () => ({
+  BackLink: ({
+    children,
+    href,
+    ...props
+  }: React.ComponentProps<"a"> & { href: string }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 const {
   adsServiceMock,
   detailsMock,

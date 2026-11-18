@@ -33,6 +33,7 @@ const forProject = Object.fromEntries(
     "finalizeCmoAdsForProject",
     "finalizeCmoMeasurementForProject",
     "finalizeCmoSocialConnectionForProject",
+    "fixCmoBrandSectionForProject",
     "getCmoCalendarEntryTextForProject",
     "initiateCmoSocialConnectionForProject",
     "launchCmoSearchAdForProject",
@@ -123,6 +124,7 @@ const {
   connectSetupChannel,
   finalizeChannel,
   finishAccounts,
+  fixBrandSection,
   loadCusos,
   loadOverview,
   onboard,
@@ -413,6 +415,30 @@ describe("addMailingList", () => {
   });
 });
 
+describe("brand fixes", () => {
+  it("sends a fix to its section", async () => {
+    forProject.fixCmoBrandSectionForProject?.mockResolvedValue({
+      error: undefined,
+    });
+    expect(await fixBrandSection("project-2", "offer", "From $19")).toBeNull();
+    expect(forProject.fixCmoBrandSectionForProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { projectId: "project-2" },
+        body: { section: "offer", note: "From $19" },
+      }),
+    );
+  });
+
+  it("passes Core's refusal on", async () => {
+    forProject.fixCmoBrandSectionForProject?.mockResolvedValue({
+      error: { message: "You're out of credits." },
+    });
+    expect(await fixBrandSection("project-2", "offer", "From $19")).toBe(
+      "You're out of credits.",
+    );
+  });
+});
+
 describe("skipped hiring steps", () => {
   beforeEach(() => {
     const overview = {
@@ -434,8 +460,8 @@ describe("skipped hiring steps", () => {
 
   it("resumes past the steps CMO's cookie skipped for this Cuso", async () => {
     cookieJar.set("cmo-skipped-project-1", "accounts");
-    // Past the accounts the checkout is owed (ADR 0068).
-    expect((await loadOverview("project-1"))?.onboardingStep).toBe("checkout");
+    // Core reaches the accounts only after the checkout (ADR 0068): done.
+    expect((await loadOverview("project-1"))?.onboardingStep).toBe("done");
     // Another Cuso's choices do not count.
     cookieJar.clear();
     cookieJar.set("cmo-skipped-project-2", "accounts");

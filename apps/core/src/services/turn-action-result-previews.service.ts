@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import * as Sentry from "@sentry/node";
 import type { Prisma, SokoBotTurn } from "@sokosumi/database";
 import {
@@ -30,6 +31,7 @@ const ACTION_RESULTS: Record<string, ChatResultReference["kind"]> = {
   publish_social_post: "social_post",
   generate_image: "studio_job",
   generate_video: "studio_job",
+  generate_talking_video: "studio_job",
   upload_file: "file",
   move_file: "file",
   delete_file: "file",
@@ -84,6 +86,8 @@ export async function prepareTurnActionResultPreviews(
     }),
   );
   const references = new Map<string, ChatResultReference>();
+  // A later archive or delete in this turn is the resource's final state.
+  const removed = new Set<string>();
   for (const call of calls) {
     if (
       call.status !== "COMPLETED" ||
@@ -92,6 +96,10 @@ export async function prepareTurnActionResultPreviews(
       !["APPLIED", "ALREADY_SATISFIED"].includes(call.disposition ?? "")
     )
       continue;
+    if (call.targetId && call.capability === "archive_task")
+      removed.add(`task\0${call.targetId}`);
+    if (call.targetId && call.capability === "delete_schedule")
+      removed.add(`bot_schedule\0${call.targetId}`);
     const kind = ACTION_RESULTS[call.capability];
     if (!kind || !call.targetId) continue;
     const jobInput =
@@ -125,20 +133,35 @@ export async function prepareTurnActionResultPreviews(
   for (const [key, reference] of references) {
     const existing = prepared.get(key);
     if (!existing && count >= CHAT_RESULT_PREVIEW_LIMIT) continue;
+    const removedKey =
+      "id" in reference ? `${reference.kind}\0${reference.id}` : null;
     try {
       // Read after the final action, so create + assignment show one final state.
-      const snapshot = await resolveChatResultReference(
-        {
-          reference,
-          actor: {
-            userId: actingUserId,
-            workspaceId: turn.workspaceId,
-            kind: "soko_bot",
-          },
-          ...(existing ? { previewId: existing.snapshot.data.id } : {}),
-        },
-        tx,
-      );
+      // A resource this turn removed is not looked up: that 404 is its card.
+      const snapshot =
+        removedKey && removed.has(removedKey)
+          ? chatResultSnapshotSchema.parse({
+              workspaceId: turn.workspaceId,
+              reference,
+              data: {
+                id: existing?.snapshot.data.id ?? randomUUID(),
+                state: "unavailable",
+                capturedAt: new Date().toISOString(),
+                kind: reference.kind,
+              },
+            })
+          : await resolveChatResultReference(
+              {
+                reference,
+                actor: {
+                  userId: actingUserId,
+                  workspaceId: turn.workspaceId,
+                  kind: "soko_bot",
+                },
+                ...(existing ? { previewId: existing.snapshot.data.id } : {}),
+              },
+              tx,
+            );
       const toolCallId = existing?.call.toolCallId ?? `auto-preview:${key}`;
       await tx.sokoBotToolCall.upsert({
         where: { turnId_toolCallId: { turnId, toolCallId } },

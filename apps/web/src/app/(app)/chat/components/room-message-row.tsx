@@ -98,6 +98,7 @@ import { MessageSignalBar } from "@/components/chat/signals/message-signal-bar";
 import { signalChips } from "@/components/chat/signals/signal-chips";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
+import { BotFace } from "@/components/soko-bot/bot-face";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2172,8 +2173,14 @@ function SenderFace({
   className,
   fallbackClassName,
   monogram = false,
+  live = false,
+  streaming = false,
 }: {
   sender: MessageSenderProfile;
+  /** A Soko Bot's newest message: its avatar is the live one. */
+  live?: boolean;
+  /** The reply is still being written. */
+  streaming?: boolean;
   /** Rendered pixels for the orb: twice the CSS size, for dense screens. */
   orbSize: number;
   className: string;
@@ -2181,6 +2188,18 @@ function SenderFace({
   /** One initial instead of two, for faces too small to fit both. */
   monogram?: boolean;
 }) {
+  if (live && sender.kind === "sokoBot" && sender.avatarCode) {
+    return (
+      <BotFace
+        imageUrl={sender.image}
+        seed={sender.avatarSeed ?? ""}
+        avatarCode={sender.avatarCode}
+        avatarState={streaming ? "working" : "idle"}
+        avatarSize={orbSize / 2}
+        className={cn("ring-border ring-1", className)}
+      />
+    );
+  }
   if (sender.kind === "sokoBot" && sender.avatarSeed && !sender.image) {
     return (
       <AuroraOrb
@@ -2413,6 +2432,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
+  liveFace = false,
+  liveFaceStreaming = false,
   newestEndsInAttachment = false,
   seenBy,
 }: {
@@ -2476,6 +2497,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
    * re-renders only the row that loses it.
    */
   newestEndsInAttachment?: boolean;
+  /** The sender's avatar is live: this row heads that Soko Bot's newest group. */
+  liveFace?: boolean;
+  /** That group's newest reply is still being written (it may be a later row). */
+  liveFaceStreaming?: boolean;
   /**
    * Seen by faces, pinned to the bottom-right of the message column. Newest
    * message only.
@@ -2798,6 +2823,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               orbSize={64}
               className="size-8"
               fallbackClassName="text-xs"
+              live={liveFace}
+              streaming={liveFaceStreaming}
             />
             {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>

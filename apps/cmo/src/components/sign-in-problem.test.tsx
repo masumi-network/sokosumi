@@ -7,15 +7,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SignInProblem } from "./sign-in-problem";
 
-// The mascot's separate suite covers WebGL. Keep asset downloads out of form tests.
-vi.mock("three/addons/loaders/GLTFLoader.js", () => ({
-  GLTFLoader: class {
-    async loadAsync() {
-      throw new Error("No WebGL in form tests");
-    }
-  },
-}));
-
 async function signIn() {}
 
 const alertFor = (error: string) =>
@@ -74,9 +65,9 @@ describe("sign-in problem page", () => {
     },
   );
 
-  it("says Sokosumi is not reachable when sign in could not start", () => {
+  it("says sign in is not reachable when it could not start", () => {
     expect(alertFor("unavailable")).toContain(
-      '<p role="alert">Sokosumi is not reachable right now. Try again in a minute.</p>',
+      '<p role="alert">Sign in is not reachable right now. Try again in a minute.</p>',
     );
   });
 

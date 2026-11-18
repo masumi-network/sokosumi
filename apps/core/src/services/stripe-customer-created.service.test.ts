@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const {
   ensureInitialLocalFreeSubscriptionPeriodMock,
@@ -132,36 +133,39 @@ describe("handleCustomerCreatedEvent", () => {
       "No record was found for an update.",
     );
     prismaOrganizationUpdateMock.mockRejectedValue(missing);
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Skipped writing a Stripe customer id back to its owner",
+      ["The organization no longer exists"],
+    );
 
-    try {
-      const { handleCustomerCreatedEvent } = await getService();
+    const { handleCustomerCreatedEvent } = await getService();
 
-      await expect(
-        handleCustomerCreatedEvent({
-          id: "cus_org_missing",
-          metadata: {
-            customerType: "organization",
-            organizationId: "org-deleted",
-          },
-        } as never),
-      ).resolves.toBeUndefined();
+    await expect(
+      handleCustomerCreatedEvent({
+        id: "cus_org_missing",
+        metadata: {
+          customerType: "organization",
+          organizationId: "org-deleted",
+        },
+      } as never),
+    ).resolves.toBeUndefined();
 
-      expect(
-        ensureInitialLocalFreeSubscriptionPeriodMock,
-      ).not.toHaveBeenCalled();
-      expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        "Skipping Stripe customer cus_org_missing write-back: organization org-deleted no longer exists",
-      );
-    } finally {
-      consoleWarnSpy.mockRestore();
-    }
+    expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
+    expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "stripe_customer_created",
+      stripeCustomer: { id: "cus_org_missing", customerType: "organization" },
+      owner: { id: "org-deleted", type: "organization" },
+    });
   });
 
   it("soft-acks user write-back when the user no longer exists", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Skipped writing a Stripe customer id back to its owner",
+      ["The user no longer exists"],
+    );
     const missing = prismaRecordNotFoundError(
       "No record was found for an update.",
     );
@@ -181,29 +185,31 @@ describe("handleCustomerCreatedEvent", () => {
 
     expect(ensureInitialLocalFreeSubscriptionPeriodMock).not.toHaveBeenCalled();
     expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({
+      stripeCustomer: { id: "cus_user_missing" },
+      owner: { id: "user-deleted", type: "user" },
+    });
   });
 
   it("skips organization write-back when organizationId metadata is missing", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => {});
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Skipped writing a Stripe customer id back to its owner",
+      ["The customer's metadata has no organizationId"],
+    );
 
-    try {
-      const { handleCustomerCreatedEvent } = await getService();
+    const { handleCustomerCreatedEvent } = await getService();
 
-      await handleCustomerCreatedEvent({
-        id: "cus_org_no_meta",
-        metadata: {
-          customerType: "organization",
-        },
-      } as never);
+    await handleCustomerCreatedEvent({
+      id: "cus_org_no_meta",
+      metadata: {
+        customerType: "organization",
+      },
+    } as never);
 
-      expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        "Skipping Stripe customer cus_org_no_meta write-back: missing organizationId metadata",
-      );
-    } finally {
-      consoleWarnSpy.mockRestore();
-    }
+    expect(prismaOrganizationUpdateMock).not.toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({
+      stripeCustomer: { id: "cus_org_no_meta", customerType: "organization" },
+    });
   });
 });

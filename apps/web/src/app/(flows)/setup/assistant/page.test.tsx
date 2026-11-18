@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -110,6 +111,15 @@ describe("SetupAssistantPage", () => {
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
+  it('leaves the follow marker off "Later", so leaving setup follows nothing', async () => {
+    const next = "/tasks/task-1?follow=1";
+    render(await renderPage({ next }));
+
+    expect(screen.getByTestId("assistant-first-run").textContent).toBe(
+      `/tasks/task-1|/setup/assistant/connect?${new URLSearchParams({ next })}|personal`,
+    );
+  });
+
   it("bills an organization user's assistant to the organization", async () => {
     readRouteSessionMock.mockResolvedValue(session("org-1"));
 
@@ -151,7 +161,12 @@ describe("SetupAssistantPage", () => {
       "Soko Bot is off or failing",
       () => getMineMock.mockRejectedValue(new Error("404")),
     ],
-  ])("goes straight on when %s", async (_label, arrange) => {
+  ])("goes straight on when %s", async (label, arrange) => {
+    // Only a failing Soko Bot read is an error worth logging; the other
+    // cases are the step not applying.
+    if (label === "Soko Bot is off or failing") {
+      expectConsole("error", "Skipping the setup assistant step");
+    }
     arrange();
 
     await expect(renderPage()).rejects.toThrow("NEXT_REDIRECT");

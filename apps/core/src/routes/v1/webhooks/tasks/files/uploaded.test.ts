@@ -16,6 +16,8 @@ const {
     BLOB_WEBHOOK_PUBLIC_KEY:
       "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----",
     BLOB_READ_WRITE_TOKEN: "blob-token",
+    // The webhooks router reaches the Stripe client through CMO's checkout.
+    STRIPE_SECRET_KEY: "sk_test_example",
   };
   return {
     getEnvMock: vi.fn(() => ({ ...defaultEnv })),
@@ -85,6 +87,7 @@ describe("POST /webhooks/tasks/files/uploaded", () => {
       BLOB_WEBHOOK_PUBLIC_KEY:
         "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----",
       BLOB_READ_WRITE_TOKEN: "blob-token",
+      STRIPE_SECRET_KEY: "sk_test_example",
     });
     handleUploadPresignedMock.mockResolvedValue({
       type: "blob.upload-completed",

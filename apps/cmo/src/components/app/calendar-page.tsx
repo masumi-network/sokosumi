@@ -1,26 +1,48 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { Check, Clock, Play } from "lucide-react";
+import { Clock, PenLine, Play } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
-import { channelLabel, formatDay, planWeeks } from "../../lib/calendar";
+import {
+  channelLabel,
+  formatDay,
+  pieceMade,
+  planWeeks,
+} from "../../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../../lib/channels";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
+import { StatusDisc } from "../status";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 type Media = CmoOverview["media"][number];
 
-const STATUS: Record<Entry["status"], { label: string; emphasis: boolean }> = {
-  idea: { label: "Planned", emphasis: false },
-  draft: { label: "Written", emphasis: true },
-  scheduled: { label: "Scheduled", emphasis: true },
-  published: { label: "Published", emphasis: true },
-  skipped: { label: "Skipped", emphasis: false },
+const STATUS: Record<Entry["status"], string> = {
+  idea: "Planned",
+  draft: "Written",
+  scheduled: "Scheduled",
+  published: "Published",
+  skipped: "Skipped",
 };
+
+/** Where a post stands, in words beside a small mark: never a pill. */
+function PieceState({ status }: { status: Entry["status"] }) {
+  return (
+    <span className="state">
+      {status === "published" ? (
+        <StatusDisc status="ok" decorative />
+      ) : status === "scheduled" ? (
+        <Clock size={13} aria-hidden="true" />
+      ) : status === "draft" ? (
+        <PenLine size={13} aria-hidden="true" />
+      ) : null}
+      {STATUS[status]}
+    </span>
+  );
+}
 
 function samePillar(named: string | undefined, pillar: string): boolean {
   return named?.trim().toLowerCase() === pillar.trim().toLowerCase();
@@ -38,8 +60,8 @@ function excerpt(entry: Entry): string {
 
 /**
  * The month piece by piece: every post, article, ad and email Cuso makes,
- * as cards by week. A card opens the piece in full; the sheet steps to the
- * next one, so the founder can read the whole month in a row.
+ * as cards by week. A made piece opens in full and the sheet steps to the
+ * next made one; a piece still being made shows only that it is coming.
  */
 export function CalendarPage({
   overview,
@@ -91,21 +113,20 @@ export function CalendarPage({
     );
   }
 
-  const written = live.filter((entry) => entry.status !== "idea").length;
-  const scheduled = live.filter(
-    (entry) => entry.status === "scheduled" || entry.status === "published",
-  ).length;
   const mediaFor = (entry: Entry) =>
     overview.media.find((item) => item.entryId === entry.id);
-  const index = shown.findIndex((entry) => entry.id === openId);
-  const open = index >= 0 ? shown[index] : undefined;
+  const made = (entry: Entry) => pieceMade(entry, Boolean(mediaFor(entry)));
+  const ready = live.filter(made).length;
+  const readable = shown.filter(made);
+  const index = readable.findIndex((entry) => entry.id === openId);
+  const open = index >= 0 ? readable[index] : undefined;
 
   return (
     <div className="cal">
       <div className="card cal-head">
         <p className="note num">
-          {live.length} pieces this month · {written} written · {scheduled}{" "}
-          scheduled
+          {live.length} posts this month · {ready} ready
+          {ready < live.length ? ` · ${live.length - ready} being made` : ""}
         </p>
         <div className="cal-filters" role="group" aria-label="Network">
           <button
@@ -181,12 +202,16 @@ export function CalendarPage({
             <ul className="cal-grid">
               {pieces.map((entry) => (
                 <li key={entry.id}>
-                  <PieceCard
-                    entry={entry}
-                    media={mediaFor(entry)}
-                    open={entry.id === openId}
-                    onOpen={() => setOpenId(entry.id)}
-                  />
+                  {made(entry) ? (
+                    <PieceCard
+                      entry={entry}
+                      media={mediaFor(entry)}
+                      open={entry.id === openId}
+                      onOpen={() => setOpenId(entry.id)}
+                    />
+                  ) : (
+                    <PieceInMaking entry={entry} />
+                  )}
                 </li>
               ))}
             </ul>
@@ -204,20 +229,49 @@ export function CalendarPage({
             onAsk={onAsk}
             loadText={loadText}
             extra={pieceExtra?.(open)}
-            position={{ index, total: shown.length }}
+            position={{ index, total: readable.length }}
             onPrev={
               index > 0
-                ? () => setOpenId(shown[index - 1]?.id ?? null)
+                ? () => setOpenId(readable[index - 1]?.id ?? null)
                 : undefined
             }
             onNext={
-              index < shown.length - 1
-                ? () => setOpenId(shown[index + 1]?.id ?? null)
+              index < readable.length - 1
+                ? () => setOpenId(readable[index + 1]?.id ?? null)
                 : undefined
             }
           />
         ) : null}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** A piece Cuso is still making: where and when, never its unfinished words. */
+function PieceInMaking({ entry }: { entry: Entry }) {
+  return (
+    <div className="cal-card cal-making">
+      <span className="cal-thumb" aria-hidden="true">
+        <span className="cal-making-lines">
+          <span />
+          <span />
+        </span>
+      </span>
+      <span className="cal-body">
+        <span className="cal-meta">
+          <ChannelIcon channel={entry.channel} size={13} />
+          {formatName(entry.channel, entry.format)}
+          <span className="cal-when num">
+            <Clock size={12} aria-hidden="true" />
+            {formatDay(entry.date, { weekday: "short", day: "numeric" })}
+            {entry.time ? ` ${entry.time}` : ""}
+          </span>
+        </span>
+        <span className="state">
+          <span className="ob-box-dot" aria-hidden="true" />
+          Being made
+        </span>
+      </span>
     </div>
   );
 }
@@ -233,21 +287,24 @@ function PieceCard({
   open: boolean;
   onOpen: () => void;
 }) {
-  const status = STATUS[entry.status];
   const picture =
     media?.slides?.[0] ?? (media?.kind === "image" ? media.url : null);
-  // Words-only pieces (an article, an email) get no empty picture box.
+  // Every card leads with the same box, so a row stays even: the picture or
+  // video, or the opening words of a post that has neither.
   const visual =
     Boolean(media) ||
     formatHasImage(entry.channel, entry.format) ||
     formatHasVideo(entry.channel, entry.format);
+  const words = excerpt(entry);
   return (
     <button
       type="button"
       className={open ? "cal-card card-focus" : "cal-card"}
       onClick={onOpen}
     >
-      {visual ? (
+      {!visual && words ? (
+        <span className="cal-thumb cal-words">{words}</span>
+      ) : (
         <span className="cal-thumb">
           {picture ? (
             <img src={picture} alt="" loading="lazy" />
@@ -268,7 +325,7 @@ function PieceCard({
             <span className="cal-slides num">{media.slides.length}</span>
           ) : null}
         </span>
-      ) : null}
+      )}
       <span className="cal-body">
         <span className="cal-meta">
           <ChannelIcon channel={entry.channel} size={13} />
@@ -283,15 +340,8 @@ function PieceCard({
           <span className="cal-pillar">{entry.pillar}</span>
         ) : null}
         <span className="cal-title">{entry.title}</span>
-        {excerpt(entry) ? (
-          <span className="cal-excerpt">{excerpt(entry)}</span>
-        ) : null}
-        <span className={status.emphasis ? "tag emphasis" : "tag"}>
-          {entry.status === "published" ? (
-            <Check size={11} aria-hidden="true" />
-          ) : null}
-          {status.label}
-        </span>
+        {visual && words ? <span className="cal-excerpt">{words}</span> : null}
+        <PieceState status={entry.status} />
       </span>
     </button>
   );

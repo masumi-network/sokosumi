@@ -1,8 +1,8 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import { AGENT_NAME } from "../../lib/agent";
-import { cusoPose, cusoStatus } from "../../lib/thread";
-import { CusoAvatar } from "../cuso";
+import { type CusoPose, cusoPose, cusoStatus } from "../../lib/thread";
+import { CusoScene, type Scene } from "../onboarding/cuso-scene";
 
 /** One line: how far the month is while it is made, else Cuso's state. */
 function cusoLine(overview: CmoOverview): string {
@@ -11,6 +11,15 @@ function cusoLine(overview: CmoOverview): string {
     ? `${production.ready} of ${production.total} made`
     : cusoStatus(overview);
 }
+
+/** The scene each state shows: he points at the owner when needed. */
+const SCENES: Record<CusoPose, Scene> = {
+  reading: "research",
+  thinking: "planning",
+  reporting: "launch",
+  done: "subscribe",
+  "needs-you": "hero",
+};
 
 interface CusoStatusProps {
   overview: CmoOverview;
@@ -21,8 +30,9 @@ interface CusoStatusProps {
 }
 
 /**
- * Cuso's status card at the bottom of the sidebar. When he needs the owner it
- * is a button in focus that opens what he is waiting on.
+ * Cuso at the bottom of the sidebar, always in view: his pose stands on the
+ * Iris stage, with what he is doing now. When he needs the owner it is a
+ * button that opens what he is waiting on.
  */
 export function CusoStatus({
   overview,
@@ -31,23 +41,21 @@ export function CusoStatus({
 }: CusoStatusProps) {
   const pose = cusoPose(overview, now);
   const needsYou = pose === "needs-you";
+  const working = pose === "reading" || pose === "thinking";
+  const line = cusoLine(overview);
+  // What he waits on, or what he is doing, is the label on his stage.
+  const onStage = needsYou || working ? line : null;
+  // The stage's label is decoration; this says the state to a screen reader.
+  const label = `${AGENT_NAME}: ${line}`;
   const content = (
-    <>
-      <CusoAvatar pose={pose} size={36} />
-      <span className="cuso-status-text">
-        <span className="cuso-status-name">{AGENT_NAME}</span>
-        {/* Needs you is the one state labelled on Iris. */}
-        <span className={needsYou ? "cuso-status-iris" : "note"}>
-          {cusoLine(overview)}
-        </span>
-      </span>
-    </>
+    <CusoScene scene={SCENES[pose]} now={onStage} calling={needsYou} compact />
   );
   if (needsYou && onOpen) {
     return (
       <button
         type="button"
-        className="cuso-status card card-focus"
+        className="cuso-status"
+        aria-label={label}
         onClick={onOpen}
       >
         {content}
@@ -55,7 +63,7 @@ export function CusoStatus({
     );
   }
   return (
-    <div className="cuso-status card" role="status">
+    <div className="cuso-status" role="status" aria-label={label}>
       {content}
     </div>
   );

@@ -3,7 +3,7 @@
 import "./onboarding/onboarding.css";
 
 import { ChevronDown, LogOut, Users } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { AGENT_NAME } from "../lib/agent";
 import { StartOver } from "./start-over";
@@ -17,6 +17,8 @@ interface AccountMenuProps {
   signOut?: (() => Promise<void>) | undefined;
   /** False where the Cuso picker has its own link (the app's sidebar). */
   cusoPicker?: boolean;
+  /** The button's content in place of the label pill: the person's row. */
+  trigger?: ReactNode;
 }
 
 /**
@@ -29,6 +31,7 @@ export function AccountMenu({
   subscribed = false,
   signOut,
   cusoPicker = true,
+  trigger: person,
 }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -60,12 +63,17 @@ export function AccountMenu({
       <button
         ref={trigger}
         type="button"
-        className="ob-who-button"
+        className={person ? "who-button" : "ob-who-button"}
         aria-expanded={open}
+        aria-label={person ? label : undefined}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="dot live" aria-hidden="true" />
-        <span className="ob-who-name">{label}</span>
+        {person ?? (
+          <>
+            <span className="dot live" aria-hidden="true" />
+            <span className="ob-who-name">{label}</span>
+          </>
+        )}
         <ChevronDown size={14} aria-hidden="true" />
       </button>
       {open ? (

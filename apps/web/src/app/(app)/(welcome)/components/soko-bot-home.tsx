@@ -1,4 +1,9 @@
-import type { TaskActivitySummary, TaskListItem } from "@sokosumi/core-client";
+import type {
+  SokoBotStatus,
+  TaskActivitySummary,
+  TaskListItem,
+} from "@sokosumi/core-client";
+import { avatarStateOf } from "@sokosumi/soko-bot";
 import { CalendarClock, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
@@ -20,6 +25,8 @@ export interface SokoBotHomeBot {
   name: string | null;
   avatarSeed: string | null;
   avatarImageUrl: string | null;
+  avatarCode?: string | null;
+  status?: SokoBotStatus;
 }
 
 interface SokoBotHomeProps {
@@ -42,6 +49,11 @@ interface SokoBotHomeProps {
   schedules?: SokoBotHomeSchedule[];
   /** The reader's Tasks due today or overdue, first; nothing when none are. */
   myDay?: ReactNode;
+  /**
+   * The time the page read inside its prefetch cache. A clock read here,
+   * outside that cache, would cut a link prefetch of Home short.
+   */
+  now: Date;
   /** What waits on the reader, above the team's day; one line when nothing
    * does. */
   needsYou?: ReactNode;
@@ -68,6 +80,7 @@ export async function SokoBotHome({
   schedules = [],
   myDay,
   needsYou,
+  now,
 }: SokoBotHomeProps) {
   const [t, tStats, tStatus, format] = await Promise.all([
     getTranslations("App.Chat.Landing.SokoBotHome"),
@@ -76,7 +89,6 @@ export async function SokoBotHome({
     getFormatter(),
   ]);
   const botName = bot.name?.trim() || t("defaultName");
-  const now = new Date();
   const stats = summary
     ? [
         summary.completed > 0
@@ -141,6 +153,9 @@ export async function SokoBotHome({
           <BotFace
             imageUrl={bot.avatarImageUrl}
             seed={botFaceSeed(bot, ownerId)}
+            avatarCode={bot.avatarCode}
+            avatarState={avatarStateOf({ status: bot.status })}
+            avatarSize={56}
             className="border-background size-14 rounded-full border-4 shadow-md"
           />
           <h1 className="text-foreground text-3xl font-normal tracking-tight text-balance md:text-4xl">
@@ -242,13 +257,31 @@ export async function SokoBotHome({
                         aria-hidden
                         className="text-muted-foreground size-4 shrink-0"
                       />
-                      <span className="text-foreground min-w-0 flex-1 truncate text-sm">
-                        {row.chat.title}
+                      {/* Who wrote it shows on a phone too, on its own
+                          line under the message; a column beside it on
+                          wider screens. On a phone the time beside the
+                          message left it a few letters, so there the
+                          message wraps to two lines and the time joins
+                          the sender's line, as schedule rows do. The name
+                          truncates alone and the time keeps its width, so a
+                          long bot name cannot push the time out of view. */}
+                      <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
+                        <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1 sm:flex-1">
+                          {row.chat.title}
+                        </span>
+                        <span className="text-muted-foreground flex min-w-0 items-center gap-1 sm:block sm:max-w-40 sm:shrink-0 sm:truncate">
+                          <span className="min-w-0 truncate">
+                            {row.chat.from}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-1 sm:hidden">
+                            <span aria-hidden>·</span>
+                            {timeOf(row.at)}
+                          </span>
+                        </span>
                       </span>
-                      <span className="text-muted-foreground hidden max-w-40 shrink-0 truncate text-sm sm:block">
-                        {row.chat.from}
+                      <span className="hidden sm:contents">
+                        {timeOf(row.at)}
                       </span>
-                      {timeOf(row.at)}
                       <span className="text-foreground shrink-0 text-sm font-medium">
                         {t("open")}
                       </span>

@@ -393,14 +393,15 @@ describe("ProjectsView Hidden view", () => {
 });
 
 describe("ProjectsView switching views", () => {
-  it("marks the old cards stale until the new list arrives", () => {
+  it("marks the old cards stale until the new list arrives", async () => {
+    const refetch = Promise.withResolvers<void>();
     renderView();
     const panel = screen.getByTestId("projects-browse");
     expect(panel).not.toHaveAttribute("aria-busy");
 
     // A server refetch that has not answered yet.
     act(() => {
-      queryStateOptions.state?.startTransition?.(() => new Promise(() => {}));
+      queryStateOptions.state?.startTransition?.(() => refetch.promise);
     });
 
     expect(panel).toHaveAttribute("aria-busy", "true");
@@ -409,19 +410,22 @@ describe("ProjectsView switching views", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Autumn Launch").closest(".grid")).toHaveClass(
       "opacity-50",
-    );
+    ); // A refetch left pending holds every later transition in this worker.
+    await act(async () => refetch.resolve());
   });
 
-  it("shares the pending state with the filter", () => {
+  it("shares the pending state with the filter", async () => {
+    const refetch = Promise.withResolvers<void>();
     renderView();
 
     act(() => {
-      queryStateOptions.q?.startTransition?.(() => new Promise(() => {}));
+      queryStateOptions.q?.startTransition?.(() => refetch.promise);
     });
 
     expect(screen.getByTestId("projects-browse")).toHaveAttribute(
       "aria-busy",
       "true",
-    );
+    ); // A refetch left pending holds every later transition in this worker.
+    await act(async () => refetch.resolve());
   });
 });

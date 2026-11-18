@@ -5,6 +5,7 @@ import {
   socialProvidersForWorkspace,
 } from "@sokosumi/utils";
 
+import { socialProviderWorkspace } from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
 import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 import prisma from "@/lib/db/prisma";
@@ -26,7 +27,11 @@ export async function listUserWorkspaces(
 ): Promise<UserWorkspaces> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, email: true, preferredOrganizationId: true },
+    select: {
+      name: true,
+      email: true,
+      preferredOrganizationId: true,
+    },
   });
   if (!user) {
     throw notFound("User not found");
@@ -79,7 +84,9 @@ export async function listUserWorkspaces(
       role: null,
       memberCount: null,
       enabledSocialProviders: [
-        ...socialProvidersForWorkspace({ organizationSlug: null }),
+        ...socialProvidersForWorkspace(
+          socialProviderWorkspace(null, personalWorkspace.id),
+        ),
       ],
       logo: null,
       websiteUrl: null,
@@ -104,7 +111,9 @@ export async function listUserWorkspaces(
       role: memberRoleSchema.safeParse(role).data ?? null,
       memberCount: organization._count.members,
       enabledSocialProviders: [
-        ...socialProvidersForWorkspace({ organizationSlug: organization.slug }),
+        ...socialProvidersForWorkspace(
+          socialProviderWorkspace(organization.slug, workspace.id),
+        ),
       ],
       logo: organization.logo,
       websiteUrl: getOrganizationMetadata(organization.metadata).url,

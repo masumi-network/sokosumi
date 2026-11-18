@@ -1,5 +1,6 @@
 import { stripeClient } from "@/clients/stripe.client";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 
 const STRIPE_CUSTOMER_DELETE_TIMEOUT_MS = 2500;
@@ -53,6 +54,8 @@ export async function deleteStripeCustomerBestEffort(
   } catch (error) {
     captureExternalServiceError(error, {
       label: "stripe_customer_delete",
+      // Core's own subscription read, by id and status only.
+      errorDetail: "cause",
       sentry: {
         tags: {
           context: "stripe_customer_delete",
@@ -67,9 +70,15 @@ export async function deleteStripeCustomerBestEffort(
     return;
   }
   if (runningSubscription) {
-    console.warn(
-      `Skipping Stripe customer ${input.stripeCustomerId} delete: running subscription still present for ${input.ownerType} ${input.ownerId}`,
-    );
+    // Expected: the subscription keeps its customer. Info, not a warning;
+    // this runs in waitUntil, after the request's wide event has gone.
+    createCoreLogger({
+      operation: "stripe_customer_delete",
+      ownerType: input.ownerType,
+      ownerId: input.ownerId,
+      stripeCustomerId: input.stripeCustomerId,
+      outcome: "kept_for_running_subscription",
+    }).emit();
     return;
   }
 
@@ -84,6 +93,8 @@ export async function deleteStripeCustomerBestEffort(
 
     captureExternalServiceError(error, {
       label: "stripe_customer_delete",
+      // No opt-in: the Stripe SDK copies the response's message, from
+      // Stripe or a proxy in front of it, into the error.
       sentry: {
         tags: {
           context: "stripe_customer_delete",

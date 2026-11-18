@@ -1,9 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { listCampaignsMock } = vi.hoisted(() => ({
+const { listCampaignsMock, connectionMock } = vi.hoisted(() => ({
   listCampaignsMock: vi.fn(),
+  connectionMock: vi.fn(),
 }));
+
+vi.mock("next/server", () => ({ connection: connectionMock }));
 
 vi.mock("@/lib/services/ads.service", () => ({
   adsService: { listCampaigns: listCampaignsMock },
@@ -51,6 +54,20 @@ async function renderSection() {
 describe("AdsCampaignsSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    connectionMock.mockResolvedValue(undefined);
+  });
+
+  it("reads nothing before the request comes", async () => {
+    connectionMock.mockReturnValueOnce(new Promise(() => {}));
+
+    void AdsCampaignsSection({
+      account: ACCOUNT,
+      projectId: "project-1",
+      range: "7d",
+    });
+    await Promise.resolve();
+
+    expect(listCampaignsMock).not.toHaveBeenCalled();
   });
 
   it("loads the account's campaigns for the range", async () => {

@@ -458,11 +458,15 @@ describe("SEO audit first run", () => {
     // The check needs no more input, so the wait is the time for the statistics.
     expect(screen.queryByTestId("seo-statistics-banner")).toBeNull();
     const setup = screen.getByTestId("seo-setup");
+    // The settings are in the account card's menu: no second button stands under the card.
     expect(
       await within(setup).findByRole("button", {
-        name: "Google statistics settings",
+        name: copy.connections.options,
       }),
     ).toBeVisible();
+    expect(
+      within(setup).queryByRole("button", { name: "Google connections" }),
+    ).toBeNull();
     expect(within(setup).getByText(copy.setup.checkRunning)).toBeVisible();
     expect(primaryButtons(setup)).toEqual([]);
   });
@@ -524,7 +528,7 @@ describe("SEO audit first run", () => {
     // Nothing is measured yet: one card asks for the sync, and no second empty card asks again.
     expect(screen.queryByText(copy.queries.notSynced)).toBeNull();
     expect(
-      screen.getAllByRole("button", { name: "Google statistics settings" }),
+      screen.getAllByRole("button", { name: "Google connections" }),
     ).toHaveLength(1);
   });
 
@@ -579,25 +583,26 @@ describe("SEO audit first run", () => {
       within(row)
         .getAllByRole("button")
         .map((button) => button.textContent),
-    ).toEqual(["Google statistics settings"]);
-    // The dialog opens on this banner's source.
+    ).toEqual(["Google connections"]);
+    // The dialog marks this banner's source.
     await userEvent.click(within(row).getByRole("button"));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Google connections",
+    });
     expect(
-      within(
-        await screen.findByRole("dialog", { name: "Google statistics" }),
-      ).getByRole("combobox", { name: "Source" }),
-    ).toHaveTextContent("Search Console");
-    // Without a source the dialog starts on the connected account too: on Google Analytics it had no sync.
+      within(dialog).getByRole("region", { name: "Search Console" }),
+    ).toHaveAttribute("aria-current", "true");
+    // Without a source no connected source is marked.
     await userEvent.click(screen.getAllByRole("button", { name: "Close" })[0]);
     await openStatisticsSetup(userEvent);
     const reopened = await screen.findByRole("dialog", {
-      name: "Google statistics",
+      name: "Google connections",
     });
-    await waitFor(() =>
-      expect(
-        within(reopened).getByRole("combobox", { name: "Source" }),
-      ).toHaveTextContent("Search Console"),
-    );
+    expect(
+      await within(reopened).findByRole("region", { name: "Search Console" }),
+    ).toBeVisible();
+    for (const region of within(reopened).getAllByRole("region"))
+      expect(region).not.toHaveAttribute("aria-current");
   });
 
   it("asks for the account on the Traffic tab while no account is connected", async () => {
@@ -1036,12 +1041,13 @@ describe("SEO audit first run", () => {
     ];
     network(workspace);
     await renderWorkspace(workspace, `?pageId=${workspace.scope.pageIds[0]}`);
-    // No check can run: the headline is what is known, and the line under it does not repeat it.
+    // No check can run: the headline is what is known, and the figure under it names the period only.
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
       /^Google search on this page: 2 clicks, 35 impressions$/,
     );
     expect(screen.getByTestId("seo-agent-traffic")).toHaveTextContent(
-      /^Jan 1\W+2, 2026\s*Open traffic$/,
+      // The name also says where the figure leads.
+      /^Traffic: Jan 1\W+2, 2026$/,
     );
     // One notice above the tabs; no second line about schedules under the chat.
     expect(screen.getByText(copy.dispatchPaused)).toBeVisible();

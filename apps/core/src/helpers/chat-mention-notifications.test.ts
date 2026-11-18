@@ -61,6 +61,11 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
+// The fan-out tells each recipient's sidebar over Ably; no Ably here.
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { emitChatMentionNotifications } from "./chat-mention-notifications";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";

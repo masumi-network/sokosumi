@@ -13,6 +13,7 @@ const prisma = vi.hoisted(() => {
         .mockResolvedValue({ status: "COMPLETED", finalAnswer: "Ready" }),
     },
     brandBrain: { deleteMany: ok(), create: ok() },
+    chatRoomMessage: { deleteMany: ok() },
     socialComment: {
       deleteMany: ok(),
       create: vi.fn().mockResolvedValue({ id: "comment-1" }),
@@ -41,10 +42,15 @@ vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
   newestMarketingStrategy: vi.fn(),
 }));
 
+import {
+  cmoPlanProblems,
+  cmoPlanRuleProblems,
+} from "@/services/cmo-plan-review.service";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import { newestMarketingStrategy } from "@/services/marketing-strategy.service";
 import { CMO_EVAL_CASES } from "./eval-cmo-cases";
 import {
+  changeRequestPlan,
   commentChecks,
   monthPlanFromTomorrow,
   pollCmoCase,
@@ -113,6 +119,40 @@ describe("strategy eval cases", () => {
     });
     expect(expireTurn).toHaveBeenCalledWith("turn-9");
   });
+
+  it.each([
+    [
+      "GatewayInternalServerError",
+      "API key budget exceeded. Current spend: $400.12, limit: $400.00.",
+      "provider_budget_exhausted",
+    ],
+    ["runner_exited", "The runner ended with exit code 1", "runner_exited"],
+  ])(
+    "records %s as an execution error before reading generated content",
+    async (errorKind, errorDetail, code) => {
+      prisma.sokoBotTurn.findUniqueOrThrow.mockResolvedValueOnce({
+        status: "FAILED",
+        errorKind,
+        errorDetail,
+        finalAnswer: null,
+      });
+      const result = await pollCmoCase(
+        evalCase,
+        lane,
+        { turnId: "turn-failed", state: {} },
+        context,
+      );
+      expect(result).toMatchObject({
+        kind: "done",
+        outcome: {
+          status: "ERROR",
+          checks: [],
+          turnIds: ["turn-failed"],
+          output: { infrastructure: { code, detail: errorDetail } },
+        },
+      });
+    },
+  );
 
   it.each(["Email and SMS marketing plans", null])(
     "exports the core offer separately from the trial: %s",
@@ -201,6 +241,11 @@ describe("a Cuso chat case's lane", () => {
     };
     expect(data.plan.calendar.length).toBeGreaterThan(0);
     expect(data.approvedAt).toBeUndefined();
+    // Yesterday's "LinkedIn is now once a week" is not today's plan: a
+    // change request once read it and changed nothing.
+    expect(prisma.chatRoomMessage.deleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ senderSokoBotId: "cuso-bot-1" }),
+    });
   });
 
   it("holds nothing for a client Cuso has not learned", async () => {
@@ -314,5 +359,28 @@ describe("monthPlanFromTomorrow", () => {
       },
     ]);
     expect(moved.summary).toBe("Plan");
+  });
+});
+
+describe("changeRequestPlan", () => {
+  it("gives the change request a month with LinkedIn three times a week that keeps every hard rule", () => {
+    const plan = changeRequestPlan(new Date("2026-11-09T04:00:00Z"));
+    const linkedin = plan.calendar.filter(
+      (entry) => entry.channel === "linkedin",
+    );
+    expect(linkedin).toHaveLength(12);
+    // Cutting LinkedIn to one a week still leaves the 16 pieces a save needs,
+    // and the review finds nothing the case did not ask about.
+    expect(plan.calendar.length - 8).toBeGreaterThanOrEqual(16);
+    expect(
+      new Set(plan.calendar.map((e) => `${e.channel}/${e.format}`)).size,
+    ).toBeGreaterThanOrEqual(6);
+    expect(cmoPlanProblems(plan)).toEqual([]);
+    expect(plan.channels.find((c) => c.channel === "linkedin")?.cadence).toBe(
+      "3 posts a week",
+    );
+    expect(plan.calendar[0]?.date).toBe("2026-11-10");
+    expect(plan.calendar.at(-1)?.date).toBe("2026-12-07");
+    expect(cmoPlanRuleProblems(plan)).toEqual([]);
   });
 });

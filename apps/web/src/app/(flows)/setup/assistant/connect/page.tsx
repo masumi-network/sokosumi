@@ -13,7 +13,11 @@ import { chatRoomService } from "@/lib/services/chat-room.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { connectOffers } from "@/lib/soko-bot/connect-prompt";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
-import { setupAssistantConnectPath } from "@/lib/workspace-gate";
+import {
+  isTaskFollowReturn,
+  setupAssistantConnectPath,
+  withoutTaskFollowMarker,
+} from "@/lib/workspace-gate";
 
 import { loadWorkspaceGateSearchParams } from "../../search-params";
 import { AssistantConnectStep } from "./components/assistant-connect-step.client";
@@ -30,7 +34,8 @@ interface SetupAssistantConnectPageProps {
 }
 
 /**
- * After the bot is created: offer mail and calendar, then its chat. OAuth
+ * After the bot is created: offer mail and calendar, then its chat (or the
+ * Task setup was started to follow). OAuth
  * returns here, so each connected provider shows as done.
  */
 export default async function SetupAssistantConnectPage({
@@ -50,14 +55,16 @@ export default async function SetupAssistantConnectPage({
 
   const bot = await sokoBotService.getMine().catch(() => null);
   if (!bot) {
-    redirect(returnUrl);
+    redirect(withoutTaskFollowMarker(returnUrl));
   }
   const [chatUrl, offers] = await Promise.all([
     loadChatUrl(bot.id),
     loadOffers(),
   ]);
+  // Setup started to follow a Task ends on that Task, which follows it.
+  const doneUrl = isTaskFollowReturn(returnUrl) ? returnUrl : chatUrl;
   if (offers.length === 0) {
-    redirect(chatUrl);
+    redirect(doneUrl);
   }
 
   return (
@@ -67,7 +74,7 @@ export default async function SetupAssistantConnectPage({
         botImageUrl={bot.avatarImageUrl ?? null}
         botOrbSeed={botFaceSeed(bot, bot.userId)}
         offers={offers}
-        chatUrl={chatUrl}
+        doneUrl={doneUrl}
         returnTo={setupAssistantConnectPath(returnUrl)}
       />
     </ClientMessageBoundary>

@@ -2,6 +2,11 @@ import { waitUntil } from "@vercel/functions";
 
 import prisma from "@/lib/db/prisma";
 import {
+  createCoreLogger,
+  logCoreWarning,
+  runAsBackgroundWork,
+} from "@/lib/evlog";
+import {
   discoverSkills,
   parseSkillFrontmatter,
   parseSkillSource,
@@ -187,12 +192,25 @@ async function cachedLeaderboard(): Promise<LeaderboardEntry[]> {
 function refreshInBackground(): void {
   if (backgroundRefresh) return;
   const deadline = Date.now() + BACKGROUND_REFRESH_MS;
-  backgroundRefresh = refreshSkillCatalog({
-    shouldContinue: () => Date.now() < deadline,
-  })
+  // The picker's request is still open: this refresh is not its work.
+  backgroundRefresh = runAsBackgroundWork(() =>
+    refreshSkillCatalog({ shouldContinue: () => Date.now() < deadline }),
+  )
     .then(() => undefined)
     .catch((error: unknown) => {
-      console.warn("[skill-catalog] Background refresh failed", error);
+      // Runs after the picker's response, so it is its own event.
+      const log = createCoreLogger({ operation: "skill_catalog_refresh" });
+      logCoreWarning(
+        log,
+        {
+          message: "Could not refresh the skill catalog in the background",
+          why: "The skills.sh refresh failed",
+          fix: "The picker serves the live leaderboard meanwhile and the daily skill-catalog sync retries. If it keeps failing, check that skills.sh is reachable.",
+        },
+        // The raw error is redacted detail, never the why.
+        { cause: error },
+      );
+      log.emit();
     })
     .finally(() => {
       backgroundRefresh = null;

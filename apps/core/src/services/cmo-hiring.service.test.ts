@@ -1,5 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
-import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
+import {
+  CMO_RESEARCH_GROUPS,
+  CMO_SOKO_BOT_VERSION_ID,
+} from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { unpaidCuso } = vi.hoisted(() => ({ unpaidCuso: vi.fn() }));
@@ -28,6 +31,7 @@ import {
   resetCmoServiceMocks,
   sokoBotFindUnique,
   startTurn,
+  toolCallFindFirst,
   turnFindFirst,
   userFindUnique,
 } from "@/test-fixtures/cmo-service";
@@ -95,20 +99,33 @@ vi.mock(
     (await import("@/test-fixtures/cmo-service")).cmoServiceMocks
       .integrationConnection,
 );
+// Hiring hands these to `waitUntil` without awaiting them; real ones would
+// fetch the brand's site after this file ends.
+vi.mock("@/services/cmo-brand-visual.service", () => ({
+  learnCmoBrandVisual: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/cmo-brand-media.service", () => ({
+  captureCmoHomepage: vi.fn(async () => undefined),
+}));
 vi.mock("@/config/env", async (importOriginal) =>
   (await import("@/test-fixtures/cmo-service")).cmoServiceMocks.env(
     await importOriginal<typeof import("@/config/env")>(),
   ),
 );
 
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
+  cmoActivity,
   cmoLearningState,
+  cmoResearchEndAnswer,
+  cmoResearchParts,
   cmoWork,
   describeCmoStep,
   mayHireCuso,
   retryCmoOnboarding,
   startCmoOnboarding,
   startCmoOver,
+  startCmoResearch,
 } from "./cmo-hiring.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -162,7 +179,10 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+      await retryCmoOnboarding(
+        { projectId: "project-1", userId: "user-1" },
+        now,
+      ),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -174,8 +194,36 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("RUNNING", 1));
     eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
     ).rejects.toThrow("still learning");
+  });
+
+  it("restarts research that runs past twice the usual time", async () => {
+    cusoFind.mockResolvedValue(workspace);
+    // Still making progress, but 15 minutes in: the usual is 7.
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 15));
+    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    startTurn.mockResolvedValue({ turnId: "turn-2" });
+    expect(
+      await retryCmoOnboarding(
+        { projectId: "project-1", userId: "user-1" },
+        now,
+      ),
+    ).toEqual({
+      turnId: "turn-2",
+    });
+    expect(expireTurn).toHaveBeenCalledWith("turn-1");
+  });
+
+  it("keeps research running under twice the usual time", async () => {
+    cusoFind.mockResolvedValue(workspace);
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 13));
+    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    await expect(
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
+    ).rejects.toThrow("still learning");
+    expect(expireTurn).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("retries a finished turn that saved sections but no essentials, finishing them", async () => {
@@ -186,7 +234,10 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("COMPLETED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+      await retryCmoOnboarding(
+        { projectId: "project-1", userId: "user-1" },
+        now,
+      ),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -214,9 +265,76 @@ describe("learning state", () => {
       new funding.BillingError("no"),
     );
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
     ).rejects.toThrow("out of credits");
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("activity", () => {
+  const cuso = { sokoBotId: "bot-1", websiteUrl: "https://acme.io" };
+  const running = {
+    id: "turn-chat",
+    eveSessionId: "sess-1",
+    createdAt: new Date("2026-11-17T10:00:00Z"),
+  };
+
+  it("is nothing while Cuso rests", async () => {
+    turnFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toBeNull();
+  });
+
+  it("names the step he is on and his latest reasoning, for any turn", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    toolCallFindFirst.mockResolvedValue({
+      capability: "web_fetch",
+      input: { url: "https://acme.io/pricing" },
+    });
+    // The runtime's own log, so it shows before the turn is reconciled.
+    eventFindFirst.mockResolvedValue({
+      data: { text: " The pricing page says who it is for. " },
+    });
+    expect(await cmoActivity(cuso)).toEqual({
+      step: "Reading acme.io/pricing",
+      reasoning: "The pricing page says who it is for.",
+    });
+    expect(eventFindFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          sessionId: "sess-1",
+          type: "reasoning.completed",
+          occurredAt: { gte: running.createdAt },
+        },
+      }),
+    );
+    // The running turn, whatever started it: no chat or hiring filter.
+    expect(turnFindFirst).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          sokoBotId: "bot-1",
+          status: { in: ["QUEUED", "STARTING", "RUNNING"] },
+        },
+      }),
+    );
+  });
+
+  it("never names a tool: one without its own words reads as working", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    toolCallFindFirst.mockResolvedValue({
+      capability: "create_task",
+      input: {},
+    });
+    eventFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toEqual({
+      step: "Working",
+      reasoning: null,
+    });
+  });
+
+  it("has no step before his first one", async () => {
+    turnFindFirst.mockResolvedValue(running);
+    eventFindFirst.mockResolvedValue(null);
+    expect(await cmoActivity(cuso)).toEqual({ step: null, reasoning: null });
   });
 });
 
@@ -251,6 +369,26 @@ describe("work", () => {
     expect(work?.sectionsSaved).toBe(2);
   });
 
+  it("tells a fix or a patch from a whole plan", async () => {
+    const kinds = [];
+    for (const clientTurnId of [
+      "cmo:strategy:bot-1:1",
+      "cmo:strategy:bot-1:fix:1",
+      "cmo:strategy:bot-1:patch:1",
+      "cmo:onboarding:bot-1:1",
+    ]) {
+      turnFindFirst.mockResolvedValue({ ...turn, clientTurnId });
+      const work = await cmoWork(cuso(null));
+      kinds.push([work?.kind, work?.change]);
+    }
+    expect(kinds).toEqual([
+      ["strategy", null],
+      ["strategy", "fix"],
+      ["strategy", "patch"],
+      ["research", null],
+    ]);
+  });
+
   it("lists none before any section is saved", async () => {
     turnFindFirst.mockResolvedValue(turn);
     const work = await cmoWork(cuso(null));
@@ -270,6 +408,32 @@ describe("work", () => {
     expect(work?.sections).toEqual([
       { key: "company", headline: "Acme sells rockets." },
     ]);
+  });
+});
+
+describe("research groups", () => {
+  it("covers every Brand Brain section exactly once", () => {
+    const keys = CMO_RESEARCH_GROUPS.flatMap((group) => group.sections);
+    expect([...keys].sort()).toEqual(
+      [
+        "company",
+        "offer",
+        "problems",
+        "customers",
+        "buyers",
+        "value",
+        "pricing",
+        "positioning",
+        "competition",
+        "sales",
+        "marketing",
+        "content",
+        "proof",
+        "reputation",
+        "momentum",
+        "opportunities",
+      ].sort(),
+    );
   });
 });
 
@@ -306,6 +470,35 @@ describe("starting over", () => {
       where: { id: "room-1" },
       data: { name: "Cuso · acme.io" },
     });
+  });
+
+  it("names every post it could not cancel on one warning, without their text", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Starting over left Social posts unsent but not cancelled",
+      ["Cancelling the posts failed"],
+    );
+    cusoFind.mockResolvedValue({
+      sokoBotId: "bot-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+    });
+    postFindMany.mockResolvedValue([
+      { id: "post-1", revision: 3 },
+      { id: "post-2", revision: 4 },
+    ]);
+    cancelSocialPost.mockRejectedValue(
+      new Error("Could not cancel SENTINEL-POST launch day words"),
+    );
+    await startCmoOver({ projectId: "project-1", userId: "user-1" });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_start_over",
+      socialPosts: [
+        { id: "post-1", failure: { errorName: "Error" } },
+        { id: "post-2", failure: { errorName: "Error" } },
+      ],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-POST");
   });
 
   it("leaves posts alone when the person may not archive him", async () => {
@@ -408,6 +601,26 @@ describe("startCmoOnboarding", () => {
     // The hirer is seated and has no unpaid Cuso unless a test says otherwise.
     funding.requireMemberSeat.mockReset();
     unpaidCuso.mockResolvedValue(null);
+  });
+
+  it("keeps the hire when the onboarding turn does not start, logging no prompt", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Cuso's onboarding turn did not start",
+      ["Starting the research turn failed"],
+    );
+    startTurn.mockRejectedValue(
+      new Error("Turn refused for SENTINEL-PROMPT research acme.io"),
+    );
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      sokoBotId: "bot-1",
+    });
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_onboarding_turn",
+      sokoBot: { id: "bot-1" },
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
   });
 
   it("hires into an organization with no credits and grants no credits", async () => {
@@ -731,5 +944,156 @@ describe("startCmoOnboarding", () => {
     expect(chatRoomDelete).toHaveBeenCalledWith({ where: { id: "room-1" } });
     expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("research in parts (SOKD-167)", () => {
+  const cuso = {
+    sokoBotId: "bot-1",
+    projectId: "project-1",
+    createdAt: new Date("2026-11-10T10:00:00Z"),
+    workspaceId: "ws-1",
+    websiteUrl: "https://acme.io",
+    businessName: "acme.io",
+    brandBrain: null,
+    brandBrainUpdatedAt: null,
+    brandBrainConfirmedAt: null,
+  };
+  const section = (answer: string) => ({ answer, findings: [] });
+
+  it("gives a first read on cmo-v2 one part per research group", () => {
+    const parts = cmoResearchParts("cmo-v2", cuso);
+    expect(parts.map((part) => part.key)).toEqual(
+      CMO_RESEARCH_GROUPS.map((group) => group.key),
+    );
+    expect(parts[0]?.title).toBe("Website");
+    expect(parts[0]?.message).toContain("acme.io (https://acme.io)");
+    expect(parts[0]?.message).toContain('"### Website"');
+    expect(parts[0]?.message).toContain("company, offer, pricing");
+    // Research and save only: never chat, posts or reports mid-read.
+    expect(parts[0]?.tools).toContain("save_brand_brain");
+    expect(parts[0]?.tools).not.toContain("post_chat");
+    expect(parts[0]?.tools).not.toContain("report_update");
+  });
+
+  it("gives a retry parts only for the groups still missing", () => {
+    const parts = cmoResearchParts("cmo-v2", {
+      ...cuso,
+      brandBrain: {
+        profile: {
+          company: section("Acme sells rockets."),
+          offer: section("Rockets."),
+          pricing: section("$9."),
+          proof: section("Named customers."),
+        },
+      },
+    });
+    // Reviews has proof but not reputation, so it runs again.
+    expect(parts.map((part) => part.key)).toEqual([
+      "buyers",
+      "competitors",
+      "social",
+      "reviews",
+      "news",
+    ]);
+  });
+
+  it("gives none on cmo-v1, or once the essentials exist", () => {
+    expect(cmoResearchParts("cmo-v1", cuso)).toEqual([]);
+    expect(cmoResearchParts(null, cuso)).toEqual([]);
+    expect(
+      cmoResearchParts("cmo-v2", {
+        ...cuso,
+        brandBrain: {
+          summary: "Acme sells rockets to hobbyists.",
+          voice: { tone: "Clear.", do: [], dont: [], examples: [] },
+          audience: [],
+          products: [],
+          competitors: [],
+          channels: [],
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it("asks cmo-v2's first read for the essentials from the hand-overs", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(cuso, "user-1");
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain("hand-overs");
+    expect(message).toContain("save the essentials");
+    expect(message).not.toContain("read the website, search for the company");
+  });
+
+  it("tells a cmo-v2 retry its new sections are in the hand-overs", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(
+      { ...cuso, brandBrain: { profile: { company: section("Rockets.") } } },
+      "user-1",
+    );
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain("save the essentials");
+    expect(message).toContain("their hand-overs below do");
+  });
+
+  it("keeps cmo-v1's first read word for word", async () => {
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v1" });
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+    await startCmoResearch(cuso, "user-1");
+    expect(startTurn.mock.calls[0]?.[0].message).toContain(
+      "read the website, search for the company, its reviews, competitors, news and social profiles",
+    );
+  });
+});
+
+describe("ending a read in parts on its essentials (SOKD-167)", () => {
+  const onboarding = {
+    clientTurnId: "cmo:onboarding:bot-1",
+    versionId: "cmo-v2",
+  };
+  const essentials = {
+    reveal: { positioning: "Scheduling infrastructure for everyone" },
+    questions: [{ id: "q1" }],
+    marketingToday: { summary: "Mostly organic" },
+  };
+
+  it("answers with the reveal's position once the essentials are complete", () => {
+    expect(cmoResearchEndAnswer(onboarding, essentials)).toBe(
+      "Scheduling infrastructure for everyone",
+    );
+  });
+
+  it("lets the turn go on while the essentials still miss a piece", () => {
+    for (const missing of ["reveal", "marketingToday"] as const)
+      expect(
+        cmoResearchEndAnswer(onboarding, {
+          ...essentials,
+          [missing]: undefined,
+        }),
+      ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer(onboarding, { ...essentials, questions: [] }),
+    ).toBeUndefined();
+    expect(cmoResearchEndAnswer(onboarding, null)).toBeUndefined();
+  });
+
+  it("keeps cmo-v1 and every other turn on Cuso's own closing step", () => {
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, versionId: "cmo-v1" }, essentials),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, versionId: null }, essentials),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer(
+        { ...onboarding, clientTurnId: "chat-1" },
+        essentials,
+      ),
+    ).toBeUndefined();
+    expect(
+      cmoResearchEndAnswer({ ...onboarding, clientTurnId: null }, essentials),
+    ).toBeUndefined();
   });
 });

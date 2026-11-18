@@ -15,6 +15,7 @@ import {
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
   SOCIAL_POST_TEXT_REQUIRED,
+  SOCIAL_POST_THREAD_MAX_PARTS,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
@@ -56,14 +57,12 @@ import {
   socialPostQuotePublishDecision,
   socialPostQuoteSelect,
 } from "@/helpers/social-post-quote";
-import {
-  SOCIAL_POST_THREAD_MAX_PARTS,
-  summarizeSocialPostThread,
-} from "@/helpers/social-post-thread";
+import { summarizeSocialPostThread } from "@/helpers/social-post-thread";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { EmbedTexts } from "@/lib/embeddings";
+import { findRepeats } from "@/lib/repeats";
 import {
-  nearDuplicatePost,
   socialPostFormattingError,
   stackedCaveatsProblem,
   tagOwnLinks,
@@ -81,6 +80,7 @@ import {
   prepareSocialPostMedia,
   requirePreparedSocialPostProvider,
 } from "@/services/social-post-media-preparation.service";
+import { recordSocialStudioAdEvents } from "@/services/social-studio-events.service";
 import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
@@ -649,9 +649,8 @@ async function cmoLinkTags(
 }
 
 /**
- * A Soko Bot's post in a marketing month says its own thing with its own
- * pictures: a month once repeated four messages across 45 posts, and one
- * picture went on three of them.
+ * A Soko Bot's post in a marketing month carries its own pictures (one
+ * picture once went on three posts) and states its facts plainly.
  */
 async function requireOwnInMonth(
   tx: Prisma.TransactionClient,
@@ -664,7 +663,7 @@ async function requireOwnInMonth(
       id: { not: post.id },
       status: { not: "CANCELED" },
     },
-    select: { id: true, text: true, media: true, planning: true },
+    select: { id: true, text: true, media: true },
   });
   for (const item of change.media) {
     const holder = siblings.find((sibling) =>
@@ -680,16 +679,48 @@ async function requireOwnInMonth(
   if (change.text === null) return;
   const caveats = stackedCaveatsProblem(change.text);
   if (caveats) throw badRequest(`Rewrite the post: it ${caveats}.`);
+}
+
+/**
+ * Why a Soko Bot's new text for a post in a marketing month says what
+ * another post of the month says (a month once repeated four messages
+ * across 45 posts), or null, with what comparing cost. It waits on the
+ * embedding model, so callers run it before the save's transaction.
+ */
+export async function ownMessageProblem(
+  input: { postId: string; workspaceId: string; text: string },
+  embed?: EmbedTexts,
+): Promise<{ problem: string | null; costUsd: number }> {
+  const post = await prisma.socialPost.findFirst({
+    where: { id: input.postId, workspaceId: input.workspaceId },
+    select: { marketingStrategyId: true },
+  });
+  if (!post?.marketingStrategyId) return { problem: null, costUsd: 0 };
+  const siblings = await prisma.socialPost.findMany({
+    where: {
+      marketingStrategyId: post.marketingStrategyId,
+      id: { not: input.postId },
+      status: { not: "CANCELED" },
+    },
+    select: { text: true, planning: true },
+  });
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
     const planning = sibling.planning as { brief?: unknown; title?: unknown };
     return sibling.text !== planning?.brief && sibling.text !== planning?.title;
   });
-  const repeated = nearDuplicatePost(change.text, written);
-  if (repeated)
-    throw badRequest(
-      `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`,
-    );
+  const { repeats, costUsd } = await findRepeats(
+    [...written.map((sibling) => sibling.text), input.text],
+    "post",
+    embed,
+  );
+  const repeated = written[repeats.at(-1) ?? -1];
+  return {
+    problem: repeated
+      ? `Rewrite the post: it says nearly what the post "${firstLine(repeated.text)}" says. Give it its own message from its pillar: another claim, number, customer or step.`
+      : null,
+    costUsd,
+  };
 }
 
 /**
@@ -1160,10 +1191,27 @@ export async function createSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) input = await prepareSocialPostMutationMedia(input);
   if ((input.scheduledAt || input.quotedPostId) && tx === prisma) {
-    return serializableTransaction(
+    const post = await serializableTransaction(
       (tx) => createSocialPost(input, tx),
       "Project changed while scheduling a Social post",
     );
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: post.id,
+      type: "attached_to_post",
+      media: post.media,
+      threadParts: post.threadParts,
+    });
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   if (input.coworkerId && input.sokoBotId) {
     throw badRequest(
@@ -1259,7 +1307,17 @@ export async function createSocialPost(
     },
     include: socialPostInclude,
   });
-  return mapSocialPost(post);
+  const summary = mapSocialPost(post);
+  if (tx === prisma) {
+    await recordSocialStudioAdEvents({
+      ...input,
+      postId: summary.id,
+      type: "attached_to_post",
+      media: summary.media,
+      threadParts: summary.threadParts,
+    });
+  }
+  return summary;
 }
 
 export async function updateSocialPost(
@@ -1268,10 +1326,35 @@ export async function updateSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
     input = await prepareSocialPostMutationMedia(input);
-    return serializableTransaction(
+    const previous =
+      input.media !== undefined || input.threadParts !== undefined
+        ? await getSocialPost(input).catch(() => undefined)
+        : undefined;
+    const post = await serializableTransaction(
       (tx) => updateSocialPost(input, tx),
       "Project changed while editing a Social post",
     );
+    if (previous) {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "attached_to_post",
+        media: post.media,
+        threadParts: post.threadParts,
+        previousMedia: previous.media,
+        previousThreadParts: previous.threadParts,
+      });
+    }
+    if (input.scheduledAt && post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
@@ -1532,10 +1615,35 @@ export async function scheduleSocialPost(
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
     input = await prepareSocialPostMutationMedia(input);
-    return serializableTransaction(
+    const previous =
+      input.media !== undefined
+        ? await getSocialPost(input).catch(() => undefined)
+        : undefined;
+    const post = await serializableTransaction(
       (tx) => scheduleSocialPost(input, tx),
       "Project changed while scheduling a Social post",
     );
+    if (previous) {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "attached_to_post",
+        media: post.media,
+        threadParts: post.threadParts,
+        previousMedia: previous.media,
+        previousThreadParts: previous.threadParts,
+      });
+    }
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   await requireLockedOpenProject(tx, input, {
     closedMessage: PROJECT_CLOSED_MESSAGE,
@@ -1709,10 +1817,20 @@ export async function approveSocialPost(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
   if (tx === prisma) {
-    return serializableTransaction(
+    const post = await serializableTransaction(
       (tx) => approveSocialPost(input, tx),
       "Project changed while approving a Social post",
     );
+    if (post.status === "SCHEDULED") {
+      await recordSocialStudioAdEvents({
+        ...input,
+        postId: post.id,
+        type: "scheduled",
+        media: post.media,
+        threadParts: post.threadParts,
+      });
+    }
+    return post;
   }
   await requireLockedOpenProject(tx, input, {
     closedMessage: PROJECT_CLOSED_MESSAGE,

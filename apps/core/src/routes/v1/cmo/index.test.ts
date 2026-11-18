@@ -12,10 +12,20 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { revertMock, overviewMock, strategyMock } = vi.hoisted(() => ({
+const {
+  revertMock,
+  overviewMock,
+  strategyMock,
+  answerMock,
+  fixMock,
+  brainMock,
+} = vi.hoisted(() => ({
   revertMock: vi.fn(),
   overviewMock: vi.fn(),
   strategyMock: vi.fn(),
+  answerMock: vi.fn(),
+  fixMock: vi.fn(),
+  brainMock: vi.fn(),
 }));
 
 const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
@@ -48,7 +58,14 @@ vi.mock("@/services/cmo-strategy.service", async (importOriginal) => {
   return {
     ...actual,
     requestCmoStrategy: strategyMock,
+    answerCmoBrandQuestion: answerMock,
+    fixCmoBrandSection: fixMock,
   };
+});
+vi.mock("@/services/brand-brain.service", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/services/brand-brain.service")>();
+  return { ...actual, getBrandBrain: brainMock };
 });
 vi.mock("@/services/cmo-reports.service", async (importOriginal) => {
   const actual =
@@ -116,9 +133,11 @@ function overview() {
     botStatus: "IDLE",
     learning: "done",
     work: null,
+    activity: { step: "Reading acme.io/pricing", reasoning: null },
     brandVisual: null,
     brandMedia: null,
     projectLogo: null,
+    presenterSet: false,
     routines: [],
     updates: [
       {
@@ -384,6 +403,71 @@ describe("CMO routes", () => {
       published: 0,
       failed: 1,
     });
+  });
+
+  it("sends a Brand Brain answer to Cuso, who fixes the section for a no", async () => {
+    answerMock.mockResolvedValue(undefined);
+    brainMock.mockResolvedValue(null);
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/brand-brain/answers`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          questionId: "q1",
+          answer: "no",
+          note: "From 19 dollars.",
+        }),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(answerMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      questionId: "q1",
+      answer: "no",
+      note: "From 19 dollars.",
+    });
+  });
+
+  it("fixes one Brand Brain section, or says the fix waits its turn", async () => {
+    fixMock.mockResolvedValueOnce({ turnId: "turn-4" });
+    fixMock.mockResolvedValueOnce({ queued: true });
+    const fix = () =>
+      createApp().request(`/projects/${PROJECT_ID}/brand/fix`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ section: "pricing", note: "From 19 dollars." }),
+      });
+
+    const started = await fix();
+    expect(started.status).toBe(201);
+    expect(await started.json()).toMatchObject({
+      data: { turnId: "turn-4", queued: false },
+    });
+    const queued = await fix();
+    expect(await queued.json()).toMatchObject({
+      data: { turnId: null, queued: true },
+    });
+    expect(fixMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      section: "pricing",
+      note: "From 19 dollars.",
+    });
+  });
+
+  it("refuses a fix for a section that does not exist", async () => {
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/brand/fix`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ section: "weather", note: "Sunny." }),
+      },
+    );
+    expect(response.status).toBe(422);
+    expect(fixMock).not.toHaveBeenCalled();
   });
 
   it("returns the Cuso's CMO subscription and credits in the billing block", async () => {

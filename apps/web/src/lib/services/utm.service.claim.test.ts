@@ -13,6 +13,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getServerCoreApiBaseUrl: () => "https://owned-core.example.test/v1",
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { utmService } from "./utm.service";
 
 describe("social conversion through the generated Core client", () => {
@@ -87,8 +88,11 @@ describe("social conversion through the generated Core client", () => {
   });
 
   it("ignores invalid UTM cookies while still claiming the signup", async () => {
+    expectConsole(
+      "error",
+      "Failed to parse UTM cookie SyntaxError: Unexpected token 'i', \"invalid-json\" is not valid",
+    );
     cookieStore.get.mockReturnValue({ value: "invalid-json" });
-    vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(utmService.claimSignUpConversion()).resolves.toBe("google");
     expect(await requests[0].json()).toEqual({});
   });

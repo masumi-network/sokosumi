@@ -11,6 +11,10 @@ import {
   runtimeEvent,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import {
+  findStyleReferences,
+  referenceLibraryAvailable,
+} from "@/services/reference-library.service";
 import { collectNewSocialComments } from "@/services/social-comments.service";
 import {
   type AuthorizedSokoBotRuntime,
@@ -110,6 +114,19 @@ export async function dispatchSocialTools(
         name: skill.name,
         content: renderWritingSkill(skill),
       };
+    }
+
+    case "find_style_references": {
+      const query = SOKO_BOT_TOOL_INPUT_SCHEMAS.find_style_references.parse(
+        input.input,
+      );
+      if (!referenceLibraryAvailable()) {
+        return {
+          references: [],
+          note: "The reference library is not set up here: make pictures from the brand's own pictures.",
+        };
+      }
+      return { references: await findStyleReferences(query) };
     }
 
     case "read_social_profile": {

@@ -411,9 +411,24 @@ export async function recordSokoBotCheckUsage(input: {
   key: string;
   costUsd: number;
 }): Promise<SokoBotUsageChargeResult> {
-  const expectedCents = convertCreditsToCents(
-    input.costUsd * getEnv().SOKO_BOT_CREDITS_PER_USD,
-  );
+  return chargeSokoBotCredits({
+    sokoBotId: input.sokoBotId,
+    key: input.key,
+    credits: input.costUsd * getEnv().SOKO_BOT_CREDITS_PER_USD,
+  });
+}
+
+/**
+ * A price in credits for work Core does for a bot outside any turn, charged
+ * once per `key` to the bot's payer. A payer with less than the price pays
+ * what is left (`shortfall`); one with nothing pays nothing.
+ */
+export async function chargeSokoBotCredits(input: {
+  sokoBotId: string;
+  key: string;
+  credits: number;
+}): Promise<SokoBotUsageChargeResult> {
+  const expectedCents = convertCreditsToCents(input.credits);
   return serializableTransaction(async (tx) => {
     const payer = await sokoBotPayer(input.sokoBotId, tx);
     return chargeSokoBotUsage(

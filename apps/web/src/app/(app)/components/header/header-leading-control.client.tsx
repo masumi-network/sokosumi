@@ -18,6 +18,7 @@ import {
 import { useIsAgentUnavailable } from "@/app/components/unavailable-agent.client";
 import { getStoredTasksReturnPath } from "@/app/tasks/components/task-navigation";
 import { useTasksReturnPath } from "@/app/tasks/components/use-tasks-return-path";
+import { BackLink } from "@/components/back-link";
 import { SokosumiIcon } from "@/components/masumi-logos";
 
 /**
@@ -27,6 +28,8 @@ import { SokosumiIcon } from "@/components/masumi-logos";
  * - nested tasks → back to stored list URL (view/filters) when present; a
  *   task opened from the Calendar → back to that Calendar view
  * - other nested list pages → back to list root
+ * - Developer sections → back to the You → Developer menu; their detail
+ *   pages → back to the section list
  * - non-tab hub roots → back to chats
  * - otherwise → back to chats
  */
@@ -71,7 +74,7 @@ export function HeaderLeadingControl(): React.ReactElement {
   if (appBack) {
     const isTasksBack = appBack.href === "/tasks";
     const href = isTasksBack
-      ? tasksReturnPath
+      ? (tasksReturnPath ?? appBack.href)
       : agentUnavailable
         ? "/agents"
         : appBack.href;
@@ -88,14 +91,15 @@ export function HeaderLeadingControl(): React.ReactElement {
     }
 
     return (
-      <Link
+      <BackLink
         href={href}
         aria-label={t(appBack.labelKey)}
         className="text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md"
         onClick={isTasksBack ? handleTasksBackClick : undefined}
+        prefetchOnMount={!isTasksBack || tasksReturnPath !== null}
       >
         <ChevronLeft className="size-5" aria-hidden />
-      </Link>
+      </BackLink>
     );
   }
 

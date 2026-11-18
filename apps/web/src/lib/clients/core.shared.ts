@@ -4,19 +4,27 @@ import {
   getChatRoomMessageResults as coreGetChatRoomMessageResults,
   getChatRoomMessageResultsBatch as coreGetChatRoomMessageResultsBatch,
   getStudioBrandKit as coreGetStudioBrandKit,
+  getStudioComparePair as coreGetStudioComparePair,
+  getStudioModelScoreboard as coreGetStudioModelScoreboard,
   getStudioProductCatalog as coreGetStudioProductCatalog,
   getStudioWebsiteCopy as coreGetStudioWebsiteCopy,
+  hideStudioAsset as coreHideStudioAsset,
   importStudioProductCatalog as coreImportStudioProductCatalog,
   listStudioBatchAssets as coreListStudioBatchAssets,
+  recordStudioAssetEvent as coreRecordStudioAssetEvent,
   replaceStudioProductCatalog as coreReplaceStudioProductCatalog,
   researchStudioWebsiteDraft as coreResearchStudioWebsiteDraft,
   saveStudioAdHeadline as coreSaveStudioAdHeadline,
   saveStudioBrandCopy as coreSaveStudioBrandCopy,
   saveStudioBrandLook as coreSaveStudioBrandLook,
+  saveStudioPairwisePick as coreSaveStudioPairwisePick,
+  setStudioAssetFeedback as coreSetStudioAssetFeedback,
   suggestTaskTags as coreSuggestTaskTags,
   uploadStudioProjectLogo as coreUploadStudioProjectLogo,
   type SaveStudioBrandCopy,
   type SaveStudioBrandLook,
+  type SaveStudioPairwisePick,
+  type SetStudioAssetFeedbackData,
   type StudioProductCatalog,
 } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
@@ -143,6 +151,8 @@ import type {
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
   PostProjectsByIdImageStudioJobsData,
+  PostProjectsByIdImageStudioTalkingVideoJobsData,
+  PostProjectsByIdImageStudioTalkingVideoScriptsData,
   PostProjectsByIdImageStudioVideoJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialAccountPostsByAccountPostIdRecycleData,
@@ -341,6 +351,7 @@ import {
   getProjectsByIdHide as coreGetProjectsByIdHide,
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
+  getProjectsByIdImageStudioTalkingVideos as coreGetProjectsByIdImageStudioTalkingVideos,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdNewsletter as coreGetProjectsByIdNewsletter,
   getProjectsByIdNewsletterAnalytics as coreGetProjectsByIdNewsletterAnalytics,
@@ -353,6 +364,7 @@ import {
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialConnectionsByConnectionIdSubscription as coreGetProjectsByIdSocialConnectionsByConnectionIdSubscription,
   getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes as coreGetProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
+  getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator as coreGetProjectsByIdSocialConnectionsByConnectionIdTiktokCreator,
   getProjectsByIdSocialConnectionsStatistics as coreGetProjectsByIdSocialConnectionsStatistics,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
   getProjectsByIdSocialPostsByPostId as coreGetProjectsByIdSocialPostsByPostId,
@@ -497,6 +509,8 @@ import {
   postProjectsByIdImageStudioAssetsByAssetIdCaption as corePostProjectsByIdImageStudioAssetsByAssetIdCaption,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
+  postProjectsByIdImageStudioTalkingVideoJobs as corePostProjectsByIdImageStudioTalkingVideoJobs,
+  postProjectsByIdImageStudioTalkingVideoScripts as corePostProjectsByIdImageStudioTalkingVideoScripts,
   postProjectsByIdImageStudioVideoJobs as corePostProjectsByIdImageStudioVideoJobs,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdNewsletterIssues as corePostProjectsByIdNewsletterIssues,
@@ -603,6 +617,7 @@ import {
 } from "./core.request";
 import { createSokoBotClient } from "./core.soko-bot";
 import { createSokoBotAvatarClient } from "./core.soko-bot-avatars";
+import { createTaskInterestClient } from "./core.task-interest";
 
 export type CoreApiPagination = PaginationMetadata;
 
@@ -4326,6 +4341,40 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function setStudioAssetFeedback(
+    id: string,
+    assetId: string,
+    body: SetStudioAssetFeedbackData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetStudioAssetFeedback({ client, path: { id, assetId }, body }),
+      "Failed to rate Studio asset",
+    );
+  }
+
+  async function hideStudioAsset(id: string, assetId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreHideStudioAsset({ client, path: { id, assetId } }),
+      "Failed to hide Studio asset",
+    );
+  }
+
+  async function recordStudioAssetEvent(id: string, assetId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRecordStudioAssetEvent({
+          client,
+          path: { id, assetId },
+          body: { type: "viewed_lightbox" },
+        }),
+      "Failed to record Studio view",
+    );
+  }
+
   async function listStudioBatchAssets(id: string, batchId: string) {
     return executeCoreOperation(
       getClient,
@@ -4336,6 +4385,45 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch ads from the Studio batch",
+    );
+  }
+
+  async function getStudioComparePair(id: string, batchId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioComparePair({
+          client,
+          path: { id, batchId },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio comparisons",
+    );
+  }
+
+  async function saveStudioPairwisePick(
+    id: string,
+    batchId: string,
+    body: SaveStudioPairwisePick,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSaveStudioPairwisePick({ client, path: { id, batchId }, body }),
+      "Failed to save the Studio comparison",
+    );
+  }
+
+  async function getStudioModelScoreboard(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetStudioModelScoreboard({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Studio model results",
     );
   }
 
@@ -4453,6 +4541,53 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdImageStudioTalkingVideoJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioTalkingVideoJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioTalkingVideoJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start the talking video",
+    );
+  }
+
+  async function postProjectsByIdImageStudioTalkingVideoScripts(
+    id: string,
+    body: NonNullable<
+      PostProjectsByIdImageStudioTalkingVideoScriptsData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioTalkingVideoScripts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to write talking video scripts",
+    );
+  }
+
+  async function getProjectsByIdImageStudioTalkingVideos(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdImageStudioTalkingVideos({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch the Project's talking videos",
+    );
+  }
+
   async function postProjectsByIdImageStudioJobsByJobIdCancel(
     id: string,
     jobId: string,
@@ -4513,6 +4648,22 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to refresh account subscription",
+    );
+  }
+
+  async function getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator(
+    id: string,
+    connectionId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdSocialConnectionsByConnectionIdTiktokCreator({
+          client,
+          path: { id, connectionId },
+          cache: "no-store",
+        }),
+      "Failed to read TikTok creator settings",
     );
   }
 
@@ -7267,7 +7418,13 @@ export function createCoreClient(getClient: GetCoreClient) {
     getStudioBrandKit,
     getStudioWebsiteCopy,
     prepareStudioWebsiteDraft,
+    setStudioAssetFeedback,
+    hideStudioAsset,
+    recordStudioAssetEvent,
     listStudioBatchAssets,
+    getStudioComparePair,
+    saveStudioPairwisePick,
+    getStudioModelScoreboard,
     saveStudioAdHeadline,
     saveStudioBrandCopy,
     saveStudioBrandLook,
@@ -7281,11 +7438,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
     postProjectsByIdImageStudioVideoJobs,
+    postProjectsByIdImageStudioTalkingVideoJobs,
+    postProjectsByIdImageStudioTalkingVideoScripts,
+    getProjectsByIdImageStudioTalkingVideos,
     getProjectsByIdSocialPosts,
     getWorkspacesSocialPosts,
     getProjectsByIdSocialPostsStatistics,
     getProjectsByIdSocialQueueSlots,
     getProjectsByIdSocialConnectionsByConnectionIdSuggestedTimes,
+    getProjectsByIdSocialConnectionsByConnectionIdTiktokCreator,
     getProjectsByIdSocialConnectionsByConnectionIdSubscription,
     getProjectsByIdSocialConnectionsStatistics,
     postProjectsByIdSocialConnectionsByConnectionIdStatisticsRefresh,
@@ -7356,6 +7517,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
+    ...createTaskInterestClient(getClient),
     postPublicNewslettersByPublicSlugSubscribe,
     getPublicNewslettersByPublicSlug,
     getPublicNewslettersByPublicSlugIssues,

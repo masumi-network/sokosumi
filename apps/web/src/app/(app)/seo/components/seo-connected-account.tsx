@@ -18,32 +18,33 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
-import { SEO_GHOST_EDGE_CLASS, SEO_WRAP_CLASS } from "./seo-shared";
-import type { SeoConnection } from "./use-seo-connection";
+import { SeoGoogleAvatar } from "./seo-google-avatar";
+import { SEO_WRAP_CLASS } from "./seo-shared";
+import { type SeoConnection, seoConnectionAccount } from "./use-seo-connection";
 
 /**
- * A connected account: one quiet line that says so. The two account actions
- * are rare, so they sit in its menu and not beside the step's own action.
+ * A connected account: one chip with a check that says so. A press opens its
+ * menu, which names the Google account and holds the two rare account
+ * actions, so they do not sit beside the step's own action.
  */
 export function SeoConnectedAccount({
   name,
   model,
-  inRow = false,
 }: {
   /** The source's display name, for example "Search Console". */
   name: string;
   model: SeoConnection;
-  /** Beside other buttons the line keeps its own box; in a column its icon sits on the edge. */
-  inRow?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const [menu, setMenu] = useState(false);
   const [asking, setAsking] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const busy = model.busy !== null;
+  const account = seoConnectionAccount(model.status.data);
   return (
     <>
       <DropdownMenu
@@ -55,19 +56,39 @@ export function SeoConnectedAccount({
           <Button
             ref={trigger}
             type="button"
-            variant="ghost"
+            variant="default"
             size="sm"
-            className={cn(SEO_WRAP_CLASS, !inRow && SEO_GHOST_EDGE_CLASS)}
+            className={SEO_WRAP_CLASS}
             loading={busy}
           >
-            <Check />
+            {/* The text says the state too: the colour is never the only sign. */}
+            <span
+              aria-hidden
+              className="bg-semantic-success text-semantic-success-foreground flex size-4 shrink-0 items-center justify-center rounded-full"
+            >
+              <Check className="size-2.5" strokeWidth={3} />
+            </span>
             {t("connections.connected", { provider: name })}
             <ChevronDown className="text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align="start" className="max-w-80">
+          <DropdownMenuLabel className="flex items-center gap-3 font-normal">
+            <SeoGoogleAvatar account={account} />
+            <span className="min-w-0">
+              <span className="block truncate font-medium">
+                {account?.name ?? account?.email ?? name}
+              </span>
+              <span className="text-muted-foreground block truncate">
+                {account?.name ? account.email : t("connections.googleAccount")}
+              </span>
+            </span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onSelect={() => {
+              // The menu closes now: it must not open again when the switch ends.
+              setMenu(false);
               void model.connect();
             }}
           >

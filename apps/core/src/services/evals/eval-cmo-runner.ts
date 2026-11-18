@@ -4,6 +4,7 @@ import {
   type ScenarioCheck,
 } from "@sokosumi/soko-bot";
 import { isProjectSocialProvider } from "@/config/social-providers";
+import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
@@ -18,6 +19,7 @@ import {
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { SETTLED_TURN_STATUSES } from "@/services/soko-bot-lab-scenario.service";
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
@@ -34,12 +36,25 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
+import {
+  isCompetitorSetup,
+  prepareCompetitorCase,
+} from "./eval-cmo-competitors";
+import {
+  evalInfrastructureFailure,
+  infrastructureCaseOutcome,
+} from "./eval-infrastructure";
 import type { EvalLaneRecord } from "./eval-lanes.service";
 import brandBrains from "./fixtures/cmo-brand-brains.json";
 import monthPlans from "./fixtures/cmo-month-plans.json";
 
 /** Research reads a whole site; a plan is one long turn. */
 const CMO_TURN_TIMEOUT_MS = 45 * 60_000;
+const PLANNED_MONTH_POST_STATUSES = [
+  "DRAFT",
+  "NEEDS_APPROVAL",
+  "SCHEDULED",
+] as const;
 /** A month is a production run, Core's pictures, Jev's review and a rewrite. */
 const MONTH_TIMEOUT_MS = 3 * 60 * 60_000;
 /** Above this share of pieces Jev flags after the rewrite, the month fails. */
@@ -132,6 +147,12 @@ function endTurn(turnId: string) {
   return sokoBotControlPlane.expireTurn(turnId).catch(() => undefined);
 }
 
+function brand(name: string) {
+  const found = CMO_EVAL_BRANDS.find((candidate) => candidate.name === name);
+  if (!found) throw new Error(`No CMO eval brand ${name}`);
+  return found;
+}
+
 /** The lane's Cuso Project pointed at the brand, with nothing an earlier case left. */
 async function pointCusoAt(
   lane: EvalLaneRecord,
@@ -149,6 +170,10 @@ async function pointCusoAt(
   });
   await prisma.marketingStrategy.deleteMany({ where: { projectId } });
   await prisma.brandBrain.deleteMany({ where: { projectId } });
+  // Cuso reads his last reports: an earlier case's "done" is not this one's.
+  await prisma.chatRoomMessage.deleteMany({
+    where: cmoReportMessageWhere(lane.cusoBotId),
+  });
   if (brandBrain)
     await prisma.brandBrain.create({
       data: { projectId, body: brandBrain as object, updatedAt: new Date() },
@@ -156,6 +181,193 @@ async function pointCusoAt(
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
   return cuso;
+}
+
+/** `count` slots, each item in its share of them, spread evenly. */
+function spread<T extends { share: number }>(items: T[], count: number): T[] {
+  const slots = items.flatMap((item) => {
+    const times = (item.share / 100) * count;
+    return Array.from({ length: Math.round(times) }, (_, n) => ({
+      item,
+      at: (n + 0.5) / times,
+    }));
+  });
+  return slots.sort((a, b) => a.at - b.at).map((slot) => slot.item);
+}
+
+/** One title per piece, none repeating a message. */
+const CHANGE_REQUEST_TITLES = [
+  "One booking link for the whole team",
+  "Cal.com vs Calendly for team booking",
+  "Round-robin without spreadsheets",
+  "Embed a booking widget in five lines",
+  "Why reps stop chasing meeting times",
+  "This week's team scheduling tip",
+  "A tour of the team booking page",
+  "How routing forms pick the right rep",
+  "Booking pages that sales teams share",
+  "Collective events for panel interviews",
+  "Webhooks after every new booking",
+  "A Teams trial checklist for week one",
+  "Monthly recap of booking flows",
+  "What each plan on the pricing page includes",
+  "Buffer times that protect focus hours",
+  "Routing inbound demos by company size",
+  "Group availability across time zones",
+  "Booking API rate limits explained",
+  "Managed event types for large teams",
+  "Five settings admins change first",
+  "Routing forms in one picture",
+  "Reminders that cut no-shows",
+  "Open source scheduling for regulated teams",
+  "Handing a lead to the next rep",
+  "Self-hosting Cal.com on your own server",
+  "Insights that show booking volume",
+  "What changed in team booking this month",
+  "Enterprise scheduling in one minute",
+];
+
+/** A week of the change request's month: LinkedIn three times, four other formats. */
+const CHANGE_REQUEST_WEEK = [
+  { channel: "linkedin", format: "post" },
+  { channel: "facebook", format: "post" },
+  { channel: "linkedin", format: "image" },
+  { channel: "x", format: "post" },
+  { channel: "linkedin", format: "post" },
+  { channel: "newsletter", format: "issue" },
+  { channel: "facebook", format: "image" },
+] as const;
+
+const CHANGE_REQUEST_CHANNELS = [
+  {
+    channel: "linkedin",
+    cadence: "3 posts a week",
+    why: "Reach operators with concrete team scheduling examples.",
+  },
+  {
+    channel: "facebook",
+    cadence: "2 posts a week",
+    why: "Reach small business owners who book on Facebook.",
+  },
+  {
+    channel: "x",
+    cadence: "1 post a week",
+    why: "Show developers the booking API in short examples.",
+  },
+  {
+    channel: "newsletter",
+    cadence: "1 issue a week",
+    why: "Keep trial teams moving towards a working team flow.",
+  },
+];
+
+/**
+ * cal.com's month with LinkedIn three times a week from tomorrow, so the
+ * change request always has pieces to cut, whatever an earlier case left.
+ * Cutting LinkedIn to one a week still leaves the 16 pieces a save needs.
+ */
+export function changeRequestPlan(now: Date): MarketingStrategyPlan {
+  const frozen = (monthPlans as Record<string, unknown>)[
+    CMO_CHAT_BRAND
+  ] as MarketingStrategyPlan;
+  const [template] = frozen.calendar;
+  if (!template) throw new Error("cal.com's plan lost its pieces");
+  const slots = [0, 1, 2, 3].flatMap((week) =>
+    CHANGE_REQUEST_WEEK.map((piece, day) => ({ week, day: day + 1, piece })),
+  );
+  const approaches = spread(frozen.mix, slots.length);
+  const pillars = spread(frozen.pillars, slots.length);
+  const named = new Set(CHANGE_REQUEST_CHANNELS.map((c) => c.channel));
+  return {
+    ...frozen,
+    channels: CHANGE_REQUEST_CHANNELS,
+    funnel: frozen.funnel.map((stage, index) => ({
+      ...stage,
+      plays: [
+        ...stage.plays.filter((play) => named.has(play.channel)),
+        ...(index === 0
+          ? [
+              {
+                channel: "x",
+                what: "Short booking API examples",
+                cadence: "1 post a week",
+              },
+              {
+                channel: "newsletter",
+                what: "A weekly team scheduling tip",
+                cadence: "1 issue a week",
+              },
+            ]
+          : []),
+      ],
+    })),
+    campaigns: frozen.campaigns?.map((campaign) => ({
+      ...campaign,
+      channels: campaign.channels?.filter((channel) => named.has(channel)),
+    })),
+    beforeAfter: frozen.beforeAfter
+      ?.filter((row) => named.has(row.channel))
+      .map((row) =>
+        row.channel === "linkedin" ? { ...row, after: "3 posts weekly" } : row,
+      ),
+    // Week one in full, weeks two to four as titles, like a first plan.
+    calendar: tellStories(
+      slots.map(({ week, day, piece }, index) => ({
+        time: template.time,
+        status: "idea" as const,
+        campaignId: template.campaignId,
+        ...(week === 0 ? { brief: template.brief, why: template.why } : {}),
+        ...piece,
+        id: `${piece.channel}-w${week + 1}-${day}`,
+        date: new Date(now.getTime() + (week * 7 + day) * DAY_MS)
+          .toISOString()
+          .slice(0, 10),
+        title: CHANGE_REQUEST_TITLES[index] ?? template.title,
+        approach: approaches[index]?.approach ?? template.approach,
+        pillar: pillars[index]?.name ?? template.pillar,
+      })),
+    ),
+  };
+}
+
+/**
+ * cal.com's stories from its Brand Brain, one per pair of LinkedIn and
+ * social-proof pieces: the plan review names a story told in three.
+ */
+const CHANGE_REQUEST_STORIES = [
+  "Deel saves more than 6,000 hours a week on scheduling with Cal.com.",
+  "Mintlify halved the time it takes to find a meeting slot across the company.",
+  "Pennie raised its lead connect rate by 15% with Cal.com routing.",
+  "Dr. B saved three months of product work by building on Cal.com routing.",
+  "A G2 reviewer integrated Cal.com into their website and called the setup simple.",
+  "Peer Richelsen and Bailey Pumfleet started Cal.com as Calendso in 2021.",
+  "Cal.com shipped v6.9.5 on October 15, 2026, adding workflow delays and out-of-office integrations.",
+  "Cal.com moved its commercial product to closed source in April 2026 and released Cal.diy for the community.",
+];
+
+function tellStories(
+  calendar: MarketingStrategyPlan["calendar"],
+): MarketingStrategyPlan["calendar"] {
+  let told = 0;
+  return calendar.map((entry) => {
+    if (entry.channel !== "linkedin" && entry.approach !== "social-proof")
+      return entry;
+    const story = CHANGE_REQUEST_STORIES[Math.floor(told++ / 2)];
+    return story ? { ...entry, story } : entry;
+  });
+}
+
+/** The lane's Cuso on cal.com with the change request's month, waiting for approval. */
+export async function prepareCmoPlan(lane: EvalLaneRecord): Promise<void> {
+  const brain = (brandBrains as Record<string, unknown>)[CMO_CHAT_BRAND];
+  await pointCusoAt(lane, brand(CMO_CHAT_BRAND), brain ?? null);
+  await prisma.marketingStrategy.create({
+    data: {
+      projectId: lane.cusoProjectId,
+      plan: changeRequestPlan(new Date()) as object,
+      authorSokoBotId: lane.cusoBotId,
+    },
+  });
 }
 
 /**
@@ -194,7 +406,15 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
 export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
-): Promise<{ comments?: Record<string, string> }> {
+): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
+  if (setup === "cmo-plan") {
+    await prepareCmoPlan(lane);
+    return {};
+  }
+  if (isCompetitorSetup(setup)) {
+    await prepareCmoChat(lane, true);
+    return prepareCompetitorCase(lane, setup);
+  }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
   if (setup !== "cmo-comments") return {};
   await prisma.socialComment.deleteMany({
@@ -230,6 +450,31 @@ export async function prepareCmoChatCase(
     ids[comment.key] = created.id;
   }
   return { comments: ids };
+}
+
+/**
+ * The picture of the chat post case: started as a job with a reference
+ * library image. No check where the library is not set up.
+ */
+export async function styledPictureChecks(
+  lane: EvalLaneRecord,
+  since: Date,
+): Promise<ScenarioCheck[]> {
+  if (!referenceLibraryAvailable()) return [];
+  const styled = await prisma.projectImageJob.count({
+    where: {
+      projectId: lane.cusoProjectId,
+      createdAt: { gte: since },
+      referenceLibraryIds: { isEmpty: false },
+    },
+  });
+  return [
+    {
+      label: "Starts the picture in a reference library style",
+      pass: styled > 0,
+      actual: `${styled} styled job${styled === 1 ? "" : "s"}`,
+    },
+  ];
 }
 
 /**
@@ -327,8 +572,64 @@ export async function startCmoCase(
 async function settledTurn(turnId: string) {
   return prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
-    select: { status: true, errorKind: true, finalAnswer: true },
+    select: {
+      status: true,
+      errorKind: true,
+      errorDetail: true,
+      finalAnswer: true,
+    },
   });
+}
+
+async function cancelMonthPosts(strategyId: string) {
+  // Nothing of an eval month may stay scheduled.
+  await prisma.socialPost.updateMany({
+    where: {
+      marketingStrategyId: strategyId,
+      status: { in: [...PLANNED_MONTH_POST_STATUSES] },
+    },
+    data: {
+      status: "CANCELED",
+      canceledAt: new Date(),
+      revision: { increment: 1 },
+    },
+  });
+}
+
+async function monthProductionTurns(
+  botId: string,
+  prefix: string,
+  since: Date,
+) {
+  const select = {
+    id: true,
+    status: true,
+    errorKind: true,
+    errorDetail: true,
+  } as const;
+  let frontier = await prisma.sokoBotTurn.findMany({
+    where: {
+      sokoBotId: botId,
+      source: "EVENT",
+      createdAt: { gte: since },
+      clientTurnId: { startsWith: prefix },
+    },
+    select,
+  });
+  const turns = new Map(frontier.map((turn) => [turn.id, turn]));
+  while (frontier.length) {
+    const children = await prisma.sokoBotTurn.findMany({
+      where: {
+        sokoBotId: botId,
+        createdAt: { gte: since },
+        parentTurnId: { in: frontier.map((turn) => turn.id) },
+      },
+      select,
+    });
+    frontier = children.filter((turn) => !turns.has(turn.id));
+    for (const turn of frontier) turns.set(turn.id, turn);
+  }
+  return [...turns.values()];
 }
 
 /** The month's pieces once Core says they are made and Jev is done reading. */
@@ -345,12 +646,62 @@ async function pollMonth(
         status: "ERROR",
         checks: [],
         output: {},
-        error: "The month case lost its plan",
+        error: "The month case lost its strategy",
         turnIds: [],
       },
     };
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
+  const approval = await prisma.marketingStrategy.findUniqueOrThrow({
+    where: {
+      id: strategyId,
+      projectId: lane.cusoProjectId,
+      authorSokoBotId: lane.cusoBotId,
+    },
+    select: { approvedAt: true },
+  });
+  const timedOut = Date.now() - context.startedAt.getTime() >= MONTH_TIMEOUT_MS;
+  if (approval.approvedAt) {
+    // Production IDs bind retries to the current approval, including rewrites.
+    const prefix = `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`;
+    const productionTurns = await monthProductionTurns(
+      lane.cusoBotId,
+      prefix,
+      context.startedAt,
+    );
+    const exhausted = productionTurns.find(
+      (turn) => evalInfrastructureFailure(turn)?.stopsRun,
+    );
+    if (exhausted) {
+      const active = productionTurns.filter(
+        (turn) => !SETTLED_TURN_STATUSES.includes(turn.status),
+      );
+      if (active.length && !timedOut) return { kind: "waiting" };
+      const outcome = infrastructureCaseOutcome(exhausted.id, exhausted, {
+        strategyId,
+      });
+      if (outcome) {
+        try {
+          // The month deadline also bounds existing background/watch work.
+          await Promise.all(
+            active.map((turn) => sokoBotControlPlane.expireTurn(turn.id)),
+          );
+          await cancelMonthPosts(strategyId);
+        } catch {
+          // The runner turns thrown poll errors into terminal results. Keep the
+          // lane here until its writers and unsent posts are safely stopped.
+          return { kind: "waiting" };
+        }
+        return {
+          kind: "done",
+          outcome: {
+            ...outcome,
+            turnIds: productionTurns.map((turn) => turn.id),
+          },
+        };
+      }
+    }
+  }
   // The cron moves a month on every ten minutes; the eval does not wait.
   const production = await advanceCmoProduction(cuso);
   const version = await prisma.marketingStrategy.findUniqueOrThrow({
@@ -359,7 +710,6 @@ async function pollMonth(
   });
   const review = parseCmoMonthReview(version.monthReview);
   const reviewed = review && (review.round === 2 || !review.rewriteRunId);
-  const timedOut = Date.now() - context.startedAt.getTime() >= MONTH_TIMEOUT_MS;
   // Stuck: today's runs ended with pieces missing; the cron would try tomorrow.
   if (!reviewed && !timedOut && production.state !== "stuck")
     return { kind: "waiting" };
@@ -436,11 +786,7 @@ async function pollMonth(
         : "none flagged",
     },
   ];
-  // Nothing of an eval month may stay scheduled.
-  await prisma.socialPost.updateMany({
-    where: { marketingStrategyId: strategyId, status: { not: "PUBLISHED" } },
-    data: { status: "CANCELED" },
-  });
+  await cancelMonthPosts(strategyId);
   return {
     kind: "done",
     outcome: {
@@ -493,6 +839,12 @@ export async function pollCmoCase(
       },
     };
   }
+  const infrastructure = infrastructureCaseOutcome(result.turnId, turn, {
+    answer: turn.finalAnswer,
+    turnStatus: turn.status,
+    errorKind: turn.errorKind,
+  });
+  if (infrastructure) return { kind: "done", outcome: infrastructure };
   const completed = {
     label: "Turn completed",
     pass: turn.status === "COMPLETED",

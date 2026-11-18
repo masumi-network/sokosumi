@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  type SokoBotAvatar,
   type SokoBotDailyStats,
   type SokoBotInstalledSkill,
   type SokoBotIntegrations,
@@ -11,6 +10,7 @@ import {
 } from "@sokosumi/core-client";
 import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 import { MessageSquare, ShieldCheck } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -29,31 +29,23 @@ import { AdAccountsSection } from "@/app/personal-assistant/components/ad-accoun
 import { formatTaskScheduleTime } from "@/app/tasks/utils/task-schedule-view";
 import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
+import { LoadErrorState } from "@/components/common/load-error-state";
 import Markdown from "@/components/markdown";
+import { useChatAvatarState } from "@/components/soko-bot/avatar-state";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import type { ChatSchedule, SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { sokoBotConsoleRoute } from "@/lib/soko-bot/constants";
 import { describeSchedule } from "@/lib/soko-bot/describe-cron";
 import type { BotAdAccount } from "@/lib/soko-bot/load-bot-ad-accounts";
 import { cn } from "@/lib/utils";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
-import { AvatarPicker } from "../avatar-picker.client";
 import {
   AssistantImageContext,
   AssistantSeedContext,
@@ -79,6 +71,15 @@ import { DailyStats } from "./daily-stats";
 import { ToolConnectors } from "./tool-connectors.client";
 import { UsageSummary } from "./usage-summary";
 
+/** Loaded when the owner opens it: it carries the 16 traced animals. */
+const AvatarStudioDialog = dynamic(
+  () =>
+    import("../avatar-studio.client").then((m) => ({
+      default: m.AvatarStudioDialog,
+    })),
+  { ssr: false },
+);
+
 /** One section of the page: the Agents page's headline over its holder. */
 function HolderSection({
   title,
@@ -87,7 +88,7 @@ function HolderSection({
   children,
 }: {
   title: string;
-  description: string;
+  description?: string;
   aside?: ReactNode;
   children: ReactNode;
 }) {
@@ -96,9 +97,11 @@ function HolderSection({
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
           <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>{title}</h2>
-          <p className="text-muted-foreground text-sm text-pretty">
-            {description}
-          </p>
+          {description ? (
+            <p className="text-muted-foreground text-sm text-pretty">
+              {description}
+            </p>
+          ) : null}
         </div>
         {aside ? <div className="shrink-0">{aside}</div> : null}
       </div>
@@ -256,6 +259,15 @@ export interface SokoBotConsoleProps {
 }
 
 /**
+ * Core renders a section with nothing in it as "- None" (`renderSokoBotMemory`
+ * in @sokosumi/soko-bot), so a new bot's memory is five headings over "None".
+ * Any other list entry is something it actually keeps in mind.
+ */
+function hasMemoryEntries(markdown: string): boolean {
+  return /^- (?!None$)/m.test(markdown);
+}
+
+/**
  * The assistant's console: what it is waiting on, what it did, what it runs
  * on a schedule, what it remembers, and how much it may do alone. Talking to
  * it happens in chat (its direct room), not here.
@@ -311,29 +323,22 @@ export function SokoBotConsole({
   // raw `orb:` id, so the two would draw different orbs for the same bot.
   const seed = bot.avatarSeed ?? `orb:${bot.userId ?? bot.id}`;
   const [isOpeningChat, startOpeningChat] = useTransition();
-  const [pickedAvatar, setPickedAvatar] = useState<SokoBotAvatar | null>(null);
-  // The picker mounts loading its first set; start there so saving is held.
-  const [loadingAvatars, setLoadingAvatars] = useState(true);
-  const [isSavingAvatar, startSavingAvatar] = useTransition();
+  // The page loads every section in one go, so Try again loads it again.
+  const [isReloading, startReloading] = useTransition();
+  const loadError = (section: "Connectors" | "Stats" | "Usage") => (
+    <LoadErrorState
+      description={t("Console.LoadError.help")}
+      retrying={isReloading}
+      retryLabel={t("Console.LoadError.retry")}
+      title={t(`Console.LoadError.${section}`)}
+      variant="banner"
+      onRetry={() => startReloading(() => router.refresh())}
+    />
+  );
+  const avatarState = useChatAvatarState(state);
   const [editingPicture, setEditingPicture] = useState(false);
   // A shared bot's `botId` is set; the personal bot's is not.
   const ownsBot = !botId;
-  function saveAvatar() {
-    if (!pickedAvatar) return;
-    const avatarId = pickedAvatar.id;
-    startSavingAvatar(async () => {
-      const result = await claimSokoBotAvatarAction({ avatarId });
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("Avatar.saveError"));
-        return;
-      }
-      toast.success(t("Avatar.saved"));
-      setPickedAvatar(null);
-      setEditingPicture(false);
-      await refresh();
-    });
-  }
-
   const turns = useMemo(() => orderedTurns(state).reverse(), [state]);
 
   function openChat() {
@@ -367,51 +372,19 @@ export function SokoBotConsole({
                 name={botName}
                 seed={seed}
                 imageUrl={bot.avatarImageUrl}
+                avatarCode={bot.avatarCode}
+                avatarState={avatarState}
                 // Only the owner changes their own bot's picture here; shared
                 // bots get theirs from admin.
-                onEdit={
-                  ownsBot
-                    ? () => {
-                        // Each opening mounts a picker loading a fresh set.
-                        setLoadingAvatars(true);
-                        setEditingPicture(true);
-                      }
-                    : null
-                }
+                onEdit={ownsBot ? () => setEditingPicture(true) : null}
               />
-              {ownsBot ? (
-                <Dialog
-                  open={editingPicture}
-                  onOpenChange={(open) => {
-                    setEditingPicture(open);
-                    if (!open) setPickedAvatar(null);
-                  }}
-                >
-                  <DialogContent className="sm:max-w-3xl">
-                    <DialogHeader>
-                      <DialogTitle>{t("Avatar.title")}</DialogTitle>
-                      <DialogDescription>
-                        {t("Avatar.description")}
-                      </DialogDescription>
-                    </DialogHeader>
-                    <AvatarPicker
-                      value={pickedAvatar?.id ?? null}
-                      onChange={setPickedAvatar}
-                      currentImageUrl={bot.avatarImageUrl}
-                      onLoadingChange={setLoadingAvatars}
-                    />
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        disabled={!pickedAvatar || loadingAvatars}
-                        loading={isSavingAvatar}
-                        onClick={saveAvatar}
-                      >
-                        {t("Avatar.save")}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+              {ownsBot && editingPicture ? (
+                <AvatarStudioDialog
+                  open
+                  onOpenChange={setEditingPicture}
+                  initialCode={bot.avatarCode ?? null}
+                  onSaved={refresh}
+                />
               ) : null}
               <div className="flex flex-col items-center gap-2">
                 <div className="flex flex-wrap items-center justify-center gap-2.5">
@@ -541,7 +514,7 @@ export function SokoBotConsole({
                   aside={canManage ? <ResetMemoryButton /> : null}
                 >
                   <HolderPanel>
-                    {bot.memory ? (
+                    {bot.memory && hasMemoryEntries(bot.memory.markdown) ? (
                       <div className="space-y-3">
                         <p className="text-muted-foreground text-xs">
                           {t("Memory.updated")}{" "}
@@ -651,18 +624,20 @@ export function SokoBotConsole({
               </div>
             ) : (
               <div className="space-y-10">
-                {integrations ? (
-                  <HolderSection
-                    title={t("Console.Connectors.title")}
-                    description={t("Console.Connectors.description")}
-                  >
+                <HolderSection
+                  title={t("Console.Connectors.title")}
+                  description={t("Console.Connectors.description")}
+                >
+                  {integrations ? (
                     <ToolConnectors
                       integrations={integrations}
                       focusProvider={connectProvider}
                       readOnly={isCuso}
                     />
-                  </HolderSection>
-                ) : null}
+                  ) : (
+                    loadError("Connectors")
+                  )}
+                </HolderSection>
                 <HolderSection
                   title={t("Schedules.title")}
                   description={t("Schedules.description")}
@@ -696,28 +671,35 @@ export function SokoBotConsole({
                     </div>
                   </HolderPanel>
                 </HolderSection>
-                {stats ? (
-                  <HolderSection
-                    title={t("Console.Stats.title")}
-                    description={t("Console.Stats.description", {
-                      days: stats.days,
-                    })}
-                  >
+                <HolderSection
+                  title={t("Console.Stats.title")}
+                  // The window comes with the stats, so a failed load has none.
+                  description={
+                    stats
+                      ? t("Console.Stats.description", { days: stats.days })
+                      : undefined
+                  }
+                >
+                  {stats ? (
                     <HolderPanel>
                       <DailyStats stats={stats} />
                     </HolderPanel>
-                  </HolderSection>
-                ) : null}
-                {usage ? (
-                  <HolderSection
-                    title={t("Console.Usage.title")}
-                    description={t("Console.Usage.description")}
-                  >
+                  ) : (
+                    loadError("Stats")
+                  )}
+                </HolderSection>
+                <HolderSection
+                  title={t("Console.Usage.title")}
+                  description={t("Console.Usage.description")}
+                >
+                  {usage ? (
                     <HolderPanel>
                       <UsageSummary usage={usage} detailed />
                     </HolderPanel>
-                  </HolderSection>
-                ) : null}
+                  ) : (
+                    loadError("Usage")
+                  )}
+                </HolderSection>
               </div>
             )}
           </div>

@@ -148,7 +148,11 @@ vi.mock("./create-task-modal", () => ({
   }),
 }));
 
-vi.mock("./tasks-view-filters", () => ({
+vi.mock("./tasks-view-filters", async (importOriginal) => ({
+  // The real focus helper: clearing a filter moves focus with it.
+  focusToolbarControl: (
+    await importOriginal<typeof import("./tasks-view-filters")>()
+  ).focusToolbarControl,
   TasksViewFilters: () => <button type="button">Filters</button>,
 }));
 vi.mock("./task-list-view", () => ({

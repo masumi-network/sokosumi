@@ -2,29 +2,54 @@ import { type MarketingStrategy, type Prisma } from "@sokosumi/database";
 import {
   type BrandBrain,
   CMO_PRODUCTION_TURN_PREFIX,
+  type CmoBrandAnswer,
+  type CmoBrandQuestion,
+  type CmoBrandSectionKey,
   type CmoCalendarEntry,
   type CmoPlanQuestion,
   type CmoStrategySave,
+  type CmoStrategySavePart,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
   marketingStrategyPlanSchema,
+  networkAudiences,
 } from "@sokosumi/soko-bot";
+import { isCmoTalkingFormat } from "@sokosumi/utils";
+import { unprocessableEntity } from "@/helpers/error";
 import { keepAnswers } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
+import { isEvalCusoProject } from "@/lib/evals/eval-guard";
+import {
+  posesAsCustomerTestimonial,
+  TALKING_VIDEO_TESTIMONIAL_MESSAGE,
+} from "@/lib/image-studio/talking-video";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
 import {
+  answerBrandBrainQuestion,
   brandBrainCorrections,
+  brandBrainOpenFixes,
   parseBrandBrain,
+  requestBrandBrainFix,
+  withdrawBrandBrainFix,
 } from "@/services/brand-brain.service";
 import {
   CmoConflictError,
   CmoNotFoundError,
   type Cuso,
   type CusoTarget,
+  cmoRunnerUserId,
+  findCusoForBot,
+  ONBOARDING_TURN_PREFIX,
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
+  cmoPlanRulesBrokenSince,
+  WEEKLY_STRATEGY_SKILL,
+} from "@/services/cmo-plan-review.service";
+import {
   approvedMarketingStrategy,
+  cmoChangeKind,
   isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
@@ -33,6 +58,10 @@ import {
   sameTitle,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import {
+  settledTurnStatus,
+  TURN_ROW_SELECT,
+} from "@/services/soko-bot-turn-progress.service";
 
 /**
  * No sandbox on the strategy turn: it plans from the Brand Brain it already
@@ -108,12 +137,13 @@ export async function setCmoAdBudget(
   const currency = input.currency.toUpperCase();
   const started = await requestStrategyForCuso(cuso, {
     userId: input.userId,
+    patch: true,
     note:
       input.monthly > 0
         ? `My ad budget is ${currency} ${input.monthly} a month. Plan the ads around exactly that amount and say what it should bring.`
-        : "I don't want to spend on ads this month. Leave paid ads out and make the plan work without them.",
+        : "I don't want to spend on ads this month. Leave paid ads out and make the strategy work without them.",
   });
-  // The owner's budget is the version Cuso's re-plan completes: his turn's
+  // The owner's budget is the version Cuso's patch completes: his turn's
   // saves update it, so a budget writes one version.
   // shortcut: a turn that saves before this create adds a second version;
   // its first save takes a model call, so upgrade only if that ever shows.
@@ -122,43 +152,401 @@ export async function setCmoAdBudget(
       projectId: cuso.projectId,
       authorUserId: input.userId,
       authorTurnId: started.turnId,
-      plan: {
+      plan: withoutUnpaidAds({
         ...strategy,
+        // This version is the budget's patch: nothing struck through yet.
+        changes: [],
+        patched: [],
         ads: {
           expect: "Cuso is updating what this brings.",
-          without: "The plan runs on posts, search and email alone.",
+          without: "The strategy runs on posts, search and email alone.",
           ...strategy.ads,
           monthly: input.monthly,
           currency,
           setByOwner: true,
         },
-      },
+      }),
     },
   });
   return started;
 }
 
 /**
+ * A plan with no ad budget has no ad pieces: a $0 budget can never start
+ * one. A patch can only replace entries, so Cuso's "leave the ads out" once
+ * kept one; Core skips them itself.
+ */
+function withoutUnpaidAds<T extends MarketingStrategyPlan>(plan: T): T {
+  if (!plan.ads || plan.ads.monthly > 0) return plan;
+  return {
+    ...plan,
+    calendar: plan.calendar.map((entry) =>
+      (entry.channel === "google_ads" || entry.channel === "meta_ads") &&
+      entry.status !== "skipped"
+        ? { ...entry, status: "skipped" as const }
+        : entry,
+    ),
+  };
+}
+
+/** Cuso's newest strategy turn, whatever its state. */
+function newestStrategyTurn(sokoBotId: string) {
+  return prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId,
+      clientTurnId: { startsWith: STRATEGY_TURN_PREFIX },
+    },
+    orderBy: { createdAt: "desc" },
+    select: TURN_ROW_SELECT,
+  });
+}
+
+/** The strategy turn still running, if any. */
+async function strategyTurnRunning(sokoBotId: string, now: Date) {
+  const turn = await newestStrategyTurn(sokoBotId);
+  return turn && (await settledTurnStatus(turn, now)) === "running"
+    ? turn
+    : null;
+}
+
+/**
  * Asks Cuso for a new one-month strategy: he writes a new version, which an
- * owner or admin approves; the approved one keeps running until then.
+ * owner or admin approves; the approved one keeps running until then. With
+ * `patch`, the note changes only the entries it touches (a no, the pace, an
+ * ad budget) in a short turn. While a plan is being written, asking again
+ * returns that turn ("Looks like us" starts nothing), and a change or patch
+ * is refused (the screen holds it until the plan lands).
  */
 export async function requestCmoStrategy(
   input: CusoTarget & {
     note?: string;
     siteLanguage?: string;
+    patch?: boolean;
   },
+  now: Date = new Date(),
 ): Promise<{ turnId: string }> {
-  return requestStrategyForCuso(await requireCuso(input), input);
+  return requestStrategyForCuso(await requireCuso(input), input, now);
 }
 
+/**
+ * The guard every plan request goes through, the ad budget's and the plan
+ * answers' too: a change waits until the plan being written lands.
+ */
 async function requestStrategyForCuso(
   cuso: Cuso,
-  input: { userId: string; note?: string; siteLanguage?: string },
+  input: {
+    userId: string;
+    note?: string;
+    siteLanguage?: string;
+    patch?: boolean;
+  },
+  now: Date = new Date(),
+): Promise<{ turnId: string }> {
+  const writing = await strategyTurnRunning(cuso.sokoBotId, now);
+  if (writing) {
+    // A fix or patch is a short turn: a change waits for it to land. A plain
+    // ask gets it back, since the first plan starts once it ends.
+    if (cmoChangeKind(writing.clientTurnId) !== null && input.note) {
+      throw new CmoConflictError("Cuso is finishing a change");
+    }
+    if (input.note) {
+      throw new CmoConflictError("Cuso is still writing the strategy");
+    }
+    return { turnId: writing.id };
+  }
+  return startCmoStrategy(
+    cuso,
+    input.userId,
+    input.note ? { note: input.note, patch: input.patch ?? false } : null,
+    now,
+    input.siteLanguage,
+  );
+}
+
+/**
+ * The first plan starts once the research turn ends with the essentials
+ * saved, not when the founder confirms the brand: the founder reads the
+ * Brand Brain while Cuso writes. Core runs one turn per bot at a time, so it
+ * cannot start while the research turn that saved them still runs. Starts
+ * nothing once a plan was started or written; null when nothing started.
+ */
+export async function startCmoPlanAfterResearch(
+  input: {
+    sokoBotId: string;
+    /** Who asked for the research; Cuso's runner when they are gone. */
+    userId: string | null;
+  },
+  known?: Cuso,
+): Promise<{ turnId: string } | null> {
+  const cuso = known ?? (await findCusoForBot(input.sokoBotId));
+  if (!cuso || !parseBrandBrain(cuso.brandBrain)) return null;
+  // An eval lane's research case ends here; its strategy cases ask for
+  // their own plan, so one started now would only cost and race them.
+  if (await isEvalCusoProject(cuso.projectId)) return null;
+  const [turn, version] = await Promise.all([
+    newestStrategyTurn(cuso.sokoBotId),
+    newestMarketingStrategy(cuso.projectId),
+  ]);
+  // A fix that ran first is no plan; a plan already started is.
+  if (version || (turn && cmoChangeKind(turn.clientTurnId) === null))
+    return null;
+  const userId = input.userId ?? (await cmoRunnerUserId(cuso));
+  if (!userId) return null;
+  return startCmoStrategy(cuso, userId, null, new Date());
+}
+
+/**
+ * After any foreground turn of Cuso ends: the first plan when the research
+ * (or a brand fix that ran before it) is in, otherwise the next brand fix
+ * the owner asked for meanwhile. An everyday chat turn costs one read.
+ */
+export async function afterCmoTurn(input: {
+  sokoBotId: string;
+  userId: string | null;
+  clientTurnId: string | null;
+}): Promise<{ turnId: string } | null> {
+  const cuso = await findCusoForBot(input.sokoBotId);
+  if (!cuso) return null;
+  const mayPlan =
+    input.clientTurnId?.startsWith(ONBOARDING_TURN_PREFIX) ||
+    cmoChangeKind(input.clientTurnId) === "fix";
+  return (
+    (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
+    (await startNextCmoChange(input, new Date(), cuso))
+  );
+}
+
+/**
+ * The owner says one Brand Brain section is wrong. The fix is stored on the
+ * section at once, so it is never lost, and a short turn rewrites that
+ * section (and patches the plan it touches). While Cuso is busy the fix
+ * waits, and starts when his turn ends.
+ */
+export async function fixCmoBrandSection(
+  input: CusoTarget & { section: CmoBrandSectionKey; note: string },
+  now: Date = new Date(),
+): Promise<{ turnId: string } | { queued: true }> {
+  const cuso = await requireCuso(input);
+  const brandBrain = await requestBrandBrainFix(cuso.projectId, {
+    section: input.section,
+    note: input.note,
+    at: now,
+  });
+  return startQueuedFix(cuso, input.userId, brandBrain, now);
+}
+
+/** Starts the fix just stored, unless Cuso is busy: then it waits for his turn to end. */
+async function startQueuedFix(
+  cuso: Cuso,
+  userId: string,
+  brandBrain: BrandBrain,
+  now: Date,
+): Promise<{ turnId: string } | { queued: true }> {
+  try {
+    const started = await startNextCmoChange(
+      { sokoBotId: cuso.sokoBotId, userId },
+      now,
+      { ...cuso, brandBrain },
+    );
+    return started ?? { queued: true };
+  } catch (error) {
+    // Out of credits is the owner's to see; a busy bot only means later.
+    if (error instanceof CmoConflictError) throw error;
+    return { queued: true };
+  }
+}
+
+/** The fix a no asks for, in the owner's words when they gave some. */
+function noFix(question: CmoBrandQuestion): string {
+  return `Not true: ${question.statement}${question.note ? ` True instead: ${question.note}` : ""}`;
+}
+
+/**
+ * The owner answers one of Cuso's Brand Brain questions. The plan starts
+ * when the research ends, so a no usually lands while it is written or
+ * after: it becomes a fix on its section, which Cuso makes (and patches the
+ * plan for) once his current turn ends.
+ */
+export async function answerCmoBrandQuestion(
+  input: CusoTarget & {
+    questionId: string;
+    answer: CmoBrandAnswer;
+    note?: string;
+  },
+  now: Date = new Date(),
+): Promise<void> {
+  const cuso = await requireCuso(input);
+  // The answer and its fix are one write: an answered no always waits on
+  // its section, so the next change picks it up.
+  const fixed = await prisma.$transaction(async (tx) => {
+    const { asked, answered } = await answerBrandBrainQuestion(
+      cuso.projectId,
+      input,
+      tx,
+    );
+    // An earlier no's fix goes, so a changed answer never rewrites the section.
+    if (asked.answer === "no") {
+      await withdrawBrandBrainFix(
+        cuso.projectId,
+        { section: asked.section, note: noFix(asked) },
+        tx,
+      );
+    }
+    if (answered.answer !== "no") return null;
+    return requestBrandBrainFix(
+      cuso.projectId,
+      { section: answered.section, note: noFix(answered), at: now },
+      tx,
+    );
+  });
+  if (!fixed) return;
+  // A fix that cannot start now (no credits) runs when Cuso's next turn ends.
+  await startQueuedFix(cuso, input.userId, fixed, now).catch(
+    (error: unknown) => {
+      if (!(error instanceof CmoConflictError)) throw error;
+    },
+  );
+}
+
+/**
+ * Starts the fix turn for the Brand Brain sections the owner fixed, unless
+ * Cuso is still writing. A fix turn that ended had its go at every fix asked
+ * before it started, so it never loops on one it could not make.
+ */
+export async function startNextCmoChange(
+  input: { sokoBotId: string; userId: string | null },
+  now: Date = new Date(),
+  known?: Cuso,
+): Promise<{ turnId: string } | null> {
+  const cuso = known ?? (await findCusoForBot(input.sokoBotId));
+  const brain = parseBrandBrain(cuso?.brandBrain);
+  if (!cuso || !brain) return null;
+  const open = brandBrainOpenFixes(brain);
+  if (open.length === 0) return null;
+  const last = await newestStrategyTurn(cuso.sokoBotId);
+  if (last && (await settledTurnStatus(last, now)) === "running") return null;
+  // The last fix turn was sent every fix asked up to the time in its id.
+  const sent =
+    last && cmoChangeKind(last.clientTurnId) === "fix"
+      ? Number(last.clientTurnId?.split(":").at(-1))
+      : Number.NaN;
+  if (open.every((fix) => Date.parse(fix.at) <= sent)) return null;
+  const userId = input.userId ?? (await cmoRunnerUserId(cuso));
+  if (!userId) return null;
+  const newest = Math.max(...open.map((fix) => Date.parse(fix.at)));
+  return startStrategyTurn(cuso, { userId, kind: "fix", sent: newest });
+}
+
+async function startCmoStrategy(
+  cuso: Cuso,
+  userId: string,
+  change: { note: string; patch: boolean } | null,
+  now: Date,
+  /** The site's language when the caller knows it; detected otherwise. */
+  siteLanguage?: string,
+): Promise<{ turnId: string }> {
+  try {
+    return await startStrategyTurn(
+      cuso,
+      change
+        ? change.patch
+          ? { userId, kind: "patch", note: change.note }
+          : { userId, kind: "plan", note: change.note }
+        : { userId, kind: "plan", siteLanguage },
+    );
+  } catch (error) {
+    // One turn per bot: a plan another request started first is this one;
+    // a fix or patch is not.
+    const writing = change
+      ? null
+      : await strategyTurnRunning(cuso.sokoBotId, now);
+    if (writing && cmoChangeKind(writing.clientTurnId) === null)
+      return { turnId: writing.id };
+    throw error;
+  }
+}
+
+/**
+ * The patch a short turn saves: only the entries and plan fields it changes,
+ * with the rules still kept.
+ */
+const PATCH_LINES = [
+  "Change only the calendar entries and strategy fields this touches, and nothing else. Save them with save_strategy part patch: each entry you change goes whole under its id (a new id adds one, status skipped drops one); a strategy field you change goes whole; leave out every entry and field you keep, and they stay exactly as they are. The calendar must still hold at least 16 pieces whose approach and pillar shares are within 7 points of the mix and the pillars. List each difference in changes, in plain words.",
+  "Do not write a new strategy, research again or touch the Brand Brain.",
+];
+
+type StrategyTurn =
+  | { userId: string; kind: "plan"; note?: string; siteLanguage?: string }
+  | { userId: string; kind: "patch"; note: string }
+  /** sent: the newest fix the turn is sent, so it never retries them. */
+  | { userId: string; kind: "fix"; sent: number };
+
+/** A short turn's message: a patch for the owner's note, or a brand fix. */
+function changeMessage(
+  cuso: Cuso,
+  brain: BrandBrain,
+  input: Exclude<StrategyTurn, { kind: "plan" }>,
+  planned: boolean,
+): string {
+  const lines =
+    input.kind === "patch"
+      ? [
+          `Patch ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
+          ...PATCH_LINES,
+          "Then tell the owner in one sentence what changed.",
+        ]
+      : [
+          ...fixLines(cuso.businessName, brain),
+          ...(planned
+            ? [
+                "",
+                "Then patch the strategy for this correction, as a change note, not a new strategy.",
+                ...PATCH_LINES,
+              ]
+            : ["Do not write a strategy."]),
+          "Then tell the owner in one sentence what you fixed.",
+        ];
+  return lines.join("\n");
+}
+
+const PLAN_SAVE_TWO_CALLS =
+  "This is the strategy, not the posts. Save it in two calls of save_strategy, so the owner reads the strategy while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar whose approach shares match the mix and whose pillar shares match the pillars. Week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece); weeks two to four as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why). The calendar holds every piece the pace and each channel's cadence call for, in all four weeks. Each part leaves the other as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
+
+const PLAN_SAVE_WEEKLY =
+  "This is the strategy, not the posts. Save it in short calls of save_strategy, so the owner reads the strategy while you write the calendar: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then the day-by-day calendar, one week a call: part calendar with week one in full (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece), then part patch with week two, then week three, then week four, each as titles (date, time, channel, format, approach, pillar, title, campaignId, and story for each LinkedIn piece; no brief or why) under new ids. Every week holds about the pace's perWeek pieces in the mix and pillar shares. Each part leaves the rest as saved. save_strategy refuses a save that breaks a hard rule and says which: a summary of at most 20 words, at least 16 pieces, and approach and pillar shares within 7 points. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.";
+
+async function startStrategyTurn(
+  cuso: Cuso,
+  input: StrategyTurn,
 ): Promise<{ turnId: string }> {
   const brain = parseBrandBrain(cuso.brandBrain);
   if (!brain) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
   }
+  const id = `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:`;
+  if (input.kind !== "plan") {
+    const planned = (await newestMarketingStrategy(cuso.projectId)) !== null;
+    if (input.kind === "patch" && !planned) {
+      throw new CmoConflictError("Cuso has not written the strategy yet");
+    }
+    return startCmoTurn(cuso, input.userId, {
+      clientTurnId:
+        input.kind === "fix"
+          ? `${id}fix:${Date.now()}:${input.sent}`
+          : `${id}patch:${Date.now()}`,
+      message: changeMessage(cuso, brain, input, planned),
+      route: CMO_STRATEGY_ROUTE,
+    });
+  }
+  // A month at cmo-v3's pace is too long for one call: its Cuso saves it week
+  // by week, and is told so here, where the two-call message once capped it.
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: cuso.sokoBotId },
+    select: { versionId: true },
+  });
+  const savesWeekly =
+    bot?.versionId != null &&
+    getSokoBotVersion(bot.versionId).skills.includes(WEEKLY_STRATEGY_SKILL);
   // Named up front: a goal such as "More leads" once pulled whole plans onto
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
@@ -170,7 +558,7 @@ async function requestStrategyForCuso(
     : (input.siteLanguage ?? (await detectSiteLanguage(cuso.websiteUrl)));
   const span = planWindow();
   return startCmoTurn(cuso, input.userId, {
-    clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${Date.now()}`,
+    clientTurnId: `${id}${Date.now()}`,
     message: brandCorrections(brain)
       .concat(
         input.note
@@ -178,28 +566,38 @@ async function requestStrategyForCuso(
               `Change ${cuso.businessName}'s marketing strategy. The owner asked: ${input.note}`,
               "",
               "Start from the strategy in your packet and change only what the request needs. Every entry you do not change stays exactly as it is: same id, date, time and title. To move a piece, change the date on the same id; never add a copy. List each difference in changes, in plain words.",
-              "Save with save_strategy: part plan for changes to the strategy (send the whole plan with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
+              "Save with save_strategy: part plan for changes to the strategy (send the whole strategy with your changes), part calendar for changes to the calendar (send the whole calendar). Each part leaves the other as saved.",
             ]
           : [
               `Write ${cuso.businessName}'s marketing strategy for the four weeks from ${span.start} to ${span.end}. No calendar entry after ${span.end}.`,
               ...seasonLines(span),
-              `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The plan sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole plan.`,
-              "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the plan's goals with it.",
+              `What ${cuso.businessName} sells, from the Brand Brain: ${sells} The strategy sells this main offer to its main buyers. A single product or feature may carry one campaign, never the whole strategy.`,
+              "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the strategy's goals with it.",
               ...(siteLanguage
                 ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this plan is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the plan itself (summary, goals, why, briefs) stays in the owner's language.`,
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this strategy is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the strategy itself (summary, goals, why, briefs) stays in the owner's language.`,
                   ]
                 : []),
               ...ownerAnswers(brain),
               "Before you save, read your summary, focus, offer and pillars against the main offer above: if they drift to a narrower product or feature the owner did not name, or away from the one the owner did name, rewrite them.",
               "",
               "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet.",
-              "This is the plan, not the posts. Save it in two short calls of save_strategy: first part plan (idea, alternatives, ladder, summary, why, goals, objective, barrier, mix, pillars with their shares, focus, offer, channels, pace, ads, funnel with plays and measure, beforeAfter, improvements, proposals, campaigns, weeks, measurement, questions); then part calendar, the day-by-day calendar (date, time, channel, format, approach, pillar, title, brief, why, campaignId, and story for each LinkedIn piece) whose approach shares match the mix and whose pillar shares match the pillars. Each part leaves the other as saved. Write no drafts, hooks or previews: after the owner approves and pays, you make the whole month at once.",
+              // A restaurant's LinkedIn once got two diner posts a day: who
+              // is on each network decides its role before its cadence.
+              ...(savesWeekly
+                ? [
+                    "",
+                    "Who is on each network, to set each channel's role (main or side) and the buyer a side channel serves:",
+                    networkAudiences(),
+                    "",
+                  ]
+                : []),
+              savesWeekly ? PLAN_SAVE_WEEKLY : PLAN_SAVE_TWO_CALLS,
             ],
       )
       .concat([
         "Do not create Social posts or images yet; that starts after the owner approves.",
-        "Then tell the owner in one or two sentences what the plan does first. The strategy card is your report: do not call report_update, and never mention tools, Social posts or what you did not do.",
+        "Then tell the owner in one or two sentences what the strategy does first. The strategy card is your report: do not call report_update, and never mention tools, Social posts or what you did not do.",
       ])
       .join("\n"),
     route: CMO_STRATEGY_ROUTE,
@@ -218,20 +616,47 @@ function seasonLines(span: { start: string; end: string }): string[] {
 }
 
 /**
+ * Each Brand Brain section the owner said is wrong: a fix they wrote on the
+ * section, and every no to one of Cuso's questions, named by the question
+ * itself. A bare "True instead: Not true: …" once read as the opposite.
+ */
+function correctionLines(brain: BrandBrain): string[] {
+  return [
+    ...brandBrainOpenFixes(brain).map(
+      (fix) =>
+        `- ${fix.section}: you wrote "${brain.profile[fix.section]?.answer ?? ""}". The owner's correction: ${fix.note}`,
+    ),
+    ...brandBrainCorrections(brain).map(
+      (question) =>
+        `- ${question.section}: you asked "${question.question}" and the owner said no${question.note ? `. True instead: ${question.note}` : `, so this is false: "${question.statement}". Say the opposite plainly, never "unconfirmed" or "unclear".`}`,
+    ),
+  ];
+}
+
+const SECTION_SAVE =
+  "Call save_brand_brain once, with sections holding only these sections. Rewrite each one's answer (and its headline, if it says the same) so it states what is true and never repeats what the owner rejected; keep everything else the answer says that still holds, and send findings empty to keep them.";
+
+/**
  * First the Brand Brain: each section the owner said no to is rewritten
  * before the plan is built on it. None when every no is already in.
  */
 function brandCorrections(brain: BrandBrain): string[] {
-  const corrections = brandBrainCorrections(brain);
-  if (corrections.length === 0) return [];
+  const lines = correctionLines(brain);
+  if (lines.length === 0) return [];
   return [
     "First correct the Brand Brain. The owner said no to what you wrote:",
-    ...corrections.map(
-      (question) =>
-        `- ${question.section}: you wrote "${question.statement}". ${question.note ? `True instead: ${question.note}` : 'The owner says this is not true: say the opposite plainly, never "unconfirmed" or "unclear".'}`,
-    ),
-    "Call save_brand_brain once, with sections holding only these sections. Rewrite each one's answer (and its headline, if it says the same) so it states what is true and never repeats what the owner rejected; keep everything else the answer says that still holds, and send findings empty to keep them. Then plan from the corrected Brand Brain.",
+    ...lines,
+    `${SECTION_SAVE} Then plan from the corrected Brand Brain.`,
     "",
+  ];
+}
+
+/** A short turn that rewrites only the sections the owner fixed. */
+function fixLines(businessName: string, brain: BrandBrain): string[] {
+  return [
+    `Fix ${businessName}'s Brand Brain. The owner corrected what you wrote:`,
+    ...correctionLines(brain),
+    `${SECTION_SAVE} The owner's words are the source: do not research again.`,
   ];
 }
 
@@ -252,7 +677,8 @@ function ownerAnswers(brain: BrandBrain): string[] {
 
 /** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
 export const CMO_VISIBLE_CALENDAR_DAYS = 31;
-const CMO_CALENDAR_LIMIT = 120;
+/** All-in on three networks with seo is about 200 pieces a month (cmo-v3). */
+const CMO_CALENDAR_LIMIT = 240;
 
 export function calendarBounds(
   now: Date,
@@ -397,6 +823,9 @@ async function keepFileVisuals(
           ...entry,
           visual: sentEntry.visual,
           visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
+          styleReferenceId:
+            sentEntry.styleReferenceId ?? entry.styleReferenceId,
+          headline: sentEntry.headline ?? entry.headline,
           slides: sentEntry.slides ?? entry.slides,
         }
       : entry;
@@ -412,30 +841,38 @@ async function keepFileVisuals(
  * turn's first save adds a version and its later saves complete it (a plan
  * goes in two calls) until it is approved; no save changes another version.
  * Pieces fill in the approved version's Social posts; the runtime then
- * writes the other pieces (ads, articles, newsletters) as Project files.
+ * writes the other pieces (ads, articles, newsletters) as Project files. A
+ * patch changes only what it sends and keeps each changed entry as it was.
  */
 export async function saveCmoStrategy(
   where: CusoTarget | { sokoBotId: string },
-  strategy: CmoStrategySave,
+  save: CmoStrategySave,
   options: {
     turnId?: string;
     now?: Date;
-    /** The calendar sent is only the pieces Cuso changed: merge them by id. */
-    pieces?: boolean;
+    /**
+     * pieces: only the entries Cuso changed, merged by id into the approved
+     * version; patch: only the entries and fields sent, into the newest.
+     */
+    part?: CmoStrategySavePart;
     /** A rhythm or production turn: it builds on the approved version. */
     executing?: boolean;
     /** Lists Cuso empties because the owner asked; sent empty, they clear. */
     clear?: readonly string[];
+    /** Cuso's own save: one that breaks a hard rule saves nothing. */
+    rules?: boolean;
   } = {},
   db: Prisma.TransactionClient = prisma,
 ): Promise<MarketingStrategy> {
   const cuso = await requireCuso(where, db);
-  if (options.pieces) {
+  // What the last patch changed is Core's to say.
+  const { patched, ...strategy } = save;
+  if (options.part === "pieces") {
     // Pieces write the approved version's Social posts and never a plan.
     const approved = await approvedMarketingStrategy(cuso.projectId, db);
     if (!approved) {
       throw new CmoConflictError(
-        "Pieces fill in the approved strategy; no version is approved yet",
+        "Pieces fill in the approved strategy; no version is approved yet; until the owner approves, change entries with part patch (only those entries, by id) or the whole month with part calendar",
       );
     }
     await planMarketingStrategyPosts(db, {
@@ -471,65 +908,151 @@ export async function saveCmoStrategy(
   // for what it is not changing: that keeps the stored value too. Changing
   // one channel's cadence once emptied the mix, campaigns and improvements.
   const before = parseMarketingPlan(base?.plan);
-  const left = (value: unknown, key?: string) =>
-    value === undefined ||
-    (options.turnId !== undefined &&
-      (value === "" ||
-        (Array.isArray(value) &&
-          value.length === 0 &&
-          !(key && options.clear?.includes(key)))));
-  // A save of the calendar alone replaces it, so an empty one removes every
-  // piece. `changes` is empty on purpose when the save is not a revision.
-  const calendarOnly = Object.keys(strategy).every((key) => key === "calendar");
-  const whole = marketingStrategyPlanSchema.parse({
-    ...before,
-    ...Object.fromEntries(
-      Object.entries(strategy).filter(
-        ([key, value]) => key === "changes" || !left(value, key),
-      ),
-    ),
-    calendar:
-      strategy.calendar !== undefined &&
-      (calendarOnly || !left(strategy.calendar))
-        ? strategy.calendar
-        : (before?.calendar ?? []),
-  });
-  // A channel the plan now runs is no longer a proposal.
-  const running = new Set(whole.channels.map((channel) => channel.channel));
-  // The ad budget the owner set is theirs: Cuso's saves plan around it.
   const ownerAds =
     options.turnId && before?.ads?.setByOwner ? before.ads : undefined;
-  const parsed = {
-    ...whole,
-    questions: keepAnswers(whole.questions, before?.questions ?? []),
-    proposals: whole.proposals.filter(
-      (proposal) => !running.has(proposal.channel),
-    ),
-    ...(ownerAds
+  const keepOwnerAds = <T extends MarketingStrategyPlan>(plan: T): T =>
+    ownerAds
       ? {
+          ...plan,
           ads: {
-            ...(whole.ads ?? ownerAds),
+            ...(plan.ads ?? ownerAds),
             monthly: ownerAds.monthly,
             currency: ownerAds.currency,
             setByOwner: true,
           },
         }
-      : {}),
-  };
-  const previous = options.turnId ? before : null;
-  const merged = previous
-    ? {
-        ...parsed,
-        calendar: withHiddenCalendar(
-          previous.calendar,
-          keepCalendarWork(previous.calendar, parsed.calendar),
-          options.now ?? new Date(),
+      : plan;
+  let stored: MarketingStrategyPlan;
+  if (options.part === "patch") {
+    if (!before)
+      throw new CmoConflictError("There is no strategy to patch yet");
+    // Cuso once sent his changes as `patched` with an empty calendar, ten
+    // times in a row: each patch saved nothing and the review said so again.
+    if (patched?.length && !strategy.calendar?.length)
+      throw unprocessableEntity(
+        "save_strategy saved nothing: patched is Core's record of what the last patch changed, and a save never sets it. Send each entry you change in calendar (its id and every field), and save again.",
+      );
+    const sent = options.turnId
+      ? withoutDashes({ ...strategy, calendar: strategy.calendar ?? [] })
+      : { ...strategy, calendar: strategy.calendar ?? [] };
+    stored = keepOwnerAds(
+      patchPlan(before, withLineBreaks(sent), own ? before.patched : []),
+    );
+  } else {
+    const left = (value: unknown, key?: string) =>
+      value === undefined ||
+      (options.turnId !== undefined &&
+        (value === "" ||
+          (Array.isArray(value) &&
+            value.length === 0 &&
+            !(key && options.clear?.includes(key)))));
+    // A save of the calendar alone replaces it, so an empty one removes every
+    // piece. `changes` is empty on purpose when the save is not a revision.
+    const calendarOnly = Object.keys(strategy).every(
+      (key) => key === "calendar",
+    );
+    const whole = marketingStrategyPlanSchema.parse({
+      ...before,
+      ...Object.fromEntries(
+        Object.entries(strategy).filter(
+          ([key, value]) => key === "changes" || !left(value, key),
         ),
-      }
-    : parsed;
-  const stored = options.turnId
-    ? withoutDashes(withLineBreaks(merged))
-    : merged;
+      ),
+      calendar:
+        strategy.calendar !== undefined &&
+        (calendarOnly || !left(strategy.calendar))
+          ? strategy.calendar
+          : (before?.calendar ?? []),
+      patched: [],
+    });
+    // A channel the plan now runs is no longer a proposal.
+    const running = new Set(whole.channels.map((channel) => channel.channel));
+    // The ad budget the owner set is theirs: Cuso's saves plan around it.
+    const parsed = keepOwnerAds({
+      ...whole,
+      questions: keepAnswers(whole.questions, before?.questions ?? []),
+      proposals: whole.proposals.filter(
+        (proposal) => !running.has(proposal.channel),
+      ),
+    });
+    const previous = options.turnId ? before : null;
+    const merged = previous
+      ? {
+          ...parsed,
+          calendar: withHiddenCalendar(
+            previous.calendar,
+            keepCalendarWork(previous.calendar, parsed.calendar),
+            options.now ?? new Date(),
+          ),
+        }
+      : parsed;
+    stored = options.turnId ? withoutDashes(withLineBreaks(merged)) : merged;
+  }
+  // A talking video shows a generated presenter: its script speaks for the
+  // brand, never as a customer of it.
+  const testimonial = options.turnId
+    ? (strategy.calendar ?? []).find(
+        (entry) =>
+          isCmoTalkingFormat(entry.channel, entry.format) &&
+          entry.script &&
+          posesAsCustomerTestimonial(entry.script),
+      )
+    : undefined;
+  if (testimonial)
+    throw unprocessableEntity(
+      `The talking video ${testimonial.id} speaks as a customer. ${TALKING_VIDEO_TESTIMONIAL_MESSAGE} Rewrite its script and save again.`,
+    );
+  // A month is planned without scripts and production writes them; a change
+  // in chat makes the piece now, so it needs its words.
+  const unscripted =
+    options.turnId && options.part === "patch"
+      ? (strategy.calendar ?? []).find(
+          (entry) =>
+            isCmoTalkingFormat(entry.channel, entry.format) && !entry.script,
+        )
+      : undefined;
+  if (unscripted)
+    throw unprocessableEntity(
+      `The talking video ${unscripted.id} has no script. Give it script (the spoken words: a hook first, one point, one next step, 150 to 400 characters, never as a customer), presenter and voice, then save again.`,
+    );
+  if (options.rules) {
+    // A plan part saved before its calendar is checked with the calendar.
+    const sendsCalendar =
+      options.part === "patch" || strategy.calendar !== undefined;
+    // A change is refused only for a rule it breaks anew, measured against
+    // the plan as it was before this turn, never a part this turn saved
+    // unchecked.
+    const earlier = own
+      ? parseMarketingPlan(
+          (
+            await db.marketingStrategy.findFirst({
+              where: {
+                projectId: cuso.projectId,
+                OR: [
+                  { authorTurnId: null },
+                  { authorTurnId: { not: options.turnId } },
+                ],
+              },
+              orderBy: { createdAt: "desc" },
+              select: { plan: true },
+            })
+          )?.plan,
+        )
+      : before;
+    const broken = cmoPlanRulesBrokenSince(
+      sendsCalendar ? stored : { ...stored, calendar: [] },
+      earlier ?? null,
+    );
+    if (broken.length > 0) {
+      throw unprocessableEntity(
+        [
+          "save_strategy saved nothing: the strategy breaks a hard rule. Fix each one and save again.",
+          ...broken.map((problem) => `- ${problem}`),
+        ].join("\n"),
+      );
+    }
+  }
+  stored = withoutUnpaidAds(stored);
   if (own) {
     return db.marketingStrategy.update({
       where: { id: own.id },
@@ -545,6 +1068,47 @@ export async function saveCmoStrategy(
         ? { authorSokoBotId: cuso.sokoBotId }
         : { authorUserId: where.userId }),
     },
+  });
+}
+
+/**
+ * A patch on a plan: each sent entry replaces its own (keeping what it
+ * leaves out, such as a draft), a new id is added, and every other entry and
+ * plan field stays as it was. Each entry it changed keeps how it was before,
+ * the first time across one turn's saves.
+ */
+export function patchPlan(
+  before: MarketingStrategyPlan,
+  sent: CmoStrategySave & { calendar: CmoStrategySave["calendar"] & {} },
+  earlier: MarketingStrategyPlan["patched"],
+): MarketingStrategyPlan {
+  const { calendar: entries, changes, ...fields } = sent;
+  const old = new Map(before.calendar.map((entry) => [entry.id, entry]));
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  const calendar = [
+    ...before.calendar.map((entry) => {
+      const next = byId.get(entry.id);
+      return next ? { ...entry, ...next } : entry;
+    }),
+    ...entries.filter((entry) => !old.has(entry.id)),
+  ] as CmoCalendarEntry[];
+  // The first time across one turn's saves is how the entry was.
+  const patched = new Map(earlier.map((item) => [item.id, item]));
+  for (const entry of calendar) {
+    const was = old.get(entry.id);
+    if (
+      byId.has(entry.id) &&
+      !patched.has(entry.id) &&
+      JSON.stringify(was) !== JSON.stringify(entry)
+    )
+      patched.set(entry.id, { id: entry.id, was: was ?? null });
+  }
+  return marketingStrategyPlanSchema.parse({
+    ...before,
+    ...fields,
+    calendar,
+    changes: changes ?? [],
+    patched: [...patched.values()],
   });
 }
 
@@ -587,13 +1151,13 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
     );
   return changes.length > 0
     ? [
-        "The owner answered your questions about the plan. Change the plan where an answer says your assumption was wrong; keep everything else.",
+        "The owner answered your questions about the strategy. Change the strategy where an answer says your assumption was wrong; keep everything else.",
         ...changes,
       ].join("\n")
     : null;
 }
 
-/** Cuso revises the plan to fit the owner's answers. */
+/** Cuso patches the plan where the owner's answers say it was wrong. */
 export async function applyCmoPlanAnswers(
   target: CusoTarget,
 ): Promise<{ turnId: string }> {
@@ -602,8 +1166,12 @@ export async function applyCmoPlanAnswers(
   const note = cmoPlanAnswerNote(
     parseMarketingPlan(newest.plan)?.questions ?? [],
   );
-  if (!note) throw new CmoConflictError("Your answers confirm the plan");
-  return requestStrategyForCuso(cuso, { userId: target.userId, note });
+  if (!note) throw new CmoConflictError("Your answers confirm the strategy");
+  return requestStrategyForCuso(cuso, {
+    userId: target.userId,
+    note,
+    patch: true,
+  });
 }
 
 /**

@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { ConnectedSocialIdentity } from "@/clients/composio.client";
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
@@ -12,7 +12,11 @@ const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
   ssrfSafeFetchMock: vi.fn(),
 }));
 
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSetMock }),
+}));
 vi.mock("@sokosumi/net", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
@@ -911,10 +915,13 @@ describe("getConnectedSocialIdentity", () => {
   ];
 
   function stubIdentity(payload: unknown) {
+    // Session, identity tool, session delete. LinkedIn also asks userinfo for
+    // a photo before the delete, so it takes the fourth answer.
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
       .mockResolvedValueOnce(Response.json(payload))
+      .mockResolvedValueOnce(Response.json({}))
       .mockResolvedValueOnce(Response.json({}));
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
@@ -1257,7 +1264,6 @@ describe("getConnectedSocialIdentity", () => {
     });
 
     it("keeps the identity without a photo when userinfo is refused", async () => {
-      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
       stubLinkedIn(
         meProfile,
         Response.json({ data: null, error: "forbidden", successful: false }),
@@ -1275,8 +1281,78 @@ describe("getConnectedSocialIdentity", () => {
         displayName: "Alice Doe",
         avatarUrl: null,
       });
-      expect(JSON.stringify(warn.mock.calls)).not.toContain("licdn");
-      warn.mockRestore();
+      expect(coreLogEvents()).toEqual([
+        expect.objectContaining({
+          level: "info",
+          operation: "composio_linkedin_userinfo",
+          linkedInPhoto: expect.objectContaining({
+            found: false,
+            profile: {
+              keyPaths: expect.arrayContaining(["id", "profilePicture"]),
+              otherKeys: 0,
+            },
+          }),
+        }),
+      ]);
+      expect(JSON.stringify(coreLogEvents())).not.toContain("licdn");
+    });
+
+    it("counts profile and userinfo keys it does not know instead of naming them", async () => {
+      stubLinkedIn(
+        { ...meProfile, "Ada private launch plan": true },
+        Response.json({
+          data: { data: { sub: "li_123", "Ada private note": "x" } },
+          successful: true,
+        }),
+      );
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+
+      await getConnectedSocialIdentity({
+        provider: "linkedin",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      });
+
+      expect(coreLogEvents()).toEqual([
+        expect.objectContaining({
+          linkedInPhoto: expect.objectContaining({
+            profile: expect.objectContaining({ otherKeys: 1 }),
+            userInfo: expect.objectContaining({ otherKeys: 1 }),
+          }),
+        }),
+      ]);
+      expect(JSON.stringify(coreLogEvents())).not.toContain("Ada private");
+    });
+
+    it("keeps a failed userinfo lookup's answer out of the log", async () => {
+      const warnings = expectCoreLogWhys(
+        "warn",
+        "Composio could not look up a LinkedIn member's userinfo",
+        ["The LinkedIn userinfo tool call through Composio failed"],
+      );
+      const fetchMock = stubLinkedIn(meProfile, Response.json({}));
+      fetchMock.mockReset();
+      fetchMock
+        .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+        .mockResolvedValueOnce(
+          Response.json({ data: { data: meProfile }, successful: true }),
+        )
+        .mockRejectedValueOnce(
+          new Error("Alice Doe <alice.private@example.com> is not allowed"),
+        )
+        .mockResolvedValueOnce(Response.json({}));
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "linkedin",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toMatchObject({ id: "li_123", avatarUrl: null });
+      expect(warnings[0]?.cause).toBeUndefined();
+      expect(JSON.stringify(coreLogEvents())).not.toContain("alice.private");
+      expect(JSON.stringify(coreLogEvents())).not.toContain("not allowed");
     });
 
     it("ignores a non-https photo value", async () => {
@@ -1316,7 +1392,11 @@ describe("getConnectedSocialIdentity", () => {
         Response.json({ data: { data: [{ id: "page_123", name: "Alice" }] } }),
       )
       .mockRejectedValueOnce(new Error("private-token private-session-url"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Composio could not delete a tool session",
+      ["The Composio tool session delete request failed"],
+    );
     const { getConnectedSocialIdentity } = await import("./composio.client");
     await expect(
       getConnectedSocialIdentity({
@@ -1325,10 +1405,13 @@ describe("getConnectedSocialIdentity", () => {
         executorUserId: input.executorUserId,
       }),
     ).resolves.toMatchObject({ id: "page_123", handle: "Alice" });
-    expect(warn).toHaveBeenCalledWith(
-      "[composio] delete Project Facebook identity session failed",
-    );
-    warn.mockRestore();
+    expect(warnings[0]?.event).toMatchObject({
+      provider: "composio",
+      composioOperation: "delete Project Facebook identity session",
+      failure: { errorName: "ComposioApiError" },
+    });
+    expect(warnings[0]?.cause).toBeUndefined();
+    expect(JSON.stringify(coreLogEvents())).not.toContain("private-");
   });
 
   it("sanitizes execute transport failures and deletes the identity session", async () => {

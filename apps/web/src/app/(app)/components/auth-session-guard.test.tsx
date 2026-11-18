@@ -1,4 +1,5 @@
 import type { Session } from "@sokosumi/utils";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { act, render, waitFor } from "@testing-library/react";
 import type Ably from "ably";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -114,7 +115,6 @@ describe("AuthSessionGuard", () => {
       "fetch",
       vi.fn().mockResolvedValue({ ok: false, status: 401 }),
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
 
     window.history.replaceState({}, "", "/agents?view=grid");
   });
@@ -491,6 +491,7 @@ describe("AuthSessionGuard", () => {
   });
 
   it("replaces a retired realtime client after focus confirms a restored session", async () => {
+    expectConsole("error", "Ably auth request failed", 3);
     vi.mocked(authClient.getSession).mockResolvedValue(presentSession);
     render(<AuthSessionGuard />);
     await vi.dynamicImportSettled();
@@ -514,6 +515,8 @@ describe("AuthSessionGuard", () => {
   });
 
   it("keeps a retired client when a newer probe invalidates an older valid session", async () => {
+    expectConsole("error", "Ably auth request failed", 2);
+    expectConsole("error", "Ably auth request failed");
     const retired = await retireRealtimeClient();
     const staleProbe = deferred<typeof presentSession>();
     vi.mocked(authClient.getSession)
@@ -533,6 +536,7 @@ describe("AuthSessionGuard", () => {
   });
 
   it("does not revive a retired client from a session probe after unmount", async () => {
+    expectConsole("error", "Ably auth request failed", 3);
     const retired = await retireRealtimeClient();
     const probe = deferred<typeof presentSession>();
     vi.mocked(authClient.getSession).mockImplementation(() => probe.promise);

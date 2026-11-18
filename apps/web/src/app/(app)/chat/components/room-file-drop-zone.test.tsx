@@ -147,7 +147,8 @@ describe("RoomFileDropZone", () => {
     const onFiles = vi.fn();
     render(
       <RoomFileDropZone enabled onFiles={onFiles} label="Drop files to attach">
-        <div contentEditable role="textbox">
+        {/* Like the composer's editor, which owns its text children too. */}
+        <div contentEditable role="textbox" suppressContentEditableWarning>
           composer
         </div>
       </RoomFileDropZone>,

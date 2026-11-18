@@ -13,6 +13,12 @@ import {
 } from "@/test-fixtures/cmo-service";
 
 const readDesignMd = vi.hoisted(() => vi.fn());
+const recentCompetitorMoves = vi.hoisted(() =>
+  vi.fn(async () => [] as unknown[]),
+);
+vi.mock("@/services/cmo-competitor-feed.service", () => ({
+  recentCompetitorMoves,
+}));
 vi.mock("@/lib/design-md-blob", () => ({
   readDesignMdContent: readDesignMd,
   uploadDesignMdContent: vi.fn(),
@@ -242,6 +248,30 @@ describe("loadCmoMarketingContext", () => {
     ]);
     expect(JSON.stringify(context)).not.toContain("previousVersionId");
   });
+
+  it("gives Cuso the competitor moves of the last weeks, and none when quiet", async () => {
+    cusoFind.mockResolvedValue({ workspaceId: "ws-1", projectId: "project-1" });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    messageFindMany.mockResolvedValue([]);
+    expect(await loadCmoMarketingContext("bot-1")).not.toHaveProperty(
+      "competitorMoves",
+    );
+    const move = {
+      week: "2026-11-16",
+      competitor: "Calendly",
+      happened: "Calendly raised Standard from $10 to $12 per seat.",
+      meaning: "Our Teams plan is now cheaper for small teams.",
+      move: "Lead with the price per seat.",
+    };
+    recentCompetitorMoves.mockResolvedValueOnce([move]);
+    const context = await loadCmoMarketingContext("bot-1");
+    expect(recentCompetitorMoves).toHaveBeenCalledWith(
+      "project-1",
+      expect.any(Date),
+    );
+    expect(context?.competitorMoves).toEqual([move]);
+  });
 });
 
 describe("fitCmoMarketingContext", () => {
@@ -312,5 +342,56 @@ describe("fitCmoMarketingContext", () => {
       "soon",
       "later",
     ]);
+  });
+
+  it("keeps every later piece as a short line before it drops any, so a change can reach weeks three and four", () => {
+    const month = {
+      brandBrain: { summary: "A shop", profile: {} },
+      strategy: {
+        summary: "Plan",
+        calendar: Array.from({ length: 28 }, (_, day) => ({
+          ...entry(`e${day}`, `2026-11-${String(day + 2).padStart(2, "0")}`),
+          pillar: "Team booking",
+          campaignId: "trial",
+          why: "z".repeat(120),
+        })),
+      },
+    };
+    const fitted = fitCmoMarketingContext(month, now, 6_600) as {
+      strategy: { calendar: Record<string, unknown>[] };
+    };
+    expect(fitted.strategy.calendar).toHaveLength(28);
+    const far = fitted.strategy.calendar.at(-1);
+    expect(Object.keys(far ?? {}).sort()).toEqual(
+      ["channel", "date", "format", "id", "status", "title"].sort(),
+    );
+  });
+
+  it("sheds the Brand Brain's open questions and profile answers before any calendar entry", () => {
+    // marketingToday stays: the plan's before/after rows are written from it.
+    const month = {
+      brandBrain: {
+        summary: "A shop",
+        questions: ["q".repeat(1_500)],
+        marketingToday: { summary: "m".repeat(300) },
+        profile: { buyers: { headline: "Teams", answer: "a".repeat(3_000) } },
+      },
+      strategy: {
+        summary: "Plan",
+        calendar: Array.from({ length: 28 }, (_, day) =>
+          entry(`e${day}`, `2026-11-${String(day + 2).padStart(2, "0")}`),
+        ),
+      },
+    };
+    const fitted = fitCmoMarketingContext(month, now, 7_000) as {
+      brandBrain: Record<string, unknown> & {
+        profile: Record<string, Record<string, unknown>>;
+      };
+      strategy: { calendar: unknown[] };
+    };
+    expect(fitted.strategy.calendar).toHaveLength(28);
+    expect(fitted.brandBrain.questions).toBeUndefined();
+    expect(fitted.brandBrain.marketingToday).toBeDefined();
+    expect(fitted.brandBrain.profile.buyers).toEqual({ headline: "Teams" });
   });
 });

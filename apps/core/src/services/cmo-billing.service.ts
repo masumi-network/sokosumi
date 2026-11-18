@@ -5,6 +5,7 @@ import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
+import { recordCoreWarning } from "@/lib/evlog";
 import { getCmoCatalog } from "@/services/cmo-catalog.service";
 import {
   CmoConflictError,
@@ -18,10 +19,7 @@ import {
   LIVE_CUSO_WHERE,
   requireCuso,
 } from "@/services/cmo-cuso.service";
-import {
-  approvedMarketingStrategy,
-  mayApproveMarketingStrategy,
-} from "@/services/marketing-strategy.service";
+import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 
 /**
  * Tester credits (all Projects, or one): what a Cuso works on without a CMO
@@ -103,7 +101,7 @@ export async function isCmoSubscribed(
  * counts until the period ends; past due and ended do not), and Tester
  * credits not used up.
  */
-async function cmoPaidFor(
+export async function cmoPaidFor(
   projectId: string,
   now: Date,
   db: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,
@@ -283,9 +281,16 @@ export interface CmoBilling {
 /** The tier of a plan product; null when Polar's catalog does not answer. */
 async function cmoPlanTier(productId: string): Promise<string | null> {
   const catalog = await getCmoCatalog().catch((error) => {
-    console.warn("CMO catalog not read", {
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    recordCoreWarning(
+      { operation: "cmo_plan_tier" },
+      {
+        message: "Could not read the CMO plan catalog",
+        why: "Polar's product catalog did not answer",
+        fix: "The scheduled plan change shows no tier until the catalog answers again. If it keeps failing, read the error under warnings[].cause.",
+        cause: error,
+      },
+      { polarProduct: { id: productId } },
+    );
     return null;
   });
   return (
@@ -326,24 +331,6 @@ export async function readCmoBilling(projectId: string): Promise<CmoBilling> {
       : null,
     hasTesterCredits: tester !== null,
   };
-}
-
-/**
- * Approving the strategy spends the business's credits and publishes in its
- * name: the organization's owners and admins only
- * (ADR 0061). Every other member works with Cuso freely.
- */
-export async function requireCmoCommitter(
-  userId: string,
-  cuso: Pick<Cuso, "workspaceId">,
-): Promise<void> {
-  const { organizationId } = await cmoPayer(cuso);
-  const workspace = { id: cuso.workspaceId, userId: null, organizationId };
-  if (!(await mayApproveMarketingStrategy(userId, workspace))) {
-    throw new CmoForbiddenError(
-      "Only the organization's owners and admins approve Cuso's plan and start his month",
-    );
-  }
 }
 
 /**

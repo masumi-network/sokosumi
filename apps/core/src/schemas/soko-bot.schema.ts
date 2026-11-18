@@ -316,6 +316,8 @@ export const sokoBotSchema = z
     schedules: z.array(sokoBotScheduleSchema).optional(),
     /** Picked Soko Bot avatar image; null → generative orb. */
     avatarImageUrl: z.string().nullable().optional(),
+    /** Feature code of the live SVG avatar; null until the bot has one. */
+    avatarCode: z.string().nullable().optional(),
     versionId: z.string().nullable().optional(),
     followWholeBoard: z.boolean().optional(),
     mailAutoRead: z.boolean().optional(),
@@ -340,6 +342,12 @@ export const sokoBotActivitySchema = z
     lastTurnAt: dateTimeSchema.nullable(),
     /** What "Active 5m ago" counts from; any activity, not only turns. */
     lastActivityAt: dateTimeSchema.nullable(),
+    /** The bot's face, so a surface can draw it without the full state. */
+    id: z.string(),
+    userId: z.string().nullable(),
+    avatarSeed: z.string().nullable(),
+    avatarImageUrl: z.string().nullable(),
+    avatarCode: z.string().nullable(),
   })
   .openapi("SokoBotActivity");
 
@@ -1040,6 +1048,7 @@ export const sokoBotTeamSchema = z
             id: z.string().uuid(),
             name: z.string().nullable(),
             avatarImageUrl: z.string().nullable(),
+            avatarCode: z.string().nullable().optional(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
             lastActivityAt: dateTimeSchema.nullable(),

@@ -23,12 +23,11 @@ export default function mount(app: Hono) {
             syncSokoBotDeliveries(context),
             syncSokoBotEffects(context),
           ]);
-        console.info("[sync/soko-bot-turns] Completed sync", {
-          ...result,
-          deliveriesPublished,
-          effectsPublished,
+        context.log.set({
+          result: { ...result, deliveriesPublished, effectsPublished },
         });
       },
+      { errorDetail: "safe-fields" },
     );
   });
 }

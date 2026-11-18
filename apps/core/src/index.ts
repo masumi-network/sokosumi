@@ -10,11 +10,7 @@ import { requestId } from "hono/request-id";
 import { getBetterAuthPublicBaseUrl, getEnv, validateEnv } from "@/config/env";
 import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
-import {
-  bindCoreRequestContext,
-  coreEvlogMiddleware,
-  initCoreLogger,
-} from "@/lib/evlog";
+import { bindCoreRequestContext, coreEvlogMiddleware } from "@/lib/evlog";
 import { betterAuthEvlogMiddleware } from "@/lib/evlog-better-auth";
 import { withPublicScheme } from "@/lib/request-scheme";
 import { initSentry } from "@/lib/sentry";
@@ -31,11 +27,9 @@ import wellKnownRouter from "@/routes/well-known/index";
 
 validateEnv();
 initSentry();
-initCoreLogger();
 
 const faviconUrl = `${getBetterAuthPublicBaseUrl()}/favicon.ico`;
 
-// Main app is exported at the end to combine OpenAPI and auth routes
 const mainApp = new Hono();
 
 const app = new OpenAPIHono<{
@@ -131,7 +125,6 @@ app.get("/llms.txt", async (c) => {
   return c.text(await getLlmsMarkdown());
 });
 
-// Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
 // robots.txt lives on mainApp so crawlers still get Disallow during maintenance.
 mainApp.get("/robots.txt", (c) => c.text("User-Agent: *\nDisallow: /\n"));
 mainApp.route("/", app);
@@ -151,6 +144,7 @@ serve(
   },
   (info) => {
     const host = getEnv().HOST || "localhost";
+    // biome-ignore lint/suspicious/noConsole: the local development banner, printed once at startup before any request; evlog is for request and background events.
     console.log(`Server is running on http://${host}:${info.port}`);
   },
 );

@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -26,13 +27,17 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    project: { findUnique: async () => null },
     projectImageJob: { findMany: jobFindMany, count: jobCount },
     socialPost: { findUnique: postFindUnique },
     marketingStrategyFile: { updateMany: fileUpdateMany },
   },
 }));
 vi.mock("@/lib/image-studio/catalog", () => ({
-  imageModel: () => ({ id: "image-model", outputFormats: ["jpeg", "png"] }),
+  imageModel: (id?: string) => ({
+    id: id ?? "image-model",
+    outputFormats: ["jpeg", "png"],
+  }),
 }));
 vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
   ensureImageCatalogFresh: vi.fn(),
@@ -65,10 +70,23 @@ vi.mock("@/services/cuso-project-files.service", () => ({
     projectId: "project-1",
   }),
 }));
+vi.mock("@/services/reference-library.service", () => ({
+  referenceLibraryAvailable: () => true,
+  readReferenceImage: vi.fn(),
+}));
+vi.mock("@/services/cmo-brand-visual.service", () => ({
+  cmoBrandVisual: async () => null,
+}));
 vi.mock("@vercel/blob", () => ({
   head: async (pathname: string) => ({ url: `https://blob/${pathname}` }),
 }));
 
+import { coreEvlogMiddleware } from "@/lib/evlog";
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import {
   advanceCmoMedia,
   type CmoMediaJob,
@@ -77,7 +95,9 @@ import {
   cmoMediaState,
   cmoPieceSlides,
   cmoSlotAction,
+  cmoStylePrompt,
   cmoVisualKey,
+  REFERENCE_STYLE_MODELS,
 } from "./cmo-media-maker.service";
 
 function piece(patch: Partial<CmoMediaPiece> = {}): CmoMediaPiece {
@@ -104,6 +124,7 @@ function job(patch: Partial<CmoMediaJob>): CmoMediaJob {
     status: "SUCCEEDED",
     assetId: "asset-1",
     prompt: "prompt",
+    rejected: false,
     ...patch,
   };
 }
@@ -151,6 +172,110 @@ describe("cmoSlotAction", () => {
       kind: "attach",
       job: video,
     });
+  });
+});
+
+describe("a talking video piece", () => {
+  const talking = (patch: Partial<CmoMediaPiece> = {}) =>
+    piece({
+      channel: "instagram",
+      format: "talking_video",
+      visual: undefined,
+      script:
+        "Stop emailing back and forth. Send one booking link and let people pick a time. Try it on your next call.",
+      presenter: "maya",
+      voice: "Sarah",
+      ...patch,
+    });
+
+  it("is made in one talking step from its script, not from a visual", () => {
+    expect(cmoSlotAction(talking(), [])).toEqual({
+      kind: "start",
+      step: "talking",
+      attempt: 1,
+      sourceAssetId: null,
+    });
+    const made = job({ step: "talking", assetId: "video-asset" });
+    expect(cmoSlotAction(talking(), [made])).toEqual({
+      kind: "attach",
+      job: made,
+    });
+  });
+
+  it("waits for a script before anything is made", () => {
+    expect(cmoMediaState(talking({ script: undefined }), [])).toBe("no_visual");
+    expect(cmoMediaState(talking(), [])).toBe("making");
+  });
+
+  it("starts over when its script or presenter changes", () => {
+    const before = cmoVisualKey(talking());
+    expect(cmoVisualKey(talking({ presenter: "jonas" }))).not.toBe(before);
+    expect(
+      cmoVisualKey(talking({ script: `${talking().script} Now.` })),
+    ).not.toBe(before);
+  });
+});
+
+describe("a picture in a reference library style", () => {
+  const styled = (patch: Partial<CmoMediaPiece> = {}) =>
+    piece({
+      styleReferenceId: "01a1e700-0000-7000-8000-000000000001",
+      headline: "Fresh minted",
+      ...patch,
+    });
+
+  it("keeps the key of a piece without a style, and changes it with one", () => {
+    expect(cmoVisualKey(piece())).toBe(cmoVisualKey(piece({ headline: "x" })));
+    expect(cmoVisualKey(styled())).not.toBe(cmoVisualKey(piece()));
+    expect(cmoVisualKey(styled())).not.toBe(
+      cmoVisualKey(styled({ headline: "Other words" })),
+    );
+  });
+
+  it("borrows only the style, letters the headline, uses the brand colours and leaves the logo corner", () => {
+    const prompt = cmoStylePrompt({
+      piece: styled(),
+      slot: 0,
+      businessName: "NMKR",
+      colours: ["#11F250", "#021205"],
+    });
+    expect(prompt).toContain("ONLY as a style reference");
+    expect(prompt).toContain("Copy none of its words");
+    expect(prompt).toContain('"Fresh minted"');
+    expect(prompt).toContain("#11F250, #021205");
+    expect(prompt).toContain("Keep the lower-right corner plain");
+    expect(
+      cmoStylePrompt({
+        piece: styled({ headline: undefined }),
+        slot: 0,
+        businessName: "NMKR",
+        colours: [],
+      }),
+    ).toContain("No words, letters or numbers");
+  });
+
+  it("tries each style model once, and a picture the check turned down counts as a try", () => {
+    const tried = (count: number, patch: Partial<CmoMediaJob> = {}) =>
+      Array.from({ length: count }, (_, at) =>
+        job({ id: `job-${at}`, rejected: true, ...patch }),
+      );
+    expect(cmoSlotAction(styled(), tried(1))).toMatchObject({
+      kind: "start",
+      attempt: 2,
+    });
+    expect(cmoSlotAction(styled(), [job({ rejected: false })])).toMatchObject({
+      kind: "attach",
+    });
+    expect(
+      cmoSlotAction(styled(), tried(REFERENCE_STYLE_MODELS.length)),
+    ).toEqual({ kind: "failed" });
+    // A picture without a style still gets two tries.
+    expect(
+      cmoSlotAction(piece(), [
+        job({ status: "FAILED" }),
+        job({ id: "job-2", status: "FAILED" }),
+      ]),
+    ).toEqual({ kind: "failed" });
   });
 });
 
@@ -265,10 +390,15 @@ describe("advanceCmoMedia", () => {
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The image studio refused to start a CMO picture",
+      ["Image studio refused the generation"],
+    );
     const { HTTPException } = await import("hono/http-exception");
     createImageJob.mockRejectedValue(
       new HTTPException(429, {
-        message: "You can start at most 40 image generations per hour.",
+        message: "Refused: SENTINEL-PROMPT a sunlit bookshop",
       }),
     );
     jobFindMany.mockResolvedValue([
@@ -306,6 +436,79 @@ describe("advanceCmoMedia", () => {
     expect(updateSocialPost).toHaveBeenCalledWith(
       expect.objectContaining({ postId: "b" }),
     );
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_media",
+      cmoPieces: [{ id: "a", failure: { errorName: "Error", status: 429 } }],
+    });
+    // The refusal can quote the prompt; none of it reaches the drain.
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
+  });
+
+  it("logs a refused schedule without the post's text", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not schedule a CMO Social post",
+      ["Social publishing refused the schedule"],
+    );
+    const { HTTPException } = await import("hono/http-exception");
+    scheduleSocialPost.mockRejectedValue(
+      new HTTPException(409, { message: "Refused: SENTINEL-POST words" }),
+    );
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "x",
+      text: "Rewritten words after the picture.",
+      revision: 10,
+      status: "DRAFT",
+      scheduledAt: new Date(Date.now() + 86_400_000),
+      planning: {},
+    });
+    await advanceCmoMedia(context, [piece({ media: ["file-1"] })]);
+    expect(warnings[0]?.event).toMatchObject({
+      socialPosts: [
+        { id: "post-1", failure: { errorName: "Error", status: 409 } },
+      ],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-POST");
+  });
+
+  it("keeps each refused schedule with its own post on one request", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not schedule a CMO Social post",
+      2,
+    );
+    const { HTTPException } = await import("hono/http-exception");
+    scheduleSocialPost
+      .mockRejectedValueOnce(new HTTPException(409, { message: "Refused" }))
+      .mockRejectedValueOnce(new HTTPException(423, { message: "Refused" }));
+    postFindUnique.mockImplementation(({ where }: { where: { id: string } }) =>
+      Promise.resolve({
+        id: where.id,
+        provider: "x",
+        text: "Rewritten words after the picture.",
+        revision: 10,
+        status: "DRAFT",
+        scheduledAt: new Date(Date.now() + 86_400_000),
+        planning: {},
+      }),
+    );
+    const app = new Hono();
+    app.use(coreEvlogMiddleware());
+    app.post("/cmo/month", async (c) => {
+      await advanceCmoMedia(context, [
+        piece({ id: "a", socialPostId: "post-a", media: ["file-1"] }),
+        piece({ id: "b", socialPostId: "post-b", media: ["file-1"] }),
+      ]);
+      return c.json({ ok: true });
+    });
+
+    await app.request("http://localhost/cmo/month", { method: "POST" });
+
+    expect(warnings[1]?.event.socialPosts).toEqual([
+      { id: "post-a", failure: { errorName: "Error", status: 409 } },
+      { id: "post-b", failure: { errorName: "Error", status: 423 } },
+    ]);
   });
 
   it("schedules a post that went back to a draft after its picture went on", async () => {

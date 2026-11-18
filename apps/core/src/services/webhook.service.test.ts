@@ -11,6 +11,7 @@ vi.mock("@/clients/webhook.client", () => ({
 }));
 
 import { webhookService } from "@/services/webhook.service";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 const validUser = {
   id: "user_1",
@@ -37,18 +38,29 @@ describe("webhookService", () => {
   });
 
   it("skips the user created webhook when the payload is invalid", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const errors = expectCoreLogWhys(
+      "error",
+      "Skipped a user webhook, because the user data is invalid",
+      ["The user has no valid id, email, name or marketing opt-in"],
+    );
 
-    await webhookService.callUserWebhook("userCreated", { id: "user_1" });
+    await webhookService.callUserWebhook("userCreated", {
+      id: "user_1",
+      email: "alice@example.com",
+      name: 42,
+    });
 
     expect(callWebhookMock).not.toHaveBeenCalled();
-    expect(consoleError).toHaveBeenCalledWith(
-      "Invalid user data for userCreated webhook:",
-      expect.anything(),
-    );
-    consoleError.mockRestore();
+    // Paths and codes only, never the user's values.
+    expect(errors[0]?.event).toMatchObject({
+      operation: "user_webhook",
+      userWebhook: { type: "userCreated" },
+      invalidFields: [
+        { path: "name", code: "invalid_type" },
+        { path: "marketingOptIn", code: "invalid_type" },
+      ],
+    });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("alice");
   });
 
   it("forwards a valid user updated payload", async () => {

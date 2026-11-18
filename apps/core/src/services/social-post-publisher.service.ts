@@ -23,7 +23,10 @@ import { ComposioPublishOutcomeUnknownError } from "@/clients/social-post-provid
 import type {
   SocialPostPublishContext,
   SocialPostPublishResult,
+  TikTokPostSettings,
 } from "@/clients/social-post-providers/types";
+import { ZERNIO_TIKTOK_CREATE_POST } from "@/clients/social-post-providers/zernio-tiktok";
+import { getZernioAccountId } from "@/clients/zernio.client";
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -51,9 +54,12 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { CMO_PAUSED, LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
+import { isTalkingVideoMedia } from "@/services/image-studio-drive.service";
 import {
   projectExecutorUserId,
   requireLockedOpenProject,
@@ -63,9 +69,11 @@ import {
   getSocialPost,
   type SocialPostSummary,
 } from "@/services/social-posts.service";
+import { recordSocialStudioAdEvents } from "@/services/social-studio-events.service";
 import { resolveXSubscriptionType } from "@/services/x-subscription-tier.service";
 
 export const LEASE_MS = 5 * 60_000;
+const SOCIAL_POST_PUBLISH_OPERATION = "social_post_publish";
 export const MAX_ATTEMPTS = 3;
 /** A retry never lands later than this after the planned time. */
 export const RETRY_WINDOW_MS = 15 * 60_000;
@@ -107,6 +115,7 @@ export interface PublishDueSocialPostsResult {
 }
 
 export interface PublishSocialPostNowInput {
+  tikTokSettings?: TikTokPostSettings;
   projectId: string;
   workspaceId: string;
   userId: string;
@@ -168,6 +177,7 @@ type AttemptTrigger = "scheduler" | "publish_now";
 type AttemptOutcome = "published" | "retried" | "failed" | "missed" | "skipped";
 
 interface AttemptOptions {
+  tikTokSettings?: TikTokPostSettings;
   trigger: AttemptTrigger;
   actorUserId?: string;
   execution?: PublishDueSocialPostsInput;
@@ -207,10 +217,18 @@ async function settle(
     },
   });
   if (result.count === 0) {
-    console.warn("[social-post-publisher] Lost lease; leaving post untouched", {
-      postId: post.id,
-      status: data.status,
-    });
+    // The publish-now route awaits this; the cron runs it as background work.
+    recordCoreWarning(
+      {
+        operation: SOCIAL_POST_PUBLISH_OPERATION,
+        socialPost: { id: post.id, status: data.status },
+      },
+      {
+        message: "Left a Social post untouched after losing its publish lease",
+        why: "Another worker took over the post's publish lease first",
+        fix: "Nothing to do: the worker that holds the lease settles the post.",
+      },
+    );
     return false;
   }
   if (
@@ -218,6 +236,18 @@ async function settle(
     !post.publishedExternalId
   ) {
     await flagSocialPostQuotes(post.id, QUOTED_POST_FAILED, tx);
+  }
+  if (data.status === "PUBLISHED" && tx === prisma) {
+    await recordSocialStudioAdEvents({
+      projectId: post.projectId,
+      workspaceId: post.workspaceId,
+      postId: post.id,
+      type: "posted",
+      media: parseSocialPostMedia(post.media, post.id),
+      threadParts: post.threadParts.map((part) => ({
+        media: parseSocialPostMedia(part.media, part.id),
+      })),
+    });
   }
   return true;
 }
@@ -807,13 +837,18 @@ async function attemptPublish(
     return settled ? "failed" : "skipped";
   }
 
+  const toolSlug =
+    provider === "tiktok" &&
+    getZernioAccountId(connection.composioConnectedAccountId)
+      ? ZERNIO_TIKTOK_CREATE_POST
+      : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
   const attempt = await prisma.socialPostPublishAttempt.create({
     data: {
       socialPostId: post.id,
       attempt: await nextAttemptNumber(post.id),
       trigger: options.trigger,
       actorUserId: options.actorUserId ?? null,
-      toolSlug: SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
+      toolSlug,
     },
     select: { id: true },
   });
@@ -885,13 +920,18 @@ async function attemptPublish(
     );
     if (projectOutcome) return projectOutcome;
     const context: SocialPostPublishContext = {
+      ...(toolSlug === ZERNIO_TIKTOK_CREATE_POST && { postId: post.id }),
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: projectExecutorUserId(post.projectId),
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
       text: post.text,
+      tikTokSettings: options.tikTokSettings,
       ...(quote.externalId ? { quoteExternalId: quote.externalId } : {}),
+      ...((await isTalkingVideoMedia(post.projectId, media))
+        ? { aiGenerated: true }
+        : {}),
       media,
       signal,
     };
@@ -922,12 +962,28 @@ async function attemptPublish(
       retryAt !== null &&
       post.scheduledAt !== null &&
       retryAt.getTime() <= retryWindowStart.getTime() + RETRY_WINDOW_MS;
-    console.warn("[social-post-publisher] Publish attempt failed", {
-      postId: post.id,
-      attempt: attemptCount,
-      kind: classified.kind,
-      retrying,
-    });
+    const providerError =
+      error instanceof ThreadPartPublishError ? error.cause : error;
+    // The provider's error can quote the post, so content-free metadata only.
+    recordCoreWarning(
+      {
+        operation: SOCIAL_POST_PUBLISH_OPERATION,
+        socialPost: { id: post.id, attempt: attemptCount, provider },
+      },
+      {
+        message: "A Social post publish attempt failed",
+        why: retrying
+          ? "The provider call failed with a transient error"
+          : "The provider call failed and the post will not be retried",
+        fix: retrying
+          ? "Nothing to do: the publisher retries the post."
+          : "The post is marked failed with the reason on its publish attempt; the user can reschedule it.",
+      },
+      {
+        failure: messageSafeErrorFields(providerError),
+        publishFailure: { kind: classified.kind, retrying },
+      },
+    );
     await prisma.socialPostPublishAttempt.update({
       where: { id: attempt.id },
       data: {
@@ -938,18 +994,25 @@ async function attemptPublish(
         externalId: null,
       },
     });
-    const providerError =
-      error instanceof ThreadPartPublishError ? error.cause : error;
     if (shouldRequestReauthorization(providerError, classified)) {
       try {
         await prisma.projectSocialConnection.updateMany({
           where: { id: connection.id, status: "active" },
           data: { status: "reauthorization_required" },
         });
-      } catch {
-        console.warn(
-          "[social-post-publisher] Could not flag connection for reconnect",
-          { postId: post.id, connectionId: connection.id },
+      } catch (flagError) {
+        recordCoreWarning(
+          {
+            operation: SOCIAL_POST_PUBLISH_OPERATION,
+            socialPost: { id: post.id },
+            socialConnection: { id: connection.id },
+          },
+          {
+            message: "Could not flag a Social connection for reconnect",
+            why: "The database update failed",
+            fix: "The post still failed; the next publish to this connection flags it again. If this repeats, read the database error under cause.",
+            cause: flagError,
+          },
         );
       }
     }
@@ -977,7 +1040,7 @@ async function attemptPublish(
       finishedAt,
       outcome: "succeeded",
       errorKind: null,
-      toolSlug: published.toolSlug ?? SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
+      toolSlug: published.toolSlug ?? toolSlug,
       providerOutcome:
         published.providerOutcome ??
         (media.length > 0 ? `published, ${media.length} media` : "published"),
@@ -1006,11 +1069,20 @@ async function attemptPublish(
         text: firstComment,
         signal,
       });
-    } catch {
-      console.warn("[social-post-publisher] First comment failed", {
-        postId: post.id,
-        provider,
-      });
+    } catch (commentError) {
+      // The provider's error can quote the comment, so content-free metadata only.
+      recordCoreWarning(
+        {
+          operation: SOCIAL_POST_PUBLISH_OPERATION,
+          socialPost: { id: post.id, provider },
+        },
+        {
+          message: "Published a Social post without its first comment",
+          why: "The provider call for the first comment failed",
+          fix: "The post is live; the user can add the comment by hand.",
+        },
+        { failure: messageSafeErrorFields(commentError) },
+      );
     }
   }
   return settled ? "published" : "skipped";
@@ -1227,6 +1299,10 @@ export async function publishSocialPostNow(
           post.project,
         );
       }
+      if (post.provider === "tiktok" && !input.tikTokSettings)
+        throw badRequest(
+          "Choose the TikTok audience and confirm the music usage before publishing",
+        );
       if (post.status === "DRAFT") {
         if (!post.socialConnection) {
           throw badRequest("A social connection is required to publish a post");
@@ -1308,7 +1384,11 @@ export async function publishSocialPostNow(
       socialConnection: post.socialConnection,
       project: post.project,
     },
-    { trigger: "publish_now", actorUserId: input.userId },
+    {
+      trigger: "publish_now",
+      actorUserId: input.userId,
+      tikTokSettings: input.tikTokSettings,
+    },
   );
   return {
     ...(await getSocialPost({

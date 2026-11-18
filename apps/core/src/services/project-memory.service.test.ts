@@ -1,6 +1,7 @@
 import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { expectCoreLogWhys } from "@/test/core-log";
+import { PROJECT_LATEST_UPDATE_SYSTEM_PROMPT } from "./project-latest-update";
 import {
   projectMemoryService,
   validateProjectContextMd,
@@ -88,6 +89,11 @@ function memoryDocument({
 }
 
 const VALID_CONTEXT = memoryDocument();
+const VALID_LATEST_UPDATE = `# Weekly Activity Report
+
+## TL;DR
+
+Published the launch report.`;
 const VALID_LINE_COUNT = VALID_CONTEXT.split("\n").length;
 
 const project = {
@@ -136,7 +142,6 @@ function isFollowUpTaskIdLookup(args: {
 describe("projectMemoryService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "warn").mockImplementation(() => undefined);
     getEnvMock.mockReturnValue({
       AI_GATEWAY_API_KEY: "gateway_key",
       BLOB_READ_WRITE_TOKEN: "blob_key",
@@ -149,10 +154,12 @@ describe("projectMemoryService", () => {
         isFollowUpTaskIdLookup(args) ? null : completedTask,
     );
     taskFindManyMock.mockResolvedValue([]);
-    generateTextMock.mockResolvedValue({
-      text: VALID_CONTEXT,
-      finishReason: "stop",
-    });
+    // One model writes both documents: the memory, then the weekly report.
+    generateTextMock.mockImplementation(async (options: { system?: string }) =>
+      options.system === PROJECT_LATEST_UPDATE_SYSTEM_PROMPT
+        ? { text: VALID_LATEST_UPDATE, finishReason: "stop" }
+        : { text: VALID_CONTEXT, finishReason: "stop" },
+    );
     ensureProjectFilesTokenMock.mockResolvedValue("project_files_token");
     uploadProjectContextMdFileMock.mockResolvedValue(
       "https://blob.example/projects/project_1/CONTEXT.md",
@@ -286,6 +293,11 @@ describe("projectMemoryService", () => {
   });
 
   it("keeps the previous URL when the winner cannot upload the blob", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Updated a project's memory without replacing its CONTEXT.md file",
+      ["The project has no files token, or the Blob upload returned no URL"],
+    );
     uploadProjectContextMdFileMock.mockResolvedValueOnce(null);
 
     await expect(
@@ -304,10 +316,12 @@ describe("projectMemoryService", () => {
         data: expect.objectContaining({ contextMdUrl: expect.anything() }),
       }),
     );
-    expect(console.warn).toHaveBeenCalledWith(
-      "Project memory updated without replacing its CONTEXT.md blob",
-      { projectId: PROJECT_ID, version: 4 },
-    );
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "project_memory_refresh",
+      // evlog masks all-digit UUID segments until ticket 14 lands.
+      project: { id: expect.any(String) },
+      projectMemory: { version: 4 },
+    });
   });
 
   it("is a no-op without Blob storage configuration", async () => {
@@ -470,6 +484,11 @@ describe("projectMemoryService", () => {
   });
 
   it("keeps old memory when model output is empty and releases the lock", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Skipped a project memory refresh",
+      ["The model's CONTEXT.md is not valid"],
+    );
     generateTextMock.mockResolvedValueOnce({
       text: "  \n ",
       finishReason: "stop",
@@ -481,6 +500,9 @@ describe("projectMemoryService", () => {
         taskId: TASK_ID,
       }),
     ).resolves.toEqual({ status: "skipped", reason: "empty_output" });
+    expect(warnings[0]?.event).toMatchObject({
+      projectMemory: { invalidReason: "empty_output" },
+    });
     expect(uploadProjectContextMdFileMock).not.toHaveBeenCalled();
     expect(projectUpdateManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -596,6 +618,9 @@ Shipped the launch report.`,
   });
 
   it("keeps memory and leaves the previous report when TL;DR is missing", async () => {
+    expectCoreLogWhys("warn", "Skipped a project's latest update", [
+      "The model's update has no leading TL;DR heading",
+    ]);
     generateTextMock
       .mockResolvedValueOnce({ text: VALID_CONTEXT, finishReason: "stop" })
       .mockResolvedValueOnce({ text: "# Weekly Activity Report\n\nNo tldr" });
@@ -616,6 +641,35 @@ Shipped the launch report.`,
         ([args]) => args.data?.latestUpdateMd !== undefined,
       ),
     ).toBe(false);
+  });
+
+  it("logs a failed latest update without the project content it read", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Skipped a project's latest update",
+      ["Generating the update failed"],
+    );
+    generateTextMock
+      .mockResolvedValueOnce({ text: VALID_CONTEXT, finishReason: "stop" })
+      // A model error can quote the prompt: the project's tasks and memory.
+      .mockRejectedValueOnce(
+        new Error('prompt "Confidential merger with Acme" sk_live_abc123'),
+      );
+
+    await expect(
+      projectMemoryService.refreshAfterTaskCompleted({
+        projectId: PROJECT_ID,
+        taskId: TASK_ID,
+      }),
+    ).resolves.toMatchObject({ status: "updated" });
+
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "project_latest_update",
+      failure: { errorName: "Error" },
+    });
+    const drained = JSON.stringify(warnings[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
   });
 
   function expectNoMemoryPublication() {
@@ -690,6 +744,9 @@ Shipped the launch report.`,
   ])(
     "retains all prior memory state on %s",
     async (_label, text, finishReason, reason) => {
+      expectCoreLogWhys("warn", "Skipped a project memory refresh", [
+        "The model's CONTEXT.md is not valid",
+      ]);
       generateTextMock.mockResolvedValueOnce({ text, finishReason });
       expect(
         await projectMemoryService.refreshAfterTaskCompleted({
@@ -715,6 +772,9 @@ Shipped the launch report.`,
   ])(
     "retains even oversized prior memory when compaction is %s",
     async (_label, text, finishReason, reason) => {
+      expectCoreLogWhys("warn", "Skipped a project memory refresh", [
+        "The model's CONTEXT.md is not valid",
+      ]);
       projectFindUniqueMock.mockResolvedValue({
         ...project,
         contextMd: "legacy ".repeat(2000),

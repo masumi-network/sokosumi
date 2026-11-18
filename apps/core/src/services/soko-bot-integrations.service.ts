@@ -13,6 +13,7 @@ import { getComposio } from "@/clients/composio.client";
 import { adProviderForToolkit } from "@/config/ads-providers";
 import { socialProviderForToolkit } from "@/config/social-providers";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, logCoreWarning, recordCoreError } from "@/lib/evlog";
 import {
   executeIntegrationTool as execute,
   SokoBotIntegrationError,
@@ -78,6 +79,7 @@ async function loadCatalog(): Promise<SokoBotIntegrationCatalogEntry[] | null> {
       .filter(
         (toolkit) =>
           toolkit.slug.toLowerCase() !== "composio" &&
+          toolkit.slug.toLowerCase() !== "tiktok" &&
           !adProviderForToolkit(toolkit.slug) &&
           connectable(toolkit),
       )
@@ -140,7 +142,11 @@ function curatedCatalog(
     }));
 }
 
-/** Revoke the account snapshot captured atomically during bot deletion. */
+/**
+ * Revoke the account snapshot captured atomically during bot deletion.
+ * Failures go on the live request event (bot deletion, member removal), or
+ * on their own event in the leaver sweep's cron.
+ */
 export async function revokeSokoBotIntegrationAccounts(
   sokoBotId: string,
   rows: {
@@ -154,6 +160,16 @@ export async function revokeSokoBotIntegrationAccounts(
   if (!composio) return { revoked: 0, failed: rows.map((r) => r.provider) };
 
   const failed = new Set<string>();
+  // One request can revoke for several bots on one event: each record
+  // names its bot, since evlog concatenates arrays and overwrites scalars.
+  const failures: {
+    sokoBotId: string;
+    provider: string;
+    accountId: string;
+    /** Composio's error, as redacted detail. */
+    cause: unknown;
+  }[] = [];
+  let firstError: unknown;
   for (const row of rows) {
     for (const accountId of new Set([
       row.composioAccountId,
@@ -164,13 +180,28 @@ export async function revokeSokoBotIntegrationAccounts(
         await composio.connectedAccounts.delete(accountId);
       } catch (error) {
         failed.add(row.provider);
-        console.error("Soko Bot integration revoke failed", {
+        firstError ??= error;
+        failures.push({
           sokoBotId,
           provider: row.provider,
-          error: error instanceof Error ? error.message : "unknown",
+          accountId,
+          cause: error,
         });
       }
     }
+  }
+  if (failures.length > 0) {
+    recordCoreError(
+      { operation: "soko_bot_integration_revoke" },
+      {
+        message:
+          "Could not revoke a Soko Bot's integration accounts at Composio",
+        why: "Composio refused the delete",
+        fix: "The integrations are gone from Sokosumi, but the accounts may still be live at Composio. Delete the account ids under integrationRevoke.failures in the Composio dashboard.",
+        cause: firstError,
+      },
+      { integrationRevoke: { failures } },
+    );
   }
   return { revoked: rows.length - failed.size, failed: [...failed] };
 }
@@ -650,9 +681,22 @@ export async function fetchInboxAttachment(
     const bytes = inline ? base64Bytes(inline) : null;
     if (bytes) return bytes;
   }
-  console.warn("[soko-bot-mail] unreadable attachment result", {
-    keys: data && typeof data === "object" ? Object.keys(data) : typeof data,
+  // Read from a Soko Bot turn's tool call, in the background: its own event.
+  // Only the operation: the result's keys and values can quote the mail.
+  const log = createCoreLogger({
+    operation: "soko_bot_mail_attachment",
+    integration: {
+      id: integration.id,
+      provider: integration.provider.id,
+      operation: slug,
+    },
   });
+  logCoreWarning(log, {
+    message: "A mailbox returned an attachment Sokosumi cannot read",
+    why: "Composio's result held no file link and no base64 data",
+    fix: "Run the attachment tool for a test mailbox in the Composio playground and teach fetchInboxAttachment the shape it returns.",
+  });
+  log.emit();
   throw new SokoBotIntegrationError(
     "The mailbox returned the attachment in a form Sokosumi cannot read",
   );

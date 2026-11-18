@@ -92,6 +92,7 @@ Prefer `toActionResult` over inventing another Ok/Err helper.
 - Group related routes using parentheses: `(app)`, `(auth)`
 - Use parallel routes for complex layouts
 - Implement proper loading and error boundaries
+- **Error boundaries see only `digest` in production.** A production build delivers a server error to a client boundary as a generic `Error`, without its name, message or custom fields. Match a stable digest set on the error (`UNAUTHENTICATED_ERROR_DIGEST` in `src/lib/auth/errors.ts`), not `error.name`. In a test, mask the error first (a new `Error` with only the digest copied); a test that builds the error class directly passes against a boundary that fails in production.
 
 ### Component Patterns
 
@@ -202,6 +203,35 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Mock external APIs with colocated `vi.mock` (there is no `__mocks__/` directory)
 - Test both server and client components appropriately
 - Use Testing Library for component testing
+- **cmdk rows** (`@/components/ui/command`): every `CommandItem` carries `data-disabled` and `aria-disabled` as `"true"` or `"false"`, so assert the value (`toHaveAttribute("aria-disabled", "true")`), never the attribute's presence. A row with a `CommandShortcut` has the digit in its accessible name (`"Queued 2"`): match it by prefix (`{ name: /^Queued/ }`). Stub `Element.prototype.scrollIntoView = vi.fn()`, which happy-dom lacks and cmdk calls.
+- **Stale typecheck**: `tsconfig.json` is incremental. Before calling a type error pre-existing on `main`, delete `tsconfig.tsbuildinfo` or run `tsc --noEmit --incremental false`; an old build-info file keeps reporting errors a fix removed.
+- **Second click on a busy button**: a `Button` with `loading` drops clicks (`preventActivation` in `src/components/ui/button.tsx`). State set after an `await` in an async transition renders before `isPending` clears, so a test that waits for the result and clicks again fails at random. Wait until the control is idle first: `aria-busy` gone, or `toBeEnabled()`.
+- **`Notification` stubs**: `isPushSupported()` needs `Notification.requestPermission` to be a function (`src/lib/utils/browser-notification.ts`). A stub with only `permission` makes push code return early, so the test passes on any code. Stub both: `Object.assign(function Notification() {}, { permission, requestPermission: async () => permission })`.
+
+### Test files share a worker
+
+`vitest.config.mts` sets `isolate: false` and shuffles file order. Each file inherits whatever the file before it left in the worker: one happy-dom window (its cookies, document and DOM prototypes) and every dependency loaded from `node_modules` (React, react-dom, Testing Library, `js.foresight`). A leak fails some other file, at random. The setup files undo what they can after each file; leave the rest as you found it:
+
+- **Globals.** Use `vi.stubGlobal("fetch", mock)`, never `window.fetch = mock`, `global.fetch = mock` or `Object.assign(window, …)`. In the happy-dom project a plain assignment to a window property is kept where nothing can undo it, so the next file gets your mock. `src/test/setup.ts` calls `vi.unstubAllGlobals()` and `vi.unstubAllEnvs()` after each file, and puts back any existing global a file redefined (`Object.defineProperty(window, "location", …)`).
+- **Document, prototypes and browser state.** `src/test/setup.dom.ts` puts back the document's own properties (`document.cookie`, `visibilityState`, `execCommand`) and DOM prototypes (`Element.prototype.scrollIntoView = vi.fn()`). It also clears cookies and the document and resets the URL and viewport. Each file gets fresh `localStorage` and `sessionStorage`, because a `vi.spyOn(localStorage, …)` never comes off happy-dom's storage. Restore a `happyDOM.settings` value you change.
+- **Mocks, timers and module state.** `src/test/setup.ts` resets the module registry before each file, so `vi.mock` applies even when an earlier file imported the real module. After each file it calls `vi.useRealTimers()` and `vi.restoreAllMocks()`. A module's own state can still outlive it through a dependency that stays loaded: tie it to the module, not to the dependency (`src/hooks/use-intent-prefetch.ts` guards its listeners with its own flag, not with `ForesightManager.isInitiated`).
+- **Pending React transitions.** react-dom joins every async transition to any that is still pending. A transition that awaits a promise that never settles keeps every later file's transitions pending. Do not leave such a promise behind: use `Promise.withResolvers()` and settle it in `act` before the test ends, and run out the timers a transition awaits. `src/test/setup.dom.ts` fails a file that leaves one: "left a React async transition pending".
+
+### No unexpected console output
+
+`src/test/setup.ts` fails a test that writes a `console.error` or `console.warn` it did not declare, and a test that replaces either (`vi.spyOn(console, "warn").mockImplementation(…)`, `console.warn = fn`, a bare `vi.fn()`), even one restored before the test ends. `console.log` stays allowed. Such output means the test ran something other than production. Fix the cause:
+
+- a mock missing an export, or one that answers `undefined` where the real one answers data (`Query data cannot be undefined`);
+- a fixture production would not send (two items with one key, a notification without its workspace);
+- a hand-written `next-intl` setup without the app's `createFormats()` or with a stale message subset;
+- a server action or service running inside a DOM test;
+- a render that suspends without an awaited `act`.
+
+`next/image` cannot measure a `fill` parent in happy-dom; mock it with `vi.mock("next/image", () => import("@/test/next-image"))`.
+
+Only a test whose subject is that error path declares it, with `expectConsole(method, start, times = 1)` from `@sokosumi/utils/test-console`: the message must start with `start` and come exactly `times` times, and the return value holds the matched calls' arguments, so assert the reason or error on them.
+
+**Reproduce an order.** The log's first line prints `Running tests with seed "<seed>"`. Rerun that order with `pnpm --filter web exec vitest run --sequence.seed=<seed>`. Adding `--maxWorkers=1` puts every file in one worker, which brings out leaks a 4-worker run only hits now and then. A failure that only shows up under one seed is a leak: find the earlier file that causes it and fix it there. Never retry it, skip it or give it a wider timeout.
 
 ## App-Specific Gotchas
 
@@ -327,6 +357,80 @@ Web data access for domain entities goes through the Core API
   long-term fix is a Core endpoint that returns the filtered catalog in one
   call (see the `TODO(core-api)` in `core-loaders.ts`); until then, do not
   add new per-request all-pages loops.
+
+**A catch-all fallback swallows the sign-in redirect.** `coreClient` turns a
+Core 401 into a thrown `redirect` to `/signin`, and a `.catch(() => fallback)`
+catches it too, so a dead session renders the degraded page instead. Call
+`unstable_rethrow(error)` from `next/navigation` first (as `tasks-page-data.ts`
+does), or read through `coreClientNoRedirect` and handle the 401 yourself.
+
+### Navigation opens a loaded page, not its skeleton
+
+A click, a predicted approach, or a back press must open a page whose content
+is already loaded. Next's default `<Link>` prefetch loads only the App Shell,
+so the click still shows `loading.tsx`. Sokosumi loads the page's content
+ahead of the click: a **content prefetch**. Apply this when you add or change
+a list page, a detail page, a Core read that such a page uses, or any link to
+one of them (nav row, list row, back link).
+
+1. **Make the page content-prefetchable.**
+   - Read the page's data through `"use cache: private"` loaders. The pattern
+     is `loadTasksPageData` in `src/app/(app)/tasks/utils/tasks-page-data.ts`:
+     one private-cached loader, and an outage falls back to `connection()` and
+     a fresh read.
+   - On the content's path, the page and its layouts call no `connection()`
+     and make no uncached Core read. A read that must stay fresh (a banner)
+     goes in its own `<Suspense>` and streams in after the click.
+   - Render `<RefreshPrefetchedPage />` in the page. It refreshes only when
+     the page may show an old copy: after back or forward, on a return to a
+     page first visited, since its last refresh, more than 30 s ago (Next
+     reuses that visit's copy), and when the shared layouts are older than
+     `LAYOUT_REFRESH_MS` (2 min). Otherwise
+     a click opens page data at most about a minute old and does not refresh.
+     It refreshes through a Server Action that calls `refresh()`
+     (`refreshPage`), which keeps every page prefetched for the next click;
+     `router.refresh()` drops them all. It waits while a link to another page
+     or a button has the pointer or keyboard focus (up to 3 s): a navigation
+     during the refresh makes Next run a `router.refresh()` after it, and a
+     button's Server Action would queue behind it. This one-render action is
+     the exception to the background-action rule in "Server actions vs Route
+     Handlers": only an action can refresh the page and keep the loaded ones.
+     Pass `everyVisit` only for a page whose cached copy must not linger (the
+     Ads lost-project state).
+   - Add the path to `CONTENT_PREFETCH_PATHS`
+     (`src/lib/navigation/content-prefetch-routes.ts`) and set
+     `prefetchContent` on its sidebar row in
+     `src/app/(app)/components/sidebar/components/menu-items.tsx`.
+2. **Link to it with an intent link.**
+   - Nav and list rows: `RestingIntentLink` with `prefetchContent`
+     (`src/components/resting-intent-link.tsx`). It loads the content on a
+     predicted pointer approach (ForesightJS), a resting hover, or resting
+     keyboard focus.
+   - Back links to a parent page: `BackLink` (`src/components/back-link.tsx`).
+     It loads the parent as soon as it shows, which also covers a phone tap,
+     and decides from `canPrefetchRouteContent(href)` whether the parent
+     supports it.
+   - A page that is not content-prefetchable keeps a plain `<Link>`.
+   - With no intent at all, `WarmLikelyPages`
+     (`src/components/warm-likely-pages.client.tsx`, in the app frame) keeps
+     the reader's 3 most visited content pages loaded while the tab is
+     visible and in use. A new content page joins it once it is in
+     `CONTENT_PREFETCH_PATHS`.
+3. **Start content loads only through `prefetchRouteContent(router, href,
+   { keepLoaded })`** (`src/lib/navigation/prefetch-route-content.ts`).
+   - Each call is one server render of the page. Trigger it on reading
+     intent, never for every link in view.
+   - Pass `keepLoaded`. Each `router.refresh()` (a polling page, a live
+     update, the `RefreshPrefetchedPage` fallback) and each Server Action
+     that calls `revalidatePath` or `updateTag` or writes a cookie drops
+     every prefetched page, and Next loads only the shell again.
+     `keepLoaded` returns true while the reader still wants that page (the
+     pointer still rests, the back link still shows), and the page then
+     loads again, up to `MAX_CONTENT_RELOADS` times.
+
+**Done when** a production build opens the page with its content, not its
+skeleton, after a hover, after a predicted approach, and on back. `next dev`
+does not prefetch, so check this on the preview (`/deploy all`), not locally.
 
 ### After a mutation: refresh only what changed
 
@@ -481,7 +585,7 @@ export function MyComponent() {
 
 ## Browser Automation
 
-Use `agent-browser` for web automation. Run `agent-browser --help` for all commands.
+Use `agent-browser` for web automation. Run `agent-browser --help` for all commands. With `"engine": "lightpanda"` in `~/.agent-browser/config.json` (`navigator.userAgent` reports `Lightpanda`) it has no layout or CSS: for screenshots, measurements and phone layout, follow [Verifying Web UI](docs/verification.md).
 
 Core workflow:
 

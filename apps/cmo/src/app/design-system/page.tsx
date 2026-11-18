@@ -1,8 +1,12 @@
 import "../../components/onboarding/onboarding.css";
 import "./design-system.css";
 
-import { AVATAR_REPLAY_MS } from "../../components/cuso";
-import { CusoClip } from "../../components/cuso-clip";
+import {
+  type CusoArt,
+  CusoAvatar,
+  type Pose as CusoPose,
+  cusoArt,
+} from "../../components/cuso";
 import { Logo } from "../../components/logo";
 import { StatusDisc } from "../../components/status";
 import { AGENT_NAME } from "../../lib/agent";
@@ -18,11 +22,11 @@ import { PartsPreview } from "./parts-preview";
 type Scheme = "light" | "dark";
 
 const RULES = [
-  "Lines do the work.",
-  "One hard shadow.",
-  "Iris means now.",
+  "Thick lines do the work.",
+  "A hard shadow means you can act.",
+  "Iris means now, and picked.",
   "Bold speaks, Regular works.",
-  "Three layers.",
+  "Black strips for contrast.",
 ];
 
 interface Swatch {
@@ -41,7 +45,7 @@ interface Radius {
 }
 
 interface Pose {
-  file: string;
+  file: CusoPose;
   label: string;
 }
 
@@ -71,7 +75,7 @@ const TYPE_CLASS: Record<string, string> = {
 
 const TYPE: TypeStep[] = [
   { step: "display", sample: "Marketing, handled" },
-  { step: "h1", sample: "Your plan for May" },
+  { step: "h1", sample: "Your strategy for May" },
   { step: "statement", sample: "Reach 500 new readers this month" },
   { step: "value", sample: "Does this sound like you?" },
   { step: "h2", sample: "This week" },
@@ -84,7 +88,20 @@ const RADII: Radius[] = [
   { name: "Mark", token: "--radius-mark" },
   { name: "Control", token: "--radius-control" },
   { name: "Card", token: "--radius-card" },
-  { name: "Panel", token: "--radius-panel" },
+  { name: "Pill", token: "--radius-pill" },
+];
+
+const SHADOWS = [
+  { name: "Shadow", className: "ds-shadow" },
+  { name: "Big shadow", className: "ds-shadow-big" },
+];
+
+const ART: CusoArt[] = [
+  "walking",
+  "pointing",
+  "thinking",
+  "thumbs-up",
+  "searching",
 ];
 
 const POSES: Pose[] = [
@@ -133,7 +150,8 @@ function Board({ scheme }: BoardProps) {
           <Logo />
         </p>
         <p className="ds-t-small ds-muted">
-          16px high in a header, drawn in the text colour.
+          The approved stacked-text lockup: black on a light page, white on a
+          dark one.
         </p>
       </Section>
 
@@ -177,10 +195,12 @@ function Board({ scheme }: BoardProps) {
               <span className="ds-t-small">{radius.name}</span>
             </li>
           ))}
-          <li>
-            <span className="ds-radius-box ds-shadow-box" />
-            <span className="ds-t-small">Hard shadow</span>
-          </li>
+          {SHADOWS.map((shadow) => (
+            <li key={shadow.name}>
+              <span className={`ds-radius-box ${shadow.className}`} />
+              <span className="ds-t-small">{shadow.name}</span>
+            </li>
+          ))}
         </ul>
       </Section>
 
@@ -226,12 +246,12 @@ function Board({ scheme }: BoardProps) {
         </div>
       </Section>
 
-      <Section title="Three layers">
+      <Section title="Layers">
         <div className="panel">
           <div className="card ds-card-body">
-            <p className="ds-t-h2">White page, gray panel, outlined card</p>
+            <p className="ds-t-h2">White page, outlined panel, outlined card</p>
             <p className="ds-t-small muted">
-              A card sits on a panel, never straight on the page.
+              A black strip crosses the page where contrast helps.
             </p>
           </div>
         </div>
@@ -287,15 +307,7 @@ function Board({ scheme }: BoardProps) {
         <ul className="ds-poses">
           {POSES.map((pose) => (
             <li key={pose.file}>
-              <span className="ds-avatar">
-                <CusoClip
-                  src={`/cuso/${pose.file}.png`}
-                  alt=""
-                  width={48}
-                  height={48}
-                  replayAfterMs={AVATAR_REPLAY_MS}
-                />
-              </span>
+              <CusoAvatar pose={pose.file} size={48} />
               <span
                 className={`ds-t-small${pose.file === "needs-you" ? " ds-pose-on-iris" : ""}`}
               >
@@ -310,35 +322,24 @@ function Board({ scheme }: BoardProps) {
         <PartsPreview />
       </Section>
 
-      <Section title="Scenes">
+      <Section title="Poses">
         <ul className="ds-scenes">
-          <li>
-            <CusoClip
-              src="/cuso/reading-scene.jpg"
-              alt="Cuso reading a site with a magnifier"
-              width={160}
-              height={160}
-            />
-          </li>
-          <li>
-            <CusoClip
-              src="/cuso/celebration.jpg"
-              alt="Cuso celebrating next to a toy rocket"
-              width={160}
-              height={160}
-            />
-          </li>
+          {ART.map((art) => (
+            <li key={art}>
+              <img src={cusoArt(art)} alt="" width={160} height={160} />
+            </li>
+          ))}
         </ul>
       </Section>
 
       <Section title="Hero stage">
         <div className="ds-stage">
-          <CusoClip
+          <img
             className="ds-stage-art"
-            src="/cuso/hero.jpg"
-            alt="Cuso walking with a megaphone"
+            src={cusoArt("walking")}
+            alt="Cuso walking"
             width={200}
-            height={300}
+            height={200}
           />
           <span className="ob-tilt ob-tilt-a">Reads your site</span>
           <span className="ob-tilt ob-tilt-b">Writes the month</span>

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden, notFound } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -206,6 +207,38 @@ describe("POST /coworkers/{id}/workspace-access", () => {
       workspaceId,
       accessId,
     });
+  });
+
+  it("still answers 201 PENDING when the approvers cannot be told, without the mail's text", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not notify workspace approvers of a coworker access request",
+      ["Sending the approval request failed after the request was saved"],
+    );
+    upsertMock.mockResolvedValue({
+      access: baseAccess({
+        status: CoworkerWorkspaceAccessStatus.PENDING,
+        resolvedAt: null,
+        resolvedById: null,
+      }),
+      pendingNotify: { coworkerId, workspaceId, accessId },
+    });
+    // The mail names the coworker, so a provider error can quote it.
+    notifyMock.mockRejectedValue(
+      new Error('Mail "Ada Research wants access" was rejected'),
+    );
+
+    const response = await postWorkspaceAccess(createApp("user"));
+
+    expect(response.status).toBe(201);
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event).toMatchObject({
+      coworkerId,
+      workspaceId,
+      accessId,
+      failure: { errorName: "Error" },
+    });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("Ada Research");
   });
 
   it("random user → 403", async () => {

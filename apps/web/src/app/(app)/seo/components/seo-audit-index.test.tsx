@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFormats } from "@/i18n/time-format";
 import { createSeoAuditAction } from "@/lib/actions/seo/create-audit";
 import messages from "../../../../../messages/en.json";
 import { SeoAuditIndex } from "./seo-audit-index";
@@ -21,7 +22,12 @@ const AUDIT = {
 };
 function show(audits: (typeof AUDIT)[], addOpen: boolean) {
   render(
-    <NextIntlClientProvider locale="en" timeZone="UTC" messages={messages}>
+    <NextIntlClientProvider
+      locale="en"
+      timeZone="UTC"
+      messages={messages}
+      formats={createFormats()}
+    >
       <SeoAuditIndex
         audits={audits as never}
         nextCursor={null}
@@ -74,6 +80,26 @@ describe("SEO audit list", () => {
     );
     // A jump back to the list would hide the Audit the user just made.
     expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("takes a website typed without https://", async () => {
+    vi.mocked(createSeoAuditAction).mockResolvedValue({
+      ok: true,
+      value: { auditId: AUDIT.id },
+    } as never);
+    show([], false);
+    await userEvent.type(
+      screen.getByRole("textbox", { name: /URL/ }),
+      "example.com",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() =>
+      expect(createSeoAuditAction).toHaveBeenCalledExactlyOnceWith({
+        body: expect.objectContaining({
+          firstPage: { url: "https://example.com/" },
+        }),
+      }),
+    );
   });
 
   it("keeps the form closed on a plain link, and the address when the user closes it", async () => {

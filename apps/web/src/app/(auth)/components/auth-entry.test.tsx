@@ -1,8 +1,8 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { render, screen } from "@testing-library/react";
 import { err, ok } from "neverthrow";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import type { AuthEntrySearchParams } from "./auth-entry";
 
 const cookiesMock = vi.fn();
@@ -73,6 +73,12 @@ vi.mock("@/auth/components/auth-flow", () => ({
       </div>
     );
   },
+}));
+
+vi.mock("@/auth/components/chat-invite-notice", () => ({
+  __esModule: true,
+  default: ({ returnUrl }: { returnUrl?: string }) =>
+    returnUrl ? <div data-testid="chat-invite-notice">{returnUrl}</div> : null,
 }));
 
 vi.mock("@/auth/components/terms-notice", () => ({
@@ -310,10 +316,13 @@ describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
       "cannot be read",
       () => {
         getPendingInvitationMock.mockRejectedValue(new Error("Core down"));
-        vi.spyOn(console, "error").mockImplementation(() => undefined);
       },
     ],
-  ])("locks no address when the invitation %s", async (_case, arrange) => {
+  ])("locks no address when the invitation %s", async (invitation, arrange) => {
+    // A gone invitation is an answer; a failed read is logged.
+    if (invitation === "cannot be read") {
+      expectConsole("error", "Could not read the invitation for sign-in");
+    }
     arrange();
 
     await renderPage({ invitationId: "inv_1" });
@@ -476,5 +485,13 @@ describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
     await renderPage();
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("passes the return URL to the guest invite notice", async () => {
+    await renderPage({ returnUrl: "/chat/join/tok_1" });
+
+    expect(screen.getByTestId("chat-invite-notice")).toHaveTextContent(
+      "/chat/join/tok_1",
+    );
   });
 });

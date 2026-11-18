@@ -1,4 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import {
+  expectBackgroundProbe,
+  probeBackgroundFailure,
+} from "@/test/background-probe";
+import { inRequest } from "@/test/in-request";
 
 const { dispatch, waitUntil, capture } = vi.hoisted(() => ({
   dispatch: vi.fn(),
@@ -81,4 +86,15 @@ it("contains a deferred dispatcher failure", async () => {
       },
     }),
   );
+});
+
+it("dispatches as background work, so a failure inside it is not put on the request's event", async () => {
+  expectBackgroundProbe("dispatchNotificationPublish");
+  dispatch.mockImplementationOnce(async () =>
+    probeBackgroundFailure("dispatchNotificationPublish"),
+  );
+  await inRequest(async () => {
+    scheduleNotificationPublish("n1");
+    await waitUntil.mock.calls[0]?.[0];
+  });
 });

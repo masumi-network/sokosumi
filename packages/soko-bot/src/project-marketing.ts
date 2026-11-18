@@ -61,6 +61,20 @@ export const cmoBrandSectionSchema = z.object({
   findings: z.array(cmoBrandFindingSchema).max(6).default([]),
   /** What still needs the owner or a source to confirm. */
   openQuestions: z.array(shortText).max(3).default([]),
+  /**
+   * The owner's correction: what is true instead, when they asked, and
+   * whether the section was rewritten to match it. Set by Core; anything a
+   * save sends here is ignored.
+   */
+  fix: z
+    .object({
+      /** Every correction waiting on the section, a no's statement with its note included. */
+      note: longText,
+      /** When the owner asked, as an ISO time. */
+      at: z.string().max(40),
+      fixed: z.boolean(),
+    })
+    .optional(),
 });
 export type CmoBrandSection = z.infer<typeof cmoBrandSectionSchema>;
 
@@ -196,7 +210,10 @@ export const cmoBrandQuestionSchema = z.object({
   /** The profile section the answer lands in. */
   section: z.enum(CMO_BRAND_SECTION_KEYS),
   answer: z.enum(CMO_BRAND_ANSWERS).optional(),
-  /** The owner's own words after a no: what is true instead. */
+  /**
+   * The owner's own words: after a no, what is true instead; on a Brand Brain
+   * question, details to any answer.
+   */
   note: shortText.optional(),
   /**
    * Set by Core on a no: false until the section is rewritten to match it,
@@ -405,8 +422,30 @@ export const cmoCalendarEntrySchema = z.object({
   visual: longText.optional(),
   /** Brand pictures (brandPictures fileIds) the visual is made from. */
   visualFileIds: z.array(z.string().max(100)).max(3).optional(),
+  /**
+   * A reference library image (find_style_references) whose look the
+   * picture borrows: an old ad, poster or label. Core makes it in that style
+   * with the brand's logo, colours and DESIGN.md.
+   */
+  styleReferenceId: z.string().uuid().optional(),
+  /**
+   * The few words lettered into a styled picture, spelled exactly; left out,
+   * the picture carries no words.
+   */
+  headline: z.string().trim().min(1).max(60).optional(),
   /** A carousel's slides in order: what each one shows and its few words. */
   slides: z.array(shortText).max(10).optional(),
+  /**
+   * A talking video's spoken words, hook first, in the brand's own voice.
+   * Never a customer's account. The post's draft is its caption.
+   */
+  script: z.string().trim().min(20).max(600).optional(),
+  /** Who speaks it: a stock presenter id, or "owner" for the owner's photo. */
+  presenter: z.string().trim().min(1).max(40).optional(),
+  /** The stock voice that speaks it. */
+  voice: z.string().trim().min(1).max(40).optional(),
+  /** ISO 639-1 language of the script, e.g. "de". */
+  languageCode: z.string().trim().length(2).optional(),
   /**
    * The one real moment the piece is built on, from the Brand Brain: a
    * customer and what they did, a launch, a number, a decision.
@@ -457,10 +496,46 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   campaignId: true,
   visual: true,
   visualFileIds: true,
+  styleReferenceId: true,
+  headline: true,
   slides: true,
+  script: true,
+  presenter: true,
+  voice: true,
+  languageCode: true,
   story: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
+
+/** The kinds of print in the reference library. */
+export const REFERENCE_KINDS = [
+  "ad",
+  "poster",
+  "magazine-cover",
+  "label",
+  "trade-card",
+  "playbill",
+  "record-cover",
+  "book-cover",
+  "illustration",
+  "infographic",
+  "other",
+] as const;
+
+/** What a reference suits as a piece's style: Cuso searches by these. */
+export const REFERENCE_PURPOSES = [
+  "product",
+  "announcement",
+  "event",
+  "offer",
+  "how-to",
+  "data",
+  "comparison",
+  "quote",
+  "people",
+  "story",
+  "brand",
+] as const;
 
 /** The funnel's stages, top to bottom. */
 export const CMO_FUNNEL_STAGES = [
@@ -827,6 +902,9 @@ export const cmoPreviewSchema = z.object({
 });
 export type CmoPreview = z.infer<typeof cmoPreviewSchema>;
 
+/** The most entries a month's calendar holds (cmo-v3's All-in pace). */
+export const CMO_CALENDAR_MAX_ENTRIES = 240;
+
 export const marketingStrategyPlanSchema = z.object({
   /** The month the plan covers, YYYY-MM. */
   month: z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
@@ -846,14 +924,38 @@ export const marketingStrategyPlanSchema = z.object({
         cadence: shortText,
         /** Why this channel at this cadence, for this audience. */
         why: shortText.optional(),
+        /**
+         * A social network's place in the plan (cmo-v3): main where the main
+         * buyer and most of the audience are, at the pace's full rate; side
+         * for another buyer, two to three a week.
+         */
+        role: z.enum(["main", "side"]).optional(),
+        /** The Brand Brain buyer a side channel's pieces are written for. */
+        buyer: shortText.optional(),
       }),
     )
     .max(10),
   ...strategyPlanShape,
-  calendar: z.array(cmoCalendarEntrySchema).max(120),
+  calendar: z.array(cmoCalendarEntrySchema).max(CMO_CALENDAR_MAX_ENTRIES),
   /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
   previews: z.array(cmoPreviewSchema).max(4).default([]),
   /** After a change request: what is different from the last version. */
   changes: z.array(shortText).max(10).default([]),
+  /**
+   * What the last patch changed: each entry it touched, with the entry as it
+   * was before (null when the patch added it), so CMO can strike it through.
+   * Set by Core; the next whole save clears it.
+   */
+  patched: z
+    .array(
+      z.object({
+        id: z.string().trim().min(1).max(64),
+        was: cmoCalendarEntrySchema.nullable(),
+      }),
+    )
+    // Every entry a turn's patches touched or added: a cmo-v3 month adds
+    // weeks two to four by patch, so it can be nearly the whole calendar.
+    .max(CMO_CALENDAR_MAX_ENTRIES)
+    .default([]),
 });
 export type MarketingStrategyPlan = z.infer<typeof marketingStrategyPlanSchema>;

@@ -541,15 +541,6 @@ export type AdminSokoBotVersionMigrationRequest = {
     notifyOwners?: boolean;
 };
 
-export type RestyleSokoBotAvatarsResult = {
-    restyled: number;
-    remaining: number;
-};
-
-export type RestyleSokoBotAvatarsRequest = {
-    limit?: number;
-};
-
 export type AdminSokoBotChatRoom = {
     id: string;
     isOwnerRoom: boolean;
@@ -671,6 +662,10 @@ export type ChatRoomSokoBotParticipant = {
     caption: string | null;
     image: string | null;
     avatarSeed: string | null;
+    /**
+     * Feature code of the live SVG avatar; null until the bot has one.
+     */
+    avatarCode?: string | null;
     /**
      * The user who owns this personal Soko Bot. Only the owner may add it to or remove it from a Channel. Null for a shared Soko Bot, which any member may add or remove.
      */
@@ -1202,6 +1197,7 @@ export type SokoBot = {
     pendingDecisions?: Array<SokoBotPendingDecision>;
     schedules?: Array<SokoBotSchedule>;
     avatarImageUrl?: string | null;
+    avatarCode?: string | null;
     versionId?: string | null;
     followWholeBoard?: boolean;
     mailAutoRead?: boolean;
@@ -1220,8 +1216,9 @@ export type AdminSokoBotActionRequest = {
     reason: string;
 };
 
-export type ClaimSokoBotAvatarRequest = {
-    avatarId: string;
+export type SokoBotAvatarCode = {
+    avatarCode: string;
+    avatarImageUrl: string;
 };
 
 export type AdminUserOverviewItem = {
@@ -1722,6 +1719,47 @@ export type EvalTick = {
     busy: boolean;
 };
 
+export type AdminAdEvalsDashboard = {
+    leaderboard: Array<AdEvalsLeaderboardRow>;
+    agreement: Array<AdEvalsAgreementRow>;
+    minimumWorkspaces: number;
+};
+
+export type AdEvalsLeaderboardRow = {
+    model: string;
+    template: string | null;
+    aspect: string | null;
+    workspaceCount: number;
+    suppressed: boolean;
+    n: number;
+    thumbN: number;
+    pairwiseN: number;
+    judgeN: number;
+    thumbRate: number | null;
+    pairwiseWinRate: number | null;
+    judgeMean: number | null;
+    thumbRateCi: {
+        lower: number;
+        upper: number;
+    } | null;
+    pairwiseWinRateCi: {
+        lower: number;
+        upper: number;
+    } | null;
+    judgeMeanCi: {
+        lower: number;
+        upper: number;
+    } | null;
+};
+
+export type AdEvalsAgreementRow = {
+    criterion: string;
+    signal: 'thumb' | 'pairwise';
+    rho: number | null;
+    n: number;
+    lowAgreement: boolean;
+};
+
 export type AdminTaskListItem = {
     id: string;
     name: string;
@@ -1905,6 +1943,10 @@ export type Task = {
     workspace: WorkspaceSummary;
     share: TaskShare | null;
     links: Array<TaskLink>;
+    /**
+     * People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.
+     */
+    followers?: Array<TaskFollower>;
     /**
      * Files uploaded to this task (newest first).
      */
@@ -2322,6 +2364,14 @@ export type TaskLinkPeerTask = {
      * Project identifier and number, e.g. SOK-123. Null when the peer has no project.
      */
     identifier: string | null;
+};
+
+export type TaskFollower = {
+    user: UserSummary;
+    /**
+     * When this person started following the Task.
+     */
+    followedAt: Date;
 };
 
 export type TaskFile = {
@@ -4780,6 +4830,10 @@ export type DataRoomQuestion = {
     body: string;
     answer: string | null;
     answeredAt: string | null;
+    /**
+     * When the answer was shown to everyone in the room who may open the document; null while only the asker sees it.
+     */
+    sharedAt: string | null;
     email: string;
     name: string | null;
 };
@@ -4899,6 +4953,10 @@ export type AnswerDataRoomQuestionRequest = {
     scope: 'me' | 'org';
     organizationId?: string;
     answer: string;
+    /**
+     * Show the question and answer to everyone in the room who may open the document, without who asked. Left out keeps the current choice.
+     */
+    shared?: boolean;
 };
 
 export type SetDataRoomOrderRequest = {
@@ -6173,6 +6231,7 @@ export type ProjectImageStudioCatalog = {
     defaultVideoModelId: string;
     defaultAnimateModelId: string;
     videoModels: Array<ProjectImageStudioVideoCatalogModel>;
+    talkingVideo: ProjectImageStudioTalkingVideoCatalog;
     snapshotDate: string;
     refreshedAt: string | null;
 };
@@ -6189,7 +6248,7 @@ export type ProjectImageStudioCatalogModel = {
     supportsSeed: boolean;
     maxReferences: number;
     dimensionMode: 'aspect-ratio' | 'image-size';
-    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls'>;
+    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls' | 'image_url' | 'mask_url' | 'strength'>;
     curatedRank: number | null;
     notes: string;
     price: {
@@ -6231,6 +6290,35 @@ export type ProjectImageStudioVideoCatalogModel = {
     };
 };
 
+export type ProjectImageStudioTalkingVideoCatalog = {
+    defaultModelId: string;
+    models: Array<{
+        id: string;
+        label: string;
+        description: string;
+        endpoint: string;
+        price: {
+            perSecondUsd: number;
+            minimumVideoUsd: number;
+            voicePer1000CharactersUsd: number;
+            captionsPerMinuteUsd: number;
+            basis: string;
+            sourceUrl: string;
+            verifiedAt: string;
+        };
+    }>;
+    presenters: Array<{
+        id: string;
+        name: string;
+        description: string;
+        imageUrl: string;
+    }>;
+    defaultVoice: string;
+    voices: Array<string>;
+    scriptMinLength: number;
+    scriptMaxLength: number;
+};
+
 export type ImageStudioWorkspaceState = {
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
@@ -6247,6 +6335,7 @@ export type ProjectImageAsset = {
     product?: StudioProductIdentity;
     batchId?: string;
     headline?: StudioAdHeadline;
+    lettering?: 'overlay' | 'ideogram';
     rootId: string;
     parentId: string | null;
     version: number;
@@ -6258,10 +6347,17 @@ export type ProjectImageAsset = {
     contentType: string;
     mediaType: 'IMAGE' | 'VIDEO';
     video: ProjectVideoSettings | null;
+    aiGenerated?: boolean;
     createdAt: Date;
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
+    myThumb: 1 | -1 | null;
+    myReasons: Array<'off-brand' | 'bad text' | 'wrong product' | 'ugly' | 'great'>;
+    myComment: string | null;
+    thumbsUp: number;
+    thumbsDown: number;
+    score: number;
 };
 
 export type ProjectVideoSettings = {
@@ -6281,7 +6377,7 @@ export type ProjectImageJob = {
     id: string;
     projectId: string;
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
-    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO';
+    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO' | 'TALKING_VIDEO';
     model: string;
     prompt: string;
     templateId?: string;
@@ -6289,12 +6385,15 @@ export type ProjectImageJob = {
     variationIndex?: number;
     settings: ProjectImageSettings;
     video: ProjectVideoSettings | null;
+    talkingVideo?: ProjectTalkingVideo;
     referenceAssetIds: Array<string>;
     referenceFileIds?: Array<string>;
+    exportHeadline?: string;
     useProductCutout?: boolean;
+    lettering?: 'overlay' | 'ideogram';
     product?: StudioProductIdentity;
     error: string | null;
-    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'voice_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
     parentAssetId: string | null;
     assetId: string | null;
     createdAt: Date;
@@ -6304,6 +6403,12 @@ export type ProjectImageJob = {
     retryMayDuplicateCharge: boolean;
     credits: number | null;
     refunded: boolean;
+};
+
+export type ProjectTalkingVideo = {
+    voice: string;
+    presenterId: string | null;
+    languageCode: string;
 };
 
 export type ImageStudioRecentProjects = {
@@ -7561,6 +7666,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -7574,6 +7684,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -7587,6 +7702,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -7600,6 +7720,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -7613,6 +7738,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -7626,6 +7756,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -7639,6 +7774,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -7652,6 +7792,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -7665,6 +7810,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -7678,6 +7828,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -7691,6 +7846,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -7704,6 +7864,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -7717,6 +7882,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -7730,6 +7900,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -7743,6 +7918,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -7756,6 +7936,11 @@ export type BrandBrain = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -7892,6 +8077,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -7905,6 +8095,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -7918,6 +8113,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -7931,6 +8131,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -7944,6 +8149,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -7957,6 +8167,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -7970,6 +8185,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -7983,6 +8203,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -7996,6 +8221,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -8009,6 +8239,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -8022,6 +8257,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -8035,6 +8275,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -8048,6 +8293,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -8061,6 +8311,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -8074,6 +8329,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -8087,6 +8347,11 @@ export type BrandBrainRequest = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -8156,7 +8421,7 @@ export type QuestionAnswerRequest = {
     questionId: string;
     answer: 'yes' | 'no' | 'unsure';
     /**
-     * After a no: what is true instead, in the member's words.
+     * The member's own words. After a no: what is true instead. A Brand Brain question keeps them with any answer; a strategy question only with a no.
      */
     note?: string;
 };
@@ -8196,6 +8461,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             channel: string;
             cadence: string;
             why?: string;
+            role?: 'main' | 'side';
+            buyer?: string;
         }>;
         idea?: {
             who: string;
@@ -8387,7 +8654,13 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -8421,6 +8694,57 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             body: string;
         }>;
         changes?: Array<string>;
+        patched?: Array<{
+            id: string;
+            was: {
+                id: string;
+                date: string;
+                time?: string;
+                channel: string;
+                title: string;
+                format: string;
+                status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+                hook?: string;
+                brief?: string;
+                draft?: string;
+                why?: string;
+                socialPostId?: string;
+                visual?: string;
+                visualFileIds?: Array<string>;
+                styleReferenceId?: string;
+                headline?: string;
+                slides?: Array<string>;
+                script?: string;
+                presenter?: string;
+                voice?: string;
+                languageCode?: string;
+                story?: string;
+                imageFileId?: string;
+                slideFileIds?: Array<string>;
+                fileId?: string;
+                searchAd?: {
+                    keywords: Array<string>;
+                    headlines: Array<string>;
+                    descriptions: Array<string>;
+                    negativeKeywords?: Array<string>;
+                    maxCpc?: number;
+                    finalUrl: string;
+                    path1?: string;
+                    path2?: string;
+                    location?: string;
+                    language?: string;
+                    callouts?: Array<string>;
+                };
+                adCampaign?: {
+                    accountId: string;
+                    campaignId: string;
+                };
+                taskId?: string;
+                campaignId?: string;
+                approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+                pillar?: string;
+            } | null;
+        }>;
     };
 };
 
@@ -8445,6 +8769,8 @@ export type MarketingStrategyRequest = {
             channel: string;
             cadence: string;
             why?: string;
+            role?: 'main' | 'side';
+            buyer?: string;
         }>;
         idea?: {
             who: string;
@@ -8636,7 +8962,13 @@ export type MarketingStrategyRequest = {
             socialPostId?: string;
             visual?: string;
             visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
             slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -8670,6 +9002,57 @@ export type MarketingStrategyRequest = {
             body: string;
         }>;
         changes?: Array<string>;
+        patched?: Array<{
+            id: string;
+            was: {
+                id: string;
+                date: string;
+                time?: string;
+                channel: string;
+                title: string;
+                format: string;
+                status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+                hook?: string;
+                brief?: string;
+                draft?: string;
+                why?: string;
+                socialPostId?: string;
+                visual?: string;
+                visualFileIds?: Array<string>;
+                styleReferenceId?: string;
+                headline?: string;
+                slides?: Array<string>;
+                script?: string;
+                presenter?: string;
+                voice?: string;
+                languageCode?: string;
+                story?: string;
+                imageFileId?: string;
+                slideFileIds?: Array<string>;
+                fileId?: string;
+                searchAd?: {
+                    keywords: Array<string>;
+                    headlines: Array<string>;
+                    descriptions: Array<string>;
+                    negativeKeywords?: Array<string>;
+                    maxCpc?: number;
+                    finalUrl: string;
+                    path1?: string;
+                    path2?: string;
+                    location?: string;
+                    language?: string;
+                    callouts?: Array<string>;
+                };
+                adCampaign?: {
+                    accountId: string;
+                    campaignId: string;
+                };
+                taskId?: string;
+                campaignId?: string;
+                approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+                pillar?: string;
+            } | null;
+        }>;
     };
 };
 
@@ -9401,6 +9784,15 @@ export type ProjectSocialConnectionSubscription = {
     textLimit: number;
 };
 
+export type TikTokCreatorInfo = {
+    creator_nickname: string;
+    privacy_level_options: Array<string>;
+    comment_disabled: boolean;
+    duet_disabled: boolean;
+    stitch_disabled: boolean;
+    max_video_post_duration_sec: number;
+};
+
 export type SocialAccountStatisticsPage = {
     accounts: Array<SocialAccountStatisticsAccount>;
     posts: Array<SocialAccountPost>;
@@ -9579,6 +9971,10 @@ export type InitiateProjectSocialConnectionRequest = {
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
+    /**
+     * Proof returned with a Zernio connection callback.
+     */
+    callbackProof?: string;
     connectionId: string;
 };
 
@@ -10308,7 +10704,13 @@ export type SocialPost = {
         campaignId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        styleReferenceId?: string;
+        headline?: string;
         slides?: Array<string>;
+        script?: string;
+        presenter?: string;
+        voice?: string;
+        languageCode?: string;
         story?: string;
     } | null;
     createdAt: Date;
@@ -10444,6 +10846,17 @@ export type PublishSocialPostRequest = {
      * Revision the client last observed; mismatches return 409
      */
     revision: number;
+    tikTokSettings?: TikTokPostSettings;
+};
+
+export type TikTokPostSettings = {
+    privacyLevel: 'SELF_ONLY' | 'PUBLIC_TO_EVERYONE';
+    allowComment: boolean;
+    allowDuet: boolean;
+    allowStitch: boolean;
+    promotesOwnBrand: boolean;
+    acceptedMusicUsage: true;
+    previewConsent?: true;
 };
 
 export type CreateSocialPostRequest = {
@@ -10613,6 +11026,45 @@ export type ProjectImageSession = {
     createdAt: Date;
 };
 
+export type StudioCompareState = {
+    pair: StudioComparePair | null;
+};
+
+export type StudioComparePair = {
+    a: ProjectImageAsset;
+    b: ProjectImageAsset;
+};
+
+export type StudioPairwisePick = SaveStudioPairwisePick & {
+    id: string;
+};
+
+export const StudioPairOutcome = {
+    A: 'A',
+    B: 'B',
+    TIE: 'TIE',
+    BOTH_BAD: 'BOTH_BAD'
+} as const;
+
+export type StudioPairOutcome = typeof StudioPairOutcome[keyof typeof StudioPairOutcome];
+
+export type SaveStudioPairwisePick = {
+    assetId: string;
+    otherAssetId: string;
+    outcome: StudioPairOutcome;
+};
+
+export type StudioModelScoreboard = {
+    models: Array<{
+        model: string;
+        comparisons: number;
+        winRate: number;
+        elo: number;
+        provisional: boolean;
+    }>;
+    minimumComparisons: number;
+};
+
 export type StudioBrandKit = {
     logo: string | null;
     studioLogoPosition?: StudioLogoPosition | null;
@@ -10698,6 +11150,7 @@ export type CreateProjectImageJobRequest = {
     batchId?: string;
     exportHeadline?: string;
     useProductCutout?: boolean;
+    lettering?: 'overlay' | 'ideogram';
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
     referenceFileIds?: Array<string>;
@@ -10728,6 +11181,39 @@ export type CreateProjectVideoJobRequest = {
     idempotencyKey: string;
 };
 
+export type CreateProjectTalkingVideoJobRequest = {
+    modelId?: string;
+    script: string;
+    voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
+    languageCode?: string;
+    presenter: {
+        kind: 'stock';
+        id: string;
+    } | {
+        kind: 'file';
+        fileId: string;
+        consent: true;
+    };
+    idempotencyKey: string;
+};
+
+export type ProjectTalkingVideoScripts = {
+    scripts: Array<{
+        hook: string;
+        script: string;
+    }>;
+};
+
+export type WriteProjectTalkingVideoScriptsRequest = {
+    topic?: string;
+    languageCode?: string;
+};
+
+export type ProjectTalkingVideos = {
+    jobs: Array<ProjectImageJob>;
+    assets: Array<ProjectImageAsset>;
+};
+
 export type CancelProjectImageJobResponse = {
     accepted: boolean;
 };
@@ -10740,6 +11226,25 @@ export const StudioAdPlacementRatio = {
 } as const;
 
 export type StudioAdPlacementRatio = typeof StudioAdPlacementRatio[keyof typeof StudioAdPlacementRatio];
+
+export type RecordStudioAssetEvent = {
+    type: 'viewed_lightbox';
+};
+
+export type StudioAssetRating = {
+    myThumb: 1 | -1 | null;
+    myReasons: Array<'off-brand' | 'bad text' | 'wrong product' | 'ugly' | 'great'>;
+    myComment: string | null;
+    thumbsUp: number;
+    thumbsDown: number;
+    score: number;
+};
+
+export type SetStudioAssetFeedback = {
+    thumb: 1 | -1 | null;
+    reasons?: Array<'off-brand' | 'bad text' | 'wrong product' | 'ugly' | 'great'>;
+    comment?: string | null;
+};
 
 export type ProjectImageStudioCaption = {
     text: string;
@@ -10778,6 +11283,7 @@ export type ProjectSeoWorkspace = {
     brandTerms?: Array<string>;
     landingPages?: ProjectSeoLandingPages | null;
     indexStatus?: ProjectSeoIndexStatus | null;
+    indexTriage?: ProjectSeoIndexTriage | null;
     strategy?: ProjectSeoStrategy | null;
     serpHistory?: Array<ProjectSeoSerpSeries>;
     shareOfVoice?: ProjectSeoShareOfVoice | null;
@@ -10901,6 +11407,9 @@ export type ProjectSeoFinding = {
     title: string;
     severity: 'critical' | 'major' | 'minor' | 'note' | 'test' | 'measure';
     evidence: Array<string>;
+    suggestedFix?: string | null;
+    relatedPageUrl?: string;
+    visibility?: 'PRIVATE';
     sourceRef: string;
     observedAt: Date;
 };
@@ -10921,6 +11430,8 @@ export type ProjectSeoAction = {
     } | null;
     taskId: string | null;
     status: 'recommended' | 'task_created' | 'implemented' | 'verified';
+    completedAt?: Date;
+    verifiedAt?: Date;
     kind: 'fix' | 'opportunity';
     evidence: Array<string>;
 };
@@ -11050,6 +11561,22 @@ export type ProjectSeoIndexedPage = {
     lastCrawlTime: Date | null;
     googleCanonical: string | null;
     userCanonical: string | null;
+};
+
+export type ProjectSeoIndexTriage = {
+    assessments: Array<ProjectSeoIndexAssessedPage>;
+};
+
+export type ProjectSeoIndexAssessedPage = {
+    pageUrl: string;
+    status: 'indexed' | 'issue' | 'review' | 'expected_exclusion' | 'unavailable';
+    report: boolean;
+    reason: string;
+    suggestedFix: string | null;
+    evidence: Array<string>;
+    taskId: string;
+    checkedAt: Date;
+    auditPageUrl?: string;
 };
 
 export type ProjectSeoStrategy = {
@@ -11492,6 +12019,11 @@ export type SeoConnectionStatus = {
     source: 'native' | 'personal' | 'none';
     pendingConnectionId?: string | null;
     canResume?: boolean;
+    account?: {
+        email: string;
+        name: string | null;
+        pictureUrl: string | null;
+    } | null;
     connectionVersion?: string;
 };
 
@@ -11950,6 +12482,25 @@ export type DataRoomSessionRequest = {
     code: string;
 };
 
+export type DataRoomViewerQuestions = Array<DataRoomViewerQuestion>;
+
+export type DataRoomViewerQuestion = {
+    id: string;
+    createdAt: string;
+    path: string;
+    body: string;
+    answer: string | null;
+    answeredAt: string | null;
+    /**
+     * The viewer asked it.
+     */
+    mine: boolean;
+    /**
+     * The owner showed the answer to everyone in the room.
+     */
+    shared: boolean;
+};
+
 export type AskDataRoomQuestionRequest = {
     resourceId: string;
     body: string;
@@ -12082,12 +12633,17 @@ export type CmoOverview = {
      */
     viewerCanApprove: boolean;
     work: CmoWork | null;
+    /**
+     * What Cuso is doing in the turn he runs now, whatever started it (a chat message, hiring, a rhythm, the month's production); null while he rests.
+     */
+    activity: CmoActivity | null;
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
+    presenterSet: boolean;
     /**
-     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.
+     * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.
      */
-    onboardingStep: 'brandBrain' | 'strategy' | 'accounts' | 'checkout' | 'done';
+    onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
@@ -12147,6 +12703,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             offer?: {
                 headline?: string;
@@ -12160,6 +12721,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             problems?: {
                 headline?: string;
@@ -12173,6 +12739,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             customers?: {
                 headline?: string;
@@ -12186,6 +12757,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             buyers?: {
                 headline?: string;
@@ -12199,6 +12775,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             value?: {
                 headline?: string;
@@ -12212,6 +12793,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             pricing?: {
                 headline?: string;
@@ -12225,6 +12811,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             positioning?: {
                 headline?: string;
@@ -12238,6 +12829,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             competition?: {
                 headline?: string;
@@ -12251,6 +12847,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             sales?: {
                 headline?: string;
@@ -12264,6 +12865,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             marketing?: {
                 headline?: string;
@@ -12277,6 +12883,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             content?: {
                 headline?: string;
@@ -12290,6 +12901,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             proof?: {
                 headline?: string;
@@ -12303,6 +12919,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             reputation?: {
                 headline?: string;
@@ -12316,6 +12937,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             momentum?: {
                 headline?: string;
@@ -12329,6 +12955,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
             opportunities?: {
                 headline?: string;
@@ -12342,6 +12973,11 @@ export type CmoOverview = {
                     implication?: string;
                 }>;
                 openQuestions?: Array<string>;
+                fix?: {
+                    note: string;
+                    at: string;
+                    fixed: boolean;
+                };
             };
         };
         reveal?: {
@@ -12490,6 +13126,10 @@ export type CmoOverview = {
 
 export type CmoWork = {
     kind: 'research' | 'strategy';
+    /**
+     * A strategy turn that fixes Brand Brain sections or patches the plan's entries; null for a whole plan.
+     */
+    change?: 'fix' | 'patch' | null;
     status: 'running' | 'failed' | 'done';
     startedAt: Date;
     steps: Array<CmoWorkStep>;
@@ -12514,6 +13154,17 @@ export type CmoWorkStep = {
     url: string | null;
     status: 'running' | 'done' | 'failed';
     at: Date;
+};
+
+export type CmoActivity = {
+    /**
+     * The step Cuso is on, in CMO's words ("Looking for a picture style"); null before his first one.
+     */
+    step: string | null;
+    /**
+     * The model's latest summary of its reasoning in this turn; null when it gave none.
+     */
+    reasoning: string | null;
 };
 
 /**
@@ -12588,6 +13239,8 @@ export type CmoPlan = {
         channel: string;
         cadence: string;
         why?: string;
+        role?: 'main' | 'side';
+        buyer?: string;
     }>;
     idea?: {
         who: string;
@@ -12779,7 +13432,13 @@ export type CmoPlan = {
         socialPostId?: string;
         visual?: string;
         visualFileIds?: Array<string>;
+        styleReferenceId?: string;
+        headline?: string;
         slides?: Array<string>;
+        script?: string;
+        presenter?: string;
+        voice?: string;
+        languageCode?: string;
         story?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
@@ -12813,6 +13472,57 @@ export type CmoPlan = {
         body: string;
     }>;
     changes?: Array<string>;
+    patched?: Array<{
+        id: string;
+        was: {
+            id: string;
+            date: string;
+            time?: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
+            brief?: string;
+            draft?: string;
+            why?: string;
+            socialPostId?: string;
+            visual?: string;
+            visualFileIds?: Array<string>;
+            styleReferenceId?: string;
+            headline?: string;
+            slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
+            story?: string;
+            imageFileId?: string;
+            slideFileIds?: Array<string>;
+            fileId?: string;
+            searchAd?: {
+                keywords: Array<string>;
+                headlines: Array<string>;
+                descriptions: Array<string>;
+                negativeKeywords?: Array<string>;
+                maxCpc?: number;
+                finalUrl: string;
+                path1?: string;
+                path2?: string;
+                location?: string;
+                language?: string;
+                callouts?: Array<string>;
+            };
+            adCampaign?: {
+                accountId: string;
+                campaignId: string;
+            };
+            taskId?: string;
+            campaignId?: string;
+            approach?: 'educational' | 'thought-leadership' | 'problem-solution' | 'product-led' | 'social-proof' | 'people-led' | 'community-led' | 'entertainment' | 'research-led' | 'promotional';
+            pillar?: string;
+        } | null;
+    }>;
 };
 
 export type CmoUpdate = {
@@ -12963,6 +13673,203 @@ export type CmoPieceText = {
     text: string;
 };
 
+export type CmoCompetitors = {
+    competitors: Array<CmoCompetitor>;
+    /**
+     * Cuso's This week: null until he wrote one.
+     */
+    feed: {
+        /**
+         * The day of the check it was written from.
+         */
+        checkDay: string;
+        savedAt: Date;
+        items: Array<CmoCompetitorFeedItem>;
+        /**
+         * What the sources could not settle this week.
+         */
+        openQuestions: Array<string>;
+    } | null;
+    /**
+     * How many competitors can be tracked.
+     */
+    limit: number;
+    /**
+     * The Brand Brain market map's players that are still watched, in the map's spelling.
+     */
+    mapPlayers: Array<string>;
+    /**
+     * What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.
+     */
+    signals: Array<CmoCompetitorSignal>;
+    /**
+     * Instagram numbers: the business first, then each competitor. A null cell has no data.
+     */
+    scoreboard: Array<CmoCompetitorScoreRow>;
+    /**
+     * Each competitor's three strongest Instagram posts.
+     */
+    topPosts: Array<CmoCompetitorTopPost>;
+    check: {
+        lastCheckedAt: Date | null;
+        nextCheckAt: Date | null;
+        creditsPerCompetitor: number;
+        sources: {
+            pages: CmoCompetitorSource;
+            news: CmoCompetitorSource;
+            ads: CmoCompetitorSource;
+            social: CmoCompetitorSource;
+        };
+    };
+};
+
+export type CmoCompetitor = {
+    id: string;
+    name: string;
+    websiteUrl: string | null;
+    pricingUrl: string | null;
+    instagramHandle: string | null;
+    facebookHandle: string | null;
+    /**
+     * Who put it on the list: Brand Brain research, or a member.
+     */
+    source: 'RESEARCH' | 'MEMBER';
+    createdAt: Date;
+};
+
+export type CmoCompetitorFeedItem = {
+    id: string;
+    competitorId: string;
+    facts: Array<{
+        text: string;
+        /**
+         * The signals that back it; their sources show on hover.
+         */
+        signalIds: Array<string>;
+        /**
+         * weak: the sources back it only in part.
+         */
+        support: 'strong' | 'weak';
+    }>;
+    /**
+     * What this means for you.
+     */
+    meaning: string;
+    /**
+     * One suggested move.
+     */
+    move: string;
+    /**
+     * A price change, launch or ad burst, told in chat at once.
+     */
+    big: boolean;
+    addedToStrategyAt: string | null;
+};
+
+export type CmoCompetitorSignal = {
+    id: string;
+    competitorId: string;
+    kind: 'WEBSITE_CHANGE' | 'PRICE_CHANGE' | 'NEWS' | 'AD' | 'SOCIAL';
+    /**
+     * What happened, in one line.
+     */
+    summary: string;
+    observedAt: Date;
+    sourceUrl: string | null;
+    sourceTitle: string | null;
+    sourcePublisher: string | null;
+    /**
+     * The source's own words that back the summary.
+     */
+    quote: string | null;
+};
+
+export type CmoCompetitorScoreRow = {
+    /**
+     * Null for the business itself.
+     */
+    competitorId: string | null;
+    name: string;
+    postsPerWeek: CmoCompetitorMeasure | null;
+    /**
+     * Likes and comments per post over the week's posts.
+     */
+    engagementPerPost: CmoCompetitorMeasure | null;
+    followers: CmoCompetitorMeasure | null;
+    /**
+     * Followers gained since the reading a week before.
+     */
+    followerGrowth: CmoCompetitorMeasure | null;
+};
+
+export type CmoCompetitorMeasure = {
+    value: number;
+    sourceUrl: string | null;
+    observedAt: Date;
+};
+
+export type CmoCompetitorTopPost = {
+    competitorId: string;
+    signalId: string;
+    url: string | null;
+    caption: string | null;
+    type: string | null;
+    postedAt: Date;
+    likes: number | null;
+    comments: number | null;
+};
+
+export type CmoCompetitorSource = {
+    /**
+     * not_configured: CMO lacks access to this source. not_connected: the owner has not connected the account it is read through. failed: the last check could not read it.
+     */
+    status: 'ok' | 'not_configured' | 'not_connected' | 'failed';
+    /**
+     * What it takes to read this source, when it cannot be read.
+     */
+    needs: string | null;
+};
+
+export type CmoCompetitorCreate = {
+    name: string;
+    /**
+     * Its website. A bare domain is read as https.
+     */
+    websiteUrl?: string | null;
+    /**
+     * The page that lists its prices.
+     */
+    pricingUrl?: string | null;
+    /**
+     * Its Instagram account: the handle or its address.
+     */
+    instagramHandle?: string | null;
+    /**
+     * Its Facebook Page: the name in its address, or the address.
+     */
+    facebookHandle?: string | null;
+};
+
+export type CmoCompetitorUpdate = {
+    name?: string;
+    /**
+     * Its website. A bare domain is read as https.
+     */
+    websiteUrl?: string | null;
+    /**
+     * The page that lists its prices.
+     */
+    pricingUrl?: string | null;
+    /**
+     * Its Instagram account: the handle or its address.
+     */
+    instagramHandle?: string | null;
+    /**
+     * Its Facebook Page: the name in its address, or the address.
+     */
+    facebookHandle?: string | null;
+};
+
 export type CmoCheckout = {
     url: string;
 };
@@ -12983,6 +13890,131 @@ export type CmoCustomerPortal = {
     url: string;
 };
 
+export type CmoSeo = {
+    websiteUrl: string;
+    countryCode: string;
+    languageCode: string;
+    audit: CmoSeoAudit;
+    searchConsole: CmoSearchConsole;
+    articles: Array<CmoSeoSuggestion>;
+    pageChanges: Array<CmoSeoSuggestion>;
+    keywordSearches: Array<CmoKeywordSearch>;
+    keywordSearchesLeft: number;
+};
+
+export type CmoSeoAudit = {
+    creditsPerAudit: number;
+    status: 'active' | 'paused' | 'not_started' | 'unavailable';
+    nextRunAt: Date | null;
+    running: boolean;
+    skipped: Array<Date>;
+    latest: {
+        observedAt: Date;
+        checked: number;
+        passed: number;
+        issues: Array<{
+            title: string;
+            pageUrl: string;
+            severity: 'critical' | 'major' | 'minor';
+            detail: string | null;
+        }>;
+        fixes: Array<{
+            title: string;
+            why: string;
+            effort: string;
+            pageUrl: string;
+        }>;
+    } | null;
+    lastFailedAt: Date | null;
+};
+
+export type CmoSearchConsole = {
+    status: 'connected' | 'not_connected' | 'no_property' | 'unavailable';
+    property: string | null;
+    from: string | null;
+    to: string | null;
+    observedAt: Date | null;
+    totals: {
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    } | null;
+    nearFirstPage: Array<{
+        query: string;
+        pageUrl: string;
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    }>;
+    lowClickRate: Array<{
+        query: string;
+        pageUrl: string;
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    }>;
+};
+
+export type CmoSeoSuggestion = {
+    id: string;
+    kind: 'article' | 'page_change';
+    source: 'audit' | 'cuso';
+    title: string;
+    keyword: string | null;
+    pageUrl: string | null;
+    why: string;
+    body: string;
+    newText: string | null;
+    draft: string | null;
+    evidence: Array<CmoSeoEvidence>;
+    status: 'open' | 'done' | 'verified' | 'dismissed';
+    createdAt: Date;
+    doneAt: Date | null;
+    verifiedAt: Date | null;
+};
+
+export type CmoSeoEvidence = {
+    metric: 'searchVolume' | 'difficulty' | 'intent' | 'position' | 'clicks' | 'impressions' | 'ctr' | 'auditIssue';
+    keyword: string | null;
+    pageUrl: string | null;
+    value: string;
+    source: 'keyword_research' | 'search_console' | 'weekly_audit';
+    observedAt: Date;
+};
+
+export type CmoKeywordSearch = {
+    topic: string;
+    countryCode: string;
+    languageCode: string;
+    observedAt: Date;
+    ideas: Array<CmoKeywordIdea>;
+};
+
+export type CmoKeywordIdea = {
+    keyword: string;
+    searchVolume: number | null;
+    difficulty: number | null;
+    intent: 'informational' | 'navigational' | 'commercial' | 'transactional' | null;
+    position: number | null;
+    positionSource: 'search_console' | 'weekly_audit' | null;
+};
+
+export type CmoKeywordSearchRequest = {
+    topic: string;
+};
+
+export type CmoSeoSuggestionStatusRequest = {
+    status: 'open' | 'done' | 'dismissed';
+};
+
+export type CmoPresenterPhoto = {
+    photo: string;
+    consent: true;
+};
+
 export type CmoAdBudgetRequest = {
     monthly: number;
     /**
@@ -12997,6 +14029,22 @@ export type CmoStrategyRequest = {
 
 export type CmoTopUpCheckout = {
     url: string;
+};
+
+export type CmoBrandFixStarted = {
+    turnId: string | null;
+    /**
+     * Cuso is busy: the fix is kept on its section and starts when his current turn ends.
+     */
+    queued: boolean;
+};
+
+export type CmoBrandFixRequest = {
+    section: 'company' | 'offer' | 'problems' | 'customers' | 'buyers' | 'value' | 'pricing' | 'positioning' | 'competition' | 'sales' | 'marketing' | 'content' | 'proof' | 'reputation' | 'momentum' | 'opportunities';
+    /**
+     * What is true instead, in the owner's words.
+     */
+    note: string;
 };
 
 export type SokoBotApiKey = {
@@ -13055,6 +14103,7 @@ export type SokoBotState = {
         pendingDecisions?: Array<SokoBotPendingDecision>;
         schedules?: Array<SokoBotSchedule>;
         avatarImageUrl?: string | null;
+        avatarCode?: string | null;
         versionId?: string | null;
         followWholeBoard?: boolean;
         mailAutoRead?: boolean;
@@ -13078,6 +14127,7 @@ export type SharedSokoBotSummary = {
     projectId: string | null;
     avatarSeed: string | null;
     avatarImageUrl: string | null;
+    avatarCode?: string | null;
     status: SokoBotStatus;
     archivedAt: Date | null;
     sharedRoomId: string | null;
@@ -13090,12 +14140,17 @@ export type SokoBotActivity = {
     activeTurnId: string | null;
     lastTurnAt: Date | null;
     lastActivityAt: Date | null;
+    id: string;
+    userId: string | null;
+    avatarSeed: string | null;
+    avatarImageUrl: string | null;
+    avatarCode: string | null;
 };
 
 export type CreateSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
-    avatarId?: string | null;
+    avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
@@ -13152,13 +14207,6 @@ export type UpdateSokoBotScheduleRequest = {
 
 export type ResolveSokoBotDecisionRequest = {
     resolution: 'ACCEPT' | 'REJECT';
-};
-
-export type SokoBotAvatar = {
-    id: string;
-    imageUrl: string;
-    subject: string;
-    background: string;
 };
 
 export type SokoBotIntegrations = {
@@ -13283,6 +14331,7 @@ export type SokoBotTeam = {
             id: string;
             name: string | null;
             avatarImageUrl: string | null;
+            avatarCode?: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
             lastActivityAt: Date | null;
@@ -13426,7 +14475,7 @@ export type JudgeSokoBotLabTurnRequest = {
 export type CreateScopedSokoBotRequest = {
     name: string;
     avatarSeed?: string | null;
-    avatarId?: string | null;
+    avatarCode?: string | null;
     personalityTone?: number | null;
     personalityDetail?: number | null;
     personalityStyle?: number | null;
@@ -14106,6 +15155,10 @@ export type TaskParticipants = {
     participants: Array<TaskParticipant>;
 };
 
+export type TaskFollowers = {
+    followers: Array<TaskFollower>;
+};
+
 export type TaskSellerReceipt = {
     blockchainIdentifier: string | null;
     claimStatus: string | null;
@@ -14116,6 +15169,75 @@ export type TaskSellerReceipt = {
         unit: string | null;
         amount: string | null;
     }>;
+};
+
+export type SeoTaskIndexingReceipt = {
+    version: 1;
+    taskId: string;
+    receiptHash: string;
+    checkedAt: Date;
+    auditPageUrl?: string;
+    assessmentSaved?: true;
+    status: 'available' | 'not_connected' | 'needs_property' | 'unavailable';
+    pages: Array<SeoTaskIndexedPage>;
+};
+
+export type SeoTaskIndexedPage = {
+    pageUrl: string;
+    verdict: 'PASS' | 'PARTIAL' | 'FAIL' | 'NEUTRAL' | 'VERDICT_UNSPECIFIED';
+    coverageState: string | null;
+    robotsTxtState: string | null;
+    lastCrawlTime: Date | null;
+    googleCanonical: string | null;
+    userCanonical: string | null;
+    indexingState: string | null;
+    pageFetchState: string | null;
+};
+
+export type SeoTaskIndexingRequest = {
+    expectedContext: TaskWorkerContext;
+    auditPageUrl?: string;
+};
+
+export type TaskWorkerContext = {
+    ownerId: string;
+    organizationId: string | null;
+    workspaceId: string;
+};
+
+export type SeoTaskIndexingResultAcknowledgment = {
+    version: 1;
+    taskId: string;
+    receiptHash: string;
+};
+
+export type SeoTaskIndexingResultRequest = {
+    expectedContext: TaskWorkerContext;
+    auditPageUrl?: string;
+    receiptHash: string;
+    assessments: Array<ProjectSeoIndexAssessment>;
+};
+
+export type ProjectSeoIndexAssessment = {
+    pageUrl: string;
+    status: 'indexed' | 'issue' | 'review' | 'expected_exclusion' | 'unavailable';
+    report: boolean;
+    reason: string;
+    suggestedFix: string | null;
+    evidence: Array<string>;
+};
+
+export type SeoTaskRelatedPagesReceipt = {
+    version: 1;
+    taskId: string;
+    auditPageUrl: string;
+    inspectionPageUrls: Array<string>;
+};
+
+export type SeoTaskRelatedPagesRequest = {
+    expectedContext: TaskWorkerContext;
+    seedPageUrls: Array<string>;
+    relatedPageUrls: Array<string>;
 };
 
 export type SendTaskToChatRequest = {
@@ -14176,12 +15298,6 @@ export type MasumiTaskPaymentSource = {
     network: 'Preprod' | 'Mainnet';
     smartContractAddress: string;
     policyId: string;
-};
-
-export type TaskWorkerContext = {
-    ownerId: string;
-    organizationId: string | null;
-    workspaceId: string;
 };
 
 export type TaskFiles = Array<TaskFile>;
@@ -14878,6 +15994,19 @@ export type CreateVendorLogoUploadRequest = {
      * Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.
      */
     maxSizeBytes?: number;
+};
+
+export type WorkspaceAdDataConsent = {
+    workspaceId: string;
+    shareForImprovement: boolean;
+    allowTraining: boolean;
+    decidedAt: Date | null;
+    policyVersion: string;
+};
+
+export type WorkspaceAdDataConsentWrite = {
+    shareForImprovement: boolean;
+    allowTraining: boolean;
 };
 
 export type AdHocDesignMd = {
@@ -17462,94 +18591,6 @@ export type MigrateAdminSokoBotVersionsResponses = {
 
 export type MigrateAdminSokoBotVersionsResponse = MigrateAdminSokoBotVersionsResponses[keyof MigrateAdminSokoBotVersionsResponses];
 
-export type RestyleAdminSokoBotAvatarsData = {
-    body?: RestyleSokoBotAvatarsRequest;
-    path?: never;
-    query?: never;
-    url: '/admin/soko-bots/avatars/restyle';
-};
-
-export type RestyleAdminSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type RestyleAdminSokoBotAvatarsError = RestyleAdminSokoBotAvatarsErrors[keyof RestyleAdminSokoBotAvatarsErrors];
-
-export type RestyleAdminSokoBotAvatarsResponses = {
-    /**
-     * How many avatars were redrawn and how many are left
-     */
-    200: {
-        data: RestyleSokoBotAvatarsResult;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type RestyleAdminSokoBotAvatarsResponse = RestyleAdminSokoBotAvatarsResponses[keyof RestyleAdminSokoBotAvatarsResponses];
-
 export type ListAdminSokoBotChatsData = {
     body?: never;
     path: {
@@ -17815,16 +18856,18 @@ export type PerformAdminSokoBotActionResponses = {
 
 export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
 
-export type SetAdminSokoBotAvatarData = {
-    body?: ClaimSokoBotAvatarRequest;
+export type SetAdminSokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
     path: {
         sokoBotId: string;
     };
     query?: never;
-    url: '/admin/soko-bots/{sokoBotId}/avatar';
+    url: '/admin/soko-bots/{sokoBotId}/avatar-code';
 };
 
-export type SetAdminSokoBotAvatarErrors = {
+export type SetAdminSokoBotAvatarCodeErrors = {
     /**
      * Unauthorized
      */
@@ -17871,7 +18914,7 @@ export type SetAdminSokoBotAvatarErrors = {
         };
     };
     /**
-     * Conflict
+     * Another bot already has this look
      */
     409: {
         error: string;
@@ -17886,7 +18929,7 @@ export type SetAdminSokoBotAvatarErrors = {
         };
     };
     /**
-     * Unprocessable Entity
+     * Not a valid avatar code
      */
     422: {
         error: string;
@@ -17902,16 +18945,14 @@ export type SetAdminSokoBotAvatarErrors = {
     };
 };
 
-export type SetAdminSokoBotAvatarError = SetAdminSokoBotAvatarErrors[keyof SetAdminSokoBotAvatarErrors];
+export type SetAdminSokoBotAvatarCodeError = SetAdminSokoBotAvatarCodeErrors[keyof SetAdminSokoBotAvatarCodeErrors];
 
-export type SetAdminSokoBotAvatarResponses = {
+export type SetAdminSokoBotAvatarCodeResponses = {
     /**
-     * The bot's new Soko Bot avatar
+     * The bot's new look
      */
     200: {
-        data: {
-            avatarImageUrl: string;
-        };
+        data: SokoBotAvatarCode;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17920,7 +18961,7 @@ export type SetAdminSokoBotAvatarResponses = {
     };
 };
 
-export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
+export type SetAdminSokoBotAvatarCodeResponse = SetAdminSokoBotAvatarCodeResponses[keyof SetAdminSokoBotAvatarCodeResponses];
 
 export type ListAdminUsersData = {
     body?: never;
@@ -20538,6 +21579,190 @@ export type TickAdminEvalRunsResponses = {
 };
 
 export type TickAdminEvalRunsResponse = TickAdminEvalRunsResponses[keyof TickAdminEvalRunsResponses];
+
+export type GetAdminAdEvalsAccessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals/access';
+};
+
+export type GetAdminAdEvalsAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsAccessError = GetAdminAdEvalsAccessErrors[keyof GetAdminAdEvalsAccessErrors];
+
+export type GetAdminAdEvalsAccessResponses = {
+    /**
+     * Ad evals admin access allowed
+     */
+    200: {
+        data: {
+            hasAccess: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminAdEvalsAccessResponse = GetAdminAdEvalsAccessResponses[keyof GetAdminAdEvalsAccessResponses];
+
+export type GetAdminAdEvalsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals';
+};
+
+export type GetAdminAdEvalsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsError = GetAdminAdEvalsErrors[keyof GetAdminAdEvalsErrors];
+
+export type GetAdminAdEvalsResponses = {
+    /**
+     * Ad leaderboard and judge agreement for consenting workspaces
+     */
+    200: {
+        data: AdminAdEvalsDashboard;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminAdEvalsResponse = GetAdminAdEvalsResponses[keyof GetAdminAdEvalsResponses];
+
+export type GetAdminAdEvalsExportData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/ad-evals/export';
+};
+
+export type GetAdminAdEvalsExportErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminAdEvalsExportError = GetAdminAdEvalsExportErrors[keyof GetAdminAdEvalsExportErrors];
+
+export type GetAdminAdEvalsExportResponses = {
+    /**
+     * Scrubbed human and implicit preference JSONL from training-consenting workspaces; image links expire in ten minutes
+     */
+    200: string;
+};
+
+export type GetAdminAdEvalsExportResponse = GetAdminAdEvalsExportResponses[keyof GetAdminAdEvalsExportResponses];
 
 export type ListAdminTasksData = {
     body?: never;
@@ -48835,6 +50060,7 @@ export type GetImageStudioStateData = {
     };
     path?: never;
     query?: {
+        sort?: 'newest' | 'best';
         assetId?: string;
         before?: Date;
         beforeId?: string;
@@ -64961,6 +66187,133 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses 
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponse = GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses];
 
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/tiktok-creator';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorError = GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses = {
+    /**
+     * Current TikTok creator settings
+     */
+    200: {
+        data: TikTokCreatorInfo;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponse = GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses];
+
 export type GetProjectsByIdSocialConnectionsStatisticsData = {
     body?: never;
     headers?: {
@@ -71023,6 +72376,7 @@ export type GetProjectsByIdImageStudioData = {
         id: string;
     };
     query?: {
+        sort?: 'newest' | 'best';
         assetId?: string;
         before?: Date;
         beforeId?: string;
@@ -71192,6 +72546,341 @@ export type ListStudioBatchAssetsResponses = {
 };
 
 export type ListStudioBatchAssetsResponse = ListStudioBatchAssetsResponses[keyof ListStudioBatchAssetsResponses];
+
+export type GetStudioComparePairData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        batchId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/batches/{batchId}/compare';
+};
+
+export type GetStudioComparePairErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Batch exceeds the image limit
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid parameters
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetStudioComparePairError = GetStudioComparePairErrors[keyof GetStudioComparePairErrors];
+
+export type GetStudioComparePairResponses = {
+    /**
+     * Next comparison
+     */
+    200: {
+        data: StudioCompareState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetStudioComparePairResponse = GetStudioComparePairResponses[keyof GetStudioComparePairResponses];
+
+export type SaveStudioPairwisePickData = {
+    body: SaveStudioPairwisePick;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        batchId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/batches/{batchId}/compare';
+};
+
+export type SaveStudioPairwisePickErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Batch exceeds the image limit
+     */
+    413: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Choose matching batch siblings
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveStudioPairwisePickError = SaveStudioPairwisePickErrors[keyof SaveStudioPairwisePickErrors];
+
+export type SaveStudioPairwisePickResponses = {
+    /**
+     * Saved comparison
+     */
+    200: {
+        data: StudioPairwisePick;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveStudioPairwisePickResponse = SaveStudioPairwisePickResponses[keyof SaveStudioPairwisePickResponses];
+
+export type GetStudioModelScoreboardData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/model-scoreboard';
+};
+
+export type GetStudioModelScoreboardErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid parameters
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetStudioModelScoreboardError = GetStudioModelScoreboardErrors[keyof GetStudioModelScoreboardErrors];
+
+export type GetStudioModelScoreboardResponses = {
+    /**
+     * Model scoreboard
+     */
+    200: {
+        data: StudioModelScoreboard;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetStudioModelScoreboardResponse = GetStudioModelScoreboardResponses[keyof GetStudioModelScoreboardResponses];
 
 export type GetStudioBrandKitData = {
     body?: never;
@@ -72820,6 +74509,369 @@ export type PostProjectsByIdImageStudioVideoJobsResponses = {
 
 export type PostProjectsByIdImageStudioVideoJobsResponse = PostProjectsByIdImageStudioVideoJobsResponses[keyof PostProjectsByIdImageStudioVideoJobsResponses];
 
+export type PostProjectsByIdImageStudioTalkingVideoJobsData = {
+    body: CreateProjectTalkingVideoJobRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-video-jobs';
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsError = PostProjectsByIdImageStudioTalkingVideoJobsErrors[keyof PostProjectsByIdImageStudioTalkingVideoJobsErrors];
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsResponses = {
+    /**
+     * Talking video started
+     */
+    201: {
+        data: ProjectImageJob;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsResponse = PostProjectsByIdImageStudioTalkingVideoJobsResponses[keyof PostProjectsByIdImageStudioTalkingVideoJobsResponses];
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsData = {
+    body: WriteProjectTalkingVideoScriptsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-video-scripts';
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsError = PostProjectsByIdImageStudioTalkingVideoScriptsErrors[keyof PostProjectsByIdImageStudioTalkingVideoScriptsErrors];
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsResponses = {
+    /**
+     * Scripts written
+     */
+    200: {
+        data: ProjectTalkingVideoScripts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsResponse = PostProjectsByIdImageStudioTalkingVideoScriptsResponses[keyof PostProjectsByIdImageStudioTalkingVideoScriptsResponses];
+
+export type GetProjectsByIdImageStudioTalkingVideosData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-videos';
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosError = GetProjectsByIdImageStudioTalkingVideosErrors[keyof GetProjectsByIdImageStudioTalkingVideosErrors];
+
+export type GetProjectsByIdImageStudioTalkingVideosResponses = {
+    /**
+     * The Project's talking videos
+     */
+    200: {
+        data: ProjectTalkingVideos;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosResponse = GetProjectsByIdImageStudioTalkingVideosResponses[keyof GetProjectsByIdImageStudioTalkingVideosResponses];
+
 export type PostProjectsByIdImageStudioJobsByJobIdCancelData = {
     body?: never;
     headers?: {
@@ -72947,6 +74999,7 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentData = {
     query?: {
         logo?: StudioLogoPosition;
         placement?: StudioAdPlacementRatio;
+        download?: 'true';
     };
     url: '/projects/{id}/image-studio/assets/{assetId}/content';
 };
@@ -73043,6 +75096,328 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
+
+export type RecordStudioAssetEventData = {
+    body: RecordStudioAssetEvent;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/events';
+};
+
+export type RecordStudioAssetEventErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid event
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RecordStudioAssetEventError = RecordStudioAssetEventErrors[keyof RecordStudioAssetEventErrors];
+
+export type RecordStudioAssetEventResponses = {
+    /**
+     * View acknowledged
+     */
+    204: void;
+};
+
+export type RecordStudioAssetEventResponse = RecordStudioAssetEventResponses[keyof RecordStudioAssetEventResponses];
+
+export type SetStudioAssetFeedbackData = {
+    body: SetStudioAssetFeedback;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/feedback';
+};
+
+export type SetStudioAssetFeedbackErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid feedback
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetStudioAssetFeedbackError = SetStudioAssetFeedbackErrors[keyof SetStudioAssetFeedbackErrors];
+
+export type SetStudioAssetFeedbackResponses = {
+    /**
+     * Workspace asset rating
+     */
+    200: {
+        data: StudioAssetRating;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetStudioAssetFeedbackResponse = SetStudioAssetFeedbackResponses[keyof SetStudioAssetFeedbackResponses];
+
+export type HideStudioAssetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/hide';
+};
+
+export type HideStudioAssetErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Image not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid asset
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type HideStudioAssetError = HideStudioAssetErrors[keyof HideStudioAssetErrors];
+
+export type HideStudioAssetResponses = {
+    /**
+     * Asset hidden
+     */
+    204: void;
+};
+
+export type HideStudioAssetResponse = HideStudioAssetResponses[keyof HideStudioAssetResponses];
 
 export type SaveStudioAdHeadlineData = {
     body: SaveStudioAdHeadline;
@@ -82203,7 +84578,7 @@ export type GetShareRoomsByTokenQuestionsResponses = {
      * Questions
      */
     200: {
-        data: DataRoomQuestions;
+        data: DataRoomViewerQuestions;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -82293,7 +84668,7 @@ export type PostShareRoomsByTokenQuestionsResponses = {
      * Question
      */
     201: {
-        data: DataRoomQuestion;
+        data: DataRoomViewerQuestion;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -83629,6 +86004,459 @@ export type GetCmoOverviewForProjectResponses = {
 
 export type GetCmoOverviewForProjectResponse = GetCmoOverviewForProjectResponses[keyof GetCmoOverviewForProjectResponses];
 
+export type GetCmoCompetitorsForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors';
+};
+
+export type GetCmoCompetitorsForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoCompetitorsForProjectError = GetCmoCompetitorsForProjectErrors[keyof GetCmoCompetitorsForProjectErrors];
+
+export type GetCmoCompetitorsForProjectResponses = {
+    /**
+     * Tracked competitors
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoCompetitorsForProjectResponse = GetCmoCompetitorsForProjectResponses[keyof GetCmoCompetitorsForProjectResponses];
+
+export type AddCmoCompetitorForProjectData = {
+    body: CmoCompetitorCreate;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors';
+};
+
+export type AddCmoCompetitorForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Already tracked, or the limit is reached
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a web address or an account
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddCmoCompetitorForProjectError = AddCmoCompetitorForProjectErrors[keyof AddCmoCompetitorForProjectErrors];
+
+export type AddCmoCompetitorForProjectResponses = {
+    /**
+     * Competitor added
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddCmoCompetitorForProjectResponse = AddCmoCompetitorForProjectResponses[keyof AddCmoCompetitorForProjectResponses];
+
+export type RemoveCmoCompetitorForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        competitorId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors/{competitorId}';
+};
+
+export type RemoveCmoCompetitorForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such competitor
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveCmoCompetitorForProjectError = RemoveCmoCompetitorForProjectErrors[keyof RemoveCmoCompetitorForProjectErrors];
+
+export type RemoveCmoCompetitorForProjectResponses = {
+    /**
+     * Competitor removed
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveCmoCompetitorForProjectResponse = RemoveCmoCompetitorForProjectResponses[keyof RemoveCmoCompetitorForProjectResponses];
+
+export type UpdateCmoCompetitorForProjectData = {
+    body: CmoCompetitorUpdate;
+    path: {
+        projectId: string;
+        competitorId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors/{competitorId}';
+};
+
+export type UpdateCmoCompetitorForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such competitor
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Another tracked competitor has this name
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a web address or an account
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateCmoCompetitorForProjectError = UpdateCmoCompetitorForProjectErrors[keyof UpdateCmoCompetitorForProjectErrors];
+
+export type UpdateCmoCompetitorForProjectResponses = {
+    /**
+     * Competitor changed
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateCmoCompetitorForProjectResponse = UpdateCmoCompetitorForProjectResponses[keyof UpdateCmoCompetitorForProjectResponses];
+
+export type AddCmoCompetitorMoveToStrategyForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        itemId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors/feed/{itemId}/strategy';
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or the move is gone
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Already in the strategy, Cuso is finishing a change, or he is paused
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectError = AddCmoCompetitorMoveToStrategyForProjectErrors[keyof AddCmoCompetitorMoveToStrategyForProjectErrors];
+
+export type AddCmoCompetitorMoveToStrategyForProjectResponses = {
+    /**
+     * Sent to the strategy
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectResponse = AddCmoCompetitorMoveToStrategyForProjectResponses[keyof AddCmoCompetitorMoveToStrategyForProjectResponses];
+
 export type StartCmoPlanCheckoutForProjectData = {
     body?: {
         interval: 'month' | 'year';
@@ -84343,6 +87171,447 @@ export type StartCmoOverForProjectResponses = {
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
 
+export type GetCmoSeoForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo';
+};
+
+export type GetCmoSeoForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoSeoForProjectError = GetCmoSeoForProjectErrors[keyof GetCmoSeoForProjectErrors];
+
+export type GetCmoSeoForProjectResponses = {
+    /**
+     * The SEO tab
+     */
+    200: {
+        data: CmoSeo;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoSeoForProjectResponse = GetCmoSeoForProjectResponses[keyof GetCmoSeoForProjectResponses];
+
+export type SearchCmoKeywordsForProjectData = {
+    body: CmoKeywordSearchRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/keywords';
+};
+
+export type SearchCmoKeywordsForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No keyword searches left today
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Keyword research is unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchCmoKeywordsForProjectError = SearchCmoKeywordsForProjectErrors[keyof SearchCmoKeywordsForProjectErrors];
+
+export type SearchCmoKeywordsForProjectResponses = {
+    /**
+     * The keyword ideas
+     */
+    200: {
+        data: CmoKeywordSearch;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchCmoKeywordsForProjectResponse = SearchCmoKeywordsForProjectResponses[keyof SearchCmoKeywordsForProjectResponses];
+
+export type RequestCmoArticleIdeasForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/ideas';
+};
+
+export type RequestCmoArticleIdeasForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is paused or out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestCmoArticleIdeasForProjectError = RequestCmoArticleIdeasForProjectErrors[keyof RequestCmoArticleIdeasForProjectErrors];
+
+export type RequestCmoArticleIdeasForProjectResponses = {
+    /**
+     * Cuso started
+     */
+    200: {
+        data: {
+            turnId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoArticleIdeasForProjectResponse = RequestCmoArticleIdeasForProjectResponses[keyof RequestCmoArticleIdeasForProjectResponses];
+
+export type RequestCmoArticleDraftForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/draft';
+};
+
+export type RequestCmoArticleDraftForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such article
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is paused or out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestCmoArticleDraftForProjectError = RequestCmoArticleDraftForProjectErrors[keyof RequestCmoArticleDraftForProjectErrors];
+
+export type RequestCmoArticleDraftForProjectResponses = {
+    /**
+     * Cuso started
+     */
+    200: {
+        data: {
+            turnId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoArticleDraftForProjectResponse = RequestCmoArticleDraftForProjectResponses[keyof RequestCmoArticleDraftForProjectResponses];
+
+export type SetCmoSeoSuggestionStatusForProjectData = {
+    body: CmoSeoSuggestionStatusRequest;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/status';
+};
+
+export type SetCmoSeoSuggestionStatusForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such suggestion
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoSeoSuggestionStatusForProjectError = SetCmoSeoSuggestionStatusForProjectErrors[keyof SetCmoSeoSuggestionStatusForProjectErrors];
+
+export type SetCmoSeoSuggestionStatusForProjectResponses = {
+    /**
+     * The suggestion
+     */
+    200: {
+        data: CmoSeoSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoSeoSuggestionStatusForProjectResponse = SetCmoSeoSuggestionStatusForProjectResponses[keyof SetCmoSeoSuggestionStatusForProjectResponses];
+
 export type SkipCmoSubscriptionForProjectData = {
     body?: never;
     path: {
@@ -84434,6 +87703,175 @@ export type SkipCmoSubscriptionForProjectResponses = {
 };
 
 export type SkipCmoSubscriptionForProjectResponse = SkipCmoSubscriptionForProjectResponses[keyof SkipCmoSubscriptionForProjectResponses];
+
+export type ClearCmoPresenterForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/presenter';
+};
+
+export type ClearCmoPresenterForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ClearCmoPresenterForProjectError = ClearCmoPresenterForProjectErrors[keyof ClearCmoPresenterForProjectErrors];
+
+export type ClearCmoPresenterForProjectResponses = {
+    /**
+     * Photo removed
+     */
+    200: {
+        data: {
+            presenterSet: false;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ClearCmoPresenterForProjectResponse = ClearCmoPresenterForProjectResponses[keyof ClearCmoPresenterForProjectResponses];
+
+export type SetCmoPresenterForProjectData = {
+    body: CmoPresenterPhoto;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/presenter';
+};
+
+export type SetCmoPresenterForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a usable photo
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoPresenterForProjectError = SetCmoPresenterForProjectErrors[keyof SetCmoPresenterForProjectErrors];
+
+export type SetCmoPresenterForProjectResponses = {
+    /**
+     * Photo saved
+     */
+    200: {
+        data: {
+            presenterSet: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoPresenterForProjectResponse = SetCmoPresenterForProjectResponses[keyof SetCmoPresenterForProjectResponses];
 
 export type SetCmoAdBudgetForProjectData = {
     body?: CmoAdBudgetRequest;
@@ -84671,7 +88109,7 @@ export type RequestCmoStrategyForProjectErrors = {
         };
     };
     /**
-     * The Brand Brain is not ready yet
+     * The Brand Brain is not ready yet, or Cuso is still writing the plan or finishing a change
      */
     409: {
         error: string;
@@ -85123,6 +88561,21 @@ export type AnswerCmoBrandBrainQuestionForProjectErrors = {
             method: string;
         };
     };
+    /**
+     * A no whose fix does not fit beside the corrections already waiting on its section
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type AnswerCmoBrandBrainQuestionForProjectError = AnswerCmoBrandBrainQuestionForProjectErrors[keyof AnswerCmoBrandBrainQuestionForProjectErrors];
@@ -85142,6 +88595,96 @@ export type AnswerCmoBrandBrainQuestionForProjectResponses = {
 };
 
 export type AnswerCmoBrandBrainQuestionForProjectResponse = AnswerCmoBrandBrainQuestionForProjectResponses[keyof AnswerCmoBrandBrainQuestionForProjectResponses];
+
+export type FixCmoBrandSectionForProjectData = {
+    body?: CmoBrandFixRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/brand/fix';
+};
+
+export type FixCmoBrandSectionForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such section
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FixCmoBrandSectionForProjectError = FixCmoBrandSectionForProjectErrors[keyof FixCmoBrandSectionForProjectErrors];
+
+export type FixCmoBrandSectionForProjectResponses = {
+    /**
+     * Cuso is fixing the section, or will once his current turn ends
+     */
+    201: {
+        data: CmoBrandFixStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FixCmoBrandSectionForProjectResponse = FixCmoBrandSectionForProjectResponses[keyof FixCmoBrandSectionForProjectResponses];
 
 export type ApproveCmoMarketingStrategyForProjectData = {
     body?: never;
@@ -87361,159 +90904,6 @@ export type ResolveMySokoBotDecisionResponses = {
 
 export type ResolveMySokoBotDecisionResponse = ResolveMySokoBotDecisionResponses[keyof ResolveMySokoBotDecisionResponses];
 
-export type ListSokoBotAvatarsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        take?: number;
-        exclude?: string;
-    };
-    url: '/soko-bots/avatars';
-};
-
-export type ListSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type ListSokoBotAvatarsError = ListSokoBotAvatarsErrors[keyof ListSokoBotAvatarsErrors];
-
-export type ListSokoBotAvatarsResponses = {
-    /**
-     * Unclaimed Soko Bot avatars to pick from
-     */
-    200: {
-        data: Array<SokoBotAvatar>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type ListSokoBotAvatarsResponse = ListSokoBotAvatarsResponses[keyof ListSokoBotAvatarsResponses];
-
-export type TopUpSokoBotAvatarsData = {
-    body: {
-        take?: number;
-        excludeIds?: Array<string>;
-        fresh?: boolean;
-    };
-    path?: never;
-    query?: never;
-    url: '/soko-bots/avatars/top-up';
-};
-
-export type TopUpSokoBotAvatarsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Conflict
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable Entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Too Many Requests
-     */
-    429: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Service Unavailable
-     */
-    503: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type TopUpSokoBotAvatarsError = TopUpSokoBotAvatarsErrors[keyof TopUpSokoBotAvatarsErrors];
-
-export type TopUpSokoBotAvatarsResponses = {
-    /**
-     * Unclaimed Soko Bot avatars, after filling a short pool
-     */
-    200: {
-        data: Array<SokoBotAvatar>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type TopUpSokoBotAvatarsResponse = TopUpSokoBotAvatarsResponses[keyof TopUpSokoBotAvatarsResponses];
-
 export type ListMySokoBotIntegrationsData = {
     body?: never;
     path?: never;
@@ -87917,18 +91307,35 @@ export type IntroduceMySokoBotResponses = {
 
 export type IntroduceMySokoBotResponse = IntroduceMySokoBotResponses[keyof IntroduceMySokoBotResponses];
 
-export type ClaimMySokoBotAvatarData = {
-    body?: ClaimSokoBotAvatarRequest;
+export type SetMySokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
     path?: never;
     query?: never;
-    url: '/soko-bots/me/avatar';
+    url: '/soko-bots/me/avatar-code';
 };
 
-export type ClaimMySokoBotAvatarErrors = {
+export type SetMySokoBotAvatarCodeErrors = {
     /**
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;
@@ -87956,7 +91363,7 @@ export type ClaimMySokoBotAvatarErrors = {
         };
     };
     /**
-     * Conflict
+     * Another bot already has this look
      */
     409: {
         error: string;
@@ -87971,7 +91378,7 @@ export type ClaimMySokoBotAvatarErrors = {
         };
     };
     /**
-     * Unprocessable Entity
+     * Not a valid avatar code
      */
     422: {
         error: string;
@@ -87987,14 +91394,14 @@ export type ClaimMySokoBotAvatarErrors = {
     };
 };
 
-export type ClaimMySokoBotAvatarError = ClaimMySokoBotAvatarErrors[keyof ClaimMySokoBotAvatarErrors];
+export type SetMySokoBotAvatarCodeError = SetMySokoBotAvatarCodeErrors[keyof SetMySokoBotAvatarCodeErrors];
 
-export type ClaimMySokoBotAvatarResponses = {
+export type SetMySokoBotAvatarCodeResponses = {
     /**
-     * Bot with the new avatar
+     * The bot's new look
      */
     200: {
-        data: SokoBot;
+        data: SokoBotAvatarCode;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -88003,7 +91410,7 @@ export type ClaimMySokoBotAvatarResponses = {
     };
 };
 
-export type ClaimMySokoBotAvatarResponse = ClaimMySokoBotAvatarResponses[keyof ClaimMySokoBotAvatarResponses];
+export type SetMySokoBotAvatarCodeResponse = SetMySokoBotAvatarCodeResponses[keyof SetMySokoBotAvatarCodeResponses];
 
 export type ListSokoBotVersionsData = {
     body?: never;
@@ -90046,6 +93453,113 @@ export type RenameSokoBotResponses = {
 };
 
 export type RenameSokoBotResponse = RenameSokoBotResponses[keyof RenameSokoBotResponses];
+
+export type SetSokoBotAvatarCodeData = {
+    body?: {
+        code: string;
+    };
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{sokoBotId}/avatar-code';
+};
+
+export type SetSokoBotAvatarCodeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden: a shared Soko Bot needs an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Another bot already has this look
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a valid avatar code
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetSokoBotAvatarCodeError = SetSokoBotAvatarCodeErrors[keyof SetSokoBotAvatarCodeErrors];
+
+export type SetSokoBotAvatarCodeResponses = {
+    /**
+     * The bot's new look
+     */
+    200: {
+        data: SokoBotAvatarCode;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetSokoBotAvatarCodeResponse = SetSokoBotAvatarCodeResponses[keyof SetSokoBotAvatarCodeResponses];
 
 export type ResolveSokoBotDecisionData = {
     body?: ResolveSokoBotDecisionRequest;
@@ -95725,6 +99239,171 @@ export type DeleteTasksByIdParticipantsByUserIdResponses = {
 
 export type DeleteTasksByIdParticipantsByUserIdResponse = DeleteTasksByIdParticipantsByUserIdResponses[keyof DeleteTasksByIdParticipantsByUserIdResponses];
 
+export type DeleteTasksByIdFollowData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/follow';
+};
+
+export type DeleteTasksByIdFollowErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdFollowError = DeleteTasksByIdFollowErrors[keyof DeleteTasksByIdFollowErrors];
+
+export type DeleteTasksByIdFollowResponses = {
+    /**
+     * Task followers
+     */
+    200: {
+        data: TaskFollowers;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdFollowResponse = DeleteTasksByIdFollowResponses[keyof DeleteTasksByIdFollowResponses];
+
+export type PostTasksByIdFollowData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/follow';
+};
+
+export type PostTasksByIdFollowErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No personal Soko Bot
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdFollowError = PostTasksByIdFollowErrors[keyof PostTasksByIdFollowErrors];
+
+export type PostTasksByIdFollowResponses = {
+    /**
+     * Task followers
+     */
+    200: {
+        data: TaskFollowers;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdFollowResponse = PostTasksByIdFollowResponses[keyof PostTasksByIdFollowResponses];
+
 export type DeleteTasksByIdData = {
     body?: never;
     path: {
@@ -96160,6 +99839,366 @@ export type GetTasksByIdReceiptResponses = {
 };
 
 export type GetTasksByIdReceiptResponse = GetTasksByIdReceiptResponses[keyof GetTasksByIdReceiptResponses];
+
+export type PostTasksByIdSeoIndexingContextV1Data = {
+    body: SeoTaskIndexingRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-indexing/context-v1';
+};
+
+export type PostTasksByIdSeoIndexingContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingContextV1Error = PostTasksByIdSeoIndexingContextV1Errors[keyof PostTasksByIdSeoIndexingContextV1Errors];
+
+export type PostTasksByIdSeoIndexingContextV1Responses = {
+    /**
+     * Private URL Inspection receipt
+     */
+    200: {
+        data: SeoTaskIndexingReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingContextV1Response = PostTasksByIdSeoIndexingContextV1Responses[keyof PostTasksByIdSeoIndexingContextV1Responses];
+
+export type PostTasksByIdSeoIndexingResultContextV1Data = {
+    body: SeoTaskIndexingResultRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-indexing/result/context-v1';
+};
+
+export type PostTasksByIdSeoIndexingResultContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingResultContextV1Error = PostTasksByIdSeoIndexingResultContextV1Errors[keyof PostTasksByIdSeoIndexingResultContextV1Errors];
+
+export type PostTasksByIdSeoIndexingResultContextV1Responses = {
+    /**
+     * Private indexing assessment saved
+     */
+    200: {
+        data: SeoTaskIndexingResultAcknowledgment;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingResultContextV1Response = PostTasksByIdSeoIndexingResultContextV1Responses[keyof PostTasksByIdSeoIndexingResultContextV1Responses];
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Data = {
+    body: SeoTaskRelatedPagesRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/seo-indexing/related-pages/context-v1';
+};
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Error = PostTasksByIdSeoIndexingRelatedPagesContextV1Errors[keyof PostTasksByIdSeoIndexingRelatedPagesContextV1Errors];
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Responses = {
+    /**
+     * Immutable indexing evidence selection
+     */
+    200: {
+        data: SeoTaskRelatedPagesReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdSeoIndexingRelatedPagesContextV1Response = PostTasksByIdSeoIndexingRelatedPagesContextV1Responses[keyof PostTasksByIdSeoIndexingRelatedPagesContextV1Responses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;
@@ -101812,6 +105851,186 @@ export type PostWebhooksPolarResponses = {
 };
 
 export type PostWebhooksPolarResponse = PostWebhooksPolarResponses[keyof PostWebhooksPolarResponses];
+
+export type GetWorkspaceAdDataConsentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}/ad-data-consent';
+};
+
+export type GetWorkspaceAdDataConsentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetWorkspaceAdDataConsentError = GetWorkspaceAdDataConsentErrors[keyof GetWorkspaceAdDataConsentErrors];
+
+export type GetWorkspaceAdDataConsentResponses = {
+    /**
+     * Workspace ad data consent
+     */
+    200: {
+        data: WorkspaceAdDataConsent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetWorkspaceAdDataConsentResponse = GetWorkspaceAdDataConsentResponses[keyof GetWorkspaceAdDataConsentResponses];
+
+export type PutWorkspaceAdDataConsentData = {
+    body: WorkspaceAdDataConsentWrite;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/workspaces/{id}/ad-data-consent';
+};
+
+export type PutWorkspaceAdDataConsentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - Workspace owner or admin required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutWorkspaceAdDataConsentError = PutWorkspaceAdDataConsentErrors[keyof PutWorkspaceAdDataConsentErrors];
+
+export type PutWorkspaceAdDataConsentResponses = {
+    /**
+     * Workspace ad data consent
+     */
+    200: {
+        data: WorkspaceAdDataConsent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutWorkspaceAdDataConsentResponse = PutWorkspaceAdDataConsentResponses[keyof PutWorkspaceAdDataConsentResponses];
 
 export type PostWorkspacesDesignMdAdhocData = {
     body?: AdHocDesignMdWrite;

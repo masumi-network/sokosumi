@@ -2,7 +2,6 @@ import * as Sentry from "@sentry/node";
 import { NotificationKind, type Prisma } from "@sokosumi/database";
 import { buildNamedChatMessagePreview } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
-
 import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
@@ -22,6 +21,7 @@ import { createNotification, resolveDelivery } from "@/helpers/notifications";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 
 export interface FanOutChatNotificationsParams {
   throwOnError?: boolean;
@@ -71,6 +71,12 @@ export interface FanOutChatNotificationsParams {
    * silences the chatter and being addressed by name is not chatter.
    */
   parentMessageId?: string | null;
+  /**
+   * Push when the reader stored no push row for this category, instead of the
+   * category default. A stored row still wins. Task interest messages only:
+   * someone who follows a Task asked to hear about it.
+   */
+  osBannerDefaultOn?: boolean;
 }
 
 /** Readers who muted the Thread this message replies in. */
@@ -139,7 +145,11 @@ async function deliverToCurrentRoomMember(
     }
   });
   if (countedRowId)
-    waitUntil(resendRoomMessageEmail(countedRowId, { allowInitialSend: true }));
+    waitUntil(
+      runAsBackgroundWork(() =>
+        resendRoomMessageEmail(countedRowId, { allowInitialSend: true }),
+      ),
+    );
 }
 
 /**
@@ -269,6 +279,7 @@ export async function fanOutChatNotifications(
       referenceId: params.roomId,
       eventId: params.messageId,
       messageKey: params.messageKey,
+      ...(params.osBannerDefaultOn ? { osBannerDefaultOn: true } : {}),
       ...(workspaceId &&
       membershipsByUserId.get(userId)?.access === "member" &&
       hostOrganizationMemberIds.has(userId)
@@ -564,7 +575,7 @@ export async function rewriteChatNotificationPreviews(
         });
       }
       // Provider cancellation must not hold the message edit or delete open.
-      waitUntil(resendRoomMessageEmail(row.id));
+      waitUntil(runAsBackgroundWork(() => resendRoomMessageEmail(row.id)));
     }
   } catch (error) {
     Sentry.captureException(error, {

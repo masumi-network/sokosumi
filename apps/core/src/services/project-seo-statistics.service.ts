@@ -33,6 +33,7 @@ import {
   gscInspectionArguments,
   normalizeGscInspection,
 } from "@/lib/seo/native-gsc-inspection";
+import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
 import {
   gscKeywordSeriesArguments,
   gscQueryArguments,
@@ -123,7 +124,16 @@ async function read(
   return readIntegrationTool(integration, tool.slug, args);
 }
 
-async function propertyChoices(
+/** One read-only Google read on a connected account, its arguments bound to the tool's declared inputs. */
+export async function readNativeSeoTool(
+  integration: ComposioIntegrationAccount,
+  slug: string,
+  logical: Record<string, unknown>,
+) {
+  return read(integration, await toolFor(integration, slug), logical);
+}
+
+export async function propertyChoices(
   integration: ComposioIntegrationAccount,
   provider: SyncProjectSeoStatistics["provider"],
 ): Promise<ProjectSeoStatisticsProperties> {
@@ -242,30 +252,6 @@ export async function listProjectSeoStatisticsProperties(
   }
 }
 
-function propertyCovers(property: string, urls: string[]): boolean {
-  if (property.startsWith("sc-domain:")) {
-    const domain = property.slice("sc-domain:".length).toLowerCase();
-    return (
-      !!domain &&
-      urls.every((url) => {
-        const host = new URL(url).hostname.toLowerCase();
-        return host === domain || host.endsWith(`.${domain}`);
-      })
-    );
-  }
-  if (!URL.canParse(property)) return false;
-  const prefix = new URL(property);
-  return (
-    ["https:", "http:"].includes(prefix.protocol) &&
-    !prefix.username &&
-    !prefix.password &&
-    urls.every(
-      (url) =>
-        new URL(url).origin === prefix.origin && url.startsWith(prefix.href),
-    )
-  );
-}
-
 export async function syncProjectSeoStatistics(
   actor: SeoActor,
   raw: SyncProjectSeoStatistics,
@@ -358,7 +344,7 @@ export async function syncProjectSeoStatistics(
         );
       if (
         input.provider === "search_console" &&
-        !propertyCovers(input.propertyId, pageUrls)
+        !gscPropertyCovers(input.propertyId, pageUrls)
       )
         throw unprocessableEntity(
           "The Search Console property does not cover the selected pages",

@@ -6,8 +6,9 @@ import { describe, expect, it } from "vitest";
 
 /**
  * Guards for what the CMO.XYZ docs have locked: voice (`DESIGN.md`) and the
- * visual system (`design-system.md`): colour values in one place, one hard
- * shadow, radii from tokens, Iris/green/yellow as fills only, flat surfaces.
+ * visual system (`design-system.md`): colour values in one place, line
+ * widths, hard shadows and radii from tokens, Iris/green/yellow as fills
+ * only, flat surfaces.
  */
 
 const SRC_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
@@ -155,14 +156,6 @@ describe("voice", () => {
 
     expect(hedges).toEqual([]);
   });
-
-  /**
-   * DESIGN.md → Agent naming: each user names their own agent, so no screen
-   * hardcodes one. "June" is the example name from the demo.
-   */
-  it("hardcodes no agent name", () => {
-    expect(findLines(SOURCE, /\bJune\b/)).toEqual([]);
-  });
 });
 
 describe("accessibility", () => {
@@ -199,12 +192,12 @@ describe("accessibility", () => {
 /** One rule per line pattern, each proven by a bad and a good sample. */
 const SHADOW_DECLARATION = /\bbox-?[sS]hadow\s*:\s*["'`]?([^;"'`,}]*)/;
 const SHADOW_OK =
-  /^(?:none|var\(--shadow-(?:hard|iris)\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
+  /^(?:none|var\(--shadow(?:-big|-iris|-on-strip)?\)|inset 0 0 0 1px var\(--[\w-]+\))$/;
 const BLUR = /\bblur\(|backdrop-filter|\bbackdropFilter/;
 const RADIUS_DECLARATION =
   /\b(?:border(?:-[a-z]+)*-radius|border(?:[A-Z][a-z]+)*Radius)\s*:\s*["'`]?([^;"'`}]*)/;
 const RADIUS_OK =
-  /^(?:var\(--radius-(?:mark|control|card|panel)\)|50%|0|inherit)$/;
+  /^(?:var\(--radius-(?:mark|control|card|pill)\)|50%|0|inherit)$/;
 const IRIS_TEXT =
   /(?<![\w-])(?:color|stroke|text-decoration-color|border[\w-]*|outline[\w-]*|borderColor|outlineColor)\s*:[^;]*var\(--primary(?:-hover)?\)/;
 const SIGNAL_TEXT = /(?<![\w-])(?:color|stroke)\s*:[^;]*var\(--(?:ok|warn)\)/;
@@ -248,9 +241,11 @@ function badRadius(line: string): boolean {
 }
 
 /**
- * Every stroke is 1px (design-system.md, rule 1). A border wider than that,
- * anywhere, including the drawings of networks' UIs, breaks the system; focus
- * rings are outlines, not borders, and stay 2px for keyboard users.
+ * A stroke is the 1px hairline or one of the line-width tokens
+ * (design-system.md, rule 1): pill 2px, thick 3px, hero 4px. A literal border
+ * wider than the hairline, anywhere, including the drawings of networks' UIs,
+ * breaks the system; focus rings are outlines, not borders, and stay 2px for
+ * keyboard users.
  */
 const BORDER_WIDTH =
   /(?<![\w-])border(?:-(?:top|right|bottom|left))?(?:-width)?\s*:[^;]*?\b(\d+(?:\.\d+)?)px/;
@@ -261,26 +256,149 @@ function thickBorder(line: string): boolean {
   return width !== undefined && Number(width) > 1;
 }
 
+/** The values design-system.md names, read from the `:root` block. */
+const TOKENS: Record<string, string> = {
+  "--line-width": "3px",
+  "--line-width-small": "2px",
+  "--offset": "4px",
+  "--offset-big": "6px",
+  "--shadow": "var(--offset) var(--offset) 0 var(--line)",
+  "--shadow-big": "var(--offset-big) var(--offset-big) 0 var(--line)",
+  "--shadow-iris": "var(--offset) var(--offset) 0 var(--primary)",
+  "--radius-mark": "8px",
+  "--radius-control": "12px",
+  "--radius-card": "20px",
+  "--radius-pill": "999px",
+  "--tracking-heading": "-0.03em",
+};
+
+describe("tokens", () => {
+  it("holds the line widths, shadows, radii and tracking the docs name", () => {
+    const stylesheet = FILES.find((file) => file.rel === STYLESHEET)?.text;
+    const declared = Object.fromEntries(
+      Object.keys(TOKENS).map((token) => [
+        token,
+        new RegExp(`^\\s*${token}:\\s*([^;]+);`, "m")
+          .exec(stylesheet ?? "")?.[1]
+          ?.trim(),
+      ]),
+    );
+
+    expect(declared).toEqual(TOKENS);
+  });
+});
+
 describe("strokes", () => {
-  it("draws every border 1px", () => {
+  it("draws every border as the hairline or a line-width token", () => {
     const css = FILES.filter((file) => file.rel.endsWith(".css"));
     expect(
       findLines(css, BORDER_WIDTH).filter((hit) => thickBorder(hit)),
     ).toEqual([]);
   });
 
-  it("flags a thick border and passes 1px, 0 and radius", () => {
+  it("flags a literal thick border and passes 1px, a token, 0 and radius", () => {
     expect(thickBorder("  border: 2px solid var(--line);")).toBe(true);
     expect(thickBorder("  border-top: 6px solid var(--surface);")).toBe(true);
     expect(thickBorder("  border-left-width: 3px;")).toBe(true);
     expect(thickBorder("  border: 1px solid var(--line);")).toBe(false);
+    expect(thickBorder("  border: var(--line-width) solid var(--line);")).toBe(
+      false,
+    );
     expect(thickBorder("  border-radius: 14px;")).toBe(false);
     expect(thickBorder("  border: 0;")).toBe(false);
   });
 });
 
+/**
+ * A hard shadow means "you can act on this": only something to click, type in
+ * or pick casts one, plus the account menu that floats over the page. A card,
+ * a picture, a tag or a label that casts one looks clickable and is not.
+ */
+const CASTS_SHADOW = [
+  /(?:^|[\s>])(?:button|a|input|textarea|select)(?![\w-])/,
+  /\.button(?:-small|-secondary)?(?![\w-])/,
+  /\[aria-(?:pressed|selected)/,
+  // Classes that are only ever set on a <button>.
+  /^\.(?:chip|who-button|ob-who-button|ob-side-close|sc-pace-option)(?![\w-])/,
+  // The chat's composer: the frame around its textarea.
+  /^\.composer$/,
+  /^\.ob-who-menu$/,
+  // The shadow samples on /design-system.
+  /^\.ds-shadow(?:-big)?$/,
+];
+
+/** A rule's selectors, split at the commas outside `:not(...)` and the like. */
+function selectors(list: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of list) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth -= 1;
+    if (char === "," && depth === 0) {
+      out.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  out.push(current);
+  return out.map((selector) => selector.replace(/\s+/g, " ").trim());
+}
+
+/** The selectors in a stylesheet that cast a hard shadow and may not. */
+function passiveShadows(css: string): string[] {
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  const found: string[] = [];
+  for (const [, list = "", body = ""] of rules.matchAll(
+    /([^{}]+)\{([^{}]*)\}/g,
+  )) {
+    if (!/box-shadow:\s*var\(--shadow/.test(body)) continue;
+    for (const selector of selectors(list)) {
+      if (!CASTS_SHADOW.some((allowed) => allowed.test(selector))) {
+        found.push(selector);
+      }
+    }
+  }
+  return found;
+}
+
+describe("shadows mean action", () => {
+  it("casts a hard shadow only from something to act on", () => {
+    const css = STYLED.filter((file) => file.rel.endsWith(".css"));
+    expect(
+      css.flatMap((file) =>
+        passiveShadows(file.text).map((selector) => `${file.rel}: ${selector}`),
+      ),
+    ).toEqual([]);
+  });
+
+  it("flags a shadow on a tag, a picture or a card and passes buttons", () => {
+    const shadow = "{ box-shadow: var(--shadow); }";
+    expect(passiveShadows(`.tag ${shadow}`)).toEqual([".tag"]);
+    expect(passiveShadows(`.ob-stage-art ${shadow}`)).toEqual([
+      ".ob-stage-art",
+    ]);
+    expect(passiveShadows(`.ob-step.now > span ${shadow}`)).toEqual([
+      ".ob-step.now > span",
+    ]);
+    expect(
+      passiveShadows(
+        `.button, .nav a.active, button.cal-card:hover, button.card-focus ${shadow}`,
+      ),
+    ).toEqual([]);
+    expect(passiveShadows(`.card-focus ${shadow}`)).toEqual([".card-focus"]);
+    expect(
+      passiveShadows(
+        `.ob-bar > .button:not(.button-ghost, :disabled) ${shadow}`,
+      ),
+    ).toEqual([]);
+    expect(passiveShadows(".tag { box-shadow: none; }")).toEqual([]);
+  });
+});
+
 describe("visual system", () => {
-  it("allows one hard shadow and no blur", () => {
+  it("allows only the hard shadow tokens and no blur", () => {
     expect(
       findLines(STYLED, /box-?[sS]hadow/).filter((hit) => badShadow(hit)),
     ).toEqual([]);
@@ -315,10 +433,14 @@ describe("visual system", () => {
   });
 
   describe("matchers", () => {
-    it("flags a blurred shadow and passes the hard one", () => {
+    it("flags a blurred or literal shadow and passes the hard ones", () => {
       expect(badShadow("  box-shadow: 0 1px 2px var(--border);")).toBe(true);
       expect(badShadow('boxShadow: "0 0 0 3px var(--surface)"')).toBe(true);
-      expect(badShadow("  box-shadow: var(--shadow-hard);")).toBe(false);
+      expect(badShadow("  box-shadow: 6px 6px 0 var(--line);")).toBe(true);
+      expect(badShadow("  box-shadow: var(--shadow);")).toBe(false);
+      expect(badShadow("  box-shadow: var(--shadow-hero);")).toBe(true);
+      expect(badShadow("  box-shadow: 10px 10px 0 var(--line);")).toBe(true);
+      expect(badShadow("  box-shadow: var(--shadow-big);")).toBe(false);
       expect(badShadow("  box-shadow: var(--shadow-iris);")).toBe(false);
       expect(badShadow("  box-shadow: inset 0 0 0 1px var(--line);")).toBe(
         false,
@@ -348,6 +470,7 @@ describe("visual system", () => {
       expect(badRadius("  border-top-left-radius: 4px;")).toBe(true);
       expect(badRadius('borderRadius: "12px"')).toBe(true);
       expect(badRadius("  border-radius: var(--radius-card);")).toBe(false);
+      expect(badRadius("  border-radius: var(--radius-pill);")).toBe(false);
       expect(badRadius("  border-radius: 999px;")).toBe(true);
       expect(badRadius("  border-radius: 50%;")).toBe(false);
       expect(

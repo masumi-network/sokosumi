@@ -19,6 +19,7 @@ const PROPER_PHRASES = [
   "Soko Bot",
   "Soko Bots",
   "Content Studio",
+  "TikTok Studio",
   "Sokosumi Projects",
   "Agent Identities",
   // Ad platforms.
@@ -46,6 +47,7 @@ const PROPER_PHRASES = [
   "Data Processing Agreement",
   // Other names.
   "Mistral Medium",
+  "Gemini Pro",
   "Florian Haller",
   "Serviceplan Group",
   "Acme Inc.",

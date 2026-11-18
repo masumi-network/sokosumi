@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 export {};
@@ -57,15 +58,17 @@ describe("agent.service", () => {
 
   it("returns no mention agents when the catalog fetch fails", async () => {
     getAllCoreAgentsMock.mockRejectedValue(new Error("fetch failed"));
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const warn = expectConsole(
+      "warn",
+      "[agent.service] mention catalog fetch failed",
+    );
 
     const { agentService } = await import("./agent.service");
     await expect(
       agentService.getAvailableAgentsWithCreditsPrice(),
     ).resolves.toEqual([]);
 
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    expect(warn).not.toHaveLength(0);
   });
 
   it("reports rating eligibility from core", async () => {

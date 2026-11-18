@@ -1,17 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { publishTikTokVideo } from "@/clients/social-post-providers/tiktok";
 import {
-  pickTikTokPrivacyLevel,
-  publishTikTokVideo,
-} from "@/clients/social-post-providers/tiktok";
-import { ComposioToolError } from "@/clients/social-post-providers/tools";
+  ComposioPublishOutcomeUnknownError,
+  ComposioToolError,
+} from "@/clients/social-post-providers/tools";
+
+import { getZernioTikTokCreatorInfo } from "@/clients/social-post-providers/zernio-tiktok";
+import { zernioRequest } from "@/clients/zernio.client";
+
+vi.mock("@/clients/zernio.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/clients/zernio.client")>()),
+  zernioRequest: vi.fn(),
+}));
 
 const { getEnvMock, logSetMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
   logSetMock: vi.fn(),
 }));
 
-vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+// The real recorders keep their events at the drain seam.
+vi.mock("@/lib/evlog", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/evlog")>()),
+  tryUseLogger: () => ({ set: logSetMock }),
+}));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("node:timers/promises", () => ({
   setTimeout: vi.fn(async () => undefined),
@@ -24,6 +36,14 @@ const context = {
   externalAccountId: "open_id_1",
   externalHandle: "alice",
   text: "Hello TikTok",
+  tikTokSettings: {
+    privacyLevel: "SELF_ONLY" as const,
+    acceptedMusicUsage: true as const,
+    allowComment: false,
+    allowDuet: false,
+    allowStitch: false,
+    promotesOwnBrand: false,
+  },
   media: [
     {
       pathname: "drive/users/user_1/clip.mp4",
@@ -60,7 +80,11 @@ function stubSession(execute: (call: ExecuteCall) => Response) {
 }
 
 function toolResponse(data: unknown): Response {
-  return Response.json({ data: { data }, error: null, successful: true });
+  return Response.json({
+    data: { data: { data, error: { code: "ok", message: "" } } },
+    error: null,
+    successful: true,
+  });
 }
 
 function executeCalls(
@@ -71,26 +95,6 @@ function executeCalls(
     .map(([, init]) => JSON.parse(String(init?.body)));
 }
 
-describe("pickTikTokPrivacyLevel", () => {
-  it.each([
-    [["SELF_ONLY"], "SELF_ONLY"],
-    [
-      [
-        "PUBLIC_TO_EVERYONE",
-        "MUTUAL_FOLLOW_FRIENDS",
-        "FOLLOWER_OF_CREATOR",
-        "SELF_ONLY",
-      ],
-      "PUBLIC_TO_EVERYONE",
-    ],
-    [["MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR"], "MUTUAL_FOLLOW_FRIENDS"],
-    [["FOLLOWER_OF_CREATOR", "SELF_ONLY"], "FOLLOWER_OF_CREATOR"],
-    [[], "SELF_ONLY"],
-  ] as const)("picks %s as %s", (available, expected) => {
-    expect(pickTikTokPrivacyLevel(available)).toBe(expected);
-  });
-});
-
 describe("publishTikTokVideo", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -100,7 +104,18 @@ describe("publishTikTokVideo", () => {
     });
   });
 
-  it("publishes with the most permissive level and waits for completion", async () => {
+  it("refuses an unavailable choice and never sends a publish request", async () => {
+    const calls = stubSession(() =>
+      toolResponse({ privacy_level_options: ["PUBLIC_TO_EVERYONE"] }),
+    );
+    await expect(publishTikTokVideo(context)).rejects.toThrow(
+      "Choose an available TikTok audience",
+    );
+    expect(executeCalls(calls).map((call) => call.tool_slug)).toEqual([
+      "TIKTOK_QUERY_CREATOR_INFO",
+    ]);
+  });
+  it("publishes with the selected private audience and waits for completion", async () => {
     const fetchMock = stubSession((call) => {
       if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
         return toolResponse({
@@ -122,7 +137,7 @@ describe("publishTikTokVideo", () => {
     await expect(publishTikTokVideo(context)).resolves.toEqual({
       externalId: "751234567890",
       publishedUrl: null,
-      providerOutcome: "published (FOLLOWER_OF_CREATOR)",
+      providerOutcome: "published (SELF_ONLY)",
       toolSlug: "TIKTOK_PUBLISH_VIDEO",
     });
     expect(executeCalls(fetchMock)[1]).toEqual({
@@ -130,7 +145,11 @@ describe("publishTikTokVideo", () => {
       arguments: {
         video_url: context.media[0].fileUrl,
         caption: "Hello TikTok",
-        privacy_level: "FOLLOWER_OF_CREATOR",
+        privacy_level: "SELF_ONLY",
+        disable_comment: true,
+        disable_duet: true,
+        disable_stitch: true,
+        brand_organic_toggle: false,
       },
     });
     expect(
@@ -138,6 +157,27 @@ describe("publishTikTokVideo", () => {
         .filter((call) => call.tool_slug === "TIKTOK_FETCH_PUBLISH_STATUS")
         .map((call) => call.arguments),
     ).toEqual([{ publish_id: "pub_1" }]);
+  });
+
+  it("labels an AI-generated video for TikTok", async () => {
+    const fetchMock = stubSession((call) => {
+      if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
+        return toolResponse({ privacy_level_options: ["SELF_ONLY"] });
+      }
+      if (call.tool_slug === "TIKTOK_PUBLISH_VIDEO") {
+        return toolResponse({ publish_id: "pub_ai" });
+      }
+      return toolResponse({
+        status: "PUBLISH_COMPLETE",
+        publicaly_available_post_id: ["751234567891"],
+      });
+    });
+
+    await publishTikTokVideo({ ...context, aiGenerated: true });
+
+    expect(executeCalls(fetchMock)[1]?.arguments).toMatchObject({
+      is_aigc: true,
+    });
   });
 
   it("stores the publish id when completion has no queryable video id", async () => {
@@ -292,5 +332,153 @@ describe("publishTikTokVideo", () => {
       providerMessage: "unaudited app",
       providerStatus: 403,
     });
+  });
+});
+
+describe("TikTok through Zernio", () => {
+  const info = {
+    creator: { nickname: "Alice", canPostMore: true },
+    privacyLevels: [{ value: "SELF_ONLY" }, { value: "PUBLIC_TO_EVERYONE" }],
+    postingLimits: {
+      maxVideoDurationSec: 120,
+      interactionSettings: {
+        allow_comment: { enabled: true },
+        allow_duet: { enabled: false },
+        allow_stitch: { enabled: true },
+      },
+    },
+  };
+  const input = {
+    ...context,
+    postId: "post-123",
+    connectedAccountId: "zernio:alpha",
+    tikTokSettings: {
+      ...context.tikTokSettings,
+      privacyLevel: "PUBLIC_TO_EVERYONE" as const,
+      previewConsent: true as const,
+      allowComment: true,
+      allowDuet: true,
+      promotesOwnBrand: true,
+    },
+  };
+  function result(status: string) {
+    return {
+      post: {
+        _id: "zpost",
+        platforms: [
+          {
+            platform: "tiktok",
+            status,
+            platformPostId: "7543333333333333333",
+            platformPostUrl: null,
+          },
+        ],
+      },
+    };
+  }
+
+  beforeEach(() => {
+    vi.mocked(zernioRequest).mockReset().mockResolvedValueOnce(info);
+  });
+
+  it("maps video limits and exposes only a supported Business app audience", async () => {
+    await expect(getZernioTikTokCreatorInfo("alpha")).resolves.toEqual({
+      creator_nickname: "Alice",
+      privacy_level_options: ["PUBLIC_TO_EVERYONE"],
+      comment_disabled: false,
+      duet_disabled: true,
+      stitch_disabled: false,
+      max_video_post_duration_sec: 120,
+    });
+    expect(zernioRequest).toHaveBeenCalledWith(
+      "/accounts/alpha/tiktok/creator-info?mediaType=video",
+      { signal: undefined },
+    );
+  });
+
+  it("requires express permission and preview confirmation before creating a post", async () => {
+    await expect(
+      publishTikTokVideo({
+        ...input,
+        tikTokSettings: { ...input.tikTokSettings, previewConsent: undefined },
+      }),
+    ).rejects.toThrow("Confirm the TikTok video preview");
+    expect(zernioRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("never upgrades an explicitly private choice to public", async () => {
+    await expect(
+      publishTikTokVideo({ ...input, tikTokSettings: context.tikTokSettings }),
+    ).rejects.toThrow("Choose an available TikTok audience");
+    expect(zernioRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("rechecks creator limits and submits the confirmed settings once, with a stable key", async () => {
+    vi.mocked(zernioRequest)
+      .mockResolvedValueOnce(result("processing"))
+      .mockResolvedValueOnce(result("published"));
+    await expect(publishTikTokVideo(input)).resolves.toMatchObject({
+      externalId: "zpost",
+      publishedUrl: null,
+      toolSlug: "ZERNIO_TIKTOK_CREATE_POST",
+    });
+    expect(zernioRequest).toHaveBeenNthCalledWith(2, "/posts", {
+      method: "POST",
+      idempotencyKey: input.postId,
+      signal: undefined,
+      body: {
+        content: context.text,
+        mediaItems: [{ type: "video", url: context.media[0].fileUrl }],
+        platforms: [{ platform: "tiktok", accountId: "alpha" }],
+        publishNow: true,
+        tiktokSettings: {
+          privacy_level: "PUBLIC_TO_EVERYONE",
+          allow_comment: true,
+          allow_duet: false,
+          allow_stitch: false,
+          commercial_content_type: "brand_organic",
+          content_preview_confirmed: true,
+          express_consent_given: true,
+        },
+      },
+    });
+    expect(zernioRequest).toHaveBeenNthCalledWith(3, "/posts/zpost", {
+      signal: undefined,
+    });
+  });
+
+  it("treats a failure within an HTTP success as a provider refusal", async () => {
+    vi.mocked(zernioRequest).mockResolvedValueOnce(result("failed"));
+    await expect(publishTikTokVideo(input)).rejects.toBeInstanceOf(
+      ComposioToolError,
+    );
+  });
+
+  it("does not attribute a replayed post to a different account", async () => {
+    vi.mocked(zernioRequest).mockResolvedValueOnce({
+      post: {
+        _id: "zpost",
+        platforms: [
+          {
+            platform: "tiktok",
+            status: "published",
+            accountId: { _id: "previous-account" },
+          },
+        ],
+      },
+    });
+    await expect(publishTikTokVideo(input)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
+  it("preserves an unknown outcome when the create response is lost", async () => {
+    vi.mocked(zernioRequest).mockRejectedValueOnce(
+      new Error("connection lost"),
+    );
+    await expect(publishTikTokVideo(input)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+    expect(zernioRequest).toHaveBeenCalledTimes(2);
   });
 });

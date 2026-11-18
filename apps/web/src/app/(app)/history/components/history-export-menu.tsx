@@ -2,7 +2,7 @@
 
 import { Download } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import type { HistoryFilters } from "@/app/history/utils/history-filters";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import {
  */
 export function HistoryExportMenu({ filters }: { filters: HistoryFilters }) {
   const t = useTranslations("App.TransactionHistory.Export");
+  const titleId = useId();
   const [custom, setCustom] = useState<ExportRange>({ from: "", to: "" });
   const now = new Date();
   const presets: Array<{ label: string; range: ExportRange }> = [
@@ -48,8 +49,14 @@ export function HistoryExportMenu({ filters }: { filters: HistoryFilters }) {
           {t("button")}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="flex w-72 flex-col gap-3">
-        <p className="text-sm font-medium">{t("title")}</p>
+      <PopoverContent
+        align="end"
+        aria-labelledby={titleId}
+        className="flex w-72 flex-col gap-3"
+      >
+        <p id={titleId} className="text-sm font-medium">
+          {t("title")}
+        </p>
         <div className="flex flex-col gap-1">
           {presets.map((preset) => (
             <Button

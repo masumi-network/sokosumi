@@ -1,6 +1,6 @@
 import pLimit from "p-limit";
-
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 import {
   provisionOrganizationStripeCustomer,
   provisionUserStripeCustomer,
@@ -19,21 +19,38 @@ function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
 
-function shouldStopSync(
+const OPERATION = "stripe_customer_sync";
+
+/** Why the run stopped before every row was tried, if it did. */
+function stopReason(
   options: SyncExecutionOptions,
-  reason: string,
-): boolean {
-  if (!options.shouldContinue()) {
-    console.info(`[sync/stripe-customers] ${reason}`);
-    return true;
-  }
+): "cancelled" | "deadline" | null {
+  if (!options.shouldContinue()) return "cancelled";
+  if (!hasTimeRemaining(options.deadlineMs)) return "deadline";
+  return null;
+}
 
-  if (!hasTimeRemaining(options.deadlineMs)) {
-    console.info(`[sync/stripe-customers] ${reason}`);
-    return true;
-  }
-
-  return false;
+/**
+ * Runs after the cron response (`waitUntil`), so each failure is its own
+ * standalone event rather than a field on the finished request event.
+ */
+function logCreateFailure(
+  owner: "user" | "organization",
+  id: string,
+  error: unknown,
+): void {
+  emitCoreError(
+    { operation: OPERATION, [owner]: { id } },
+    {
+      message:
+        owner === "user"
+          ? "Could not create a Stripe customer for a user"
+          : "Could not create a Stripe customer for an organization",
+      why: "Stripe did not create the customer",
+      fix: `The next stripe-customers sync retries this ${owner}. If it fails every run, read the Stripe error under error.cause and fix the ${owner}'s billing details or the Stripe configuration.`,
+      cause: error,
+    },
+  );
 }
 
 function getStripeRequestTimeoutMs(options: SyncExecutionOptions): number {
@@ -48,7 +65,7 @@ function getStripeRequestTimeoutMs(options: SyncExecutionOptions): number {
 async function createStripeCustomerForUser(
   userId: string,
   options: SyncExecutionOptions,
-): Promise<void> {
+): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -59,7 +76,7 @@ async function createStripeCustomerForUser(
   });
 
   if (!user) {
-    return;
+    return false;
   }
 
   const requestTimeoutMs = getStripeRequestTimeoutMs(options);
@@ -73,14 +90,13 @@ async function createStripeCustomerForUser(
       timeout: requestTimeoutMs,
     },
   );
-
-  console.info(`Created Stripe customer for user ${user.id}`);
+  return true;
 }
 
 async function createStripeCustomerForOrganization(
   organizationId: string,
   options: SyncExecutionOptions,
-): Promise<void> {
+): Promise<boolean> {
   const organization = await prisma.organization.findUnique({
     where: { id: organizationId },
     select: {
@@ -91,7 +107,7 @@ async function createStripeCustomerForOrganization(
   });
 
   if (!organization) {
-    return;
+    return false;
   }
 
   const requestTimeoutMs = getStripeRequestTimeoutMs(options);
@@ -105,8 +121,7 @@ async function createStripeCustomerForOrganization(
       timeout: requestTimeoutMs,
     },
   );
-
-  console.info(`Created Stripe customer for organization ${organization.id}`);
+  return true;
 }
 
 export const stripeCustomerSyncService = {
@@ -131,85 +146,74 @@ export const stripeCustomerSyncService = {
         }),
       ]);
 
-    console.info(
-      "Syncing",
-      usersWithoutStripeCustomer.length,
-      "users without Stripe customers",
-    );
-    console.info(
-      "Syncing",
-      organizationsWithoutStripeCustomer.length,
-      "organizations without Stripe customers",
-    );
+    const run = {
+      pending: {
+        users: usersWithoutStripeCustomer.length,
+        organizations: organizationsWithoutStripeCustomer.length,
+      },
+      created: { users: 0, organizations: 0 },
+      failed: { users: 0, organizations: 0 },
+      stopped: null as "cancelled" | "deadline" | null,
+    };
+    const stop = () => {
+      run.stopped ??= stopReason(options);
+      return run.stopped !== null;
+    };
 
     const limit = pLimit(STRIPE_CUSTOMER_SYNC_CONCURRENCY);
     const runningSyncPromises: Promise<void>[] = [];
     for (const user of usersWithoutStripeCustomer) {
-      if (
-        shouldStopSync(
-          options,
-          "Stopping before scheduling more user sync operations",
-        )
-      ) {
+      if (stop()) {
         break;
       }
 
       runningSyncPromises.push(
         limit(async () => {
-          if (
-            shouldStopSync(
-              options,
-              `Stopping before processing user ${user.id}`,
-            )
-          ) {
+          if (stop()) {
             return;
           }
 
           try {
-            await createStripeCustomerForUser(user.id, options);
+            if (await createStripeCustomerForUser(user.id, options)) {
+              run.created.users += 1;
+            }
           } catch (error) {
-            console.error(
-              `Failed to create Stripe customer for user ${user.id}:`,
-              error,
-            );
+            run.failed.users += 1;
+            logCreateFailure("user", user.id, error);
           }
         }),
       );
     }
 
     for (const organization of organizationsWithoutStripeCustomer) {
-      if (
-        shouldStopSync(
-          options,
-          "Stopping before scheduling more organization sync operations",
-        )
-      ) {
+      if (stop()) {
         break;
       }
 
       runningSyncPromises.push(
         limit(async () => {
-          if (
-            shouldStopSync(
-              options,
-              `Stopping before processing organization ${organization.id}`,
-            )
-          ) {
+          if (stop()) {
             return;
           }
 
           try {
-            await createStripeCustomerForOrganization(organization.id, options);
+            if (
+              await createStripeCustomerForOrganization(
+                organization.id,
+                options,
+              )
+            ) {
+              run.created.organizations += 1;
+            }
           } catch (error) {
-            console.error(
-              `Failed to create Stripe customer for organization ${organization.id}:`,
-              error,
-            );
+            run.failed.organizations += 1;
+            logCreateFailure("organization", organization.id, error);
           }
         }),
       );
     }
 
     await Promise.allSettled(runningSyncPromises);
+    createCoreLogger({ operation: OPERATION, stripeCustomerSync: run }).emit();
   },
 };

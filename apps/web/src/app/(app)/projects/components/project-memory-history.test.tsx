@@ -1,11 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
-
 import {
   ProjectMemoryHistory,
   type ProjectMemoryVersion,
 } from "@/app/projects/components/project-memory-history";
+import { createFormats } from "@/i18n/time-format";
 
 const MESSAGES = {
   App: {
@@ -40,6 +40,7 @@ function renderHistory(versions: ProjectMemoryVersion[] = [CURRENT]) {
       messages={MESSAGES}
       timeZone="UTC"
       now={new Date("2026-09-27T10:00:00.000Z")}
+      formats={createFormats()}
     >
       <ProjectMemoryHistory versions={versions} />
     </NextIntlClientProvider>,

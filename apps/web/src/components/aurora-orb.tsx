@@ -89,7 +89,9 @@ function AuroraOrbStatic({
     // Data-URL PNG (already DPR-scaled + cached) — next/image adds no value here.
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={dataUrl}
+      // Empty when the browser gives no 2D canvas; no src, not "", so the
+      // browser does not fetch the page again.
+      src={dataUrl || undefined}
       alt={alt}
       className={cn("block shrink-0 rounded-full object-cover", className)}
     />

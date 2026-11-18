@@ -14,6 +14,7 @@ const {
   triageMailMock,
   logSetMock,
   logEmitMock,
+  reconcileTurnMock,
   sweepMock,
 } = vi.hoisted(() => ({
   sweepMock: vi.fn(),
@@ -28,6 +29,7 @@ const {
   triageMailMock: vi.fn(),
   logSetMock: vi.fn(),
   logEmitMock: vi.fn(),
+  reconcileTurnMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -39,7 +41,10 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SokoBotBusyError: class extends Error {},
-  sokoBotControlPlane: { startTurn: startTurnMock, reconcileTurn: vi.fn() },
+  sokoBotControlPlane: {
+    startTurn: startTurnMock,
+    reconcileTurn: reconcileTurnMock,
+  },
 }));
 vi.mock("@/services/soko-bot-integrations.service", () => ({
   activeIntegrationsForBot: activeIntegrationsMock,
@@ -59,6 +64,8 @@ vi.mock("@/lib/soko-bot/mail-triage", async (importOriginal) => ({
   triageMail: triageMailMock,
 }));
 
+import { SokoBotIntegrationError } from "@/services/composio-integration-tools.service";
+import { expectCoreLog } from "@/test/core-log";
 import { SokoBotIngestSyncService } from "./soko-bot-ingest.service";
 
 const LAST_SEEN = "2026-09-30T06:14:00.000Z";
@@ -94,7 +101,7 @@ function setUp() {
   activeIntegrationsMock.mockResolvedValue([
     {
       id: "gmail-1",
-      provider: { id: "gmail" },
+      provider: { id: "gmail", name: "Gmail" },
       cursor: {
         newestSeenAt: LAST_SEEN,
         lastIngestAt: "2026-09-30T05:00:00.000Z",
@@ -346,15 +353,98 @@ describe("soko-bot ingest member", () => {
     );
   });
 
+  it("logs a failed turn reconciliation without the runtime's text, which can echo the mail prompt", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not reconcile a Soko Bot turn that ingest started",
+    );
+    startTurnMock.mockResolvedValue({
+      turnId: "t",
+      status: "RUNNING",
+      reconciliationLeaseToken: "lease",
+    });
+    reconcileTurnMock.mockRejectedValue(
+      Object.assign(
+        new Error(
+          'Runtime echoed: "Subject: Confidential merger with Acme" key sk_live_abc123',
+        ),
+        // Every property carries the text, not only the message.
+        {
+          name: "Confidential merger with Acme",
+          // Upper-case and code-shaped: only a known code may pass.
+          code: "MERGER_ACME",
+          status: 502,
+          details: { operation: "Subject: Confidential merger sk_live_abc123" },
+        },
+      ),
+    );
+    await run();
+    expect(errors[0]).toMatchObject({ why: "Turn reconciliation threw" });
+    expect(errors[0]?.event).toMatchObject({
+      failure: { errorName: "Error", status: 502 },
+    });
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
+    expect(drained).not.toContain("MERGER_ACME");
+  });
+
+  it("points a failed per-bot check at its safe fields, since it keeps no error text", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not check a Soko Bot's mail and calendar",
+    );
+    triageMailMock.mockRejectedValue(
+      new Error('Jev quoted "Subject: Confidential merger" sk_live_abc123'),
+    );
+    await run();
+    expect(errors[0]?.fix).toContain("failure.operation");
+    expect(errors[0]?.fix).not.toContain("error.cause");
+    expect(errors[0]?.event.error).not.toHaveProperty("cause");
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
+  });
+
+  it("logs a failed mailbox read without the provider's text, which can quote a mail", async () => {
+    const errors = expectCoreLog(
+      "error",
+      "Could not read a Soko Bot's mailbox",
+    );
+    fetchInboxMock.mockRejectedValue(
+      new SokoBotIntegrationError(
+        'Composio (GMAIL_FETCH_EMAILS): {"subject":"Secret merger with Acme","key":"sk_live_abc123"}',
+        "UPSTREAM",
+        { operation: "GMAIL_FETCH_EMAILS", status: 502 },
+      ),
+    );
+    await run();
+    expect(errors[0]).toMatchObject({
+      why: "Gmail rejected reading the mailbox",
+    });
+    expect(errors[0]?.event).toMatchObject({
+      integration: {
+        provider: "gmail",
+        operation: "GMAIL_FETCH_EMAILS",
+        status: 502,
+      },
+    });
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Secret merger");
+    expect(drained).not.toContain("sk_live");
+  });
+
   it("still ingests when the sweep fails", async () => {
     sweepMock.mockRejectedValue(new Error("db down"));
-    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect((await run()).deltas).toBe(1);
-    expect(log).toHaveBeenCalledWith(
-      "Soko Bot leaver integration sweep failed",
-      { error: "db down" },
+    const errors = expectCoreLog(
+      "error",
+      "Could not disconnect the integrations of members who left",
     );
-    log.mockRestore();
+    expect((await run()).deltas).toBe(1);
+    expect(errors[0]).toMatchObject({ why: "The leaver sweep failed" });
+    expect(errors[0]?.event.error).toMatchObject({
+      cause: { message: "db down" },
+    });
   });
 });
 

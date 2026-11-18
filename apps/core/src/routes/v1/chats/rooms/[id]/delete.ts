@@ -11,6 +11,7 @@ import { jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { assertNotSharedSokoBotRoom } from "@/helpers/shared-soko-bot-room";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -127,7 +128,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    waitUntil(cancelNotificationEmails(scheduledEmails));
+    waitUntil(
+      runAsBackgroundWork(() => cancelNotificationEmails(scheduledEmails)),
+    );
 
     return c.body(null, 204);
   });

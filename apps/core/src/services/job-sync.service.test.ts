@@ -7,7 +7,11 @@ import {
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
 import { PURCHASE_DIFF_SYNC_METADATA_KEY } from "./job-purchase-diff.service";
 import { jobSyncService } from "./job-sync.service";
 
@@ -227,8 +231,6 @@ vi.mock("@sokosumi/email", () => ({
 }));
 
 const originalFetch = global.fetch;
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-let consoleInfoSpy: ReturnType<typeof vi.spyOn>;
 
 function createJobEvent(
   overrides: Record<string, unknown> = {},
@@ -428,8 +430,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     ]) {
       mock.mockReset();
     }
-    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    consoleInfoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
     paymentClientFactoryMock.mockReturnValue({
       getPurchaseByBlockchainIdentifier: getPurchaseByBlockchainIdentifierMock,
@@ -474,8 +474,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   afterEach(() => {
-    consoleErrorSpy.mockRestore();
-    consoleInfoSpy.mockRestore();
     global.fetch = originalFetch;
   });
 
@@ -628,15 +626,16 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
-      "[sync/jobs/purchase-backfill] Found 1 jobs needing a purchase backfill",
+    const runEvent = coreLogEvents().find(
+      (event) => event.operation === "job_sync",
     );
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
-      "[sync/jobs/agent] Found 1 jobs for agent sync",
-    );
-    expect(consoleInfoSpy).toHaveBeenCalledWith(
-      "[sync/jobs/refund] Found 1 jobs pending local refund",
-    );
+    expect(runEvent?.jobSync).toMatchObject({
+      phases: {
+        purchaseBackfill: { found: 1, stopped: null },
+        agent: { found: 1 },
+        refund: { found: 1, processed: 1 },
+      },
+    });
   });
 
   it("reconciles purchase-state payment failures without running the standard sync pipeline", async () => {
@@ -720,6 +719,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill a purchase that does not match the job's terms", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -754,6 +756,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to write a diff purchase for a different blockchain identifier", async () => {
+    expectCoreLogWhys(
+      "error",
+      "Refused to apply a changed purchase to its job, because their blockchain identifiers differ",
+      [
+        "The stored purchase id joins the purchase to this job, but the purchase is for another blockchain identifier",
+      ],
+    );
     // The externalId join says the row is ours, so a different identifier is
     // corruption on one side or the other. Writing it would stamp another
     // job's on-chain status — and therefore its refund or completion — here.
@@ -929,6 +938,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill a purchase signed for a different agent", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -957,6 +969,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill a purchase charged at a different price", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -984,6 +999,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill a purchase belonging to a different seller", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -1014,6 +1032,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill a purchase with different metadata", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -1067,6 +1088,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill a new job missing its required amount snapshot", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       purchaseAmounts: null,
@@ -1083,6 +1107,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill a purchase settled through the other rail", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -1112,6 +1139,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill an untyped purchase for an explicitly-railed job", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -1140,6 +1170,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill a legacy job with a missing deadline instead of throwing", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     // The purchase selector deliberately admits legacy paid jobs with a null
     // payByTime. Terms that cannot be verified must be refused, not crash.
     const pendingJob = createJob({
@@ -1173,6 +1206,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("refuses to backfill when the job has no input hash to match on", async () => {
+    expectCoreLogWhys("error", "Refused to attach a purchase to its job", [
+      "The purchase the payment node resolved for the job's blockchain identifier does not match the job's terms",
+    ]);
     const pendingJob = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -1554,6 +1590,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("still reconciles refunds when the purchase diff throws", async () => {
+    expectCoreLogWhys(
+      "error",
+      "Could not sync changed purchases from the payment node",
+      ["The purchase diff threw before it finished"],
+    );
     const reconciliationJob = createJob({
       id: "job_missing_purchase",
       status: SokosumiJobStatus.PAYMENT_FAILED,
@@ -1564,7 +1605,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       pendingLocalRefunds: [reconciliationJob],
     });
     jobFindUniqueMock.mockResolvedValueOnce(reconciliationJob);
-    getPurchasesDiffMock.mockRejectedValueOnce(new Error("diff exploded"));
+    // The diff relays proxy bodies and writes provider notes: its text stays out.
+    getPurchasesDiffMock.mockRejectedValueOnce(
+      new Error("diff exploded quoting PRIVATE-MARKER-7c1"),
+    );
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
@@ -1574,6 +1618,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       syncTransactionClient,
     );
     expect(captureExceptionMock).toHaveBeenCalled();
+    expect(JSON.stringify(coreLogEvents())).not.toContain("PRIVATE-MARKER");
   });
 
   it("skips new events and notifications when the agent status hash is unchanged", async () => {
@@ -2545,6 +2590,12 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("does not fail the sync when webhook, email, or ably publishing fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not publish a job's new status to its owner's live view",
+      ["Publishing the status to Ably failed"],
+      ["ably down"],
+    );
     // Failed rather than completed: the failure alert is the only thing a job
     // still mails and the only thing that posts the webhook (SOK-930), so a
     // completed job here would leave two of these three refusals unreached.
@@ -2591,6 +2642,45 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sendEmailMock).toHaveBeenCalled();
     expect(requestFetchMock).toHaveBeenCalled();
     expect(publishJobStatusDataMock).toHaveBeenCalled();
+    expect(errors[0]?.event).toMatchObject({
+      operation: "job_sync",
+      job: { id: "job_1", status: SokosumiJobStatus.FAILED },
+    });
+  });
+
+  it("logs a failed source import without the result it read", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not queue the sources a job's result links to",
+      ["Queueing the source import from the result failed"],
+    );
+    mockInitialJobQueries({ unfinished: [createJob()] });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    jobFindUniqueMock.mockResolvedValueOnce(createJob());
+    // An import error can quote the agent's result.
+    sourceImportEnqueueMock.mockRejectedValueOnce(
+      new Error('link "Confidential merger with Acme" sk_live_abc123 failed'),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(sourceImportEnqueueMock).toHaveBeenCalled();
+    expect(errors[0]?.event).toMatchObject({
+      operation: "job_sync",
+      job: { id: "job_1" },
+      jobEvent: { id: "event_2" },
+      failure: { errorName: "Error" },
+    });
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
   });
 
   it("awaits Resend batch flush so sync waitUntil covers delivery", async () => {
@@ -2893,7 +2983,15 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("does not count thrown job sync failures as processed", async () => {
-    const syncError = new Error("event write failed");
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not sync a job's agent status",
+      ["Applying the agent's job status threw"],
+    );
+    // A write error can quote what the agent returned.
+    const syncError = new Error(
+      'Invalid `create()` invocation: result "Confidential merger with Acme" sk_live_abc123',
+    );
 
     mockInitialJobQueries({
       unfinished: [
@@ -2951,6 +3049,15 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(withScopeMock).toHaveBeenCalled();
     expect(setExtrasMock).toHaveBeenCalledWith({ jobId: "job_1" });
     expect(captureExceptionMock).toHaveBeenCalledWith(syncError, undefined);
+    // Only safe fields reach the drain; Sentry keeps the full error.
+    expect(errors[0]?.event).toMatchObject({
+      jobSyncPhase: "agent",
+      job: { id: "job_1" },
+      failure: { errorName: "Error" },
+    });
+    const drained = JSON.stringify(errors[0]?.event);
+    expect(drained).not.toContain("Confidential merger");
+    expect(drained).not.toContain("sk_live");
   });
 
   it("stops processing when already canceled before work starts", async () => {
@@ -3034,6 +3141,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("still counts the job as processed when email delivery fails transiently", async () => {
+    expectCoreLog("warn", "Kept a transient external failure out of Sentry");
     const initialJob = createJob({ status: SokosumiJobStatus.PROCESSING });
     const failedJob = createJob({
       status: SokosumiJobStatus.FAILED,
@@ -3149,6 +3257,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
   });
 
   it("propagates unexpected Prisma errors in the backfill path to Sentry", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not backfill a job's purchase",
+      ["Reading or attaching the purchase from the payment node threw"],
+    );
     const job = createJob({
       purchase: null,
       status: SokosumiJobStatus.PAYMENT_PENDING,
@@ -3173,5 +3286,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       unexpectedError,
       undefined,
     );
+    expect(errors[0]?.event).toMatchObject({
+      operation: "job_sync",
+      jobSyncPhase: "purchase-backfill",
+      job: { id: "job_1" },
+      failure: { errorName: "Error" },
+    });
   });
 });

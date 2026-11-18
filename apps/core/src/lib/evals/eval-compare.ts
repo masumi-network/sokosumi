@@ -8,6 +8,7 @@
  * - failing: it failed before and fails now
  * - passing: it passes every repeat
  * - error: it could not be run or scored, every repeat
+ *   Also used for partial execution errors when no behavior check failed.
  * - pending: no repeat has finished yet
  * - skipped: this environment cannot run it
  *
@@ -52,8 +53,9 @@ export function evalOutcome(
   if (states.length > 0 && states.every((state) => state === "SKIPPED"))
     return "skipped";
   const scored = states.filter((state) => state !== "SKIPPED");
-  if (scored.length > 0 && scored.every((state) => state === "ERROR"))
-    return "error";
+  // An unavailable provider is not evidence that a passing behavior regressed.
+  // Preserve genuine FAILED checks even when another repeat could not execute.
+  if (scored.includes("ERROR") && !scored.includes("FAILED")) return "error";
   const rate = passRate(states);
   if (rate === null) return "pending";
   const baseline = history[0];

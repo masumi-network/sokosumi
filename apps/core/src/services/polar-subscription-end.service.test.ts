@@ -32,7 +32,12 @@ vi.mock("@/lib/db/transaction", () => ({
 
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
-
+import {
+  coreLogEvents,
+  expectCoreLog,
+  expectCoreLogWhys,
+} from "@/test/core-log";
+import { inRequest } from "@/test/in-request";
 import {
   retryOwedPolarRevokes,
   revokeCusoSubscription,
@@ -96,6 +101,12 @@ describe("revokeCusoSubscription", () => {
   });
 
   it("ends the row and marks its revoke owed when Polar fails, so the ending goes on", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Could not revoke a CMO subscription at Polar, so the revoke is owed to the sync job",
+      ["Polar refused or did not answer the revoke"],
+      ["polar is down"],
+    );
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
 
     await expect(revokeCusoSubscription(BOT_ID)).resolves.toBeUndefined();
@@ -108,6 +119,34 @@ describe("revokeCusoSubscription", () => {
     });
     // The retry job reports a revoke that keeps failing; one failure is not.
     expect(m.captureException).not.toHaveBeenCalled();
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "polar_subscription_end",
+      polarRevokesOwed: [
+        { subscriptionRowId: "row_1", polarSubscriptionId: "sub_1" },
+      ],
+    });
+  });
+
+  it("keeps every owed revoke when one request ends several subscriptions", async () => {
+    expectCoreLog(
+      "warn",
+      "Could not revoke a CMO subscription at Polar, so the revoke is owed to the sync job",
+      2,
+    );
+    m.prisma.polarSubscription.findMany.mockResolvedValue([
+      { id: "row_1", polarSubscriptionId: "sub_1" },
+      { id: "row_2", polarSubscriptionId: "sub_2" },
+    ]);
+    m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
+
+    await inRequest(() => revokeCusoSubscription(BOT_ID));
+
+    // Both warnings sit on the request's event, each with its own ids.
+    const [event] = coreLogEvents();
+    expect(event?.polarRevokesOwed).toEqual([
+      { subscriptionRowId: "row_1", polarSubscriptionId: "sub_1" },
+      { subscriptionRowId: "row_2", polarSubscriptionId: "sub_2" },
+    ]);
   });
 
   it("passes on Polar's own 503 when Polar has no settings", async () => {
@@ -224,6 +263,12 @@ describe("revokeSubscriptionsLeftByEnding", () => {
   });
 
   it("marks the revoke owed and does not throw when Polar fails, since the Cuso has already ended", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not revoke a CMO subscription at Polar, so the revoke is owed to the sync job",
+      ["Polar refused or did not answer the revoke"],
+      ["polar is down"],
+    );
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
 
     await expect(
@@ -237,6 +282,12 @@ describe("revokeSubscriptionsLeftByEnding", () => {
   });
 
   it("writes off the Project's credits once it revoked one, even when Polar failed", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not revoke a CMO subscription at Polar, so the revoke is owed to the sync job",
+      ["Polar refused or did not answer the revoke"],
+      ["polar is down"],
+    );
     await revokeSubscriptionsLeftByEnding(PROJECT_ID);
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
     await revokeSubscriptionsLeftByEnding(PROJECT_ID);
@@ -305,6 +356,12 @@ describe("retryOwedPolarRevokes", () => {
   });
 
   it("keeps the mark and counts the failure when Polar still fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not revoke a CMO subscription at Polar again",
+      ["Polar refused or did not answer the owed revoke"],
+      ["polar is down"],
+    );
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
     m.prisma.polarSubscription.update.mockResolvedValue({ revokeFailures: 2 });
 
@@ -321,9 +378,45 @@ describe("retryOwedPolarRevokes", () => {
       select: { revokeFailures: true },
     });
     expect(m.captureMessage).not.toHaveBeenCalled();
+    expect(errors[0]?.event).toMatchObject({
+      operation: "polar_owed_revoke_retry",
+      polarSubscription: {
+        subscriptionRowId: "row_1",
+        polarSubscriptionId: "sub_1",
+      },
+    });
+  });
+
+  it("keeps a failed revoke on record when counting the failure fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not revoke a CMO subscription at Polar again",
+      ["Polar refused or did not answer the owed revoke"],
+      ["polar is down"],
+    );
+    m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
+    m.prisma.polarSubscription.update.mockRejectedValue(new Error("db down"));
+
+    await expect(retryOwedPolarRevokes(always)).rejects.toThrow("db down");
+
+    expect(errors[0]?.event).toMatchObject({
+      polarSubscription: {
+        subscriptionRowId: "row_1",
+        polarSubscriptionId: "sub_1",
+      },
+    });
   });
 
   it("reports a revoke once, on the run its failures reach the limit", async () => {
+    expectCoreLogWhys(
+      "error",
+      "Could not revoke a CMO subscription at Polar again",
+      [
+        "Polar refused or did not answer the owed revoke",
+        "Polar refused or did not answer the owed revoke",
+        "Polar refused or did not answer the owed revoke",
+      ],
+    );
     m.revokePolarSubscription.mockRejectedValue(new Error("polar is down"));
     for (const revokeFailures of [5, 6, 7]) {
       m.prisma.polarSubscription.update.mockResolvedValueOnce({

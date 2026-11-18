@@ -1,3 +1,4 @@
+import { createError } from "evlog";
 import {
   type LateCoworkerResponse,
   listLateCoworkerResponses,
@@ -5,8 +6,11 @@ import {
 } from "@/helpers/coworker-late-responses";
 import { clearPendingResponseMirror } from "@/helpers/coworker-pending-response-mirror";
 import { retrieveCoworkerResponse } from "@/helpers/coworker-response-poll";
+
 import { persistAssistantToChatRoom } from "@/helpers/persist-assistant-to-chat-room";
 import prisma from "@/lib/db/prisma";
+import { createCoreLogger } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 
 /** Leave a response to its live stream until that request has certainly ended (maxDuration 300 s). */
 export const LATE_RESPONSE_GRACE_MS = 330_000;
@@ -115,10 +119,25 @@ export async function syncLateCoworkerResponses(options: {
         await postMissingNote(entry);
       }
     } catch (error) {
-      console.error(
-        `[sync/coworker-late-responses] Failed to deliver ${entry.responseId}:`,
-        error,
+      // A cron run after its response: each failure is its own event.
+      const log = createCoreLogger({
+        operation: "coworker_late_response_sync",
+        coworkerLateResponse: { id: entry.responseId, expired },
+        coworker: { id: entry.coworkerId },
+        chatRoom: { id: entry.roomId },
+      });
+      log.error(
+        createError({
+          message: "Could not deliver a late coworker reply to its chat",
+          why: "Saving the reply failed",
+          fix: expired
+            ? "The reply is past its age limit and was dropped; the user has to send the message again."
+            : "The next coworker-late-responses sync retries it. If it fails every run, check failure.errorName and failure.status.",
+        }),
+        // Only safe fields: turn work can echo its prompt.
+        { failure: messageSafeErrorFields(error) },
       );
+      log.emit();
       // Past the age limit an entry never stays, even when the note cannot be saved.
       outcome = expired ? "dropped" : "waiting";
     }

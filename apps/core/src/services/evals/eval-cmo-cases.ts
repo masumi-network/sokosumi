@@ -20,6 +20,10 @@ export interface CmoEvalBrand {
   planLanguage?: string;
   /** A business with many product lines lists at least this many offers. */
   minOffers?: number;
+  /** The main offer's price as its site publishes it. */
+  price?: string;
+  /** A social profile the site links to that the Brand Brain must list. */
+  profile?: string;
   why?: string;
 }
 
@@ -61,6 +65,7 @@ const RESEARCH_BRANDS = [
   "Apple",
   "Blue Bottle Coffee",
   "utxo.ag",
+  "Begin",
 ];
 
 /**
@@ -122,7 +127,7 @@ export const CMO_EVAL_CASES = [
     title: `Plans ${name}'s month`,
     intent:
       brand(name).why ??
-      "The plan sells the main offer, in the owner's language, by the strategy skill's rules.",
+      "The strategy sells the main offer, in the owner's language, by the strategy skill's rules.",
     kind: "cmo-strategy" as const,
     brand: brand(name),
     brandBrain: frozenBrains[name],
@@ -144,7 +149,16 @@ export const CMO_EVAL_CASES = [
 ];
 
 /** What a Cuso chat case finds in its lane, whatever case ran there before. */
-export type CmoChatSetup = "cmo-brand" | "cmo-new-client" | "cmo-comments";
+export type CmoChatSetup =
+  | "cmo-brand"
+  | "cmo-new-client"
+  | "cmo-comments"
+  /** cal.com's month waiting for approval, for the change request. */
+  | "cmo-plan"
+  /** cal.com's competitors after a check: a week with moves, or a quiet one. */
+  | "cmo-competitors"
+  | "cmo-competitors-quiet"
+  | "cmo-competitors-second-hand";
 
 /** The brand Cuso's chat and replies cases run for, and the comments it answers. */
 export const CMO_CHAT_BRAND = "cal.com";

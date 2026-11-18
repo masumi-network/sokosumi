@@ -13,14 +13,12 @@ import {
   seoStatisticsKeywordsLeftOutNote,
   seoStatisticsQueryRowsCutNote,
 } from "@sokosumi/utils";
-import { createTranslator } from "next-intl";
 import { describe, expect, it } from "vitest";
 import de from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
 import es from "../../../../../messages/es.json";
 import {
   seoAuditGaps,
-  seoAuditGapValues,
   seoCapabilityGroups,
   seoCustomerAuditGaps,
   seoCustomerLimitations,
@@ -66,6 +64,46 @@ describe("seoCapabilityGroups", () => {
 });
 
 describe("customer-facing limitations", () => {
+  it("keeps indexing results distinct from missing search traffic, without a manual sync action", () => {
+    const workspace = seoTestWorkspace();
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt: new Date("2026-11-16T08:00:00Z"),
+          pageUrl: workspace.pages[0].url,
+          status: "issue",
+          report: true,
+          reason: "Google could not fetch this page.",
+          suggestedFix: "Repair the server error.",
+          evidence: [],
+        },
+      ],
+    };
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchTraffic",
+      fix: null,
+    });
+    expect(
+      seoCustomerAuditGaps(workspace).map((gap) => gap.message),
+    ).not.toContain("noSearchConsole");
+    workspace.indexTriage.assessments[0].status = "unavailable";
+    workspace.indexTriage.assessments[0].report = false;
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchConsole",
+      fix: "connect_search_console",
+    });
+    workspace.indexTriage.assessments[0] = {
+      ...workspace.indexTriage.assessments[0],
+      pageUrl: "https://another.example/private",
+      status: "review",
+    };
+    expect(seoCustomerAuditGaps(workspace)).toContainEqual({
+      message: "noSearchConsole",
+      fix: "connect_search_console",
+    });
+  });
+
   it("groups the open catalog into five limits and omits completed areas", () => {
     expect(seoCustomerLimitations()).toEqual([
       "site",
@@ -363,41 +401,6 @@ describe("Item 38", () => {
 });
 
 describe("Improve messages", () => {
-  it("say how many left-out keywords a cut note did not name, and drop an empty list", () => {
-    const say = (
-      locale: string,
-      source: typeof messages,
-      names: string[],
-      count: number,
-    ) =>
-      createTranslator({
-        locale,
-        messages: source,
-        namespace: "App.Seo.improve.gaps",
-      })(
-        "keywordsLeftOut",
-        seoAuditGapValues(
-          { message: "keywordsLeftOut", names, count, fix: null },
-          (list) => list.join(", "),
-        ),
-      );
-    const cases = [
-      [
-        "en",
-        messages,
-        "for 5 tracked keywords: a, b and 3 more.",
-        "for 1 tracked keyword.",
-      ],
-      ["de", de, "Keywords: a, b und 3 weitere.", "Keyword."],
-      ["es", es, "seguidas: a, b y 3 más.", "seguida."],
-    ] as const;
-    for (const [locale, source, cut, empty] of cases) {
-      expect(say(locale, source, ["a", "b"], 5)).toContain(cut);
-      expect(say(locale, source, [], 1).endsWith(empty)).toBe(true);
-      expect(say(locale, source, ["a", "b"], 2)).toMatch(/: a, b\.$/);
-    }
-  });
-
   it("start each button's accessible name with its visible text (WCAG 2.5.3)", () => {
     for (const { App } of [messages, de, es]) {
       const seo = App.Seo;

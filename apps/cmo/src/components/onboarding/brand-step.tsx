@@ -30,12 +30,15 @@ import {
   RivalFacts,
   SectionEditor,
   Voice,
+  voiceDetail,
 } from "../brand-profile";
 import { BusinessMark } from "../business-mark";
-import { CusoAvatar } from "../cuso";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
+import { BrandLook, type BrandVisual, hasLook } from "./brand-look";
+import { CusoScene } from "./cuso-scene";
+import { MarketMap } from "./market-map";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
 import { Refusal } from "./refusal";
 import { SidePanel, Tile } from "./tiles";
@@ -69,8 +72,10 @@ interface TileData {
  */
 export function brandTiles(
   brain: BrandBrain,
-  onSave: (brain: BrandBrain) => Promise<void>,
+  /** Saves an edit, with the section it corrects. */
+  onSave: (brain: BrandBrain, section: BrandSectionKey) => Promise<void>,
   media: CmoBrandMedia | null = null,
+  visual: BrandVisual | null = null,
 ): TileData[] {
   const tiles: TileData[] = [];
   const offers = brain.offers ?? [];
@@ -93,7 +98,7 @@ export function brandTiles(
           )
         : short(brain.products.slice(1).join(", ")),
       section: "offer",
-      body: <Offers brain={brain} onSave={onSave} />,
+      body: <Offers brain={brain} onSave={(next) => onSave(next, "offer")} />,
     });
   }
   const buyer = brain.reveal?.buyers[0];
@@ -116,9 +121,23 @@ export function brandTiles(
       id: "voice",
       label: "Your voice",
       value: short(firstSentence(brain.voice.tone)),
-      detail: brain.voice.do[0] ? short(brain.voice.do[0]) : undefined,
+      detail: short(voiceDetail(brain.voice)),
       section: "positioning",
       body: <Voice brain={brain} />,
+    });
+  }
+  if (visual && hasLook(visual)) {
+    tiles.push({
+      id: "look",
+      label: "Your look",
+      value: short(
+        visual.fonts.length > 0
+          ? joinNames(visual.fonts)
+          : `${visual.colors.length} brand colours`,
+      ),
+      detail:
+        visual.colors.length > 0 ? short(visual.colors.join("  ")) : undefined,
+      body: <BrandLook visual={visual} />,
     });
   }
   const today = brain.marketingToday;
@@ -151,6 +170,9 @@ export function brandTiles(
       section: "competition",
       body: (
         <>
+          {brain.reveal?.map ? (
+            <MarketMap map={brain.reveal.map} companies={rivals} />
+          ) : null}
           {media && media.competitors.length > 0 ? (
             <CompetitorCards brain={brain} media={media} />
           ) : (
@@ -180,7 +202,9 @@ export function brandTiles(
       label: "Profiles",
       value: `${brain.channels.length} ${brain.channels.length === 1 ? "profile" : "profiles"}`,
       detail: short(brain.channels.map((channel) => channel.name).join(", ")),
-      body: <Accounts brain={brain} onSave={onSave} />,
+      body: (
+        <Accounts brain={brain} onSave={(next) => onSave(next, "marketing")} />
+      ),
     });
   }
   return tiles;
@@ -189,7 +213,14 @@ export function brandTiles(
 interface BrandStepProps {
   overview: CmoOverview;
   messages: CusoMessage[];
+  /** Sends what is off to Cuso in the chat; used when there is no onFix. */
   onCorrect: (text: string) => Promise<void>;
+  /**
+   * Hiring: Cuso writes the plan while the founder reads, so a correction or
+   * an edit is a fix on its section, which Core runs after his current turn
+   * and fits the plan to. Core's refusal, or null.
+   */
+  onFix?: (section: BrandSectionKey, note: string) => Promise<string | null>;
   onSave: (brain: BrandBrain) => Promise<void>;
   /** Approves the Brand Brain and asks for the plan; a refusal comes back as text. Without it the step only shows the Brand Brain. */
   onApprove?: () => Promise<string | null>;
@@ -214,6 +245,7 @@ export function BrandStep({
   overview,
   messages,
   onCorrect,
+  onFix,
   onSave,
   onApprove,
   onAnswer,
@@ -253,9 +285,37 @@ export function BrandStep({
     );
     return () => window.clearTimeout(timer);
   }, [sent, answered, idle]);
-  const fixing = sent !== null && !answered && !stale;
+  // With onFix the overview says when a fix runs; the chat's reply never has to.
+  const fixing = onFix
+    ? overview.botStatus === "RUNNING" && overview.work?.change === "fix"
+    : sent !== null && !answered && !stale;
   // Right after research Cuso is still wrapping up his turn for a few seconds.
-  const finishing = !fixing && !stale && overview.botStatus === "RUNNING";
+  // The plan he starts next runs for minutes and never holds the founder.
+  const finishing =
+    !fixing &&
+    !stale &&
+    overview.botStatus === "RUNNING" &&
+    overview.work?.kind !== "strategy";
+
+  /** A correction in the founder's words, about one section when it has one. */
+  async function correct(section: BrandSectionKey | undefined, text: string) {
+    // Profiles have no section of their own: they are where marketing runs.
+    if (onFix) setRefusal(await onFix(section ?? "marketing", text));
+    else await ask(text);
+  }
+
+  /** An edit is saved at once; Cuso brings the summary and the plan in line. */
+  async function edit(next: BrandBrain, section: BrandSectionKey) {
+    await onSave(next);
+    if (onFix) {
+      setRefusal(
+        await onFix(
+          section,
+          `I edited the ${BRAND_SECTIONS[section].title} section myself. Keep my words, and bring the summary and the strategy in line with it.`,
+        ),
+      );
+    }
+  }
 
   async function ask(text: string) {
     setSent({ text, after: lastWord?.id ?? null });
@@ -267,9 +327,15 @@ export function BrandStep({
     }
   }
 
-  const tiles = brandTiles(brain, onSave, overview.brandMedia);
+  const tiles = brandTiles(
+    brain,
+    edit,
+    overview.brandMedia,
+    overview.brandVisual,
+  );
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;
+  const waiting = onFix && section?.fix && !section.fix.fixed;
 
   const [shownQuestions, answer] = useAnswers(
     brain.questions ?? [],
@@ -294,7 +360,10 @@ export function BrandStep({
   return (
     <section className="ob-brand">
       <div className="ob-lead">
-        <CusoAvatar pose="reporting" size={176} />
+        <CusoScene
+          scene="brand"
+          now={fixing ? "Updating your Brand Brain" : null}
+        />
         <h1 className="ob-h1">Here's {site} as I see it.</h1>
         <p className="muted">Tap any line to see the source or fix it.</p>
       </div>
@@ -310,12 +379,17 @@ export function BrandStep({
       <div className="ob-brand-panel">
         <div className="ob-brand-main">
           <div className={hasShot ? "ob-hero-row has-site" : "ob-hero-row"}>
-            <PromiseCard brain={brain} site={site} onSave={onSave} />
+            <PromiseCard
+              overview={overview}
+              brain={brain}
+              site={site}
+              onSave={(next) => edit(next, "positioning")}
+            />
             {hasShot ? <SiteCard overview={overview} host={site} /> : null}
           </div>
 
           {left.length > 0 ? (
-            <div className="card card-focus ob-left">
+            <div className="card ob-left">
               <p>
                 {left.length} {left.length === 1 ? "question" : "questions"}{" "}
                 left
@@ -389,10 +463,12 @@ export function BrandStep({
                 shown.section
                   ? async (next) => {
                       if (!shown.section) return;
-                      await onSave({
+                      const changed = {
                         ...brain,
                         profile: { ...profile, [shown.section]: next },
-                      });
+                      };
+                      if (onFix) return edit(changed, shown.section);
+                      await onSave(changed);
                       // The summary comes from Cuso, so he brings it in line.
                       await ask(
                         `I corrected the ${BRAND_SECTIONS[shown.section].title} research in my Brand Brain. Update the summary to match it.`,
@@ -408,9 +484,16 @@ export function BrandStep({
                 inputId="ob-tell"
                 cta="Send"
                 placeholder="Say what to fix"
-                onAsk={ask}
+                onAsk={(text) => correct(shown.section, text)}
               />
             </div>
+            {waiting ? (
+              <p className="note" aria-live="polite">
+                {fixing
+                  ? `${AGENT_NAME} is fixing this now.`
+                  : `${AGENT_NAME} will fix this and update your strategy.`}
+              </p>
+            ) : null}
             {sent && answered && lastWord ? (
               <p className="note" aria-live="polite">
                 {AGENT_NAME}: {lastWord.content}
@@ -542,25 +625,22 @@ interface SiteCardProps {
   host: string;
 }
 
-/** The homepage as visitors see it, with the brand's logo and colours. */
+/** The homepage as visitors see it, with the brand's colours. */
 function SiteCard({ overview, host }: SiteCardProps) {
   const colors = (overview.brandVisual?.colors ?? []).slice(0, MAX_COLORS);
   return (
     <div className="card ob-sitecard">
       <h2>Your site</h2>
       <SiteShowcase media={overview.brandMedia} host={host} />
-      <div className="ob-brandmark">
-        <BusinessMark overview={overview} size={36} wide />
-        {colors.length > 0 ? (
-          <ul className="ob-swatches" aria-label="Brand colours">
-            {colors.map((color) => (
-              <li key={color} style={{ background: color }}>
-                <span className="ob-sr">{color}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+      {colors.length > 0 ? (
+        <ul className="ob-swatches" aria-label="Brand colours">
+          {colors.map((color) => (
+            <li key={color} style={{ background: color }}>
+              <span className="ob-sr">{color}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -579,13 +659,14 @@ export function tileSource(
 }
 
 interface PromiseCardProps {
+  overview: CmoOverview;
   brain: BrandBrain;
   site: string;
   onSave: (brain: BrandBrain) => Promise<void>;
 }
 
 /** The promise in one line, as Cuso read it, with the owner's edit. */
-function PromiseCard({ brain, site, onSave }: PromiseCardProps) {
+function PromiseCard({ overview, brain, site, onSave }: PromiseCardProps) {
   const reveal = brain.reveal;
   const statement = reveal?.positioning ?? firstSentence(brain.summary);
   const [editing, setEditing] = useState(false);
@@ -593,6 +674,7 @@ function PromiseCard({ brain, site, onSave }: PromiseCardProps) {
   const [failed, setFailed] = useState(false);
   return (
     <div className="card ob-promise">
+      <BusinessMark overview={overview} size={40} wide />
       <div className="ob-promise-head">
         <h2>Your promise, in one line</h2>
         {editing ? null : (

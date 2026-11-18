@@ -63,9 +63,11 @@
   --sc-in-top: calc((100% - var(--sc-top, 100%)) / 2);
   --sc-in-bottom: calc((100% - var(--sc-bottom, 100%)) / 2);
   display: grid;
-  place-items: center;
-  min-height: 96px;
-  padding: 12px calc(var(--sc-in-bottom) + 12px);
+  place-content: center;
+  justify-items: center;
+  gap: 2px;
+  min-height: 88px;
+  padding: 12px calc(var(--sc-in-bottom) + 4px);
   background: var(--foreground);
   color: var(--background);
   text-align: center;
@@ -113,21 +115,39 @@
   }
 }
 
-.sc-stage-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 4px 12px;
-}
-
-.sc-stage-head .sc-goal {
-  flex: 1;
-  color: var(--foreground);
+.sc-step {
+  font-size: 0.75rem;
   font-weight: 500;
+  opacity: 0.7;
 }
 
-.sc-stage-head .sc-owner {
-  flex: none;
+.sc-stage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.sc-icons {
+  display: flex;
+  gap: 8px;
+}
+
+/* The detail of a stage, closed until asked for. */
+.sc-how {
+  display: grid;
+  gap: 10px;
+}
+
+.sc-how > summary {
+  width: max-content;
+  color: var(--muted);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.sc-how[open] > summary {
+  margin-bottom: 10px;
 }
 
 .sc-stage-name {
@@ -153,7 +173,8 @@
 
 .sc-goal {
   margin: 0;
-  color: var(--muted);
+  font-weight: 500;
+  text-wrap: pretty;
 }
 
 .sc-plays {
@@ -297,7 +318,7 @@
   display: grid;
   gap: 2px;
   padding: 14px 16px;
-  border: 1px solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
@@ -316,16 +337,16 @@
   border-color: var(--foreground);
 }
 
-/* Selection is the ink inversion. */
+/* The picked pace is filled with Iris and takes the hard shadow. */
 .sc-pace-option.current {
-  border-color: var(--line);
-  background: var(--foreground);
-  color: var(--background);
+  background: var(--primary);
+  box-shadow: var(--shadow);
+  color: var(--primary-foreground);
   cursor: default;
 }
 
 .sc-pace-option.current span {
-  color: var(--background);
+  color: var(--primary-foreground);
 }
 
 .sc-pace-option:disabled:not(.current) {

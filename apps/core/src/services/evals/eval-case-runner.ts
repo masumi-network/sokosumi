@@ -1,10 +1,13 @@
 import {
+  CMO_POST_WITH_PICTURE_SCENARIO_ID,
   evaluateScenario,
   type ScenarioCheck,
   type SokoBotJudgeVerdict,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { judgeEvalScenarioTurn } from "@/services/soko-bot-lab-judge.service";
 import {
@@ -16,11 +19,17 @@ import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
+  competitorFeedChecks,
+  isCompetitorEvalCase,
+} from "./eval-cmo-competitors";
+import {
   commentChecks,
   pollCmoCase,
   prepareCmoChatCase,
   startCmoCase,
+  styledPictureChecks,
 } from "./eval-cmo-runner";
+import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
   type EvalLaneRecord,
   resetEvalLaneForSokoBot,
@@ -201,6 +210,12 @@ async function pollScenario(
       outcome: caseError("The turn did not settle in 20 minutes", [turnId]),
     };
   }
+  const infrastructure = infrastructureCaseOutcome(
+    turnId,
+    turn,
+    scenarioOutput(turn),
+  );
+  if (infrastructure) return { kind: "done", outcome: infrastructure };
   const result = evaluateScenario(scenario, turn);
   if (isSeoEvalCase(scenario.id)) {
     const checks = await seoEvalChecks(scenario.id, lane, turn, state);
@@ -216,12 +231,38 @@ async function pollScenario(
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
   }
+  if (isCompetitorEvalCase(scenario.id)) {
+    const extra = await competitorFeedChecks(
+      lane,
+      scenario.id,
+      context.startedAt,
+    );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_POST_WITH_PICTURE_SCENARIO_ID) {
+    const extra = await styledPictureChecks(lane, context.startedAt);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
   const judged = await judgeEvalScenarioTurn(turnId, scenario).catch(
     (error: unknown) => {
-      console.warn("Eval judge failed", {
-        turnId,
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      // The eval cron, or an admin's tick request.
+      recordCoreWarning(
+        { operation: "eval_tick" },
+        {
+          message:
+            "Could not judge an eval turn, so it is scored by its checks alone",
+          why: "Judging the turn threw",
+        },
+        // An array: one tick judges a turn per lane. Only safe fields: the
+        // judge reads the turn's messages, and its error can quote them.
+        {
+          evalJudgeFailures: [{ turnId, ...messageSafeErrorFields(error) }],
+        },
+      );
       return null;
     },
   );

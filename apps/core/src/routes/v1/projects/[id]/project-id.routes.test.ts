@@ -1,10 +1,10 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
+import { expectCoreLogWhys } from "@/test/core-log";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import mountGetProjectContextMd from "./context-md/get.js";
 import mountDeleteProject from "./delete.js";
@@ -478,6 +478,11 @@ describe("PATCH /projects/{id}", () => {
   });
 
   it("nulls the URL when a briefing upload fails", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Saved a project's briefing without its file",
+      ["The project briefing upload to Blob storage returned no URL"],
+    );
     const oldBriefingUrl =
       "https://blob.example/projects/project_1/secret_token/BRIEFING.md";
     projectFindFirstMock
@@ -512,6 +517,10 @@ describe("PATCH /projects/{id}", () => {
       },
     });
     expect(deleteProjectBriefingBlobMock).toHaveBeenCalledWith(oldBriefingUrl);
+    // evlog masks all-digit UUID segments until ticket 14 lands.
+    expect(warnings[0]?.event).toMatchObject({
+      project: { id: expect.any(String) },
+    });
   });
 
   it("does not upload a briefing when the scoped project lookup misses", async () => {

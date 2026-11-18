@@ -493,6 +493,12 @@ prop/state-driven.
   transition (no `transition`, `transition-all` or `transition-shadow` on a focusable
   element). Never fade it with a modifier. Guard:
   `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
+
+  On a row with `[content-visibility:auto]`, paint containment clips a child's outline, and
+  forced-colors mode drops the ring. Put a transparent outline on the row itself
+  (`has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-transparent`, as in
+  `project-list-item.tsx`), and use `outline-hidden` on the link: unlike `outline-none`, it
+  keeps an outline in forced colors.
 - **Decorative icons:** lucide-react adds `aria-hidden="true"` to any icon that has no
   accessibility prop, so don't pass it by hand. `react-icons` glyphs do need `aria-hidden`.
 - **Icon-only / unlabeled controls:** because the icon is hidden, every icon-only control needs

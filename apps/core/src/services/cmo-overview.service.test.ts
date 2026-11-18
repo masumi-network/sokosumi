@@ -61,7 +61,11 @@ vi.mock("@/config/env", async (importOriginal) =>
   ),
 );
 
-import { cmoOnboardingStep, cmoUpNext } from "./cmo-overview.service";
+import {
+  cmoOnboardingStep,
+  cmoUpNext,
+  withoutSkippedPieces,
+} from "./cmo-overview.service";
 
 beforeEach(resetCmoServiceMocks);
 
@@ -118,24 +122,27 @@ describe("cmoOnboardingStep", () => {
     strategyApproved: true,
   };
 
-  it("resumes on the accounts until one is connected, then on the checkout", () => {
-    expect(cmoOnboardingStep(approved)).toBe("accounts");
+  it("resumes on the checkout until he has a CMO subscription, then on the accounts", () => {
+    expect(cmoOnboardingStep(approved)).toBe("checkout");
+    // A connection made before paying (the old order) still owes the checkout.
     expect(cmoOnboardingStep({ ...approved, connected: true })).toBe(
       "checkout",
     );
-  });
-
-  it("is done only with a CMO subscription", () => {
-    expect(
-      cmoOnboardingStep({ ...approved, connected: true, subscribed: true }),
-    ).toBe("done");
-    // Paying early does not skip the accounts.
     expect(cmoOnboardingStep({ ...approved, subscribed: true })).toBe(
       "accounts",
     );
   });
 
-  it("stays done for a Cuso with Tester credits", () => {
+  it("is done once he is paid for and an account is connected", () => {
+    expect(
+      cmoOnboardingStep({ ...approved, connected: true, subscribed: true }),
+    ).toBe("done");
+  });
+
+  it("skips the checkout for a Cuso with Tester credits", () => {
+    expect(cmoOnboardingStep({ ...approved, hasTesterCredits: true })).toBe(
+      "accounts",
+    );
     expect(
       cmoOnboardingStep({
         ...approved,
@@ -143,5 +150,19 @@ describe("cmoOnboardingStep", () => {
         hasTesterCredits: true,
       }),
     ).toBe("done");
+  });
+});
+
+describe("withoutSkippedPieces", () => {
+  it("leaves out pieces a patch skipped, for every screen that shows the plan", () => {
+    const [kept, dropped] = strategy.calendar;
+    if (!kept || !dropped) throw new Error("The fixture needs two entries");
+    const plan = {
+      ...strategy,
+      calendar: [kept, { ...dropped, status: "skipped" as const }],
+    };
+    expect(withoutSkippedPieces(plan)?.calendar).toEqual([kept]);
+    expect(withoutSkippedPieces(strategy)).toBe(strategy);
+    expect(withoutSkippedPieces(null)).toBeNull();
   });
 });

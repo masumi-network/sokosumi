@@ -125,7 +125,6 @@ import {
   type PendingReactionKey,
   pendingReactionKey,
 } from "@/app/chat/utils/pending-reactions";
-import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { endsWithAttachmentRow } from "@/app/chat/utils/room-message-segments";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
@@ -209,6 +208,7 @@ import {
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
   isMessageContinuation,
+  liveSokoBotFaces,
   membershipVisibleChannelLinks,
   membershipVisibleChannelOptions,
   mergeMembershipVisibleRooms,
@@ -218,7 +218,6 @@ import {
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
   shouldAllowRoomSkills,
-  shouldConsumePendingCoworkerStream,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
@@ -1288,7 +1287,6 @@ function RoomView({
     isStreaming: isCoworkerStreaming,
     activeStreamParentMessageId,
     sendStreamMessage,
-    consumePendingStreamMessage,
     retryFailedStreamMessage,
   } = useCoworkerDirectRoomStream({
     room: selectedRoom,
@@ -1655,28 +1653,6 @@ function RoomView({
         : null,
     [pendingReactions, reactionViewer, threadParentMessage],
   );
-
-  // Draft coworker DM stashes text then navigates — auto-stream once room opens.
-  // Keep sessionStorage until stream actually starts so Strict Mode remount
-  // cannot lose the draft before send begins.
-  useEffect(() => {
-    if (!selectedRoomId) {
-      return;
-    }
-    const pending = peekPendingRoomMessage(selectedRoomId);
-    if (pending == null) {
-      return;
-    }
-    if (
-      !shouldConsumePendingCoworkerStream({
-        isCoworkerStreamRoom,
-        hasPendingMessage: true,
-      })
-    ) {
-      return;
-    }
-    consumePendingStreamMessage(pending);
-  }, [consumePendingStreamMessage, isCoworkerStreamRoom, selectedRoomId]);
 
   // Re-open thread panel when a thread stream is active/resumed so overlays
   // stay visible after remount or if the panel was closed mid-stream.
@@ -3057,6 +3033,8 @@ function RoomView({
       (messagesPending && displayMessages.length === 0) || openingAtUnread;
     // Seen by rides the newest message only; scrollback stays quiet.
     const newestMessageId = displayMessages.at(-1)?.id ?? null;
+    // One live face per bot, on the header of its newest message group.
+    const liveFaces = liveSokoBotFaces(transcriptRows, localCalendarReady);
     // Narrowed once here: the row renderer is a nested function, which
     // TypeScript does not narrow through.
     const room = selectedRoom;
@@ -3216,6 +3194,8 @@ function RoomView({
               isSaving={savingMessageIds.has(message.id)}
               showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
+              liveFace={liveFaces.has(message.id)}
+              liveFaceStreaming={liveFaces.get(message.id) ?? false}
               isContinuation={
                 localCalendarReady &&
                 !showDaySeparator &&

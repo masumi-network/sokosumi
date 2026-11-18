@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   hasPushPreference,
@@ -79,11 +80,11 @@ describe("releasePushDeviceOnSignOut", () => {
   });
 
   it("keeps the interrupted marker when subscription lookup fails", async () => {
+    expectConsole("error", "Failed to release the push device on sign out");
     localStorage.setItem("ably.push.deviceIdentityToken", "token");
     hasWebPushSubscriptionMock.mockRejectedValueOnce(
       new Error("lookup failed"),
     );
-    vi.spyOn(console, "error").mockImplementation(() => {});
     await releasePushDeviceOnSignOut("user_1");
     expect(hasUnfinishedPushTeardown()).toBe(true);
   });
@@ -240,6 +241,7 @@ describe("releasePushDeviceOnSignOut", () => {
    * subscribe this browser again, for whoever signs in next.
    */
   it("forgets the registration even when the release never landed", async () => {
+    expectConsole("error", "Failed to release the push device on sign out");
     hasWebPushSubscriptionMock.mockResolvedValue(false);
     localStorage.setItem(
       "ably.push.deviceIdentityToken",
@@ -289,7 +291,10 @@ describe("releasePushDeviceOnSignOut", () => {
    */
   it("logs a rejection that lands after the cap", async () => {
     vi.useFakeTimers();
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logged = expectConsole(
+      "error",
+      "Failed to release the push device on sign out",
+    );
     const reason = new Error("ably said no");
     let failRelease: (error: unknown) => void = () => {};
     deactivatePushMock.mockReturnValue(
@@ -305,10 +310,10 @@ describe("releasePushDeviceOnSignOut", () => {
     failRelease(reason);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(logged).toHaveBeenCalledWith(
+    expect(logged).toContainEqual([
       "Failed to release the push device on sign out",
       reason,
-    );
+    ]);
   });
 
   /**
@@ -316,16 +321,19 @@ describe("releasePushDeviceOnSignOut", () => {
    * registration stays, and the settings switch can still clear it.
    */
   it("lets the sign-out continue when deactivation fails", async () => {
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logged = expectConsole(
+      "error",
+      "Failed to release the push device on sign out",
+    );
     const reason = new Error("ably said no");
     deactivatePushMock.mockRejectedValue(reason);
 
     await expect(releasePushDeviceOnSignOut("user_1")).resolves.toBeUndefined();
 
-    expect(logged).toHaveBeenCalledWith(
+    expect(logged).toContainEqual([
       "Failed to release the push device on sign out",
       reason,
-    );
+    ]);
   });
 });
 
@@ -457,7 +465,10 @@ describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
    */
   it("logs a rejection that lands after the cap", async () => {
     vi.useFakeTimers();
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logged = expectConsole(
+      "error",
+      "Failed to release the push device after account deletion",
+    );
     const reason = new Error("the chunk is gone");
     let failRelease: (error: unknown) => void = () => {};
     dropBrowserPushSubscriptionMock.mockReturnValue(
@@ -473,10 +484,10 @@ describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
     failRelease(reason);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(logged).toHaveBeenCalledWith(
+    expect(logged).toContainEqual([
       "Failed to release the push device after account deletion",
       reason,
-    );
+    ]);
   });
 
   /**
@@ -484,18 +495,21 @@ describe("dropBrowserPushSubscriptionOnAccountDeletion", () => {
    * reader still has to reach the success toast and leave the page.
    */
   it("returns when the unsubscribe fails", async () => {
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const logged = expectConsole(
+      "error",
+      "Failed to release the push device after account deletion",
+    );
     const reason = new Error("the browser said no");
-    dropBrowserPushSubscriptionMock.mockRejectedValue(reason);
+    dropBrowserPushSubscriptionMock.mockRejectedValueOnce(reason);
 
     await expect(
       dropBrowserPushSubscriptionOnAccountDeletion(),
     ).resolves.toBeUndefined();
 
-    expect(logged).toHaveBeenCalledWith(
+    expect(logged).toContainEqual([
       "Failed to release the push device after account deletion",
       reason,
-    );
+    ]);
   });
 });
 

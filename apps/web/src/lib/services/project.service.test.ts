@@ -482,7 +482,9 @@ describe("project.service", () => {
     const { projectService } = await import("./project.service");
 
     await expect(
-      projectService.finalizeSocialConnection("project-1", "ca_123"),
+      projectService.finalizeSocialConnection("project-1", {
+        connectionId: "ca_123",
+      }),
     ).resolves.toEqual(connection);
     expect(
       coreClientMock.postProjectsByIdSocialConnectionsFinalize,

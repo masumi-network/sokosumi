@@ -7,6 +7,7 @@ import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
+import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
@@ -29,7 +30,9 @@ import {
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
+  type CmoActivity,
   type CmoWork,
+  cmoActivity,
   cmoLearningState,
   cmoWork,
 } from "@/services/cmo-hiring.service";
@@ -76,16 +79,16 @@ export interface CmoUpNextItem {
 /**
  * Where Hiring Cuso stands, read from the data (ADR 0062): the Brand Brain
  * until a member confirms it, the Marketing strategy until a version is
- * approved, the accounts until the Project has an active Social connection,
- * the checkout until his Project has a CMO subscription (ADR 0068).
- * CMO's own cookie may skip the accounts (ADR 0062).
+ * approved, the checkout until his Project has a CMO subscription (ADR 0068),
+ * then the accounts until the Project has an active Social connection.
+ * CMO's own cookie records that Launch was pressed (ADR 0062).
  */
 /** Hiring Cuso's steps, in order. */
 export const CMO_ONBOARDING_STEPS = [
   "brandBrain",
   "strategy",
-  "accounts",
   "checkout",
+  "accounts",
   "done",
 ] as const;
 export type CmoOnboardingStep = (typeof CMO_ONBOARDING_STEPS)[number];
@@ -102,8 +105,10 @@ export function cmoOnboardingStep(input: {
   if (!input.strategyApproved) {
     return input.brandBrainConfirmed ? "strategy" : "brandBrain";
   }
-  if (!input.connected) return "accounts";
-  return input.subscribed || input.hasTesterCredits ? "done" : "checkout";
+  // The person pays before connecting accounts: a paid plan is what lets
+  // Cuso make the month, and the accounts only decide where it goes.
+  if (!input.subscribed && !input.hasTesterCredits) return "checkout";
+  return input.connected ? "done" : "accounts";
 }
 
 export interface CmoOverview {
@@ -117,12 +122,16 @@ export interface CmoOverview {
   learning: CmoLearningState;
   /** Cuso's latest research or strategy work, step by step. */
   work: CmoWork | null;
+  /** The step and reasoning of the turn Cuso runs now; null while he rests. */
+  activity: CmoActivity | null;
   /** The Project's logo and DESIGN.md, with the research pictures. */
   brandVisual: CmoBrandVisual | null;
   /** Brand research screenshots and pictures, the Project's files. */
   brandMedia: CmoBrandMedia | null;
   /** The Project's logo (the site's best icon), when one was found. */
   projectLogo: string | null;
+  /** The owner gave their photo, with consent, to front talking videos. */
+  presenterSet: boolean;
   /** What Cuso does when, for Settings. */
   routines: {
     key: string;
@@ -215,6 +224,20 @@ export function cmoUpNext(
 }
 
 /** Everything the CMO app shows, in one read, for one member of the business. */
+/**
+ * The plan as CMO shows it: a piece a patch skipped (status skipped drops
+ * one) is no longer in the month, on any screen.
+ */
+export function withoutSkippedPieces<
+  T extends Pick<MarketingStrategyPlan, "calendar"> | null,
+>(plan: T): T {
+  if (!plan?.calendar.some((entry) => entry.status === "skipped")) return plan;
+  return {
+    ...plan,
+    calendar: plan.calendar.filter((entry) => entry.status !== "skipped"),
+  };
+}
+
 export async function getCmoOverview(
   target: CusoTarget,
   now: Date = new Date(),
@@ -237,6 +260,8 @@ export async function getCmoOverview(
         logo: true,
         designMdUrl: true,
         sitePlatform: true,
+        presenterFileId: true,
+        presenterConsentAt: true,
       },
     }),
     prisma.sokoBot.findUnique({
@@ -261,7 +286,7 @@ export async function getCmoOverview(
     listCmoMeasurement(cuso.sokoBotId, project?.sitePlatform ?? null),
   ]);
   if (project && project.sitePlatform === null) {
-    waitUntil(learnCmoSitePlatform(cuso));
+    waitUntil(runAsBackgroundWork(() => learnCmoSitePlatform(cuso)));
   }
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
@@ -290,7 +315,7 @@ export async function getCmoOverview(
       ])
     : [[], new Map<string, MarketingStrategyFilePiece>()];
   const planOf = (version: typeof newest) => {
-    const plan = parseMarketingPlan(version?.plan);
+    const plan = withoutSkippedPieces(parseMarketingPlan(version?.plan));
     return plan && version?.approvedAt
       ? withMarketingFiles(withSocialPostCalendar(plan, posts), files)
       : plan;
@@ -351,6 +376,7 @@ export async function getCmoOverview(
   });
   const learning = await cmoLearningState(cuso, now);
   const work = await cmoWork(cuso, now);
+  const activity = await cmoActivity(cuso);
   const brandBrain = parseBrandBrain(cuso.brandBrain);
   // Blob storage not answering leaves the research out, not the page.
   const brandMedia = await cmoBrandMedia({
@@ -358,10 +384,15 @@ export async function getCmoOverview(
     websiteUrl: cuso.websiteUrl,
     brain: brandBrain,
   }).catch((error) => {
-    console.warn("CMO brand media not read", {
-      projectId: cuso.projectId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    recordCoreWarning(
+      { operation: "cmo_overview", project: { id: cuso.projectId } },
+      {
+        message: "Could not read the brand media for the CMO overview",
+        why: "Blob storage did not answer",
+        fix: "The overview shows no research pictures until storage answers again. If it keeps failing, read the error under warnings[].cause.",
+        cause: error,
+      },
+    );
     return null;
   });
   const brandVisual = await cmoBrandVisual(
@@ -402,9 +433,13 @@ export async function getCmoOverview(
     media,
     learning,
     work,
+    activity,
     brandVisual,
     brandMedia,
     projectLogo: project.logo,
+    presenterSet: Boolean(
+      project.presenterFileId && project.presenterConsentAt,
+    ),
     routines,
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,

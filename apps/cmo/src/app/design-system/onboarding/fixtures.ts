@@ -1,6 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { cmoStrategyVersion } from "../../../test-fixtures/cmo";
+import { cmoBilling, cmoStrategyVersion } from "../../../test-fixtures/cmo";
 import {
   asking,
   brain,
@@ -93,9 +93,9 @@ export function screenOverview(screen: Screen): CmoOverview {
         brandVisual: {
           logoUrl: null,
           colors: ["ff6a00", "1b1b1b", "f4e9d8"].map(hex),
-          fonts: ["Inter"],
+          fonts: ["Inter", "Space Grotesk"],
           siteName: "Acme",
-          designMdUrl: null,
+          designMdUrl: "https://acme.io/DESIGN.md",
           images: [],
         },
       });
@@ -123,11 +123,17 @@ export function screenOverview(screen: Screen): CmoOverview {
           ],
         }),
       });
+    // Paid for: the accounts, then Launch.
     case "launch":
     case "launch-connected":
       return draft({
         ...cmoStrategyVersion(new Date("2026-10-05T09:10:00Z")),
         onboardingStep: "accounts",
+        billing: cmoBilling({
+          tier: "growth",
+          interval: "month",
+          status: "active",
+        }),
         brandBrain: richBrain,
         strategy: richPlan,
         channels:
@@ -143,7 +149,7 @@ export function screenOverview(screen: Screen): CmoOverview {
               ]
             : [],
       });
-    // Launched, nobody paid yet: the CMO plan checkout (ADR 0068).
+    // Approved, nobody paid yet: the CMO plan checkout (ADR 0068).
     case "subscribe":
     case "subscribe-confirming":
       return draft({

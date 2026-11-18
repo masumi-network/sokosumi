@@ -11,6 +11,7 @@ const { serviceMock, assertAdminSessionMock, revalidatePathMock } = vi.hoisted(
       list: vi.fn(),
       performAction: vi.fn(),
       promoteVersion: vi.fn(),
+      setAvatarCode: vi.fn(),
       updateVersion: vi.fn(),
     },
     assertAdminSessionMock: vi.fn(),
@@ -47,6 +48,7 @@ import {
   listAdminSokoBotsAction,
   performAdminSokoBotAction,
   promoteAdminSokoBotVersionAction,
+  setAdminSokoBotAvatarCodeAction,
   updateAdminSokoBotVersionAction,
 } from "../action";
 
@@ -266,5 +268,46 @@ describe("deleteAllAdminCusosAction", () => {
       "b",
       "c",
     ]);
+  });
+});
+
+describe("setAdminSokoBotAvatarCodeAction", () => {
+  const BOT = "01960001-0001-7001-8001-00000000aaaa";
+  const CODE = "v1.owl.golden.peach.crimson.l.M.original.original.none.none";
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it("saves a look on another user's bot", async () => {
+    serviceMock.setAvatarCode.mockResolvedValue({
+      avatarCode: CODE,
+      avatarImageUrl: "https://blob.test/owl.webp",
+    });
+    const result = await setAdminSokoBotAvatarCodeAction({
+      input: { sokoBotId: BOT, code: CODE },
+    });
+    expect(result.ok).toBe(true);
+    expect(serviceMock.setAvatarCode).toHaveBeenCalledWith(BOT, CODE);
+    expect(revalidatePathMock).toHaveBeenCalled();
+  });
+
+  it("refuses an unreadable code without calling Core", async () => {
+    const result = await setAdminSokoBotAvatarCodeAction({
+      input: { sokoBotId: BOT, code: "v1.owl" },
+    });
+    expect(result.ok).toBe(false);
+    expect(serviceMock.setAvatarCode).not.toHaveBeenCalled();
+  });
+
+  it("is admin only", async () => {
+    assertAdminSessionMock.mockImplementationOnce(() => {
+      throw new AdminAccessRequiredError();
+    });
+    const result = await setAdminSokoBotAvatarCodeAction({
+      input: { sokoBotId: BOT, code: CODE },
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.error.code).toBe(CommonErrorCode.UNAUTHORIZED);
+    expect(serviceMock.setAvatarCode).not.toHaveBeenCalled();
   });
 });

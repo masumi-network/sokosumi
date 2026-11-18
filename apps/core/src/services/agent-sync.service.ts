@@ -9,12 +9,19 @@ import {
   isV2RegistryIdentifier,
   normalizeMasumiPaymentUnit,
 } from "@sokosumi/masumi";
-
+import { createError } from "evlog";
 import { registryClient } from "@/clients/masumi-registry.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
 import { getAgentDescription, getCardanoV2ReadySources } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
+import {
+  createCoreLogger,
+  emitCoreError,
+  emitCoreWarning,
+  logCoreWarning,
+} from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getEnvSecrets, redactSecrets } from "@/lib/secret-redaction";
 
 import {
@@ -54,6 +61,18 @@ const AGENT_SYNC_BATCH_SIZE = 50;
 interface SyncExecutionOptions {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
+}
+
+const REGISTRY_SYNC_OPERATION = "agent_registry_sync";
+const SUMMARY_SYNC_OPERATION = "agent_summary_sync";
+const REGISTRY_ENTRY_FIX =
+  "The registry owner must fix the entry; the next agents sync reads it again once it changes.";
+const REGISTRY_ENTRY_UNSTORABLE =
+  "The registry entry has a value Core cannot store";
+
+/** Where a run stopped early, for its summary event; null when it did not. */
+interface SyncRunStop {
+  stopped: string | null;
 }
 
 /**
@@ -100,8 +119,15 @@ async function quarantineInvalidRegistryEntry(
     },
   });
   if (typeof agentIdentifier !== "string" || agentIdentifier.length === 0) {
-    console.error(
-      `[sync/agents] Cannot quarantine registry entry without a valid agentIdentifier: ${issue}`,
+    emitCoreError(
+      // Where the entry is invalid is detail, so a field.
+      { operation: REGISTRY_SYNC_OPERATION, registryIssue: issue },
+      {
+        message:
+          "Could not quarantine a registry entry that cannot be stored, because it has no agent identifier",
+        why: REGISTRY_ENTRY_UNSTORABLE,
+        fix: `${REGISTRY_ENTRY_FIX} Sentry has the rejected entry.`,
+      },
     );
     return;
   }
@@ -112,8 +138,18 @@ async function quarantineInvalidRegistryEntry(
       : agentIdentifier,
   };
   const version = resolveRegistryAgentVersion(normalizedEntry);
-  console.error(
-    `[sync/agents] Quarantining registry entry ${normalizedEntry.agentIdentifier}: ${issue}`,
+  emitCoreError(
+    {
+      operation: REGISTRY_SYNC_OPERATION,
+      agent: { identifier: normalizedEntry.agentIdentifier },
+      registryIssue: issue,
+    },
+    {
+      message:
+        "Quarantined a registry entry that cannot be stored; its agent is marked invalid",
+      why: REGISTRY_ENTRY_UNSTORABLE,
+      fix: REGISTRY_ENTRY_FIX,
+    },
   );
   const identifierMatchIds =
     await findAgentIdsByIdentifierCaseInsensitive(agentIdentifier);
@@ -176,11 +212,12 @@ function reportAgentRepricing(
   previous: string,
   next: string,
 ): void {
-  console.warn("[sync/agents] Registry pricing changed for a live agent", {
-    agentIdentifier,
-    previousPricing: previous,
-    nextPricing: next,
-  });
+  // Routine and intended, so info: the record, not an alarm.
+  createCoreLogger({
+    operation: REGISTRY_SYNC_OPERATION,
+    agent: { identifier: agentIdentifier },
+    agentRepricing: { previous, next },
+  }).emit();
   Sentry.captureMessage("Registry pricing changed for a live agent", {
     level: "info",
     tags: { error_type: "agent_repriced" },
@@ -323,8 +360,20 @@ async function upsertRegistryAgent(
     existing &&
     existing.blockchainIdentifier !== entry.agentIdentifier
   ) {
-    console.warn(
-      `[sync/agents] Malformed V2 entry ${entry.agentIdentifier} collides with canonical identity ${version.registryIdentity}; skipping`,
+    emitCoreWarning(
+      {
+        operation: REGISTRY_SYNC_OPERATION,
+        agent: {
+          identifier: entry.agentIdentifier,
+          registryIdentity: version.registryIdentity,
+        },
+      },
+      {
+        message:
+          "Skipped a malformed V2 registry entry that collides with an existing agent",
+        why: "Its version suffix is invalid, and its full identifier equals another agent's registry identity",
+        fix: REGISTRY_ENTRY_FIX,
+      },
     );
     return;
   }
@@ -590,15 +639,11 @@ function getRegistryEntryLogIdentifier(entry: unknown): string {
 
 function shouldStopSync(
   options: SyncExecutionOptions,
+  run: SyncRunStop,
   reason: string,
 ): boolean {
-  if (options.abortSignal.aborted) {
-    console.info(`Stopping sync operation: ${reason}`);
-    return true;
-  }
-
-  if (!options.shouldContinue()) {
-    console.info(`Stopping sync operation: ${reason}`);
+  if (options.abortSignal.aborted || !options.shouldContinue()) {
+    run.stopped = reason;
     return true;
   }
 
@@ -637,17 +682,55 @@ function isRollbackUnsafeEntry(entry: RegistryDiffEntry): boolean {
   );
 }
 
+interface RegistrySyncRun extends SyncRunStop {
+  metadataKey: string;
+  cursorReset: boolean;
+  batches: number;
+  processed: number;
+  quarantined: number;
+  deferred: number;
+}
+
+type CoreLogger = ReturnType<typeof createCoreLogger>;
+
+/**
+ * Runs after the agents cron response, so the run is one standalone event:
+ * its counts, where it stopped early, and the failure that ended it.
+ */
 async function syncRegistryAgents(
   metadataKey: string,
   options: SyncExecutionOptions & { resetCursor?: boolean },
 ): Promise<void> {
-  const startedAt = Date.now();
-  console.info(
-    `[sync/agents] Starting registry sync (metadataKey=${metadataKey})`,
-  );
+  const run: RegistrySyncRun = {
+    metadataKey,
+    cursorReset: false,
+    batches: 0,
+    processed: 0,
+    quarantined: 0,
+    deferred: 0,
+    stopped: null,
+  };
+  const log = createCoreLogger({ operation: REGISTRY_SYNC_OPERATION });
+  try {
+    await runRegistrySync(options, run, log);
+  } finally {
+    log.set({ agentRegistrySync: run });
+    log.emit();
+  }
+}
 
+async function runRegistrySync(
+  options: SyncExecutionOptions & { resetCursor?: boolean },
+  run: RegistrySyncRun,
+  log: CoreLogger,
+): Promise<void> {
+  const { metadataKey } = run;
   if (
-    shouldStopSync(options, "registry sync canceled before metadata lookup")
+    shouldStopSync(
+      options,
+      run,
+      "registry sync canceled before metadata lookup",
+    )
   ) {
     return;
   }
@@ -656,9 +739,8 @@ async function syncRegistryAgents(
     await prisma.syncMetadata.deleteMany({
       where: { key: metadataKey },
     });
-    console.info(
-      "[sync/agents] Cursor reset requested — replaying the full registry diff",
-    );
+    // Cursor reset requested — replaying the full registry diff.
+    run.cursorReset = true;
   }
 
   const metadata = await prisma.syncMetadata.findUnique({
@@ -681,20 +763,18 @@ async function syncRegistryAgents(
       (creditCost) => normalizeMasumiPaymentUnit(creditCost.unit),
     ),
   );
-  let totalProcessedCount = 0;
-  let totalQuarantinedCount = 0;
-  let totalDeferredCount = 0;
   // Closed by the first readiness success, which also resets the cursor and
   // replays everything deferred while it was open.
   const deferRollbackUnsafeEntries = cardanoV2ReadySources.length === 0;
-  let batchCount = 0;
 
   // Loop batches within the run's time budget (shouldStopSync consults the
   // handler deadline) instead of one 50-entry batch per cron run — the full
   // replay that follows a cursor reset would otherwise freeze status
   // propagation for hours.
   while (true) {
-    if (shouldStopSync(options, "registry sync canceled before diff request")) {
+    if (
+      shouldStopSync(options, run, "registry sync canceled before diff request")
+    ) {
       return;
     }
 
@@ -711,9 +791,13 @@ async function syncRegistryAgents(
       // far side's, and a proxy that echoes request headers would put
       // REGISTRY_API_KEY inside it. Sentry redacts in `beforeSend`; stdout
       // has no such hook.
-      console.error(
-        "[sync/agents] Error in diff sync operation:",
-        redactSecrets(entriesResult.error, getEnvSecrets()),
+      log.error(
+        createError({
+          message: "Could not read the agent registry diff",
+          why: "The registry did not return the agent diff",
+          cause: new Error(redactSecrets(entriesResult.error, getEnvSecrets())),
+          fix: "The next agents sync retries from the same cursor. If it fails every run, check the registry service and REGISTRY_API_KEY.",
+        }),
       );
       return;
     }
@@ -722,7 +806,7 @@ async function syncRegistryAgents(
     if (entries.length === 0) {
       break;
     }
-    batchCount++;
+    run.batches++;
 
     // Validate every registry-controlled value that fans out into bounded
     // Prisma columns before any batch writes. Schema-invalid entries are
@@ -740,7 +824,9 @@ async function syncRegistryAgents(
     );
 
     for (const tag of tags) {
-      if (shouldStopSync(options, "registry sync canceled during tag upsert")) {
+      if (
+        shouldStopSync(options, run, "registry sync canceled during tag upsert")
+      ) {
         return;
       }
 
@@ -764,15 +850,27 @@ async function syncRegistryAgents(
     let lastProcessedCursor: RegistryEntryCursor | null = null;
     for (const [entryIndex, entry] of entries.entries()) {
       if (
-        shouldStopSync(options, "registry sync canceled during agent upsert")
+        shouldStopSync(
+          options,
+          run,
+          "registry sync canceled during agent upsert",
+        )
       ) {
         return;
       }
 
       const entryCursor = getRegistryEntryCursor(entry);
       if (!entryCursor) {
-        console.error(
-          "[sync/agents] Registry entry has invalid cursor fields; stopping batch for retry",
+        log.error(
+          createError({
+            message:
+              "A registry entry has invalid cursor fields, so the batch stopped for a retry",
+            why: "Its id or statusUpdatedAt is missing or invalid, and advancing past it could skip later registry changes",
+            fix: "The next agents sync retries the batch. If it stops here every run, the registry must fix the entry.",
+          }),
+          {
+            agent: { identifier: getRegistryEntryLogIdentifier(entry) },
+          },
         );
         Sentry.captureMessage("Registry entry has invalid cursor fields", {
           level: "error",
@@ -786,7 +884,7 @@ async function syncRegistryAgents(
         const storageIssue = storageIssues[entryIndex];
         if (storageIssue) {
           await quarantineInvalidRegistryEntry(entry, storageIssue);
-          totalQuarantinedCount++;
+          run.quarantined++;
           processedEntryCount++;
           lastProcessedCursor = entryCursor;
           continue;
@@ -795,7 +893,7 @@ async function syncRegistryAgents(
         // past it, and the readiness transition that lifts the fence resets
         // the cursor so the whole registry is replayed with the fence open.
         if (deferRollbackUnsafeEntries && isRollbackUnsafeEntry(entry)) {
-          totalDeferredCount++;
+          run.deferred++;
           processedEntryCount++;
           lastProcessedCursor = entryCursor;
           continue;
@@ -819,9 +917,17 @@ async function syncRegistryAgents(
         // past this entry so the next run retries it. Transient errors
         // self-heal; a persistently failing entry keeps the cursor parked and
         // pages via Sentry rather than being silently dropped.
-        console.error(
-          `[sync/agents] Upsert failed for entry ${getRegistryEntryLogIdentifier(entry)}; stopping batch for retry:`,
-          error,
+        log.error(
+          createError({
+            message:
+              "Could not save an agent from the registry, so the batch stopped for a retry",
+            why: "The database write of the agent failed",
+            fix: "The next agents sync retries this entry. If it fails every run, read error.cause and fix the entry's data or the database error.",
+            cause: error instanceof Error ? error : undefined,
+          }),
+          {
+            agent: { identifier: getRegistryEntryLogIdentifier(entry) },
+          },
         );
         Sentry.captureException(error);
         batchHadError = true;
@@ -830,15 +936,22 @@ async function syncRegistryAgents(
     }
 
     if (
-      shouldStopSync(options, "registry sync canceled before metadata update")
+      shouldStopSync(
+        options,
+        run,
+        "registry sync canceled before metadata update",
+      )
     ) {
       return;
     }
 
     if (processedEntryCount === 0 || lastProcessedCursor === null) {
-      console.warn(
-        "[sync/agents] No entries processed; cursor not advanced (batch will be retried)",
-      );
+      logCoreWarning(log, {
+        message:
+          "The agents sync processed no registry entry, so its cursor did not move",
+        why: "The batch stopped at its first entry",
+        fix: "The next agents sync retries the batch; the error on this event says why it stopped.",
+      });
       return;
     }
 
@@ -856,7 +969,7 @@ async function syncRegistryAgents(
         lastSyncedAt: lastProcessedCursor.statusUpdatedAt,
       },
     });
-    totalProcessedCount += processedEntryCount;
+    run.processed += processedEntryCount;
 
     if (batchHadError) {
       // Cursor is parked at the contiguous prefix; next run retries.
@@ -868,19 +981,47 @@ async function syncRegistryAgents(
     lastSyncedAt = lastProcessedCursor.statusUpdatedAt;
     cursorId = lastProcessedCursor.id;
   }
-
-  console.info(
-    `[sync/agents] Completed registry sync (batches=${batchCount}, processed=${totalProcessedCount}, quarantined=${totalQuarantinedCount}, deferred=${totalDeferredCount}, durationMs=${Date.now() - startedAt})`,
-  );
 }
 
+interface SummarySyncRun extends SyncRunStop {
+  candidates: number;
+  updated: number;
+  skippedNoDescription: number;
+  skippedNoSummary: number;
+  declined: number;
+  failed: number;
+}
+
+/** Runs after the agents-summary cron response: one standalone event per run. */
 async function syncAgentSummaries(
   options: SyncExecutionOptions,
 ): Promise<void> {
-  const startedAt = Date.now();
-  console.info("[sync/agents-summary] Starting summary sync");
+  const run: SummarySyncRun = {
+    candidates: 0,
+    updated: 0,
+    skippedNoDescription: 0,
+    skippedNoSummary: 0,
+    declined: 0,
+    failed: 0,
+    stopped: null,
+  };
+  // Created before the run, so the event's duration covers it.
+  const log = createCoreLogger({ operation: SUMMARY_SYNC_OPERATION });
+  try {
+    await runSummarySync(options, run);
+  } finally {
+    log.set({ agentSummarySync: run });
+    log.emit();
+  }
+}
 
-  if (shouldStopSync(options, "summary sync canceled before loading agents")) {
+async function runSummarySync(
+  options: SyncExecutionOptions,
+  run: SummarySyncRun,
+): Promise<void> {
+  if (
+    shouldStopSync(options, run, "summary sync canceled before loading agents")
+  ) {
     return;
   }
 
@@ -900,24 +1041,18 @@ async function syncAgentSummaries(
     },
     take: AGENT_SUMMARY_SYNC_LIMIT,
   });
-  console.info(
-    `[sync/agents-summary] Loaded candidates (count=${agentsWithoutSummary.length})`,
-  );
-
-  let updatedCount = 0;
-  let skippedNoDescriptionCount = 0;
-  let skippedNoSummaryCount = 0;
-  let declinedCount = 0;
-  let failedCount = 0;
+  run.candidates = agentsWithoutSummary.length;
 
   for (const agent of agentsWithoutSummary) {
-    if (shouldStopSync(options, "summary sync canceled during agent loop")) {
+    if (
+      shouldStopSync(options, run, "summary sync canceled during agent loop")
+    ) {
       return;
     }
 
     const description = getAgentDescription(agent);
     if (!description) {
-      skippedNoDescriptionCount++;
+      run.skippedNoDescription++;
       continue;
     }
 
@@ -926,12 +1061,16 @@ async function syncAgentSummaries(
         abortSignal: options.abortSignal,
       });
       if (!result) {
-        skippedNoSummaryCount++;
+        run.skippedNoSummary++;
         continue;
       }
 
       if (
-        shouldStopSync(options, "summary sync canceled before summary write")
+        shouldStopSync(
+          options,
+          run,
+          "summary sync canceled before summary write",
+        )
       ) {
         return;
       }
@@ -950,19 +1089,28 @@ async function syncAgentSummaries(
               { summaryDeclinedAt: new Date(), updatedAt: agent.updatedAt },
       });
       if (result.kind === "declined") {
-        declinedCount++;
+        run.declined++;
         continue;
       }
-      updatedCount++;
+      run.updated++;
     } catch (error) {
-      failedCount++;
-      console.error(`Failed to generate summary for agent ${agent.id}:`, error);
+      run.failed++;
+      // The AI call's error can quote the description and the update's the
+      // summary, so only the error's shape is logged.
+      emitCoreError(
+        {
+          operation: SUMMARY_SYNC_OPERATION,
+          agent: { id: agent.id },
+          failure: messageSafeErrorFields(error),
+        },
+        {
+          message: "Could not generate a summary for an agent",
+          why: "Generating or saving the summary failed",
+          fix: "The next agents-summary sync tries this agent again. If it fails every run, look up the error name and code under failure.",
+        },
+      );
     }
   }
-
-  console.info(
-    `[sync/agents-summary] Completed summary sync (updated=${updatedCount}, skippedNoDescription=${skippedNoDescriptionCount}, skippedNoSummary=${skippedNoSummaryCount}, declined=${declinedCount}, failed=${failedCount}, durationMs=${Date.now() - startedAt})`,
-  );
 }
 
 export const agentSyncService = {

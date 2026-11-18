@@ -18,14 +18,37 @@ vi.mock("@/lib/soko-bot/jev", () => ({
 }));
 
 import {
+  cmoCalendarRepeats,
   cmoDraftProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoPlanProblemsSince,
+  cmoPlanRuleProblems,
   cmoReplySafety,
+  cmoSideChannelFit,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
+
+/**
+ * Texts naming one topic say one thing; every other text gets a direction
+ * of its own, so it repeats nothing.
+ */
+function topicEmbed(topics: readonly RegExp[]) {
+  const own = new Map<string, number>();
+  return async (values: readonly string[]) => ({
+    costUsd: 0.000_01,
+    embeddings: values.map((value) => {
+      if (!own.has(value)) own.set(value, own.size);
+      const vector = Array.from({ length: topics.length + 64 }, () => 0);
+      topics.forEach((topic, index) => {
+        if (topic.test(value)) vector[index] = 1;
+      });
+      vector[topics.length + (own.get(value) ?? 0)] = 0.1;
+      return vector;
+    }),
+  });
+}
 
 const entry = (id: string, channel: string, format: string) => ({
   id,
@@ -133,21 +156,47 @@ describe("cmoPlanProblems", () => {
     expect(problems.join("\n")).toMatch(/mix is empty/);
     expect(problems.join("\n")).toMatch(/funnel has 1 stages/);
     expect(problems.join("\n")).toMatch(/objective's metric, "Intro calls"/);
-    expect(problems.join("\n")).toMatch(/calendar has 1 pieces/);
     expect(problems.join("\n")).toMatch(/uses 1 formats/);
     expect(problems.join("\n")).toMatch(/holds drafts/);
   });
 
-  it("asks for a story on every LinkedIn piece", () => {
+  it("leaves the hard rules to the save, so it never sends Cuso back for them", () => {
+    const broken = plan({
+      summary:
+        "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone.",
+      calendar: [entry("a", "linkedin", "post")],
+    });
+    const review = cmoPlanProblems(broken).join("\n");
+    expect(review).not.toMatch(/summary has|calendar has 1 pieces|% of the/);
+    const rules = cmoPlanRuleProblems(broken).join("\n");
+    expect(rules).toMatch(/Rule "20-word summary": the summary has 21 words/);
+    expect(rules).toMatch(/Rule "16 pieces": the calendar has 1 pieces/);
+    expect(rules).toMatch(/Rule "shares within 7 points": /);
+  });
+
+  it("checks no calendar rule before the calendar is saved", () => {
+    expect(cmoPlanRuleProblems(plan({ calendar: [] }))).toEqual([]);
+  });
+
+  it("asks for a story on every LinkedIn and social-proof piece", () => {
     const problems = cmoPlanProblems(
       plan({
         calendar: [
           entry("a", "linkedin", "post"),
           { ...entry("b", "linkedin", "image"), story: "A shop sold out" },
+          { ...entry("c", "x", "post"), approach: "social-proof" },
+          { ...entry("d", "x", "post"), approach: "educational" },
+          entry("e", "linkedin", "post"),
+          entry("f", "linkedin", "post"),
         ],
       }),
     ).join("\n");
-    expect(problems).toMatch(/1 LinkedIn pieces have no story \(a\)/);
+    // Every id, so a fix reaches all of them.
+    expect(problems).toMatch(
+      /4 LinkedIn or social-proof pieces have no story \(a, c, e, f\)/,
+    );
+    // A Brand Brain with no story for it is not a dead end.
+    expect(problems).toMatch(/takes another approach/);
   });
 
   it("asks for a source of truth and the month's experiment", () => {
@@ -163,26 +212,6 @@ describe("cmoPlanProblems", () => {
     ).join("\n");
     expect(problems).toMatch(/sourceOfTruth is missing/);
     expect(problems).toMatch(/experiment is missing/);
-  });
-
-  it("asks for a comparison page among the seo articles", () => {
-    const articles = [
-      { ...entry("a", "seo", "article"), title: "How to mint an NFT" },
-      { ...entry("b", "seo", "article"), title: "NFT fees explained" },
-    ];
-    expect(cmoPlanProblems(plan({ calendar: articles })).join("\n")).toMatch(
-      /none of the 2 seo articles is a comparison page/,
-    );
-    expect(
-      cmoPlanProblems(
-        plan({
-          calendar: [
-            ...articles,
-            { ...entry("c", "seo", "article"), title: "NMKR vs Mintable" },
-          ],
-        }),
-      ).join("\n"),
-    ).not.toMatch(/comparison page/);
   });
 
   it("names titles, facts and phrases the calendar repeats", () => {
@@ -272,6 +301,37 @@ describe("cmoPlanProblemsSince", () => {
       cmoPlanProblems(thin),
     );
   });
+
+  it("asks nothing of the pieces left when a change skips one, but names a piece it rewrites", () => {
+    // Six formats, one of them only on LinkedIn.
+    const six = plan({
+      calendar: [
+        entry("a", "seo", "article"),
+        entry("b", "instagram", "image post"),
+        entry("c", "instagram", "carousel"),
+        entry("d", "instagram", "reel"),
+        entry("e", "newsletter", "issue"),
+        entry("f", "linkedin", "text"),
+      ],
+    });
+    const at = (index: number, patch: object) => ({
+      ...six,
+      calendar: six.calendar.map((piece, i) =>
+        i === index ? { ...piece, ...patch } : piece,
+      ),
+    });
+    const formats = /calendar uses \d+ formats/;
+
+    expect(
+      cmoPlanProblemsSince(at(5, { status: "skipped" }), six).join("\n"),
+    ).not.toMatch(formats);
+    expect(
+      cmoPlanProblemsSince(
+        at(5, { channel: "seo", format: "article" }),
+        six,
+      ).join("\n"),
+    ).toMatch(formats);
+  });
 });
 
 describe("the funnel strategy", () => {
@@ -336,6 +396,129 @@ describe("the funnel strategy", () => {
     // A cadence that is not a count is left to Cuso.
     expect(problems("4 page fixes, 2 articles monthly")).not.toContain(
       "cadence",
+    );
+    // cmo-v3 writes social cadences as a daily rate.
+    expect(problems("3 a day")).toContain("means about 84");
+    expect(problems("1 to 2 daily")).not.toContain("cadence");
+  });
+
+  it("asks a weekly Cuso for the weeks still missing, and holds each to the pace", () => {
+    const weekOne = Array.from({ length: 21 }, (_, index) => ({
+      ...entry(`w${index}`, index % 2 ? "x" : "linkedin", "post"),
+      date: `2026-11-0${2 + (index % 7)}`,
+    }));
+    const pace = { level: "all_in" as const, why: "Go hard", perWeek: 50 };
+    const weekly = cmoPlanProblems(plan({ calendar: weekOne, pace }), {
+      weekly: true,
+    }).join(" ");
+    expect(weekly).toContain("calendar covers 1 of four weeks");
+    expect(weekly).toContain("about 21 pieces a week");
+    expect(weekly).not.toContain("about 5 pieces a week");
+    // Cusos that save the month whole are read as before.
+    expect(
+      cmoPlanProblems(plan({ calendar: weekOne, pace })).join(" "),
+    ).not.toContain("calendar covers");
+  });
+
+  it("holds a weekly Cuso's side channels to a buyer and three a week", () => {
+    // Hiltl's LinkedIn once got 56 diner posts, as many as its Instagram.
+    const calendar = Array.from({ length: 28 }, (_, index) => ({
+      ...entry(`l${index}`, "linkedin", "post"),
+      date: `2026-11-${String(2 + index).padStart(2, "0")}`,
+    }));
+    const channels = [
+      { channel: "linkedin", cadence: "2 a day", role: "side" as const },
+      { channel: "instagram", cadence: "2 a day" },
+      { channel: "seo", cadence: "2 a week" },
+    ];
+    const weekly = cmoPlanProblems(plan({ calendar, channels }), {
+      weekly: true,
+    }).join(" ");
+    expect(weekly).toContain("linkedin is a side channel without a buyer");
+    expect(weekly).toContain(
+      "linkedin is a side channel with 28 pieces over 4 weeks; a side channel takes at most 3 a week",
+    );
+    expect(weekly).toContain("instagram has no role");
+    // seo is no social network: it takes no role.
+    expect(weekly).not.toContain("seo has no role");
+    const fitted = cmoPlanProblems(
+      plan({
+        // Three a week over four weeks.
+        calendar: calendar.slice(0, 12).map((piece, index) => ({
+          ...piece,
+          date: `2026-11-${String(2 + index * 2).padStart(2, "0")}`,
+        })),
+        channels: [
+          {
+            channel: "linkedin",
+            cadence: "3 a week",
+            role: "side",
+            buyer: "Event organizer",
+          },
+          { channel: "instagram", cadence: "2 a day", role: "main" },
+        ],
+      }),
+      { weekly: true },
+    ).join(" ");
+    expect(fitted).not.toContain("side channel");
+    expect(fitted).not.toContain("has no role");
+    // Cusos before cmo-v3 plan without roles.
+    expect(
+      cmoPlanProblems(plan({ calendar, channels })).join(" "),
+    ).not.toContain("role");
+  });
+
+  it("asks Jev whether a side channel's titles serve its buyer", async () => {
+    jev.answer = async () => ({
+      answers: new Map([
+        ["fits_linkedin", { type: "boolean", probability: 0.12 }],
+      ]),
+      costUsd: 0.0003,
+    });
+    const strategy = plan({
+      channels: [
+        {
+          channel: "linkedin",
+          cadence: "3 a week",
+          role: "side",
+          buyer: "Event organizer",
+        },
+        { channel: "instagram", cadence: "2 a day", role: "main" },
+      ],
+      calendar: [
+        { ...entry("l1", "linkedin", "post"), title: "Palak Paneer for lunch" },
+        { ...entry("i1", "instagram", "image"), title: "Our tartare" },
+      ],
+    });
+    const fit = await cmoSideChannelFit(strategy);
+    expect(fit.problems).toEqual([
+      "linkedin is a side channel for Event organizer, but its titles speak to other customers; rewrite its pieces for Event organizer.",
+    ]);
+    expect(fit.costUsd).toBe(0.0003);
+    // Only the side channel's titles are read.
+    expect(JSON.stringify(jev.input?.state)).toContain("Palak Paneer");
+    expect(JSON.stringify(jev.input?.state)).not.toContain("tartare");
+    // A plan without side channels asks nothing.
+    jev.input = undefined;
+    expect(await cmoSideChannelFit(plan())).toEqual({
+      problems: [],
+      costUsd: 0,
+    });
+    expect(jev.input).toBeUndefined();
+  });
+
+  it("refuses a pace reached by piling one network", () => {
+    const calendar = Array.from({ length: 99 }, (_, index) =>
+      entry(`i${index}`, "instagram", index % 2 ? "image" : "carousel"),
+    );
+    expect(cmoPlanProblems(plan({ calendar })).join(" ")).toContain(
+      "instagram has 99 pieces, more than 2 a day",
+    );
+    const x = Array.from({ length: 84 }, (_, index) =>
+      entry(`x${index}`, "x", "post"),
+    );
+    expect(cmoPlanProblems(plan({ calendar: x })).join(" ")).not.toContain(
+      "more than",
     );
   });
 });
@@ -525,8 +708,8 @@ describe("pillarProblems", () => {
 
   it("names the pillar that is off and the count to aim for", () => {
     expect(pillarProblems(pillars, pieces(15, 5))).toEqual([
-      'the pillar "Lead routing" is 50% of the plan but 15 of 20 pieces (75%); make it about 10.',
-      'the pillar "Setup in minutes" is 50% of the plan but 5 of 20 pieces (25%); make it about 10.',
+      'the pillar "Lead routing" is 50% of the strategy but 15 of 20 pieces (75%); make it about 10.',
+      'the pillar "Setup in minutes" is 50% of the strategy but 5 of 20 pieces (25%); make it about 10.',
     ]);
   });
 
@@ -534,7 +717,7 @@ describe("pillarProblems", () => {
     const calendar = pieces(10, 10);
     calendar[0] = { ...calendar[0]!, pillar: "Pricing" };
     expect(pillarProblems(pillars, calendar)).toEqual([
-      "1 calendar entries name no pillar of the plan; give every entry one of: Lead routing, Setup in minutes.",
+      "1 calendar entries name no pillar of the strategy; give every entry one of: Lead routing, Setup in minutes.",
     ]);
   });
 
@@ -567,16 +750,18 @@ describe("cmoDraftProblems", () => {
     draft,
   });
 
-  it("names drafts that open alike or break the copy rules", () => {
-    expect(
-      cmoDraftProblems([
+  it("names drafts that open alike or break the copy rules", async () => {
+    const { problems } = await cmoDraftProblems(
+      [
         piece("a", "Before choosing a shoe, look at the sole."),
         piece("b", "Before choosing a shoe, think about your commute."),
         piece("c", "Check the product page for the materials."),
         piece("d", "It's not a sneaker, it's a promise."),
         piece("e", "The Tree Runner is $98 and breathes in July heat."),
-      ]),
-    ).toEqual([
+      ],
+      topicEmbed([]),
+    );
+    expect(problems).toEqual([
       'b opens like a ("before choosing a shoe…"); give it its own first line.',
       "c tells people to check the details instead of giving one: name the product, its price or a real detail of the business.",
       "d uses \"it's not X, it's Y\".",
@@ -595,40 +780,145 @@ describe("repeated phrases in drafts", () => {
     draft,
   });
 
-  it("names a phrase that recurs across more than two drafts", () => {
-    const problems = cmoDraftProblems([
-      piece("a", "Morning: meet SoftSense, an 11-piece collection for studio."),
-      piece("b", "Studio day? SoftSense, an 11-piece collection for studio."),
-      piece(
-        "c",
-        "New this week. SoftSense, an 11-piece collection for studio.",
-      ),
-      piece("d", "Leggings at 45 pounds that stay put in a squat."),
-    ]);
+  it("names a phrase that recurs across more than two drafts", async () => {
+    const { problems } = await cmoDraftProblems(
+      [
+        piece(
+          "a",
+          "Morning: meet SoftSense, an 11-piece collection for studio.",
+        ),
+        piece("b", "Studio day? SoftSense, an 11-piece collection for studio."),
+        piece(
+          "c",
+          "New this week. SoftSense, an 11-piece collection for studio.",
+        ),
+        piece("d", "Leggings at 45 pounds that stay put in a squat."),
+      ],
+      topicEmbed([/softsense/i]),
+    );
     expect(problems).toEqual([
       '"softsense an 11 piece collection" is in 3 drafts (a, b, c); keep it in at most 2 and say something new in the rest.',
       "b says nearly what a says; give it its own message from its pillar.",
-      "c says nearly what b says; give it its own message from its pillar.",
+      "c says nearly what a says; give it its own message from its pillar.",
     ]);
   });
 
-  it("names a draft that says nearly what another says in other words", () => {
-    const problems = cmoDraftProblems([
-      piece(
-        "fee",
-        "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
-      ),
-      piece(
-        "fee-again",
-        "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
-      ),
-      piece(
-        "book",
-        "Book.io sold 130,000 NFT books across 70 titles with Studio handling every mint.",
-      ),
-    ]);
+  it("names a draft that says nearly what another says in other words", async () => {
+    const { problems, costUsd } = await cmoDraftProblems(
+      [
+        piece(
+          "fee",
+          "The Studio account has no monthly fee. Minting costs 3% or at least 2 ADA per token, and network fees are separate.",
+        ),
+        piece(
+          "fee-again",
+          "No monthly fee on a Studio account. Each token costs 3% or a 2 ADA minimum; network fees are separate.",
+        ),
+        piece(
+          "book",
+          "Book.io sold 130,000 NFT books across 70 titles with Studio handling every mint.",
+        ),
+      ],
+      topicEmbed([/monthly fee/i]),
+    );
     expect(problems).toEqual([
       "fee-again says nearly what fee says; give it its own message from its pillar.",
+    ]);
+    expect(costUsd).toBeGreaterThan(0);
+  });
+});
+
+describe("cmoCalendarRepeats", () => {
+  const titled = (id: string, title: string) => ({
+    id,
+    date: "2026-11-02",
+    channel: "linkedin",
+    format: "post",
+    title,
+    status: "idea" as const,
+  });
+
+  it("names a title that says what an earlier one says in other words", async () => {
+    const { problems } = await cmoCalendarRepeats(
+      [
+        titled("w1", "Make the first email relevant"),
+        titled("w2", "Cal.com vs Calendly for team booking"),
+        titled("w3", "How to write a relevant first email"),
+      ],
+      topicEmbed([/relevant first email|first email relevant/i]),
+    );
+    expect(problems).toEqual([
+      'w1, w3 say one thing ("Make the first email relevant", "How to write a relevant first email"); keep w1 and give the others their own message from their pillar.',
+    ]);
+  });
+
+  it("leaves skipped entries out", async () => {
+    const { problems } = await cmoCalendarRepeats(
+      [
+        { ...titled("w1", "Make the first email relevant"), status: "skipped" },
+        titled("w3", "How to write a relevant first email"),
+      ],
+      topicEmbed([/relevant first email|first email relevant/i]),
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it("names every repeat in one review, one line per message said twice", async () => {
+    const { problems } = await cmoCalendarRepeats(
+      [
+        titled("w1", "Staking basics"),
+        titled("w2", "Wallet access basics"),
+        titled("w3", "How staking works"),
+        titled("w4", "Who holds wallet access"),
+        titled("w5", "Staking in two taps"),
+        titled("w6", "Begin vs Eternl"),
+      ],
+      topicEmbed([/staking/i, /wallet access/i]),
+    );
+    expect(problems).toEqual([
+      'w1, w3, w5 say one thing ("Staking basics", "How staking works", "Staking in two taps"); keep w1 and give the others their own message from their pillar.',
+      'w2, w4 say one thing ("Wallet access basics", "Who holds wallet access"); keep w2 and give the others their own message from their pillar.',
+    ]);
+  });
+
+  it("names a story told in more than two pieces", async () => {
+    const told = (id: string, title: string, story: string) => ({
+      ...titled(id, title),
+      approach: "social-proof" as const,
+      story,
+    });
+    const { problems } = await cmoCalendarRepeats(
+      [
+        told(
+          "p1",
+          "A Japan trip paid in ADA",
+          "Sri Charran bought a Japan eSIM with ADA",
+        ),
+        told(
+          "p2",
+          "One user's ADA purchase crossed borders",
+          "Sri Charran paid ADA for an eSIM in Japan",
+        ),
+        told(
+          "p3",
+          "A named user tried an ADA purchase",
+          "Sri Charran's eSIM, bought with ADA",
+        ),
+        told(
+          "p4",
+          "A reviewer on the clean look",
+          "An App Store reviewer praised the clean look",
+        ),
+        told(
+          "p5",
+          "A reviewer on the web3 browser",
+          "An App Store reviewer praised the clean look",
+        ),
+      ],
+      topicEmbed([/esim/i]),
+    );
+    expect(problems).toEqual([
+      'p1, p2, p3 tell one story ("Sri Charran bought a Japan eSIM with ADA"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.',
     ]);
   });
 });

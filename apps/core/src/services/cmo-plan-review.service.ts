@@ -1,10 +1,9 @@
 import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
-import {
-  bannedCopyProblems,
-  nearDuplicatePost,
-} from "@/lib/social-post-writing";
+import type { EmbedTexts } from "@/lib/embeddings";
+import { findRepeats } from "@/lib/repeats";
+import { bannedCopyProblems } from "@/lib/social-post-writing";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
 /** What the evaluator said about the main offer; "skipped" when it was not asked. */
@@ -12,14 +11,22 @@ export type CmoPlanOfferVerdict = "ok" | "drift" | "unavailable" | "skipped";
 
 /** One save's review, kept in the save_strategy result for the admin view. */
 export interface CmoPlanReview {
-  /** Which save_strategy call of the turn this was, from 1. */
+  /** Which save of the turn that landed this was, from 1. */
   save: number;
+  /** The save was part calendar: calendar saves have their own reviews. */
+  calendar: boolean;
   mainOffer: CmoPlanOfferVerdict;
   problems: string[];
 }
 
-/** Saves in one planning turn the semantic review answers; past them Cuso finishes as he is, with deterministic checks still returned. */
+/** Plan saves that land in one planning turn the semantic review answers; past them Cuso finishes as he is, with deterministic checks still returned. */
 export const CMO_PLAN_REVIEWS_PER_TURN = 4;
+/**
+ * Calendar saves the review answers in one turn: the first calendar and its
+ * fix. Each round resends the whole calendar, a model step of 30 to 90 s; a
+ * begin.is plan took five.
+ */
+export const CMO_CALENDAR_REVIEWS_PER_TURN = 2;
 
 const MIN_PIECES = 16;
 const MIN_FORMATS = 6;
@@ -40,16 +47,102 @@ function isVideoFormat(entry: { channel: string; format: string }): boolean {
 }
 
 /**
- * What a saved plan breaks of the strategy skill's hard rules, in words Cuso
- * can act on. Calendar rules wait until a calendar is saved.
+ * The hard rules a save must keep, or nothing is saved: each problem names
+ * its rule, so Cuso fixes it in the same turn. Calendar rules wait until a
+ * calendar is saved, so the plan part can save first.
  */
-export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
+export function cmoPlanRuleProblems(strategy: MarketingStrategyPlan): string[] {
   const problems: string[] = [];
+  const rule = (name: string, problem: string) =>
+    problems.push(`Rule "${name}": ${problem}`);
   const words = strategy.summary.trim().split(/\s+/).length;
   if (words > MAX_SUMMARY_WORDS)
-    problems.push(
-      `summary has ${words} words; keep it to ${MAX_SUMMARY_WORDS}.`,
+    rule(
+      `${MAX_SUMMARY_WORDS}-word summary`,
+      `the summary has ${words} words; keep it to ${MAX_SUMMARY_WORDS}.`,
     );
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  if (pieces.length === 0) return problems;
+  if (pieces.length < MIN_PIECES)
+    rule(
+      `${MIN_PIECES} pieces`,
+      `the calendar has ${pieces.length} pieces; plan at least ${MIN_PIECES} for four weeks.`,
+    );
+  for (const problem of [
+    ...mixProblems(strategy.mix, pieces),
+    ...pillarProblems(strategy.pillars, pieces),
+  ])
+    rule(SHARES_RULE, problem);
+  return problems;
+}
+
+const SHARES_RULE = `shares within ${CMO_SHARE_TOLERANCE} points`;
+
+/**
+ * The hard rules a save breaks anew. A plan the owner already has keeps the
+ * rules it broke before. The pieces a change skips move the shares of what
+ * is left, and that asks no rewrite of pieces nobody named: asked for
+ * LinkedIn once a week, Cuso once retitled a newsletter and turned a post
+ * into pictures to win the shares back.
+ */
+export function cmoPlanRulesBrokenSince(
+  strategy: MarketingStrategyPlan,
+  before: MarketingStrategyPlan | null,
+): string[] {
+  const broken = cmoPlanRuleProblems(strategy);
+  if (!before || before.calendar.length === 0) return broken;
+  const ruleOf = (problem: string) => problem.match(/^Rule "[^"]+"/)?.[0];
+  const had = new Set(cmoPlanRuleProblems(before).map(ruleOf));
+  // Each share on its own: a skip that moves one does not excuse another.
+  const withoutSkips = new Set(
+    cmoPlanRuleProblems(withSkipsUndone(strategy, before)).map(counted),
+  );
+  return broken.filter((problem) => {
+    const rule = ruleOf(problem);
+    if (had.has(rule)) return false;
+    return (
+      rule !== `Rule "${SHARES_RULE}"` || withoutSkips.has(counted(problem))
+    );
+  });
+}
+
+/** A problem by its words, whatever the counts in it. */
+const counted = (problem: string) => problem.replace(/\d+/g, "#");
+
+/**
+ * The plan with each piece this change skipped back as it was before it:
+ * what else a skip sends on its piece (a new pillar) counts for nothing.
+ */
+function withSkipsUndone(
+  strategy: MarketingStrategyPlan,
+  before: MarketingStrategyPlan,
+): MarketingStrategyPlan {
+  const was = new Map(before.calendar.map((entry) => [entry.id, entry]));
+  return {
+    ...strategy,
+    calendar: strategy.calendar.map((entry) => {
+      const earlier = was.get(entry.id);
+      return entry.status === "skipped" &&
+        earlier &&
+        earlier.status !== "skipped"
+        ? earlier
+        : entry;
+    }),
+  };
+}
+
+/**
+ * What a saved plan breaks of the strategy skill's other rules, in words Cuso
+ * can act on. The hard rules are kept at save time (cmoPlanRuleProblems).
+ * Calendar rules wait until a calendar is saved.
+ */
+export function cmoPlanProblems(
+  strategy: MarketingStrategyPlan,
+  options: PlanReviewOptions = {},
+): string[] {
+  const problems: string[] = [];
   if (strategy.mix.length === 0)
     problems.push("mix is empty; give two to four approaches.");
   problems.push(...pillarListProblems(strategy.pillars));
@@ -103,10 +196,6 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
     (entry) => entry.status !== "skipped",
   );
   if (pieces.length > 0) {
-    if (pieces.length < MIN_PIECES)
-      problems.push(
-        `calendar has ${pieces.length} pieces; plan at least ${MIN_PIECES} for four weeks.`,
-      );
     const formats = new Set(
       pieces.map((entry) => `${entry.channel}/${entry.format}`),
     );
@@ -116,10 +205,8 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       );
     if (pieces.some((entry) => entry.draft))
       problems.push(
-        "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
+        "the strategy holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
-    problems.push(...mixProblems(strategy.mix, pieces));
-    problems.push(...pillarProblems(strategy.pillars, pieces));
     const hedged = pieces.filter((entry) =>
       /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
         entry.title,
@@ -129,25 +216,26 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
       problems.push(
         `${hedged.length} calendar titles only tell people to check details ("${hedged[0]?.title}"); make each title say the point itself.`,
       );
-    // Four weeks of pieces; a calendar far below its own pace undersells it.
-    const perWeek = Math.round(pieces.length / 4);
+    // A long month is saved week by week (cmo-v3): until its fourth week is
+    // in, it asks for the next one, and the pace holds for the weeks so far.
+    const weeks = options.weekly ? calendarWeeks(pieces) : 4;
+    if (weeks < 4)
+      problems.push(
+        `calendar covers ${weeks} of four weeks; add each later week with part patch (new ids). The month's counts are checked once all four are in.`,
+      );
+    // A calendar far below its own pace undersells it.
+    const perWeek = Math.round(pieces.length / weeks);
     if (strategy.pace && perWeek < strategy.pace.perWeek * 0.6)
       problems.push(
         `calendar has about ${perWeek} pieces a week; the ${strategy.pace.level} pace says ${strategy.pace.perWeek}. Match them.`,
       );
-    problems.push(...cadenceProblems(strategy.channels, pieces));
+    if (weeks >= 4)
+      problems.push(...cadenceProblems(strategy.channels, pieces));
+    if (options.weekly)
+      problems.push(...roleProblems(strategy.channels, pieces, weeks));
+    problems.push(...crowdedNetworks(pieces));
     problems.push(...storyProblems(pieces));
     problems.push(...repeatedTitles(pieces));
-    const articles = pieces.filter(
-      (entry) => entry.channel === "seo" && entry.format === "article",
-    );
-    if (
-      articles.length >= 2 &&
-      !articles.some((entry) => COMPARISON_TITLE.test(entry.title))
-    )
-      problems.push(
-        `none of the ${articles.length} seo articles is a comparison page; make one "X vs Y" or "X alternative", with a competitor's name in the title.`,
-      );
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
       problems.push(
@@ -165,8 +253,9 @@ export function cmoPlanProblems(strategy: MarketingStrategyPlan): string[] {
 export function cmoPlanProblemsSince(
   strategy: MarketingStrategyPlan,
   before: MarketingStrategyPlan | null,
+  options: PlanReviewOptions = {},
 ): string[] {
-  const problems = cmoPlanProblems(strategy);
+  const problems = cmoPlanProblems(strategy, options);
   if (!before || before.calendar.length === 0) return problems;
   // A calendar already short of the month's totals stays short by any
   // count: adding one piece must not demand the other twelve.
@@ -174,41 +263,197 @@ export function cmoPlanProblemsSince(
     /^calendar (has \d+ pieces; plan at least|uses \d+ formats;) /.test(problem)
       ? problem.replace(/\d+/g, "#")
       : problem;
-  const had = new Set(cmoPlanProblems(before).map(rule));
-  return problems.filter((problem) => !had.has(rule(problem)));
+  const had = new Set(cmoPlanProblems(before, options).map(rule));
+  // The pieces a change skips ask nothing of the pieces left: a problem only
+  // the skips brought (a format gone with them, a week now thinner) is the
+  // owner's choice, not one to clear by rewriting pieces nobody named.
+  const withoutSkips = new Set(
+    cmoPlanProblems(withSkipsUndone(strategy, before), options).map(counted),
+  );
+  // A month still missing weeks asks for them on every save.
+  return problems.filter(
+    (problem) =>
+      problem.startsWith("calendar covers ") ||
+      (!had.has(rule(problem)) && withoutSkips.has(counted(problem))),
+  );
 }
 
-const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
+export interface PlanReviewOptions {
+  /** The Cuso saves a long month week by week (cmo-v3's strategy skill). */
+  weekly?: boolean;
+}
 
-/** LinkedIn rewards one real story; a month without them read as generic tips. */
+/** The strategy skill whose Cuso saves a long month week by week. */
+export const WEEKLY_STRATEGY_SKILL = "cmo-strategy-weekly";
+
+/**
+ * Rule checks a weekly Cuso gets beyond the others' in one turn: a month
+ * saved week by week takes four calendar saves before any fix.
+ */
+export const CMO_WEEKLY_EXTRA_REVIEWS = 4;
+
+/** Whole or started weeks from the calendar's first piece to its last. */
+function calendarWeeks(pieces: MarketingStrategyPlan["calendar"]): number {
+  const days = pieces
+    .map((entry) => Date.parse(entry.date))
+    .filter(Number.isFinite);
+  if (days.length === 0) return 1;
+  const span = (Math.max(...days) - Math.min(...days)) / 86_400_000;
+  return Math.min(4, Math.floor(span / 7) + 1);
+}
+
+/** A side channel's most pieces a week: it serves another buyer than the main one. */
+export const CMO_SIDE_CHANNEL_PER_WEEK = 3;
+
+function isSocialChannel(channel: string): boolean {
+  return (
+    (CMO_CHANNELS as Record<string, { owner: string }>)[channel]?.owner ===
+    "connect"
+  );
+}
+
+/**
+ * Each social network's role (cmo-v3): main at the pace's full rate, side for
+ * another buyer at most three a week. A restaurant's LinkedIn once got two
+ * diner posts a day, the same as its Instagram.
+ */
+function roleProblems(
+  channels: MarketingStrategyPlan["channels"],
+  pieces: MarketingStrategyPlan["calendar"],
+  weeks: number,
+): string[] {
+  return channels.flatMap((channel) => {
+    if (!isSocialChannel(channel.channel)) return [];
+    if (!channel.role)
+      return [
+        `${channel.channel} has no role; set role main (where the main buyer and most of the audience are) or side (another buyer), from who is on each network.`,
+      ];
+    if (channel.role === "main") return [];
+    const problems: string[] = [];
+    if (!channel.buyer?.trim())
+      problems.push(
+        `${channel.channel} is a side channel without a buyer; name the Brand Brain buyer its pieces are written for.`,
+      );
+    const count = pieces.filter(
+      (entry) => entry.channel === channel.channel,
+    ).length;
+    const most = CMO_SIDE_CHANNEL_PER_WEEK * weeks;
+    if (count > most)
+      problems.push(
+        `${channel.channel} is a side channel with ${count} pieces over ${weeks} ${weeks === 1 ? "week" : "weeks"}; a side channel takes at most ${CMO_SIDE_CHANNEL_PER_WEEK} a week. Drop pieces or make it a main channel.`,
+      );
+    return problems;
+  });
+}
+
+/**
+ * Whether each side channel's pieces are written for its buyer: Jev reads
+ * its titles against the buyer the plan names. A restaurant's LinkedIn once
+ * carried its dishes rather than its catering. A failed check is no finding.
+ */
+export async function cmoSideChannelFit(
+  strategy: MarketingStrategyPlan,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const sides = strategy.channels.flatMap((channel) => {
+    const buyer = channel.buyer?.trim();
+    if (channel.role !== "side" || !buyer) return [];
+    const titles = strategy.calendar
+      .filter(
+        (entry) =>
+          entry.channel === channel.channel && entry.status !== "skipped",
+      )
+      .map((entry) => entry.title);
+    return titles.length > 0
+      ? [{ channel: channel.channel, buyer, titles }]
+      : [];
+  });
+  if (sides.length === 0) return { problems: [], costUsd: 0 };
+  try {
+    const { answers, costUsd } = await evaluateWithJev({
+      state: { sideChannels: sides },
+      questions: Object.fromEntries(
+        sides.map((side) => [
+          `fits_${side.channel}`,
+          {
+            type: "boolean" as const,
+            instructions: `Are the ${side.channel} titles written for ${side.buyer}: about their situation, their questions or an offer meant for them, rather than for the business's other customers?`,
+          },
+        ]),
+      ),
+      timeoutMs: 15_000,
+    });
+    const problems = sides.flatMap((side) => {
+      const answer = answers.get(`fits_${side.channel}`);
+      return answer?.type === "boolean" && answer.probability < 0.5
+        ? [
+            `${side.channel} is a side channel for ${side.buyer}, but its titles speak to other customers; rewrite its pieces for ${side.buyer}.`,
+          ]
+        : [];
+    });
+    return { problems, costUsd };
+  } catch {
+    return { problems: [], costUsd: 0 };
+  }
+}
+
+/** The most a social network takes a day: X's feed moves fastest. */
+const MAX_PER_DAY: Record<string, number> = { x: 3 };
+const MAX_PER_DAY_OTHER = 2;
+
+/**
+ * A pace is kept on every network, not reached by piling one: a plan once
+ * met its all_in count with 99 Instagram posts and 7 on LinkedIn.
+ */
+function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
+  const counts = new Map<string, number>();
+  for (const entry of pieces)
+    counts.set(entry.channel, (counts.get(entry.channel) ?? 0) + 1);
+  return [...counts].flatMap(([channel, count]) => {
+    const social =
+      (CMO_CHANNELS as Record<string, { owner: string }>)[channel]?.owner ===
+      "connect";
+    const most = (MAX_PER_DAY[channel] ?? MAX_PER_DAY_OTHER) * 28;
+    if (!social || count <= Math.ceil(most * 1.1)) return [];
+    return [
+      `${channel} has ${count} pieces, more than ${most / 28} a day; spread the pace over every network in the strategy instead.`,
+    ];
+  });
+}
+
+/**
+ * LinkedIn rewards one real story, and proof without one is a vague "a
+ * reviewer liked it"; a month without them read as generic tips.
+ */
 function storyProblems(pieces: MarketingStrategyPlan["calendar"]): string[] {
   const missing = pieces.filter(
-    (entry) => entry.channel === "linkedin" && !entry.story,
+    (entry) =>
+      (entry.channel === "linkedin" || entry.approach === "social-proof") &&
+      !entry.story,
   );
   if (missing.length === 0) return [];
   return [
-    `${missing.length} LinkedIn pieces have no story (${missing
-      .slice(0, 3)
+    `${missing.length} LinkedIn or social-proof pieces have no story (${missing
       .map((entry) => entry.id)
       .join(
         ", ",
-      )}); give each the one real customer, launch, number or decision from the Brand Brain it tells.`,
+      )}); give each the one real customer, launch, number or decision from the Brand Brain it tells. A social-proof piece the Brand Brain has no story for takes another approach.`,
   ];
 }
 
-/** "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
+/** "2 a day", "8 posts a week", "1 to 2 posts a week", "2 a month": pieces over four weeks. */
 function cadenceRange(cadence: string): [number, number] | null {
   const match = cadence
     .trim()
     .toLowerCase()
     .match(
-      /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(week|month)|(week|month)ly)$/,
+      /^(\d+)(?:\s*(?:to|-|–)\s*(\d+))?(?:\s+[a-z]+){0,2}\s+(?:(?:a|per|each)\s+(day|week|month)|(dai|week|month)ly)$/,
     );
   if (!match) return null;
   const low = Number(match[1]);
   const high = Number(match[2] ?? match[1]);
-  const weeks = (match[3] ?? match[4]) === "week" ? 4 : 1;
-  return [low * weeks, high * weeks];
+  const unit = match[3] ?? match[4];
+  const times = unit === "day" || unit === "dai" ? 28 : unit === "week" ? 4 : 1;
+  return [low * times, high * times];
 }
 
 /**
@@ -248,12 +493,14 @@ function opening(draft: string): string {
 
 /**
  * The made month's drafts against the production skill's copy rules: no two
- * open the same way, and none uses a banned line. Cuso rewrites what it
- * names; a handful at a time, so one save never floods him.
+ * open the same way, none says what another says, and none uses a banned
+ * line. Cuso rewrites what it names; a handful at a time, so one save never
+ * floods him.
  */
-export function cmoDraftProblems(
+export async function cmoDraftProblems(
   calendar: MarketingStrategyPlan["calendar"],
-): string[] {
+  embed?: EmbedTexts,
+): Promise<{ problems: string[]; costUsd: number }> {
   const drafted = calendar.filter(
     (entry) => entry.draft && entry.status !== "skipped",
   );
@@ -279,24 +526,86 @@ export function cmoDraftProblems(
   problems.push(
     ...repeatedPhrases(drafted, (entry) => entry.draft ?? "", 5, "drafts"),
   );
-  problems.push(...nearDuplicates(drafted));
-  return problems.slice(0, MAX_DRAFT_PROBLEMS);
+  const { repeats, costUsd } = await findRepeats(
+    drafted.map((entry) => entry.draft ?? ""),
+    "post",
+    embed,
+  );
+  repeats.forEach((earlier, index) => {
+    const repeated = earlier === null ? undefined : drafted[earlier];
+    if (repeated)
+      problems.push(
+        `${drafted[index]?.id} says nearly what ${repeated.id} says; give it its own message from its pillar.`,
+      );
+  });
+  return { problems: problems.slice(0, MAX_DRAFT_PROBLEMS), costUsd };
 }
 
-/** Drafts that say nearly what an earlier draft of the month says. */
-function nearDuplicates(drafted: MarketingStrategyPlan["calendar"]): string[] {
-  const written = drafted.map((entry) => ({
-    id: entry.id,
-    text: entry.draft ?? "",
-  }));
-  return written.flatMap((entry, index) => {
-    const repeated = nearDuplicatePost(entry.text, written.slice(0, index));
-    return repeated
-      ? [
-          `${entry.id} says nearly what ${repeated.id} says; give it its own message from its pillar.`,
-        ]
-      : [];
+/** Entries whose texts say one thing, by meaning: each group in calendar order. */
+async function sameMessage(
+  entries: MarketingStrategyPlan["calendar"],
+  text: (entry: MarketingStrategyPlan["calendar"][number]) => string,
+  embed?: EmbedTexts,
+): Promise<{ groups: MarketingStrategyPlan["calendar"][]; costUsd: number }> {
+  const { repeats, costUsd } = await findRepeats(
+    entries.map(text),
+    "title",
+    embed,
+  );
+  // Each text joins the message of the earlier text it repeats.
+  const message = entries.map((_, index) => index);
+  repeats.forEach((earlier, index) => {
+    if (earlier !== null) message[index] = message[earlier] ?? earlier;
   });
+  const groups = new Map<number, MarketingStrategyPlan["calendar"]>();
+  entries.forEach((entry, index) => {
+    const first = message[index] ?? index;
+    groups.set(first, [...(groups.get(first) ?? []), entry]);
+  });
+  return { groups: [...groups.values()], costUsd };
+}
+
+/** Pieces one story may carry ("Use each story in at most two pieces"). */
+const MAX_STORY_PIECES = 2;
+
+/**
+ * Calendar entries whose title says what an earlier title says in other
+ * words ("Pick a CRM by the team that uses it", "Start your CRM choice with
+ * your team"): one piece twice. And stories told in more than two pieces: a
+ * begin.is month told one customer's eSIM four times. Every repeat is named
+ * in one review, a line per message, since each fix round resends the whole
+ * calendar.
+ */
+export async function cmoCalendarRepeats(
+  calendar: MarketingStrategyPlan["calendar"],
+  embed?: EmbedTexts,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const planned = calendar.filter((entry) => entry.status !== "skipped");
+  const [titles, stories] = await Promise.all([
+    sameMessage(planned, (entry) => entry.title, embed),
+    sameMessage(
+      planned.filter((entry) => entry.story?.trim()),
+      (entry) => entry.story ?? "",
+      embed,
+    ),
+  ]);
+  const ids = (entries: MarketingStrategyPlan["calendar"]) =>
+    entries.map((entry) => entry.id).join(", ");
+  const problems = [
+    ...titles.groups
+      .filter((entries) => entries.length > 1)
+      .map(
+        (entries) =>
+          `${ids(entries)} say one thing (${entries.map((entry) => `"${entry.title}"`).join(", ")}); keep ${entries[0]?.id} and give the others their own message from their pillar.`,
+      ),
+    ...stories.groups
+      .filter((entries) => entries.length > MAX_STORY_PIECES)
+      .map(
+        (entries) =>
+          `${ids(entries)} tell one story ("${entries[0]?.story}"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.`,
+      ),
+  ];
+  return { problems, costUsd: titles.costUsd + stories.costUsd };
 }
 
 /** Pieces a five-word phrase may share before the month reads repetitive. */
@@ -443,14 +752,14 @@ export function pillarProblems(
   ).length;
   if (outside > 0)
     return [
-      `${outside} calendar entries name no pillar of the plan; give every entry one of: ${pillars.map((pillar) => pillar.name).join(", ")}.`,
+      `${outside} calendar entries name no pillar of the strategy; give every entry one of: ${pillars.map((pillar) => pillar.name).join(", ")}.`,
     ];
   return pillars.flatMap((pillar) => {
     const count = pieces.filter((entry) => named(entry, pillar.name)).length;
     const share = Math.round((count / pieces.length) * 100);
     return Math.abs(share - pillar.share) > CMO_SHARE_TOLERANCE
       ? [
-          `the pillar "${pillar.name}" is ${pillar.share}% of the plan but ${count} of ${pieces.length} pieces (${share}%); make it about ${Math.round((pillar.share / 100) * pieces.length)}.`,
+          `the pillar "${pillar.name}" is ${pillar.share}% of the strategy but ${count} of ${pieces.length} pieces (${share}%); make it about ${Math.round((pillar.share / 100) * pieces.length)}.`,
         ]
       : [];
   });
@@ -490,7 +799,7 @@ export async function cmoPlanDrift(input: {
         sellsMainOffer: {
           type: "boolean",
           instructions:
-            "Is the plan built around the business's main product or service, rather than a narrower side product or feature? A trial, demo or introductory call is a valid entry offer when it leads to that product; do not treat the entry offer alone as drift.",
+            "Is the strategy built around the business's main product or service, rather than a narrower side product or feature? A trial, demo or introductory call is a valid entry offer when it leads to that product; do not treat the entry offer alone as drift.",
         },
       },
       timeoutMs: 15_000,
@@ -502,7 +811,7 @@ export async function cmoPlanDrift(input: {
     return {
       verdict: drifts ? "drift" : "ok",
       problem: drifts
-        ? `the plan drifts from the main offer ("${brain.reveal?.positioning ?? brain.summary}"); make the summary, offer, focus and pillars sell it.`
+        ? `the strategy drifts from the main offer ("${brain.reveal?.positioning ?? brain.summary}"); make the summary, offer, focus and pillars sell it.`
         : null,
       costUsd,
     };

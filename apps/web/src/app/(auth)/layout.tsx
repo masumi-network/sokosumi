@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
 import { AUTH_SHELL_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
+import { LegalLinks } from "@/components/legal-links";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
@@ -15,7 +16,6 @@ import {
   buildSignedOAuthQueryFromSearchParams,
   oauthRequestBrand,
 } from "@/lib/auth/auth.utils";
-import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import { cn } from "@/lib/utils";
 
 import AuthBackground from "./components/auth-background";
@@ -127,48 +127,7 @@ function AuthLayoutFooter({ usesSokosumi }: { usesSokosumi: boolean }) {
       {usesSokosumi ? (
         <p className="text-sm text-muted-foreground">{t("usesSokosumi")}</p>
       ) : null}
-      <AuthLegalLinks />
-    </div>
-  );
-}
-
-function AuthLegalLinks() {
-  const t = useTranslations("Auth.Footer");
-
-  return (
-    <div className="flex flex-wrap items-center justify-center gap-2 text-center sm:gap-4">
-      <Link
-        href={LEGAL_URLS.TERMS_OF_SERVICE}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        {t("termsOfServices")}
-      </Link>
-      <Link
-        href={LEGAL_URLS.PRIVACY_POLICY}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        {t("privacyPolicy")}
-      </Link>
-      <Link
-        href={LEGAL_URLS.IMPRINT}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        {t("imprint")}
-      </Link>
-      <Link
-        href={LEGAL_URLS.ACCEPTABLE_USE}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-sm text-muted-foreground hover:text-foreground"
-      >
-        {t("acceptableUse")}
-      </Link>
+      <LegalLinks />
     </div>
   );
 }

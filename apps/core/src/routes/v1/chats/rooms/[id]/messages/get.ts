@@ -13,6 +13,7 @@ import {
 } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -344,7 +345,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!searchQuery) {
       const staleMentionIds = await listStaleSentChatRoomMentionIds(id);
       for (const mentionId of staleMentionIds) {
-        waitUntil(dispatchChatRoomMention(mentionId));
+        // Background work: its events never land on this request's event.
+        waitUntil(
+          runAsBackgroundWork(() => dispatchChatRoomMention(mentionId)),
+        );
       }
     }
 

@@ -1,18 +1,32 @@
 import { FileSourceKind } from "@sokosumi/database";
 import {
   type CmoCalendarEntry,
+  sokoBotGenerateImageInputSchema as generateImageInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
+import prisma from "@/lib/db/prisma";
+import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { requireProjectAccess } from "@/lib/image-studio/access";
+import { DEFAULT_TALKING_VIDEO_VOICE } from "@/lib/image-studio/talking-video";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
+import {
+  cmoStylePrompt,
+  finishCmoChatPicture,
+  loadStyleBrand,
+  REFERENCE_STYLE_MODELS,
+} from "@/services/cmo-media-maker.service";
+import { talkingVideoPresenter } from "@/services/cmo-presenter.service";
 import { cusoDrive } from "@/services/cuso-project-files.service";
 import { loadLiveResources } from "@/services/file-search.service";
 import { getJob } from "@/services/image-studio-assets.service";
 import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
 import {
   createImageJob,
+  createTalkingVideoJob,
   createVideoJob,
+  DEFAULT_SETTINGS,
   reconcileProjectJobs,
 } from "@/services/image-studio-jobs.service";
 import { isMarketingFilePiece } from "@/services/marketing-strategy.service";
@@ -84,47 +98,181 @@ export async function generateImage(
 ) {
   // Checked again here, after the reservation: a price or access change
   // since the preflight still refuses before anything is sent.
-  const { input, model, settings, credits, referenceFileIds } = await runtime
-    .checkImageRequest(authorized, raw, toolCallId)
-    .catch((error: unknown) => {
-      throw new SokoBotImageRefusedError(
-        error instanceof Error ? error.message : "Image refused",
-      );
-    });
-  const studioUrl = studioLink(input.projectId);
-  let job: Awaited<ReturnType<typeof createImageJob>>;
-  try {
-    job = await createImageJob({
+  const { input, model, settings, credits, referenceFileIds, style } =
+    await runtime
+      .checkImageRequest(authorized, raw, toolCallId)
+      .catch((error: unknown) => {
+        throw new SokoBotImageRefusedError(
+          error instanceof Error ? error.message : "Image refused",
+        );
+      });
+  const cuso = style ? await findCusoForBot(authorized.turn.sokoBotId) : null;
+  if (style && !cuso)
+    throw new SokoBotImageRefusedError("This bot has no CMO Project.");
+  const job = await startStudioImage({
+    projectId: input.projectId,
+    workspaceId: authorized.turn.workspaceId,
+    userId: actingMemberOf(authorized),
+    sessionId: null,
+    // A styled picture is made the way a month's pictures are: the same
+    // prompt, the reference first, the first of the style models.
+    prompt:
+      style && cuso
+        ? cmoStylePrompt({
+            piece: {
+              visual: input.prompt,
+              title: input.prompt,
+              headline: style.headline ?? undefined,
+            },
+            slot: 0,
+            businessName: cuso.businessName,
+            colours: (await loadStyleBrand(cuso.projectId)).colours,
+          })
+        : input.prompt,
+    modelId: model.id,
+    settings,
+    referenceAssetIds: [],
+    referenceFileIds,
+    referenceLibraryIds: style ? [style.referenceId] : [],
+    parentAssetId: null,
+    idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
+  });
+  const uncertain =
+    "The provider did not confirm this request. Do not start it again; tell the owner.";
+  if (style)
+    return {
+      jobId: job.id,
       projectId: input.projectId,
-      workspaceId: authorized.turn.workspaceId,
-      userId: actingMemberOf(authorized),
-      sessionId: null,
-      prompt: input.prompt,
-      modelId: model.id,
-      settings,
-      referenceAssetIds: [],
-      referenceFileIds,
-      parentAssetId: null,
-      idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
-    });
-  } catch (error) {
-    // The studio's refusals (no balance, too many at once) come before it
-    // sends anything, and are the model's to read.
-    if (error instanceof HTTPException)
-      throw new SokoBotImageRefusedError(error.message);
-    throw error;
-  }
+      status: job.status,
+      model: model.id,
+      credits,
+      note:
+        job.status === "SUBMISSION_UNCERTAIN"
+          ? uncertain
+          : "Started in the look of that reference. Core checks the picture against it and places the brand's logo; one the check turns down is made again on the next model, at most three tries. It takes a minute or two: wait_for its jobId, then get_image.",
+    };
   return {
     jobId: job.id,
     projectId: input.projectId,
     status: job.status,
     model: model.id,
     credits,
-    studioUrl,
+    studioUrl: studioLink(input.projectId),
     note:
       job.status === "SUBMISSION_UNCERTAIN"
-        ? "The provider did not confirm this request. Do not start it again; tell the owner."
+        ? uncertain
         : "Started. An image takes about a minute; check it with get_image.",
+  };
+}
+
+/** Starts a studio image; a refusal before sending is the model's to read. */
+async function startStudioImage(input: Parameters<typeof createImageJob>[0]) {
+  try {
+    return await createImageJob(input);
+  } catch (error) {
+    // The studio's refusals (no balance, too many at once) come before it
+    // sends anything.
+    if (error instanceof HTTPException)
+      throw new SokoBotImageRefusedError(error.message);
+    throw error;
+  }
+}
+
+/** A chat job's key: its turn, its tool call and, after a refused try, the try. */
+const CHAT_JOB_KEY = /^soko-bot:([0-9a-f-]{36}):(.+?)(?::style:(\d))?$/;
+
+/**
+ * Where a styled picture Cuso started in chat stands, once its job ended:
+ * checked and with the logo in Files, or made again on the next style model
+ * when the check turned it down or the model failed. Null for any other job.
+ */
+async function styledChatPicture(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  job: { id: string; status: string; assetId: string | null },
+) {
+  const row = await prisma.projectImageJob.findUnique({
+    where: { id: job.id },
+    select: {
+      projectId: true,
+      idempotencyKey: true,
+      referenceLibraryIds: true,
+      prompt: true,
+      error: true,
+    },
+  });
+  const referenceId = row?.referenceLibraryIds[0];
+  const key = CHAT_JOB_KEY.exec(row?.idempotencyKey ?? "");
+  if (!row || !referenceId || !key) return null;
+  if (job.status !== "SUCCEEDED" && job.status !== "FAILED") return null;
+  const [, turnId, toolCallId, tried] = key;
+  const cuso = await findCusoForBot(authorized.turn.sokoBotId);
+  if (!cuso || !turnId || !toolCallId) return null;
+  const call = await prisma.sokoBotToolCall.findFirst({
+    where: { turnId, toolCallId },
+    select: { input: true },
+  });
+  const asked = generateImageInputSchema.safeParse(call?.input);
+  const drive = await runtime.ownerDrive(authorized);
+  let problems = "the model could not make it";
+  if (job.status === "SUCCEEDED" && job.assetId) {
+    const finished = await finishCmoChatPicture({
+      cuso,
+      drive: {
+        workspaceId: drive.key.workspaceId,
+        organizationId:
+          drive.key.scope === "organization" ? drive.key.ownerId : null,
+        userId: drive.actor.userId,
+      },
+      job: { ...row, id: job.id, assetId: job.assetId },
+      styleReferenceId: referenceId,
+      headline: asked.success ? (asked.data.headline ?? null) : null,
+    });
+    if (finished.passed)
+      return {
+        jobId: job.id,
+        status: job.status,
+        failureReason: null,
+        file: finished.file,
+        note: "Made in the reference's look, checked, with the brand's logo. Put this fileId on the post as its media.",
+      };
+    problems = finished.problems;
+  }
+  const attempt = Number(tried ?? 1);
+  const nextModel = REFERENCE_STYLE_MODELS[attempt];
+  if (!nextModel)
+    return {
+      jobId: job.id,
+      status: "FAILED",
+      failureReason: null,
+      note: `No model made a picture that passed the check (${problems}). Tell the owner, or start again with another reference from find_style_references or a shorter headline.`,
+    };
+  const next = await startStudioImage({
+    projectId: row.projectId,
+    workspaceId: authorized.turn.workspaceId,
+    userId: actingMemberOf(authorized),
+    sessionId: null,
+    prompt: row.prompt,
+    modelId: nextModel,
+    settings: {
+      ...DEFAULT_SETTINGS,
+      outputFormat: "jpeg",
+      ...(asked.success && asked.data.aspectRatio
+        ? { aspectRatio: asked.data.aspectRatio }
+        : {}),
+    },
+    referenceAssetIds: [],
+    referenceFileIds: [],
+    referenceLibraryIds: [referenceId],
+    parentAssetId: null,
+    idempotencyKey: `soko-bot:${turnId}:${toolCallId}:style:${attempt + 1}`,
+  });
+  return {
+    jobId: next.id,
+    status: next.status,
+    failureReason: null,
+    replaces: job.id,
+    note: `The picture did not pass (${problems}), so the next model is making it again. Do not use the old one: wait_for jobId ${next.id}, then get_image with it.`,
   };
 }
 
@@ -174,6 +322,63 @@ export async function generateVideo(
   };
 }
 
+/** Starts a talking video in a Project's Content Studio, once checked. */
+export async function generateTalkingVideo(
+  runtime: RuntimeOperations,
+  authorized: AuthorizedSokoBotRuntime,
+  raw: unknown,
+  toolCallId: string,
+) {
+  const { input, model, credits } = await runtime
+    .checkTalkingVideoRequest(authorized, raw, toolCallId)
+    .catch((error: unknown) => {
+      throw new SokoBotImageRefusedError(
+        error instanceof Error ? error.message : "Talking video refused",
+      );
+    });
+  const userId = actingMemberOf(authorized);
+  const presenter = await talkingVideoPresenter({
+    projectId: input.projectId,
+    presenter: input.presenter,
+    userId,
+  });
+  if (!presenter)
+    throw new SokoBotImageRefusedError(
+      "This Project has no owner photo with consent. Pick a stock presenter.",
+    );
+  let job: Awaited<ReturnType<typeof createTalkingVideoJob>>;
+  try {
+    job = await createTalkingVideoJob({
+      projectId: input.projectId,
+      workspaceId: authorized.turn.workspaceId,
+      userId,
+      modelId: model.id,
+      script: input.script,
+      voice: input.voice ?? DEFAULT_TALKING_VIDEO_VOICE,
+      languageCode: input.languageCode ?? "en",
+      presenter,
+      idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
+    });
+  } catch (error) {
+    if (error instanceof HTTPException)
+      throw new SokoBotImageRefusedError(error.message);
+    throw error;
+  }
+  return {
+    jobId: job.id,
+    projectId: input.projectId,
+    status: job.status,
+    credits,
+    studioUrl: studioLink(input.projectId),
+    note:
+      job.status === "SUBMISSION_UNCERTAIN"
+        ? "The provider did not confirm this request. Do not start it again; tell the owner."
+        : job.status === "FAILED"
+          ? "The video could not be started and nothing was charged; get_video says why."
+          : "Started. A talking video takes a few minutes; call wait_for with its jobId, then get_video.",
+  };
+}
+
 /** Where an image or video started with `generate_image` or `generate_video` has got to. */
 export async function getStudioJob(
   runtime: RuntimeOperations,
@@ -194,6 +399,8 @@ export async function getStudioJob(
     await reconcileProjectJobs(input.projectId);
     const job = await getJob({ ...scope, jobId: input.jobId });
     if (!job) return null;
+    const styled = await styledChatPicture(runtime, authorized, job);
+    if (styled) return styled;
     // A copy that fails leaves the image where it is, in the studio; the
     // bot is told there is no Files copy rather than the call failing.
     const file = job.assetId
@@ -205,10 +412,23 @@ export async function getStudioJob(
             prompt: job.prompt,
           })
           .catch((error: unknown) => {
-            console.warn("[soko-bot] could not copy an image into Files", {
-              jobId: job.id,
-              error: error instanceof Error ? error.message : "unknown",
+            // A tool call in a background turn: its own event.
+            const log = createCoreLogger({
+              operation: "soko_bot_studio_job",
+              imageJob: { id: job.id },
+              turn: { id: authorized.turn.id },
             });
+            logCoreWarning(
+              log,
+              {
+                message: "Could not copy a studio image into Files",
+                why: "The Files copy failed",
+                fix: "The image stays in the studio and the bot is told there is no Files copy; asking for the job again retries the copy.",
+              },
+              // Only safe fields: turn work can echo its prompt.
+              { failure: messageSafeErrorFields(error) },
+            );
+            log.emit();
             return null;
           })
       : null;

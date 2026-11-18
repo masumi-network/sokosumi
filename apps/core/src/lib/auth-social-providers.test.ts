@@ -4,12 +4,14 @@ import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import { decryptOAuthToken, setTokenUtil } from "better-auth/oauth2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import { auth } from "./auth";
 import {
   accountOptions,
   SOCIAL_PROVIDER_IDS,
   socialProviderOptions,
 } from "./auth-social-providers";
+import { betterAuthLogger } from "./evlog-library-logs";
 
 const { captureExceptionMock, uploadProfileImageMock } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
@@ -215,6 +217,14 @@ describe("social provider options", () => {
   });
 
   it("falls back when social profile mapping fails", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Signed a user in without their profile picture",
+      [
+        "Fetching or storing the provider's profile picture failed or timed out",
+      ],
+      ["upload failed"],
+    );
     uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
 
     await expect(
@@ -228,6 +238,10 @@ describe("social provider options", () => {
       emailVerified: true,
     });
     expect(captureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
+    expect(errors[0]?.event).toMatchObject({
+      profilePicture: { kind: "data-uri", length: 29 },
+    });
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("Andreas");
   });
 });
 
@@ -235,6 +249,7 @@ describe("social sign-in boundaries (SOK-1178)", () => {
   it.each(["google", "microsoft"] as const)(
     "rejects client-submitted %s ID tokens before creating a session",
     async (provider) => {
+      expectCoreLog("error", "Provider does not support id token verification");
       const db: MemoryDb = {
         user: [],
         session: [],
@@ -242,6 +257,7 @@ describe("social sign-in boundaries (SOK-1178)", () => {
         verification: [],
       };
       const signInAuth = betterAuth({
+        logger: betterAuthLogger,
         baseURL: "https://auth.example.com",
         basePath: "/auth",
         secret: linkingSecret,

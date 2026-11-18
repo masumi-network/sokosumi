@@ -172,20 +172,49 @@ describe("mobile-app-chrome", () => {
     it("returns null outside the main hub tree", () => {
       expect(resolveMobileAppBackTarget("/chat")).toBeNull();
       expect(resolveMobileAppBackTarget("/chat/rooms/r1")).toBeNull();
-      expect(resolveMobileAppBackTarget("/developer/docs")).toBeNull();
       expect(resolveMobileAppBackTarget("/accounts")).toBeNull();
       expect(resolveMobileAppBackTarget(null)).toBeNull();
     });
 
-    it.each(["/account", "/account/notifications", "/billing", "/connections"])(
-      "sends You page row %s back to You",
-      (pathname) => {
-        expect(resolveMobileAppBackTarget(pathname)).toEqual({
-          href: "/you",
-          labelKey: "back",
-        });
-      },
-    );
+    it.each([
+      "/developer",
+      "/developer/docs",
+      "/developer/oauth-clients",
+      "/developer/api-keys",
+      "/developer/vendors",
+      "/developer/coworkers",
+      "/developer/tasks",
+    ])("sends Developer section %s back to the Developer menu", (pathname) => {
+      expect(resolveMobileAppBackTarget(pathname)).toEqual({
+        href: "/you/developer",
+        labelKey: "back",
+      });
+    });
+
+    it.each([
+      ["/developer/coworkers/c1", "/developer/coworkers"],
+      ["/developer/tasks/t1", "/developer/tasks"],
+      ["/developer/vendors/v1", "/developer/vendors"],
+    ])("sends Developer detail %s back to its list", (pathname, href) => {
+      expect(resolveMobileAppBackTarget(pathname)).toEqual({
+        href,
+        labelKey: "back",
+      });
+    });
+
+    it.each([
+      "/account",
+      "/account/notifications",
+      "/billing",
+      "/connections",
+      // Phones open SEO from the You page.
+      "/seo",
+    ])("sends You page row %s back to You", (pathname) => {
+      expect(resolveMobileAppBackTarget(pathname)).toEqual({
+        href: "/you",
+        labelKey: "back",
+      });
+    });
   });
 
   describe("shouldShowMobileBottomNav", () => {

@@ -7,7 +7,7 @@
  */
 
 export interface EmailPalette {
-  /** Brand accent: rules, labels, links. */
+  /** Brand stripe down the card's leading edge. */
   accent: string;
   /** Text drawn on top of `accentSolid`. */
   accentForeground: string;
@@ -33,34 +33,40 @@ export interface EmailPalette {
   textMuted: string;
 }
 
-/** Light palette. Default for every client. */
+/**
+ * Light palette. Default for every client.
+ *
+ * Iris Flower (`--primary`) is a fill under a Neutral 950 label, never text,
+ * an edge or a thin mark, so it only fills the button. The spine, quote bar and
+ * link take the neutral roles the app uses for the same jobs.
+ */
 export const LIGHT_PALETTE: EmailPalette = {
-  accent: "#2b5c78", // --primary
-  accentForeground: "#fafafa", // --primary-solid-foreground
-  accentSolid: "#2b5c78", // --primary-solid
-  cardBorder: "#e2e2e2", // --border
-  hairline: "#e2e2e2", // --border
-  link: "#2b5c78", // --primary
+  accent: "#0c0c0c", // --secondary
+  accentForeground: "#0c0c0c", // --primary-foreground
+  accentSolid: "#ff51ff", // --primary
+  cardBorder: "#e5e5e5", // --border
+  hairline: "#e5e5e5", // --border
+  link: "#171717", // --foreground, as the app's link variant
   pageBackground: "#f5f5f5", // --muted
-  quoteBar: "#2b5c78", // --primary
+  quoteBar: "#d4d4d4", // --control-border
   surface: "#ffffff", // --background
-  surfaceSubtle: "#ecf0f3", // --primary-quinary
-  textPrimary: "#0a0a0a", // --foreground
-  textMuted: "#5c5c5c", // --muted-foreground, darkened to clear WCAG AA on --primary-quinary
+  surfaceSubtle: "#f5f5f5", // --card-background
+  textPrimary: "#171717", // --foreground
+  textMuted: "#525252", // --muted-foreground
 };
 
 /** Dark palette. Applied through `prefers-color-scheme` where the client supports it. */
 export const DARK_PALETTE: EmailPalette = {
-  accent: "#5a9dc4", // dark --primary-variant
-  accentForeground: "#fafafa", // dark --primary-solid-foreground
-  accentSolid: "#336d8f", // dark --primary-solid
-  cardBorder: "#343434", // dark --border
-  hairline: "#343434", // dark --border
-  link: "#5a9dc4", // dark --primary-variant
-  pageBackground: "#0a0a0a", // dark --background
-  quoteBar: "#5a9dc4", // dark --primary-variant
+  accent: "#fafafa", // dark --secondary
+  accentForeground: "#0c0c0c", // dark --primary-foreground
+  accentSolid: "#d141d1", // dark --primary (Dark Iris)
+  cardBorder: "#262626", // dark --border
+  hairline: "#262626", // dark --border
+  link: "#fafafa", // dark --foreground
+  pageBackground: "#0c0c0c", // dark --background
+  quoteBar: "#404040", // dark --control-border
   surface: "#171717", // dark --card-background
-  surfaceSubtle: "#1f2a31", // between dark --primary-quaternary and --muted
+  surfaceSubtle: "#262626", // dark --accent
   textPrimary: "#fafafa", // dark --foreground
-  textMuted: "#b8b8b8", // dark --muted-foreground
+  textMuted: "#a3a3a3", // dark --muted-foreground
 };

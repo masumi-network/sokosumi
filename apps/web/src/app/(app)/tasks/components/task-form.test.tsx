@@ -1,4 +1,5 @@
 import { TaskStatus } from "@sokosumi/core-client";
+import { expectConsole } from "@sokosumi/utils/test-console";
 import {
   act,
   fireEvent,
@@ -635,6 +636,34 @@ describe("TaskForm", () => {
       "font-semibold",
       "tracking-tight",
     );
+  });
+
+  it("wraps a long title over lines and keeps it one line of text", async () => {
+    const user = userEvent.setup();
+    render(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{
+          name: "Plan November newsletter",
+          description: "Initial description",
+          assigneeId: "coworker-1",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    const nameField = screen.getByLabelText("Task name");
+    // A phone-width input cuts a long title off; a growing textarea shows all of it.
+    expect(nameField.tagName).toBe("TEXTAREA");
+    expect(nameField).toHaveClass("field-sizing-content", "resize-none");
+
+    await user.type(nameField, "{Enter} launch");
+    await user.paste("\nchef note");
+    expect(nameField).toHaveValue("Plan November newsletter launch chef note");
   });
 
   it("places project and context controls above the footer status row", () => {
@@ -1557,9 +1586,7 @@ describe("TaskForm", () => {
 
   it("keeps the general save error when the Task was created", async () => {
     const user = userEvent.setup();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to save task");
     vi.mocked(createTask).mockResolvedValue(
       createTaskSuccess("task-1", "Write docs"),
     );
@@ -1583,7 +1610,6 @@ describe("TaskForm", () => {
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(baseLabels.saveError),
     );
-    consoleError.mockRestore();
   });
 
   it("shows a queued celebration with the Run at after creating", async () => {
@@ -3414,9 +3440,7 @@ describe("TaskForm", () => {
 
   it("names the Task when the create throws", async () => {
     const user = userEvent.setup();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    expectConsole("error", "Failed to save task");
     const onCreateTask = vi.fn().mockRejectedValue(new Error("boom"));
 
     render(
@@ -3437,7 +3461,6 @@ describe("TaskForm", () => {
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith("createError: Write docs");
     });
-    consoleError.mockRestore();
   });
 
   it("does not create a duplicate task when Ctrl+Enter is pressed on the success step", async () => {

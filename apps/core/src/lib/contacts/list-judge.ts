@@ -1,3 +1,5 @@
+import { recordCoreWarning } from "@/lib/evlog";
+import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { askJev } from "@/lib/soko-bot/jev";
 
 const TIMEOUT_MS = 8_000;
@@ -69,9 +71,16 @@ export async function judgeListMemberships(
       asked.map((list, index) => [list.id, answers.get(`list${index}`) ?? 0]),
     );
   } catch (error) {
-    console.warn("Contact list membership check failed", {
-      error: error instanceof Error ? error.name : "unknown",
-    });
+    // Only safe fields: a model error can quote the contact data it was sent.
+    recordCoreWarning(
+      { operation: "contact_list_judge" },
+      {
+        message: "Could not check which contact lists a contact belongs on",
+        why: "Jev, the judging model, failed or timed out",
+        fix: "Nothing: the contact keeps its lists and the next enrichment asks again.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
     return null;
   }
 }

@@ -162,6 +162,12 @@ const {
     credits: vi.fn(),
     readBytes: vi.fn(),
     assetFindFirst: vi.fn(),
+    jobFindUnique: vi.fn(),
+    referenceFindUnique: vi.fn(),
+    toolCallFindFirst: vi.fn(),
+    libraryAvailable: vi.fn(() => false),
+    findCuso: vi.fn(),
+    finishChatPicture: vi.fn(),
   },
   files: {
     taskFileUpsert: vi.fn(),
@@ -251,6 +257,21 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+// The repeats check embeds titles through the AI Gateway: a vector per text
+// keeps it offline, the same text the same vector.
+vi.mock("@/lib/embeddings", () => ({
+  EMBEDDING_MODEL: "test-embedding",
+  embedTexts: async (values: readonly string[]) => ({
+    embeddings: values.map((value) => {
+      const vector = Array.from({ length: 256 }, () => 0);
+      let hash = 0;
+      for (const char of value) hash = (hash * 31 + char.charCodeAt(0)) % 256;
+      vector[hash] = 1;
+      return vector;
+    }),
+    costUsd: 0,
+  }),
+}));
 vi.mock("@/lib/soko-bot/seo-tools", () => ({ runSeoTool: seoReadMock }));
 vi.mock("@/lib/soko-bot/voiceover", () => ({
   speakVoiceover: speakMock,
@@ -273,6 +294,10 @@ vi.mock("@/helpers/data-table", () => ({
 }));
 
 const social = vi.hoisted(() => ({
+  ownMessage: vi.fn(async () => ({
+    problem: null as string | null,
+    costUsd: 0,
+  })),
   listAccounts: vi.fn(),
   project: vi.fn(),
   listStatistics: vi.fn(),
@@ -340,6 +365,7 @@ vi.mock("@/services/social-posts.service", () => ({
   scheduleSocialPost: social.schedule,
   cancelSocialPost: social.cancel,
   requireMonthPostPicture: vi.fn(),
+  ownMessageProblem: social.ownMessage,
 }));
 vi.mock("@/services/social-post-publisher.service", () => ({
   publishSocialPostNow: social.publish,
@@ -382,6 +408,32 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   getJob: images.getJob,
   readAssetBytes: images.readBytes,
 }));
+vi.mock("@/services/reference-library.service", () => ({
+  referenceLibraryAvailable: images.libraryAvailable,
+}));
+vi.mock("@/services/cmo-media-maker.service", () => ({
+  REFERENCE_STYLE_MODELS: [
+    "gpt-image-2-6",
+    "nano-banana-2-1",
+    "seedream-5-pro",
+  ],
+  cmoStylePrompt: (input: { piece: { visual: string; headline?: string } }) =>
+    `styled: ${input.piece.visual} / ${input.piece.headline ?? "no words"}`,
+  loadStyleBrand: async () => ({ colours: [], logo: null }),
+  finishCmoChatPicture: images.finishChatPicture,
+}));
+vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/services/cmo-cuso.service")>();
+  return {
+    ...original,
+    // The real lookup unless a test names the Cuso it wants.
+    findCusoForBot: (sokoBotId: string) =>
+      images.findCuso.getMockImplementation()
+        ? images.findCuso(sokoBotId)
+        : original.findCusoForBot(sokoBotId),
+  };
+});
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: images.create,
   createVideoJob: images.createVideo,
@@ -482,10 +534,13 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: turnUpdateManyMock,
     },
     sokoBotRuntimeEvent: { findFirst: runtimeEventFindFirstMock },
+    projectImageJob: { findUnique: images.jobFindUnique },
+    referenceImage: { findUnique: images.referenceFindUnique },
     sokoBotToolCall: {
       count: toolCallCountMock,
       create: toolCallCreateMock,
       upsert: toolCallCreateMock,
+      findFirst: images.toolCallFindFirst,
       findUnique: toolCallFindUniqueMock,
       update: toolCallUpdateMock,
       updateMany: toolCallUpdateManyMock,
@@ -581,9 +636,9 @@ vi.mock("@/lib/db/transaction", () => ({
   ),
 }));
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => {
+  waitUntil: vi.fn((promise: Promise<unknown>) => {
     void promise;
-  },
+  }),
 }));
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatchChatRoomMentionMock,
@@ -699,6 +754,7 @@ import {
   sokoBotToolCallLimit,
 } from "@/services/soko-bot-runtime.service";
 import * as scheduleService from "@/services/soko-bot-schedule.service";
+import { expectCoreLog } from "@/test/core-log";
 import { publicWorkMadeBy, WORK_MAKERS } from "@/test-fixtures/work-made-by";
 
 const SCOPE = {
@@ -2119,12 +2175,14 @@ describe("SokoBotRuntimeService authorization", () => {
         name: "Launch announcement copy",
         status: "DRAFT",
         updatedAt,
+        dueOn: new Date("2026-11-20T00:00:00.000Z"),
+        number: 7,
         ownerId: "user_2",
         owner: { name: "Patrick" },
         assignee: null,
         assigneeUser: null,
         assigneeSokoBot: null,
-        project: null,
+        project: { id: "proj-1", name: "Launch", identifier: "LCH" },
         events: [],
       },
     ]);
@@ -2146,11 +2204,13 @@ describe("SokoBotRuntimeService authorization", () => {
       tasks: [
         {
           id: "task-1",
+          identifier: "LCH-7",
           name: "Launch announcement copy",
           status: "DRAFT",
+          dueOn: "2026-11-20",
           owner: "Patrick, a teammate (not your owner)",
           assignee: null,
-          project: null,
+          project: { id: "proj-1", name: "Launch" },
           idleDays: 5,
           updatedAt: updatedAt.toISOString(),
           creditsCharged: 421.31,
@@ -7124,6 +7184,27 @@ describe("Soko Bot project social tools", () => {
     },
   );
 
+  it("refuses a month post that repeats another before the save's transaction", async () => {
+    social.ownMessage.mockResolvedValueOnce({
+      problem: 'Rewrite the post: it says nearly what the post "Fees" says.',
+      costUsd: 0,
+    });
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "repeat",
+        input: { projectId, postId, revision: 1, text: "Fees again" },
+      }),
+    ).rejects.toThrow('it says nearly what the post "Fees" says');
+    expect(social.ownMessage).toHaveBeenCalledWith({
+      postId,
+      workspaceId: SCOPE.workspaceId,
+      text: "Fees again",
+    });
+    expect(social.update).not.toHaveBeenCalled();
+  });
+
   it("reads the Project's posting instructions in the turn's workspace", async () => {
     social.postingInstructions.mockResolvedValue({
       postingInstructionsMd: "Tone: warm\n\n## X\nOne hashtag",
@@ -10418,6 +10499,197 @@ describe("Content Studio image tools", () => {
     );
   });
 
+  describe("a picture Cuso makes in chat", () => {
+    const STYLE = "01a1eac9-fe1d-733e-b03d-56575fab5d96";
+    const cusoChat = {
+      ...ownerChat,
+      turn: {
+        ...ownerChat.turn,
+        sokoBotId: SCOPE.sokoBotId,
+        versionId: "cmo-v1",
+      },
+    };
+    const styledJob = {
+      projectId: "project-1",
+      idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1`,
+      referenceLibraryIds: [STYLE],
+      prompt: "styled: A pour-over on a counter / Fresh every week",
+      error: null,
+    };
+    beforeEach(() => {
+      images.libraryAvailable.mockReturnValue(true);
+      images.referenceFindUnique.mockResolvedValue({ id: STYLE });
+      images.findCuso.mockResolvedValue({
+        sokoBotId: SCOPE.sokoBotId,
+        projectId: "project-1",
+        workspaceId: SCOPE.workspaceId,
+        businessName: "Acme",
+      });
+      images.toolCallFindFirst.mockResolvedValue({
+        input: {
+          projectId: "project-1",
+          prompt: "A pour-over on a counter",
+          maxCredits: 30,
+          aspectRatio: "4:5",
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+        },
+      });
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+    });
+    afterEach(() => {
+      images.libraryAvailable.mockReturnValue(false);
+      images.findCuso.mockReset();
+    });
+
+    it("refuses a plain picture and says how to make it in a library style", async () => {
+      await expect(generate(cusoChat, request, "call-s0")).rejects.toThrow(
+        "Call find_style_references",
+      );
+      expect(images.create).not.toHaveBeenCalled();
+      // A model the owner named, or no library here: the plain picture.
+      await expect(
+        service["checkImageRequest"](
+          cusoChat as never,
+          { ...request, model: "gemini-pro" },
+          "call-s0",
+        ),
+      ).resolves.toMatchObject({ style: null });
+      images.libraryAvailable.mockReturnValue(false);
+      await expect(
+        service["checkImageRequest"](cusoChat as never, request, "call-s0"),
+      ).resolves.toMatchObject({ style: null });
+    });
+
+    it("leaves every other bot's pictures as they were, and refuses it a style", async () => {
+      await expect(
+        service["checkImageRequest"](ownerChat as never, request, "call-s0"),
+      ).resolves.toMatchObject({ style: null });
+      await expect(
+        generate(ownerChat, { ...request, styleReferenceId: STYLE }, "call-s0"),
+      ).rejects.toThrow("only Cuso makes pictures in a library style");
+    });
+
+    it("starts a styled picture on the first style model with the reference", async () => {
+      images.create.mockResolvedValue({ id: "job-s1", status: "QUEUED" });
+      const result = await generate(
+        cusoChat,
+        {
+          ...request,
+          prompt: "A pour-over on a counter",
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+        },
+        "call-s1",
+      );
+      expect(images.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          // The model is the catalogue's, stubbed here; the tries below name theirs.
+          prompt: "styled: A pour-over on a counter / Fresh every week",
+          referenceLibraryIds: [STYLE],
+          referenceFileIds: [],
+          idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1`,
+        }),
+      );
+      expect(result).toMatchObject({ jobId: "job-s1", status: "QUEUED" });
+      expect(result).not.toHaveProperty("studioUrl");
+    });
+
+    it("refuses a reference the library does not hold", async () => {
+      images.referenceFindUnique.mockResolvedValue(null);
+      await expect(
+        generate(cusoChat, { ...request, styleReferenceId: STYLE }, "call-s1"),
+      ).rejects.toThrow("use an id find_style_references returned");
+    });
+
+    it("hands back the checked picture with its logo, without a studio link", async () => {
+      images.getJob.mockResolvedValue({
+        id: "job-s1",
+        status: "SUCCEEDED",
+        assetId: "asset-s1",
+      });
+      images.jobFindUnique.mockResolvedValue(styledJob);
+      images.finishChatPicture.mockResolvedValue({
+        passed: true,
+        file: { id: "file-s1", name: "picture.jpg" },
+      });
+      const result = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s1",
+      });
+      expect(images.finishChatPicture).toHaveBeenCalledWith(
+        expect.objectContaining({
+          styleReferenceId: STYLE,
+          headline: "Fresh every week",
+          drive: {
+            workspaceId: SCOPE.workspaceId,
+            organizationId: "org-1",
+            userId: SCOPE.userId,
+          },
+        }),
+      );
+      expect(result).toMatchObject({
+        jobId: "job-s1",
+        status: "SUCCEEDED",
+        file: { id: "file-s1" },
+      });
+      expect(result).not.toHaveProperty("studioUrl");
+      expect(images.create).not.toHaveBeenCalled();
+    });
+
+    it("makes a picture the check turned down again on the next model, three tries in all", async () => {
+      images.getJob.mockResolvedValue({
+        id: "job-s1",
+        status: "SUCCEEDED",
+        assetId: "asset-s1",
+      });
+      images.jobFindUnique.mockResolvedValue(styledJob);
+      images.finishChatPicture.mockResolvedValue({
+        passed: false,
+        problems: "extra words beyond the headline",
+      });
+      images.create.mockResolvedValue({ id: "job-s2", status: "QUEUED" });
+      const second = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s1",
+      });
+      expect(images.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: "nano-banana-2-1",
+          prompt: styledJob.prompt,
+          referenceLibraryIds: [STYLE],
+          settings: expect.objectContaining({
+            aspectRatio: "4:5",
+            outputFormat: "jpeg",
+          }),
+          idempotencyKey: `soko-bot:${SCOPE.turnId}:call-s1:style:2`,
+        }),
+      );
+      expect(second).toMatchObject({ jobId: "job-s2", replaces: "job-s1" });
+      expect(second).toMatchObject({
+        note: expect.stringContaining("extra words beyond the headline"),
+      });
+
+      images.create.mockClear();
+      images.jobFindUnique.mockResolvedValue({
+        ...styledJob,
+        idempotencyKey: `${styledJob.idempotencyKey}:style:3`,
+      });
+      const last = await service["getStudioJob"](cusoChat as never, {
+        projectId: "project-1",
+        jobId: "job-s3",
+      });
+      expect(images.create).not.toHaveBeenCalled();
+      expect(last).toMatchObject({
+        status: "FAILED",
+        note: expect.stringContaining("No model made a picture that passed"),
+      });
+    });
+  });
+
   it("reports a finished image, checking access before the provider", async () => {
     images.getJob.mockResolvedValue({
       id: "job-1",
@@ -10502,6 +10774,10 @@ describe("Content Studio image tools", () => {
     });
 
     it("still reports the image when the copy fails", async () => {
+      const warnings = expectCoreLog(
+        "warn",
+        "Could not copy a studio image into Files",
+      );
       files.resourceFindUnique.mockResolvedValue(null);
       images.readBytes.mockRejectedValue(new Error("store down"));
       await expect(
@@ -10510,6 +10786,14 @@ describe("Content Studio image tools", () => {
           jobId: ready.id,
         }),
       ).resolves.toMatchObject({ status: "SUCCEEDED", file: null });
+      expect(warnings[0]).toMatchObject({ why: "The Files copy failed" });
+      expect(warnings[0]?.event).toMatchObject({
+        failure: { errorName: "Error" },
+      });
+      expect(warnings[0]?.event).toMatchObject({
+        operation: "soko_bot_studio_job",
+        imageJob: { id: expect.any(String) },
+      });
     });
   });
 
@@ -11192,6 +11476,138 @@ describe("CMO record saves", () => {
     return tx;
   }
 
+  it("refuses a plan that breaks a hard rule as a tool error, saving nothing", async () => {
+    const PROJECT = "01960001-0001-7001-8001-0000000000ab";
+    const plan = {
+      month: "2026-11",
+      summary:
+        "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone.",
+      goals: ["More demo requests"],
+      pillars: ["Product stories"],
+      channels: [{ channel: "linkedin", cadence: "3 a week" }],
+      calendar: [],
+    };
+    const tx = {
+      sokoBot: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: SCOPE.sokoBotId,
+          createdAt: new Date("2026-10-01T09:00:00Z"),
+          project: {
+            id: PROJECT,
+            workspaceId: SCOPE.workspaceId,
+            websiteUrl: "https://acme.io",
+            workspace: { organizationId: "org-1" },
+            brandBrain: null,
+          },
+        }),
+      },
+      marketingStrategy: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+    transactionMock.mockImplementationOnce(
+      async (operation: (client: typeof tx) => unknown) => operation(tx),
+    );
+    turnFindUniqueMock.mockResolvedValueOnce({
+      source: "CHAT",
+      clientTurnId: "chat-1",
+    });
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      service["saveCmoRecord"](owner as never, {
+        ...SCOPE,
+        capability: "save_strategy",
+        toolCallId: "strategy",
+        input: { part: "plan", strategy: plan },
+      }),
+    ).rejects.toThrow(/Rule "20-word summary": the summary has 21 words/);
+    expect(tx.marketingStrategy.create).not.toHaveBeenCalled();
+  });
+
+  it("reviews the first four saves that landed, so refusals never use the reviews up", async () => {
+    const service = new SokoBotRuntimeService();
+    const review = (
+      landedBefore: number,
+      calendarSent = false,
+      calendarsBefore = 0,
+    ) => {
+      toolCallCountMock.mockResolvedValueOnce(landedBefore);
+      if (calendarSent)
+        toolCallCountMock.mockResolvedValueOnce(calendarsBefore);
+      return service["reviewCmoPlan"](
+        owner as never,
+        {
+          ...SCOPE,
+          capability: "save_strategy",
+          toolCallId: "save-9",
+        } as never,
+        {
+          approved: false,
+          projectId: "project-1",
+          executing: false,
+          strategy: {
+            month: "2026-11",
+            summary: "Grow.",
+            goals: ["More demo requests"],
+            mix: [],
+            funnel: [],
+            pillars: [],
+            channels: [],
+            calendar: [],
+            questions: [],
+          } as never,
+          planSent: false,
+          calendarSent,
+        },
+      );
+    };
+
+    await expect(review(3)).resolves.toMatchObject({
+      save: 4,
+      calendar: false,
+    });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+      },
+    });
+    // Past Jev's four, the rule checks still answer a few more saves.
+    await expect(review(4)).resolves.toMatchObject({
+      save: 5,
+      mainOffer: "skipped",
+    });
+    await expect(review(8)).resolves.toBeNull();
+    // A plan saved in parts lands its calendar last: its calendar saves are
+    // reviewed however many plan and patch saves came before them.
+    await expect(review(6, true, 0)).resolves.toMatchObject({
+      save: 7,
+      calendar: true,
+    });
+    expect(toolCallCountMock).toHaveBeenLastCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        capability: "save_strategy",
+        status: "COMPLETED",
+        NOT: { toolCallId: "save-9" },
+        result: { path: ["review", "calendar"], equals: true },
+      },
+    });
+    // Calendar saves have their own two reviews: the first calendar and its
+    // fix. Each round resends the whole calendar, so more cost minutes.
+    await expect(review(6, true, 1)).resolves.toMatchObject({ save: 7 });
+    await expect(review(6, true, 2)).resolves.toMatchObject({
+      mainOffer: "skipped",
+    });
+    await expect(review(6, true, 4)).resolves.toBeNull();
+  });
+
   it("posts the report as a card in Cuso's shared room and makes it the Project's latest update", async () => {
     const tx = cmoTx();
     const service = new SokoBotRuntimeService();
@@ -11278,7 +11694,8 @@ describe("CMO record saves", () => {
   it.each([4, 5, 6])(
     "reports duplicate ad titles on unapproved save %i without extending the semantic review budget",
     async (saves) => {
-      toolCallCountMock.mockResolvedValueOnce(saves);
+      // The saves that landed before this one.
+      toolCallCountMock.mockResolvedValueOnce(saves - 1);
       botFindUniqueMock.mockClear().mockResolvedValueOnce(null);
       const strategy = marketingStrategyPlanSchema.parse({
         month: "2026-11",
@@ -11310,6 +11727,7 @@ describe("CMO record saves", () => {
           executing: false,
           strategy,
           planSent: true,
+          calendarSent: false,
         },
       );
       expect(review).toMatchObject({
@@ -11350,6 +11768,7 @@ describe("CMO record saves", () => {
           executing: false,
           strategy,
           planSent: true,
+          calendarSent: false,
         },
       ),
     ).resolves.toBeNull();
@@ -11446,6 +11865,9 @@ describe("CMO record saves", () => {
       sokoBot: {
         findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
       },
+      sokoBotTurn: {
+        findUnique: vi.fn().mockResolvedValue({ createdAt: new Date() }),
+      },
       brandBrain: {
         findUnique: vi.fn().mockResolvedValue(null),
         upsert: vi.fn().mockResolvedValue({
@@ -11487,6 +11909,9 @@ describe("CMO record saves", () => {
       $executeRaw: vi.fn().mockResolvedValue(1),
       sokoBot: {
         findUnique: vi.fn().mockResolvedValue({ projectId: PROJECT }),
+      },
+      sokoBotTurn: {
+        findUnique: vi.fn().mockResolvedValue({ createdAt: new Date() }),
       },
       brandBrain: {
         findUnique: vi.fn().mockResolvedValue({ body: { profile: {} } }),

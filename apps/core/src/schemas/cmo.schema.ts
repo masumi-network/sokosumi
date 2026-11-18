@@ -167,6 +167,29 @@ export const cmoProjectParamsSchema = z.object({
     }),
 });
 
+export const cmoBrandFixRequestSchema = z
+  .object({
+    section: z.enum(CMO_BRAND_SECTION_KEYS),
+    note: z
+      .string()
+      .trim()
+      .min(1)
+      .max(400)
+      .describe("What is true instead, in the owner's words."),
+  })
+  .openapi("CmoBrandFixRequest");
+
+export const cmoBrandFixStartedSchema = z
+  .object({
+    turnId: z.union([z.string(), z.null()]),
+    queued: z
+      .boolean()
+      .describe(
+        "Cuso is busy: the fix is kept on its section and starts when his current turn ends.",
+      ),
+  })
+  .openapi("CmoBrandFixStarted");
+
 /** A version of the plan of the Cuso a CMO route acts on. */
 export const cmoStrategyParamsSchema = cmoProjectParamsSchema.extend({
   strategyId: z
@@ -227,9 +250,30 @@ export const cmoWorkStepSchema = z
   })
   .openapi("CmoWorkStep");
 
+export const cmoActivitySchema = z
+  .object({
+    step: z
+      .union([z.string(), z.null()])
+      .describe(
+        'The step Cuso is on, in CMO\'s words ("Looking for a picture style"); null before his first one.',
+      ),
+    reasoning: z
+      .union([z.string(), z.null()])
+      .describe(
+        "The model's latest summary of its reasoning in this turn; null when it gave none.",
+      ),
+  })
+  .openapi("CmoActivity");
+
 export const cmoWorkSchema = z
   .object({
     kind: z.enum(["research", "strategy"]),
+    change: z
+      .union([z.enum(["fix", "patch"]), z.null()])
+      .optional()
+      .describe(
+        "A strategy turn that fixes Brand Brain sections or patches the plan's entries; null for a whole plan.",
+      ),
     status: z.enum(["running", "failed", "done"]),
     startedAt: dateTimeSchema,
     steps: z.array(cmoWorkStepSchema),
@@ -342,12 +386,19 @@ export const cmoOverviewSchema = z
         "Whether this member may approve the strategy: the organization's owners and admins only. Every other member works with Cuso but cannot.",
       ),
     work: z.union([cmoWorkSchema, z.null()]),
+    activity: z
+      .union([cmoActivitySchema, z.null()])
+      .describe(
+        "What Cuso is doing in the turn he runs now, whatever started it (a chat message, hiring, a rhythm, the month's production); null while he rests.",
+      ),
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
     projectLogo: z.union([z.string(), z.null()]),
+    /** The owner gave their photo, with consent, to front talking videos. */
+    presenterSet: z.boolean(),
     onboardingStep: z
       .enum(CMO_ONBOARDING_STEPS)
       .describe(
-        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the accounts until the Project has a Social connection or this person skipped them, the checkout until his Project has a CMO subscription. CMO opens on the chat once done.",
+        "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.",
       ),
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([brandBrainSchema, z.null()]),

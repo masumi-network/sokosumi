@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectCoreLogWhys } from "@/test/core-log";
 
 import { syncPolarYearlyGrants } from "./polar-yearly-grant-sync.service";
 
@@ -316,6 +317,33 @@ describe("syncPolarYearlyGrants", () => {
       errors: 0,
       granted: 0,
       stoppedEarly: false,
+    });
+  });
+
+  it("counts a grant that fails and logs it with its subscription and amount", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not grant a CMO yearly subscription its month of credits",
+      ["Writing the month's credit bucket failed"],
+      ["db down"],
+    );
+    vi.setSystemTime(new Date("2026-02-28T10:00:00.000Z"));
+    m.prisma.transaction.create.mockRejectedValue(new Error("db down"));
+
+    expect(await sync()).toEqual({
+      errors: 1,
+      granted: 0,
+      stoppedEarly: false,
+    });
+    expect(errors[0]?.event).toMatchObject({
+      operation: "polar_yearly_grant_sync",
+      creditGrant: {
+        referenceId: "order_y1:1",
+        paidOrderId: "order_y1",
+        // evlog masks all-digit UUID segments until ticket 14 lands.
+        projectId: expect.any(String),
+        credits: 25_000,
+      },
     });
   });
 

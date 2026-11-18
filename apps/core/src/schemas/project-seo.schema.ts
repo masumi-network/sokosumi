@@ -28,10 +28,10 @@ import {
 } from "./project-seo-traffic.schema";
 
 export const SEO_MAX_PAGES = 10;
+export const SEO_MAX_INDEX_ASSESSMENTS = SEO_MAX_PAGES * SEO_MAX_PAGES;
 export const SEO_MAX_KEYWORDS = 20;
 export const SEO_MAX_COMPETITORS = 10;
 export const SEO_MAX_PROVIDER_CALLS = 100;
-export { SEO_MAX_MONITOR_RUNS } from "./project-seo-monitor.schema";
 export const SEO_PAGE_CHANGE_CLOCK_SKEW_MS = 5 * 60_000;
 const SEO_SERP_LANGUAGES = new Set(
   "af ak am ar az be bg bn bs ca cs cy da de ee el en es et eu fa fi fo fr fy ga gl gu ha he hi hr ht hu hy id ig is it iw ja ka kg kk km kn ko ky lg ln lo lt lv mg mi mk ml mn mr ms mt my ne nl no ny om pa pl ps pt qu rm rn ro ru rw sd si sk sl sn so sq sr st sv sw ta te tg th ti tk tl tn to tr uk ur uz vi wo xh yo zu".split(
@@ -313,6 +313,9 @@ export const seoFindingSchema = z
     title: z.string(),
     severity: seoSeveritySchema,
     evidence: z.array(z.string()),
+    suggestedFix: z.string().max(2000).nullable().optional(),
+    relatedPageUrl: seoUrlSchema.optional(),
+    visibility: z.literal("PRIVATE").optional(),
     sourceRef: z.string(),
     observedAt: dateTimeSchema,
   })
@@ -403,6 +406,10 @@ export const seoActionSchema = z
     ]),
     taskId: z.string().nullable(),
     status: z.enum(["recommended", "task_created", "implemented", "verified"]),
+    /** When the linked Task last completed. Set on an implemented or verified action. */
+    completedAt: dateTimeSchema.optional(),
+    /** When the last check that shows every finding of the fix gone ran; it can come before completedAt. Set on a verified fix. */
+    verifiedAt: dateTimeSchema.optional(),
     /** A fix comes from a confirmed check. An opportunity is a named heuristic over measured search data. */
     kind: z.enum(["fix", "opportunity"]),
     evidence: z.array(z.string()),
@@ -517,6 +524,40 @@ export const seoIndexStatusSchema = z
       .max(SEO_MAX_PAGES),
   })
   .openapi("ProjectSeoIndexStatus");
+/** The SEO worker's private assessment, separate from the public audit artifact. */
+export const seoIndexAssessmentSchema = z
+  .object({
+    pageUrl: seoUrlSchema,
+    status: z.enum([
+      "indexed",
+      "issue",
+      "review",
+      "expected_exclusion",
+      "unavailable",
+    ]),
+    report: z.boolean(),
+    reason: z.string().min(1).max(2000),
+    suggestedFix: z.string().min(1).max(2000).nullable(),
+    evidence: z.array(z.string().max(2000)).max(20),
+  })
+  .strict()
+  .refine((value) => value.report === (value.status === "issue"))
+  .openapi("ProjectSeoIndexAssessment");
+export const seoIndexTriageSchema = z
+  .object({
+    assessments: z
+      .array(
+        seoIndexAssessmentSchema
+          .safeExtend({
+            taskId: z.string(),
+            checkedAt: dateTimeSchema,
+            auditPageUrl: seoUrlSchema.optional(),
+          })
+          .openapi("ProjectSeoIndexAssessedPage"),
+      )
+      .max(SEO_MAX_INDEX_ASSESSMENTS),
+  })
+  .openapi("ProjectSeoIndexTriage");
 export const seoSearchQueriesSchema = z
   .object({
     observationId: seoIdSchema,
@@ -658,6 +699,8 @@ export const projectSeoWorkspaceSchema = z
       .optional(),
     /** Google's index verdict per page from the newest Search Console sync that inspected them. */
     indexStatus: z.union([seoIndexStatusSchema, z.null()]).optional(),
+    /** Private indexing assessment for the current viewer's audit and selected pages. */
+    indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */

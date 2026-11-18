@@ -50,6 +50,7 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { getAblyChatRoomScope } from "./chat-room-auth-scope.client";
 import { useChatRoomRealtime } from "./use-chat-room-realtime";
 import { useRoomTyping } from "./use-room-typing";
@@ -187,6 +188,7 @@ describe("useChatRoomRealtime", () => {
   });
 
   it("does not subscribe when authorize fails", async () => {
+    expectConsole("error", "Error: token refresh failed");
     const onError = vi.fn();
     authorizeMock.mockRejectedValue(new Error("token refresh failed"));
 
@@ -210,6 +212,7 @@ describe("useChatRoomRealtime", () => {
   it.each(["connected", "online"])(
     "retries a failed room sync on %s without a focus event",
     async (event) => {
+      expectConsole("error", "Error: token temporarily unavailable");
       const onError = vi.fn();
       authorizeMock.mockRejectedValueOnce(
         new Error("token temporarily unavailable"),
@@ -244,6 +247,7 @@ describe("useChatRoomRealtime", () => {
   );
 
   it("retries transient auth failure while the socket remains connected, then stops retrying", async () => {
+    expectConsole("error", "Error: token temporarily unavailable");
     vi.useFakeTimers();
     authorizeMock.mockRejectedValueOnce(
       new Error("token temporarily unavailable"),
@@ -267,6 +271,7 @@ describe("useChatRoomRealtime", () => {
   });
 
   it("does not retry a closed client on a timer", async () => {
+    expectConsole("error", "Error: session is gone");
     vi.useFakeTimers();
     ablyClient.connection.state = "closed";
     authorizeMock.mockRejectedValue(new Error("session is gone"));
@@ -284,6 +289,7 @@ describe("useChatRoomRealtime", () => {
   });
 
   it("cancels pending auth retries on unmount", async () => {
+    expectConsole("error", "Error: token temporarily unavailable");
     vi.useFakeTimers();
     authorizeMock.mockRejectedValue(new Error("token temporarily unavailable"));
     const { unmount } = renderHook(() =>
@@ -305,6 +311,7 @@ describe("useChatRoomRealtime", () => {
   it.each(["closing", "closed", "failed"])(
     "does not let a scheduled retry reopen a client that becomes %s",
     async (state) => {
+      expectConsole("error", "Error: token temporarily unavailable");
       vi.useFakeTimers();
       authorizeMock.mockRejectedValue(
         new Error("token temporarily unavailable"),
@@ -627,6 +634,7 @@ describe("useChatRoomRealtime", () => {
   });
 
   it("keeps prior channels when a later authorize fails", async () => {
+    expectConsole("error", "Error: token refresh failed");
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
 
     const onError = vi.fn();
@@ -775,9 +783,7 @@ describe("useChatRoomRealtime", () => {
   });
 
   it("does not surface attach/detach race rejections on unmount", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, "error");
 
     const { unmount } = renderHook(() =>
       useChatRoomRealtime({

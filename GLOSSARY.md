@@ -99,7 +99,7 @@ The product at cmo.xyz: an AI agent that runs a business's marketing end to end 
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
 **Cuso**:
-CMO's mascot, and for now the name of every CMO agent: a shared Soko Bot on the CMO profile that markets one Business from one Project of an organization, for every member of it. A Project has at most one, an organization may hold several, and he is found as that bot, with no CMO record beside it. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
+CMO's mascot and the name of every CMO agent: a shared Soko Bot on the CMO profile that markets one Business from one Project of an organization, for every member of it. A Project has at most one, an organization may hold several, and he is found as that bot, with no CMO record beside it.
 _Avoid_: CMO bot, marketing assistant, the CMO (that is the product), CMO hire (what he knows and plans belongs to the Project)
 
 **CMO Project**:
@@ -134,9 +134,13 @@ _Avoid_: Subscription (alone, that is the organization's Stripe plan), CMO hire,
 A one-time purchase of Project credits for one subscribed Cuso's Project, bought through Polar. They expire 12 months after purchase.
 _Avoid_: Top-up (alone, that is a Stripe purchase into the Organization credit pool), credit pack, refill
 
+**Polar customer**:
+The Organization as Polar knows it. Every CMO subscription and Project top-up belongs to it, whoever in the Organization pays.
+_Avoid_: Customer (alone), payer
+
 **Marketing strategy**:
 A Project's marketing plan: one sentence (who, positioned as, how they find you, the offer), its funnel, channel mix and pace. Each rewrite is a new version; the Workspace's owners or admins approve one, and only that one is carried out. Its social entries are the Project's Social posts; its other pieces show on the Calendar under Marketing.
-_Avoid_: CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
+_Avoid_: Plan (in anything a person or Cuso reads; that is a CMO plan), CMO hire, strategy history (older versions are versions), content calendar (that is the Calendar)
 
 **Brand Brain**:
 What a Project knows about the business it works for (summary, voice, audience, products, competitors, channels). Every bot in the Project reads it and any member of its Workspace edits it; Cuso drafts it while Hiring Cuso. Its look (logo, colours, fonts) is the Project's logo and DESIGN.md, not part of it.
@@ -199,8 +203,12 @@ The person who asked a Soko Bot to act, recorded on its turns and Soko Bot sched
 _Avoid_: Context user, on-behalf-of user, initiator, owner
 
 **Task participant**:
-A person who follows a Task to hear about it. Distinct from Participant, which belongs to Threads.
-_Avoid_: Participant (when meaning a Task), follower, watcher
+A person on a Task's participant list: added by an @-mention or by joining the Task themselves. Each one hears by the bell when the Task completes, fails, is canceled, goes overdue or has its due date moved later. Distinct from Participant, which belongs to Threads, and from Task follower.
+_Avoid_: Participant (when meaning a Task), watcher
+
+**Task follower**:
+A person whose personal Soko Bot follows a Task for them. The bot tells them the same moments in its 1:1, and writes a summary when the Task completes; without a live bot they hear by the bell. Following needs a personal Soko Bot (a paused one is fine; while paused, the moments go to the bell), never adds them to the participant list, and leaving that list never stops it. UI copy says "Follow task with Soko Bot".
+_Avoid_: Subscribed participant, subscriber, interested
 
 ### Calendar
 

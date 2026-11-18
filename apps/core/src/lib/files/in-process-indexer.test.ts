@@ -9,7 +9,7 @@ const processStaleTableIndexes = vi.fn();
 const waitUntil = vi.fn();
 
 vi.mock("@vercel/functions", () => ({
-  waitUntil: (promise: Promise<unknown>) => waitUntil(promise),
+  waitUntil: vi.fn((promise: Promise<unknown>) => waitUntil(promise)),
   // Pulled in transitively by the table service's prisma import.
   attachDatabasePool: vi.fn(),
 }));
@@ -25,6 +25,7 @@ vi.mock("@/services/file-table-index.service", () => ({
   processStaleTableIndexes: (input: unknown) => processStaleTableIndexes(input),
 }));
 
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 import {
   nudgeFileExtraction,
   nudgeFileIndexing,
@@ -109,11 +110,20 @@ describe("the in-process nudge", () => {
   });
 
   it("keeps the table failure separate from the other two", async () => {
+    expectCoreLogWhys("warn", "Could not index data tables in the background", [
+      "Indexing the stale data tables failed",
+    ]);
     // A table that will not index must not read as extraction or
     // labelling having done nothing.
-    processStaleTableIndexes.mockRejectedValue(new Error("table gone"));
+    // A Prisma error quotes what it writes: here a cell of the table.
+    processStaleTableIndexes.mockRejectedValue(
+      new Error('Invalid `prisma.chunk.create()`: text "Confidential payroll"'),
+    );
 
     const result = await runIndexingNudge();
+    expect(
+      JSON.stringify(coreLogEvents()).includes("Confidential payroll"),
+    ).toBe(false);
 
     expect(result.tables).toEqual({ scanned: 0, indexed: 0, failed: 0 });
     expect(result.extraction).toEqual(EXTRACTION);
@@ -193,6 +203,11 @@ describe("a read path does not buy label evaluations", () => {
   });
 
   it("is still bounded, and still cannot reject", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not index uploaded files in the background",
+      ["Processing the file index jobs failed"],
+    );
     processFileIndexJobs.mockRejectedValue(new Error("object store down"));
 
     // Handed to `waitUntil`, so a rejection here is a rejection in the
@@ -304,6 +319,11 @@ describe("only write paths may buy label evaluations", () => {
 
 describe("neither half can take down the request that triggered it", () => {
   it("still labels when extraction throws", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not index uploaded files in the background",
+      ["Processing the file index jobs failed"],
+    );
     processFileIndexJobs.mockRejectedValue(new Error("object store down"));
 
     const result = await runIndexingNudge();
@@ -320,6 +340,11 @@ describe("neither half can take down the request that triggered it", () => {
   });
 
   it("still reports extraction when labelling throws", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not label uploaded files in the background",
+      ["Processing the file suggestion jobs failed"],
+    );
     processFileSuggestionJobs.mockRejectedValue(new Error("provider down"));
 
     const result = await runIndexingNudge();
@@ -344,6 +369,16 @@ describe("neither half can take down the request that triggered it", () => {
   });
 
   it("never rejects, whatever both halves do", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "Could not index uploaded files in the background",
+      ["Processing the file index jobs failed"],
+    );
+    expectCoreLogWhys(
+      "warn",
+      "Could not label uploaded files in the background",
+      ["Processing the file suggestion jobs failed"],
+    );
     processFileIndexJobs.mockRejectedValue(new Error("a"));
     processFileSuggestionJobs.mockRejectedValue(new Error("b"));
 

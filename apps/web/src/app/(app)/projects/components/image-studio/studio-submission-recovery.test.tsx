@@ -17,6 +17,9 @@ import type {
 } from "./types";
 
 const startImageGeneration = vi.hoisted(() => vi.fn());
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("@/lib/actions/image-studio/action", () => ({
   startImageGeneration,
   requestImageJobCancel: vi.fn(),
@@ -52,6 +55,12 @@ const REJECTION = {
 };
 
 const REFERENCE: StudioAsset = {
+  myThumb: null,
+  myReasons: [],
+  myComment: null,
+  thumbsUp: 0,
+  thumbsDown: 0,
+  score: 0.5,
   id: "reference-a",
   projectId: "campaign",
   projectName: "Campaign",

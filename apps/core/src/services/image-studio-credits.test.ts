@@ -83,6 +83,7 @@ vi.mock("@/lib/db/prisma", () => {
       findMany: vi.fn(),
     },
     project: { findUnique: vi.fn() },
+    projectImagePromptSnapshot: { upsert: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
   return { default: client };
@@ -130,7 +131,6 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 }));
 
 import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
-
 import { unprocessableEntity } from "@/helpers/error";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
@@ -139,15 +139,8 @@ import {
   failImageJob,
   settleWithMedia,
 } from "@/services/image-studio-jobs.service";
-
-function pngBytes(width: number, height: number): Uint8Array {
-  const bytes = new Uint8Array(24);
-  bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
-  const data = new DataView(bytes.buffer);
-  data.setUint32(16, width);
-  data.setUint32(20, height);
-  return bytes;
-}
+import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
+import { pngBytes } from "@/test/image-bytes";
 
 const BASE_INPUT = {
   modelId: "gemini-flash",
@@ -197,6 +190,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     error: null,
     chargedCents: FLASH_1K_CENTS,
     transactionId: null,
+    idempotencyKey: BASE_INPUT.idempotencyKey,
     ...overrides,
   };
 }
@@ -408,6 +402,11 @@ describe("delivering an image is when the money moves", () => {
   });
 
   it("keeps the image and charges nothing when the balance no longer covers it", async () => {
+    const errors = expectCoreLogWhys(
+      "error",
+      "Delivered a generated image without charging for it",
+      ["The balance no longer covered the quote when the image was stored"],
+    );
     // Money must never cost somebody an image the platform has already paid fal
     // for. `prepareConsumption` cannot overdraw, so a balance that fell between
     // submit and delivery makes the debit throw — and letting that abort the
@@ -429,6 +428,10 @@ describe("delivering an image is when the money moves", () => {
     // make the History trigger report a charge no transaction backs.
     expect(settled.chargedCents).toBe(0n);
     expect(settled.transactionId).toBeNull();
+    expect(errors[0]?.event).toMatchObject({
+      operation: "image_job_settle",
+      imageJobs: [expect.objectContaining({ id: "job-1" })],
+    });
   });
 
   it("retries rather than giving an image away on a transient failure", async () => {
@@ -457,6 +460,9 @@ describe("delivering an image is when the money moves", () => {
 
 describe("a failed generation moves no money", () => {
   it("takes nothing when the provider refuses the submission", async () => {
+    expectCoreLogWhys("warn", "The image provider refused a generation", [
+      "fal answered the submission with a rejection",
+    ]);
     submitToQueueMock.mockResolvedValue({
       kind: "rejected",
       status: 422,
@@ -472,12 +478,24 @@ describe("a failed generation moves no money", () => {
   });
 
   it("takes nothing when fal's runner reports an error", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The image provider failed a generation",
+      ["fal reported the generation as failed"],
+    );
     await failImageJob(
       "job-1",
       "provider_error",
-      "Unexpected status code: 422",
+      "Unexpected status code: 422 for SECRET-PROMPT-SENTINEL",
     );
 
+    // The provider's text can quote the prompt, so it is not logged.
+    expect(warnings[0]?.event).toMatchObject({
+      imageJobs: [{ id: "job-1", failureReason: "provider_error" }],
+    });
+    expect(JSON.stringify(coreLogEvents())).not.toContain(
+      "SECRET-PROMPT-SENTINEL",
+    );
     const written = jobUpdateManyMock.mock.calls[0]![0].data;
     expect(written.status).toBe("FAILED");
     expect(written.failureReason).toBe("provider_error");
@@ -485,6 +503,9 @@ describe("a failed generation moves no money", () => {
   });
 
   it("takes nothing when the request could not be prepared", async () => {
+    expectCoreLogWhys("warn", "An image generation failed before it was sent", [
+      "Preparing the request for the image provider threw",
+    ]);
     // A model fal withdrew between submit and send.
     const withdrawn = jobRow({ model: "fal-ai/withdrawn-last-year" });
     jobCreateMock.mockResolvedValue(withdrawn);

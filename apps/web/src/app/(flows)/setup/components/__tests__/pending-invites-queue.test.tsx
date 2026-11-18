@@ -77,6 +77,9 @@ const messages = {
           required: "Last name is required",
           max: "Last name is too long",
         },
+        FullName: {
+          max: "First and last name together must be at most 128 characters, including the space.",
+        },
       },
     },
   },

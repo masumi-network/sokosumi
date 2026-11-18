@@ -35,6 +35,9 @@ const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
 }));
 
+// happy-dom has no layout for next/image to measure a `fill` parent by.
+vi.mock("next/image", () => import("@/test/next-image"));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
   usePathname: () => "/projects/p/studio",
@@ -55,6 +58,10 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
   requestImageJobCancel: mocks.cancel,
   prepareStudioAssetSocialMedia: vi.fn(),
   writeStudioAssetCaption: vi.fn(),
+}));
+
+vi.mock("./studio-batch-compare", () => ({
+  StudioBatchCompareButton: () => null,
 }));
 
 vi.mock("@/lib/actions/image-studio/brand-kit", async (importOriginal) => ({
@@ -253,7 +260,7 @@ describe("a gallery with work in it", () => {
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open]);
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     expect(screen.queryByLabelText("logoOnBatch")).not.toBeInTheDocument();
     fireEvent.click(
       within(screen.getByRole("dialog")).getByRole("button", {
@@ -268,6 +275,8 @@ describe("a gallery with work in it", () => {
     expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
       [open, older],
       undefined,
+      undefined,
+      [],
     );
     expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
       expect.any(Blob),
@@ -282,7 +291,7 @@ describe("a gallery with work in it", () => {
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open], [], "https://example.com/approved-logo.png");
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     const batchLogo = screen.getByLabelText("logoOnBatch");
     expect(batchLogo).toHaveValue("");
     fireEvent.change(batchLogo, {
@@ -304,6 +313,8 @@ describe("a gallery with work in it", () => {
     expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
       [open, older],
       StudioLogoPosition.TOP_LEFT,
+      undefined,
+      [],
     );
     expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
       expect.any(Blob),
@@ -327,7 +338,7 @@ describe("a gallery with work in it", () => {
         "https://example.com/logo.png",
         StudioLogoPosition.BOTTOM_LEFT,
       );
-      fireEvent.click(screen.getByRole("img").closest("button")!);
+      fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
       const batchLogo = screen.getByLabelText("logoOnBatch");
       expect(batchLogo).toHaveValue(StudioLogoPosition.BOTTOM_LEFT);
       if (override) fireEvent.change(batchLogo, { target: { value: "" } });
@@ -343,6 +354,8 @@ describe("a gallery with work in it", () => {
         expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
           [open],
           expected,
+          undefined,
+          [],
         ),
       );
     },
@@ -356,8 +369,11 @@ describe("a gallery with work in it", () => {
       .mockResolvedValue({ approvedLines: [active] });
 
     mount([{ ...ASSET, projectId: "p" }]);
-    fireEvent.click(screen.getByRole("img").closest("button")!);
-    fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
+    // Opening the preview and each download start async transitions.
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "previewAd" }));
+    });
 
     const preview = within(screen.getByRole("dialog", { name: "previewAd" }));
     const select = await preview.findByLabelText("approvedHeadline");
@@ -370,7 +386,9 @@ describe("a gallery with work in it", () => {
       expect(select).toHaveValue(removed);
       expect(download).toBeEnabled();
     });
-    fireEvent.click(download);
+    await act(async () => {
+      fireEvent.click(download);
+    });
     await waitFor(() =>
       expect(
         preview.queryByRole("option", { name: removed }),
@@ -383,7 +401,9 @@ describe("a gallery with work in it", () => {
       expect(select).toHaveValue(active);
       expect(download).toBeEnabled();
     });
-    fireEvent.click(download);
+    await act(async () => {
+      fireEvent.click(download);
+    });
     await waitFor(() =>
       expect(mocks.saveDownload).toHaveBeenCalledExactlyOnceWith(
         expect.any(Blob),
@@ -411,7 +431,7 @@ describe("a gallery with work in it", () => {
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([open]);
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     fireEvent.click(
       screen.getByRole("button", { name: "reviewBatchHeadlines" }),
     );
@@ -435,7 +455,12 @@ describe("a gallery with work in it", () => {
     mocks.loadBrandKit.mockResolvedValueOnce({ approvedLines: [first] });
     fireEvent.click(download);
     await waitFor(() => expect(mocks.loadBrandKit).toHaveBeenCalledTimes(2));
-    await waitFor(() => expect(download).toBeEnabled());
+    // A loading Button stays enabled but ignores clicks (aria-busy), so wait
+    // for the first attempt to finish, not only for the button to enable.
+    await waitFor(() => {
+      expect(download).toBeEnabled();
+      expect(download).not.toHaveAttribute("aria-busy");
+    });
     expect(mocks.createArchive).not.toHaveBeenCalled();
 
     fireEvent.click(download);
@@ -444,6 +469,7 @@ describe("a gallery with work in it", () => {
         [open, older],
         undefined,
         { [open.id]: first, [older.id]: second },
+        [],
       ),
     );
   });
@@ -458,7 +484,7 @@ describe("a gallery with work in it", () => {
     mocks.createArchive.mockResolvedValueOnce(new ArrayBuffer(1));
 
     mount([original]);
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     fireEvent.click(
       screen.getByRole("button", { name: "reviewBatchHeadlines" }),
     );
@@ -478,6 +504,8 @@ describe("a gallery with work in it", () => {
       expect(mocks.createArchive).toHaveBeenCalledExactlyOnceWith(
         [revised],
         undefined,
+        undefined,
+        [],
       ),
     );
   });
@@ -488,7 +516,7 @@ describe("a gallery with work in it", () => {
     const draft = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(draft, { target: { value: "An unrelated draft" } });
 
-    fireEvent.click(screen.getByRole("img").closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: /^openDetails/ }));
     const dialog = screen.getByRole("dialog");
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Assistant.edit" }),
@@ -573,7 +601,7 @@ describe("a gallery with work in it", () => {
     mount(manyAssets(3));
 
     const ratios = [
-      ...document.querySelectorAll("figure[data-asset-id] button > span"),
+      ...document.querySelectorAll("figure[data-asset-id] > div[style]"),
     ].map((node) => (node as HTMLElement).style.aspectRatio.replace(/\s/g, ""));
     expect(new Set(ratios)).toEqual(new Set(["1536/1024", "1024/1536"]));
   });
@@ -749,10 +777,12 @@ describe("a gallery with work in it", () => {
   });
 
   /**
-   * The gallery wraps each tile in a button that opens the lightbox, and the
-   * recovery control from a broken thumbnail sits inside it. Without
+   * The gallery wrapped each tile in a button that opens the lightbox, and the
+   * recovery control from a broken thumbnail sat inside it. Without
    * `stopPropagation` the click reached both, so recovering a thumbnail threw
    * the reader into the full-screen viewer — which is not what they asked for.
+   * The open button is now a sibling laid over the tile; this pins that the
+   * whole studio still keeps the two presses apart.
    */
   it("recovers a broken thumbnail without opening the lightbox", async () => {
     vi.stubGlobal(

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   memberSokoBot: vi.fn(),
@@ -17,8 +17,18 @@ const mocks = vi.hoisted(() => ({
   getToolkit: vi.fn(),
   getComposio: vi.fn(),
   env: {} as Record<string, string | undefined>,
+  followUpConnectedApp: vi.fn(),
+  pending: [] as Promise<unknown>[],
 }));
 vi.mock("@/config/env", () => ({ getEnv: () => mocks.env }));
+// The follow-up runs after the response; each test awaits it so its import
+// cannot finish in the next file, without this file's mocks.
+vi.mock("@vercel/functions", () => ({
+  waitUntil: vi.fn((work: Promise<unknown>) => mocks.pending.push(work)),
+}));
+vi.mock("@/services/soko-bot-watches.service", () => ({
+  followUpConnectedApp: mocks.followUpConnectedApp,
+}));
 vi.mock("@/helpers/soko-bot-resolver", () => ({
   ME_SOKO_BOT: { kind: "me" },
   memberSokoBot: mocks.memberSokoBot,
@@ -34,6 +44,8 @@ vi.mock("@/lib/db/prisma", () => {
       updateMany: mocks.updateMany,
       delete: mocks.deleteRow,
     },
+    // An active connection schedules its contact capture.
+    contactCaptureState: { deleteMany: vi.fn(), upsert: vi.fn() },
   };
   return {
     default: {
@@ -82,6 +94,11 @@ function finalize(userId: string) {
     selector: BY_ID,
   });
 }
+
+afterEach(async () => {
+  await Promise.all(mocks.pending);
+  mocks.pending.length = 0;
+});
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -268,6 +285,13 @@ describe("a personal Soko Bot", () => {
 
 describe("choosing the Composio auth config", () => {
   const linkedAuthConfigId = () => mocks.link.mock.calls[0][1];
+
+  it("keeps TikTok OAuth in workspace-gated Project Social", async () => {
+    await expect(connect("connector", "TikTok")).rejects.toThrow(
+      "Connect TikTok in Project Social",
+    );
+    expect(mocks.link).not.toHaveBeenCalled();
+  });
 
   it("reuses the managed config for other toolkits", async () => {
     await connect("connector");

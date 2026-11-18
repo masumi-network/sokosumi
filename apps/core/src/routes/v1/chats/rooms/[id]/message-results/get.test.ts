@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { expectCoreLogWhys } from "@/test/core-log";
 import mount from "./get";
 
 const mocks = vi.hoisted(() => ({
@@ -117,13 +118,18 @@ describe("batched room result hydration", () => {
     expect(mocks.messages).not.toHaveBeenCalled();
   });
   it("omits only the message whose hydration throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    const errors = expectCoreLogWhys(
+      "error",
+      "Could not show the results of some chat messages",
+      ["Hydrating their result snapshots failed"],
+    );
     mocks.messages.mockResolvedValue([
       { id: first, metadata: null },
       { id: second, metadata: null },
     ]);
+    // A snapshot quotes what the message showed; the error can carry it.
     mocks.hydrate
-      .mockRejectedValueOnce(new Error("lookup failed"))
+      .mockRejectedValueOnce(new Error('No task named "Q4 layoffs plan"'))
       .mockResolvedValueOnce([]);
     const response = await app().request(
       `/${roomId}/message-results?messageIds=${first},${second}`,
@@ -132,5 +138,10 @@ describe("batched room result hydration", () => {
     expect((await response.json()).data).toEqual([
       { messageId: second, results: [] },
     ]);
+    expect(errors[0]?.cause).toBeUndefined();
+    expect(errors[0]?.event.failures).toEqual([
+      { messageId: first, failure: { errorName: "Error" } },
+    ]);
+    expect(JSON.stringify(errors[0]?.event)).not.toContain("layoffs");
   });
 });

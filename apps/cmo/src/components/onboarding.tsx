@@ -3,53 +3,16 @@
 import "./onboarding/onboarding.css";
 
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useActionState, useRef, useState } from "react";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
 import { AGENT_NAME } from "../lib/agent";
 import { AccountMenu } from "./account-menu";
-import { CusoClip } from "./cuso-clip";
+import { cusoArt } from "./cuso";
 import { useFocusFirstInvalid } from "./form-field";
 import { Logo } from "./logo";
 import { StepMarkers } from "./onboarding/step-markers";
-import { StatRow } from "./onboarding/tiles";
-
-const STATS = [
-  { value: "3 min", line: "I read your site and what is public about you." },
-  { value: "5 taps", line: "You answer quick questions while I read." },
-  { value: "1 plan", line: "You approve it. Nothing posts before that." },
-];
-
-/** hero.jpg's size, and its megaphone's mouth while Cuso shouts (as shares). */
-const HERO = { width: 800, height: 1200 };
-const MEGAPHONE = { x: 0.68, y: 0.45 };
-
-/**
- * Starts each stage label at the megaphone, so it flies out of it. The stage
- * draws the hero with object-fit cover from the bottom centre (onboarding.css).
- */
-function aimLabels(stage: HTMLElement) {
-  const box = stage.getBoundingClientRect();
-  const scale = Math.max(box.width / HERO.width, box.height / HERO.height);
-  const mouthX =
-    box.left +
-    (box.width - HERO.width * scale) / 2 +
-    MEGAPHONE.x * HERO.width * scale;
-  const mouthY = box.bottom - (1 - MEGAPHONE.y) * HERO.height * scale;
-  for (const label of stage.querySelectorAll<HTMLElement>(".ob-tilt")) {
-    // Still at scale 0, the label's box is its centre.
-    const at = label.getBoundingClientRect();
-    label.style.setProperty(
-      "--from-x",
-      `${mouthX - (at.left + at.width / 2)}px`,
-    );
-    label.style.setProperty(
-      "--from-y",
-      `${mouthY - (at.top + at.height / 2)}px`,
-    );
-  }
-}
 
 interface OnboardingProps {
   /** The website a CMO sign-up link carried, to start the field with. */
@@ -85,10 +48,6 @@ export function Onboarding({
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
-  // Cuso announces the labels once his hero clip starts.
-  const stage = useRef<HTMLDivElement>(null);
-  const [announcing, setAnnouncing] = useState(false);
-
   return (
     <div className="ob">
       <header className="ob-top">
@@ -112,20 +71,13 @@ export function Onboarding({
           action={formAction}
           className="ob-hire"
         >
-          <div
-            ref={stage}
-            className={announcing ? "ob-stage ob-stage-live" : "ob-stage"}
-          >
-            <CusoClip
+          <div className="ob-stage">
+            <img
               className="ob-stage-art"
-              src="/cuso/hero.jpg"
-              alt={`${AGENT_NAME} walking with a megaphone`}
+              src={cusoArt("walking")}
+              alt={`${AGENT_NAME} walking`}
               width={640}
-              height={800}
-              onStart={() => {
-                if (stage.current) aimLabels(stage.current);
-                setAnnouncing(true);
-              }}
+              height={640}
             />
             <span className="ob-tilt ob-tilt-a">Reads your site</span>
             <span className="ob-tilt ob-tilt-b">Spots your competitors</span>
@@ -134,7 +86,7 @@ export function Onboarding({
             </span>
           </div>
           <h1 className="ob-display">
-            Give me your website. I'll bring back a plan.
+            Give me your website. I'll show you a month of posts.
           </h1>
           <p className="muted">
             {AGENT_NAME} is your AI CMO. He reads your site, plans your month
@@ -203,7 +155,6 @@ export function Onboarding({
               ))}
             </fieldset>
           ) : null}
-          <StatRow stats={STATS} />
         </form>
       </main>
     </div>

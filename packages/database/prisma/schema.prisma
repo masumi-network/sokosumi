@@ -195,10 +195,11 @@ model Workspace {
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
 
-  adEvals       AdEval[]
-  adFeedback    AdFeedback[]
-  adEvents      AdEvent[]
-  adDataConsent WorkspaceAdDataConsent?
+  adEvals            AdEval[]
+  adEvalDailyBudgets AdEvalDailyBudget[]
+  adFeedback         AdFeedback[]
+  adEvents           AdEvent[]
+  adDataConsent      WorkspaceAdDataConsent?
 
   fileResources      FileResource[]
   fileEvidenceScopes FileEvidenceScope[]
@@ -478,6 +479,10 @@ model Project {
   latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
   websiteUrl              String?
+  /// The owner's photo (a Files id) for talking videos they front.
+  presenterFileId         String?                 @db.Uuid
+  /// When the owner confirmed they may use that photo in videos.
+  presenterConsentAt      DateTime?
   seoAudits               SeoAudit[]
   seoPages                ProjectSeoPage[]
   seoScopes               ProjectSeoScope[]
@@ -486,6 +491,8 @@ model Project {
   seoCompetitors          ProjectSeoCompetitor[]
   seoAnalyses             ProjectSeoAnalysis[]
   seoActionTasks          ProjectSeoActionTask[]
+  seoSuggestions          ProjectSeoSuggestion[]
+  seoResearch             ProjectSeoResearch[]
   /// What the website runs on when it is a shop system Cuso can measure
   /// (only "shopify" today), learned once from the site; null otherwise.
   sitePlatform            String?
@@ -527,6 +534,11 @@ model Project {
   newsletterIssues        NewsletterIssue[]
 
   marketingStrategies MarketingStrategy[]
+
+  trackedCompetitors TrackedCompetitor[]
+  competitorSignals  CompetitorSignal[]
+  competitorChecks   CompetitorCheck[]
+  competitorFeeds    CompetitorFeed[]
 
   adConnections     ProjectAdConnection[]
   adAccounts        ProjectAdAccount[]
@@ -645,6 +657,8 @@ model ProjectSocialConnection {
   /// X subscription tier read from the provider at connect/reconnect and account sync; null when unknown or not X
   subscriptionType              String?
   composioConnectedAccountId    String
+  /// Dedicated profile to release along with this TikTok authorization.
+  zernioProfileId               String?
   status                        String
   activeExternalAccountKey      String?
   connectorUserId               String
@@ -725,6 +739,7 @@ model ProjectSocialConnectionIntent {
   action             String
   socialConnectionId String?                  @db.Uuid
   socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+  /// Composio auth configuration ID, or the digest of the one-use Zernio callback proof.
   authConfigId       String
   callbackRedeemedAt DateTime?
   expiresAt          DateTime
@@ -742,6 +757,8 @@ model ProjectSocialConnectionAudit {
   externalAccountId         String
   externalHandle            String?
   connectedAccountId        String?
+  /// Preserve the retired profile across reconnects so provider cleanup can retry.
+  zernioProfileId           String?
   providerOutcome           String?
   createdAt                 DateTime @default(now())
 
@@ -2626,9 +2643,10 @@ model SokoBot {
   /// Last morning briefing sent; one per local day.
   lastBriefingAt      DateTime?
 
-  /// Picked mascot image (see SokoBotAvatar); null → generative orb.
+  /// Rendered still of `avatarCode`; null → generative orb.
   avatarImageUrl String?
-  avatar         SokoBotAvatar?
+  /// Feature code of the live SVG avatar (see @sokosumi/soko-bot avatar); unique, so no two bots look alike.
+  avatarCode     String?        @unique
 
   /// User-chosen display name for their personal assistant. Null until named.
   name String?
@@ -2696,40 +2714,6 @@ model SokoBot {
 
 /// Immutable copy of external Hermes chat history made during first-party
 /// Soko Bot cutover. New messages are represented by SokoBotTurn.
-/// Pool of pre-generated mascot images. Each row is a unique (subject,
-/// background, seed) draw; a bot claims at most one at a time.
-model SokoBotAvatar {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-
-  subject    String
-  background String
-  seed       Int
-  model      String
-  imageUrl   String
-  sourceUrl  String?
-
-  claimedBySokoBotId String?   @unique @db.Uuid
-  claimedBySokoBot   SokoBot?  @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
-  claimedAt          DateTime?
-
-  /// The user whose top-up caused this image. Null for rows the removed pool
-  /// cron made, which no user asked for. Read by the per-user generation cap.
-  requestedByUserId String?
-  requestedBy       User?   @relation("SokoBotAvatarRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
-
-  /// Set when the row is claimed as a generation slot, before the paid image
-  /// call. Cleared once `imageUrl` holds a real image. A non-null value means
-  /// the image is still in flight or the run died, so the row is not showable.
-  /// Every read filters on it; the top-up sweeps stale ones.
-  reservedAt DateTime?
-
-  @@unique([subject, background, seed])
-  @@index([claimedAt])
-  @@index([requestedByUserId, createdAt])
-  @@map("soko_bot_avatar")
-}
-
 model SokoBotLegacyMessage {
   id        String   @id @db.Uuid
   createdAt DateTime
@@ -2831,6 +2815,9 @@ model SokoBotTurn {
   durationMs              Int?
   errorKind               String?
   errorDetail             String?
+  /// When Core logged the runner's startup diagnostic (`POST …/fail`):
+  /// claimed once per turn, so a late or repeated report logs nothing.
+  runnerDiagnosticAt      DateTime?
 
   /// Who asked, when a teammate (not the owner) mentioned the bot in chat.
   askedByUserId String?
@@ -3513,7 +3500,11 @@ model Task {
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
   /// Humans added by @ in Task comment activity. Not owner or assignee.
-  participants TaskParticipant[]
+  participants     TaskParticipant[]
+  /// People whose personal Soko Bot follows the Task for them.
+  followers        TaskFollower[]
+  dueDateChanges   TaskDueDateChange[]
+  momentDeliveries TaskMomentDelivery[]
 
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -3556,6 +3547,7 @@ model Task {
   @@index([creatorSokoBotId])
   @@index([workspaceId, visibility])
   @@index([scheduleId])
+  @@index([dueOn])
   @@index([status, runAt])
   @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
   @@map("task")
@@ -4069,6 +4061,7 @@ model TaskEvent {
   @@index([transactionId])
   @@index([sokoBotId])
   @@index([taskId, createdAt])
+  @@index([createdAt])
   @@map("taskEvent")
 }
 
@@ -5269,6 +5262,8 @@ enum ProjectImageJobKind {
   TEXT_TO_VIDEO
   /// Image to video: animates one gallery image, sent as the model's still.
   IMAGE_TO_VIDEO
+  /// A presenter photo speaking a script: voice, then lip-sync, then captions.
+  TALKING_VIDEO
 }
 
 enum ProjectImageMediaType {
@@ -5424,6 +5419,9 @@ model ProjectImageJob {
   /// Files (a brand's product photos) sent as references after the assets,
   /// readable by the person who asked. Ids for the same reason as above.
   referenceFileIds  String[] @default([]) @db.Uuid
+  /// Reference library images (`reference_image`) sent first, as the style to
+  /// borrow: Cuso's pictures in the look of an old ad or poster.
+  referenceLibraryIds String[] @default([]) @db.Uuid
   /// The version this one refines, when the user started from a selection.
   parentAssetId     String?  @db.Uuid
 
@@ -5446,6 +5444,11 @@ model ProjectImageJob {
 
   /// Approved copy to attach when the image is delivered.
   exportHeadline String?
+
+  /// Exact-font overlay by default; ideogram paints approved copy into the image.
+  lettering String @default("overlay")
+  /// Frozen quote for the automatic Ideogram edit, until the backdrop delivers.
+  letteringQuoteCents BigInt?
 
   /// Generate a backdrop, then composite the original transparent product photo.
   useProductCutout      Boolean @default(false)
@@ -5520,6 +5523,14 @@ model ProjectImageJob {
   /// every job that failed before this column existed, and for the one outage
   /// case whose own wording says it better than a code could.
   failureReason String?
+
+  /// The voice a talking video speaks with, in the studio's private store.
+  voiceBlobPathname  String?
+  /// A talking video before its captions, on the provider's CDN. Set while the
+  /// caption step runs, and delivered as it is when that step fails.
+  pendingMediaUrl    String?
+  /// When the requester confirmed they may use the presenter photo they chose.
+  presenterConsentAt DateTime?
 
   /// When somebody asked the provider to stop, and it accepted.
   ///
@@ -5617,6 +5628,8 @@ model ProjectImageAsset {
   backdropContentType String?
   /// What the bytes are. A video plays in the gallery and attaches to Social as one.
   mediaType       ProjectImageMediaType @default(IMAGE)
+  /// Shows a lifelike person who was generated, so publishing labels it.
+  aiGenerated     Boolean               @default(false)
   /// Requested length of a video. Null for images.
   durationSeconds Int?
   width           Int

@@ -1,10 +1,15 @@
 import {
+  createEmptySokoBotMemory,
+  renderSokoBotMemory,
+} from "@sokosumi/soko-bot";
+import {
   act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { useContext } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,12 +20,17 @@ import { SokoBotTargetContext } from "../soko-bot-target";
 import { SokoBotConsole, type SokoBotConsoleProps } from "./console.client";
 
 const pushMock = vi.fn();
+const refreshMock = vi.fn();
 const toastErrorMock = vi.fn();
 const ensureRoomMock = vi.fn();
 const useStateMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock, replace: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({
+    push: pushMock,
+    replace: vi.fn(),
+    refresh: refreshMock,
+  }),
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
@@ -51,10 +61,6 @@ vi.mock("sonner", () => ({
 vi.mock("@/app/chat/actions", () => ({
   ensureSokoBotDirectRoomAction: (...a: unknown[]) => ensureRoomMock(...a),
 }));
-const claimAvatarMock = vi.fn();
-vi.mock("@/lib/actions/soko-bot/action", () => ({
-  claimSokoBotAvatarAction: (...a: unknown[]) => claimAvatarMock(...a),
-}));
 vi.mock("../chat/use-soko-bot-state", () => ({
   useSokoBotState: (...a: unknown[]) => useStateMock(...a),
 }));
@@ -80,25 +86,28 @@ vi.mock("../reset-memory-button.client", () => ({
 vi.mock("../skills-section.client", () => ({
   SkillsSection: () => <span data-testid="skills" />,
 }));
-vi.mock("../avatar-picker.client", () => ({
-  // Mounts loading, as the real picker does; picking settles the set.
-  AvatarPicker: ({
-    onChange,
-    onLoadingChange,
+vi.mock("../avatar-studio.client", () => ({
+  // The studio itself is tested on its own; here it stands for "the dialog is open".
+  AvatarStudioDialog: ({
+    initialCode,
+    onSaved,
+    onOpenChange,
   }: {
-    onChange: (avatar: { id: string; imageUrl: string }) => void;
-    onLoadingChange?: (loading: boolean) => void;
+    initialCode: string | null;
+    onSaved: () => void;
+    onOpenChange: (open: boolean) => void;
   }) => (
-    <button
-      type="button"
-      data-testid="avatar"
-      onClick={() => {
-        onLoadingChange?.(false);
-        onChange({ id: "avatar-7", imageUrl: "https://blob/avatar-7.png" });
-      }}
-    >
-      pick avatar-7
-    </button>
+    <div role="dialog" data-testid="avatar" data-code={initialCode}>
+      <button
+        type="button"
+        onClick={async () => {
+          await onSaved();
+          onOpenChange(false);
+        }}
+      >
+        save look
+      </button>
+    </div>
   ),
 }));
 vi.mock("../schedule-form.client", () => ({
@@ -139,6 +148,12 @@ vi.mock("../ad-accounts-section", () => ({
   AdAccountsSection: ({ botProjectId }: { botProjectId: string | null }) => (
     <span data-testid="ads">{botProjectId ?? "all"}</span>
   ),
+}));
+vi.mock("./daily-stats", () => ({
+  DailyStats: () => <span data-testid="daily-stats" />,
+}));
+vi.mock("./usage-summary", () => ({
+  UsageSummary: () => <span data-testid="usage-summary" />,
 }));
 vi.mock("../how-it-works", () => ({ HowItWorks: () => null }));
 vi.mock("./activity-list.client", () => ({ ActivityList: () => null }));
@@ -277,6 +292,53 @@ describe("SokoBotConsole", () => {
     );
   });
 
+  it("keeps Tools, What it did and Usage when they fail to load, and says so", () => {
+    viewMock.mockReturnValue(null);
+    renderConsole({ integrations: null, stats: null, usage: null });
+
+    for (const section of ["Connectors", "Stats", "Usage"]) {
+      const heading = screen.getByRole("heading", {
+        name: `Console.${section}.title`,
+      });
+      const region = heading.closest("section") as HTMLElement;
+      expect(region).toHaveTextContent(`Console.LoadError.${section}`);
+      expect(
+        within(region).getByRole("button", { name: "Console.LoadError.retry" }),
+      ).toBeInTheDocument();
+    }
+    // The rest of the page still works.
+    expect(screen.getByTestId("schedule")).toBeInTheDocument();
+    expect(screen.queryByTestId("connectors")).not.toBeInTheDocument();
+  });
+
+  it("loads the page again from a section's Try again", () => {
+    viewMock.mockReturnValue(null);
+    renderConsole({
+      integrations: null,
+      stats: { days: 30 } as SokoBotConsoleProps["stats"],
+      usage: {} as SokoBotConsoleProps["usage"],
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Console.LoadError.retry" }),
+    );
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a loaded section with nothing in it, not a load error", () => {
+    viewMock.mockReturnValue(null);
+    renderConsole({
+      integrations: { configured: true, integrations: [] },
+      stats: { days: 30 } as SokoBotConsoleProps["stats"],
+      usage: {} as SokoBotConsoleProps["usage"],
+    });
+    expect(screen.getByTestId("connectors")).toBeInTheDocument();
+    expect(screen.getByTestId("daily-stats")).toBeInTheDocument();
+    expect(screen.getByTestId("usage-summary")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Console.LoadError.retry" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows schedules in the default view, not under Advanced", () => {
     viewMock.mockReturnValue(null);
     renderConsole({ canManage: false });
@@ -379,13 +441,27 @@ describe("SokoBotConsole", () => {
   it("lets the keyboard reach and scroll the memory", () => {
     const state = chatState(true);
     state.bot.memory = {
-      markdown: "# Soko Bot memory",
+      markdown: renderSokoBotMemory({
+        ...createEmptySokoBotMemory(),
+        preferences: ["Short replies"],
+      }),
       createdAt: "2026-10-29T12:00:00Z",
     } as NonNullable<SokoBotChatState["bot"]["memory"]>;
     renderConsole({ initialState: state });
     expect(
       screen.getByRole("region", { name: "Memory.title" }),
     ).toHaveAttribute("tabindex", "0");
+  });
+
+  it("says a new bot's memory is empty instead of listing None five times", () => {
+    const state = chatState(true);
+    state.bot.memory = {
+      markdown: renderSokoBotMemory(createEmptySokoBotMemory()),
+      createdAt: "2026-10-29T12:00:00Z",
+    } as NonNullable<SokoBotChatState["bot"]["memory"]>;
+    renderConsole({ initialState: state });
+    expect(screen.getByText("Memory.empty")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Memory.title" })).toBeNull();
   });
 
   it("hides skills and avatar on a shared bot, and reads it by id", () => {
@@ -416,17 +492,25 @@ describe("SokoBotConsole", () => {
     expect(screen.getByText("Settings.archiveDescription")).toBeInTheDocument();
   });
 
-  it("changes the own bot's avatar to the one picked in the console", async () => {
-    claimAvatarMock.mockResolvedValue({ ok: true });
-    renderConsole({ botId: null, sharedRoomId: null });
+  it("opens the studio on the bot's current look and refreshes once it is saved", async () => {
+    const refresh = vi.fn();
+    const element = consoleElement({
+      botId: null,
+      sharedRoomId: null,
+      initialState: stateWith({ avatarCode: "v1-code" }),
+    });
+    useStateMock.mockReturnValue({
+      state: stateWith({ avatarCode: "v1-code" }),
+      refresh,
+    });
+    render(element);
     fireEvent.click(screen.getByRole("button", { name: "edit" }));
-    // Save is held until the picker's first set has loaded.
-    expect(screen.getByRole("button", { name: "Avatar.save" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "pick avatar-7" }));
-    fireEvent.click(screen.getByRole("button", { name: "Avatar.save" }));
-    await waitFor(() =>
-      expect(claimAvatarMock).toHaveBeenCalledWith({ avatarId: "avatar-7" }),
+    expect(await screen.findByTestId("avatar")).toHaveAttribute(
+      "data-code",
+      "v1-code",
     );
+    fireEvent.click(screen.getByRole("button", { name: "save look" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
@@ -552,12 +636,11 @@ describe("SokoBotConsole header portrait", () => {
     expect(screen.queryByText(/Console\.lastTurnFailed/)).toBeNull();
   });
 
-  it("edits only the own bot's picture, from its avatar, never in a studio", () => {
+  it("edits only the own bot's picture, from its avatar", async () => {
     renderConsole({ botId: null, sharedRoomId: null });
     expect(screen.queryByTestId("avatar")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "edit" }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByTestId("avatar")).toBeInTheDocument();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "edit" })).toBeNull();
     cleanup();
     renderConsole({ canManage: true });

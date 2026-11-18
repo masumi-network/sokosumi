@@ -1,7 +1,7 @@
 "use client";
 
-import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { ArrowLeft } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useRef, useState, useTransition } from "react";
@@ -28,8 +28,14 @@ import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 import { setupAssistantConnectPath } from "@/lib/workspace-gate";
 
-import { AvatarPicker } from "./avatar-picker.client";
 import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
+
+/** Loaded when the picture step is mounted: it carries the 16 traced animals. */
+const AvatarStudio = dynamic(
+  () =>
+    import("./avatar-studio.client").then((m) => ({ default: m.AvatarStudio })),
+  { ssr: false, loading: () => <div className="bg-muted h-96 rounded-xl" /> },
+);
 
 /**
  * First visit, in steps: a name, a picture, then (on the setup page) mail and
@@ -54,13 +60,14 @@ export function CreateState({
   const router = useRouter();
   const nameId = useId();
   const [name, setName] = useState("");
-  const [avatar, setAvatar] = useState<SokoBotAvatar | null>(null);
-  // The picker mounts loading its first set; Create waits for it, so the bot
-  // does not go without the picture the set would have offered.
-  const [loadingAvatars, setLoadingAvatars] = useState(true);
+  // Spaces pass the native `required` check, so say what is missing here.
+  const [blank, setBlank] = useState(false);
+  // The studio reports its first look as it mounts, so Create waits for that.
+  const [avatarCode, setAvatarCode] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [created, setCreated] = useState<{
     name: string;
+    avatarCode: string | null;
     imageUrl: string | null;
     orbSeed: string;
   } | null>(null);
@@ -87,23 +94,28 @@ export function CreateState({
   function handleContinue(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (name.trim()) goToStep("picture");
+    else {
+      setBlank(true);
+      nameInputRef.current?.focus();
+    }
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (loadingAvatars || isPending || !avatar) return;
-    create(avatar);
+    if (isPending || !avatarCode) return;
+    create(avatarCode);
   }
 
-  /** Create the bot with the picture `picked`; every bot starts with one. */
-  function create(picked: SokoBotAvatar) {
+  /** Create the bot, then give it the look picked; Core draws it a random one meanwhile. */
+  function create(code: string) {
     const trimmed = name.trim();
     if (!trimmed) return;
     startTransition(async () => {
       const result = await createSokoBotAction({
         input: {
           name: trimmed,
-          avatarId: picked.id,
+          // Core keeps this look, or draws a random one if another bot took it meanwhile.
+          avatarCode: code,
           // Its stand-up and wraps run on this clock, not Core's Berlin default.
           timezone: getDefaultTimezone(),
         },
@@ -120,7 +132,8 @@ export function CreateState({
       }
       setCreated({
         name: result.value.name ?? trimmed,
-        imageUrl: picked.imageUrl,
+        avatarCode: result.value.avatarCode ?? null,
+        imageUrl: result.value.avatarImageUrl ?? null,
         orbSeed: botFaceSeed(result.value, result.value.userId),
       });
       // Let the reveal play, then the last step: mail and calendar.
@@ -142,6 +155,8 @@ export function CreateState({
             imageUrl={created.imageUrl}
             seed={created.orbSeed}
             orbSize={128}
+            avatarCode={created.avatarCode}
+            avatarSize={128}
             alt={tChat("avatarAlt")}
             className="size-32"
           />
@@ -171,13 +186,27 @@ export function CreateState({
             ref={nameInputRef}
             id={nameId}
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => {
+              setName(event.target.value);
+              setBlank(false);
+            }}
             maxLength={80}
             placeholder={t("namePlaceholder")}
             required
             autoComplete="off"
             autoFocus
+            aria-invalid={blank || undefined}
+            aria-describedby={blank ? `${nameId}-error` : undefined}
           />
+          {blank ? (
+            <p
+              id={`${nameId}-error`}
+              role="alert"
+              className="text-destructive text-xs"
+            >
+              {t("nameRequired")}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Button type="submit" variant="primary" className="w-full">
@@ -186,15 +215,14 @@ export function CreateState({
           {secondaryAction}
         </div>
       </form>
-      {/* Mounted from the start, so the pictures load while the name is typed. */}
+      {/* Mounted from the start, so the studio loads while the name is typed. */}
       <form
         hidden={step !== "picture"}
         onSubmit={handleSubmit}
         className={step === "picture" ? "flex flex-col gap-8" : "hidden"}
       >
         <SokoBotSetupHeader
-          imageUrl={avatar?.imageUrl}
-          loading={loadingAvatars}
+          faceless
           title={t("pictureTitle", { name: name.trim() })}
           hint={t(
             paidByOrganization ? "spendNoticeOrganization" : "spendNotice",
@@ -208,20 +236,15 @@ export function CreateState({
           className={cn(HOLDER_CLASS, "min-w-0 [&_button]:scroll-mb-40")}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
-            <AvatarPicker
-              value={avatar?.id ?? null}
-              onChange={setAvatar}
-              onLoadingChange={setLoadingAvatars}
-            />
+            <AvatarStudio compact initialCode={null} onChange={setAvatarCode} />
           </div>
         </fieldset>
-        {/* Pinned to the foot on phones, so Create stays in reach above the pictures.
+        {/* Pinned to the foot at every size, so Create stays in reach above the pictures.
             Only the create button: a taller bar hid the pictures it sits over. */}
         <div
           className={cn(
-            "bg-background sticky bottom-0 flex flex-col gap-2 pt-3 md:static md:pt-0",
+            "bg-background sticky bottom-0 flex flex-col gap-2 pt-3",
             CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
-            "md:pb-0",
           )}
         >
           <Button
@@ -229,7 +252,7 @@ export function CreateState({
             variant="primary"
             className="w-full"
             // Locked while it creates, so a second submit cannot race the first.
-            disabled={loadingAvatars || isPending || !avatar}
+            disabled={isPending || !avatarCode}
             loading={isPending}
           >
             {/* Buttons do not wrap: a long name would push the phone page sideways. */}

@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMine = vi.fn();
@@ -9,9 +10,6 @@ const listImportantMessages = vi.fn();
 const sokoBotHome = vi.fn();
 const needsYouPanel = vi.fn();
 const sokoBotSetup = vi.fn();
-const listAvatars = vi.fn(async (_take: number, _exclude: string[]) => [
-  { id: "owl-1", imageUrl: "https://blob.test/owl-1.png" },
-]);
 const getWorkspaceAccess = vi.fn();
 const getActivitySummary = vi.fn(async (_query: { scope: string }) => ({
   awaitingInput: 2,
@@ -30,7 +28,14 @@ const redirect = vi.fn((path: string) => {
   throw new Error(`NEXT_REDIRECT ${path}`);
 });
 
-vi.mock("next/server", () => ({ connection: async () => {} }));
+const connection = vi.fn(async () => {});
+const SESSION = { user: { id: "user-1", name: "Alice Doe" } };
+const getSession = vi.fn(async () => SESSION);
+const getSessionResult = vi.fn(async (): Promise<unknown> => ok(SESSION));
+
+vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
+vi.mock("next/server", () => ({ connection: () => connection() }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
     `${namespace}.${key}`,
@@ -46,11 +51,14 @@ vi.mock("./components/my-day", () => ({
     return <div>my day</div>;
   },
 }));
-vi.mock("next/navigation", () => ({
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
   redirect: (path: string) => redirect(path),
+  useRouter: () => ({ refresh: vi.fn() }),
 }));
 vi.mock("@/lib/auth/auth.server", () => ({
-  getSession: async () => ({ user: { id: "user-1", name: "Alice Doe" } }),
+  getSession: () => getSession(),
+  getSessionResult: () => getSessionResult(),
 }));
 vi.mock("@/lib/services/user.service", () => ({
   userService: {
@@ -64,8 +72,6 @@ vi.mock("@/lib/services/soko-bot.service", () => ({
       sokoBot: await getMine(),
       lastFailure: lastFailure(),
     }),
-    listAvatars: (take: number, exclude: string[]) =>
-      listAvatars(take, exclude),
   },
 }));
 vi.mock("@/lib/services/chat-room.service", () => ({
@@ -111,7 +117,6 @@ vi.mock("@/app/projects/components/workspace-column", () => ({
   },
 }));
 vi.mock("./components/soko-bot-setup", () => ({
-  SOKO_BOT_SETUP_FACES: 5,
   SokoBotSetup: (props: unknown) => {
     sokoBotSetup(props);
     return <div>soko bot setup</div>;
@@ -124,6 +129,7 @@ vi.mock("./components/soko-bot-home", () => ({
   },
 }));
 
+import { expectConsole } from "@sokosumi/utils/test-console";
 import WelcomePage, { generateMetadata } from "./page";
 
 async function renderPage() {
@@ -198,21 +204,9 @@ describe("WelcomePage", () => {
     getMine.mockResolvedValue(null);
     await renderPage();
     expect(screen.getByText("soko bot setup")).toBeTruthy();
-    // Stock pictures the new bot could wear.
-    expect(listAvatars).toHaveBeenCalledWith(5, []);
-    expect(sokoBotSetup).toHaveBeenCalledWith({
-      avatars: [{ id: "owl-1", imageUrl: "https://blob.test/owl-1.png" }],
-    });
     expect(sokoBotHome).not.toHaveBeenCalled();
     expect(screen.queryByText("my day")).toBeNull();
     expect(screen.queryByText("needs you")).toBeNull();
-  });
-
-  it("still offers the setup when the pictures cannot be read", async () => {
-    getMine.mockResolvedValue(null);
-    listAvatars.mockRejectedValueOnce(new Error("core down"));
-    await renderPage();
-    expect(sokoBotSetup).toHaveBeenCalledWith({ avatars: [] });
   });
 
   it("offers the setup when the bot cannot be read", async () => {
@@ -276,6 +270,7 @@ describe("WelcomePage", () => {
   });
 
   it("leaves the requests count out when Needs you fails to load", async () => {
+    expectConsole("warn", "Workspace column feed failed");
     getActiveOrganizationId.mockResolvedValueOnce("org-1");
     readNeedsYou.mockRejectedValueOnce(new Error("core down"));
     getMine.mockResolvedValue({
@@ -322,6 +317,78 @@ describe("WelcomePage", () => {
     );
     // The first page of projects is read next to the rows, not after them.
     expect(listProjects).toHaveBeenCalledWith({ limit: 20 });
+  });
+
+  it("lists the reader's latest chat with the bot once it is read", async () => {
+    listImportantMessages.mockResolvedValueOnce([]);
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(listMessages).toHaveBeenCalledWith("room-1", { limit: 20 });
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chats: [
+          expect.objectContaining({
+            roomId: "room-1",
+            messageId: "msg-1",
+            title: "Plan my week",
+            from: "Joseph",
+          }),
+        ],
+      }),
+    );
+  });
+
+  // The reads are cached, so a link prefetch carries Home.
+  // connection() would drop it back to the skeleton.
+  it("renders the bot home while the request has not come", async () => {
+    connection.mockReturnValueOnce(new Promise(() => {}));
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(screen.getByText("bot home")).toBeTruthy();
+    // My day and the Needs you projects are uncached: they wait for the
+    // request, so a prefetch leaves them as holes.
+    expect(loadMyDay).not.toHaveBeenCalled();
+    expect(listProjects).not.toHaveBeenCalled();
+  });
+
+  // A prefetch must not keep a session outage as a signed-out Home: the
+  // click renders fresh with the session read again.
+  it("renders a session outage fresh on the click", async () => {
+    getSessionResult.mockResolvedValueOnce(err({ reason: "timeout" }));
+    getMine.mockResolvedValue({
+      id: "bot-1",
+      name: "Joseph",
+      avatarSeed: null,
+      avatarImageUrl: null,
+    });
+    await renderPage();
+    expect(getSession).toHaveBeenCalledOnce();
+    expect(sokoBotHome).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerId: "user-1" }),
+    );
+  });
+
+  // A Core blip on the access read must not be kept as "not set up": the
+  // click would redirect to setup with nothing to repair it.
+  it("reads a failed workspace access again, fresh, instead of keeping it", async () => {
+    getWorkspaceAccess
+      .mockRejectedValueOnce(new Error("Core answered 503"))
+      .mockResolvedValueOnce({ gate: "ready" });
+    getMine.mockResolvedValue(null);
+    await renderPage();
+    expect(redirect).not.toHaveBeenCalled();
+    expect(getWorkspaceAccess).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("soko bot setup")).toBeTruthy();
   });
 
   describe("a bot whose last turn failed", () => {

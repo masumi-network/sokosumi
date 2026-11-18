@@ -1,7 +1,9 @@
 "use client";
 
+import type { SetStudioAssetFeedbackData } from "@sokosumi/core-client";
 import {
   Check,
+  Columns2,
   Dices,
   Download,
   Loader2,
@@ -11,7 +13,8 @@ import {
   Shuffle,
 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +31,9 @@ import {
 import { cn } from "@/lib/utils";
 
 import { resolveModel, supportsVariation } from "./catalog";
+import { canCompareStudioAsset } from "./studio-batch";
 import { StudioImage } from "./studio-image";
+import { StudioAssetMenu, StudioRating } from "./studio-rating";
 import {
   assetContentUrl,
   assetFileExtension,
@@ -56,7 +61,13 @@ export function StudioGallery({
   catalog,
   labels,
   onCancelJob,
+  onCompare,
   onOpen,
+  onRate,
+  onHide,
+  ratingBusyIds = [],
+  sort = "newest",
+  onSortChange,
   onReroll,
   onReusePrompt,
   onToggleSelect,
@@ -72,7 +83,16 @@ export function StudioGallery({
   labels: StudioLabels;
   /** Omitted, with the draw actions below, in a read-only studio. */
   onCancelJob?: (jobId: string) => void;
+  onCompare?: (asset: StudioAsset) => void;
   onOpen: (assetId: string) => void;
+  onRate?: (
+    asset: StudioAsset,
+    input: SetStudioAssetFeedbackData["body"],
+  ) => void;
+  onHide?: (asset: StudioAsset) => void;
+  ratingBusyIds?: string[];
+  sort?: "newest" | "best";
+  onSortChange?: (sort: "newest" | "best") => void;
   /** Same brief, same settings, no reference: another draw of the dice. */
   onReroll?: (asset: StudioAsset) => void;
   /** Put this image's prompt back in the composer to edit. */
@@ -98,13 +118,21 @@ export function StudioGallery({
     string,
     { title: string; projectName?: string; assets: StudioAsset[] }
   >();
-  for (const asset of [...assets].reverse()) {
+  const ordered =
+    sort === "best"
+      ? [...assets].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+      : [...assets].reverse();
+  for (const asset of ordered) {
     const ms = epochMs(asset.createdAt);
     const date = ms === null ? null : new Date(ms);
-    const product = groupByProduct ? asset.product : undefined;
-    const key = product
-      ? `product:${asset.projectId}:${product.id}`
-      : `date:${date?.toDateString() ?? ""}`;
+    const product =
+      groupByProduct && sort !== "best" ? asset.product : undefined;
+    const key =
+      sort === "best"
+        ? "best"
+        : product
+          ? `product:${asset.projectId}:${product.id}`
+          : `date:${date?.toDateString() ?? ""}`;
     const group = groups.get(key);
     if (group) {
       group.assets.push(asset);
@@ -115,14 +143,16 @@ export function StudioGallery({
     }
     groups.set(key, {
       title:
-        product?.name ??
-        (date
-          ? format.dateTime(date, {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-            })
-          : ""),
+        sort === "best"
+          ? ""
+          : (product?.name ??
+            (date
+              ? format.dateTime(date, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "")),
       projectName: product ? asset.projectName : undefined,
       assets: [asset],
     });
@@ -135,18 +165,22 @@ export function StudioGallery({
       <h2 className="sr-only" id="studio-gallery-heading">
         {t("adGallery")}
       </h2>
-      {hasProducts ? (
-        <Button
-          aria-pressed={groupByProduct}
-          className="mb-3"
-          onClick={() => setGroupByProduct((current) => !current)}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          {t("groupByProduct")}
-        </Button>
-      ) : null}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {onSortChange ? (
+          <GallerySort onSortChange={onSortChange} sort={sort} />
+        ) : null}
+        {hasProducts && sort !== "best" ? (
+          <Button
+            aria-pressed={groupByProduct}
+            onClick={() => setGroupByProduct((current) => !current)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {t("groupByProduct")}
+          </Button>
+        ) : null}
+      </div>
       {[...groups].map(([key, group]) => (
         <div className="mt-6 first-of-type:mt-0" key={key}>
           {group.title ? (
@@ -182,29 +216,48 @@ export function StudioGallery({
                     )}
                     data-asset-id={asset.id}
                   >
-                    <button
-                      aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}`}
-                      className="focus-visible:ring-ring block w-full cursor-pointer outline-none focus-visible:ring-2"
-                      onClick={() => onOpen(asset.id)}
-                      type="button"
+                    {/* The image's own ratio, so 1:1 and 16:9 tiles pack into
+                    the columns without cropping or letterboxing. */}
+                    <div
+                      className="bg-muted relative flex w-full items-center justify-center"
+                      style={{ aspectRatio: tileAspectRatio(asset) }}
                     >
-                      {/* The image's own ratio, so 1:1 and 16:9 tiles pack into
-                      the columns without cropping or letterboxing. */}
-                      <span
-                        className="bg-muted flex w-full items-center justify-center"
-                        style={{ aspectRatio: tileAspectRatio(asset) }}
-                      >
-                        <StudioImage asset={asset} labels={labels} />
+                      {/* Open-details covers the picture as an empty sibling
+                      rather than wrapping it, because an unreadable picture
+                      carries its own "Try again" button and a button may not
+                      sit inside another. The picture comes after it, so "Try
+                      again" (positioned) paints above it and follows it in the
+                      tab order. The ring is inset: the figure clips anything
+                      drawn outside the picture, so an outer ring never showed. */}
+                      <button
+                        aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}`}
+                        className="focus-visible:ring-ring absolute inset-0 cursor-pointer rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                        onClick={() => onOpen(asset.id)}
+                        // The cover takes the pointer from the video beneath,
+                        // so it starts and stops the silent hover preview.
+                        onMouseEnter={(event) =>
+                          void event.currentTarget.parentElement
+                            ?.querySelector("video")
+                            ?.play()
+                            .catch(() => {})
+                        }
+                        onMouseLeave={(event) =>
+                          event.currentTarget.parentElement
+                            ?.querySelector("video")
+                            ?.pause()
+                        }
+                        type="button"
+                      />
+                      <StudioImage asset={asset} labels={labels} />
+                    </div>
+                    {video ? (
+                      <span className="bg-background text-foreground border-border pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs tabular-nums">
+                        <Play aria-hidden className="size-3" />
+                        {asset.video?.durationSeconds
+                          ? `${asset.video.durationSeconds}s`
+                          : null}
                       </span>
-                      {video ? (
-                        <span className="bg-background text-foreground border-border pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs tabular-nums">
-                          <Play aria-hidden className="size-3" />
-                          {asset.video?.durationSeconds
-                            ? `${asset.video.durationSeconds}s`
-                            : null}
-                        </span>
-                      ) : null}
-                    </button>
+                    ) : null}
 
                     {/* Actions live on the picture, on hover or focus, so the
                     grid stays a wall of images and the second draw is one
@@ -220,6 +273,14 @@ export function StudioGallery({
                         "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:hidden",
                       )}
                     >
+                      {onCompare && canCompareStudioAsset(asset, assets) ? (
+                        <HoverAction
+                          label={labels.compare}
+                          onClick={() => onCompare(asset)}
+                        >
+                          <Columns2 className="size-3.5" />
+                        </HoverAction>
+                      ) : null}
                       {reroll ? (
                         <HoverAction
                           label={labels.reroll}
@@ -250,7 +311,7 @@ export function StudioGallery({
                             aria-label={labels.download}
                             className={HOVER_ACTION_CLASS}
                             download={downloadName}
-                            href={assetContentUrl(asset)}
+                            href={assetContentUrl(asset, { download: true })}
                           >
                             <Download aria-hidden className="size-3.5" />
                           </a>
@@ -260,6 +321,26 @@ export function StudioGallery({
                         </TooltipContent>
                       </Tooltip>
                     </div>
+
+                    {onRate || onHide ? (
+                      <div className="bg-background relative flex flex-wrap items-end justify-between gap-1 p-2 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 md:absolute md:inset-x-0 md:bottom-0 md:bg-transparent md:opacity-0 [@media(hover:none)]:opacity-100">
+                        {onRate ? (
+                          <StudioRating
+                            asset={asset}
+                            busy={ratingBusyIds.includes(asset.id)}
+                            onRate={onRate}
+                          />
+                        ) : (
+                          <span />
+                        )}
+                        {onHide ? (
+                          <StudioAssetMenu
+                            busy={ratingBusyIds.includes(asset.id)}
+                            onHide={() => onHide(asset)}
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
 
                     {/* Touch only: one button in the corner, so the picture
                     stays visible and the same actions are a tap away. */}
@@ -300,7 +381,7 @@ export function StudioGallery({
                         <DropdownMenuItem asChild>
                           <a
                             download={downloadName}
-                            href={assetContentUrl(asset)}
+                            href={assetContentUrl(asset, { download: true })}
                           >
                             <Download aria-hidden />
                             {labels.download}
@@ -484,5 +565,38 @@ function PendingTile({
       <p className="text-muted-foreground line-clamp-2 text-xs">{prompt}</p>
       {children}
     </div>
+  );
+}
+
+function GallerySort({
+  sort,
+  onSortChange,
+}: {
+  sort: "newest" | "best";
+  onSortChange: (sort: "newest" | "best") => void;
+}) {
+  const t = useTranslations("App.Studio.Rating");
+  const [querySort, setQuerySort] = useQueryState(
+    "sort",
+    parseAsStringLiteral(["newest", "best"]).withDefault("newest"),
+  );
+  // Back/forward and shared URLs select the same Core ordering as this control.
+  useEffect(() => {
+    onSortChange(querySort);
+  }, [querySort, onSortChange]);
+  return (
+    <select
+      aria-label={t("sort")}
+      className="border-input bg-background focus-visible:ring-ring h-10 rounded-md border px-2 text-sm focus-visible:ring-2 md:h-8"
+      onChange={(event) => {
+        const next = event.target.value === "best" ? "best" : "newest";
+        onSortChange(next);
+        void setQuerySort(next);
+      }}
+      value={sort}
+    >
+      <option value="newest">{t("newest")}</option>
+      <option value="best">{t("best")}</option>
+    </select>
   );
 }

@@ -86,13 +86,14 @@ model User {
   contactInteractions     ContactInteraction[]     @relation("ContactInteractionUser")
   contactScores           ContactScore[]           @relation("ContactScoreUser")
   taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
+  taskFollows             TaskFollower[]           @relation("TaskFollowerUser")
+  taskMomentDeliveries    TaskMomentDelivery[]     @relation("TaskMomentDeliveryUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
   coworkerUsages          CoworkerUsage[]
   sokoBotUsages           SokoBotUsage[]
   sokoBotTurns            SokoBotTurn[]
   sokoBotAskedTurns       SokoBotTurn[]            @relation("SokoBotTurnAskedBy")
-  sokoBotRequestedAvatars SokoBotAvatar[]          @relation("SokoBotAvatarRequestedBy")
   sokoBotPendingDecisions SokoBotPendingDecision[]
   sokoBotSchedules        SokoBotSchedule[]
   sokoBotLegacyMessages   SokoBotLegacyMessage[]
