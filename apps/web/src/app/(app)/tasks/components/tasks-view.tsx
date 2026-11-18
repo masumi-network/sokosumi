@@ -254,10 +254,7 @@ export function TasksView(props: TasksViewProps) {
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div
-        ref={toolbarRef}
-        className="flex flex-row flex-wrap items-center justify-end gap-2 sm:gap-3"
-      >
+      <div ref={toolbarRef} className="flex items-start gap-2">
         <TasksViewToolbarActions
           filters={{
             activeOrganizationId,

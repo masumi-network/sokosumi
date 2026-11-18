@@ -34,6 +34,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import { cn } from "@/lib/utils";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
 import { TaskTagDot } from "./task-tag-colors";
 
@@ -348,7 +349,56 @@ export function TasksViewFilters({
   ].filter((chip) => !!chip);
 
   return (
-    <>
+    // Anchored to the board's left edge: the menu first, then the two quick
+    // filters, then what is active. Chips wrap under them, never over Display.
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+      <FilterDropdownMenu
+        buttonLabel={labels.title}
+        searchPlaceholder={labels.searchPlaceholder}
+        emptyResultsLabel={labels.emptyResults}
+        sections={sections}
+        showActiveIndicator={showActiveIndicator}
+        align="start"
+      />
+      {me ? (
+        <Button
+          variant={showingMine ? "secondary" : "ghost"}
+          size="sm"
+          aria-pressed={showingMine}
+          // On is a fill and an outline: the fill alone is too close to the
+          // page to read as pressed.
+          className={cn("ps-1.5", showingMine && "border-control-border")}
+          onClick={() =>
+            handleFilterChange({
+              assigneeId: null,
+              assigneeSokoBotId: null,
+              assigneeUserId: showingMine ? null : (userId ?? null),
+            })
+          }
+        >
+          <Avatar aria-hidden className="size-5 shrink-0">
+            {me.image ? <AvatarImage src={me.image} alt="" /> : null}
+            <AvatarFallback className="bg-muted text-2xs font-medium">
+              {me.name.trim().charAt(0).toUpperCase() || "?"}
+            </AvatarFallback>
+          </Avatar>
+          {labels.assignedToMe}
+        </Button>
+      ) : null}
+      <Button
+        variant={filters.stuck ? "secondary" : "ghost"}
+        size="sm"
+        aria-pressed={filters.stuck}
+        title={t("stuckHint", { days: STUCK_AFTER_DAYS })}
+        className={cn("hit-area", filters.stuck && "border-control-border")}
+        onClick={() => handleFilterChange({ stuck: !filters.stuck })}
+      >
+        <Hourglass aria-hidden />
+        {/* Icon only on a phone, so the toolbar stays one row. */}
+        <span className="max-sm:sr-only">
+          {t("stuck", { days: STUCK_AFTER_DAYS })}
+        </span>
+      </Button>
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {
@@ -356,7 +406,7 @@ export function TasksViewFilters({
             return (
               <li
                 key={chip.id}
-                className="bg-muted text-foreground inline-flex min-w-0 items-center rounded-full ps-3 text-sm"
+                className="bg-muted text-foreground inline-flex min-h-8 min-w-0 items-center rounded-full ps-3 text-sm"
               >
                 {chip.id === "tag" && filters.tag && (
                   <span className="me-1.5 flex">
@@ -379,46 +429,6 @@ export function TasksViewFilters({
           })}
         </ul>
       ) : null}
-      {me ? (
-        <Button
-          variant={showingMine ? "secondary" : "outline"}
-          size="sm"
-          aria-pressed={showingMine}
-          className="ps-1.5"
-          onClick={() =>
-            handleFilterChange({
-              assigneeId: null,
-              assigneeSokoBotId: null,
-              assigneeUserId: showingMine ? null : (userId ?? null),
-            })
-          }
-        >
-          <Avatar aria-hidden className="size-5 shrink-0">
-            {me.image ? <AvatarImage src={me.image} alt="" /> : null}
-            <AvatarFallback className="bg-muted text-2xs font-medium">
-              {me.name.trim().charAt(0).toUpperCase() || "?"}
-            </AvatarFallback>
-          </Avatar>
-          {labels.assignedToMe}
-        </Button>
-      ) : null}
-      <Button
-        variant={filters.stuck ? "secondary" : "outline"}
-        size="sm"
-        aria-pressed={filters.stuck}
-        title={t("stuckHint", { days: STUCK_AFTER_DAYS })}
-        onClick={() => handleFilterChange({ stuck: !filters.stuck })}
-      >
-        <Hourglass aria-hidden />
-        {t("stuck", { days: STUCK_AFTER_DAYS })}
-      </Button>
-      <FilterDropdownMenu
-        buttonLabel={labels.title}
-        searchPlaceholder={labels.searchPlaceholder}
-        emptyResultsLabel={labels.emptyResults}
-        sections={sections}
-        showActiveIndicator={showActiveIndicator}
-      />
-    </>
+    </div>
   );
 }
