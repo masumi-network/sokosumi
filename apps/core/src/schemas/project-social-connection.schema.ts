@@ -118,6 +118,9 @@ export const initiateProjectSocialConnectionResponseSchema = z
 
 export const finalizeProjectSocialConnectionRequestSchema = z
   .object({
+    callbackProof: z.string().min(1).max(256).optional().openapi({
+      description: "Proof returned with a Zernio connection callback.",
+    }),
     connectionId: z.string().min(1).openapi({ example: "ca_123" }),
   })
   .openapi("FinalizeProjectSocialConnectionRequest");

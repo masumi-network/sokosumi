@@ -1,7 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { Check, Clock, Play } from "lucide-react";
+import { Clock, PenLine, Play } from "lucide-react";
 import { AnimatePresence } from "motion/react";
 import { type ReactNode, useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
@@ -14,18 +14,35 @@ import {
 import { formatHasImage, formatHasVideo, formatName } from "../../lib/channels";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
+import { StatusDisc } from "../status";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
 type Media = CmoOverview["media"][number];
 
-const STATUS: Record<Entry["status"], { label: string; emphasis: boolean }> = {
-  idea: { label: "Planned", emphasis: false },
-  draft: { label: "Written", emphasis: true },
-  scheduled: { label: "Scheduled", emphasis: true },
-  published: { label: "Published", emphasis: true },
-  skipped: { label: "Skipped", emphasis: false },
+const STATUS: Record<Entry["status"], string> = {
+  idea: "Planned",
+  draft: "Written",
+  scheduled: "Scheduled",
+  published: "Published",
+  skipped: "Skipped",
 };
+
+/** Where a post stands, in words beside a small mark: never a pill. */
+function PieceState({ status }: { status: Entry["status"] }) {
+  return (
+    <span className="state">
+      {status === "published" ? (
+        <StatusDisc status="ok" decorative />
+      ) : status === "scheduled" ? (
+        <Clock size={13} aria-hidden="true" />
+      ) : status === "draft" ? (
+        <PenLine size={13} aria-hidden="true" />
+      ) : null}
+      {STATUS[status]}
+    </span>
+  );
+}
 
 function samePillar(named: string | undefined, pillar: string): boolean {
   return named?.trim().toLowerCase() === pillar.trim().toLowerCase();
@@ -108,7 +125,7 @@ export function CalendarPage({
     <div className="cal">
       <div className="card cal-head">
         <p className="note num">
-          {live.length} pieces this month · {ready} ready
+          {live.length} posts this month · {ready} ready
           {ready < live.length ? ` · ${live.length - ready} being made` : ""}
         </p>
         <div className="cal-filters" role="group" aria-label="Network">
@@ -234,6 +251,12 @@ export function CalendarPage({
 function PieceInMaking({ entry }: { entry: Entry }) {
   return (
     <div className="cal-card cal-making">
+      <span className="cal-thumb" aria-hidden="true">
+        <span className="cal-making-lines">
+          <span />
+          <span />
+        </span>
+      </span>
       <span className="cal-body">
         <span className="cal-meta">
           <ChannelIcon channel={entry.channel} size={13} />
@@ -244,11 +267,7 @@ function PieceInMaking({ entry }: { entry: Entry }) {
             {entry.time ? ` ${entry.time}` : ""}
           </span>
         </span>
-        <span className="cal-making-lines" aria-hidden="true">
-          <span />
-          <span />
-        </span>
-        <span className="tag">
+        <span className="state">
           <span className="ob-box-dot" aria-hidden="true" />
           Being made
         </span>
@@ -268,21 +287,24 @@ function PieceCard({
   open: boolean;
   onOpen: () => void;
 }) {
-  const status = STATUS[entry.status];
   const picture =
     media?.slides?.[0] ?? (media?.kind === "image" ? media.url : null);
-  // Words-only pieces (an article, an email) get no empty picture box.
+  // Every card leads with the same box, so a row stays even: the picture or
+  // video, or the opening words of a post that has neither.
   const visual =
     Boolean(media) ||
     formatHasImage(entry.channel, entry.format) ||
     formatHasVideo(entry.channel, entry.format);
+  const words = excerpt(entry);
   return (
     <button
       type="button"
       className={open ? "cal-card card-focus" : "cal-card"}
       onClick={onOpen}
     >
-      {visual ? (
+      {!visual && words ? (
+        <span className="cal-thumb cal-words">{words}</span>
+      ) : (
         <span className="cal-thumb">
           {picture ? (
             <img src={picture} alt="" loading="lazy" />
@@ -303,7 +325,7 @@ function PieceCard({
             <span className="cal-slides num">{media.slides.length}</span>
           ) : null}
         </span>
-      ) : null}
+      )}
       <span className="cal-body">
         <span className="cal-meta">
           <ChannelIcon channel={entry.channel} size={13} />
@@ -318,15 +340,8 @@ function PieceCard({
           <span className="cal-pillar">{entry.pillar}</span>
         ) : null}
         <span className="cal-title">{entry.title}</span>
-        {excerpt(entry) ? (
-          <span className="cal-excerpt">{excerpt(entry)}</span>
-        ) : null}
-        <span className={status.emphasis ? "tag emphasis" : "tag"}>
-          {entry.status === "published" ? (
-            <Check size={11} aria-hidden="true" />
-          ) : null}
-          {status.label}
-        </span>
+        {visual && words ? <span className="cal-excerpt">{words}</span> : null}
+        <PieceState status={entry.status} />
       </span>
     </button>
   );

@@ -4,6 +4,8 @@ import type { CmoAdCampaigns, CmoOverview } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AGENT_NAME } from "../lib/agent";
+import type { View } from "../lib/views";
+import { ViewLink } from "./app/view-link";
 
 type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
 type AdAccounts = CmoAdCampaigns["accounts"];
@@ -206,10 +208,12 @@ export function AdsPanel({
   overview,
   actions,
   onChange,
+  openView,
 }: {
   overview: CmoOverview;
   actions: Pick<AdActions, "loadAdCampaigns" | "setAdCampaignStatus">;
   onChange: (overview: CmoOverview) => void;
+  openView: (view: View) => void;
 }) {
   const [accounts, setAccounts] = useState<AdAccounts | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -237,8 +241,11 @@ export function AdsPanel({
       <h3>Ads</h3>
       {!connected ? (
         <p className="muted">
-          Connect Google Ads or Meta Ads in Channels and their numbers show
-          here.
+          Connect Google Ads or Meta Ads in{" "}
+          <ViewLink view="channels" open={openView}>
+            Channels
+          </ViewLink>{" "}
+          and their numbers show here.
         </p>
       ) : accounts === null ? (
         <p className="muted">Reading your ad accounts…</p>
@@ -266,7 +273,7 @@ export function AdsPanel({
                     · last 7 days
                   </span>
                 </span>
-                <span className="tag">
+                <span className="state">
                   {campaign.status === "ACTIVE" ? "Running" : "Paused"}
                 </span>
                 {campaign.status === "ACTIVE" ||
