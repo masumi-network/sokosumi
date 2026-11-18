@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import { SeoIndexNote } from "./seo-index-triage";
-import { seoIndexEvidence, seoIndexTriage } from "./seo-index-triage-model";
+import { seoIndexEvidence, seoIndexStatusView } from "./seo-index-triage-model";
 import { SeoDate, SeoPageLink, SeoSection, SeoState } from "./seo-shared";
 
 type Verdict = ProjectSeoIndexedPage["verdict"];
@@ -48,27 +48,11 @@ export function SeoIndexStatus({
   workspace: ProjectSeoWorkspace;
 }) {
   const t = useTranslations("App.Seo");
-  const status = workspace.indexStatus;
-  const inView = new Set(
-    workspace.pages
-      .filter((page) => workspace.scope.pageIds.includes(page.id))
-      .map((page) => page.url),
-  );
-  const pages = status?.pages.filter((page) => inView.has(page.pageUrl)) ?? [];
-  const notes = seoIndexTriage(workspace)?.assessments ?? [];
+  const { inView, pages, notes, alone, unanswered } =
+    seoIndexStatusView(workspace);
   const notesOf = (pageUrl: string) =>
     notes.filter((note) => note.pageUrl === pageUrl);
-  const alone = notes.filter(
-    (note) => !pages.some((page) => page.pageUrl === note.pageUrl),
-  );
   if (!pages.length && !alone.length) return null;
-  // Pages in view that no sync could inspect are counted, never dropped silently.
-  // A page with a note row of its own has Google's words there: it is not counted as unanswered.
-  const unanswered = [...inView].filter(
-    (url) =>
-      !pages.some((page) => page.pageUrl === url) &&
-      !alone.some((note) => note.pageUrl === url),
-  ).length;
   return (
     <SeoSection
       title={t("index.title")}

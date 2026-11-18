@@ -487,6 +487,10 @@ export {
   type GoogleEvent,
   type GoogleEventKind,
 } from "./seo-google-events.js";
+export {
+  newerSeoAuditVerdict,
+  seoInspectionEvidence,
+} from "./seo-index-verdict.js";
 export { normalizeSeoQuery } from "./seo-query.js";
 export {
   readSeoStatisticsNote,
