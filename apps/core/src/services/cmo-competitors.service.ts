@@ -196,6 +196,12 @@ export async function syncTrackedCompetitorsFromBrandBrain(
   });
 }
 
+/** What a source Core cannot read yet needs, in CMO's words. */
+const CMO_SOURCE_NEEDS = {
+  news: "News search is not set up for CMO yet.",
+  ads: "Reading ads needs CMO's access to Meta's Ad Library, which is not set up yet.",
+} as const;
+
 /** Cuso's Competitors tab: his Project's page, with the market map's players. */
 export async function getCmoCompetitors(
   target: CusoTarget,
@@ -209,7 +215,19 @@ export async function getCmoCompetitors(
     }),
     watchedMapPlayers(cuso.projectId),
   ]);
-  return { ...competitors, mapPlayers };
+  const { sources } = competitors.check;
+  const needs = (source: keyof typeof CMO_SOURCE_NEEDS) =>
+    sources[source].status === "not_configured"
+      ? { ...sources[source], needs: CMO_SOURCE_NEEDS[source] }
+      : sources[source];
+  return {
+    ...competitors,
+    check: {
+      ...competitors.check,
+      sources: { ...sources, news: needs("news"), ads: needs("ads") },
+    },
+    mapPlayers,
+  };
 }
 
 /**
