@@ -15,6 +15,7 @@ const service = vi.hoisted(() => ({
   proxySandboxModelCall: vi.fn(),
   recordSandboxAction: vi.fn(),
   recordSandboxActionResult: vi.fn(),
+  recordSandboxReasoning: vi.fn(),
   runSandboxTool: vi.fn(),
   sandboxFileSource: vi.fn(),
   startSandboxTurn: vi.fn(),
@@ -138,5 +139,23 @@ describe("a runtime request's wide event", () => {
     expect(coreLogEvents()).toContainEqual(
       expect.objectContaining({ turnId: TURN_ID }),
     );
+  });
+});
+
+describe("POST /turns/:turnId/reasoning", () => {
+  it("hands Core a step's reasoning summary while the turn runs", async () => {
+    const response = await post("/reasoning", { text: "Checking the plan." });
+
+    expect(response.status).toBe(200);
+    expect(service.recordSandboxReasoning).toHaveBeenCalledWith(
+      expect.objectContaining({ turnId: TURN_ID }),
+      "Checking the plan.",
+    );
+  });
+
+  it("refuses an empty summary", async () => {
+    const response = await post("/reasoning", { text: "" });
+
+    expect(response.status).toBe(400);
   });
 });
