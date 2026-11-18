@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { SokoBotRuntimeEvent } from "@sokosumi/database";
 import {
   type IndexedRuntimeEvent,
   type RuntimeCancelInput,
@@ -27,6 +28,8 @@ import {
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
+import { SokoBotReconciliationLeaseLostError } from "@/lib/soko-bot/reconciliation-lease";
+import { SETTLEMENT_TRIGGER_EVENT_TYPES } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import {
   REASONING_SUMMARY_OPTIONS,
@@ -253,22 +256,74 @@ async function runTurn(
       message: error instanceof Error ? error.message : "Soko Bot turn failed",
     });
   }
-  await closeTurn(log, input.turnId);
+  await closeTurn(log, input.reconciliationLeaseToken);
 }
 
 /** Reads a turn's recorded events back for the drain. */
 export async function* streamStoredEvents(
   input: RuntimeEventStreamInput,
 ): AsyncIterable<IndexedRuntimeEvent> {
-  const events = await prisma.sokoBotRuntimeEvent.findMany({
-    where: {
-      sessionId: input.sessionId,
-      startIndex: { gte: Math.max(0, input.startIndex) },
+  const { sessionId, signal, reconciliation } = input;
+  const readEvents = (startIndex: number) =>
+    prisma.sokoBotRuntimeEvent.findMany({
+      where: { sessionId, startIndex: { gte: startIndex } },
+      orderBy: { startIndex: "asc" },
+    });
+  const startIndex = Math.max(0, input.startIndex);
+  const events = await readEvents(startIndex);
+  yield* indexedStoredEvents(events, signal);
+  if (!reconciliation || signal?.aborted) return;
+
+  const nextIndex = (events.at(-1)?.startIndex ?? startIndex - 1) + 1;
+  const { turnId, leaseToken } = reconciliation;
+  const hasTerminalTail = await prisma.$transaction(
+    async (tx) => {
+      // Close commits its marker before taking this lock. Either the drain
+      // sees the marker, or close sees the drain's released heartbeat.
+      await tx.$queryRaw`
+      SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${turnId}::uuid
+      FOR NO KEY UPDATE
+    `;
+      const terminal = await tx.sokoBotRuntimeEvent.findFirst({
+        where: {
+          turnId,
+          sessionId,
+          startIndex: { gte: nextIndex },
+          type: { in: [...SETTLEMENT_TRIGGER_EVENT_TYPES] },
+        },
+        select: { id: true },
+      });
+      if (terminal) return true;
+
+      const { count } = await tx.sokoBotTurn.updateMany({
+        where: {
+          id: turnId,
+          leaseToken,
+          eveSessionId: sessionId,
+          status: { in: ["STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+        },
+        // Runtime authorization still uses the lease expiry.
+        data: { reconcilerHeartbeatAt: null },
+      });
+      if (!count) {
+        throw new SokoBotReconciliationLeaseLostError(
+          "Soko Bot reconciliation lease was lost",
+        );
+      }
+      return false;
     },
-    orderBy: { startIndex: "asc" },
-  });
+    { isolationLevel: "ReadCommitted" },
+  );
+  if (hasTerminalTail)
+    yield* indexedStoredEvents(await readEvents(nextIndex), signal);
+}
+
+function* indexedStoredEvents(
+  events: SokoBotRuntimeEvent[],
+  signal?: AbortSignal,
+): Iterable<IndexedRuntimeEvent> {
   for (const stored of events) {
-    if (input.signal?.aborted) return;
+    if (signal?.aborted) return;
     yield {
       startIndex: stored.startIndex,
       event: {

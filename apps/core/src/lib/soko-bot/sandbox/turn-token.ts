@@ -11,6 +11,7 @@ import { getEnv } from "@/config/env";
 export interface TurnTokenClaims {
   turnId: string;
   sessionId: string;
+  reconciliationLeaseToken?: string;
   /** Unix milliseconds. */
   expiresAt: number;
 }
@@ -18,6 +19,7 @@ export interface TurnTokenClaims {
 const claimsSchema = z.object({
   turnId: z.string().min(1),
   sessionId: z.string().min(1),
+  reconciliationLeaseToken: z.string().min(1).optional(),
   expiresAt: z.number().int(),
 });
 

@@ -173,14 +173,21 @@ export class RuntimeEventLog {
  * cron also reconciles, but Vercel runs crons on production only, so a preview
  * would otherwise leave every turn "Thinking…" forever.
  */
-export async function settleNow(turnId: string): Promise<void> {
+async function settleNow(
+  { turnId, sessionId }: RuntimeEventLog,
+  launchLeaseToken: string,
+): Promise<void> {
   try {
     const { sokoBotControlPlane } = await import(
       "@/services/soko-bot-control-plane.service"
     );
-    await sokoBotControlPlane.reconcileTurn(turnId);
+    await sokoBotControlPlane.reconcileRuntimeCompletion(
+      turnId,
+      sessionId,
+      launchLeaseToken,
+    );
   } catch (error) {
-    // The cron will retry; a lost lease just means it got there first.
+    // The cron will retry; a lost lease just means another owner took over.
     if (reportSokoBotReconciliationLeaseLoss(turnId, error)) return;
     // Only safe fields: settling writes the turn's reply, and a Prisma error
     // quotes what it writes.
@@ -188,7 +195,7 @@ export async function settleNow(turnId: string): Promise<void> {
       { operation: "soko_bot_turn_settle" },
       {
         message: "Could not settle a Soko Bot turn right after its loop",
-        why: "Reconciling the turn failed, or the cron held its lease",
+        why: "Reconciling the turn failed",
         fix: "Nothing in production: the soko-bot-turns cron settles it. Crons do not run on previews, so a preview turn stays open.",
       },
       { turnId, failure: messageSafeErrorFields(error) },
@@ -696,8 +703,8 @@ export async function failTurn(
 /** Marks the session idle and settles the turn right away. */
 export async function closeTurn(
   log: RuntimeEventLog,
-  turnId: string,
+  launchLeaseToken: string | undefined,
 ): Promise<void> {
   await log.append(runtimeEvent("session.waiting", {})).catch(() => undefined);
-  await settleNow(turnId);
+  if (launchLeaseToken) await settleNow(log, launchLeaseToken);
 }

@@ -191,6 +191,7 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
     const token = issueTurnToken({
       turnId: input.turnId,
       sessionId,
+      reconciliationLeaseToken: input.reconciliationLeaseToken,
       expiresAt: turn.deadlineAt.getTime() + 60_000,
     });
     // A background run works on its own disk: the Drive attaches to one VM
@@ -253,7 +254,7 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
       message:
         error instanceof Error ? error.message : "Could not start the sandbox",
     });
-    await closeTurn(log, input.turnId);
+    await closeTurn(log, input.reconciliationLeaseToken);
     await stopTurnSandbox(input.turnId);
   }
 }
