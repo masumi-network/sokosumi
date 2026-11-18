@@ -1,5 +1,10 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { newerSeoAuditVerdict, seoInspectionEvidence } from "@sokosumi/utils";
+import {
+  newerSeoAuditVerdict,
+  seoIndexReviewState,
+  seoInspectionCrawlTime,
+  seoInspectionEvidence,
+} from "@sokosumi/utils";
 
 type IndexTriageWorkspace = Pick<
   ProjectSeoWorkspace,
@@ -66,14 +71,13 @@ export function seoIndexStatusView(
     );
     const audit = newerSeoAuditVerdict(pageUrl, synced?.checkedAt, assessments);
     if (!audit) return synced ? [synced] : [];
-    const { crawledAt } = seoIndexEvidence(audit.assessment.evidence);
     return [
       {
         pageUrl,
         verdict: audit.verdict,
         checkedAt: audit.assessment.checkedAt,
         coverageState: audit.coverageState,
-        lastCrawlTime: crawledAt,
+        lastCrawlTime: audit.lastCrawlTime,
         googleCanonical: null,
         userCanonical: null,
         robotsTxtState: null,
@@ -86,13 +90,12 @@ export function seoIndexStatusView(
   );
   const answered = new Set(pages.map((page) => page.pageUrl));
   for (const page of assessments)
-    if (page.status !== "unavailable") answered.add(page.pageUrl);
+    if (seoIndexReviewState(page) !== "unavailable") answered.add(page.pageUrl);
   const unanswered = [...inView].filter((url) => !answered.has(url)).length;
   return { inView, pages, notes, alone, unanswered };
 }
 
 // The lines the SEO coworker writes for a page (seo-bot agent/lib/indexing-triage.ts).
-const LAST_CRAWL = /^Google last crawled this URL at (.+)\.$/;
 const GOOGLE_STATE = /^(indexingState|robotsTxtState|pageFetchState): (.+)$/;
 /** States that say nothing is wrong: they are noise next to the reason. */
 const STATE_OK = new Set(["INDEXING_ALLOWED", "ALLOWED", "SUCCESSFUL"]);
@@ -113,9 +116,8 @@ export function seoIndexEvidence(evidence: readonly string[]) {
       reason = inspection.coverageState;
       continue;
     }
-    const crawl = LAST_CRAWL.exec(line);
-    const crawled = crawl ? new Date(crawl[1]) : null;
-    if (crawled && !Number.isNaN(crawled.getTime())) {
+    const crawled = seoInspectionCrawlTime(line);
+    if (crawled) {
       crawledAt = crawled;
       continue;
     }

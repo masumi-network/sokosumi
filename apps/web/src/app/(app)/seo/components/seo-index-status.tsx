@@ -4,6 +4,7 @@ import type {
   ProjectSeoIndexedPage,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
+import { seoIndexReviewState } from "@sokosumi/utils";
 import { CircleAlert, CircleCheck, CircleHelp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -81,7 +82,9 @@ export function SeoIndexStatus({
           const icon = fine ? "fine" : state;
           const Icon = ICON[icon];
           // Notes of one state share a badge on the verdict line; notes of different states each carry their own.
-          const noteStates = [...new Set(pageNotes.map((note) => note.status))];
+          const noteStates = [
+            ...new Set(pageNotes.map((note) => seoIndexReviewState(note))),
+          ];
           const shared = noteStates.length === 1;
           return (
             <li key={page.pageUrl} className="space-y-1 p-4">
@@ -110,8 +113,13 @@ export function SeoIndexStatus({
                     </span>
                   </>
                 ) : null}
-                {shared ? (
-                  <SeoState>{t(`indexReview.state.${noteStates[0]}`)}</SeoState>
+                {shared &&
+                !(state === "unknown" && noteStates[0] === "unknown") ? (
+                  <SeoState>
+                    {noteStates[0] === "unknown"
+                      ? t("index.state.unknown")
+                      : t(`indexReview.state.${noteStates[0]}`)}
+                  </SeoState>
                 ) : null}
               </p>
               {/* Beside a note row that names its URL, every row names its own. */}

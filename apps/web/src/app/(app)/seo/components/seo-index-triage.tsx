@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { seoIndexReviewState } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { seoIndexEvidence } from "./seo-index-triage-model";
@@ -40,6 +41,8 @@ export function SeoIndexNote({
   statusReadAt?: string | Date | null;
 }) {
   const t = useTranslations("App.Seo.indexReview");
+  const tIndex = useTranslations("App.Seo.index");
+  const state = seoIndexReviewState(assessment);
   const google = seoIndexEvidence(assessment.evidence);
   // Google's status was read on a later day than the review: the day says the note may describe an older result.
   // Calendar days in UTC: a sync seconds after the review comes from another writer and is not a newer result.
@@ -50,7 +53,11 @@ export function SeoIndexNote({
       {alone || badge || older ? (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {alone || badge ? (
-            <SeoState>{t(`state.${assessment.status}`)}</SeoState>
+            <SeoState>
+              {state === "unknown"
+                ? tIndex("state.unknown")
+                : t(`state.${state}`)}
+            </SeoState>
           ) : null}
           {alone ? <SeoPageLink url={assessment.pageUrl} /> : null}
           {older ? (
@@ -74,7 +81,7 @@ export function SeoIndexNote({
         )}
       >
         <span>{assessment.reason}</span>
-        {assessment.suggestedFix ? (
+        {state !== "unknown" && assessment.suggestedFix ? (
           <>
             {" "}
             <span>{assessment.suggestedFix}</span>
