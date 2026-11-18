@@ -8,7 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import { FileText, ListTodo } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -104,34 +104,47 @@ export function HistorySearchDialog({
     onOpenChange(nextOpen);
   }
 
-  function handleSelectFile(file: FileResource) {
+  // A result opens another page: focus belongs there, not back on the
+  // Search button (its tooltip would open over the new page).
+  const navigatingRef = useRef(false);
+
+  function handleCloseAutoFocus(event: Event) {
+    if (navigatingRef.current) {
+      navigatingRef.current = false;
+      event.preventDefault();
+      return;
+    }
+    onCloseAutoFocus?.(event);
+  }
+
+  function closeAndGo(href: string) {
+    navigatingRef.current = true;
+    // Use the same close path as the dialog itself so we reset state
+    // and ignore any in-flight history requests.
     handleOpenChange(false);
-    router.push(`/drive/files/${file.id}`);
+    router.push(href);
+  }
+
+  function handleSelectFile(file: FileResource) {
+    closeAndGo(`/drive/files/${file.id}`);
   }
 
   function handleSeeAllFiles() {
-    handleOpenChange(false);
-    router.push(
+    closeAndGo(
       `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
     );
   }
 
   function handleSelectTag(tag: WorkspaceLabel) {
-    handleOpenChange(false);
-    router.push(`/tasks?tag=${encodeURIComponent(tag.id)}`);
+    closeAndGo(`/tasks?tag=${encodeURIComponent(tag.id)}`);
   }
 
   function handleSelectTask(task: TaskListItem) {
-    handleOpenChange(false);
-    router.push(taskHref(task));
+    closeAndGo(taskHref(task));
   }
 
   function handleSelect(item: HistoryItem) {
-    const href = getHistorySearchItemHref(item);
-    // Use the same close path as the dialog itself so we reset state
-    // and ignore any in-flight history requests.
-    handleOpenChange(false);
-    router.push(href);
+    closeAndGo(getHistorySearchItemHref(item));
   }
 
   return (
@@ -146,7 +159,7 @@ export function HistorySearchDialog({
         // keyboard does not cover the results.
         className:
           "max-sm:top-[calc(env(safe-area-inset-top)+1rem)] max-sm:translate-y-0",
-        onCloseAutoFocus,
+        onCloseAutoFocus: handleCloseAutoFocus,
       }}
     >
       <CommandInput

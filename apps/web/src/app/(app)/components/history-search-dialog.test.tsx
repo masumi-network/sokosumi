@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { getHistoryMock, pushMock } = vi.hoisted(() => ({
@@ -202,6 +202,53 @@ describe("HistorySearchDialog", () => {
       phone = true;
       resizeTo(300);
       expect(list?.style.maxHeight).toBe("212px");
+    });
+  });
+
+  describe("focus when search closes", () => {
+    function ControlledDialog({
+      onCloseAutoFocus,
+    }: {
+      onCloseAutoFocus: (event: Event) => void;
+    }) {
+      const [open, setOpen] = useState(true);
+      return (
+        <HistorySearchDialog
+          open={open}
+          onOpenChange={setOpen}
+          onCloseAutoFocus={onCloseAutoFocus}
+          activeOrganizationId={null}
+          labels={labels}
+        />
+      );
+    }
+
+    it("returns focus to the opener when dismissed", async () => {
+      const onCloseAutoFocus = vi.fn();
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime.bind(vi),
+      });
+      renderWithQuery(<ControlledDialog onCloseAutoFocus={onCloseAutoFocus} />);
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => expect(onCloseAutoFocus).toHaveBeenCalledTimes(1));
+    });
+
+    it("leaves focus to the new page when a result navigates", async () => {
+      const onCloseAutoFocus = vi.fn();
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime.bind(vi),
+      });
+      renderWithQuery(<ControlledDialog onCloseAutoFocus={onCloseAutoFocus} />);
+
+      await user.click(await screen.findByText("Old query result"));
+
+      expect(pushMock).toHaveBeenCalled();
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+      expect(onCloseAutoFocus).not.toHaveBeenCalled();
     });
   });
 

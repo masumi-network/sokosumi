@@ -167,6 +167,13 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.getByRole("heading", { level: 1, name: taskName }).waitFor();
       await page.getByText(TASK_DETAILS).waitFor();
       await page.getByRole("heading", { name: "Properties" }).waitFor();
+      // Picking a result hands focus to the new page, not back to Search
+      // (whose focus tooltip would cover it).
+      assert.equal(
+        await page.getByRole("tooltip").count(),
+        0,
+        "a tooltip shows over the Task opened from search",
+      );
       await noSidewaysScroll(page);
       await shot(page, size, "3-task");
 
