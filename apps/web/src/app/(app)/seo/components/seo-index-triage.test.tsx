@@ -82,13 +82,12 @@ describe("indexing review notes", () => {
         "href",
         page.url,
       );
-    expect(screen.getAllByText("Suggested next step")).toHaveLength(1);
+    // The next step follows the reason in one paragraph.
     expect(
-      screen.getByText("Review the page purpose before changing noindex."),
-    ).toBeVisible();
-    expect(view.container.querySelector("time")).toHaveAttribute(
-      "datetime",
-      checkedAt.toISOString(),
+      screen.getByText("Review the page purpose before changing noindex.")
+        .parentElement,
+    ).toHaveTextContent(
+      "Confirm whether this page should be indexed. Review the page purpose before changing noindex.",
     );
     // Google's reason and last crawl show; the states that say all is fine and the capture time do not.
     expect(screen.getAllByText("Google: Page with redirect")).toHaveLength(3);
@@ -108,7 +107,7 @@ describe("indexing review notes", () => {
     expect(view.container.querySelector("script")).toBeNull();
   });
 
-  it("puts a page's review note under its Google status without repeating Google's words", () => {
+  it("puts a page's review state beside its Google verdict without repeating Google's words", () => {
     const workspace = seoTestWorkspace();
     const pageUrl = workspace.pages[0].url;
     const checkedAt = new Date("2026-11-16T08:00:00Z");
@@ -122,7 +121,8 @@ describe("indexing review notes", () => {
           lastCrawlTime: new Date("2026-09-05T05:29:58Z"),
           googleCanonical: null,
           userCanonical: null,
-          checkedAt,
+          // The sync read Google's status minutes after the review, on the same day.
+          checkedAt: new Date(checkedAt.getTime() + 5 * 60 * 1000),
         },
       ],
     } as NonNullable<typeof workspace.indexStatus>;
@@ -143,18 +143,184 @@ describe("indexing review notes", () => {
         },
       ],
     };
-    renderNotes(workspace);
-    const row = screen.getByText("Not indexed").closest("li");
-    if (!row) throw new Error("Google status row missing");
-    expect(within(row).getByText("Review needed")).toBeVisible();
+    const view = renderNotes(workspace);
+    const verdict = screen.getByText("Not indexed").closest("p");
+    const row = verdict?.closest("li");
+    if (!verdict || !row) throw new Error("Google status row missing");
+    // One line: Google's verdict, its reason and the review state.
+    expect(
+      within(verdict).getByText("Google: Page with redirect"),
+    ).toBeVisible();
+    expect(within(verdict).getByText("Review needed")).toBeVisible();
     expect(
       within(row).getByText("Google's stored result may predate a fix."),
     ).toBeVisible();
-    expect(
-      within(row).getByText("Google says: “Page with redirect”"),
-    ).toBeVisible();
-    expect(within(row).queryByText("Google: Page with redirect")).toBeNull();
+    expect(within(row).getByText("Sep 5, 2026")).toBeVisible();
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    // The review is from the same day as Google's status: no review day.
+    expect(within(row).queryByText(/Reviewed/)).toBeNull();
+    // A page left out for a reason to act on does not read as fine.
+    expect(row.querySelector("[data-icon]")).toHaveAttribute(
+      "data-icon",
+      "notIndexed",
+    );
+
+    // A review that expects the exclusion leaves nothing to act on: the page reads as fine.
+    view.unmount();
+    workspace.indexTriage = {
+      assessments: [
+        {
+          ...workspace.indexTriage.assessments[0],
+          status: "expected_exclusion",
+        },
+      ],
+    };
+    const fineView = renderNotes(workspace);
+    const fine = screen.getByText("Not indexed").closest("p");
+    if (!fine) throw new Error("Google status row missing");
+    expect(within(fine).getByText("Expected exclusion")).toBeVisible();
+    expect(fine.querySelector("[data-icon]")).toHaveAttribute(
+      "data-icon",
+      "fine",
+    );
+
+    // Google's reason changed after the review: the expected exclusion no longer covers it.
+    fineView.unmount();
+    workspace.indexStatus.pages[0].coverageState = "Server error (5xx)";
+    const changedView = renderNotes(workspace);
+    expect(
+      screen
+        .getByText("Not indexed")
+        .closest("p")
+        ?.querySelector("[data-icon]"),
+    ).toHaveAttribute("data-icon", "notIndexed");
+
+    // Google's warnings stay a warning, whatever the review expects.
+    changedView.unmount();
+    workspace.indexStatus.pages[0].coverageState = "Page with redirect";
+    workspace.indexStatus.pages[0].verdict = "PARTIAL";
+    renderNotes(workspace);
+    const warnings = screen.getByText("Indexed, with warnings").closest("p");
+    if (!warnings) throw new Error("Google status row missing");
+    expect(within(warnings).getByText("Expected exclusion")).toBeVisible();
+    expect(warnings.querySelector("[data-icon]")).toHaveAttribute(
+      "data-icon",
+      "warnings",
+    );
+  });
+
+  it("shows a page Google left out as not fine without a review note or without Google's reason", () => {
+    const workspace = seoTestWorkspace();
+    workspace.indexStatus = {
+      pages: [
+        {
+          pageUrl: workspace.pages[0].url,
+          verdict: "NEUTRAL",
+          coverageState: "Page with redirect",
+          robotsTxtState: null,
+          lastCrawlTime: null,
+          googleCanonical: null,
+          userCanonical: null,
+          checkedAt: new Date("2026-11-16T08:00:00Z"),
+        },
+      ],
+    } as NonNullable<typeof workspace.indexStatus>;
+    workspace.indexTriage = null;
+    const view = renderNotes(workspace);
+    const icon = () =>
+      screen
+        .getByText("Not indexed")
+        .closest("p")
+        ?.querySelector("[data-icon]");
+    expect(icon()).toHaveAttribute("data-icon", "notIndexed");
+
+    // Neither Google nor the review names a reason: nothing shows the exclusion is the expected one.
+    view.unmount();
+    workspace.indexStatus.pages[0].coverageState = null;
+    workspace.indexTriage = {
+      assessments: [
+        {
+          taskId: "task",
+          checkedAt: new Date("2026-11-16T08:00:00Z"),
+          pageUrl: workspace.pages[0].url,
+          status: "expected_exclusion",
+          report: false,
+          reason: "The page is excluded on purpose.",
+          suggestedFix: null,
+          evidence: [],
+        },
+      ],
+    };
+    renderNotes(workspace);
+    expect(icon()).toHaveAttribute("data-icon", "notIndexed");
+  });
+
+  it("pairs each note with its own state when the notes of a page differ", () => {
+    const workspace = seoTestWorkspace();
+    const primary = workspace.pages[0];
+    const related = {
+      ...primary,
+      id: "related-page",
+      url: `${primary.url}guide`,
+      relationship: "related" as const,
+    };
+    workspace.pages.push(related);
+    workspace.scope.pageIds.push(related.id);
+    const checkedAt = new Date("2026-11-16T08:00:00Z");
+    workspace.indexStatus = {
+      pages: [
+        {
+          pageUrl: primary.url,
+          verdict: "NEUTRAL",
+          coverageState: "Page with redirect",
+          robotsTxtState: null,
+          lastCrawlTime: null,
+          googleCanonical: null,
+          userCanonical: null,
+          checkedAt,
+        },
+      ],
+    } as NonNullable<typeof workspace.indexStatus>;
+    const note = {
+      taskId: "task",
+      checkedAt,
+      pageUrl: primary.url,
+      report: false,
+      suggestedFix: null,
+      evidence: [],
+    };
+    workspace.indexTriage = {
+      assessments: [
+        { ...note, status: "review", reason: "Check the redirect target." },
+        {
+          ...note,
+          auditPageUrl: related.url,
+          status: "expected_exclusion",
+          reason: "The redirect is intended.",
+        },
+      ],
+    };
+    renderNotes(workspace);
+    const verdict = screen.getByText("Not indexed").closest("p");
+    if (!verdict) throw new Error("Google status row missing");
+    // No shared badge on the verdict line: each note names its own state.
+    expect(within(verdict).queryByText("Review needed")).toBeNull();
+    const noteOf = (state: string) =>
+      screen.getByText(state).parentElement?.parentElement;
+    expect(noteOf("Review needed")).toHaveTextContent(
+      "Check the redirect target.",
+    );
+    expect(noteOf("Review needed")).not.toHaveTextContent(
+      "The redirect is intended.",
+    );
+    expect(noteOf("Expected exclusion")).toHaveTextContent(
+      "The redirect is intended.",
+    );
+    // One note still asks for a check: the page does not read as fine.
+    expect(verdict.querySelector("[data-icon]")).toHaveAttribute(
+      "data-icon",
+      "notIndexed",
+    );
   });
 
   it("shows an unsaved related URL as an expected exclusion without an audit issue or page creation", () => {
@@ -182,7 +348,8 @@ describe("indexing review notes", () => {
       "href",
       related,
     );
-    expect(screen.queryByText("Suggested next step")).toBeNull();
+    // No Google status stands over the note, so nothing makes it older: no review day.
+    expect(screen.queryByText("Reviewed")).toBeNull();
     expect(workspace.pages).toHaveLength(1);
     expect(workspace.findings).toHaveLength(0);
   });
@@ -211,7 +378,7 @@ describe("indexing review notes", () => {
     expect(screen.queryByRole("heading", { name: "Google index" })).toBeNull();
   });
 
-  it("keeps an older related-page review and its own date after the main page is indexed in a newer Task", () => {
+  it("dates a related-page review older than its Google status and hides the main page's newer indexed note", () => {
     const workspace = seoTestWorkspace();
     const primary = workspace.pages[0];
     const related = {
@@ -248,6 +415,21 @@ describe("indexing review notes", () => {
         },
       ],
     };
+    // Google's status of the related page was read after its review.
+    workspace.indexStatus = {
+      pages: [
+        {
+          pageUrl: related.url,
+          verdict: "PASS",
+          coverageState: null,
+          robotsTxtState: null,
+          lastCrawlTime: null,
+          googleCanonical: null,
+          userCanonical: null,
+          checkedAt: latest,
+        },
+      ],
+    } as NonNullable<typeof workspace.indexStatus>;
     renderNotes(workspace);
     expect(screen.queryByText("The main page is indexed.")).toBeNull();
     const row = screen.getByRole("link", { name: related.url }).closest("li");
@@ -257,12 +439,11 @@ describe("indexing review notes", () => {
         "Review whether the related page should be indexed.",
       ),
     ).toBeVisible();
-    expect(row.querySelector("time")).toHaveAttribute(
-      "datetime",
-      earlier.toISOString(),
-    );
+    expect(within(row).getByText("Review needed")).toBeVisible();
+    // The review is older than Google's status: its day says so.
+    expect(within(row).getByText("Reviewed")).toBeVisible();
     expect(
-      row.querySelector(`time[datetime="${latest.toISOString()}"]`),
-    ).toBeNull();
+      row.querySelector(`time[datetime="${earlier.toISOString()}"]`),
+    ).toHaveTextContent("Nov 15, 2026");
   });
 });

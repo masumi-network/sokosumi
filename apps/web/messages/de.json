@@ -12810,22 +12810,18 @@
           "expected_exclusion": "Erwarteter Ausschluss",
           "unavailable": "Nicht geprüft"
         },
-        "suggestedFix": "Vorgeschlagener nächster Schritt",
         "evidence": "Nachweise ansehen",
         "googleReason": "Google: {reason}",
         "lastCrawled": "Zuletzt von Google gecrawlt"
       },
       "index": {
         "title": "Google-Index",
-        "help": "Ob Google jede Seite im Suchindex führt, laut URL-Prüfung in der Search Console.",
-        "checked": "Status gelesen",
         "state": {
           "indexed": "Indexiert",
           "warnings": "Indexiert, mit Warnungen",
           "notIndexed": "Nicht indexiert",
           "unknown": "Indexstatus unbekannt"
         },
-        "google": "Google meldet: „{words}“",
         "lastCrawl": "Letzter Crawl:",
         "otherCanonical": "Google hat eine andere kanonische Seite gewählt:",
         "unanswered": "{count, plural, one {Für # Seite in der Ansicht gibt es noch keinen Indexstatus.} other {Für # Seiten in der Ansicht gibt es noch keinen Indexstatus.}}"

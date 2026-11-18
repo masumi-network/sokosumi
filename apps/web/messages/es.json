@@ -12810,22 +12810,18 @@
           "expected_exclusion": "Exclusión esperada",
           "unavailable": "Sin revisar"
         },
-        "suggestedFix": "Siguiente paso sugerido",
         "evidence": "Ver evidencia",
         "googleReason": "Google: {reason}",
         "lastCrawled": "Último rastreo de Google"
       },
       "index": {
         "title": "Índice de Google",
-        "help": "Si Google mantiene cada página en su índice de búsqueda, según la inspección de URL de Search Console.",
-        "checked": "estado leído",
         "state": {
           "indexed": "Indexada",
           "warnings": "Indexada, con advertencias",
           "notIndexed": "No indexada",
           "unknown": "Estado de índice desconocido"
         },
-        "google": "Google indica: «{words}»",
         "lastCrawl": "Último rastreo:",
         "otherCanonical": "Google eligió otra página canónica:",
         "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"

@@ -825,7 +825,7 @@ describe("SEO workspace integration", () => {
     await user.click(within(row).getByText("All details"));
     expect(rule).toBeVisible();
     // The keywords themselves are on the Rankings tab.
-    await user.click(within(row).getByRole("button", { name: "See Rankings" }));
+    await user.click(within(row).getByRole("button", { name: "See rankings" }));
     expect(screen.getByRole("tab", { name: "Rankings" })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -3249,7 +3249,7 @@ describe("SEO workspace integration", () => {
     expect(within(section).queryByText("Indexed")).toBeNull();
     expect(
       within(section).getByText(
-        "Google says: “Alternate page with proper canonical tag”",
+        "Google: Alternate page with proper canonical tag",
       ),
     ).toBeVisible();
     expect(

@@ -11985,7 +11985,7 @@
           "searchConsole": "Search Console average position {position}",
           "serpRead": "Search result read:",
           "allDetails": "All details",
-          "showRankings": "See Rankings"
+          "showRankings": "See rankings"
         },
         "perDay": "{metric} per day",
         "chartHint": "Use the left and right arrow keys to move between days.",
@@ -12810,22 +12810,18 @@
           "expected_exclusion": "Expected exclusion",
           "unavailable": "Not checked"
         },
-        "suggestedFix": "Suggested next step",
         "evidence": "View evidence",
         "googleReason": "Google: {reason}",
         "lastCrawled": "Last crawled by Google"
       },
       "index": {
         "title": "Google index",
-        "help": "Whether Google keeps each page in its search index, from Search Console URL Inspection.",
-        "checked": "status read",
         "state": {
           "indexed": "Indexed",
           "warnings": "Indexed, with warnings",
           "notIndexed": "Not indexed",
           "unknown": "Index status unknown"
         },
-        "google": "Google says: “{words}”",
         "lastCrawl": "Last crawl:",
         "otherCanonical": "Google chose another canonical page:",
         "unanswered": "{count, plural, one {No index status yet for # page in view.} other {No index status yet for # pages in view.}}"

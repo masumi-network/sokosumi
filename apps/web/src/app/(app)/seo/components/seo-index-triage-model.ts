@@ -55,7 +55,7 @@ const LAST_CRAWL = /^Google last crawled this URL at (.+)\.$/;
 const GOOGLE_STATE = /^(indexingState|robotsTxtState|pageFetchState): (.+)$/;
 /** States that say nothing is wrong: they are noise next to the reason. */
 const STATE_OK = new Set(["INDEXING_ALLOWED", "ALLOWED", "SUCCESSFUL"]);
-/** A line that only records how the review ran: the note already dates the review. */
+/** A line that only records how the review ran: it says nothing about the page. */
 const RECORD_ONLY = /^Public page evidence was captured at /;
 
 /**
