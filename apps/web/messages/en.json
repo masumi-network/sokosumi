@@ -12898,6 +12898,7 @@
           "advanced": "Advanced",
           "automatic": "The audit detects the page goal from its content.",
           "autoOption": "Detect automatically",
+          "selected": "This audit will use “{goal}”.",
           "unavailable": "You can still start the check while the page goal is unavailable.",
           "question": "What should visitors do on this page?",
           "skip": "Skip for now",

@@ -12898,6 +12898,7 @@
           "advanced": "Erweitert",
           "automatic": "Das Audit erkennt das Ziel der Seite anhand ihres Inhalts.",
           "autoOption": "Automatisch erkennen",
+          "selected": "Dieses Audit verwendet das Ziel „{goal}“.",
           "unavailable": "Du kannst die Prüfung auch starten, wenn das Seitenziel gerade nicht verfügbar ist.",
           "question": "Was sollen Besucher auf dieser Seite tun?",
           "skip": "Vorerst überspringen",

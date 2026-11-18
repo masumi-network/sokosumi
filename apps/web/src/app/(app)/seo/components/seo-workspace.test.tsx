@@ -4150,6 +4150,10 @@ describe("SEO workspace integration", () => {
       "aria-expanded",
       "false",
     );
+    expect(setup.getByText("This audit will use “Buy”.")).toBeVisible();
+    expect(
+      setup.queryByText("The audit detects the page goal from its content."),
+    ).toBeNull();
     await user.click(setup.getByRole("button", { name: "Run full audit" }));
     const review = within(await screen.findByRole("dialog"));
     expect(review.getByRole("checkbox", { name: /Buy/ })).toBeChecked();

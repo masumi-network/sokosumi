@@ -12898,6 +12898,7 @@
           "advanced": "Opciones avanzadas",
           "automatic": "La auditoría detecta el objetivo de la página a partir de su contenido.",
           "autoOption": "Detectar automáticamente",
+          "selected": "Esta auditoría usará el objetivo «{goal}».",
           "unavailable": "Puedes iniciar la comprobación aunque el objetivo de la página no esté disponible.",
           "question": "¿Qué deberían hacer los visitantes en esta página?",
           "skip": "Omitir por ahora",

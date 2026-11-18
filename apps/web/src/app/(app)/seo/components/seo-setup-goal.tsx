@@ -37,7 +37,9 @@ export function SeoSetupGoal({
     <div className="grid min-w-0 max-w-sm grid-cols-1 gap-3">
       {full ? (
         <p className="text-muted-foreground text-sm">
-          {t("setup.goal.automatic")}
+          {goal.share && goal.action
+            ? t("setup.goal.selected", { goal: label(goal.action) })
+            : t("setup.goal.automatic")}
         </p>
       ) : null}
       <Collapsible
