@@ -6,6 +6,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { BackToTasksButton } from "@/app/tasks/components/back-to-tasks-button";
 import { Input } from "@/components/ui/input";
 import { taskService } from "@/lib/services/task.service";
+import { cn } from "@/lib/utils";
 
 import {
   ARCHIVED_SEARCH_MAX_LENGTH,
@@ -32,7 +33,7 @@ export default async function ArchivedTasksPage({
 }) {
   await connection();
   const query = readArchivedSearch((await searchParams).q);
-  const [t, format, { tasks }] = await Promise.all([
+  const [t, format, { tasks, pagination }] = await Promise.all([
     getTranslations("App.Tasks.Archived"),
     getFormatter(),
     taskService.listTasks({
@@ -42,6 +43,7 @@ export default async function ArchivedTasksPage({
       ...(query ? { q: query } : {}),
     }),
   ]);
+  const total = pagination?.total ?? tasks.length;
 
   return (
     <div className="content-in flex w-full flex-col gap-4 pb-6">
@@ -65,6 +67,21 @@ export default async function ArchivedTasksPage({
           className="pl-9"
         />
       </Form>
+      {/* Stays mounted across searches so screen readers hear each new count. */}
+      <p
+        role="status"
+        className={cn(
+          "text-muted-foreground -mt-2 text-sm wrap-anywhere",
+          // The empty list already says "no matches" on screen.
+          tasks.length === 0 && "sr-only",
+        )}
+      >
+        {query
+          ? total > tasks.length
+            ? t("searchResultsLimited", { shown: tasks.length, total, query })
+            : t("searchResults", { count: total, query })
+          : null}
+      </p>
       <ArchivedTasksList
         // Remount on a new search, so restored rows from the last one go.
         key={query ?? ""}

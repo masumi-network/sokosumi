@@ -219,6 +219,32 @@ for (const { name: size, ...viewport } of PROJECTS) {
       );
       await shot(page, size, "3-archived");
 
+      // Search says what it found in a live region, and keeps focus in the box.
+      const search = page.getByRole("searchbox", {
+        name: "Search archived tasks",
+      });
+      const status = page.getByRole("status").filter({ hasText: "match" });
+      await search.fill(LONG_NAME);
+      await search.press("Enter");
+      await status
+        .getByText(`1 archived task matches “${LONG_NAME}”.`)
+        .waitFor();
+      await row.waitFor();
+      await shot(page, size, "4-archived-search");
+      await search.fill("zz-no-such-task");
+      await search.press("Enter");
+      await status
+        .getByText("No archived tasks match “zz-no-such-task”.")
+        .waitFor();
+      assert.equal(
+        await search.evaluate((el) => el === document.activeElement),
+        true,
+        "search box loses focus after a search",
+      );
+      await search.fill("");
+      await search.press("Enter");
+      await row.waitFor();
+
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
 
