@@ -22247,6 +22247,9 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                             captionsPerMinuteUsd: {
                                 type: 'number'
                             },
+                            cutoutPerSecondUsd: {
+                                type: 'number'
+                            },
                             basis: {
                                 type: 'string'
                             },
@@ -22261,6 +22264,7 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                             'perSecondUsd',
                             'voicePer1000CharactersUsd',
                             'captionsPerMinuteUsd',
+                            'cutoutPerSecondUsd',
                             'basis',
                             'sourceUrl',
                             'verifiedAt'
@@ -22847,12 +22851,16 @@ export const ProjectTalkingVideoSchema = {
         },
         languageCode: {
             type: 'string'
+        },
+        siteShots: {
+            type: 'boolean'
         }
     },
     required: [
         'voice',
         'presenterId',
-        'languageCode'
+        'languageCode',
+        'siteShots'
     ]
 } as const;
 
@@ -43282,6 +43290,9 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
                     ]
                 }
             ]
+        },
+        siteShots: {
+            type: 'boolean'
         },
         idempotencyKey: {
             type: 'string',

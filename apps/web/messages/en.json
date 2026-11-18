@@ -4385,6 +4385,7 @@
       }
     },
     "TikTokStudio": {
+      "showSite": "Show your website in the video",
       "postToTikTok": "Post to TikTok",
       "title": "TikTok Studio",
       "intro": "A presenter speaks your script, with captions, ready for TikTok, Reels and Shorts.",

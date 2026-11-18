@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { countMock, requireProjectAccessMock } = vi.hoisted(() => ({
-  countMock: vi.fn(),
-  requireProjectAccessMock: vi.fn(),
-}));
+const { countMock, projectFindUniqueMock, requireProjectAccessMock } =
+  vi.hoisted(() => ({
+    countMock: vi.fn(),
+    projectFindUniqueMock: vi.fn(),
+    requireProjectAccessMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { sokoBotToolCall: { count: countMock } },
+  default: {
+    sokoBotToolCall: { count: countMock },
+    project: { findUnique: projectFindUniqueMock },
+  },
 }));
 vi.mock("@/lib/image-studio/access", () => ({
   requireProjectAccess: requireProjectAccessMock,
@@ -48,6 +53,7 @@ beforeEach(() => {
   vi.mocked(runtime.mayActForOwner).mockResolvedValue(true);
   vi.mocked(runtime.mediaPerTurn).mockResolvedValue({ images: 4, videos: 2 });
   countMock.mockResolvedValue(0);
+  projectFindUniqueMock.mockResolvedValue({ websiteUrl: null });
   requireProjectAccessMock.mockResolvedValue({ organizationId: null });
 });
 
@@ -59,6 +65,15 @@ describe("checkTalkingVideoRequest", () => {
     // 112 characters is about 9 s: 45 cents of video, plus the voice and
     // timing its words.
     expect(credits).toBe(47);
+  });
+
+  it("adds the cut-out to the price when the Project has a website", async () => {
+    projectFindUniqueMock.mockResolvedValue({
+      websiteUrl: "https://sokosumi.com",
+    });
+
+    // 9 s of cut-out at about a cent a second on top.
+    expect((await request()).credits).toBe(56);
   });
 
   it("refuses an unknown presenter and passes the owner's photo on", async () => {

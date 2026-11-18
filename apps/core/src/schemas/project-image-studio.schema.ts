@@ -117,6 +117,8 @@ export const imageStudioTalkingVideoSchema = z
     voice: z.string(),
     presenterId: z.string().nullable(),
     languageCode: z.string(),
+    /** The middle of the video shows the Project's website. */
+    siteShots: z.boolean(),
   })
   .openapi("ProjectTalkingVideo");
 
@@ -438,6 +440,12 @@ export const createTalkingVideoJobRequestSchema = z
         consent: z.literal(true),
       }),
     ]),
+    /**
+     * Show the Project's website behind the presenter in the middle of the
+     * video. Omitted, it is shown when the Project has a website; it never is
+     * when the Project has none.
+     */
+    siteShots: z.boolean().optional(),
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectTalkingVideoJobRequest");
@@ -591,6 +599,8 @@ const talkingVideoPriceSchema = z.object({
   voicePer1000CharactersUsd: z.number(),
   /** USD per minute of video, for the captions. */
   captionsPerMinuteUsd: z.number(),
+  /** USD per second of video, for cutting the presenter out over the site. */
+  cutoutPerSecondUsd: z.number(),
   basis: z.string(),
   sourceUrl: z.string(),
   verifiedAt: z.string(),
