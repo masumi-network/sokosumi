@@ -146,6 +146,70 @@ describe("runTurnLoop", () => {
     expect(model.doStreamCalls).toHaveLength(1);
   });
 
+  it("reports each step's reasoning summary as the step ends", async () => {
+    let call = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async () => {
+        call += 1;
+        const reasoning: StreamPart[] = [
+          { type: "reasoning-start", id: "r" },
+          { type: "reasoning-delta", id: "r", delta: ` Thought ${call}. ` },
+          { type: "reasoning-end", id: "r" },
+          { type: "reasoning-start", id: "r2" },
+          { type: "reasoning-delta", id: "r2", delta: "Next." },
+          { type: "reasoning-end", id: "r2" },
+        ];
+        const answer = streamOf(
+          call === 1
+            ? {
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: "call_1",
+                    toolName: "work",
+                    input: "{}",
+                  },
+                ],
+                finishReason: { unified: "tool-calls", raw: "tool_calls" },
+                warnings: [],
+                usage,
+              }
+            : {
+                content: [{ type: "text", text: "Done." }],
+                finishReason: { unified: "stop", raw: "stop" },
+                warnings: [],
+                usage,
+              },
+        );
+        const parts: StreamPart[] = [];
+        for await (const part of answer.stream) parts.push(part);
+        return {
+          stream: simulateReadableStream({ chunks: [...reasoning, ...parts] }),
+        };
+      },
+    });
+    const told: string[] = [];
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "hi",
+      tools,
+      maxSteps: 50,
+      background: false,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      onReasoning: async (summary) => {
+        told.push(summary);
+      },
+      now: () => 0,
+    });
+
+    expect(result.text).toBe("Done.");
+    // One paragraph per summary part, not run together.
+    expect(told).toEqual(["Thought 1.\n\nNext.", "Thought 2.\n\nNext."]);
+  });
+
   it("ends on the step whose tool said so, without a closing step", async () => {
     const clock = { now: 0 };
     const model = new MockLanguageModelV3({

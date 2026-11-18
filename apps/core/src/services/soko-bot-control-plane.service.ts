@@ -106,6 +106,7 @@ import {
   evaluationEvidence,
   withEvaluationActor,
 } from "@/lib/soko-bot/evaluation-dispatch";
+import { safeEventText, safeReasoningSummary } from "@/lib/soko-bot/event-text";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import {
   capturePreference,
@@ -450,27 +451,9 @@ function addTurnUsage(
   };
 }
 
-const EVENT_TEXT_LIMIT = 800;
-const REASONING_TEXT_LIMIT = 4_000;
 const EVENT_INPUT_LIMIT = 1_200;
 /** A sandbox tool's output: enough to show every search result's source. */
 const EVENT_OUTPUT_LIMIT = 8_000;
-
-/** Model-authored text, bounded and secret-scrubbed, for the owner's explain view. */
-function safeEventText(
-  value: unknown,
-  limit = EVENT_TEXT_LIMIT,
-): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.replaceAll("\u0000", "").trim();
-  if (!trimmed) return null;
-  const scrubbed = redactSokoBotSensitiveText(trimmed);
-  // A cut inside an emoji leaves half of it; Postgres refused that and the
-  // turn never settled ("invalid input syntax for type json").
-  return (
-    scrubbed.length > limit ? `${scrubbed.slice(0, limit - 1)}…` : scrubbed
-  ).toWellFormed();
-}
 
 function safeEventJson(
   value: unknown,
@@ -511,13 +494,12 @@ export function safeEventProjection(
   data: Record<string, unknown>,
 ) {
   if (type === "reasoning.completed") {
-    // A provider reasoning summary; the chat shows it as the bot's Thought,
-    // so it keeps more than a one-line event summary.
-    const text = safeEventText(
-      data.text ?? data.reasoning ?? data.message,
-      REASONING_TEXT_LIMIT,
-    );
-    return { summary: text ?? "Reasoning update", payload: undefined };
+    // The chat shows it as the bot's Thought, so it keeps more than a
+    // one-line event summary.
+    return {
+      summary: safeReasoningSummary(data) ?? "Reasoning update",
+      payload: undefined,
+    };
   }
   if (type.startsWith("reasoning.")) {
     return { summary: "Reasoning update", payload: undefined };
@@ -3410,7 +3392,8 @@ export class SokoBotControlPlane {
           eventWasNew &&
           turn.chatResponseMessageId &&
           (indexed.event.type === "actions.requested" ||
-            indexed.event.type === "action.result")
+            indexed.event.type === "action.result" ||
+            indexed.event.type === "reasoning.completed")
         ) {
           const { publishSokoBotChatProgress } = await import(
             "@/services/soko-bot-chat.service"

@@ -99,8 +99,8 @@ export function SiteGallery({ media }: { media: CmoBrandMedia }) {
         </ul>
       ) : null}
       <p className="note">
-        Saved to the Project's files in Sokosumi, under Brand research, for your
-        whole team. {AGENT_NAME} uses them in your posts.
+        Saved to your files, under Brand research, for your whole team.{" "}
+        {AGENT_NAME} uses them in your posts.
       </p>
     </div>
   );
