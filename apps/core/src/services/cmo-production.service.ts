@@ -17,6 +17,7 @@ import {
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import {
@@ -457,6 +458,8 @@ async function startProductionRun(
             started.reconciliationLeaseToken,
           )
           .catch((error: unknown) => {
+            if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+              return;
             // A turn's error can quote its prompt, so only its name and code.
             emitCoreWarning(
               {

@@ -111,11 +111,11 @@ export interface SokoBotTurnStartResult {
   capabilities: readonly SokoBotCapability[];
   duplicate: boolean;
   errorKind?: string | null;
-  reconciliationLeaseToken?: string;
   /**
-   * A duplicate that this call acknowledged itself: it resumed or recovered
-   * the start, or its acknowledgement committed and only the response was
-   * lost. It owns the turn's drain, unlike a duplicate that only observed.
+   * The lease this call owns after committing its acknowledgement. If the
+   * acknowledgement response was lost, a CAS proves the commit and renews
+   * the lease. A duplicate can receive it when this call claimed and
+   * acknowledged the start itself. A read of an existing row carries no grant.
    */
-  acknowledgedByCaller?: true;
+  reconciliationLeaseToken?: string;
 }
