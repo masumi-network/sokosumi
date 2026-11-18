@@ -262,7 +262,13 @@ describe("isBigMove", () => {
     ["a price change", [signal({})], true],
     [
       "a launch in the news",
-      [signal({ kind: "NEWS", summary: "Calendly launched an AI notetaker" })],
+      [
+        signal({
+          kind: "NEWS",
+          summary: "Calendly launched an AI notetaker",
+          raw: { event: "launch" },
+        }),
+      ],
       true,
     ],
     [
@@ -286,8 +292,25 @@ describe("isBigMove", () => {
       false,
     ],
     [
-      "an event in the news",
-      [signal({ kind: "NEWS", summary: "Stumptown hosts a tasting in LA" })],
+      "a plan ending in the news",
+      [
+        signal({
+          kind: "NEWS",
+          summary: "Doodle ends its Pro plan",
+          raw: { event: "pricing" },
+        }),
+      ],
+      true,
+    ],
+    [
+      "a campaign someone launched",
+      [
+        signal({
+          kind: "NEWS",
+          summary: "Stumptown launched a voter campaign",
+          raw: { event: "campaign" },
+        }),
+      ],
       false,
     ],
     [
@@ -305,10 +328,21 @@ describe("moveRank", () => {
     const launch = signal({
       kind: "NEWS",
       summary: "Zcal launched team pages",
+      raw: { event: "launch" },
     });
     const ads = signal({ kind: "AD", summary: "5 new ads", raw: { count: 5 } });
     expect(moveRank([launch, signal({})])).toBe(0);
     expect(moveRank([ads, launch])).toBe(1);
+    expect(
+      moveRank([
+        launch,
+        signal({
+          kind: "NEWS",
+          summary: "Zcal ends Pro",
+          raw: { event: "pricing" },
+        }),
+      ]),
+    ).toBe(0);
     expect(moveRank([ads])).toBe(2);
     expect(
       moveRank([signal({ kind: "SOCIAL", summary: "3 posts" })]),

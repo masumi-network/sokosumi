@@ -110,6 +110,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     brandMedia: null,
     brandBrainConfirmedAt: null,
     projectLogo: null,
+    presenterSet: false,
     onboardingStep: "done",
     routines: [
       {
