@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { seoUrlSchema } from "@/schemas/project-seo.schema";
 import {
+  importedSeoForumQuestions,
   SEO_STRATEGY_DRAFT_MAX_LENGTH,
   SEO_STRATEGY_PLACES_NOTES_MAX,
   SEO_STRATEGY_TEXT_MAX_LENGTH,
@@ -49,6 +50,7 @@ const source = z.object({
         reach: z.string(),
         position: count,
         forums: z.boolean().optional().catch(undefined),
+        forumQuestions: importedSeoForumQuestions.optional().catch(undefined),
       }),
     ),
     actions: z
@@ -214,12 +216,18 @@ export function publicSeoStrategy(
       sumBuckets(missingDemandByIntent) === missingTotal && {
         missingDemandByIntent,
       }),
-    groups: groups.map(({ page, forums, ...group }) => ({
+    groups: groups.map(({ page, forums, forumQuestions, ...group }) => ({
       ...group,
       ...(forums !== undefined &&
         verifiedPages.get(page ?? START_PAGE) && { forums }),
+      ...(forums &&
+        forumQuestions?.length &&
+        verifiedPages.has(page ?? START_PAGE) && { forumQuestions }),
       // The worker leaves the page number out when only the start page has keywords.
-      pageUrl: pages.get(page ?? START_PAGE) ?? null,
+      pageUrl:
+        verifiedPages.get(page ?? START_PAGE) ??
+        pages.get(page ?? START_PAGE) ??
+        null,
     })),
     actions: actions.map(
       ({ whatToExpect, targets, place, draft, ...action }) => {

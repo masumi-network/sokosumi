@@ -210,3 +210,36 @@ it("uses comparable landing sessions for a traffic objective without assigning k
     ]),
   });
 });
+
+it("uses matching named events across comparable sales pages and never treats generic key events as purchases", () => {
+  const content = {
+    ...brief,
+    pages: brief.pages.map((p) => ({
+      ...p,
+      role: "product" as const,
+      action: "buy" as const,
+    })),
+  };
+  const aggregate = new Map([
+    [
+      priceId,
+      { sessions: 5, keyEvents: 1, from: "2026-08-01", to: "2026-08-28" },
+    ],
+    [
+      supportId,
+      { sessions: 5, keyEvents: 99, from: "2026-08-01", to: "2026-08-28" },
+    ],
+  ]);
+  expect(briefPriorities(content, [], aggregate)[0].pageId).toBe(priceId);
+  const sales = new Map([
+    [priceId, { selection: "same purchase period", count: 2 }],
+    [supportId, { selection: "same purchase period", count: 4 }],
+  ]);
+  expect(briefPriorities(content, [], aggregate, sales)[0].pageId).toBe(
+    supportId,
+  );
+  sales.set(supportId, { selection: "different period", count: 50 });
+  expect(briefPriorities(content, [], aggregate, sales)[0].pageId).toBe(
+    priceId,
+  );
+});

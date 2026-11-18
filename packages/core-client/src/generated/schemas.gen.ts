@@ -44789,6 +44789,29 @@ export const ProjectSeoStrategySchema = {
                     },
                     forums: {
                         type: 'boolean'
+                    },
+                    forumQuestions: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                title: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 300,
+                                    pattern: '[?？؟]/u'
+                                },
+                                url: {
+                                    type: 'string',
+                                    maxLength: 4096,
+                                    format: 'uri'
+                                }
+                            },
+                            required: [
+                                'title'
+                            ]
+                        },
+                        maxItems: 5
                     }
                 },
                 required: [
@@ -46713,6 +46736,106 @@ export const SeoAuditBriefSchema = {
                             'null'
                         ],
                         format: 'date-time'
+                    },
+                    outcomes: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                event: {
+                                    type: 'string',
+                                    enum: [
+                                        'purchase',
+                                        'sign_up'
+                                    ]
+                                },
+                                latest: {
+                                    type: 'object',
+                                    properties: {
+                                        from: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                        },
+                                        to: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                        },
+                                        count: {
+                                            type: 'integer',
+                                            minimum: 0
+                                        }
+                                    },
+                                    required: [
+                                        'from',
+                                        'to',
+                                        'count'
+                                    ],
+                                    additionalProperties: false
+                                },
+                                comparison: {
+                                    type: 'object',
+                                    properties: {
+                                        before: {
+                                            type: 'object',
+                                            properties: {
+                                                from: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                to: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                count: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'from',
+                                                'to',
+                                                'count'
+                                            ],
+                                            additionalProperties: false
+                                        },
+                                        after: {
+                                            type: 'object',
+                                            properties: {
+                                                from: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                to: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                                },
+                                                count: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'from',
+                                                'to',
+                                                'count'
+                                            ],
+                                            additionalProperties: false
+                                        }
+                                    },
+                                    required: [
+                                        'before',
+                                        'after'
+                                    ],
+                                    additionalProperties: false
+                                }
+                            },
+                            required: [
+                                'event',
+                                'latest'
+                            ],
+                            additionalProperties: false
+                        },
+                        maxItems: 2
                     },
                     status: {
                         type: 'string',

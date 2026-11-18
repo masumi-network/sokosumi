@@ -25,6 +25,7 @@ import {
   briefLandingEvidence,
   briefPriorities,
 } from "./seo-audit-brief-priorities";
+import { briefNamedOutcomes } from "./seo-brief-landing-outcomes";
 import { suggestSeoPageAction } from "./seo-brief-suggestion";
 
 const BRIEF_KIND = "audit_brief";
@@ -76,16 +77,23 @@ async function briefResponse(
         select: { id: true, url: true },
       })
     : [];
-  const [followUps, evidence] = await Promise.all([
+  const [indexFollowUps, evidence] = await Promise.all([
     loadBriefFollowUps(actor, content, pages, client),
     briefLandingEvidence(actor, pages, client),
   ]);
+  const { followUps, sales } = await briefNamedOutcomes(
+    actor,
+    pages,
+    content.pages,
+    indexFollowUps,
+    client,
+  );
   return {
     ...content,
     revision: row?.scopeVersion ?? 0,
     updatedAt: row?.createdAt.toISOString() ?? null,
     followUps,
-    priorities: briefPriorities(content, followUps, evidence),
+    priorities: briefPriorities(content, followUps, evidence, sales),
   };
 }
 

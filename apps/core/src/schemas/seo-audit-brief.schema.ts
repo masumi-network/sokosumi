@@ -3,6 +3,11 @@ import { SEO_MAX_PAGES, seoBriefAction, seoIdSchema } from "./seo-page.schema";
 
 export { seoBriefAction } from "./seo-page.schema";
 
+import {
+  seoBriefOutcome,
+  seoLandingEvents,
+} from "./seo-landing-outcomes.schema";
+
 export const seoBriefObjective = z.enum(["sales", "traffic", "support"]);
 export const seoBriefPageRole = z.enum([
   "guide",
@@ -54,6 +59,7 @@ const followUp = z.strictObject({
   pageId: seoIdSchema,
   changedAt: z.iso.datetime().nullable(),
   lastCrawlAt: z.iso.datetime().nullable(),
+  outcomes: z.array(seoBriefOutcome).max(seoLandingEvents.length).optional(),
   status: z.enum(["awaiting_recrawl", "recrawled", "unknown"]),
   indexReview: z.enum([
     "expected_exclusion",
