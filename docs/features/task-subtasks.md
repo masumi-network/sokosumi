@@ -1,6 +1,7 @@
 # Task sub-tasks
 
-Task: SOKD-279. Status: design, not implemented.
+Task: SOKD-279. Status: implemented on branch `sokd-279-task-subtasks`. The
+section "As built" at the end lists where the code differs from this design.
 
 A sub-task is an ordered step inside a Task. It is a full Task row: it has a
 description, an assignee of any kind, a due date, runs, comments, and its own
@@ -232,6 +233,84 @@ Extend the existing tools. No new tool names.
   reopen comment rule with and without an agent assignee.
 - Web unit tests for `task-subtask-order.ts`.
 - Web component test for keyboard reorder and the reopen dialog branch.
+
+## As built
+
+CORRECTION, VERIFIED in code on `sokd-279-task-subtasks`: the build differs
+from the design above in these places. The design text above is kept as it
+was approved.
+
+Core:
+
+- `POST /v1/tasks/{id}/move` takes `{ afterTaskId: string | null }` only.
+  `null` moves the sub-task first. There is no `beforeTaskId`. The position
+  helpers are `subtaskPositionAfter` and `newSubtaskPosition` in
+  `apps/core/src/helpers/task-subtasks.ts`, not a new
+  `task-subtask-position.ts`.
+- A sub-task created through `POST /v1/tasks` has its context attachments off
+  by default, because the parent carries them (`post.ts:231`).
+- `GET /v1/tasks?parentTaskId=X` skips the human owner-scope filter, so a
+  teammate's sub-tasks list under a shared parent (`get.ts:434`). Workspace
+  read access still applies.
+- Archive and the event actor live in new modules:
+  `services/task-domain-archive.ts` and `services/task-domain-event-actor.ts`.
+
+Read surfaces. The design table was wrong for two rows. Only `GET /v1/tasks`
+without `parentTaskId` or `includeSubtasks` excludes sub-tasks
+(`get.ts:302`). `tasks/summary`, the project task count, and the project
+status breakdown include them. INFERRED: `parentTaskId: null` appears in no
+other non-test file under `apps/core/src`. The Needs-you list therefore asks for
+`includeSubtasks: "true"` (`apps/web/src/queries/needs-you-tasks.ts:49`), so
+it still matches the summary count. There is no shared `ROOT_TASK_FILTER`.
+
+Reopen rule:
+
+- The INPUT_REQUIRED answer path exists already: a person moves the Task to
+  READY with a comment. The comment is required because the Task has an agent
+  assignee. No new answer path was added.
+- Core parks a silently reopened Task only in the person `PATCH
+  /v1/tasks/{id}` path (`patch.ts:342`). A Soko Bot `assign_task` call does not
+  park it. Follow-up.
+- Dialog body: "Reopening moves it to Ready, and {assignee} starts a new run.
+  Tell {assignee} what to do." The text no longer says "{assignee} finished
+  this", so it also fits an INPUT_REQUIRED Task. Without a Draft option the
+  secondary button is "Not now".
+- The board drop opens the dialog without "Reopen as Draft", because the person
+  dropped the card on the Ready column.
+- The done-checkbox hint is a tooltip: "Unchecking sends it back to
+  {assignee}".
+
+Web:
+
+- No `task-subtask-order.ts`. Reorder uses the existing
+  `lib/utils/move-id.ts` `moveIdToSlot`, and the pure `applySubtaskChange` in
+  `use-task-subtasks.ts` holds the optimistic state. The drag pattern is
+  `components/chat/pinned-rooms-dnd.tsx`.
+- Keyboard: Arrow Up and Down on a row's drag handle move the row. Alt+Up and
+  Alt+Down move it from anywhere in the row. Focus returns to the handle.
+  Space toggles the focused checkbox, and Enter opens the focused name link,
+  as native controls do. Plain arrows do not move focus between rows.
+- The checklist covers toggle, add, and reorder. Rename, delete, and
+  assignment happen on the sub-task's own page.
+- The admin Task view does not render the checklist.
+- Not built: the "Sub-task of {identifier}" label in lists that include
+  sub-tasks. The detail page shows the ancestor trail instead.
+
+CLI:
+
+- The handlers stay in `tasks.ts` (616 lines), not a new file.
+- `tasks move ID --after ID | --first`, not `--before`.
+- `tasks list --parent ID` lists one Task's sub-tasks, like `tasks subtasks
+  ID`.
+
+Soko Bot:
+
+- `list_tasks` rows carry `parentTaskId` for a sub-task.
+- The eval case is in `packages/soko-bot/src/scenario-subtasks.ts`, spread
+  into `SOKO_BOT_SCENARIOS`.
+- The adoption service is now `soko-bot-spawned-task-adoption.service.ts`. Its
+  stored `toolCallId` prefix `subtask:` and action `follow_subtask` keep their
+  values, because existing rows use them.
 
 ## Least confident decisions
 
