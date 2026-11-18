@@ -161,8 +161,9 @@ function priceFeed(w: World, text: string): SaveCompetitorFeedInput {
       {
         competitorId: w.calendly,
         facts: [{ text, signalIds: [w.price], support: "strong" }],
-        meaning: "Our Teams plan is now the cheaper one for small teams.",
-        move: "Lead next week's LinkedIn posts with the price per seat.",
+        meaning:
+          "Calendly's price rise makes our Teams plan the cheaper one for small teams.",
+        move: "Lead the pricing page with the price per seat next week.",
       },
     ],
     openQuestions: [],
@@ -267,7 +268,7 @@ describe.skipIf(!enabled)(
                 },
               ],
               meaning: "Teams can compare our booking pages with Zcal's.",
-              move: "Post our team page on LinkedIn on Tuesday.",
+              move: "Put our team page on the homepage on Tuesday.",
             },
             ...priceFeed(
               w,
@@ -309,10 +310,36 @@ describe.skipIf(!enabled)(
           "**Calendly**",
           "Calendly raised Standard from $10 to $12 per seat.",
           '> "$12 per seat/month" [Source](https://example.com/source), example.com, 2026-11-15',
-          "**What this means for you:** Our Teams plan is now the cheaper one for small teams.",
-          "**Suggested move:** Lead next week's LinkedIn posts with the price per seat.",
+          "**What this means for you:** Calendly's price rise makes our Teams plan the cheaper one for small teams.",
+          "**Suggested move:** Lead the pricing page with the price per seat next week.",
         ].join("\n\n"),
       );
+    });
+
+    it("refuses a meaning that fits any move and a post on a network that is not connected", async () => {
+      const w = await world();
+      const feed = priceFeed(w, "Calendly raised Standard from $10 to $12.");
+      const [item] = feed.items;
+      if (!item) throw new Error("no item");
+      item.meaning = "The strategy's posts can explain pricing to teams.";
+      item.move = "Post on LinkedIn on Tuesday: the price per seat.";
+
+      await expect(
+        saveCusoCompetitorFeed({
+          projectId: w.cuso.projectId,
+          sokoBotId: w.cuso.sokoBotId,
+          turnId: null,
+          feed,
+          now: NOW,
+        }),
+      ).rejects.toThrow(
+        /would fit any move[\s\S]*LinkedIn, which is not connected/,
+      );
+      expect(
+        await prisma.competitorFeed.count({
+          where: { projectId: w.cuso.projectId },
+        }),
+      ).toBe(0);
     });
 
     it("posts nothing for a week without big moves", async () => {
@@ -332,8 +359,9 @@ describe.skipIf(!enabled)(
                   support: "weak",
                 },
               ],
-              meaning: "Teams can compare booking pages.",
-              move: "Post our team page on LinkedIn on Tuesday.",
+              meaning:
+                "Zcal's team pages give teams a second booking page to compare.",
+              move: "Put our team page on the homepage on Tuesday.",
             },
           ],
           openQuestions: [],
@@ -438,7 +466,7 @@ describe.skipIf(!enabled)(
           projectId: w.cuso.projectId,
           patch: true,
           note: expect.stringContaining(
-            "Move to add: Lead next week's LinkedIn posts with the price per seat.",
+            "Move to add: Lead the pricing page with the price per seat next week.",
           ),
         }),
       );
@@ -467,8 +495,9 @@ describe.skipIf(!enabled)(
           checkedOn: "2026-11-16",
           competitor: "Calendly",
           happened: "Calendly raised Standard from $10 to $12 per seat.",
-          meaning: "Our Teams plan is now the cheaper one for small teams.",
-          move: "Lead next week's LinkedIn posts with the price per seat.",
+          meaning:
+            "Calendly's price rise makes our Teams plan the cheaper one for small teams.",
+          move: "Lead the pricing page with the price per seat next week.",
         },
       ]);
     });

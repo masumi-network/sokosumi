@@ -105,6 +105,7 @@ import {
   keepCalendarWork,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
+  requireCmoStrategyFitted,
   saveCmoStrategy,
   setCmoAdBudget,
   startCmoPlanAfterResearch,
@@ -252,7 +253,9 @@ describe("requestCmoStrategy", () => {
     expect(detectSiteLanguage).not.toHaveBeenCalled();
     const message = JSON.stringify(startTurn.mock.lastCall);
     expect(message).toContain("set contentLanguage to English");
-    expect(message).toContain("This sets only contentLanguage");
+    expect(message).toContain(
+      "Every piece is in it, from its calendar title, brief and story",
+    );
     expect(message).toContain(
       "Write acme.io's marketing strategy for the four weeks",
     );
@@ -1607,6 +1610,34 @@ describe("changes after the plan", () => {
       clientTurnId: expect.stringMatching(/:patch:/),
     });
     expect(message()).toContain("EUR 300");
+  });
+
+  it("refuses to approve a strategy that still shows an answer the owner said no to", async () => {
+    const question = {
+      id: "q1",
+      question: "Can you spend about $300 on ads?",
+      statement: "Acme spends $300 a month on ads",
+    };
+    const unfitted = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "no" }],
+    });
+    await expect(requireCmoStrategyFitted(HIRE, unfitted.id)).rejects.toThrow(
+      "Update the strategy first",
+    );
+
+    // Cuso fitted it (his changes are listed), or nothing was a no.
+    const fitted = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "no" }],
+      changes: ["Removed Google Ads"],
+    });
+    const confirmed = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "yes" }],
+    });
+    await requireCmoStrategyFitted(HIRE, fitted.id);
+    await requireCmoStrategyFitted(HIRE, confirmed.id);
   });
 
   it("refuses a patch while the plan is still being written", async () => {

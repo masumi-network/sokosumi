@@ -8,6 +8,14 @@ Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies. Core
 - **The OAuth provider re-runs the hooks.** Once a sign-in sets the session cookie during an OAuth request, `@better-auth/oauth-provider` resumes `/oauth2/authorize` through every before and after hook, with `newSession` still set. A hook that reads `newSession` must expect that resumed call, and a hook that sets the session cookie must skip `/oauth2/authorize`, or the provider resumes again without end and the sign-in never answers.
 - **Test the whole hook chain.** OAuth provider tests wire `afterNewSession` (the ordered after hook), never a single step: a test with one helper misses the resume loop. On a preview the loop shows as an endless spinner with only the CORS preflight in Core's logs and no client callback.
 
+## Auth rate limits
+
+Better Auth uses Redis for per-IP, per-endpoint counters. An atomic increment starts the endpoint's fixed window on the first request. A denied request reports the full window in `X-Retry-After`. Sessions and verification values use PostgreSQL.
+
+Auth, chat read budgets, and newsletter limits share a Redis client with a 250 ms command timeout and offline queuing disabled. If commands are pending and the socket receives no data for 1 second, the client closes the socket and flushes its command queue. Requests fail open while that client is connecting, including on a cold start. Core sets `rateLimit.failOpen` and records the cause on the request's wide event. Each Redis client warns once for its first startup error and re-arms the warning every time it becomes ready. The edge auth flood guard provides the first layer of throttling in production.
+
+Follow-up for the 2026-11-08 incident (SOKOSUMI-CORE-4Y). Drop the Prisma `RateLimit` model and table in a separate migration after all deployments and their rollback targets have stopped using the table.
+
 ## Session cookie cache
 
 - **A Core write to a session field does not reach the UI at once.** Core caches the session in a cookie for `BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE` (5 minutes by default), and a Prisma write such as `PATCH /v1/users/{id}/preferences` does not refresh that cookie. The route returns 200, but `useSession()` keeps the old value until the cache expires. For a change the UI must show now, write with `authClient.updateUser`, or switch the active organization with `auth.api.setActiveOrganization`.

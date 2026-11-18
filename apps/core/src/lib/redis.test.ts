@@ -1,4 +1,7 @@
+import { EventEmitter } from "node:events";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { causeMessage, expectCoreLog } from "@/test/core-log";
 
 const { getEnvMock, redisCtor } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
@@ -10,9 +13,10 @@ vi.mock("@/config/env", () => ({
 }));
 
 vi.mock("ioredis", () => ({
-  default: class Redis {
-    constructor(url: string) {
-      redisCtor(url);
+  default: class Redis extends EventEmitter {
+    constructor(...args: unknown[]) {
+      super();
+      redisCtor(...args);
     }
   },
 }));
@@ -75,4 +79,55 @@ describe("getRedisClient", () => {
     expect(getRedisClient()).not.toBeNull();
     expect(redisCtor).toHaveBeenCalledWith("redis://primary");
   });
+
+  it("keeps a separate Redis client for rate limits and bounds its commands", async () => {
+    getEnvMock.mockReturnValue({ REDIS_URL: "redis://primary" });
+    const { getRedisClient, getRedisRateLimitClient } = await import("./redis");
+
+    const shared = getRedisClient();
+    const rateLimit = getRedisRateLimitClient();
+    expect(rateLimit).not.toBe(shared);
+    expect(getRedisRateLimitClient()).toBe(rateLimit);
+    expect(redisCtor).toHaveBeenCalledTimes(2);
+    expect(redisCtor).toHaveBeenNthCalledWith(1, "redis://primary");
+    expect(redisCtor).toHaveBeenNthCalledWith(2, "redis://primary", {
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 0,
+      autoResendUnfulfilledCommands: false,
+      commandTimeout: 250,
+      socketTimeout: 1_000,
+    });
+  });
+
+  it.each(["shared", "rate_limit"] as const)(
+    "warns once on startup failures and once after each ready-to-error transition for the %s client",
+    async (purpose) => {
+      getEnvMock.mockReturnValue({ REDIS_URL: "redis://primary" });
+      const warnings = expectCoreLog("warn", "Redis connection failed", 3);
+      const { getRedisClient, getRedisRateLimitClient } = await import(
+        "./redis"
+      );
+      const client =
+        purpose === "shared" ? getRedisClient() : getRedisRateLimitClient();
+      expect(client).not.toBeNull();
+      client?.emit("error", new Error("initial connection failed"));
+      client?.emit("error", new Error("initial reconnect failed"));
+      client?.emit("ready");
+      client?.emit("error", new Error("first connection lost"));
+      client?.emit("error", new Error("reconnect failed"));
+      client?.emit("ready");
+      client?.emit("error", new Error("second connection lost"));
+
+      expect(warnings.map((warning) => causeMessage(warning.cause))).toEqual([
+        "initial connection failed",
+        "first connection lost",
+        "second connection lost",
+      ]);
+      expect(warnings.map((warning) => warning.event.redis)).toEqual([
+        { purpose },
+        { purpose },
+        { purpose },
+      ]);
+    },
+  );
 });
