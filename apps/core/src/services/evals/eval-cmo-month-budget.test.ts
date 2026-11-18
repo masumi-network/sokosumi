@@ -148,7 +148,6 @@ describe("monthly eval hard-budget guard", () => {
         where: {
           sokoBotId: lane.cusoBotId,
           source: "EVENT",
-          createdAt: { gte: startedAt },
           clientTurnId: { startsWith: productionPrefix },
         },
       }),
@@ -217,7 +216,6 @@ describe("monthly eval hard-budget guard", () => {
       expect.objectContaining({
         where: {
           sokoBotId: lane.cusoBotId,
-          createdAt: { gte: startedAt },
           parentTurnId: { in: ["root"] },
         },
       }),
@@ -227,7 +225,6 @@ describe("monthly eval hard-budget guard", () => {
       expect.objectContaining({
         where: {
           sokoBotId: lane.cusoBotId,
-          createdAt: { gte: startedAt },
           parentTurnId: { in: ["watch"] },
         },
       }),

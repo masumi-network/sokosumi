@@ -1,3 +1,4 @@
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -14,17 +15,24 @@ const LEARNING_STALL_MS = 5 * 60 * 1_000;
 
 export type SettledTurnStatus = "running" | "failed" | "done";
 
-async function lastTurnProgressAt(turn: {
-  eveSessionId: string | null;
-  createdAt: Date;
-}): Promise<Date> {
-  if (!turn.eveSessionId) return turn.createdAt;
-  const latest = await prisma.sokoBotRuntimeEvent.findFirst({
-    where: { sessionId: turn.eveSessionId },
-    orderBy: { startIndex: "desc" },
-    select: { occurredAt: true },
-  });
-  return latest?.occurredAt ?? turn.createdAt;
+/**
+ * Milliseconds since the turn's last progress, each on its own clock: a
+ * runtime event's time (the runtime's) against the caller's `now`, the
+ * turn's `createdAt` (PostgreSQL's) against PostgreSQL time.
+ */
+async function msSinceTurnProgress(
+  turn: { eveSessionId: string | null; createdAt: Date },
+  now: Date,
+): Promise<number> {
+  const latest = turn.eveSessionId
+    ? await prisma.sokoBotRuntimeEvent.findFirst({
+        where: { sessionId: turn.eveSessionId },
+        orderBy: { startIndex: "desc" },
+        select: { occurredAt: true },
+      })
+    : null;
+  if (latest) return now.getTime() - latest.occurredAt.getTime();
+  return (await databaseNow()).getTime() - turn.createdAt.getTime();
 }
 
 /**
@@ -52,8 +60,7 @@ export async function settledTurnStatus(
 ): Promise<SettledTurnStatus> {
   if (turn.status === "COMPLETED") return "done";
   if (turn.status === "FAILED" || turn.status === "CANCELLED") return "failed";
-  const progressAt = await lastTurnProgressAt(turn);
-  if (now.getTime() - progressAt.getTime() < LEARNING_STALL_MS) {
+  if ((await msSinceTurnProgress(turn, now)) < LEARNING_STALL_MS) {
     return "running";
   }
   const { sokoBotControlPlane } = await import(
