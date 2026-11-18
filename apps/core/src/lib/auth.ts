@@ -87,6 +87,7 @@ import {
 } from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { pendingEmailChange } from "./auth-pending-email-change";
+import { createAuthRateLimitStorage } from "./auth-rate-limit";
 import { recordSignUpContext } from "./auth-sign-up-context";
 import {
   oauthSignUpOptions,
@@ -346,8 +347,12 @@ export const auth = betterAuth({
     "/change-email",
   ],
   rateLimit: {
-    storage: "database",
+    storage: "secondary-storage",
   },
+  // Sessions already use storeSessionInDatabase. Keep verification values
+  // there too and use secondary storage only for rate-limit counters.
+  verification: { storeInDatabase: true },
+  secondaryStorage: createAuthRateLimitStorage(betterAuthCookiePrefix),
   trustedOrigins: Array.from(
     new Set([
       "https://app.sokosumi.com",
