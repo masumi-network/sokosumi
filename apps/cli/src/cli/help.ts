@@ -252,13 +252,13 @@ Organization Tasks:
   Task ids accept a UUID or a short identifier such as SOK-12.
   Create or update: --name TEXT, --description TEXT or --description-file FILE, --priority URGENT|HIGH|MEDIUM|LOW|NONE,
     --project-id ID, and one assignee: --coworker-id ID or --assignee-user-id ID.
-  tasks create also takes --due YYYY-MM-DD.
+  tasks create and tasks update also take --due YYYY-MM-DD.
   tasks update also takes --unassign and --clear-project to remove the assignee or project.
   Status and progress: tasks comment TASK_ID --status STATUS --comment TEXT
   Links: tasks link TASK_ID --to OTHER_TASK_ID --relation related|blocks|blocked_by|duplicate [--note TEXT]
     The relation describes TASK_ID: --relation blocked_by --to OTHER makes TASK_ID wait on OTHER.
     Parent links are now sub-tasks: use tasks move TASK_ID --parent PARENT_ID, not a link.
-    tasks unlink TASK_ID --to OTHER_TASK_ID [--relation REL] removes a link.
+    tasks unlink TASK_ID --to OTHER_TASK_ID [--relation REL] removes a link, a leftover parent or child link too.
     tasks relink TASK_ID --to OTHER_TASK_ID --relation REL replaces it (deletes, then creates; keeps the note).
   List filters: --status, --search, --project-id ID (or null), --coworker-id, --assignee-user-id, --sort createdAt|updatedAt|priority.
     tasks list fetches every page unless --limit N is set. --sort updatedAt|priority requires --limit.

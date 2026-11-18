@@ -32,6 +32,8 @@ export interface TaskFields {
   assigneeUserId?: string;
   projectId?: string | null;
   priority?: string;
+  /** The day the Task should be done by, YYYY-MM-DD. */
+  dueOn?: string;
 }
 
 interface CreateTaskData extends TaskFields {
@@ -39,8 +41,6 @@ interface CreateTaskData extends TaskFields {
   /** Creates a sub-task of this Task, last unless `afterTaskId` is set. */
   parentTaskId?: string;
   afterTaskId?: string;
-  /** The day the Task should be done by, YYYY-MM-DD. */
-  dueOn?: string;
 }
 
 interface CreateTaskLinkData {
