@@ -44,13 +44,15 @@ import {
 import {
   createTaskFromDescription,
   type TaskContextSelectionInput,
+  type TaskTagSnapshot,
+  type TaskTagWrite,
+  taskTagSnapshot,
 } from "./task-write-input";
 
 export type { TaskContextSelectionInput } from "./task-write-input";
 
-interface CreateTaskParameters extends AuthenticatedRequest {
+interface CreateTaskParameters extends AuthenticatedRequest, TaskTagWrite {
   tagSuggestionReceipt?: string;
-  workspaceTagIds?: string[];
   /** A copy takes this Task's tags in Core instead of being classified. */
   copyOfTaskId?: string;
   name?: string;
@@ -66,8 +68,8 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
-interface UpdateTaskParameters extends AuthenticatedRequest {
-  workspaceTagIds?: string[];
+interface UpdateTaskParameters extends AuthenticatedRequest, TaskTagWrite {
+  expectedWorkspaceTagIds?: string[];
   taskId: string;
   name: string;
   description: string;
@@ -147,10 +149,11 @@ interface DeleteTaskLinkParameters extends AuthenticatedRequest {
   linkId: string;
 }
 
-interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
+interface CreateAndLinkTaskParameters
+  extends AuthenticatedRequest,
+    TaskTagWrite {
   name?: string;
   tagSuggestionReceipt?: string;
-  workspaceTagIds?: string[];
   taskId: string;
   description: string;
   assigneeId: string | null;
@@ -180,6 +183,8 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
     name,
     tagSuggestionReceipt,
     workspaceTagIds,
+    dismissedTopicIds,
+    dismissedWorkspaceTagIds,
     copyOfTaskId,
     description,
     assigneeId,
@@ -198,6 +203,8 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
         description,
         tagSuggestionReceipt,
         workspaceTagIds,
+        dismissedTopicIds,
+        dismissedWorkspaceTagIds,
         copyOfTaskId,
         assigneeId,
         assigneeSokoBotId,
@@ -242,7 +249,10 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
     projectId,
     context,
     desiredStatus,
+    expectedWorkspaceTagIds,
     workspaceTagIds,
+    dismissedTopicIds,
+    dismissedWorkspaceTagIds,
     runAt,
     session,
   }) => {
@@ -268,7 +278,13 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
       const patchedTask = await taskService.patchTask(taskId, {
         name: trimmedName,
         description: trimmedDescription,
-        ...(workspaceTagIds !== undefined ? { workspaceTagIds } : {}),
+        ...(workspaceTagIds !== undefined
+          ? { workspaceTagIds, expectedWorkspaceTagIds }
+          : {}),
+        ...(dismissedTopicIds !== undefined ? { dismissedTopicIds } : {}),
+        ...(dismissedWorkspaceTagIds !== undefined
+          ? { dismissedWorkspaceTagIds }
+          : {}),
         ...resolveAssigneeWrite(assigneeId, assigneeSokoBotId, assigneeUserId),
         ...(typeof normalizedProjectId !== "undefined"
           ? { projectId: normalizedProjectId }
@@ -395,16 +411,19 @@ export const setTaskDueOn = withSession<
 });
 
 export const setTaskWorkspaceTags = withSession<
-  AuthenticatedRequest & { taskId: string; workspaceTagIds: string[] },
-  ActionResultDto<
-    { workspaceTags: NonNullable<Task["workspaceTags"]> },
-    ActionError
-  >
->(async ({ taskId, workspaceTagIds }) => {
+  AuthenticatedRequest &
+    TaskTagWrite & { taskId: string; expectedWorkspaceTagIds?: string[] },
+  ActionResultDto<TaskTagSnapshot, ActionError>
+>(async (input) => {
   try {
-    const task = await taskService.patchTask(taskId, { workspaceTagIds });
+    const task = await taskService.patchTask(input.taskId, {
+      expectedWorkspaceTagIds: input.expectedWorkspaceTagIds,
+      workspaceTagIds: input.workspaceTagIds,
+      dismissedWorkspaceTagIds: input.dismissedWorkspaceTagIds,
+      dismissedTopicIds: input.dismissedTopicIds,
+    });
     revalidateTaskMutationRoutes();
-    return toActionResult(ok({ workspaceTags: task.workspaceTags ?? [] }));
+    return toActionResult(ok(taskTagSnapshot(task)));
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
@@ -580,6 +599,8 @@ export const createTaskAndLink = withSession<
     name,
     tagSuggestionReceipt,
     workspaceTagIds,
+    dismissedTopicIds,
+    dismissedWorkspaceTagIds,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -607,6 +628,8 @@ export const createTaskAndLink = withSession<
         name,
         tagSuggestionReceipt,
         workspaceTagIds,
+        dismissedTopicIds,
+        dismissedWorkspaceTagIds,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,

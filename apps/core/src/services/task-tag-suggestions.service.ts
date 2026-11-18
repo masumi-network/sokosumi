@@ -252,10 +252,11 @@ function draftResponse(evaluation: TaskTagEvaluation, receipt: string) {
     tags: evaluation.tags,
     ...(evaluation.workspaceSuggestions.length > 0 && {
       workspaceSuggestions: evaluation.workspaceSuggestions.map(
-        ({ id, displayName, color, autoApply }) => ({
+        ({ id, displayName, color, customColor, autoApply }) => ({
           id,
           displayName,
           color,
+          customColor,
           autoApply,
         }),
       ),

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { workspaceRepository } from "@sokosumi/database/repositories";
-import { CURATED_FILE_VOCABULARY } from "@sokosumi/utils";
+import { CURATED_FILE_VOCABULARY, TASK_TAG_PRESETS } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { loadTaskTagCatalog } from "./task-tag-catalog";
@@ -63,12 +63,13 @@ describe.skipIf(!enabled)("Task vocabulary in PostgreSQL", () => {
             },
           ],
         });
-        const labels = await loadTaskTagCatalog(home.id, tx, true);
+        const labels = await loadTaskTagCatalog(home.id, tx);
         expect(labels.map((label) => label.displayName).sort()).toEqual(
           [
             ...CURATED_FILE_VOCABULARY.filter(
               (label) => label.kind === "TAG",
             ).map((label) => label.displayName),
+            ...TASK_TAG_PRESETS.map((tag) => tag.displayName),
             custom.displayName,
           ].sort(),
         );
@@ -84,7 +85,7 @@ describe.skipIf(!enabled)("Task vocabulary in PostgreSQL", () => {
           data: { description: "My team's product design rubric" },
         });
         expect(
-          (await loadTaskTagCatalog(home.id, tx, true)).find(
+          (await loadTaskTagCatalog(home.id, tx)).find(
             (label) => label.id === seed.id,
           )?.isUnmodifiedDefault,
         ).toBe(false);

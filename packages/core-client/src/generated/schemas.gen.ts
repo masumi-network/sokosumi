@@ -7493,12 +7493,26 @@ export const TaskSchema = {
                     color: {
                         $ref: '#/components/schemas/TagColor'
                     },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    },
                     source: {
                         type: 'string',
                         enum: [
                             'manual',
                             'jev'
                         ]
+                    },
+                    taskTopicId: {
+                        $ref: '#/components/schemas/TaskTagId'
                     }
                 },
                 required: [
@@ -7521,6 +7535,17 @@ export const TaskSchema = {
                     },
                     color: {
                         $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
                     }
                 },
                 required: [
@@ -18628,6 +18653,17 @@ export const WorkspaceLabelSchema = {
         },
         color: {
             $ref: '#/components/schemas/TagColor'
+        },
+        customColor: {
+            type: [
+                'string',
+                'null'
+            ],
+            minLength: 7,
+            maxLength: 7,
+            pattern: '^#[0-9a-fA-F]{6}$',
+            description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+            example: '#127DA2'
         },
         id: {
             type: 'string'
@@ -58757,12 +58793,26 @@ export const TaskListItemSchema = {
                     color: {
                         $ref: '#/components/schemas/TagColor'
                     },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
+                    },
                     source: {
                         type: 'string',
                         enum: [
                             'manual',
                             'jev'
                         ]
+                    },
+                    taskTopicId: {
+                        $ref: '#/components/schemas/TaskTagId'
                     }
                 },
                 required: [
@@ -58785,6 +58835,17 @@ export const TaskListItemSchema = {
                     },
                     color: {
                         $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
                     }
                 },
                 required: [
@@ -59050,6 +59111,17 @@ export const TaskTagSuggestionSchema = {
                     },
                     color: {
                         $ref: '#/components/schemas/TagColor'
+                    },
+                    customColor: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 7,
+                        maxLength: 7,
+                        pattern: '^#[0-9a-fA-F]{6}$',
+                        description: 'Exact six-digit hex color for the tag. Overrides its named color when present.',
+                        example: '#127DA2'
                     },
                     autoApply: {
                         type: 'boolean'

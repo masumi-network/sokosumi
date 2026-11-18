@@ -551,6 +551,7 @@ async function TaskDetailActionsSlot({
         !forceReadOnly && hasAssignedSeat
           ? {
               name: task.name,
+              tags: task.tags,
               workspaceTags: task.workspaceTags,
               description: task.description
                 ? removeTaskContextAttachmentLinks(task.description)

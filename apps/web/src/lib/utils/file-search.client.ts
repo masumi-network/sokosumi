@@ -19,11 +19,13 @@ import {
   getDriveSearch,
   getDriveShares,
   patchDriveCollectionsById,
+  patchDriveLabelsById,
   patchDriveResourcesByIdMetadata,
   postDriveCollections,
   postDriveLabels,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   putDriveShares,
+  TagColor,
 } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
@@ -168,14 +170,43 @@ export async function fetchWorkspaceLabels(input: {
   return response.data.data;
 }
 
+function workspaceTagColorWrite(color: string | null) {
+  if (color === null) return { color: null };
+  const named = Object.values(TagColor).find((choice) => choice === color);
+  return named ? { color: named } : { customColor: color };
+}
+
 export async function createWorkspaceTag(input: {
+  color?: string | null;
   activeOrganizationId: string | null;
   displayName: string;
 }): Promise<WorkspaceLabel> {
   const store = driveStoreForActiveWorkspace(input.activeOrganizationId);
   const response = await postDriveLabels({
     client: getBrowserCoreClient(),
-    body: { ...storeQuery(store), kind: "TAG", displayName: input.displayName },
+    body: {
+      ...storeQuery(store),
+      kind: "TAG",
+      displayName: input.displayName,
+      ...(input.color ? workspaceTagColorWrite(input.color) : {}),
+    },
+    throwOnError: true,
+  });
+  return response.data.data;
+}
+
+export async function setWorkspaceTagColor(input: {
+  activeOrganizationId: string | null;
+  id: string;
+  color: string | null;
+}): Promise<WorkspaceLabel> {
+  const response = await patchDriveLabelsById({
+    client: getBrowserCoreClient(),
+    path: { id: input.id },
+    body: {
+      ...storeQuery(driveStoreForActiveWorkspace(input.activeOrganizationId)),
+      ...workspaceTagColorWrite(input.color),
+    },
     throwOnError: true,
   });
   return response.data.data;

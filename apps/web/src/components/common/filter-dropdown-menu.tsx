@@ -40,6 +40,7 @@ export interface FilterDropdownMenuOption {
   label: string;
   /** Compact selected value; the full label wraps in the options and appears in a tooltip. */
   shortLabel?: string;
+  mark?: ReactNode;
   avatarLabel?: string;
   image?: string | null;
   useAgentIcon?: boolean;
@@ -433,9 +434,10 @@ function FilterDropdownMenuOptionAvatar({
 }: {
   option: Pick<
     FilterDropdownMenuOption,
-    "avatarLabel" | "image" | "useAgentIcon"
+    "avatarLabel" | "image" | "useAgentIcon" | "mark"
   >;
 }) {
+  if (option.mark) return option.mark;
   if (!option.avatarLabel) {
     return null;
   }

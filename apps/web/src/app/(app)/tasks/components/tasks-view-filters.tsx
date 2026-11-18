@@ -35,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
+import { TaskTagDot } from "./task-tag-colors";
 
 /**
  * Focuses the first visible toolbar button outside the chip list. A removed
@@ -88,12 +89,14 @@ export function TasksViewFilters({
     () => [
       ...Array.from(workspaceTags.data ?? [])
         .sort((a, b) => Number(a.archived) - Number(b.archived))
-        .map(({ id, displayName, archived }) => ({
-          value: id,
-          label: displayName,
-          group: archived ? t("archivedTags") : t("workspaceTags"),
+        .map((tag) => ({
+          mark: <TaskTagDot {...tag} />,
+          value: tag.id,
+          label: tag.displayName,
+          group: tag.archived ? t("archivedTags") : t("workspaceTags"),
         })),
       ...Object.values(TaskTagId).map((id) => ({
+        mark: <TaskTagDot id={id} />,
         value: id,
         label: tTags(`vocabulary.${id}`),
         group: t("topicTags"),
@@ -355,6 +358,12 @@ export function TasksViewFilters({
                 key={chip.id}
                 className="bg-muted text-foreground inline-flex min-w-0 items-center rounded-full ps-3 text-sm"
               >
+                {chip.id === "tag" && filters.tag && (
+                  <span className="me-1.5 flex">
+                    {tagOptions.find((item) => item.value === filters.tag)
+                      ?.mark ?? <TaskTagDot id={filters.tag} />}
+                  </span>
+                )}
                 <span className="truncate">{name}</span>
                 <ChipRemoveButton
                   aria-label={t("removeFilter", { filter: name })}

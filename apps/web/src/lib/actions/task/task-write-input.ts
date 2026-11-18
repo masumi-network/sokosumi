@@ -1,4 +1,4 @@
-import { type Task, TaskStatus } from "@sokosumi/core-client";
+import { type Task, TaskStatus, type TaskTagId } from "@sokosumi/core-client";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeTaskNameForCoreApi } from "@/lib/utils/task-transformer";
 import {
@@ -6,6 +6,24 @@ import {
   resolveAssigneeWrite,
   toCoreTaskContext,
 } from "./task-mutation";
+
+export interface TaskTagWrite {
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
+}
+
+export type TaskTagSnapshot = Required<
+  Pick<Task, "tags" | "workspaceTags" | "workspaceTagSuggestions">
+>;
+
+export function taskTagSnapshot(task: Task): TaskTagSnapshot {
+  return {
+    tags: task.tags ?? { manual: [], automatic: [], rejected: [] },
+    workspaceTags: task.workspaceTags ?? [],
+    workspaceTagSuggestions: task.workspaceTagSuggestions ?? [],
+  };
+}
 
 export interface TaskContextSelectionInput {
   brand: {
@@ -26,22 +44,23 @@ function resolveCreateStatus(
     : requestedStatus;
 }
 
-export async function createTaskFromDescription(input: {
-  tagSuggestionReceipt?: string;
-  workspaceTagIds?: string[];
-  copyOfTaskId?: string;
-  name?: string;
-  description: string;
-  assigneeId: string | null;
-  assigneeSokoBotId?: string | null;
-  assigneeUserId?: string | null;
-  projectId?: string | null;
-  userId: string;
-  context?: TaskContextSelectionInput;
-  status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
-  runAt?: string;
-  visibility?: "PUBLIC" | "PRIVATE";
-}): Promise<Task> {
+export async function createTaskFromDescription(
+  input: TaskTagWrite & {
+    tagSuggestionReceipt?: string;
+    copyOfTaskId?: string;
+    name?: string;
+    description: string;
+    assigneeId: string | null;
+    assigneeSokoBotId?: string | null;
+    assigneeUserId?: string | null;
+    projectId?: string | null;
+    userId: string;
+    context?: TaskContextSelectionInput;
+    status: Extract<TaskStatus, "DRAFT" | "READY" | "QUEUED">;
+    runAt?: string;
+    visibility?: "PUBLIC" | "PRIVATE";
+  },
+): Promise<Task> {
   const trimmedDescription = input.description.trim();
   if (!trimmedDescription) {
     throw new Error("Description required");
@@ -67,6 +86,12 @@ export async function createTaskFromDescription(input: {
       : {}),
     ...(input.workspaceTagIds !== undefined
       ? { workspaceTagIds: input.workspaceTagIds }
+      : {}),
+    ...(input.dismissedTopicIds !== undefined
+      ? { dismissedTopicIds: input.dismissedTopicIds }
+      : {}),
+    ...(input.dismissedWorkspaceTagIds !== undefined
+      ? { dismissedWorkspaceTagIds: input.dismissedWorkspaceTagIds }
       : {}),
     ...(input.copyOfTaskId ? { copyOfTaskId: input.copyOfTaskId } : {}),
     description: trimmedDescription,

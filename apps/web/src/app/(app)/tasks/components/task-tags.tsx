@@ -1,12 +1,11 @@
 "use client";
 
-import type { TaskTags as TaskTagsDto } from "@sokosumi/core-client";
-import { Sparkles } from "lucide-react";
+import type { TaskTagId, TaskTags as TaskTagsDto } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
 import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -14,6 +13,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { setTaskWorkspaceTags } from "@/lib/actions/task/action";
+import type {
+  TaskTagSnapshot,
+  TaskTagWrite,
+} from "@/lib/actions/task/task-write-input";
+import {
+  representedTaskTopics,
+  useTaskTagCatalog,
+  useVisibleTaskTopicIds,
+} from "./task-tag-catalog";
+import { TaskTagBadge, TaskTagRemoveButton } from "./task-tag-colors";
 import { TaskWorkspaceTagPicker } from "./task-workspace-tag-picker";
 
 interface TaskTagsProps {
@@ -21,64 +30,77 @@ interface TaskTagsProps {
   workspaceTags?: TaskWorkspaceTag[];
 }
 
+/**
+ * Rows a user corrected while the original editor existed still show those choices
+ * first, because `mapTaskTags` keeps preferring the stored manual list over the
+ * automatic one. Editors can remove either kind from the saved Task.
+ */
+function useTopicTags(
+  tags: TaskTagsDto | undefined,
+  workspaceTags: TaskWorkspaceTag[],
+  showManual = true,
+) {
+  const t = useTranslations("App.Tasks.Tags");
+  const ids = [
+    ...(showManual ? (tags?.manual ?? []) : []),
+    ...(tags?.automatic ?? []),
+  ];
+  return useVisibleTaskTopicIds(ids, workspaceTags).map((id) => ({
+    id,
+    displayName: t(`vocabulary.${id}`),
+  }));
+}
+
+function renderTagBadge(
+  tag: Pick<
+    TaskWorkspaceTag,
+    "id" | "displayName" | "color" | "customColor" | "taskTopicId"
+  >,
+) {
+  return (
+    <TaskTagBadge
+      id={tag.id}
+      key={tag.id}
+      color={tag.color}
+      customColor={tag.customColor}
+      taskTopicId={tag.taskTopicId}
+    >
+      <span className="truncate">{tag.displayName}</span>
+    </TaskTagBadge>
+  );
+}
+
 export function TaskTags({
   tags,
   workspaceTags = [],
   compact = false,
+  showManualTopics = true,
   inLink = false,
 }: TaskTagsProps & {
   compact?: boolean;
+  showManualTopics?: boolean;
   inLink?: boolean;
 }) {
   const t = useTranslations("App.Tasks.Tags");
-  const badges = [
-    ...workspaceTags.map((tag) => ({
-      key: tag.id,
-      label: tag.displayName,
-      source: "workspace" as const,
-    })),
-    ...(tags?.manual ?? []).map((id) => ({
-      key: id,
-      label: t(`vocabulary.${id}`),
-      source: "manual" as const,
-    })),
-    ...(tags?.automatic ?? []).map((id) => ({
-      key: id,
-      label: t(`vocabulary.${id}`),
-      source: "automatic" as const,
-    })),
-  ];
+  const topics = useTopicTags(tags, workspaceTags, showManualTopics);
+  const badges = [...workspaceTags, ...topics];
   if (!badges.length) return null;
   const visible = badges.slice(0, compact ? 1 : 2);
   const remaining = badges.length - visible.length;
-  function renderBadge(tag: (typeof badges)[number]) {
-    return (
-      <Badge
-        key={tag.key}
-        title={t(tag.source)}
-        variant={tag.source === "workspace" ? "secondary" : "outline"}
-        className="max-w-full gap-1 rounded-sm font-normal"
-      >
-        {tag.source === "automatic" && (
-          <Sparkles className="size-3 shrink-0" aria-hidden />
-        )}
-        <span className="truncate">{tag.label}</span>
-      </Badge>
-    );
-  }
   return (
     <div
+      role="group"
       className="flex min-w-0 flex-wrap items-center gap-1"
       aria-label={t("label")}
     >
-      {visible.map(renderBadge)}
+      {visible.map(renderTagBadge)}
       {remaining > 0 &&
         (inLink ? (
           <span
             className="text-muted-foreground text-xs"
             title={badges
               .slice(visible.length)
-              .map((tag) => tag.label)
+              .map((tag) => tag.displayName)
               .join(", ")}
           >
             +{remaining}
@@ -105,7 +127,7 @@ export function TaskTags({
             >
               <p className="text-sm font-medium">{t("label")}</p>
               <div className="flex flex-wrap gap-1">
-                {badges.map(renderBadge)}
+                {badges.map(renderTagBadge)}
               </div>
             </PopoverContent>
           </Popover>
@@ -114,109 +136,119 @@ export function TaskTags({
   );
 }
 
-/**
- * Read-only. Tags are classified automatically; there is no correction UI. Rows a
- * user corrected while the editor existed still show those choices first, because
- * `mapTaskTags` keeps preferring the stored manual list over the automatic one.
- */
-function ClassifiedTags({ tags }: Pick<TaskTagsProps, "tags">) {
-  const t = useTranslations("App.Tasks.Tags");
-  if (!tags?.manual.length && !tags?.automatic.length) return null;
-  return (
-    <>
-      {tags.manual.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-muted-foreground text-xs font-medium">
-            {t("manual")}
-          </h2>
-          <div className="flex flex-wrap gap-1">
-            {tags.manual.map((id) => (
-              <Badge key={id} variant="outline" title={t("manual")}>
-                {t(`vocabulary.${id}`)}
-              </Badge>
-            ))}
-          </div>
-        </section>
+function TopicBadges({
+  tags,
+  workspaceTags,
+  onRemove,
+  disabled,
+}: {
+  tags?: TaskTagsDto;
+  workspaceTags: TaskWorkspaceTag[];
+  onRemove?: (id: TaskTagId) => void;
+  disabled?: boolean;
+}) {
+  return useTopicTags(tags, workspaceTags).map((topic) => (
+    <TaskTagBadge key={topic.id} id={topic.id}>
+      <span className="truncate">{topic.displayName}</span>
+      {onRemove && (
+        <TaskTagRemoveButton
+          name={topic.displayName}
+          disabled={disabled}
+          onRemove={() => onRemove(topic.id)}
+        />
       )}
-      {tags.automatic.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-muted-foreground text-xs font-medium">
-            {t("autoGeneratedTitle")}
-          </h2>
-          <div className="flex flex-wrap gap-1">
-            {tags.automatic.map((id) => (
-              <Badge key={id} variant="outline" title={t("automatic")}>
-                <Sparkles className="size-3" aria-hidden />
-                {t(`vocabulary.${id}`)}
-              </Badge>
-            ))}
-          </div>
-        </section>
-      )}
-    </>
-  );
+    </TaskTagBadge>
+  ));
 }
 
 export function TaskTagSection({
   tags,
   workspaceTags = [],
+  suggestions = [],
   edit,
 }: TaskTagsProps & {
+  suggestions?: TaskWorkspaceTag[];
   edit?: { taskId: string; activeOrganizationId: string | null };
 }) {
   const t = useTranslations("App.Tasks.Tags");
+
+  if (edit) {
+    return (
+      <EditableWorkspaceTags
+        key={JSON.stringify([edit.taskId, workspaceTags, suggestions, tags])}
+        initialTags={workspaceTags}
+        initialSuggestions={suggestions}
+        topics={tags}
+        {...edit}
+      />
+    );
+  }
+  const hasTags =
+    workspaceTags.length || tags?.manual.length || tags?.automatic.length;
   return (
-    <div className="space-y-4">
-      {edit ? (
-        <EditableWorkspaceTags initialTags={workspaceTags} {...edit} />
-      ) : workspaceTags.length > 0 ? (
-        <section className="space-y-2">
-          <h2 className="text-muted-foreground text-xs font-medium">
-            {t("workspace")}
-          </h2>
-          <div className="flex flex-wrap gap-1">
-            {workspaceTags.map((tag) => (
-              <Badge key={tag.id} variant="secondary">
-                {tag.displayName}
-              </Badge>
-            ))}
-          </div>
-        </section>
-      ) : null}
-      <ClassifiedTags tags={tags} />
-      {!edit &&
-        !workspaceTags.length &&
-        !tags?.manual.length &&
-        !tags?.automatic.length && (
-          <p className="text-muted-foreground text-xs">{t("empty")}</p>
-        )}
-    </div>
+    <section aria-label={t("label")} className="space-y-2">
+      <h2 className="text-muted-foreground text-xs font-medium">
+        {t("label")}
+      </h2>
+      {hasTags ? (
+        <div className="flex flex-wrap items-center gap-1">
+          {workspaceTags.map(renderTagBadge)}
+          <TopicBadges tags={tags} workspaceTags={workspaceTags} />
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-xs">{t("empty")}</p>
+      )}
+    </section>
   );
 }
 
 function EditableWorkspaceTags({
   initialTags,
+  initialSuggestions,
+  topics,
   taskId,
   activeOrganizationId,
 }: {
   initialTags: TaskWorkspaceTag[];
+  initialSuggestions: TaskWorkspaceTag[];
+  topics?: TaskTagsDto;
   taskId: string;
   activeOrganizationId: string | null;
 }) {
   const t = useTranslations("App.Tasks.Tags");
-  const [confirmed, setConfirmed] = useState(initialTags);
-  const [selected, setOptimisticTags] = useOptimistic(confirmed);
+  const catalog = useTaskTagCatalog();
+  const [confirmed, setConfirmed] = useState<TaskTagSnapshot>({
+    workspaceTags: initialTags,
+    workspaceTagSuggestions: initialSuggestions,
+    tags: topics ?? { manual: [], automatic: [], rejected: [] },
+  });
+  const [current, setOptimistic] = useOptimistic(confirmed);
+  const [conflict, setConflict] = useState(false);
   const [saving, startTransition] = useTransition();
-  function handleChange(next: TaskWorkspaceTag[]) {
+  function save(
+    next: TaskTagSnapshot,
+    patch: TaskTagWrite & { expectedWorkspaceTagIds?: string[] },
+  ) {
     startTransition(async () => {
-      setOptimisticTags(next);
+      const dismissed = new Set(patch.dismissedTopicIds);
+      setOptimistic({
+        ...next,
+        tags: {
+          manual: next.tags.manual.filter((id) => !dismissed.has(id)),
+          automatic: next.tags.automatic.filter((id) => !dismissed.has(id)),
+          rejected: [...new Set([...next.tags.rejected, ...dismissed])],
+        },
+      });
       try {
-        const result = await setTaskWorkspaceTags({
-          taskId,
-          workspaceTagIds: next.map((tag) => tag.id),
-        });
+        const result = await setTaskWorkspaceTags({ taskId, ...patch });
         if (result.ok) {
-          setConfirmed(result.value.workspaceTags);
+          setConfirmed(result.value);
+          return;
+        }
+        if (
+          result.error.kind === CORE_API_ERROR_KINDS.TASK_WORKSPACE_TAGS_CHANGED
+        ) {
+          setConflict(true);
           return;
         }
       } catch {
@@ -225,12 +257,71 @@ function EditableWorkspaceTags({
       toast.error(t("saveError"));
     });
   }
+  function handleChange(tags: TaskWorkspaceTag[]) {
+    const ids = new Set(tags.map((tag) => tag.id));
+    const removed = current.workspaceTags.filter((tag) => !ids.has(tag.id));
+    const dismissed = removed
+      .filter((tag) => tag.source === "jev")
+      .map((tag) => tag.id);
+    const removedTopics = representedTaskTopics(catalog, removed);
+    const retainedTopics = representedTaskTopics(catalog, tags);
+    const dismissedTopicIds = [
+      ...current.tags.manual,
+      ...current.tags.automatic,
+    ].filter((id) => removedTopics.has(id) && !retainedTopics.has(id));
+    save(
+      {
+        ...current,
+        workspaceTags: tags,
+        workspaceTagSuggestions: current.workspaceTagSuggestions.filter(
+          (tag) => !ids.has(tag.id),
+        ),
+      },
+      {
+        workspaceTagIds: [...ids],
+        expectedWorkspaceTagIds: current.workspaceTags.map((tag) => tag.id),
+        ...(dismissed.length ? { dismissedWorkspaceTagIds: dismissed } : {}),
+        ...(dismissedTopicIds.length ? { dismissedTopicIds } : {}),
+      },
+    );
+  }
+  function handleDismiss(tag: TaskWorkspaceTag) {
+    save(
+      {
+        ...current,
+        workspaceTagSuggestions: current.workspaceTagSuggestions.filter(
+          (item) => item.id !== tag.id,
+        ),
+      },
+      { dismissedWorkspaceTagIds: [tag.id] },
+    );
+  }
   return (
     <TaskWorkspaceTagPicker
       activeOrganizationId={activeOrganizationId}
-      selected={selected}
+      selected={current.workspaceTags}
+      suggestions={current.workspaceTagSuggestions}
+      onDismissSuggestion={handleDismiss}
       onChange={handleChange}
-      disabled={saving}
-    />
+      disabled={saving || conflict}
+      conflict={
+        conflict
+          ? {
+              taskId,
+              onReload: (snapshot) => {
+                setConfirmed(snapshot);
+                setConflict(false);
+              },
+            }
+          : undefined
+      }
+    >
+      <TopicBadges
+        tags={current.tags}
+        workspaceTags={current.workspaceTags}
+        onRemove={(id) => save(current, { dismissedTopicIds: [id] })}
+        disabled={saving || conflict}
+      />
+    </TaskWorkspaceTagPicker>
   );
 }

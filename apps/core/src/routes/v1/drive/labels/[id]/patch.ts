@@ -211,6 +211,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? { description: body.description ?? null }
           : {}),
         color: body.color,
+        // Older clients can still choose a named color or reset to Automatic.
+        customColor:
+          body.customColor !== undefined
+            ? body.customColor
+            : body.color !== undefined
+              ? null
+              : undefined,
         ...(body.archived !== undefined
           ? { archivedAt: body.archived ? new Date() : null }
           : {}),

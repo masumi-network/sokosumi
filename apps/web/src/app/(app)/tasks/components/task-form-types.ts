@@ -1,5 +1,4 @@
-import { TaskStatus } from "@sokosumi/core-client";
-import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
+import { type Task, TaskStatus, type TaskTagId } from "@sokosumi/core-client";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
   type CreateTaskResult,
@@ -70,8 +69,9 @@ export interface TaskFormLabels {
   privateOtherPeopleHint?: string;
 }
 
-interface TaskFormInitialValues {
-  workspaceTags?: TaskWorkspaceTag[];
+export type TaskFormTagPrefill = Pick<Task, "tags" | "workspaceTags">;
+
+interface TaskFormInitialValues extends TaskFormTagPrefill {
   name?: string;
   description?: string;
   assigneeId?: string | null;
@@ -92,7 +92,9 @@ interface TaskFormInitialValues {
 export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
 
 export interface TaskFormCreateInput {
+  dismissedTopicIds?: TaskTagId[];
   workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
   tagSuggestionReceipt?: string;
   copyOfTaskId?: string;
   name?: string;

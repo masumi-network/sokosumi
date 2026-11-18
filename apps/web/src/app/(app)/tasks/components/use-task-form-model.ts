@@ -26,7 +26,7 @@ import {
 import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { useOSDetection } from "@/hooks/use-os-detection";
-import { useSession } from "@/lib/auth/auth.client";
+import type { useSession } from "@/lib/auth/auth.client";
 import {
   canSelectQueuedTaskStatus,
   TASK_STATUS_DISPLAY_ORDER,
@@ -66,28 +66,30 @@ function getTaskFormStatusLabel(
   );
 }
 
-export function useTaskFormModel({
-  mode,
-  labels,
-  coworkerOptions,
-  agentNameById = EMPTY_AGENT_NAME_MAP,
-  taskId,
-  initialValues,
-  initialDesignMdAttachment,
-  projectOptions,
-  lockProjectSelection = false,
-  defaultProjectId = null,
-  onCancel,
-  onSuccess,
-  onCreated,
-  onCreateAnother,
-  onCreateTask,
-  showCancel = true,
-  onSubmittingChange,
-  onCreatedChange,
-}: TaskFormProps) {
+export function useTaskFormModel(
+  {
+    mode,
+    labels,
+    coworkerOptions,
+    agentNameById = EMPTY_AGENT_NAME_MAP,
+    taskId,
+    initialValues,
+    initialDesignMdAttachment,
+    projectOptions,
+    lockProjectSelection = false,
+    defaultProjectId = null,
+    onCancel,
+    onSuccess,
+    onCreated,
+    onCreateAnother,
+    onCreateTask,
+    showCancel = true,
+    onSubmittingChange,
+    onCreatedChange,
+  }: TaskFormProps,
+  session: ReturnType<typeof useSession>["data"],
+) {
   const router = useRouter();
-  const { data: session } = useSession();
   const canCreatePrivateTask = Boolean(session?.session.activeOrganizationId);
   const tRunAt = useTranslations("App.Tasks.RunAt");
   const tNewTask = useTranslations("App.Tasks.NewTask");
@@ -102,8 +104,6 @@ export function useTaskFormModel({
     mode === "create" ? initialValues?.copyOfTaskId : undefined;
   const isCopy = copyOfTaskId !== undefined;
   const workspaceKey = `${session?.user.id ?? ""}:${session?.session.activeOrganizationId ?? "personal"}`;
-  const { workspaceTags, workspaceTagIds, setWorkspaceTags } =
-    useTaskFormWorkspaceTags(workspaceKey, initialValues?.workspaceTags);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [name, setName] = useState(initialValues?.name ?? "");
   const [isPrivate, setIsPrivate] = useState(
@@ -440,7 +440,28 @@ export function useTaskFormModel({
         projectBriefingUrl: selectedProject?.briefingUrl ?? null,
         projectContextMdUrl: selectedProject?.contextMd?.url ?? null,
       }));
+  const draftTags = useTaskTagSuggestions({
+    name,
+    description,
+    workspaceKey,
+    // Not gated on the wizard step: an offer or a deep-linked prompt fills the
+    // description on step 1, and classifying it there means tags are already on
+    // screen when the user reaches the editor.
+    enabled:
+      mode === "create" &&
+      !isCopy &&
+      Boolean(session) &&
+      !createdTask &&
+      !isSubmitting,
+  });
+
+  const workspaceSelection = useTaskFormWorkspaceTags(
+    workspaceKey,
+    initialValues,
+    mode === "create" && !isCopy ? draftTags : undefined,
+  );
   const isSaveDisabled =
+    workspaceSelection.hasConflict ||
     createdTask !== null ||
     isCreatingTag ||
     !hasSaveableDescription ||
@@ -481,21 +502,6 @@ export function useTaskFormModel({
       ) as Record<TaskStatus, string>,
     [labels],
   );
-
-  const draftTags = useTaskTagSuggestions({
-    name,
-    description,
-    workspaceKey,
-    // Not gated on the wizard step: an offer or a deep-linked prompt fills the
-    // description on step 1, and classifying it there means tags are already on
-    // screen when the user reaches the editor.
-    enabled:
-      mode === "create" &&
-      !isCopy &&
-      Boolean(session) &&
-      !createdTask &&
-      !isSubmitting,
-  });
 
   const selectedOption = useMemo(
     () => coworkerOptions.find((option) => option.id === assigneeId),
@@ -641,8 +647,7 @@ export function useTaskFormModel({
     tRunAt,
     shouldShowProjectSelect,
     isCopy,
-    setWorkspaceTags,
-    workspaceTags,
+    workspaceSelection,
     setIsCreatingTag,
     name,
     setName,
@@ -726,7 +731,6 @@ export function useTaskFormModel({
     hasProjectSelection,
     originalStatus,
     copyOfTaskId,
-    workspaceTagIds,
     setIsProjectMissing,
     knownSokoBotId,
     initialRunAt,

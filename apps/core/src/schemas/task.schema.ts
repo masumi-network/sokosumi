@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/database";
 import { calendarDateSchema, isDesignMdBlobUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime.js";
-import { taskTagsSchema } from "@/helpers/task-tags";
+import { taskTagIdSchema, taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
@@ -24,7 +24,7 @@ import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { projectSummarySchema } from "@/schemas/project.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
 import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
-import { tagColorSchema } from "@/schemas/tag-color.schema";
+import { workspaceTagColorFields } from "@/schemas/tag-color.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
@@ -227,8 +227,16 @@ const taskAssigneeSchema = z
 const workspaceTaskTag = z.object({
   id: z.uuid(),
   displayName: z.string(),
-  color: tagColorSchema.nullish(),
+  ...workspaceTagColorFields,
 });
+
+export const dismissedTopicIdsSchema = z
+  .array(taskTagIdSchema)
+  .optional()
+  .openapi({
+    description:
+      "Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.",
+  });
 
 export const dismissedWorkspaceTagIdsSchema = z
   .array(z.uuid())
@@ -322,7 +330,10 @@ const taskBaseSchema = z.object({
   tags: taskTagsSchema.optional(),
   workspaceTags: z
     .array(
-      workspaceTaskTag.extend({ source: z.enum(["manual", "jev"]).optional() }),
+      workspaceTaskTag.extend({
+        source: z.enum(["manual", "jev"]).optional(),
+        taskTopicId: taskTagIdSchema.optional(),
+      }),
     )
     .optional(),
   workspaceTagSuggestions: z.array(workspaceTaskTag).optional(),

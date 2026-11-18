@@ -291,10 +291,14 @@ describe("workspace suggestion receipts", () => {
       expected,
     );
     const validKey = mocks.get.mock.lastCall?.[0];
-    const recolored = [{ ...label, color: "pink" as const }];
+    const recolored = [
+      { ...label, color: "pink" as const, customColor: "#127DA2" },
+    ];
     expect(
       await readCachedTaskTagEvaluation(scope, input, recolored),
-    ).toMatchObject({ workspaceSuggestions: [{ color: "pink" }] });
+    ).toMatchObject({
+      workspaceSuggestions: [{ color: "pink", customColor: "#127DA2" }],
+    });
     expect(mocks.get.mock.lastCall?.[0]).toBe(validKey);
     for (const changed of [
       [],

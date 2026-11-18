@@ -34,6 +34,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { AgentSpotlight } from "./agent-spotlight";
 import { MarkdownEditor } from "./markdown-editor";
@@ -47,6 +48,7 @@ import type { TaskFormProps } from "./task-form-types";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskRunAtModal } from "./task-run-at-modal";
 import { TaskStatusPicker } from "./task-status-picker";
+import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TaskWorkspaceTagPicker } from "./task-workspace-tag-picker";
 
 export type {
@@ -59,21 +61,38 @@ export type {
 import { useTaskFormModel } from "./use-task-form-model";
 import { useTaskFormSubmission } from "./use-task-form-submission";
 export function TaskForm(props: TaskFormProps) {
-  const model = useTaskFormModel(props);
+  const { data: session } = useSession();
+  return (
+    <TaskTagCatalogProvider
+      enabled={Boolean(session)}
+      organizationId={session?.session.activeOrganizationId ?? null}
+    >
+      <TaskFormContent props={props} session={session} />
+    </TaskTagCatalogProvider>
+  );
+}
+
+function TaskFormContent({
+  props,
+  session,
+}: {
+  props: TaskFormProps;
+  session: ReturnType<typeof useSession>["data"];
+}) {
+  const model = useTaskFormModel(props, session);
   const handleSave = useTaskFormSubmission(model);
   const {
     mode,
+    taskId,
     labels,
     initialValues,
     initialDesignMdAttachment,
     onCreateAnother,
     showCancel,
-    session,
     tRunAt,
     shouldShowProjectSelect,
     isCopy,
-    setWorkspaceTags,
-    workspaceTags,
+    workspaceSelection,
     setIsCreatingTag,
     name,
     setName,
@@ -402,22 +421,54 @@ export function TaskForm(props: TaskFormProps) {
                 ) : null}
               </div>
 
-              {session && (!isCopy || initialValues?.workspaceTags) ? (
+              {session &&
+              (!isCopy ||
+                initialValues?.workspaceTags ||
+                initialValues?.tags) ? (
                 <TaskWorkspaceTagPicker
                   key={session.session.activeOrganizationId ?? session.user.id}
                   activeOrganizationId={
                     session.session.activeOrganizationId ?? null
                   }
+                  canChooseWorkspaceTags={
+                    !isCopy || initialValues?.workspaceTags !== undefined
+                  }
                   copying={
                     isCopy && Boolean(initialValues?.workspaceTags?.length)
                   }
-                  selected={workspaceTags}
-                  onChange={setWorkspaceTags}
+                  liveAutomaticIds={
+                    mode === "create" && !isCopy
+                      ? workspaceSelection.liveAutomaticIds
+                      : undefined
+                  }
+                  selected={workspaceSelection.workspaceTags}
+                  suggestions={workspaceSelection.suggestions}
+                  onChange={workspaceSelection.setWorkspaceTags}
                   onCreatingChange={setIsCreatingTag}
-                  disabled={isSubmitting}
-                />
+                  disabled={isSubmitting || workspaceSelection.hasConflict}
+                  conflict={
+                    taskId && workspaceSelection.hasConflict
+                      ? {
+                          taskId,
+                          onReload: ({ workspaceTags, tags }) =>
+                            workspaceSelection.reload(workspaceTags, tags),
+                        }
+                      : undefined
+                  }
+                >
+                  <TaskDraftTags
+                    tags={workspaceSelection.visibleTopics}
+                    addedByJev={
+                      mode === "create" && !isCopy
+                        ? new Set(draftTags.tags)
+                        : undefined
+                    }
+                    status={draftTags.status}
+                    onRemove={workspaceSelection.removeTopic}
+                    disabled={isSubmitting || workspaceSelection.hasConflict}
+                  />
+                </TaskWorkspaceTagPicker>
               ) : null}
-              {mode === "create" ? <TaskDraftTags {...draftTags} /> : null}
 
               {shouldShowProjectSelect || showPrivateControl ? (
                 <div className="space-y-1">

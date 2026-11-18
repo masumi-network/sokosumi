@@ -29,7 +29,11 @@ import {
 } from "@/helpers/task-event-channel";
 import { resolveTaskName } from "@/helpers/task-name";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
-import { mapTaskTags, TASK_TAG_VOCABULARY_VERSION } from "@/helpers/task-tags";
+import {
+  dismissTaskTopics,
+  mapTaskTags,
+  TASK_TAG_VOCABULARY_VERSION,
+} from "@/helpers/task-tags";
 import {
   applyJevWorkspaceTags,
   setTaskWorkspaceTags,
@@ -55,6 +59,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import {
   createTaskContextSchema,
+  dismissedTopicIdsSchema,
   dismissedWorkspaceTagIdsSchema,
   taskEventChannelField,
   taskEventDeprecatedOriginField,
@@ -72,6 +77,7 @@ export const createTaskRequestSchema = z
   .object({
     workspaceTagIds: taskWorkspaceTagIdsSchema,
     dismissedWorkspaceTagIds: dismissedWorkspaceTagIdsSchema,
+    dismissedTopicIds: dismissedTopicIdsSchema,
     tagSuggestionReceipt: z.string().max(4096).optional(),
     copyOfTaskId: z.uuid().optional().openapi({
       description:
@@ -220,10 +226,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         vendorId: authContext.vendorId,
         workspaceId: workspaceContext.workspaceId,
       }));
-    const requestedWorkspaceTags = Boolean(
-      body.workspaceTagIds?.length || body.dismissedWorkspaceTagIds?.length,
+    const requestedTagChanges = Boolean(
+      body.workspaceTagIds?.length ||
+        body.dismissedWorkspaceTagIds?.length ||
+        body.dismissedTopicIds?.length,
     );
-    if (!canUseWorkspaceTags && requestedWorkspaceTags) {
+    if (!canUseWorkspaceTags && requestedTagChanges) {
       throw forbidden("Workspace access is required to manage Task tags");
     }
 
@@ -327,13 +335,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           shouldEnforceCreateGrant &&
           createdTask.status === TaskStatus.GRANT_PENDING
         );
-      if (!canPersistWorkspaceTags && requestedWorkspaceTags) {
+      if (!canPersistWorkspaceTags && requestedTagChanges) {
         throw forbidden("Workspace access is required to manage Task tags");
       }
+      const dismissedWorkspaceTagIds = new Set(
+        body.dismissedWorkspaceTagIds?.map((id) => id.toLowerCase()),
+      );
       const workspaceTagIds =
         body.workspaceTagIds ??
         (copySource?.workspaceId === workspaceContext.workspaceId
-          ? copySource.workspaceTags?.map(({ labelId }) => labelId)
+          ? copySource.workspaceTags
+              ?.map(({ labelId }) => labelId)
+              .filter((id) => !dismissedWorkspaceTagIds.has(id))
           : undefined);
       if (
         canPersistWorkspaceTags &&
@@ -362,32 +375,39 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
         }
       }
-      if (copiedTags) {
-        await tx.task.update({
-          where: { id: createdTask.id },
-          data: {
-            automaticTags: copiedTags.automatic,
-            manualTags: copiedTags.manual,
-            rejectedTags: copiedTags.rejected,
-            tagClassificationState: "complete",
-            tagClassificationLease: null,
-            tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
-          },
-        });
-      } else if (suggestedTags !== null && canPersistWorkspaceTags) {
+      if (suggestedTags !== null && canPersistWorkspaceTags) {
         await applyJevWorkspaceTags(
           tx,
           createdTask.id,
           workspaceContext.workspaceId,
           suggestedTags.workspaceSuggestions,
         );
+      }
+
+      const automaticTags =
+        copiedTags?.automatic ??
+        (canPersistWorkspaceTags ? suggestedTags?.tags : undefined);
+      const topicCorrections =
+        copiedTags || body.dismissedTopicIds?.length
+          ? dismissTaskTopics(
+              {
+                manualTags: copiedTags?.manual,
+                rejectedTags: copiedTags?.rejected,
+              },
+              body.dismissedTopicIds,
+            )
+          : undefined;
+      if (automaticTags || topicCorrections) {
         await tx.task.update({
           where: { id: createdTask.id },
           data: {
-            automaticTags: suggestedTags.tags,
-            tagClassificationState: "complete",
-            tagClassificationLease: null,
-            tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+            ...(automaticTags && {
+              automaticTags,
+              tagClassificationState: "complete",
+              tagClassificationLease: null,
+              tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
+            }),
+            ...topicCorrections,
           },
         });
       }

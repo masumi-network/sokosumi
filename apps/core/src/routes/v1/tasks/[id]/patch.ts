@@ -49,6 +49,7 @@ import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
+import { dismissTaskTopics } from "@/helpers/task-tags";
 import {
   requireExpectedTaskWorkspaceTags,
   setTaskWorkspaceTags,
@@ -61,6 +62,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import {
   createTaskContextSchema,
+  dismissedTopicIdsSchema,
   dismissedWorkspaceTagIdsSchema,
   taskSchema,
   taskWorkspaceTagIdsSchema,
@@ -111,6 +113,7 @@ export const patchTaskRequestSchema = z
         "When replacing workspaceTagIds, return 409 if the currently applied workspace tags differ from this set.",
     }),
     dismissedWorkspaceTagIds: dismissedWorkspaceTagIdsSchema,
+    dismissedTopicIds: dismissedTopicIdsSchema,
     runAt: dateTimeSchema.nullish().openapi({
       description:
         "Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.",
@@ -148,12 +151,13 @@ export const patchTaskRequestSchema = z
       data.runAt === undefined &&
       data.dueOn === undefined &&
       data.workspaceTagIds === undefined &&
-      data.dismissedWorkspaceTagIds === undefined
+      data.dismissedWorkspaceTagIds === undefined &&
+      data.dismissedTopicIds === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, dueOn, workspaceTagIds, or dismissedWorkspaceTagIds is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, dueOn, workspaceTagIds, dismissedWorkspaceTagIds, or dismissedTopicIds is required",
         path: ["name"],
       });
     }
@@ -216,9 +220,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspaceTagIds,
       expectedWorkspaceTagIds,
       dismissedWorkspaceTagIds,
+      dismissedTopicIds,
     } = c.req.valid("json");
-    const editsTags =
+    const editsWorkspaceTags =
       workspaceTagIds !== undefined || dismissedWorkspaceTagIds !== undefined;
+    const editsTags = editsWorkspaceTags || dismissedTopicIds !== undefined;
     // A due date belongs to the work, not the brief, so it may change while
     // the Task runs or after it ends. The same applies to workspace tags.
     const onlyDueOnOrTags =
@@ -415,7 +421,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : dueOn === null
             ? null
             : new Date(`${dueOn}T00:00:00.000Z`);
-      if (editsTags) {
+      if (editsWorkspaceTags) {
         await setTaskWorkspaceTags(
           tx,
           id,
@@ -439,6 +445,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: {
           name,
           ...(editsTags ? { updatedAt: new Date() } : {}),
+          ...(dismissedTopicIds?.length
+            ? dismissTaskTopics(task, dismissedTopicIds)
+            : {}),
           description: nextDescription,
           projectId,
           priority,

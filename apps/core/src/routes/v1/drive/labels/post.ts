@@ -92,6 +92,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         displayName: check.displayName,
         normalizedName: check.normalizedName,
         color: body.color,
+        customColor: body.customColor,
         description: body.description ?? null,
         createdByUserId: context.actor.userId,
       },

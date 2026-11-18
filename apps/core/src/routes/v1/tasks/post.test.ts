@@ -2499,6 +2499,32 @@ describe("POST /tasks inline tag classification failure modes", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("remembers dismissed topics when inline classification is unavailable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 503 })),
+    );
+    const response = await createAppForMethod("session").request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...body,
+          dismissedTopicIds: ["research", "research"],
+        }),
+      },
+    );
+    expect(response.status).toBe(201);
+    expect(taskUpdateMock).toHaveBeenCalledExactlyOnceWith({
+      where: { id: "tsk_123" },
+      data: expect.objectContaining({ rejectedTags: ["research"] }),
+    });
+    expect(taskUpdateMock.mock.calls[0]![0].data).not.toHaveProperty(
+      "tagClassificationState",
+    );
+  });
+
   it("prefers a verified composer receipt over an inline call", async () => {
     const fetchMock = vi.fn(async () => Response.json(jevAnswers(0.97)));
     vi.stubGlobal("fetch", fetchMock);
@@ -2515,14 +2541,21 @@ describe("POST /tasks inline tag classification failure modes", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...body, tagSuggestionReceipt: receipt }),
+        body: JSON.stringify({
+          ...body,
+          tagSuggestionReceipt: receipt,
+          dismissedTopicIds: ["strategy"],
+        }),
       },
     );
     expect(response.status).toBe(201);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
-      data: expect.objectContaining({ automaticTags: ["strategy"] }),
+      data: expect.objectContaining({
+        automaticTags: ["strategy"],
+        rejectedTags: ["strategy"],
+      }),
     });
   });
 
@@ -2576,6 +2609,7 @@ describe("POST /tasks inline tag classification failure modes", () => {
               name: "Weekly report",
               copyOfTaskId: sourceId,
               workspaceTagIds: explicit,
+              dismissedTopicIds: ["design"],
             }),
           },
         );
@@ -2608,13 +2642,60 @@ describe("POST /tasks inline tag classification failure modes", () => {
           where: { id: "tsk_123" },
           data: {
             automaticTags: ["research"],
-            manualTags: ["design"],
-            rejectedTags: ["strategy"],
+            manualTags: [],
+            rejectedTags: ["strategy", "design"],
             tagClassificationState: "complete",
             tagClassificationLease: null,
             tagVocabularyVersion: TASK_TAG_VOCABULARY_VERSION,
           },
         });
+      },
+    );
+
+    it.each([false, true])(
+      "respects workspace tag dismissals on copies (explicitly reselected: %s)",
+      async (reselect) => {
+        const dismissed = "aaaaaaaa-1111-4111-8111-111111111111";
+        const selected = reselect
+          ? [workspaceLabelId, dismissed]
+          : [workspaceLabelId];
+        requireTaskReadForRouteVarsMock.mockResolvedValue({
+          workspaceId: sameWorkspace,
+          workspaceTags: [workspaceLabelId, dismissed].map((labelId) => ({
+            labelId,
+            state: "JEV_ADDED",
+          })),
+          name: "Source",
+        });
+        allowedLabels.mockResolvedValueOnce(
+          [workspaceLabelId, dismissed].map((id) => ({ id })),
+        );
+        const response = await createAppForMethod("session").request(
+          "http://localhost/",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              copyOfTaskId: sourceId,
+              ...(reselect ? { workspaceTagIds: selected } : {}),
+              dismissedWorkspaceTagIds: [dismissed.toUpperCase()],
+            }),
+          },
+        );
+        expect(response.status).toBe(201);
+        expect(createWorkspaceTagAssignments).toHaveBeenCalledExactlyOnceWith({
+          data: selected.map((labelId) => ({ taskId: "tsk_123", labelId })),
+          skipDuplicates: true,
+        });
+        if (reselect) {
+          expect(createWorkspaceTagDecisions).not.toHaveBeenCalled();
+        } else {
+          expect(createWorkspaceTagDecisions).toHaveBeenCalledExactlyOnceWith({
+            data: [
+              { taskId: "tsk_123", labelId: dismissed, state: "JEV_DISMISSED" },
+            ],
+          });
+        }
       },
     );
 

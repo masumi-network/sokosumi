@@ -1236,6 +1236,8 @@ describe("draft task tag actions", () => {
         status: TaskStatus.DRAFT,
         tagSuggestionReceipt: "receipt-1",
         workspaceTagIds: ["tag-1", "tag-2"],
+        dismissedWorkspaceTagIds: ["not-for-this-task"],
+        dismissedTopicIds: ["design" as const],
       };
       if (related)
         await createTaskAndLink({
@@ -1249,7 +1251,12 @@ describe("draft task tag actions", () => {
           name: input.name,
           tagSuggestionReceipt: input.tagSuggestionReceipt,
           workspaceTagIds: input.workspaceTagIds,
+          dismissedWorkspaceTagIds: input.dismissedWorkspaceTagIds,
+          dismissedTopicIds: input.dismissedTopicIds,
         }),
+      );
+      expect(taskServiceMock.createTask.mock.calls[0]?.[0]).not.toHaveProperty(
+        "expectedWorkspaceTagIds",
       );
       // Tags are automatic: nothing in web still sends hand corrections.
       expect(taskServiceMock.createTask.mock.calls[0]?.[0]).not.toHaveProperty(
@@ -1268,11 +1275,39 @@ describe("draft task tag actions", () => {
       assigneeId: null,
       desiredStatus: TaskStatus.READY,
       workspaceTagIds: [],
+      expectedWorkspaceTagIds: ["before"],
     });
     expect(taskServiceMock.patchTask).toHaveBeenCalledWith(
       "task-created",
-      expect.objectContaining({ workspaceTagIds: [] }),
+      expect.objectContaining({
+        workspaceTagIds: [],
+        expectedWorkspaceTagIds: ["before"],
+      }),
     );
+  });
+
+  it("dismisses a suggestion without replacing the applied workspace tags", async () => {
+    const tags = { automatic: [], manual: [], rejected: ["design"] };
+    const workspaceTags = [
+      { id: "kept", displayName: "Release", source: "manual" },
+    ];
+    taskServiceMock.patchTask
+      .mockReset()
+      .mockResolvedValue({ tags, workspaceTags, workspaceTagSuggestions: [] });
+    const { setTaskWorkspaceTags } = await import("./action");
+    const result = await setTaskWorkspaceTags({
+      taskId: "task",
+      dismissedWorkspaceTagIds: ["declined"],
+      dismissedTopicIds: ["design"],
+    });
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith("task", {
+      dismissedWorkspaceTagIds: ["declined"],
+      dismissedTopicIds: ["design"],
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: { tags, workspaceTags, workspaceTagSuggestions: [] },
+    });
   });
 
   it("forwards a copy's source Task so Core takes its tags", async () => {
@@ -1284,11 +1319,13 @@ describe("draft task tag actions", () => {
       assigneeId: null,
       status: TaskStatus.DRAFT,
       copyOfTaskId: "source-task",
+      dismissedTopicIds: ["design"],
     });
     expect(taskServiceMock.createTask).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Weekly report",
         copyOfTaskId: "source-task",
+        dismissedTopicIds: ["design"],
       }),
     );
   });

@@ -39,6 +39,7 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
+import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
@@ -396,48 +397,50 @@ export function TasksView(props: TasksViewProps) {
   );
 
   return (
-    <CreateTaskModalProvider
-      key={createTaskModalResetKey}
-      initialOpen={initialCreateTaskOpen}
-      initialAssigneeId={initialAssigneeId}
-      initialPrompt={initialCreateTaskPrompt}
-      initialProjectId={defaultProjectId}
-    >
-      {userId ? (
-        <LazyAblyProvider>
-          <ChannelProvider
-            channelName={makeUserTasksChannelName(
-              userId,
-              getRealtimeChannelEnvironment(),
-            )}
-          >
-            <TasksRealtimeListener
-              userId={userId}
-              onEvent={handleEventUpdate}
-            />
-          </ChannelProvider>
-        </LazyAblyProvider>
-      ) : null}
-      {/* The page's seat check is fresher than the layout's after a soft navigation. */}
-      <OrganizationSeatContext value={canCreateTask}>
-        {content}
-      </OrganizationSeatContext>
-      {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
-      <CreateTaskModal
-        coworkerOptions={coworkerOptions}
-        projectOptions={projectOptions}
-        defaultProjectId={defaultProjectId}
-        initialCreateTaskOpen={initialCreateTaskOpen}
-      />
-      <TaskReopenToReadyDialog
-        open={pendingBoardReopen != null}
-        onOpenChange={handleBoardReopenOpenChange}
-        labels={labels.reopenToReady}
-        comment={reopenComment}
-        onCommentChange={setReopenComment}
-        onConfirm={handleBoardReopenConfirm}
-        isPending={isReopenPending}
-      />
-    </CreateTaskModalProvider>
+    <TaskTagCatalogProvider organizationId={activeOrganizationId}>
+      <CreateTaskModalProvider
+        key={createTaskModalResetKey}
+        initialOpen={initialCreateTaskOpen}
+        initialAssigneeId={initialAssigneeId}
+        initialPrompt={initialCreateTaskPrompt}
+        initialProjectId={defaultProjectId}
+      >
+        {userId ? (
+          <LazyAblyProvider>
+            <ChannelProvider
+              channelName={makeUserTasksChannelName(
+                userId,
+                getRealtimeChannelEnvironment(),
+              )}
+            >
+              <TasksRealtimeListener
+                userId={userId}
+                onEvent={handleEventUpdate}
+              />
+            </ChannelProvider>
+          </LazyAblyProvider>
+        ) : null}
+        {/* The page's seat check is fresher than the layout's after a soft navigation. */}
+        <OrganizationSeatContext value={canCreateTask}>
+          {content}
+        </OrganizationSeatContext>
+        {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
+        <CreateTaskModal
+          coworkerOptions={coworkerOptions}
+          projectOptions={projectOptions}
+          defaultProjectId={defaultProjectId}
+          initialCreateTaskOpen={initialCreateTaskOpen}
+        />
+        <TaskReopenToReadyDialog
+          open={pendingBoardReopen != null}
+          onOpenChange={handleBoardReopenOpenChange}
+          labels={labels.reopenToReady}
+          comment={reopenComment}
+          onCommentChange={setReopenComment}
+          onConfirm={handleBoardReopenConfirm}
+          isPending={isReopenPending}
+        />
+      </CreateTaskModalProvider>
+    </TaskTagCatalogProvider>
   );
 }

@@ -48,6 +48,8 @@ interface ListTasksParams {
 
 interface CreateTaskInput {
   workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   tagSuggestionReceipt?: string;
   name?: string;
   description: string | null;
@@ -63,7 +65,10 @@ interface CreateTaskInput {
 }
 
 interface PatchTaskInput {
+  expectedWorkspaceTagIds?: string[];
   workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
