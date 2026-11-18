@@ -15,6 +15,10 @@ const {
   reconcileTurnMock: vi.fn(),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@vercel/functions", () => ({
   waitUntil: vi.fn((promise: Promise<unknown>) => pending.push(promise)),
 }));

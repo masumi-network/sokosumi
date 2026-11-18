@@ -33,6 +33,10 @@ const {
   }),
 }));
 
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
 // The canned replies here all claim work; Jev is not called from a test.
 // A reply claims nothing unless a test says so: claiming by default withheld
