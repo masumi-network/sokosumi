@@ -3,66 +3,69 @@ import { describe, expect, it, vi } from "vitest";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 
-const labels = {
-  title: "Reopen to Ready",
-  description: "Add a comment to reopen this task.",
-  commentLabel: "Comment",
-  commentPlaceholder: "Why reopen?",
-  confirm: "Reopen",
-  cancel: "Cancel",
-};
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: { assignee?: string }) =>
+    values?.assignee ? `${key} ${values.assignee}` : key,
+}));
+
+function renderDialog(
+  props: Partial<Parameters<typeof TaskReopenToReadyDialog>[0]> = {},
+) {
+  const onOpenChange = vi.fn();
+  render(
+    <TaskReopenToReadyDialog
+      open
+      onOpenChange={onOpenChange}
+      assigneeName="Writer"
+      comment="Need this again"
+      onCommentChange={vi.fn()}
+      onConfirm={vi.fn()}
+      {...props}
+    />,
+  );
+  return { onOpenChange };
+}
 
 describe("TaskReopenToReadyDialog", () => {
+  it("names the assignee it sends the Task back to", () => {
+    renderDialog();
+
+    expect(
+      screen.getByRole("heading", { name: "title Writer" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "confirm Writer" }),
+    ).toBeEnabled();
+  });
+
   it("calls onOpenChange(false) when cancel is clicked while idle", () => {
-    const onOpenChange = vi.fn();
+    const { onOpenChange } = renderDialog();
 
-    render(
-      <TaskReopenToReadyDialog
-        open
-        onOpenChange={onOpenChange}
-        labels={labels}
-        comment="Need this again"
-        onCommentChange={vi.fn()}
-        onConfirm={vi.fn()}
-        isPending={false}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it("ignores cancel while submit is pending", () => {
-    const onOpenChange = vi.fn();
+    const { onOpenChange } = renderDialog({ isPending: true });
 
-    render(
-      <TaskReopenToReadyDialog
-        open
-        onOpenChange={onOpenChange}
-        labels={labels}
-        comment="Need this again"
-        onCommentChange={vi.fn()}
-        onConfirm={vi.fn()}
-        isPending
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "cancel" }));
     expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it("disables confirm when comment is whitespace-only", () => {
-    render(
-      <TaskReopenToReadyDialog
-        open
-        onOpenChange={vi.fn()}
-        labels={labels}
-        comment="   "
-        onCommentChange={vi.fn()}
-        onConfirm={vi.fn()}
-      />,
-    );
+    renderDialog({ comment: "   " });
 
-    expect(screen.getByRole("button", { name: "Reopen" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "confirm Writer" }),
+    ).toBeDisabled();
+  });
+
+  it("offers Reopen as Draft in place of cancel, with no comment needed", () => {
+    const onReopenAsDraft = vi.fn();
+    renderDialog({ comment: "", onReopenAsDraft });
+
+    expect(screen.queryByRole("button", { name: "cancel" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "reopenAsDraft" }));
+    expect(onReopenAsDraft).toHaveBeenCalledOnce();
   });
 });

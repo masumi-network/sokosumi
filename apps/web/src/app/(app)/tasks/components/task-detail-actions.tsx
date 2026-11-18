@@ -102,34 +102,12 @@ import {
 } from "./task-schedule-dialog";
 import { TaskSendToChatDialog } from "./task-send-to-chat-dialog";
 import { TaskShareButton } from "./task-share-button";
+import {
+  getTaskStatusActions,
+  type TaskDetailActionsLabels,
+  type TaskStatusAction,
+} from "./task-status-actions";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
-
-interface TaskDetailActionsLabels {
-  edit: string;
-  archive: string;
-  archiveError: string;
-  reopenToReady: string;
-  reopenToReadyTitle: string;
-  reopenToReadyDescription: string;
-  reopenToReadyCommentLabel: string;
-  reopenToReadyCommentPlaceholder: string;
-  reopenToReadyCommentRequired: string;
-  reopenToReadyConfirm: string;
-  cancel: string;
-  share: string;
-  startWorking: string;
-  pauseToReady: string;
-  waitExternal: string;
-  resumeRunning: string;
-  resumeReady: string;
-  markComplete: string;
-}
-
-interface TaskStatusAction {
-  label: string;
-  target: TaskStatus;
-  requiresComment?: boolean;
-}
 
 interface TaskDetailActionsProps {
   taskId: string;
@@ -143,6 +121,8 @@ interface TaskDetailActionsProps {
   agentNameById: Map<string, string>;
   defaultAssigneeId?: string | null;
   assigneeKind?: TaskAssigneeKind;
+  /** Named in the send-back dialog of a Coworker or Soko Bot Task. */
+  assigneeName?: string | null;
   /** Resolved DESIGN.md for create-related flow (same picker as new task). */
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
@@ -183,6 +163,7 @@ export function TaskDetailActions({
   agentNameById,
   defaultAssigneeId,
   assigneeKind,
+  assigneeName,
   initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
@@ -199,7 +180,6 @@ export function TaskDetailActions({
   taskBlueprint,
   sendToChat,
 }: TaskDetailActionsProps) {
-  const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const tTasks = useTranslations("App.Tasks");
@@ -292,8 +272,12 @@ export function TaskDetailActions({
   };
 
   const canMutateTask = !isReadOnly;
+  const resolvedAssigneeKind =
+    assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset");
+  const hasAgentAssignee =
+    resolvedAssigneeKind === "coworker" || resolvedAssigneeKind === "sokoBot";
   const availableStatusActions = getTaskStatusActions(status, labels, {
-    assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
+    assigneeKind: resolvedAssigneeKind,
   });
   const statusActions = canMutateTask
     ? availableStatusActions
@@ -390,7 +374,11 @@ export function TaskDetailActions({
   const handleStatusToggle = (action: TaskStatusAction) => {
     if (
       action.requiresComment ||
-      userTaskStatusTransitionRequiresComment(status, action.target, true)
+      userTaskStatusTransitionRequiresComment(
+        status,
+        action.target,
+        hasAgentAssignee,
+      )
     ) {
       setReopenComment("");
       setIsReopenDialogOpen(true);
@@ -420,22 +408,25 @@ export function TaskDetailActions({
     });
   };
 
-  const handleReopenConfirm = () => {
+  // Draft starts no run, so it needs no instructions.
+  const handleReopenConfirm = (
+    target: typeof TaskStatus.READY | typeof TaskStatus.DRAFT,
+  ) => {
     const trimmedComment = reopenComment.trim();
-    if (!trimmedComment) {
+    if (target === TaskStatus.READY && !trimmedComment) {
       toast.error(labels.reopenToReadyCommentRequired);
       return;
     }
 
-    setPendingStatusTarget(TaskStatus.READY);
+    setPendingStatusTarget(target);
 
     startStatusTransition(async () => {
-      showStatus(TaskStatus.READY);
+      showStatus(target);
       try {
         const result = await setTaskStatusFromDrag({
           taskId,
-          desiredStatus: TaskStatus.READY,
-          comment: trimmedComment,
+          desiredStatus: target,
+          ...(target === TaskStatus.READY ? { comment: trimmedComment } : {}),
         });
         if (!result.ok) {
           reportStatusRejection(result.error.kind);
@@ -1020,18 +1011,12 @@ export function TaskDetailActions({
             setReopenComment("");
           }
         }}
-        labels={{
-          title: labels.reopenToReadyTitle,
-          description: labels.reopenToReadyDescription,
-          commentLabel: labels.reopenToReadyCommentLabel,
-          commentPlaceholder: labels.reopenToReadyCommentPlaceholder,
-          confirm: labels.reopenToReadyConfirm,
-          cancel: tApp("cancel"),
-        }}
+        assigneeName={assigneeName ?? ""}
         comment={reopenComment}
         onCommentChange={setReopenComment}
-        onConfirm={handleReopenConfirm}
-        isPending={isStatusPending && pendingStatusTarget === TaskStatus.READY}
+        onConfirm={() => handleReopenConfirm(TaskStatus.READY)}
+        onReopenAsDraft={() => handleReopenConfirm(TaskStatus.DRAFT)}
+        isPending={isStatusPending && pendingStatusTarget !== null}
       />
 
       {canMove ? (
@@ -1189,76 +1174,4 @@ function getStatusActionMenuIcon(target: TaskStatus): LucideIcon {
     default:
       return CheckCircle2;
   }
-}
-
-function getTaskStatusActions(
-  status: TaskStatus,
-  labels: TaskDetailActionsLabels,
-  options: {
-    assigneeKind?: TaskAssigneeKind;
-  },
-): TaskStatusAction[] {
-  const isHuman =
-    options.assigneeKind === "human" || options.assigneeKind === "unset";
-
-  if (status === TaskStatus.DRAFT) {
-    return [];
-  }
-
-  if (status === TaskStatus.READY) {
-    if (isHuman) {
-      return [{ label: labels.startWorking, target: TaskStatus.RUNNING }];
-    }
-    return [];
-  }
-
-  if (status === TaskStatus.RUNNING && isHuman) {
-    return [
-      { label: labels.markComplete, target: TaskStatus.COMPLETED },
-      { label: labels.waitExternal, target: TaskStatus.AWAITING_EXTERNAL },
-      { label: labels.pauseToReady, target: TaskStatus.READY },
-      { label: labels.cancel, target: TaskStatus.CANCELED },
-    ];
-  }
-
-  if (status === TaskStatus.AWAITING_EXTERNAL && isHuman) {
-    return [
-      { label: labels.resumeRunning, target: TaskStatus.RUNNING },
-      { label: labels.markComplete, target: TaskStatus.COMPLETED },
-      { label: labels.resumeReady, target: TaskStatus.READY },
-      { label: labels.cancel, target: TaskStatus.CANCELED },
-    ];
-  }
-
-  if (
-    status === TaskStatus.QUEUED ||
-    status === TaskStatus.INPUT_REQUIRED ||
-    status === TaskStatus.APPROVAL_REQUIRED ||
-    status === TaskStatus.AUTHENTICATION_REQUIRED ||
-    status === TaskStatus.OUT_OF_CREDITS ||
-    status === TaskStatus.CREDITS_TOPPED_UP ||
-    status === TaskStatus.RUNNING ||
-    status === TaskStatus.AWAITING_EXTERNAL
-  ) {
-    return [
-      {
-        label: labels.cancel,
-        target: TaskStatus.CANCELED,
-      },
-    ];
-  }
-
-  // Unset Ready is valid (SOK-868); terminal tasks reopen to Ready with a
-  // comment whether an agent, a human, or nobody is assigned.
-  if (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELED) {
-    return [
-      {
-        label: labels.reopenToReady,
-        target: TaskStatus.READY,
-        requiresComment: true,
-      },
-    ];
-  }
-
-  return [];
 }

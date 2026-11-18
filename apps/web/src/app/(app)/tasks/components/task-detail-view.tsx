@@ -523,6 +523,10 @@ async function TaskDetailActionsSlot({
       agentNameById={agentNameById}
       defaultAssigneeId={taskFormAssigneeId(task) || undefined}
       assigneeKind={taskAssigneeKindFromTask(task.assignee)}
+      assigneeName={taskAssigneeDisplayName(
+        task.assignee,
+        tTasks("personalAssistant"),
+      )}
       initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
@@ -563,14 +567,7 @@ async function TaskDetailActionsSlot({
         archive: t("actions.archive"),
         archiveError: t("actions.archiveError"),
         reopenToReady: t("actions.reopenToReady"),
-        reopenToReadyTitle: t("actions.reopenToReadyTitle"),
-        reopenToReadyDescription: t("actions.reopenToReadyDescription"),
-        reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
-        reopenToReadyCommentPlaceholder: t(
-          "actions.reopenToReadyCommentPlaceholder",
-        ),
         reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
-        reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
         cancel: t("actions.cancel"),
         share: t("actions.share"),
         startWorking: t("actions.startWorking"),

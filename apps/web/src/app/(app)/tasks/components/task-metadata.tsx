@@ -163,6 +163,9 @@ export function TaskMetadata({
             status={task.status}
             selectableStatuses={task.selectableStatuses}
             statusSince={task.statusSince}
+            agentAssigneeName={
+              task.assignee?.type === "user" ? null : (assignee?.name ?? null)
+            }
             labels={statusFieldLabels}
           />
         ) : (

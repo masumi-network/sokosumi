@@ -84,10 +84,7 @@ import {
 } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
-import {
-  TaskReopenToReadyDialog,
-  type TaskReopenToReadyDialogLabels,
-} from "./task-reopen-to-ready-dialog";
+import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
@@ -95,6 +92,7 @@ import { usePendingCreatedTasks } from "./use-pending-created-tasks";
 
 interface PendingBoardReopen {
   taskId: string;
+  assigneeName: string;
   fromColumn: KanbanColumnId;
   toColumn: KanbanColumnId;
   previousStatus: TaskStatus;
@@ -212,9 +210,7 @@ interface TasksViewProps {
     loadMore: string;
     dragError: string;
     loadMoreError: string;
-    reopenToReady: TaskReopenToReadyDialogLabels & {
-      commentRequired: string;
-    };
+    reopenToReady: { commentRequired: string };
   };
 }
 
@@ -518,12 +514,13 @@ export function TasksView({
       userTaskStatusTransitionRequiresComment(
         previousStatus,
         desiredStatus,
-        true,
+        draggedTask.assignee != null && draggedTask.assignee.kind !== "user",
       )
     ) {
       setReopenComment("");
       setPendingBoardReopen({
         taskId: activeId,
+        assigneeName: draggedTask.assignee?.name ?? "",
         fromColumn,
         toColumn,
         previousStatus,
@@ -1055,7 +1052,7 @@ export function TasksView({
       <TaskReopenToReadyDialog
         open={pendingBoardReopen != null}
         onOpenChange={handleBoardReopenOpenChange}
-        labels={labels.reopenToReady}
+        assigneeName={pendingBoardReopen?.assigneeName ?? ""}
         comment={reopenComment}
         onCommentChange={setReopenComment}
         onConfirm={handleBoardReopenConfirm}

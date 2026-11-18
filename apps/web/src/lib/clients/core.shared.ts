@@ -612,6 +612,7 @@ import {
 import { createSokoBotClient } from "./core.soko-bot";
 import { createSokoBotAvatarClient } from "./core.soko-bot-avatars";
 import { createTaskInterestClient } from "./core.task-interest";
+import { createTaskSubtasksClient } from "./core.task-subtasks";
 
 export type CoreApiPagination = PaginationMetadata;
 
@@ -7445,6 +7446,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
     ...createTaskInterestClient(getClient),
+    ...createTaskSubtasksClient(getClient),
     postPublicNewslettersByPublicSlugSubscribe,
     getPublicNewslettersByPublicSlug,
     getPublicNewslettersByPublicSlugIssues,

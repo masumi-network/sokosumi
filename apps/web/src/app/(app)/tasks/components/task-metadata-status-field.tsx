@@ -22,13 +22,7 @@ export interface TaskMetadataStatusFieldLabels {
   statusLabels: Record<TaskStatus, string>;
   changeStatus: string;
   noStatusMatches: string;
-  reopenToReadyTitle: string;
-  reopenToReadyDescription: string;
-  reopenToReadyCommentLabel: string;
-  reopenToReadyCommentPlaceholder: string;
   reopenToReadyCommentRequired: string;
-  reopenToReadyConfirm: string;
-  cancel: string;
   updateStatusSuccess: string;
   updateStatusError: string;
 }
@@ -40,6 +34,8 @@ interface TaskMetadataStatusFieldProps {
   selectableStatuses: readonly TaskStatus[];
   /** ISO time the saved status began. */
   statusSince?: string;
+  /** The Coworker or Soko Bot assigned, or null for a person's Task. */
+  agentAssigneeName: string | null;
   labels: TaskMetadataStatusFieldLabels;
 }
 
@@ -48,6 +44,7 @@ export function TaskMetadataStatusField({
   status,
   selectableStatuses,
   statusSince,
+  agentAssigneeName,
   labels,
 }: TaskMetadataStatusFieldProps) {
   const router = useRouter();
@@ -93,7 +90,11 @@ export function TaskMetadataStatusField({
     if (nextStatus === currentStatus) return;
 
     if (
-      userTaskStatusTransitionRequiresComment(currentStatus, nextStatus, true)
+      userTaskStatusTransitionRequiresComment(
+        currentStatus,
+        nextStatus,
+        agentAssigneeName !== null,
+      )
     ) {
       setReopenComment("");
       setIsReopenDialogOpen(true);
@@ -112,6 +113,12 @@ export function TaskMetadataStatusField({
 
     setIsReopenDialogOpen(false);
     applyStatusChange(TaskStatus.READY, trimmedComment);
+    setReopenComment("");
+  }
+
+  function handleReopenAsDraft() {
+    setIsReopenDialogOpen(false);
+    applyStatusChange(TaskStatus.DRAFT);
     setReopenComment("");
   }
 
@@ -153,17 +160,11 @@ export function TaskMetadataStatusField({
             setReopenComment("");
           }
         }}
-        labels={{
-          title: labels.reopenToReadyTitle,
-          description: labels.reopenToReadyDescription,
-          commentLabel: labels.reopenToReadyCommentLabel,
-          commentPlaceholder: labels.reopenToReadyCommentPlaceholder,
-          confirm: labels.reopenToReadyConfirm,
-          cancel: labels.cancel,
-        }}
+        assigneeName={agentAssigneeName ?? ""}
         comment={reopenComment}
         onCommentChange={setReopenComment}
         onConfirm={handleReopenConfirm}
+        onReopenAsDraft={handleReopenAsDraft}
         isPending={isPending && currentStatus === TaskStatus.READY}
       />
     </>

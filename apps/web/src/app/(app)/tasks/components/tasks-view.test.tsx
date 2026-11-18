@@ -247,15 +247,7 @@ const labels = {
   loadMore: "Load more",
   dragError: "Could not update the task",
   loadMoreError: "Could not load more",
-  reopenToReady: {
-    title: "Reopen task",
-    description: "Say why",
-    commentLabel: "Comment",
-    commentPlaceholder: "Why reopen?",
-    confirm: "Reopen",
-    cancel: "Cancel",
-    commentRequired: "A comment is required",
-  },
+  reopenToReady: { commentRequired: "A comment is required" },
 } satisfies ComponentProps<typeof TasksView>["labels"];
 
 const EMPTY_FILTERS: TasksFilters = {
@@ -451,6 +443,30 @@ describe("TasksView board drag", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
+  it("reopens a person's canceled Task on drop, with no comment", async () => {
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
+      ok: true,
+    } as Awaited<ReturnType<typeof setTaskStatusFromDrag>>);
+    renderBoard([
+      {
+        ...CANCELED_TASK,
+        assignee: { id: "user-2", name: "Ada", kind: "user" },
+      },
+    ]);
+
+    await dropOnTodo("task-1", "done");
+
+    await waitFor(() =>
+      expect(setTaskStatusFromDrag).toHaveBeenCalledWith(
+        expect.objectContaining({
+          taskId: "task-1",
+          desiredStatus: TaskStatus.READY,
+        }),
+      ),
+    );
+    expect(screen.queryByLabelText("commentLabel")).toBeNull();
+  });
+
   it("restores a rejected reopen drag that was confirmed with a comment", async () => {
     const user = userEvent.setup();
     vi.mocked(setTaskStatusFromDrag).mockResolvedValue({
@@ -463,12 +479,10 @@ describe("TasksView board drag", () => {
     // The reopen branch owns its own rollback and clears the dialog state
     // before reporting, so it is proven separately from the plain drop.
     await user.type(
-      await screen.findByLabelText(labels.reopenToReady.commentLabel),
+      await screen.findByLabelText("commentLabel"),
       "Reopening for the release",
     );
-    await user.click(
-      screen.getByRole("button", { name: labels.reopenToReady.confirm }),
-    );
+    await user.click(screen.getByRole("button", { name: "confirm" }));
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Errors.updateStatus"),
@@ -529,7 +543,7 @@ describe("TasksView board drag time in status", () => {
     renderBoard([{ ...CANCELED_TASK, statusSince: OLD }]);
 
     await dropOnTodo("task-1", "done");
-    await screen.findByLabelText(labels.reopenToReady.commentLabel);
+    await screen.findByLabelText("commentLabel");
     expect(boardCard("task-1")).toHaveAttribute(
       "data-status-since",
       NOW.toISOString(),

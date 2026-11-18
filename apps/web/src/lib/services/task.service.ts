@@ -41,6 +41,8 @@ interface ListTasksParams {
   statusBefore?: Date;
   /** Archived Tasks instead, most recently archived first. */
   archived?: boolean;
+  /** Only this Task's direct sub-tasks, in their order. */
+  parentTaskId?: string;
 }
 
 interface CreateTaskInput {
@@ -56,6 +58,9 @@ interface CreateTaskInput {
   /** Start at this future time: Core creates the Task Queued. */
   runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
+  /** Makes the Task a sub-task of this one, last or after `afterTaskId`. */
+  parentTaskId?: string;
+  afterTaskId?: string;
 }
 
 interface PatchTaskInput {
@@ -152,6 +157,7 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      parentTaskId: params.parentTaskId,
       scheduleId: params.scheduleId,
       dueOnTo: params.dueOnTo,
       statusBefore: params.statusBefore,
@@ -288,6 +294,14 @@ export const taskService = (() => {
       throw new Error("Failed to create task");
     }
 
+    return result.data;
+  }
+
+  async function moveSubtask(
+    taskId: string,
+    afterTaskId: string | null,
+  ): Promise<Task> {
+    const result = await coreClient.moveSubtask(taskId, afterTaskId);
     return result.data;
   }
 
@@ -487,6 +501,7 @@ export const taskService = (() => {
     listTaskEvents,
     listTaskEventsBefore,
     createTask,
+    moveSubtask,
     suggestTaskTags,
     createTaskLink,
     createTaskEvent,

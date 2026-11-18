@@ -596,13 +596,7 @@ const labels = {
   archive: "Archive",
   archiveError: "Archive error",
   reopenToReady: "Reopen to Ready",
-  reopenToReadyTitle: "Reopen task",
-  reopenToReadyDescription:
-    "Add a comment so your coworker knows what to do next.",
-  reopenToReadyCommentLabel: "Comment",
-  reopenToReadyCommentPlaceholder: "Describe what still needs to be done…",
   reopenToReadyCommentRequired: "A comment is required to reopen this task",
-  reopenToReadyConfirm: "Reopen to Ready",
   cancel: "Cancel",
   share: "Share",
   startWorking: "Start working",
@@ -1227,17 +1221,15 @@ describe("TaskDetailActions", () => {
       screen.getByRole("menuitem", { name: labels.reopenToReady }),
     );
 
-    expect(
-      screen.getByRole("heading", { name: labels.reopenToReadyTitle }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "title" })).toBeInTheDocument();
 
     const confirmButton = screen.getByRole("button", {
-      name: labels.reopenToReadyConfirm,
+      name: "confirm",
     });
     expect(confirmButton).toBeDisabled();
 
     await user.type(
-      screen.getByLabelText(labels.reopenToReadyCommentLabel),
+      screen.getByLabelText("commentLabel"),
       "Please continue from the last draft",
     );
     expect(confirmButton).toBeEnabled();
@@ -1279,16 +1271,58 @@ describe("TaskDetailActions", () => {
     await user.click(
       screen.getByRole("menuitem", { name: labels.reopenToReady }),
     );
-    await user.type(
-      screen.getByLabelText(labels.reopenToReadyCommentLabel),
-      "Please continue",
-    );
-    await user.click(
-      screen.getByRole("button", { name: labels.reopenToReadyConfirm }),
-    );
+    await user.type(screen.getByLabelText("commentLabel"), "Please continue");
+    await user.click(screen.getByRole("button", { name: "confirm" }));
 
     expect(screen.getByText(`panel ${TaskStatus.READY}`)).toBeInTheDocument();
     await act(async () => answer(taskStatusSuccess()));
+  });
+
+  it("parks a Coworker's canceled Task as a Draft with no comment", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce(taskStatusSuccess());
+    renderActions({
+      status: TaskStatus.CANCELED,
+      defaultAssigneeId: "cow-1",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    );
+    await user.click(screen.getByRole("button", { name: "reopenAsDraft" }));
+
+    await waitFor(() =>
+      expect(setTaskStatusFromDrag).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.DRAFT,
+      }),
+    );
+  });
+
+  it("reopens a person's completed Task to Ready in one click", async () => {
+    const user = userEvent.setup();
+    vi.mocked(setTaskStatusFromDrag).mockResolvedValueOnce(taskStatusSuccess());
+    renderActions({
+      status: TaskStatus.COMPLETED,
+      defaultAssigneeId: null,
+      assigneeKind: "human",
+      organizations: undefined,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(
+      screen.getByRole("menuitem", { name: labels.reopenToReady }),
+    );
+
+    expect(screen.queryByRole("heading", { name: "title" })).toBeNull();
+    await waitFor(() =>
+      expect(setTaskStatusFromDrag).toHaveBeenCalledWith({
+        taskId: "task-1",
+        desiredStatus: TaskStatus.READY,
+      }),
+    );
   });
 
   it("offers reopen-to-ready for completed tasks", async () => {
