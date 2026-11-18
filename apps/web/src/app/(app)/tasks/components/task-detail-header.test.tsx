@@ -35,6 +35,7 @@ describe("TaskDetailHeader", () => {
   it("hides the in-page back control below md and keeps desktop flex layout", () => {
     const { container } = render(
       <TaskDetailHeader
+        taskId="task-1"
         taskName="Example task"
         backLabel="Back"
         actions={<button type="button">Actions</button>}
@@ -51,7 +52,9 @@ describe("TaskDetailHeader", () => {
   });
 
   it("renders the task name without a private badge", () => {
-    render(<TaskDetailHeader taskName="Secret" backLabel="Back" />);
+    render(
+      <TaskDetailHeader taskId="task-1" taskName="Secret" backLabel="Back" />,
+    );
 
     expect(screen.getByRole("heading", { name: "Secret" })).toBeInTheDocument();
     expect(screen.queryByText("Private")).not.toBeInTheDocument();
@@ -59,7 +62,11 @@ describe("TaskDetailHeader", () => {
 
   it("shows a Markdown task name as plain text", () => {
     render(
-      <TaskDetailHeader taskName="**Task Name:** _Weekly_" backLabel="Back" />,
+      <TaskDetailHeader
+        taskId="task-1"
+        taskName="**Task Name:** _Weekly_"
+        backLabel="Back"
+      />,
     );
 
     expect(
@@ -77,6 +84,7 @@ describe("TaskDetailHeader", () => {
     it("shows the identifier as quiet text above the title", () => {
       render(
         <TaskDetailHeader
+          taskId="task-1"
           taskName="Fix login"
           identifier="SOK-12"
           identifierLabels={identifierLabels}
@@ -107,6 +115,7 @@ describe("TaskDetailHeader", () => {
         .mockResolvedValue();
       render(
         <TaskDetailHeader
+          taskId="task-1"
           taskName="Fix login"
           identifier="SOK-12"
           identifierLabels={identifierLabels}
@@ -127,6 +136,7 @@ describe("TaskDetailHeader", () => {
       );
       render(
         <TaskDetailHeader
+          taskId="task-1"
           taskName="Fix login"
           identifier="SOK-12"
           identifierLabels={identifierLabels}
@@ -144,6 +154,7 @@ describe("TaskDetailHeader", () => {
     it("renders no identifier for a task without a project", () => {
       render(
         <TaskDetailHeader
+          taskId="task-1"
           taskName="Loose task"
           identifier={null}
           identifierLabels={identifierLabels}
