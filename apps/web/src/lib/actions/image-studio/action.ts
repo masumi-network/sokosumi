@@ -2,10 +2,12 @@
 
 import type {
   CreateProjectImageJobRequest,
+  CreateProjectTalkingVideoJobRequest,
   CreateProjectVideoJobRequest,
   ProjectImageAsset,
   ProjectImageJob,
   ProjectImageSettings,
+  ProjectTalkingVideoScripts,
   SaveStudioPairwisePick,
   SocialPostMediaRef,
   StudioAdHeadline,
@@ -250,6 +252,71 @@ export const startVideoGeneration = withSession<
       };
     }
     throw error;
+  }
+});
+
+interface StartTalkingVideoParameters
+  extends AuthenticatedRequest,
+    Pick<
+      CreateProjectTalkingVideoJobRequest,
+      "script" | "presenter" | "idempotencyKey"
+    > {
+  projectId: string;
+  modelId: string;
+  voice: string;
+  languageCode: string;
+}
+
+export const startTalkingVideo = withSession<
+  StartTalkingVideoParameters,
+  StartGenerationResult
+>(async (input) => {
+  try {
+    const job = await imageStudioService.createTalkingVideoJob(
+      input.projectId,
+      {
+        modelId: input.modelId,
+        script: input.script,
+        // Core checks the voice against its own list.
+        voice: input.voice as CreateProjectTalkingVideoJobRequest["voice"],
+        languageCode: input.languageCode,
+        presenter: input.presenter,
+        idempotencyKey: input.idempotencyKey,
+      },
+    );
+    return { ok: true, job };
+  } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      return {
+        ok: false,
+        kind: error.kind ?? null,
+        message: error.message || "Could not start the video.",
+        uncertain: error.status === undefined || error.status >= 500,
+      };
+    }
+    throw error;
+  }
+});
+
+export const writeTalkingVideoScripts = withSession<
+  AuthenticatedRequest & {
+    projectId: string;
+    topic?: string;
+    languageCode: string;
+  },
+  ActionResultDto<ProjectTalkingVideoScripts["scripts"], ActionError>
+>(async ({ projectId, topic, languageCode }) => {
+  try {
+    return toActionResult(
+      ok(
+        await imageStudioService.writeTalkingVideoScripts(projectId, {
+          ...(topic ? { topic } : {}),
+          languageCode,
+        }),
+      ),
+    );
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 

@@ -1,4 +1,5 @@
 import {
+  CMO_POST_WITH_PICTURE_SCENARIO_ID,
   evaluateScenario,
   type ScenarioCheck,
   type SokoBotJudgeVerdict,
@@ -22,6 +23,7 @@ import {
   pollCmoCase,
   prepareCmoChatCase,
   startCmoCase,
+  styledPictureChecks,
 } from "./eval-cmo-runner";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 import {
@@ -221,6 +223,12 @@ async function pollScenario(
     ?.comments;
   if (comments) {
     const extra = commentChecks(turn.toolCalls, comments);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_POST_WITH_PICTURE_SCENARIO_ID) {
+    const extra = await styledPictureChecks(lane, context.startedAt);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

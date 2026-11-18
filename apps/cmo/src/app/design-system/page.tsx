@@ -88,11 +88,13 @@ const RADII: Radius[] = [
   { name: "Mark", token: "--radius-mark" },
   { name: "Control", token: "--radius-control" },
   { name: "Card", token: "--radius-card" },
-  { name: "Panel", token: "--radius-panel" },
   { name: "Pill", token: "--radius-pill" },
 ];
 
-const SHADOWS = ["Pill", "Hard", "Hero"];
+const SHADOWS = [
+  { name: "Shadow", className: "ds-shadow" },
+  { name: "Big shadow", className: "ds-shadow-big" },
+];
 
 const ART: CusoArt[] = [
   "walking",
@@ -193,11 +195,9 @@ function Board({ scheme }: BoardProps) {
             </li>
           ))}
           {SHADOWS.map((shadow) => (
-            <li key={shadow}>
-              <span
-                className={`ds-radius-box ds-shadow-${shadow.toLowerCase()}`}
-              />
-              <span className="ds-t-small">{shadow} shadow</span>
+            <li key={shadow.name}>
+              <span className={`ds-radius-box ${shadow.className}`} />
+              <span className="ds-t-small">{shadow.name}</span>
             </li>
           ))}
         </ul>

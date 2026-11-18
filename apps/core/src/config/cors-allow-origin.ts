@@ -24,14 +24,16 @@ export function isFirstPartyAppUrl(value: string): boolean {
     return false;
   }
   const host = url.hostname.toLowerCase();
-  if (url.protocol === "https:") {
-    return FIRST_PARTY_DOMAINS.some(
+  if (
+    url.protocol === "https:" &&
+    FIRST_PARTY_DOMAINS.some(
       (domain) => host === domain || host.endsWith(`.${domain}`),
-    );
-  }
+    )
+  )
+    return true;
   return (
     getEnv().NODE_ENV === "development" &&
-    url.protocol === "http:" &&
+    (url.protocol === "http:" || url.protocol === "https:") &&
     isLocalDevHostname(host)
   );
 }
