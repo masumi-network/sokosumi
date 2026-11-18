@@ -117,7 +117,10 @@ describe("isFirstPartyAppUrl", () => {
   });
 
   it("accepts local dev hosts in development", () => {
+    const callback = "https://web.sokosumi.localhost/zernio/callback";
+    expect(isFirstPartyAppUrl(callback)).toBe(false);
     getEnvMock.mockReturnValue({ NODE_ENV: "development" });
+    expect(isFirstPartyAppUrl(callback)).toBe(true);
     expect(isFirstPartyAppUrl("http://localhost:3100/connect/callback")).toBe(
       true,
     );

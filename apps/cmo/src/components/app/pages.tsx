@@ -10,6 +10,7 @@ import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { strategyApproved } from "../../lib/strategy";
+import type { View } from "../../lib/views";
 import {
   type AdActions,
   AdsPanel,
@@ -17,6 +18,7 @@ import {
   ConnectAdsButton,
 } from "../ads";
 import { ChannelIcon } from "../channel-icon";
+import { LocalDay } from "../local-day";
 import { BrandStep } from "../onboarding/brand-step";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
@@ -50,7 +52,9 @@ export function ResultsPage({
   connectMeasurement,
   ads,
   onChange,
+  openView,
 }: PageProps & {
+  openView: (view: View) => void;
   openUpdate: (id: string) => void;
   connectMeasurement: ConnectMeasurement;
   ads: Pick<AdActions, "loadAdCampaigns" | "setAdCampaignStatus">;
@@ -69,10 +73,7 @@ export function ResultsPage({
   const connected = overview.channels.some(
     (channel) => channel.status.toUpperCase() === "ACTIVE",
   );
-  // A source the plan reads that is not connected is waiting on the owner.
-  const measurementNeeded = overview.measurement.some(
-    (source) => source.status !== "connected",
-  );
+  const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
       <div className="grid4">
@@ -81,7 +82,7 @@ export function ResultsPage({
         <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
         <Kpi label="Failed" value={posts.failed} />
       </div>
-      <section className={measurementNeeded ? "card card-focus" : "card"}>
+      <section className="card">
         <h3>Your numbers</h3>
         <p className="muted">
           {AGENT_NAME} reads real visits, searches and orders from these. Where
@@ -92,7 +93,12 @@ export function ResultsPage({
           onConnect={connectMeasurement}
         />
       </section>
-      <AdsPanel overview={overview} actions={ads} onChange={onChange} />
+      <AdsPanel
+        overview={overview}
+        actions={ads}
+        onChange={onChange}
+        openView={openView}
+      />
       <section className="card">
         <h3>Reach and clicks</h3>
         <p className="muted">
@@ -105,14 +111,20 @@ export function ResultsPage({
         <h3>Weekly reports</h3>
         {weekly.length === 0 ? (
           <p className="muted">
-            The first weekly report arrives on Monday after the strategy is
-            approved.
+            {review ? (
+              <>
+                The first weekly report arrives on{" "}
+                <LocalDay at={review.at} serverZone={review.zone} />.
+              </>
+            ) : (
+              "The first weekly report arrives in the week after you approve the strategy."
+            )}
           </p>
         ) : (
           <ul className="list">
             {weekly.map((update) => (
               <li key={update.id} className="li">
-                <span className="tag">
+                <span className="note num">
                   {new Date(update.at).toLocaleDateString("en-GB", {
                     day: "numeric",
                     month: "short",
@@ -132,6 +144,34 @@ export function ResultsPage({
         )}
       </section>
     </div>
+  );
+}
+
+/** When the next weekly review runs, once the strategy is approved. */
+function nextWeeklyReview(
+  overview: CmoOverview,
+): { at: Date | string; zone: string | null } | null {
+  const review = overview.routines.find(
+    (routine) => routine.key === "cmo-weekly-review",
+  );
+  return review?.nextRunAt && strategyApproved(overview)
+    ? { at: review.nextRunAt, zone: review.timezone }
+    : null;
+}
+
+/** The line under the Results title: how often, and the real next day. */
+export function ResultsLead({ overview }: { overview: CmoOverview }) {
+  const review = nextWeeklyReview(overview);
+  return (
+    <>
+      Real numbers from your accounts, checked every week.
+      {review ? (
+        <>
+          {" "}
+          Next check: <LocalDay at={review.at} serverZone={review.zone} />.
+        </>
+      ) : null}
+    </>
   );
 }
 
@@ -181,8 +221,6 @@ export type ConnectChannel = (
   provider: Provider,
 ) => Promise<{ url: string | null; error: string | null }>;
 
-const COMING_SOON = [["Website / SEO", "Articles"]] as const;
-
 const AD_PROVIDERS = [
   ["google_ads", "Google Ads"],
   ["meta_ads", "Meta ads"],
@@ -195,12 +233,20 @@ export function ChannelsPage({
   addMailingList,
   onChange,
   connectFailed = false,
+  openSeo,
+  connectSearchConsole,
 }: PageProps & {
   connect: ConnectChannel;
   addMailingList: AddMailingList;
   onChange: (overview: CmoOverview) => void;
   connectAds: AdActions["connectAds"];
   connectFailed?: boolean;
+  /** Opens the SEO tab, where search work and Search Console live. */
+  openSeo: () => void;
+  connectSearchConsole: () => Promise<{
+    url: string | null;
+    error: string | null;
+  }>;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(
@@ -230,10 +276,6 @@ export function ChannelsPage({
     });
   }
 
-  // No connected network means Cuso cannot publish: the owner's move.
-  const noNetwork = !overview.channels.some(
-    (channel) => channel.status.toUpperCase() === "ACTIVE",
-  );
   return (
     <div className="page-body">
       {error ? (
@@ -241,7 +283,7 @@ export function ChannelsPage({
           {error}
         </p>
       ) : null}
-      <section className={noNetwork ? "card card-focus" : "card"}>
+      <section className="card">
         <h3>Social accounts</h3>
         <ul className="list">
           {SOCIAL_PROVIDERS.map((provider) => {
@@ -285,7 +327,7 @@ export function ChannelsPage({
         <h3>Ad accounts</h3>
         <p className="muted">
           Optional. {AGENT_NAME} writes the ads; you launch each one, and they
-          never spend more than your plan's ad budget.
+          never spend more than your strategy's ad budget.
         </p>
         <ul className="list">
           {AD_PROVIDERS.map(([provider, label]) => (
@@ -316,19 +358,48 @@ export function ChannelsPage({
         />
       </section>
       <section className="card">
-        <h3>Coming soon</h3>
+        <h3>Google search</h3>
+        <p className="muted">
+          No account to connect for SEO: {AGENT_NAME} audits your site every
+          week and writes page changes and articles for you to paste. Connect
+          Search Console and he also sees the searches that find you.
+        </p>
         <ul className="list">
-          {COMING_SOON.map(([label, kind]) => (
-            <li key={label} className="crow">
-              <span className="grow">
-                <b>{label}</b>
-                <br />
-                <span className="note">{kind}</span>
-              </span>
-              <span className="muted">Not yet</span>
-            </li>
-          ))}
+          <li className="crow">
+            <ChannelIcon channel="seo" size={20} />
+            <span className="grow">
+              <b>Google Search Console</b>
+            </span>
+            {overview.measurement.some(
+              (source) =>
+                source.provider === "google_search_console" &&
+                source.status === "connected",
+            ) ? (
+              <StatusText>Connected</StatusText>
+            ) : (
+              <button
+                type="button"
+                className="button button-secondary button-small"
+                onClick={async () => {
+                  const result = await connectSearchConsole();
+                  if (result.url) window.location.assign(result.url);
+                  else setError(result.error ?? "Could not start connecting.");
+                }}
+              >
+                Connect
+              </button>
+            )}
+          </li>
         </ul>
+        <div>
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={openSeo}
+          >
+            Open SEO
+          </button>
+        </div>
       </section>
       <p className="note">
         {AGENT_NAME} plans for every channel he can reach, and never posts
@@ -348,7 +419,7 @@ interface MailingListProps {
   onChange: (overview: CmoOverview) => void;
 }
 
-/** The addresses Cuso writes the newsletter for; sending is not built yet. */
+/** The addresses Cuso writes the newsletter for; the owner sends each issue. */
 function MailingList({ size, add, onChange }: MailingListProps) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -357,8 +428,8 @@ function MailingList({ size, add, onChange }: MailingListProps) {
   return (
     <>
       <p className="muted">
-        {AGENT_NAME} writes each issue for the people on your list. Sending is
-        not built yet.
+        {AGENT_NAME} writes each issue for the people on your list. You find it
+        in your Calendar and send it yourself. Sending from here is coming soon.
       </p>
       <div className="li">
         <span className="grow">
@@ -495,8 +566,8 @@ export function SettingsPage({
       <section className="card">
         <h3>What {AGENT_NAME} does when</h3>
         <p className="muted">
-          Every routine works from your strategy and starts once you approve it.
-          Dreaming runs every night from the start.
+          Everything here works from your strategy and starts once you approve
+          it. The nightly learning runs from day one.
         </p>
         <ul className="list">
           {overview.routines.map((routine) => (

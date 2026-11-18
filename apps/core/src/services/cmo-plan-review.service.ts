@@ -205,7 +205,7 @@ export function cmoPlanProblems(
       );
     if (pieces.some((entry) => entry.draft))
       problems.push(
-        "the plan holds drafts; leave them out, you make every piece after the owner approves and pays.",
+        "the strategy holds drafts; leave them out, you make every piece after the owner approves and pays.",
       );
     const hedged = pieces.filter((entry) =>
       /\b(check|read|compare)\b[^.!?\n]{0,30}\b(details|product page|fit details)\b/i.test(
@@ -236,16 +236,6 @@ export function cmoPlanProblems(
     problems.push(...crowdedNetworks(pieces));
     problems.push(...storyProblems(pieces));
     problems.push(...repeatedTitles(pieces));
-    const articles = pieces.filter(
-      (entry) => entry.channel === "seo" && entry.format === "article",
-    );
-    if (
-      articles.length >= 2 &&
-      !articles.some((entry) => COMPARISON_TITLE.test(entry.title))
-    )
-      problems.push(
-        `none of the ${articles.length} seo articles is a comparison page; make one "X vs Y" or "X alternative", with a competitor's name in the title.`,
-      );
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
       problems.push(
@@ -425,12 +415,10 @@ function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
     const most = (MAX_PER_DAY[channel] ?? MAX_PER_DAY_OTHER) * 28;
     if (!social || count <= Math.ceil(most * 1.1)) return [];
     return [
-      `${channel} has ${count} pieces, more than ${most / 28} a day; spread the pace over every network in the plan instead.`,
+      `${channel} has ${count} pieces, more than ${most / 28} a day; spread the pace over every network in the strategy instead.`,
     ];
   });
 }
-
-const COMPARISON_TITLE = /\b(vs\.?|versus|alternatives?)\b/i;
 
 /**
  * LinkedIn rewards one real story, and proof without one is a vague "a
@@ -764,14 +752,14 @@ export function pillarProblems(
   ).length;
   if (outside > 0)
     return [
-      `${outside} calendar entries name no pillar of the plan; give every entry one of: ${pillars.map((pillar) => pillar.name).join(", ")}.`,
+      `${outside} calendar entries name no pillar of the strategy; give every entry one of: ${pillars.map((pillar) => pillar.name).join(", ")}.`,
     ];
   return pillars.flatMap((pillar) => {
     const count = pieces.filter((entry) => named(entry, pillar.name)).length;
     const share = Math.round((count / pieces.length) * 100);
     return Math.abs(share - pillar.share) > CMO_SHARE_TOLERANCE
       ? [
-          `the pillar "${pillar.name}" is ${pillar.share}% of the plan but ${count} of ${pieces.length} pieces (${share}%); make it about ${Math.round((pillar.share / 100) * pieces.length)}.`,
+          `the pillar "${pillar.name}" is ${pillar.share}% of the strategy but ${count} of ${pieces.length} pieces (${share}%); make it about ${Math.round((pillar.share / 100) * pieces.length)}.`,
         ]
       : [];
   });
@@ -811,7 +799,7 @@ export async function cmoPlanDrift(input: {
         sellsMainOffer: {
           type: "boolean",
           instructions:
-            "Is the plan built around the business's main product or service, rather than a narrower side product or feature? A trial, demo or introductory call is a valid entry offer when it leads to that product; do not treat the entry offer alone as drift.",
+            "Is the strategy built around the business's main product or service, rather than a narrower side product or feature? A trial, demo or introductory call is a valid entry offer when it leads to that product; do not treat the entry offer alone as drift.",
         },
       },
       timeoutMs: 15_000,
@@ -823,7 +811,7 @@ export async function cmoPlanDrift(input: {
     return {
       verdict: drifts ? "drift" : "ok",
       problem: drifts
-        ? `the plan drifts from the main offer ("${brain.reveal?.positioning ?? brain.summary}"); make the summary, offer, focus and pillars sell it.`
+        ? `the strategy drifts from the main offer ("${brain.reveal?.positioning ?? brain.summary}"); make the summary, offer, focus and pillars sell it.`
         : null,
       costUsd,
     };

@@ -1,8 +1,15 @@
 import { createHash } from "node:crypto";
 
 import { ProjectImageJobStatus } from "@sokosumi/database";
-import type { CmoCalendarEntry } from "@sokosumi/soko-bot";
-import { CMO_CHANNELS, socialPostMediaKindForMime } from "@sokosumi/utils";
+import {
+  type CmoCalendarEntry,
+  SOKO_BOT_VOICEOVER_VOICES,
+} from "@sokosumi/soko-bot";
+import {
+  CMO_CHANNELS,
+  isCmoTalkingFormat,
+  socialPostMediaKindForMime,
+} from "@sokosumi/utils";
 import { head } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import sharp from "sharp";
@@ -14,21 +21,30 @@ import { recordCoreWarning } from "@/lib/evlog";
 import { renderStudioPng } from "@/lib/image-studio/brand-overlay";
 import { imageModel } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
+import {
+  DEFAULT_TALKING_VIDEO_VOICE,
+  TALKING_VIDEO_PRESENTERS,
+} from "@/lib/image-studio/talking-video";
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
 import { checkStyledPicture } from "@/lib/reference-library/style-check";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
 import { cmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
+import { talkingVideoPresenter } from "@/services/cmo-presenter.service";
 import {
   type CusoDrive,
   cusoDrive,
   saveCusoProjectFile,
 } from "@/services/cuso-project-files.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
-import { ensureStudioAssetDriveFile } from "@/services/image-studio-drive.service";
+import {
+  ensureStudioAssetDriveFile,
+  writeOwnerDriveFile,
+} from "@/services/image-studio-drive.service";
 import {
   createImageJob,
+  createTalkingVideoJob,
   createVideoJob,
   DEFAULT_SETTINGS,
 } from "@/services/image-studio-jobs.service";
@@ -74,6 +90,8 @@ export const REFERENCE_STYLE_MODELS = [
  * was paid for) and says so in the job's error, which this starts.
  */
 const REJECTED = "Style check: ";
+/** A chat picture that passed keeps that on its job, so it is judged once. */
+const PASSED = "Style passed";
 
 const LIVE = new Set<ProjectImageJobStatus>([
   ProjectImageJobStatus.PENDING,
@@ -87,6 +105,7 @@ type Format = {
   name?: string;
   image: boolean;
   video?: boolean;
+  talking?: boolean;
   slides?: readonly [number, number];
 };
 type Channel = { name?: string; formats: Record<string, Format> };
@@ -124,6 +143,22 @@ export function cmoPieceIsVideo(
   return Boolean(formatOf(entry)?.video);
 }
 
+/** Whether the piece is a talking video Core makes from its script. */
+export function cmoPieceIsTalking(
+  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+): boolean {
+  return isCmoTalkingFormat(entry.channel, entry.format);
+}
+
+/** What Core makes a piece's media from: its visual, or a talking video's script. */
+function hasBrief(
+  piece: Pick<CmoMediaPiece, "channel" | "format" | "visual" | "script">,
+): boolean {
+  return Boolean(
+    cmoPieceIsTalking(piece) ? piece.script?.trim() : piece.visual?.trim(),
+  );
+}
+
 /** A piece as the media maker reads it. */
 export interface CmoMediaPiece
   extends Pick<
@@ -138,6 +173,10 @@ export interface CmoMediaPiece
     | "styleReferenceId"
     | "headline"
     | "slides"
+    | "script"
+    | "presenter"
+    | "voice"
+    | "languageCode"
     | "socialPostId"
   > {
   /** What is on it already: a post's file pathnames, a file piece's file ids. */
@@ -149,7 +188,7 @@ export interface CmoMediaJob {
   id: string;
   pieceId: string;
   slot: number;
-  step: "image" | "still" | "video";
+  step: "image" | "still" | "video" | "talking";
   visualKey: string;
   status: ProjectImageJobStatus;
   assetId: string | null;
@@ -185,9 +224,24 @@ export type CmoSlotAction =
 export function cmoVisualKey(
   piece: Pick<
     CmoMediaPiece,
-    "visual" | "visualFileIds" | "slides" | "styleReferenceId" | "headline"
+    | "visual"
+    | "visualFileIds"
+    | "slides"
+    | "styleReferenceId"
+    | "headline"
+    | "script"
+    | "presenter"
+    | "voice"
   >,
 ): string {
+  // A talking video is made from its script and who speaks it.
+  if (piece.script?.trim())
+    return createHash("sha256")
+      .update(
+        `talking|${piece.script.trim()}|${piece.presenter ?? ""}|${piece.voice ?? ""}`,
+      )
+      .digest("hex")
+      .slice(0, 10);
   // A style or headline joins the key only when set, so the keys of pieces
   // made before them do not change.
   const style = piece.styleReferenceId
@@ -244,6 +298,7 @@ export function cmoSlotAction(
       sourceAssetId,
     };
   };
+  if (cmoPieceIsTalking(piece)) return next("talking", null);
   if (!cmoPieceIsVideo(piece)) return next("image", null);
   // A video animates a still made from the brand's own pictures: the still
   // first, then the video from it, each retried on its own.
@@ -259,7 +314,7 @@ export function cmoMediaState(
 ): CmoMediaState {
   if (!cmoPieceNeedsMedia(piece) || piece.media.length >= slotsOf(piece))
     return "made";
-  if (!piece.visual?.trim()) return "no_visual";
+  if (!hasBrief(piece)) return "no_visual";
   const key = cmoVisualKey(piece);
   for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
     const action = cmoSlotAction(
@@ -319,7 +374,10 @@ export async function listCmoMediaJobs(
     if (
       !pieceId ||
       !visualKey ||
-      (step !== "image" && step !== "still" && step !== "video")
+      (step !== "image" &&
+        step !== "still" &&
+        step !== "video" &&
+        step !== "talking")
     )
       return [];
     return [
@@ -390,7 +448,7 @@ export function cmoImagePrompt(input: {
  * places the real logo afterwards, so the model leaves its corner plain.
  */
 export function cmoStylePrompt(input: {
-  piece: CmoMediaPiece;
+  piece: Pick<CmoMediaPiece, "visual" | "title" | "headline" | "slides">;
   slot: number;
   businessName: string;
   colours: readonly string[];
@@ -446,7 +504,7 @@ interface StyleBrand {
 }
 
 /** The brand's colours (DESIGN.md) and logo bytes, read once per run. */
-async function loadStyleBrand(projectId: string): Promise<StyleBrand> {
+export async function loadStyleBrand(projectId: string): Promise<StyleBrand> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { logo: true, designMdUrl: true },
@@ -475,7 +533,7 @@ export async function advanceCmoMedia(
     (piece) =>
       piece.status !== "published" &&
       piece.status !== "skipped" &&
-      piece.visual?.trim() &&
+      hasBrief(piece) &&
       cmoMediaState(piece, []) !== "made",
   );
   // A post whose words changed after its picture went on is back to a
@@ -527,7 +585,9 @@ export async function advanceCmoMedia(
             drive,
             piece,
             action.job,
-            styled(piece) && action.job.step !== "video"
+            styled(piece) &&
+              action.job.step !== "video" &&
+              action.job.step !== "talking"
               ? await brandFor()
               : null,
           );
@@ -541,9 +601,11 @@ export async function advanceCmoMedia(
         slot,
         action,
         references:
-          action.step === "video" ? [] : references(piece, brandPictures),
+          action.step === "video" || action.step === "talking"
+            ? []
+            : references(piece, brandPictures),
         colours:
-          styled(piece) && action.step !== "video"
+          styled(piece) && action.step !== "video" && action.step !== "talking"
             ? (await brandFor()).colours
             : [],
       });
@@ -552,6 +614,30 @@ export async function advanceCmoMedia(
       capacity = started ? capacity - 1 : 0;
     }
   }
+}
+
+/**
+ * Who speaks a talking video. The owner's photo needs their recorded
+ * consent; without it, or with a presenter or voice no catalog has, a stock
+ * presenter and voice speak instead, so the month is not held up.
+ */
+async function talkingVoiceAndPresenter(
+  context: MediaContext,
+  drive: { workspaceId: string; userId: string },
+  piece: CmoMediaPiece,
+) {
+  const voice = (SOKO_BOT_VOICEOVER_VOICES as readonly string[]).includes(
+    piece.voice ?? "",
+  )
+    ? (piece.voice as (typeof SOKO_BOT_VOICEOVER_VOICES)[number])
+    : DEFAULT_TALKING_VIDEO_VOICE;
+  // Without a consented photo, "owner" falls back to the first stock presenter.
+  const presenter = (await talkingVideoPresenter({
+    projectId: context.cuso.projectId,
+    userId: drive.userId,
+    presenter: piece.presenter ?? "",
+  })) ?? { kind: "stock" as const, id: TALKING_VIDEO_PRESENTERS[0]!.id };
+  return { voice, presenter };
 }
 
 /** Starts one job; false when the studio refused (credits, the limit). */
@@ -583,6 +669,18 @@ async function start(
     idempotencyKey,
   };
   try {
+    if (action.step === "talking") {
+      await createTalkingVideoJob({
+        projectId: scope.projectId,
+        workspaceId: scope.workspaceId,
+        userId: scope.userId,
+        idempotencyKey,
+        script: piece.script?.trim() ?? "",
+        ...(await talkingVoiceAndPresenter(context, drive, piece)),
+        languageCode: piece.languageCode ?? "en",
+      });
+      return true;
+    }
     if (action.step === "video") {
       if (!action.sourceAssetId) return true;
       await createVideoJob({
@@ -753,9 +851,9 @@ async function attach(
  * logo on one that passes. A refusal marks the job, so the next model tries.
  */
 async function checkAndBrand(
-  context: MediaContext,
-  piece: CmoMediaPiece & { styleReferenceId?: string },
-  job: CmoMediaJob,
+  context: { cuso: Pick<Cuso, "sokoBotId"> },
+  piece: Pick<CmoMediaPiece, "styleReferenceId" | "headline">,
+  job: Pick<CmoMediaJob, "id" | "assetId">,
   style: StyleBrand,
 ): Promise<"rejected" | { bytes: Buffer; contentType: string }> {
   const asset = await prisma.projectImageAsset.findUnique({
@@ -800,6 +898,78 @@ async function checkAndBrand(
         bytes: await sharp(png).jpeg({ quality: 90 }).toBuffer(),
         contentType: "image/jpeg",
       };
+}
+
+/**
+ * A styled picture Cuso started in chat (generate_image with a
+ * styleReferenceId), once its job has finished: the same check and logo as a
+ * month's picture, with the finished file in Files. A picture the check
+ * turned down says why, so the next model can try. Judged once: asking
+ * again returns the same answer.
+ */
+export async function finishCmoChatPicture(input: {
+  cuso: Pick<Cuso, "sokoBotId" | "projectId">;
+  drive: { workspaceId: string; organizationId: string | null; userId: string };
+  job: { id: string; assetId: string; prompt: string; error: string | null };
+  styleReferenceId: string;
+  headline: string | null;
+}): Promise<
+  | { passed: true; file: { id: string; name: string } }
+  | { passed: false; problems: string }
+> {
+  const { job, drive } = input;
+  if (job.error?.startsWith(REJECTED))
+    return { passed: false, problems: job.error.slice(REJECTED.length) };
+  const finished =
+    job.error === PASSED
+      ? null
+      : await checkAndBrand(
+          input,
+          {
+            styleReferenceId: input.styleReferenceId,
+            headline: input.headline ?? undefined,
+          },
+          job,
+          await loadStyleBrand(input.cuso.projectId),
+        );
+  if (finished === "rejected") {
+    const row = await prisma.projectImageJob.findUnique({
+      where: { id: job.id },
+      select: { error: true },
+    });
+    return {
+      passed: false,
+      problems: row?.error?.startsWith(REJECTED)
+        ? row.error.slice(REJECTED.length)
+        : "the picture or its reference could not be read",
+    };
+  }
+  const file = await ensureStudioAssetDriveFile({
+    projectId: input.cuso.projectId,
+    assetId: job.assetId,
+    ...drive,
+    prompt: job.prompt,
+    jobId: job.id,
+  });
+  if (!file) return { passed: false, problems: "its file could not be saved" };
+  if (finished) {
+    // The logo goes onto the Files copy; the pass is kept only once it is there.
+    const saved = await writeOwnerDriveFile({
+      ...drive,
+      pathname: file.pathname,
+      name: file.name,
+      bytes: finished.bytes,
+      contentType: finished.contentType,
+    });
+    if (!saved)
+      return { passed: false, problems: "its file could not be saved" };
+    await prisma.projectImageJob.update({
+      where: { id: job.id },
+      data: { error: PASSED },
+      select: { id: true },
+    });
+  }
+  return { passed: true, file: { id: file.id, name: file.name } };
 }
 
 /** Schedules a draft post that has all its pictures, on a connected network. */
@@ -886,9 +1056,4 @@ async function schedule(
       },
     );
   });
-}
-
-/** A Core media job settled: the month it belongs to moves on. */
-export function isCmoMediaJob(idempotencyKey: string): boolean {
-  return idempotencyKey.startsWith(`${KEY_PREFIX}:`);
 }

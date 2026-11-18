@@ -8,6 +8,7 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { executeCmoSeoTool } from "./cmo-seo";
 import { dispatchAnnouncementTools } from "./dispatch-announcements";
 import { dispatchChatTools } from "./dispatch-chat";
 import { dispatchFilesTools } from "./dispatch-files";
@@ -134,7 +135,14 @@ export async function executeAuthorizedTool(
     case "report_update":
     case "evaluate_with_jev":
     case "search_exa":
+    case "check_competitors":
+    case "save_competitor_feed":
       return dispatchOtherTools(runtime, input, authorized);
+    case "read_seo":
+    case "research_keywords":
+    case "check_search_rankings":
+    case "save_seo_suggestions":
+      return executeCmoSeoTool(input, authorized);
     case "list_tables":
     case "read_table":
     case "create_table":
@@ -178,6 +186,7 @@ export async function executeAuthorizedTool(
     case "get_image":
     case "generate_video":
     case "get_video":
+    case "generate_talking_video":
     case "read_file":
       return dispatchFilesTools(runtime, input, authorized);
     case "list_integrations":

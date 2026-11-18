@@ -802,7 +802,7 @@ export async function answerMarketingStrategyQuestion(input: {
       (question) => question.id === input.questionId,
     );
     if (!previous) {
-      throw notFound("That question is not in the plan");
+      throw notFound("That question is not in the strategy");
     }
     const note = answerNote(input.answer, input.note);
     return tx.marketingStrategy.update({

@@ -15,7 +15,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius-panel);
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 
@@ -158,7 +158,7 @@
   flex: none;
   width: 36px;
   height: 36px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-control);
 }
 
@@ -223,24 +223,18 @@
 .ds-radius-box {
   width: 64px;
   height: 64px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   background: var(--card);
 }
 
-.ds-shadow-pill {
-  border-width: var(--line-pill);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-pill);
-}
-
-.ds-shadow-hard {
+.ds-shadow {
   border-radius: var(--radius-control);
-  box-shadow: var(--shadow-hard);
+  box-shadow: var(--shadow);
 }
 
-.ds-shadow-hero {
+.ds-shadow-big {
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-hero);
+  box-shadow: var(--shadow-big);
 }
 
 .ds-card-body {
@@ -276,7 +270,7 @@
 /* Only "Needs you" is labelled on Iris; Cuso's circle stays --stage. */
 .ds-pose-on-iris {
   padding: 1px 6px;
-  border: var(--line-pill) solid var(--line);
+  border: var(--line-width-small) solid var(--line);
   border-radius: var(--radius-mark);
   background: var(--primary);
   color: var(--primary-foreground);
@@ -288,7 +282,7 @@
   aspect-ratio: 4 / 5;
   max-height: 640px;
   overflow: hidden;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--primary-hover);
 }
@@ -315,10 +309,6 @@
   border-radius: var(--radius-card);
 }
 
-.ds-r-panel {
-  border-radius: var(--radius-panel);
-}
-
 .ds-scenes {
   display: flex;
   flex-wrap: wrap;
@@ -329,7 +319,7 @@
   width: 160px;
   height: 160px;
   padding: 12px;
-  border: var(--line-thick) solid var(--line);
+  border: var(--line-width) solid var(--line);
   border-radius: var(--radius-card);
   background: var(--primary-hover);
   object-fit: contain;
@@ -405,4 +395,19 @@
 
 .ds-r-pill {
   border-radius: var(--radius-pill);
+}
+
+/* A board or screen pins its own theme, so it picks its own logo file. */
+:root .ds-board.light .logo .logo-on-light,
+:root .ds-screen.light .logo .logo-on-light,
+:root .ds-board.dark .logo .logo-on-dark,
+:root .ds-screen.dark .logo .logo-on-dark {
+  display: block;
+}
+
+:root .ds-board.light .logo .logo-on-dark,
+:root .ds-screen.light .logo .logo-on-dark,
+:root .ds-board.dark .logo .logo-on-light,
+:root .ds-screen.dark .logo .logo-on-light {
+  display: none;
 }

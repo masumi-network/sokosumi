@@ -179,3 +179,63 @@ model ProjectSeoActionTask {
   @@unique([auditId, idempotencyKey])
   @@map("project_seo_action_task")
 }
+
+/// What to do for a Project's search traffic: an article to write or a change to a page.
+/// `key` is stable per Project, so the same proposal saved again updates its row.
+model ProjectSeoSuggestion {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  projectId     String    @db.Uuid
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// article | page_change
+  kind          String
+  key           String
+  /// audit | cuso
+  source        String
+  /// The audit an audit proposal came from.
+  observationId String?   @db.Uuid
+  title         String
+  /// An article's target keyword.
+  keyword       String?
+  /// The page a change is for.
+  pageUrl       String?
+  why           String
+  /// An article's outline, or what to change on the page.
+  body          String
+  /// A page change's exact new text, ready to copy.
+  newText       String?
+  /// An article written in full.
+  draft         String?
+  /// The numbers behind it, each with its source and date, attached by Core.
+  evidence      Json
+  /// open | done | verified | dismissed
+  status        String    @default("open")
+  doneAt        DateTime?
+  /// When Core last looked for a done change on the page, after a weekly audit.
+  checkedAt     DateTime?
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([projectId, key])
+  @@index([projectId, kind, status])
+  @@map("project_seo_suggestion")
+}
+
+/// The latest read of one research source for a Project: keyword ideas for a topic, or its Search Console property.
+model ProjectSeoResearch {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  projectId  String   @db.Uuid
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /// keyword_ideas | search_console
+  kind       String
+  /// The topic and Market of keyword ideas, or the Search Console property.
+  key        String
+  payload    Json
+  observedAt DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([projectId, kind, key])
+  @@index([projectId, kind, observedAt])
+  @@map("project_seo_research")
+}

@@ -76,8 +76,8 @@ const SCREENS: Omit<Screen, "entries">[] = [
     key: "seo",
     name: "Google",
     icon: "seo",
-    one: "website piece",
-    many: "website pieces",
+    one: "website page",
+    many: "website pages",
   },
 ];
 

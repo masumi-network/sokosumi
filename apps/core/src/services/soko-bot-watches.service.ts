@@ -23,6 +23,8 @@ type WaitForInput = z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["wait_for"]>;
 export type SokoBotWatchKind = WaitForInput["kind"];
 
 const DEFAULT_TIMEOUT_MINUTES = 60;
+/** A position check takes minutes; one still running after this is reported as slow. */
+const SEO_CHECK_TIMEOUT_MINUTES = 45;
 /** Someone may connect the app later in the day; no one needs a reminder. */
 const APP_CONNECTED_TIMEOUT_MINUTES = 1_440;
 const PROVIDER_SLUG = /^[a-z0-9_-]{1,64}$/;
@@ -77,11 +79,20 @@ export async function watchOutcome(watch: {
     });
     if (!job) return "The Studio job no longer exists.";
     if (PENDING_STUDIO.has(job.status)) return null;
-    const video = job.kind === "TEXT_TO_VIDEO" || job.kind === "IMAGE_TO_VIDEO";
+    const video =
+      job.kind === "TEXT_TO_VIDEO" ||
+      job.kind === "IMAGE_TO_VIDEO" ||
+      job.kind === "TALKING_VIDEO";
     const read = video ? "get_video" : "get_image";
     return job.status === "SUCCEEDED"
       ? `The ${video ? "video" : "image"} is ready (job ${watch.targetId}). Call ${read} with jobId ${watch.targetId}${watch.projectId ? ` and projectId ${watch.projectId}` : ""} for its link and fileId.`
       : `The Studio job ended ${job.status} (job ${watch.targetId}); ${read} says why.`;
+  }
+  if (watch.kind === "seo_check") {
+    const { seoCheckOutcome } = await import(
+      "@/services/cmo-seo-rankings.service"
+    );
+    return seoCheckOutcome(watch.targetId);
   }
   if (watch.kind === "app_connected") {
     const integration = await prisma.sokoBotIntegration.findUnique({
@@ -136,11 +147,45 @@ export async function watchOutcome(watch: {
   );
 }
 
+/**
+ * A follow-up answers with its reply, which Core posts where it was asked.
+ * With chat tools at hand, an SEO check's follow-up went looking for a room
+ * to post its answer in and never wrote it; it gets none of them.
+ */
+const SEO_CHECK_WITHHELD = new Set<SokoBotCapability>([
+  "post_chat",
+  "list_chats",
+  "read_chat",
+  "ask_coworker",
+  "check_search_rankings",
+]);
+
+/** The asking turn's tools a follow-up keeps: it starts no runs of its own. */
+export function followUpCapabilities(
+  kind: string,
+  names: string[],
+): SokoBotCapability[] {
+  return names.filter(
+    (name): name is SokoBotCapability =>
+      isSokoBotCapability(name) &&
+      !RUN_MANAGEMENT_TOOLS.has(name) &&
+      !(kind === "seo_check" && SEO_CHECK_WITHHELD.has(name)),
+  );
+}
+
+/**
+ * How the follow-up of an SEO check ends: its message is the answer the
+ * owner has waited for, never a note that the answer exists.
+ */
+const SEO_CHECK_ANSWER =
+  "The reply you write at the end of this turn is the message the owner reads: Core posts it in the chat where they asked, so you post nothing yourself and look for no chat room, whatever your plan says about where to answer. Write the answer itself, in full, in the language they asked in: where the site ranks, with the date (or that it is not among the results checked, and how many were), who ranks above, and two or three concrete next steps from the numbers the tools return. Save a page change or an article that follows with save_seo_suggestions and say it is in the SEO tab. Never write that the result or the steps are covered, done or available: say them. If the check failed or did not finish, say that first, give the numbers you have, and ask whether to check again; start no new check now. Start the answer with DONE: and go straight on with the answer.";
+
 /** The follow-up's brief: what it waited for, what came of it, and the plan. */
 export function followUpMessage(input: {
   then: string;
   outcome: string;
   timedOut: boolean;
+  kind?: string;
 }): string {
   return [
     "Follow-up: something you were waiting for is done.",
@@ -150,7 +195,9 @@ export function followUpMessage(input: {
     "",
     `Your plan: ${input.then}`,
     "",
-    "Carry the plan out now with the tools you have; it was already asked for, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Your answer is posted in the chat where it was asked: to deliver something there (an image, a file), attach it to this answer with preview_result rather than post_chat. Start the answer with DONE: and say in one or two sentences what you did, with links.",
+    input.kind === "seo_check"
+      ? SEO_CHECK_ANSWER
+      : "Carry the plan out now with the tools you have; it was already asked for, so do not ask again. If it no longer makes sense (the work failed or timed out), say so plainly instead. Your answer is posted in the chat where it was asked: to deliver something there (an image, a file), attach it to this answer with preview_result rather than post_chat. Start the answer with DONE: and say in one or two sentences what you did, with links.",
   ].join("\n");
 }
 
@@ -160,25 +207,62 @@ export function followUpMessage(input: {
  * Something already done is said so at once, for the bot to act on in this
  * turn.
  */
+/**
+ * A follow-up or background run may wait too (post, then wait for the
+ * replies); its follow-up belongs to the turn that was asked, so it keeps
+ * that turn's tools and posts where it was asked.
+ */
+async function watchOriginTurnId(turnId: string): Promise<string> {
+  const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+    where: { id: turnId },
+    select: { parentTurnId: true },
+  });
+  if (!turn.parentTurnId) return turnId;
+  const parentWatch = await prisma.sokoBotWatch.findFirst({
+    where: { firedTurnId: turnId },
+    select: { turnId: true },
+  });
+  return parentWatch?.turnId ?? turn.parentTurnId;
+}
+
+/**
+ * A position check Cuso asked the SEO specialist for: his follow-up answers
+ * the owner in the chat it was asked in once the result is imported, or says
+ * it failed or did not finish in time.
+ */
+export async function registerSeoCheckWatch(
+  authorized: AuthorizedSokoBotRuntime,
+  input: { analysisId: string; projectId: string; then: string },
+) {
+  const { sokoBotId } = authorized.turn;
+  const waiting = await prisma.sokoBotWatch.findFirst({
+    where: {
+      sokoBotId,
+      kind: "seo_check",
+      targetId: input.analysisId,
+      status: "WAITING",
+    },
+    select: { id: true },
+  });
+  if (waiting) return;
+  await prisma.sokoBotWatch.create({
+    data: {
+      sokoBotId,
+      turnId: await watchOriginTurnId(authorized.turn.id),
+      kind: "seo_check",
+      targetId: input.analysisId,
+      projectId: input.projectId,
+      then: input.then,
+      expiresAt: new Date(Date.now() + SEO_CHECK_TIMEOUT_MINUTES * 60_000),
+    },
+  });
+}
+
 export async function registerWatch(
   authorized: AuthorizedSokoBotRuntime,
   input: WaitForInput,
 ) {
-  const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
-    where: { id: authorized.turn.id },
-    select: { parentTurnId: true },
-  });
-  // A follow-up or background run may wait too (post, then wait for the
-  // replies); its follow-up belongs to the turn that was asked, so it keeps
-  // that turn's tools and posts where it was asked.
-  let originTurnId = authorized.turn.id;
-  if (turn.parentTurnId) {
-    const parentWatch = await prisma.sokoBotWatch.findFirst({
-      where: { firedTurnId: authorized.turn.id },
-      select: { turnId: true },
-    });
-    originTurnId = parentWatch?.turnId ?? turn.parentTurnId;
-  }
+  const originTurnId = await watchOriginTurnId(authorized.turn.id);
   const { sokoBotId, workspaceId } = authorized.turn;
   const waiting = await prisma.sokoBotWatch.count({
     where: { sokoBotId, status: "WAITING" },
@@ -394,11 +478,7 @@ export async function syncSokoBotWatches(input: {
     if (claimed.count === 0) continue;
     const capabilities = [
       ...new Set([
-        ...watch.turn.capabilityNames.filter(
-          (name): name is SokoBotCapability =>
-            isSokoBotCapability(name) &&
-            !RUN_MANAGEMENT_TOOLS.has(name as SokoBotCapability),
-        ),
+        ...followUpCapabilities(watch.kind, watch.turn.capabilityNames),
         ...(watch.kind === "app_connected" ? INTEGRATION_TOOLS : []),
       ]),
     ];
@@ -414,6 +494,7 @@ export async function syncSokoBotWatches(input: {
             outcome ??
             `still not done after ${Math.round((watch.expiresAt.getTime() - watch.createdAt.getTime()) / 60_000)} minutes.`,
           timedOut,
+          kind: watch.kind,
         }),
         source: watch.turn.source === "CHAT" ? "CHAT" : "SCHEDULE",
         versionId: watch.turn.versionId ?? undefined,

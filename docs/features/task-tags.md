@@ -16,7 +16,7 @@ and grant-pending tasks use existing mutation restrictions.
 `TASK_TAG_CLASSIFICATION_ENABLED=true` is the default; set it to `false` to stop
 automatic inference. A configured `AI_GATEWAY_API_KEY` is required. The cron-authenticated
 `/sync/task-tags` endpoint reuses the existing sync lock/deadline, handles at most
-50 queued and 200 historical tasks serially per tick, and permits at most two
+50 queued Tasks serially per tick, and permits at most two
 attempts per content revision. Leases, revision/workspace checks, and
 compare-and-set writes discard obsolete results.
 Human corrections are never overwritten by the worker.
@@ -45,8 +45,7 @@ Deployment needs the task-tag migration, Core Gateway credentials with account
 access to the compliant route, and the existing authenticated `/sync/task-tags`
 cron (every five minutes). Creation and title/description edits enqueue work via
 the database trigger. Enabling also drains tasks already `pending` from earlier
-creates/edits while disabled. Spare tick capacity classifies existing
-`unclassified` history; see below.
+creates/edits while disabled. Tasks with no queued change keep their existing tags.
 
 A copy made with "Duplicate as draft" sends `copyOfTaskId`. Core checks that the
 caller can read that Task in the active workspace, then gives the copy its
@@ -65,33 +64,13 @@ fixtures and a branch-specific preview credential. Missing configuration,
 unavailable discovery, or privacy-compatible routing failure leaves creation and
 manual corrections independent of classification.
 
-## Historical classification
+## Worker limits
 
-The same `/sync/task-tags` worker classifies existing unclassified tasks. It
-selects due queued work first (at most 50), then oldest eligible nonarchived
-unclassified tasks (at most 200). Every queued row is evaluated before any
-history, so a large historical batch cannot delay an interactive create, edit, or
-retry. There is no mass enqueue, operator dry-run, or separate backfill command.
-Existing state, revision, and lease fields provide durable resume and race
-protection. Complete results, including empty classifications, and terminal
-failures are excluded. Each unchanged revision still has at most two attempts.
-
-Historical throughput is at most 2,400 attempts per hour per target, less when
-queued work, retries, or stop conditions consume capacity. Raising the historical
-rate does not raise total spend: the backlog is a fixed, finite set of rows. At
-the measured ~$0.0000373 per task the whole backlog observed on 2026-09-27 costs
-about $0.71 on mainnet (19,006 rows) and $0.23 on preprod (6,105), whether it
-takes days or hours. The rate of spend does rise with the rate of work.
-
-Three guards bound one tick, each observable as `stopReason` in the batch log:
-the existing sync deadline (`LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER`, 275 seconds on
-the defaults production runs on), a 120-second claim budget, and a $0.05
-reported-cost ceiling. Disabling `TASK_TAG_CLASSIFICATION_ENABLED` stops provider
-work; restoring it resumes from durable state.
-
-Do not claim older production tasks were processed until production cron logs
-show historical completions and declining remaining history. Check failures and
-unreported costs before estimating total cost or completion.
+The worker stops claiming Tasks when the sync deadline approaches, the tick
+reaches 120 seconds, or reported spend reaches $0.05. The batch log records
+the reason in `stopReason`. The worker accepts fresh queued revisions and retries
+marked `queued:`. It leaves unclassified Tasks and older unmarked or historical
+retries untouched. A later content edit queues a fresh revision. [Task tag worker](../../apps/core/src/services/task-tag-classification.service.ts)
 
 ## Compatibility and rollback
 

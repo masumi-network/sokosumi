@@ -10,10 +10,8 @@ import {
 import { getPendingTaskName } from "@/app/tasks/utils/pending-created-task";
 import { isAgentAssigneeFields } from "@/app/tasks/utils/task-form-status";
 import { taskHref } from "@/app/tasks/utils/task-href";
-import {
-  type TaskContextSelectionInput,
-  updateTask,
-} from "@/lib/actions/task/action";
+import { updateTask } from "@/lib/actions/task/action";
+import { toTaskContextSelectionInput } from "./task-context-attachments";
 import { withBoardPreview } from "./use-pending-created-tasks";
 
 import type { useTaskFormModel } from "./use-task-form-model";
@@ -87,17 +85,7 @@ export function useTaskFormSubmission(
     try {
       const trimmedDescription = description.trim();
       const trimmedName = name.trim();
-      const context: TaskContextSelectionInput = {
-        brand: {
-          enabled: contextSelection.brand.enabled,
-          source: contextSelection.brand.source,
-          custom: contextSelection.brand.custom
-            ? { url: contextSelection.brand.custom.url }
-            : null,
-        },
-        briefingEnabled: contextSelection.briefingEnabled,
-        contextMdEnabled: contextSelection.contextMdEnabled,
-      };
+      const context = toTaskContextSelectionInput(contextSelection);
       const assigneeFields = resolveTaskAssigneeFields(
         assigneeId,
         coworkerOptions,

@@ -29,11 +29,6 @@ interface StudioWallOffset {
   y: number;
 }
 
-interface StudioWallRect extends StudioWallCard {
-  x: number;
-  width: number;
-}
-
 function orderColumnCards(cards: StudioWallCard[]) {
   const groups = new Map<string, StudioWallCard[]>();
   for (const card of cards) {
@@ -134,30 +129,4 @@ export function getStudioWallTransform(
       (column) => mod(offset.y + column.phase, column.period) - column.period,
     ),
   };
-}
-
-export function getVisibleStudioWallRects(
-  layout: StudioWallLayout,
-  offset: StudioWallOffset,
-): StudioWallRect[] {
-  const transform = getStudioWallTransform(layout, offset);
-  const rects: StudioWallRect[] = [];
-  for (let copyX = 0; copyX < layout.horizontalCopies; copyX++) {
-    for (const [columnIndex, column] of layout.columns.entries()) {
-      const x =
-        transform.x +
-        copyX * layout.periodX +
-        columnIndex * (layout.columnWidth + layout.gap);
-      if (x + layout.columnWidth <= 0 || x >= layout.width) continue;
-      for (let copyY = 0; copyY < column.verticalCopies; copyY++) {
-        for (const card of column.cards) {
-          const y =
-            transform.columnY[columnIndex] + copyY * column.period + card.y;
-          if (y + card.height <= 0 || y >= layout.height) continue;
-          rects.push({ ...card, x, y, width: layout.columnWidth });
-        }
-      }
-    }
-  }
-  return rects;
 }

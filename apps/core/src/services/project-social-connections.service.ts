@@ -7,6 +7,7 @@ import {
   initiateComposioConnection,
   revokeComposioConnectedAccount,
 } from "@/clients/composio.client";
+import { getZernioAccountId } from "@/clients/zernio.client";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import {
   isProjectSocialProvider,
@@ -17,7 +18,7 @@ import {
 } from "@/config/social-providers";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { composioHandoffUrl } from "@/helpers/composio-handoff";
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, integrationNotConfigured, notFound } from "@/helpers/error";
 import { linkedInPersonId, linkedInPersonUrn } from "@/helpers/linkedin-person";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
@@ -27,6 +28,13 @@ import {
   deleteSocialAccountAvatarIfOwned,
   snapshotSocialAccountAvatar,
 } from "@/lib/social-account-avatar";
+import {
+  createZernioTikTokIntent,
+  deleteZernioTikTokProfile,
+  getZernioTikTokAuthUrl,
+  getZernioTikTokIdentity,
+  zernioProofDigest,
+} from "./zernio-tiktok-connection.service";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
 
@@ -68,6 +76,7 @@ export interface FinalizeProjectSocialConnectionInput {
   workspaceId: string;
   userId: string;
   connectionId: string;
+  callbackProof?: string;
 }
 
 export interface ListProjectSocialConnectionsInput {
@@ -92,6 +101,7 @@ interface ProjectSocialConnectionRecord {
   avatarUrl: string | null;
   subscriptionType: string | null;
   composioConnectedAccountId: string;
+  zernioProfileId: string | null;
   status: string;
   activeExternalAccountKey: string | null;
   connectorUserId: string;
@@ -241,7 +251,11 @@ function isLiveIntent(
       intent.initiatingUserId === input.userId &&
       isProjectSocialProvider(intent.provider) &&
       isConnectionAction(intent.action) &&
-      intent.callbackRedeemedAt !== null &&
+      (getZernioAccountId(input.connectionId)
+        ? intent.provider === "tiktok" &&
+          input.callbackProof &&
+          zernioProofDigest(input.callbackProof) === intent.authConfigId
+        : intent.callbackRedeemedAt !== null) &&
       intent.expiresAt > new Date(),
   );
 }
@@ -281,11 +295,11 @@ export async function requireLockedOpenProject(
   tx: Prisma.TransactionClient,
   input: { projectId: string; workspaceId: string },
   options: { closedMessage?: string } = {},
-): Promise<void> {
+) {
   if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId]))) {
     throw notFound("Project not found");
   }
-  await requireScopedProject(input, {
+  return requireScopedProject(input, {
     client: tx,
     requireOpen: true,
     ...options,
@@ -316,6 +330,7 @@ export async function initiateProjectSocialConnection(
     throw conflict("A new connection cannot target an existing social account");
   }
   let provider: ProjectSocialProvider;
+  let legacyTikTokReconnect = false;
   if (input.action === "connect") {
     provider = input.provider;
   } else {
@@ -325,13 +340,23 @@ export async function initiateProjectSocialConnection(
       throw notFound("Unsupported social connection provider");
     }
     provider = target.provider;
+    legacyTikTokReconnect =
+      input.action === "reconnect" &&
+      !getZernioAccountId(target.composioConnectedAccountId);
   }
 
   requireSocialProviderEnabled(provider, project);
-  const authConfigId = requireProjectSocialAuthConfigId(provider);
+  const useZernio = provider === "tiktok" && !legacyTikTokReconnect;
+  const composioConfigId = useZernio
+    ? null
+    : requireProjectSocialAuthConfigId(provider);
+  if (useZernio && !getEnv().ZERNIO_API_KEY) throw integrationNotConfigured();
   if (input.action === "replace") {
     const retiredConnection = await serializableTransaction(async (tx) => {
-      await requireLockedOpenProject(tx, input);
+      requireSocialProviderEnabled(
+        provider,
+        await requireLockedOpenProject(tx, input),
+      );
       const target = await tx.projectSocialConnection.findFirst({
         where: {
           id: input.socialConnectionId ?? "",
@@ -357,15 +382,28 @@ export async function initiateProjectSocialConnection(
     await revokeRetiredProjectSocialConnection(retiredConnection);
   }
 
-  const connection = await initiateComposioConnection({
-    authConfigId,
-    connectorUserId: projectConnectorUserId(input.userId),
-    executorUserId: projectExecutorUserId(input.projectId),
-    callbackUrl: input.callbackUrl ?? `${getWebAppBaseUrl()}/composio/callback`,
-  });
+  const callbackUrl =
+    input.callbackUrl &&
+    new URL(input.callbackUrl).pathname !== "/zernio/callback"
+      ? input.callbackUrl
+      : undefined;
+  const connection = composioConfigId
+    ? {
+        ...(await initiateComposioConnection({
+          authConfigId: composioConfigId,
+          connectorUserId: projectConnectorUserId(input.userId),
+          executorUserId: projectExecutorUserId(input.projectId),
+          callbackUrl: callbackUrl ?? `${getWebAppBaseUrl()}/composio/callback`,
+        })),
+        authConfigId: composioConfigId,
+      }
+    : await createZernioTikTokIntent(input.callbackUrl ?? getWebAppBaseUrl());
   try {
     await serializableTransaction(async (tx) => {
-      await requireLockedOpenProject(tx, input);
+      requireSocialProviderEnabled(
+        provider,
+        await requireLockedOpenProject(tx, input),
+      );
       await tx.projectSocialConnectionIntent.create({
         data: {
           connectionId: connection.connectionId,
@@ -374,27 +412,60 @@ export async function initiateProjectSocialConnection(
           provider,
           action: input.action,
           socialConnectionId: input.socialConnectionId ?? null,
-          authConfigId,
+          authConfigId: connection.authConfigId,
           expiresAt: new Date(Date.now() + INTENT_TTL_MS),
         },
       });
     }, "Project changed while connecting a social account");
   } catch (error) {
     // The hosted link has not left Core, so this unclaimed account cannot be used.
-    await deleteProjectSocialConnectionIntent({
-      connectedAccountId: connection.connectionId,
-    });
+    await deleteProviderIntent(connection.connectionId);
     throw error;
   }
 
+  if ("profileId" in connection) {
+    // Persist the profile before requesting consent so abandoned or failed handoffs can be reclaimed.
+    const redirectUrl = await getZernioTikTokAuthUrl(
+      connection.profileId,
+      connection.callback,
+    );
+    return { connectionId: connection.connectionId, redirectUrl };
+  }
   return {
     connectionId: connection.connectionId,
     redirectUrl: composioHandoffUrl({
       redirectUrl: connection.redirectUrl,
-      returnUrl: input.callbackUrl,
+      returnUrl: callbackUrl,
       connectionId: connection.connectionId,
     }),
   };
+}
+
+async function getClaimedComposioIdentity(
+  input: FinalizeProjectSocialConnectionInput,
+  intent: ProjectSocialConnectionIntentClaim,
+) {
+  const authConfigId = intent.authConfigId;
+  const account = await getComposioConnectedAccount(input.connectionId);
+  if (
+    account.id !== input.connectionId ||
+    account.toolkitSlug !==
+      PROJECT_SOCIAL_PROVIDERS[intent.provider].toolkitSlug ||
+    account.authConfigId !== authConfigId ||
+    account.connectorUserId !== projectConnectorUserId(input.userId)
+  ) {
+    throw notFound("Unknown or expired connection");
+  }
+  if (account.status !== "ACTIVE") {
+    throw conflict("Connection is not active");
+  }
+
+  const identity = await getConnectedSocialIdentity({
+    provider: intent.provider,
+    connectedAccountId: input.connectionId,
+    executorUserId: projectExecutorUserId(input.projectId),
+  });
+  return { identity, connectedAccountId: input.connectionId };
 }
 
 export async function finalizeProjectSocialConnection(
@@ -410,27 +481,11 @@ export async function finalizeProjectSocialConnection(
 
   requireSocialProviderEnabled(intent.provider, project);
 
-  const authConfigId = intent.authConfigId;
   const connectorUserId = projectConnectorUserId(input.userId);
-  const account = await getComposioConnectedAccount(input.connectionId);
-  if (
-    account.id !== input.connectionId ||
-    account.toolkitSlug !==
-      PROJECT_SOCIAL_PROVIDERS[intent.provider].toolkitSlug ||
-    account.authConfigId !== authConfigId ||
-    account.connectorUserId !== connectorUserId
-  ) {
-    throw notFound("Unknown or expired connection");
-  }
-  if (account.status !== "ACTIVE") {
-    throw conflict("Connection is not active");
-  }
-
-  const identity = await getConnectedSocialIdentity({
-    provider: intent.provider,
-    connectedAccountId: input.connectionId,
-    executorUserId: projectExecutorUserId(input.projectId),
-  });
+  const profileId = getZernioAccountId(input.connectionId);
+  const { identity, connectedAccountId } = profileId
+    ? await getZernioTikTokIdentity(profileId)
+    : await getClaimedComposioIdentity(input, intent);
   const avatarUrl = identity.avatarUrl
     ? await snapshotSocialAccountAvatar({
         projectId: input.projectId,
@@ -441,7 +496,10 @@ export async function finalizeProjectSocialConnection(
     : null;
   const { summary, retiredConnection, replacedAvatarUrl } =
     await serializableTransaction(async (tx) => {
-      await requireLockedOpenProject(tx, input);
+      requireSocialProviderEnabled(
+        intent.provider,
+        await requireLockedOpenProject(tx, input),
+      );
       const now = new Date();
       const currentIntent = await tx.projectSocialConnectionIntent.findUnique({
         where: { connectionId: input.connectionId },
@@ -509,15 +567,9 @@ export async function finalizeProjectSocialConnection(
       }
 
       let connection: ProjectSocialConnectionRecord;
-      let retiredConnection:
-        | {
-            auditId: string;
-            connectedAccountId: string;
-            socialConnectionId: string;
-          }
-        | undefined;
+      let retiredConnection: RetiredProjectSocialConnection | undefined;
       if (currentIntent.action === "reconnect" && target) {
-        if (target.composioConnectedAccountId !== input.connectionId) {
+        if (target.composioConnectedAccountId !== connectedAccountId) {
           const retirementAudit = await tx.projectSocialConnectionAudit.create({
             data: {
               projectSocialConnectionId: target.id,
@@ -526,19 +578,22 @@ export async function finalizeProjectSocialConnection(
               externalAccountId: target.externalAccountId,
               externalHandle: target.externalHandle,
               connectedAccountId: target.composioConnectedAccountId,
+              zernioProfileId: target.zernioProfileId,
               providerOutcome: "local_disconnect",
             },
           });
           retiredConnection = {
             auditId: retirementAudit.id,
             connectedAccountId: target.composioConnectedAccountId,
+            zernioProfileId: target.zernioProfileId,
             socialConnectionId: target.id,
           };
         }
         connection = await tx.projectSocialConnection.update({
           where: { id: target.id },
           data: {
-            composioConnectedAccountId: input.connectionId,
+            composioConnectedAccountId: connectedAccountId,
+            zernioProfileId: profileId,
             connectorUserId,
             // Rewrites a legacy LinkedIn URN row to the bare id.
             ...(target.externalAccountId !== identity.id
@@ -565,7 +620,8 @@ export async function finalizeProjectSocialConnection(
             displayName: identity.displayName,
             subscriptionType: identity.subscriptionType,
             avatarUrl,
-            composioConnectedAccountId: input.connectionId,
+            composioConnectedAccountId: connectedAccountId,
+            zernioProfileId: profileId,
             status: "active",
             activeExternalAccountKey: key,
             connectorUserId,
@@ -629,11 +685,9 @@ export async function finalizeProjectSocialConnection(
   return summary;
 }
 
-async function revokeRetiredProjectSocialConnection(input: {
-  auditId: string;
-  connectedAccountId: string;
-  socialConnectionId: string;
-}): Promise<"revoked" | "skipped_shared" | "failed"> {
+async function revokeRetiredProjectSocialConnection(
+  input: RetiredProjectSocialConnection,
+): Promise<"revoked" | "skipped_shared" | "failed"> {
   const stillReferenced = await prisma.projectSocialConnection.findFirst({
     where: {
       composioConnectedAccountId: input.connectedAccountId,
@@ -651,9 +705,15 @@ async function revokeRetiredProjectSocialConnection(input: {
   }
 
   try {
-    await revokeComposioConnectedAccount({
-      connectedAccountId: input.connectedAccountId,
-    });
+    const accountId = getZernioAccountId(input.connectedAccountId);
+    if (accountId) {
+      if (!input.zernioProfileId) throw new Error("Missing TikTok profile");
+      await deleteZernioTikTokProfile(input.zernioProfileId, accountId);
+    } else {
+      await revokeComposioConnectedAccount({
+        connectedAccountId: input.connectedAccountId,
+      });
+    }
     await prisma.projectSocialConnectionAudit.update({
       where: { id: input.auditId },
       data: { providerOutcome: "revoked" },
@@ -703,8 +763,8 @@ export async function disconnectProjectSocialConnection(
   }
 
   const now = new Date();
-  const { auditId, connectedAccountId, connection } =
-    await serializableTransaction(async (tx) => {
+  const { connection, ...retired } = await serializableTransaction(
+    async (tx) => {
       if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId])))
         throw notFound("Project not found");
       const current = await tx.projectSocialConnection.findUnique({
@@ -726,13 +786,12 @@ export async function disconnectProjectSocialConnection(
           disconnectedAt: now,
         },
       };
-    }, "Project social connection changed. Please retry.");
+    },
+    "Project social connection changed. Please retry.",
+  );
 
-  const providerRevocation = await revokeRetiredProjectSocialConnection({
-    auditId,
-    connectedAccountId,
-    socialConnectionId: existing.id,
-  });
+  const providerRevocation =
+    await revokeRetiredProjectSocialConnection(retired);
   return {
     connection: mapProjectSocialConnection(connection),
     providerRevocation:
@@ -745,6 +804,7 @@ export async function disconnectProjectSocialConnection(
 }
 
 interface RetiredProjectSocialConnection {
+  zernioProfileId?: string | null;
   auditId: string;
   connectedAccountId: string;
   socialConnectionId: string;
@@ -772,12 +832,14 @@ async function retireProjectSocialConnection(
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
       connectedAccountId: connection.composioConnectedAccountId,
+      zernioProfileId: connection.zernioProfileId,
       providerOutcome: "local_disconnect",
     },
   });
   return {
     auditId: audit.id,
     connectedAccountId: connection.composioConnectedAccountId,
+    zernioProfileId: connection.zernioProfileId,
     socialConnectionId: connection.id,
   };
 }
@@ -857,6 +919,7 @@ export async function getPendingProjectSocialRevocation(
       connectedAccountId,
       retirement: {
         auditId: audit.id,
+        zernioProfileId: audit.zernioProfileId,
         socialConnectionId: connection.id,
         connectedAccountId,
       },
@@ -868,6 +931,58 @@ export async function getPendingProjectSocialRevocation(
     select: { connectionId: true },
   });
   return intent ? { connectedAccountId: intent.connectionId } : null;
+}
+
+async function deleteProviderIntent(
+  connectionId: string,
+  signal?: AbortSignal,
+) {
+  const profileId = getZernioAccountId(connectionId);
+  if (profileId) {
+    await deleteZernioTikTokProfile(profileId, undefined, signal);
+  } else {
+    await deleteProjectSocialConnectionIntent({
+      connectedAccountId: connectionId,
+    });
+  }
+}
+
+/** Claim an expired intent before external cleanup so an in-flight finalization cannot keep its account. */
+export async function cleanExpiredZernioIntents(input: {
+  signal: AbortSignal;
+  shouldContinue: () => boolean;
+}) {
+  const now = new Date();
+  const intents = await prisma.projectSocialConnectionIntent.findMany({
+    where: { connectionId: { startsWith: "zernio:" }, expiresAt: { lte: now } },
+    orderBy: { expiresAt: "asc" },
+    take: 10,
+    select: { connectionId: true },
+  });
+  let cleaned = 0;
+  let failed = 0;
+  for (const { connectionId } of intents) {
+    if (!input.shouldContinue()) break;
+    const claimed = await prisma.projectSocialConnectionIntent.updateMany({
+      where: { connectionId, expiresAt: { lte: now } },
+      // A non-digest invalidates the callback permanently. Retry failed removals in 15 minutes.
+      data: {
+        authConfigId: "expired",
+        expiresAt: new Date(Date.now() + INTENT_TTL_MS),
+      },
+    });
+    if (!claimed.count) continue;
+    try {
+      await deleteProviderIntent(connectionId, input.signal);
+      await prisma.projectSocialConnectionIntent.deleteMany({
+        where: { connectionId },
+      });
+      cleaned++;
+    } catch {
+      failed++;
+    }
+  }
+  return { cleaned, failed };
 }
 
 export async function revokeProjectSocialConnectionForClose(
@@ -882,9 +997,7 @@ export async function revokeProjectSocialConnectionForClose(
     }
     return;
   }
-  await deleteProjectSocialConnectionIntent({
-    connectedAccountId: pending.connectedAccountId,
-  });
+  await deleteProviderIntent(pending.connectedAccountId);
   await prisma.projectSocialConnectionIntent.deleteMany({
     where: { connectionId: pending.connectedAccountId },
   });

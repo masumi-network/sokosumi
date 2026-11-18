@@ -1349,6 +1349,7 @@ describe("ad toolkits stay off the Soko Bot", () => {
   it("leaves ad toolkits out of the catalog", async () => {
     const managed = { composioManagedAuthSchemes: ["OAUTH2"] };
     mocks.toolkitGet.mockResolvedValue([
+      { slug: "TIKTOK", name: "TikTok", ...managed },
       { slug: "GOOGLEADS", name: "Google Ads", ...managed },
       { slug: "metaads", name: "Meta Ads", ...managed },
       { slug: "github", name: "GitHub", ...managed },
