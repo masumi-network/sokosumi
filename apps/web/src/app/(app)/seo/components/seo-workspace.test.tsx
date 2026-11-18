@@ -889,11 +889,19 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=health");
     // The folded section says whether opening it pays off.
     expect(screen.getByText("2 notes")).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("heading", {
-        name: "Title, description and other page details",
+    const detailsHeading = screen.getByRole("heading", {
+      name: "Title, description and other page details",
+    });
+    // The fold closes the Actions list: it sits in that section, under its rows.
+    const actionsSection = detailsHeading.closest("section");
+    expect(actionsSection).not.toBeNull();
+    expect(
+      within(actionsSection as HTMLElement).getByRole("heading", {
+        level: 2,
+        name: "Actions",
       }),
-    );
+    ).toBeInTheDocument();
+    await user.click(detailsHeading);
     // A measurement is one line; its value drops the words its name says.
     expect(screen.getAllByText("Title length:")[0]).toBeVisible();
     expect(screen.getByText("56 characters")).toBeVisible();
@@ -927,7 +935,7 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // The fold counts suggestions apart from notes, as the Agent tab does.
     expect(details.querySelector("summary")).toHaveTextContent(
-      /1 suggestion\s*·\s*2 notes$/,
+      /1 suggestion,\s*2 notes$/,
     );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/From the check on/)).toBeNull();
@@ -5311,6 +5319,12 @@ describe("SEO workspace integration", () => {
     // "No recommended actions" above these cards would say two things at once.
     expect(screen.queryByRole("heading", { name: "Actions" })).toBeNull();
     expect(screen.queryByText("No recommended actions")).toBeNull();
+    // Without an Actions list the page details stand in a card of their own, a section of the tab.
+    const details = screen.getByRole("heading", {
+      level: 2,
+      name: "Title, description and other page details",
+    });
+    expect(details.closest("section")).not.toBeNull();
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
       "aria-selected",
       "true",

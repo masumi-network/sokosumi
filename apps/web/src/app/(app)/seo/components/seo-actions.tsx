@@ -7,6 +7,7 @@ import { SeoActionWorklist } from "./seo-action-worklist";
 import { SeoCsvButton } from "./seo-csv-button";
 import { seoActionsExport } from "./seo-export-model";
 import { seoOverviewModel } from "./seo-overview-model";
+import { SeoPageDetails } from "./seo-page-details";
 import { SeoEmpty, SeoSection } from "./seo-shared";
 import { SeoStrategyActions, SeoStrategyPlaceNotes } from "./seo-strategy";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -36,6 +37,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
     return (
       <div className="space-y-5">
         <SeoStrategyActions model={model} />
+        <SeoPageDetails model={model} standalone />
         <SeoStrategyPlaceNotes model={model} />
       </div>
     );
@@ -108,6 +110,8 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
             ) : null}
           </SeoEmpty>
         )}
+        {/* The page details are what the checks measured on the pages: they close the list of what to do. */}
+        <SeoPageDetails model={model} />
       </SeoSection>
       <SeoStrategyActions model={model} afterFixes />
       <SeoStrategyPlaceNotes model={model} />

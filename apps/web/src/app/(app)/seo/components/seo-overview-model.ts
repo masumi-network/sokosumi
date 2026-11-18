@@ -27,6 +27,18 @@ function issueRank(finding: Finding): number {
     : NON_ISSUE_RANK;
 }
 
+/** A finding's check time; its rows may carry later times per device. */
+export function seoCheckedAt(
+  workspace: ProjectSeoWorkspace,
+  finding: Pick<Finding, "observationId" | "observedAt">,
+) {
+  return (
+    workspace.observations.find(
+      (observation) => observation.id === finding.observationId,
+    )?.observedAt ?? finding.observedAt
+  );
+}
+
 /** Severity describes an issue. Measurements and notes do not imply a fix. */
 export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   const failed = workspace.findings
