@@ -27,7 +27,12 @@ export async function listUserWorkspaces(
 ): Promise<UserWorkspaces> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, email: true, preferredOrganizationId: true },
+    select: {
+      name: true,
+      email: true,
+      emailVerified: true,
+      preferredOrganizationId: true,
+    },
   });
   if (!user) {
     throw notFound("User not found");
@@ -80,7 +85,7 @@ export async function listUserWorkspaces(
       role: null,
       memberCount: null,
       enabledSocialProviders: [
-        ...socialProvidersForWorkspace(socialProviderWorkspace(null)),
+        ...socialProvidersForWorkspace(socialProviderWorkspace(null, user)),
       ],
       logo: null,
       websiteUrl: null,

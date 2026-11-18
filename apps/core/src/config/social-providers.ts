@@ -56,10 +56,14 @@ export function socialProviderForToolkit(toolkitSlug: string) {
 
 export function socialProviderWorkspace(
   organizationSlug: string | null,
+  owner?: { email: string; emailVerified: boolean } | null,
 ): SocialProviderWorkspace {
   return {
     organizationSlug,
     tiktokSandbox:
+      organizationSlug === null &&
+      owner?.emailVerified === true &&
+      owner.email.toLowerCase() === "albina.nikiforova@nmkr.io" &&
       process.env.VERCEL_ENV === "preview" &&
       Boolean(getEnv().COMPOSIO_TIKTOK_AUTH_CONFIG_ID),
   };
@@ -67,7 +71,12 @@ export function socialProviderWorkspace(
 
 /** Always resolve availability from the owning Project, never the actor's memberships. */
 export const socialProviderProjectSelect = {
-  workspace: { select: { organization: { select: { slug: true } } } },
+  workspace: {
+    select: {
+      organization: { select: { slug: true } },
+      user: { select: { email: true, emailVerified: true } },
+    },
+  },
 } satisfies Prisma.ProjectSelect;
 
 type SocialProviderProject = Prisma.ProjectGetPayload<{
@@ -77,7 +86,10 @@ type SocialProviderProject = Prisma.ProjectGetPayload<{
 export function socialProviderWorkspaceForProject(
   project: SocialProviderProject,
 ): SocialProviderWorkspace {
-  return socialProviderWorkspace(project.workspace.organization?.slug ?? null);
+  return socialProviderWorkspace(
+    project.workspace.organization?.slug ?? null,
+    project.workspace.user,
+  );
 }
 
 /** Shared by connection flows and post mutations before any external effect. */

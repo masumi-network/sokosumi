@@ -1,4 +1,3 @@
-import { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 import { X_COUNTRY_TLDS, X_GENERIC_TLDS } from "./x-tlds.js";
 
 /**
@@ -38,8 +37,7 @@ export interface SocialProviderWorkspace {
 export function socialProvidersForWorkspace(
   workspace: SocialProviderWorkspace,
 ): readonly SocialPostProvider[] {
-  return workspace.tiktokSandbox &&
-    workspace.organizationSlug === SOCIAL_BETA_ORGANIZATION_SLUG
+  return workspace.tiktokSandbox && workspace.organizationSlug === null
     ? [...SOCIAL_PUBLIC_PROVIDERS, "tiktok"]
     : SOCIAL_PUBLIC_PROVIDERS;
 }

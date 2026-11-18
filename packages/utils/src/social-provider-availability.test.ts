@@ -36,14 +36,14 @@ describe("Social provider availability", () => {
   );
 
   it.each([null, "other", "UTXO", "utxo-other", SOCIAL_BETA_ORGANIZATION_SLUG])(
-    "limits configured sandbox posting to the utxo workspace (%s)",
+    "limits configured sandbox posting to an eligible personal workspace (%s)",
     (organizationSlug) => {
       expect(
         isSocialProviderEnabled("tiktok", {
           organizationSlug,
           tiktokSandbox: true,
         }),
-      ).toBe(organizationSlug === SOCIAL_BETA_ORGANIZATION_SLUG);
+      ).toBe(organizationSlug === null);
     },
   );
 

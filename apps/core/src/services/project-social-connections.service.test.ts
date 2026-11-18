@@ -798,7 +798,12 @@ describe("project social connections service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
-        workspace: { select: { organization: { select: { slug: true } } } },
+        workspace: {
+          select: {
+            organization: { select: { slug: true } },
+            user: { select: { email: true, emailVerified: true } },
+          },
+        },
       },
     });
     expect(initiateComposioConnectionMock).toHaveBeenCalledWith({

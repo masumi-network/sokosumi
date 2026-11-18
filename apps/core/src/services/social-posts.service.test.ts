@@ -1698,7 +1698,12 @@ describe("social posts service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
-        workspace: { select: { organization: { select: { slug: true } } } },
+        workspace: {
+          select: {
+            organization: { select: { slug: true } },
+            user: { select: { email: true, emailVerified: true } },
+          },
+        },
       },
     });
     expect(socialPostFindManyMock).not.toHaveBeenCalled();
@@ -4056,7 +4061,12 @@ describe("social posts service", () => {
           id: true,
           closingAt: true,
           closedAt: true,
-          workspace: { select: { organization: { select: { slug: true } } } },
+          workspace: {
+            select: {
+              organization: { select: { slug: true } },
+              user: { select: { email: true, emailVerified: true } },
+            },
+          },
         },
       });
       expect(projectFindFirstMock).not.toHaveBeenCalled();

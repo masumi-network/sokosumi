@@ -193,7 +193,7 @@ TikTok developer app.
    URI Composio shows into the TikTok app's Login Kit redirect URIs.
 4. Copy the auth-config ID (`ac_…`) into `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` on the
    Core preprod Vercel project, scoped to the recording branch in Preview, then redeploy Core.
-   TikTok is available only in projects owned by the `utxo` workspace in that configured preview.
+   TikTok is available only in projects in the designated recording account’s personal workspace in that configured preview.
 5. While the app is in sandbox, only TikTok accounts added as target users can
    authorize it. Add the accounts you test with.
 6. Connect the account: open **Social**, choose a project, then **Connect
