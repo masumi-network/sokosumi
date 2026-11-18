@@ -259,16 +259,25 @@ export async function SokoBotHome({
                       />
                       {/* Who wrote it shows on a phone too, on its own
                           line under the message; a column beside it on
-                          wider screens. */}
+                          wider screens. On a phone the time beside the
+                          message left it a few letters, so there the
+                          message wraps to two lines and the time joins
+                          the sender's line, as schedule rows do. */}
                       <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
-                        <span className="text-foreground block truncate sm:flex-1">
+                        <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1 sm:flex-1">
                           {row.chat.title}
                         </span>
                         <span className="text-muted-foreground block truncate sm:max-w-40 sm:shrink-0">
                           {row.chat.from}
+                          <span className="sm:hidden">
+                            {" · "}
+                            {timeOf(row.at)}
+                          </span>
                         </span>
                       </span>
-                      {timeOf(row.at)}
+                      <span className="hidden sm:contents">
+                        {timeOf(row.at)}
+                      </span>
                       <span className="text-foreground shrink-0 text-sm font-medium">
                         {t("open")}
                       </span>

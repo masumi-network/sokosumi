@@ -110,7 +110,7 @@ for (const { name, ...viewport } of PROJECTS) {
       await page.getByRole("textbox", { name: "Name" }).fill(BOT);
       await page.getByRole("button", { name: "Continue" }).click();
       await page
-        .getByRole("heading", { name: `Pick a picture for ${BOT}` })
+        .getByRole("heading", { name: `Choose a look for ${BOT}` })
         .waitFor();
       await shot("3-picture");
       await page.getByRole("button", { name: `Create ${BOT}` }).click();

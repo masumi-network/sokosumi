@@ -252,6 +252,28 @@ describe("SokoBotHome", () => {
     expect(screen.queryByText(/quietDay/)).toBeNull();
   });
 
+  it("wraps a chat's message on a phone instead of cutting it beside the time", async () => {
+    await renderHome({
+      chats: [
+        {
+          roomId: "room-1",
+          messageId: "msg-9",
+          title: "What should I set up first?",
+          from: "Juno",
+          at: new Date("2026-10-24T09:00:00Z"),
+        },
+      ],
+    });
+    const title = screen.getByText("What should I set up first?");
+    // Two lines on a phone, one with an ellipsis from `sm` up; never a
+    // single phone line beside the time, which left it "What sho…".
+    expect(title).toHaveClass("line-clamp-2", "sm:line-clamp-1");
+    expect(title.className).not.toMatch(/(^|\s)truncate(\s|$)/);
+    // On a phone the time rides on the sender's line, under the message.
+    const senderLine = screen.getByText("Juno", { exact: false });
+    expect(senderLine.querySelector("time")).not.toBeNull();
+  });
+
   it("lists a schedule the bot just got among the Tasks, linked to its row", async () => {
     await renderHome({
       schedules: [
