@@ -46,7 +46,7 @@ export function StartOver({
     >
       <p className="note">
         {AGENT_NAME} stops and his unsent posts are canceled. Your chat and
-        files stay in Sokosumi.
+        files are kept.
       </p>
       {subscribed ? (
         <p className="note">
