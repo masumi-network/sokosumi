@@ -82,12 +82,11 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     tag,
     stuck,
   } = resolvedSearchParams;
-  const [t, tColumns, tDetailActions, tApp, cookieStore, defaultViewMode] =
+  const [t, tColumns, tDetailActions, cookieStore, defaultViewMode] =
     await Promise.all([
       getTranslations("App.Tasks"),
       getTranslations("App.Tasks.Columns"),
       getTranslations("App.Tasks.Detail.actions"),
-      getTranslations("App"),
       cookies(),
       // `?view=board` (Home's "need your input" link) opens the board even
       // where the list is the saved or device default, without saving it.
@@ -220,15 +219,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           dragError: t("Errors.updateStatus"),
           loadMoreError: t("Errors.loadMore"),
           reopenToReady: {
-            title: tDetailActions("reopenToReadyTitle"),
-            description: tDetailActions("reopenToReadyDescription"),
-            commentLabel: tDetailActions("reopenToReadyCommentLabel"),
-            commentPlaceholder: tDetailActions(
-              "reopenToReadyCommentPlaceholder",
-            ),
             commentRequired: tDetailActions("reopenToReadyCommentRequired"),
-            confirm: tDetailActions("reopenToReadyConfirm"),
-            cancel: tApp("cancel"),
           },
           display: {
             button: t("Display.button"),

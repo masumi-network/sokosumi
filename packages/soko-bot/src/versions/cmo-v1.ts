@@ -55,6 +55,7 @@ export const cmoV1: SokoBotVersion = {
     "list_tasks",
     "reply_to_task",
     "link_tasks",
+    "set_task_parent",
     "find_agents",
     "get_agent_input_schema",
     "hire_agent",

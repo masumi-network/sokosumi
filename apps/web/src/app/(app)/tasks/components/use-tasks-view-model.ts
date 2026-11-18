@@ -66,6 +66,7 @@ import { usePendingCreatedTasks } from "./use-pending-created-tasks";
 
 interface PendingBoardReopen {
   taskId: string;
+  assigneeName: string;
   fromColumn: KanbanColumnId;
   toColumn: KanbanColumnId;
   previousStatus: TaskStatus;
@@ -402,11 +403,16 @@ export function useTasksViewModel({
     );
 
     if (
-      userTaskStatusTransitionRequiresComment(previousStatus, desiredStatus)
+      userTaskStatusTransitionRequiresComment(
+        previousStatus,
+        desiredStatus,
+        draggedTask.assignee != null && draggedTask.assignee.kind !== "user",
+      )
     ) {
       setReopenComment("");
       setPendingBoardReopen({
         taskId: activeId,
+        assigneeName: draggedTask.assignee?.name ?? "",
         fromColumn,
         toColumn,
         previousStatus,

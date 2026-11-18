@@ -260,12 +260,13 @@ function mountTaskEventRoute(app: OpenAPIHonoWithAuth, contextBound: boolean) {
           userTaskStatusTransitionRequiresComment(
             task.status as Exclude<TaskStatus, "CREATED">,
             status,
+            task.assigneeId !== null || task.assigneeSokoBotId !== null,
           )
         ) {
           const trimmedComment = comment?.trim();
           if (!trimmedComment) {
             throw unprocessableEntity(
-              "A comment is required when reopening a canceled or completed task to ready",
+              "Tell the assignee what to do: a comment is required when sending a Task back to ready",
             );
           }
           comment = trimmedComment;

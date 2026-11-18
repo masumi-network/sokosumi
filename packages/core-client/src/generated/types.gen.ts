@@ -1950,6 +1950,15 @@ export type Task = {
      */
     dueOn: string | null;
     /**
+     * The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.
+     */
+    parentTaskId: string | null;
+    /**
+     * Order among the parent's sub-tasks, ascending. Null when parentTaskId is null.
+     */
+    position: number | null;
+    subtaskProgress: TaskSubtaskProgress;
+    /**
      * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
      */
     scheduleId: string | null;
@@ -1971,6 +1980,10 @@ export type Task = {
      * Files uploaded to this task (newest first).
      */
     files: Array<TaskFile>;
+    /**
+     * For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.
+     */
+    ancestors?: Array<TaskAncestor>;
     /**
      * Statuses the requesting actor may move this task to right now, in display order and excluding the current one. Computed per actor: a user never sees coworker-set statuses such as INPUT_REQUIRED or APPROVAL_REQUIRED. POST /tasks/{id}/events rejects a user status outside this list.
      */
@@ -2126,6 +2139,14 @@ export const TaskPriority = {
  * URGENT, HIGH, MEDIUM, LOW, or NONE (default).
  */
 export type TaskPriority = typeof TaskPriority[keyof typeof TaskPriority];
+
+/**
+ * Direct, non-archived sub-tasks: how many are COMPLETED, and how many there are.
+ */
+export type TaskSubtaskProgress = {
+    completed: number;
+    total: number;
+};
 
 export type TaskEvent = {
     id: string;
@@ -2472,6 +2493,13 @@ export type TaskFileUploaderSokoBot = {
     type: 'sokoBot';
     id: string;
     sokoBot: SokoBotSummary;
+};
+
+export type TaskAncestor = {
+    id: string;
+    identifier: string | null;
+    name: string;
+    status: TaskStatus;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -14900,6 +14928,15 @@ export type TaskListItem = {
      */
     dueOn: string | null;
     /**
+     * The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.
+     */
+    parentTaskId: string | null;
+    /**
+     * Order among the parent's sub-tasks, ascending. Null when parentTaskId is null.
+     */
+    position: number | null;
+    subtaskProgress: TaskSubtaskProgress;
+    /**
      * Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.
      */
     scheduleId: string | null;
@@ -15315,8 +15352,6 @@ export const UserWritableTaskLinkRelation = {
     RELATED: 'related',
     BLOCKS: 'blocks',
     BLOCKED_BY: 'blocked_by',
-    PARENT: 'parent',
-    CHILD: 'child',
     DUPLICATE: 'duplicate'
 } as const;
 
@@ -15434,6 +15469,17 @@ export type TaskWorkspace = {
      * Organization id for the workspace, or null for a personal workspace
      */
     organizationId: string | null;
+};
+
+export type MoveTaskRequest = {
+    /**
+     * The Task this one goes under. A different Task attaches it or moves it to that parent, with its own sub-tasks. null detaches it, and it keeps its project. Omitted or equal to the current parent keeps the parent.
+     */
+    parentTaskId?: string | null;
+    /**
+     * The sibling sub-task this one goes directly after, or null to make it first. Omitted keeps the order, or puts it last under a new parent.
+     */
+    afterTaskId?: string | null;
 };
 
 export type TaskEventsPaginationMetadata = PaginationMetadata & {
@@ -97578,6 +97624,14 @@ export type GetTasksData = {
          */
         archived?: 'true' | 'false';
         /**
+         * Only the direct sub-tasks of this Task, ordered by position unless sort is given.
+         */
+        parentTaskId?: string;
+        /**
+         * true also lists sub-tasks. People get only Tasks that are not sub-tasks by default, as the task board shows them; coworkers and Soko Bots always get sub-tasks.
+         */
+        includeSubtasks?: 'true' | 'false';
+        /**
          * Filter tasks by assignee coworker ID
          */
         assigneeId?: string;
@@ -97707,6 +97761,14 @@ export type PostTasksData = {
          * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.
          */
         copyOfTaskId?: string;
+        /**
+         * Creates a sub-task of this Task, which the caller must be able to read in the active workspace. The sub-task takes the parent's project and visibility, and its context attachments default to off, since the parent carries them.
+         */
+        parentTaskId?: string;
+        /**
+         * With parentTaskId: place the new sub-task directly after this sibling. Omitted or null puts it last.
+         */
+        afterTaskId?: string | null;
         name?: string;
         description?: string | null;
         projectId?: string | null;
@@ -97724,6 +97786,10 @@ export type PostTasksData = {
          * Start the Task at this future time instead of now. Puts the Task in QUEUED (status is ignored); requires a Coworker or Soko Bot assignee.
          */
         runAt?: Date | null;
+        /**
+         * The day the Task should be done by (YYYY-MM-DD). Omitted or null leaves it without one.
+         */
+        dueOn?: string | null;
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;
@@ -101754,6 +101820,111 @@ export type PostTasksByIdRestoreResponses = {
 };
 
 export type PostTasksByIdRestoreResponse = PostTasksByIdRestoreResponses[keyof PostTasksByIdRestoreResponses];
+
+export type PostTasksByIdMoveData = {
+    body?: MoveTaskRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/move';
+};
+
+export type PostTasksByIdMoveErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdMoveError = PostTasksByIdMoveErrors[keyof PostTasksByIdMoveErrors];
+
+export type PostTasksByIdMoveResponses = {
+    /**
+     * Moved Task
+     */
+    200: {
+        data: Task;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdMoveResponse = PostTasksByIdMoveResponses[keyof PostTasksByIdMoveResponses];
 
 export type GetTasksByIdEventsData = {
     body?: never;

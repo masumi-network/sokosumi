@@ -143,8 +143,17 @@ const taskFilesInclude = {
   },
 } as const;
 
+// Direct sub-tasks that count toward `subtaskProgress`.
+const taskSubtaskProgressInclude = {
+  subtasks: {
+    where: { archivedAt: null },
+    select: { status: true },
+  },
+} as const;
+
 const taskBaseInclude = {
   ...workspaceRelationInclude,
+  ...taskSubtaskProgressInclude,
   ...taskOwnerAssigneeCreatorInclude,
   ...taskFilesInclude,
   ...taskFollowersInclude,
@@ -164,6 +173,7 @@ const taskBaseInclude = {
 
 export const taskListInclude = {
   ...workspaceRelationInclude,
+  ...taskSubtaskProgressInclude,
   ...taskOwnerAssigneeCreatorInclude,
   _count: {
     select: {

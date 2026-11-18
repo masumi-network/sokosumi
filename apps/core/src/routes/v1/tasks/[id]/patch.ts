@@ -7,6 +7,7 @@ import {
   parseTaskContextFromDescription,
   removeTaskContextAttachmentLinks,
 } from "@sokosumi/utils";
+import { waitUntil } from "@vercel/functions";
 
 import { LIMITS } from "@/config/constants";
 import {
@@ -48,14 +49,24 @@ import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
+  notifyTaskStatusEvent,
 } from "@/helpers/task-notifications";
+import {
+  reopenedWithoutInstructionsComment,
+  taskReopenedWithoutInstructions,
+} from "@/helpers/task-reopen-instructions";
+import {
+  requireNotSubtask,
+  requireSubtreeCanChangeProject,
+} from "@/helpers/task-subtasks";
 import { dismissTaskTopics } from "@/helpers/task-tags";
 import {
   requireExpectedTaskWorkspaceTags,
   setTaskWorkspaceTags,
 } from "@/helpers/task-workspace-tags";
 import { publishTaskEventData } from "@/lib/ably/publish";
-import prisma from "@/lib/db/prisma";
+import { retriedTransaction } from "@/lib/db/transaction";
+import { runAsBackgroundWork } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
@@ -239,7 +250,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       priority === undefined &&
       runAt === undefined;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await retriedTransaction(async (tx) => {
       const taskSnapshot = await requireMutableTaskWriteAccess(
         userContext,
         id,
@@ -253,6 +264,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task not found");
       }
       const projectIdWasProvided = projectId !== undefined;
+      if (projectIdWasProvided && projectId !== taskSnapshot.projectId) {
+        requireNotSubtask(taskSnapshot);
+      }
       if (projectIdWasProvided && projectId !== null) {
         const project = await tx.project.findFirst({
           where: {
@@ -370,6 +384,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      // A Coworker or Soko Bot handed a silently reopened Task would run with
+      // no instructions. It waits in Input required for a person to say what
+      // to do (SOKD-279).
+      // Queued work turns READY later on its own, so it parks the same way.
+      // The Web edit form sends the description with every save, so only a
+      // changed one is new instructions.
+      const newInstructions =
+        typeof description === "string" &&
+        description.trim() !== "" &&
+        description.trim() !==
+          parseTaskContextFromDescription(task.description ?? "").body.trim();
+      const parksForInstructions =
+        !newInstructions &&
+        (nextStatus === TaskStatus.READY || nextStatus === TaskStatus.QUEUED) &&
+        (nextAssigneeId ?? nextAssigneeSokoBotId) !== null &&
+        // A new agent, or its own agent's Task queued again.
+        (nextStatus !== task.status ||
+          nextAssigneeId !== task.assigneeId ||
+          nextAssigneeSokoBotId !== task.assigneeSokoBotId) &&
+        (await taskReopenedWithoutInstructions(tx, id));
+      if (parksForInstructions) {
+        // Without the Run at, nothing starts it before a person answers.
+        if (nextStatus === TaskStatus.QUEUED) runAtWrite = null;
+        nextStatus = TaskStatus.INPUT_REQUIRED;
+      }
+
       const previousAssigneeUserId = task.assigneeUserId;
 
       let nextDescription = description;
@@ -415,6 +455,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         projectId,
         ...(assigneeWrite ?? {}),
       });
+      if (projectIdWasProvided && projectId !== task.projectId) {
+        await requireSubtreeCanChangeProject(tx, task.id);
+      }
       const dueOnWrite =
         dueOn === undefined
           ? undefined
@@ -470,16 +513,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           actorUserId: userContext.userId,
         });
       }
+      let parkedEventId: string | undefined;
       if (nextStatus !== task.status) {
         const statusEvent = await tx.taskEvent.create({
           data: {
             taskId: id,
             status: nextStatus,
             channel: Channel.SOKOSUMI,
-            ...resolveTaskEventActorFields(authContext),
+            // Core parks the Task, so the event has no actor and the Owner
+            // is told even when they made the assignment.
+            ...(parksForInstructions
+              ? {
+                  comment: reopenedWithoutInstructionsComment(
+                    updatedTask.assignee?.name ??
+                      updatedTask.assigneeSokoBot?.name ??
+                      "the assignee",
+                  ),
+                }
+              : resolveTaskEventActorFields(authContext)),
           },
           include: taskEventApiInclude,
         });
+        if (parksForInstructions) parkedEventId = statusEvent.id;
         updatedTask = {
           ...updatedTask,
           events: [...updatedTask.events, statusEvent],
@@ -490,8 +545,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         previousAssigneeUserId,
         workspaceId: task.workspaceId,
         statusChanged: nextStatus !== task.status,
+        parkedEventId,
       };
-    });
+    }, "Task changed during update");
     await deliverCalendarInvalidationsNow(result.workspaceId);
     // Same signal as POST /tasks/{id}/events: open boards refresh on it.
     // A Run at time move stays Queued, so it does not publish.
@@ -512,6 +568,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
       }
+    }
+
+    const parkedEventId = result.parkedEventId;
+    if (parkedEventId) {
+      waitUntil(
+        runAsBackgroundWork(() =>
+          notifyTaskStatusEvent(
+            result.task.id,
+            parkedEventId,
+            TaskStatus.INPUT_REQUIRED,
+            null,
+          ),
+        ),
+      );
     }
 
     if (result.previousAssigneeUserId !== result.task.assigneeUserId) {

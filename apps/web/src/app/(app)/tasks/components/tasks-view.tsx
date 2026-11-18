@@ -35,10 +35,7 @@ import { TaskCard } from "./task-card";
 import { isTaskDnDDraggable } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
-import {
-  TaskReopenToReadyDialog,
-  type TaskReopenToReadyDialogLabels,
-} from "./task-reopen-to-ready-dialog";
+import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { focusToolbarControl } from "./tasks-view-filters";
@@ -121,9 +118,7 @@ export interface TasksViewProps {
     loadMore: string;
     dragError: string;
     loadMoreError: string;
-    reopenToReady: TaskReopenToReadyDialogLabels & {
-      commentRequired: string;
-    };
+    reopenToReady: { commentRequired: string };
   };
 }
 
@@ -434,7 +429,7 @@ export function TasksView(props: TasksViewProps) {
         <TaskReopenToReadyDialog
           open={pendingBoardReopen != null}
           onOpenChange={handleBoardReopenOpenChange}
-          labels={labels.reopenToReady}
+          assigneeName={pendingBoardReopen?.assigneeName ?? ""}
           comment={reopenComment}
           onCommentChange={setReopenComment}
           onConfirm={handleBoardReopenConfirm}

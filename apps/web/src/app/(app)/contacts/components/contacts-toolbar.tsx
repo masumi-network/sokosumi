@@ -182,7 +182,10 @@ export function ContactsFilterBar({
           placeholder={t("toolbar.searchPlaceholder")}
           value={search}
           onChange={(event) => onSearch(event.target.value)}
-          className={cn(CONTROL, "border-control-border bg-background ps-9")}
+          className={cn(
+            CONTROL,
+            "border-control-border bg-background dark:bg-background ps-9",
+          )}
         />
       </div>
       <DropdownMenu>

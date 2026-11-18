@@ -15,6 +15,9 @@ import { readSokoBotTaskOutcome } from "@/services/soko-bot-task-outcome.service
 import { type AuthorizedSokoBotRuntime } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
 
+/** Sub-tasks get_task_status shows, as many as one list_tasks page. */
+const SUBTASKS_READ_LIMIT = 25;
+
 /** A `@db.Date` reads back as UTC midnight, so its ISO day is the stored day. */
 export const calendarDay = (date: Date | null) =>
   date ? date.toISOString().slice(0, 10) : null;
@@ -26,6 +29,7 @@ export async function listTasks(
   raw: unknown,
 ) {
   const input = listTasksInputSchema.parse(raw);
+  const state = input.state ?? (input.parentTaskId ? "all" : "open");
   const now = Date.now();
   const finished = [...SETTLED_TASK_STATUSES];
   const contains = (value: string) => ({
@@ -41,12 +45,13 @@ export async function listTasks(
       // contradict it (FAILED is finished, yet "open" is the default).
       input.status
         ? { status: { in: [input.status].flat() } }
-        : input.state === "open"
+        : state === "open"
           ? { status: { notIn: finished } }
-          : input.state === "finished"
+          : state === "finished"
             ? { status: { in: finished } }
             : {},
       input.projectId ? { projectId: input.projectId } : {},
+      input.parentTaskId ? { parentTaskId: input.parentTaskId } : {},
       input.idleDays
         ? {
             updatedAt: {
@@ -77,7 +82,9 @@ export async function listTasks(
   const [tasks, total] = await Promise.all([
     prisma.task.findMany({
       where,
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      orderBy: input.parentTaskId
+        ? [{ position: "asc" }, { id: "asc" }]
+        : [{ updatedAt: "desc" }, { id: "desc" }],
       take: input.limit,
       select: {
         id: true,
@@ -86,6 +93,7 @@ export async function listTasks(
         updatedAt: true,
         dueOn: true,
         number: true,
+        parentTaskId: true,
         ownerId: true,
         owner: { select: { name: true } },
         assignee: { select: { name: true } },
@@ -117,6 +125,7 @@ export async function listTasks(
         identifier: formatTaskIdentifier(task.project?.identifier, task.number),
         name: task.name,
         status: task.status,
+        ...(task.parentTaskId ? { parentTaskId: task.parentTaskId } : {}),
         dueOn: calendarDay(task.dueOn),
         owner: taskOwnerLabel(task, authorized.turn.actingUserId),
         assignee: task.assignee
@@ -189,6 +198,7 @@ export async function readTask(
       updatedAt: true,
       dueOn: true,
       number: true,
+      parentTaskId: true,
       owner: { select: { name: true } },
       assignee: { select: { id: true, name: true } },
       assigneeSokoBot: { select: { id: true, name: true } },
@@ -218,6 +228,13 @@ export async function readTask(
           mimeType: true,
         },
       },
+      subtasks: {
+        where: visiblePeerTask,
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        take: SUBTASKS_READ_LIMIT,
+        select: { id: true, name: true, status: true },
+      },
+      _count: { select: { subtasks: { where: visiblePeerTask } } },
       linksFrom: {
         where: {
           toTask: {
@@ -280,6 +297,11 @@ export async function readTask(
     project: task.project
       ? { id: task.project.id, name: task.project.name }
       : null,
+    parentTaskId: task.parentTaskId,
+    // Its own checklist, in order: the first SUBTASKS_READ_LIMIT of them.
+    subtasks: task.subtasks,
+    // Every sub-task the turn can read, also those past the limit.
+    subtaskCount: task._count.subtasks,
     updatedAt: task.updatedAt,
     dueOn: calendarDay(task.dueOn),
     creditsCharged: roundCredits(
