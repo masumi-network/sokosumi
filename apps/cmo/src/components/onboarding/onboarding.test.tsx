@@ -160,6 +160,19 @@ describe("step markers", () => {
 });
 
 describe("Site while Cuso reads", () => {
+  it("shows his steps, never his raw thinking", () => {
+    const html = site({
+      ...reading(),
+      activity: {
+        step: "Comparing competitors",
+        reasoning: "It seems like I might not need to do competitor research.",
+      },
+    });
+    expect(html).toContain("Reading your site");
+    expect(html).not.toContain("It seems like");
+    expect(html).not.toContain("working-why");
+  });
+
   it("shows the read live and says questions come when it lands", () => {
     const html = site(reading());
     expect(html).toContain("Reading acme.io.");
@@ -394,6 +407,25 @@ describe("Brand", () => {
     expect(render(draft())).not.toContain("Your site");
   });
 
+  it("leaves out a voice Cuso could not read, and names the font as a font", () => {
+    const html = render(
+      draft({
+        brandBrain: { ...brain, voice: { ...brain.voice, tone: "Unknown." } },
+        brandVisual: {
+          logoUrl: null,
+          colors: [],
+          fonts: ["Auto Pro"],
+          siteName: "Acme",
+          designMdUrl: null,
+          images: [],
+        },
+      }),
+    );
+    expect(html).not.toContain(">Your voice<");
+    expect(html).not.toContain("Unknown.");
+    expect(html).toContain("Font: Auto Pro");
+  });
+
   it("counts unanswered questions", () => {
     expect(render(draft())).toContain("2 questions left");
     expect(
@@ -597,6 +629,11 @@ describe("Plan", () => {
     const html = plan(questionsOn(["yes", "no"]));
     expect(html).toContain("Update strategy");
     expect(html).not.toContain("Approve strategy");
+    // Said beside the checks, where the owner just answered.
+    expect(html).toContain("still shows your old answer");
+    expect(plan(questionsOn(["yes", "yes"]))).not.toContain(
+      "still shows your old answer",
+    );
     expect(html).toContain("Many more");
   });
 
