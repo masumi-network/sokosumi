@@ -30,6 +30,7 @@ import { normalizeSeoUrl } from "@/services/project-seo-store";
 import {
   changeTaskScheduleRun,
   changeTaskScheduleState,
+  runTaskScheduleNow,
 } from "@/services/task-schedule.service";
 import { cmoSeoMarket } from "./cmo-seo-market";
 
@@ -45,6 +46,8 @@ const WEEKLY_AUDIT_RULE = {
 };
 /** A Run this close that the credits cannot cover is skipped, so it never starts late. */
 const SKIP_WINDOW_MS = 60 * 60 * 1000;
+/** A new Cuso gets his first audit at once unless the weekly Run is this close. */
+const FIRST_AUDIT_GAP_MS = 2 * 24 * 60 * 60 * 1000;
 const ISSUE_SEVERITIES = ["critical", "major", "minor"] as const;
 const TOP_ISSUES = 6;
 const TOP_FIXES = 5;
@@ -125,7 +128,7 @@ function isRefusal(error: unknown): boolean {
 /**
  * Keeps one weekly full audit of the brand's site while CMO is paid for
  * (its subscription is the owner's approval of 750 credits a week): starts
- * the SEO monitor, starts the next one once its 31 Runs are used up, pauses
+ * the SEO monitor and its first audit, starts the next one once its 31 Runs are used up, pauses
  * it while nothing pays, and skips a week its credits cannot cover rather
  * than run it late. Runs in the CMO production sync.
  */
@@ -155,7 +158,7 @@ export async function keepCmoSeoAudit(
     const page = await cmoSeoHomePage(cuso, actor);
     const market = await cmoSeoMarket(cuso);
     // Short of 750 credits: no monitor yet; a later sync starts it once they cover a week.
-    await createProjectSeoMonitor(vars, actor, {
+    const monitor = await createProjectSeoMonitor(vars, actor, {
       operationId: operationIdFor(cuso.projectId, monitors.length),
       rule: WEEKLY_AUDIT_RULE,
       analysis: {
@@ -172,7 +175,22 @@ export async function keepCmoSeoAudit(
       },
     }).catch((error: unknown) => {
       if (!isRefusal(error)) throw error;
+      return null;
     });
+    // The first audit runs now, so the tab is not empty for up to a week;
+    // not when the weekly Run is about to come anyway.
+    const next = monitor?.nextRunAt ? new Date(monitor.nextRunAt) : null;
+    if (
+      monitor &&
+      monitors.length === 0 &&
+      next &&
+      next.getTime() - now.getTime() > FIRST_AUDIT_GAP_MS
+    )
+      await runTaskScheduleNow(vars, monitor.id, {
+        expectedRevision: monitor.revision,
+      }).catch((error: unknown) => {
+        if (!isRefusal(error)) throw error;
+      });
     return;
   }
   await skipUnaffordableWeek(live, actor, vars, now);
