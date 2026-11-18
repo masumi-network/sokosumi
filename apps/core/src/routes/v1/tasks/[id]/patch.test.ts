@@ -910,6 +910,22 @@ describe("PATCH /tasks/{id}", () => {
       });
     });
 
+    it("does not park it when the same PATCH writes new instructions", async () => {
+      taskEventCountMock.mockResolvedValue(0);
+
+      const response = await createApp().request("http://localhost/tsk_123", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assigneeId: "cow_123",
+          description: "Use the March figures",
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data.status).toBeUndefined();
+    });
+
     it("keeps it Ready when a person commented after the reopen", async () => {
       taskEventCountMock.mockResolvedValue(1);
 
