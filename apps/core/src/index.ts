@@ -30,7 +30,6 @@ initSentry();
 
 const faviconUrl = `${getBetterAuthPublicBaseUrl()}/favicon.ico`;
 
-// Main app is exported at the end to combine OpenAPI and auth routes
 const mainApp = new Hono();
 
 const app = new OpenAPIHono<{
@@ -126,7 +125,6 @@ app.get("/llms.txt", async (c) => {
   return c.text(await getLlmsMarkdown());
 });
 
-// Mount OpenAPI router at root - THIS IS IMPORTANT SO YOU CAN HAVE BOTH
 // robots.txt lives on mainApp so crawlers still get Disallow during maintenance.
 mainApp.get("/robots.txt", (c) => c.text("User-Agent: *\nDisallow: /\n"));
 mainApp.route("/", app);

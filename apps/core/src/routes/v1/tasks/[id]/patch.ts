@@ -43,17 +43,30 @@ import {
   healProjectBriefingUrl,
   resolveTaskDescriptionWithContext,
 } from "@/helpers/task-create-context";
+import { recordTaskDueDateMovedLater } from "@/helpers/task-due-date-change";
 import { resolveTaskEventActorFields } from "@/helpers/task-event-actor";
 import {
   markTaskAssignedRead,
   notifyTaskHumanAssignee,
 } from "@/helpers/task-notifications";
+import { dismissTaskTopics } from "@/helpers/task-tags";
+import {
+  requireExpectedTaskWorkspaceTags,
+  setTaskWorkspaceTags,
+} from "@/helpers/task-workspace-tags";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
-import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
+import {
+  createTaskContextSchema,
+  dismissedTopicIdsSchema,
+  dismissedWorkspaceTagIdsSchema,
+  taskSchema,
+  taskWorkspaceTagIdsSchema,
+} from "@/schemas/task.schema";
 import { requireNoHumanAssigneeOnPrivateTask } from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer, taskEventApiInclude } from "@/types/task";
 
@@ -94,6 +107,13 @@ export const patchTaskRequestSchema = z
     }),
     assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
     priority: taskPrioritySchema.optional(),
+    workspaceTagIds: taskWorkspaceTagIdsSchema,
+    expectedWorkspaceTagIds: z.array(z.uuid()).optional().openapi({
+      description:
+        "When replacing workspaceTagIds, return 409 if the currently applied workspace tags differ from this set.",
+    }),
+    dismissedWorkspaceTagIds: dismissedWorkspaceTagIdsSchema,
+    dismissedTopicIds: dismissedTopicIdsSchema,
     runAt: dateTimeSchema.nullish().openapi({
       description:
         "Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.",
@@ -107,6 +127,16 @@ export const patchTaskRequestSchema = z
   })
   .superRefine((data, ctx) => {
     refineAssigneeXorConflict(data, ctx);
+    if (
+      data.expectedWorkspaceTagIds !== undefined &&
+      data.workspaceTagIds === undefined
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "expectedWorkspaceTagIds requires workspaceTagIds",
+        path: ["expectedWorkspaceTagIds"],
+      });
+    }
 
     if (
       data.name === undefined &&
@@ -119,12 +149,15 @@ export const patchTaskRequestSchema = z
       data.assigneeUserId === undefined &&
       data.priority === undefined &&
       data.runAt === undefined &&
-      data.dueOn === undefined
+      data.dueOn === undefined &&
+      data.workspaceTagIds === undefined &&
+      data.dismissedWorkspaceTagIds === undefined &&
+      data.dismissedTopicIds === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, or dueOn is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, runAt, dueOn, workspaceTagIds, dismissedWorkspaceTagIds, or dismissedTopicIds is required",
         path: ["name"],
       });
     }
@@ -184,11 +217,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       priority,
       runAt,
       dueOn,
+      workspaceTagIds,
+      expectedWorkspaceTagIds,
+      dismissedWorkspaceTagIds,
+      dismissedTopicIds,
     } = c.req.valid("json");
+    const editsWorkspaceTags =
+      workspaceTagIds !== undefined || dismissedWorkspaceTagIds !== undefined;
+    const editsTags = editsWorkspaceTags || dismissedTopicIds !== undefined;
     // A due date belongs to the work, not the brief, so it may change while
-    // the Task runs or after it ends.
-    const onlyDueOn =
-      dueOn !== undefined &&
+    // the Task runs or after it ends. The same applies to workspace tags.
+    const onlyDueOnOrTags =
+      (dueOn !== undefined || editsTags) &&
       name === undefined &&
       description === undefined &&
       projectId === undefined &&
@@ -205,6 +245,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         id,
         tx,
       );
+      if (
+        editsTags &&
+        taskSnapshot.workspaceId !==
+          requireWorkspaceContext(c.var.workspaceContext).workspaceId
+      ) {
+        throw notFound("Task not found");
+      }
       const projectIdWasProvided = projectId !== undefined;
       if (projectIdWasProvided && projectId !== null) {
         const project = await tx.project.findFirst({
@@ -246,7 +293,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Task changed during update");
       }
 
-      if (!onlyDueOn && !isTaskEditableStatus(task.status)) {
+      if (expectedWorkspaceTagIds !== undefined) {
+        await requireExpectedTaskWorkspaceTags(tx, id, expectedWorkspaceTagIds);
+      }
+
+      if (!onlyDueOnOrTags && !isTaskEditableStatus(task.status)) {
         throw forbidden("You can only update draft, queued, or ready tasks");
       }
 
@@ -364,11 +415,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         projectId,
         ...(assigneeWrite ?? {}),
       });
+      const dueOnWrite =
+        dueOn === undefined
+          ? undefined
+          : dueOn === null
+            ? null
+            : new Date(`${dueOn}T00:00:00.000Z`);
+      if (editsWorkspaceTags) {
+        await setTaskWorkspaceTags(
+          tx,
+          id,
+          task.workspaceId,
+          workspaceTagIds,
+          dismissedWorkspaceTagIds,
+        );
+      }
       let updatedTask = await tx.task.update({
         where: {
           id,
           archivedAt: null,
-          ...(onlyDueOn
+          ...(onlyDueOnOrTags
             ? {}
             : {
                 status: {
@@ -378,21 +444,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         data: {
           name,
+          ...(editsTags ? { updatedAt: new Date() } : {}),
+          ...(dismissedTopicIds?.length
+            ? dismissTaskTopics(task, dismissedTopicIds)
+            : {}),
           description: nextDescription,
           projectId,
           priority,
           ...(assigneeWrite ?? {}),
           runAt: runAtWrite,
-          dueOn:
-            dueOn === undefined
-              ? undefined
-              : dueOn === null
-                ? null
-                : new Date(`${dueOn}T00:00:00.000Z`),
+          dueOn: dueOnWrite,
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),
         },
-        include: buildTaskIncludeForViewer(authContext, task.workspaceId),
+        include: buildTaskIncludeForViewer(
+          authContext,
+          task.workspaceId,
+          c.var.workspaceContext?.workspaceId,
+        ),
       });
+      if (dueOnWrite !== undefined) {
+        await recordTaskDueDateMovedLater(tx, {
+          taskId: id,
+          from: task.dueOn,
+          to: dueOnWrite,
+          actorUserId: userContext.userId,
+        });
+      }
       if (nextStatus !== task.status) {
         const statusEvent = await tx.taskEvent.create({
           data: {
@@ -419,7 +496,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Same signal as POST /tasks/{id}/events: open boards refresh on it.
     // A Run at time move stays Queued, so it does not publish.
     const ownerId = result.task.ownerId;
-    if (result.statusChanged && ownerId) {
+    if ((result.statusChanged || editsTags) && ownerId) {
       try {
         await publishTaskEventData({
           userId: ownerId,

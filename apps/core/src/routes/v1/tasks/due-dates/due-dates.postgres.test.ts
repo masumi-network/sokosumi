@@ -108,6 +108,19 @@ async function dueOf(id: string): Promise<string | undefined> {
 }
 
 // Real Prisma against migrations: locks, @updatedAt and the locked recheck.
+async function movedLater(taskIds: string[]) {
+  const rows = await prisma.taskDueDateChange.findMany({
+    where: { taskId: { in: taskIds } },
+  });
+  rows.sort((a, b) => taskIds.indexOf(a.taskId) - taskIds.indexOf(b.taskId));
+  return rows.map((row) => [
+    row.taskId,
+    row.fromDueOn.toISOString().slice(0, 10),
+    row.toDueOn.toISOString().slice(0, 10),
+    row.actorUserId,
+  ]);
+}
+
 describe.skipIf(!enabled)("moving overdue Tasks", () => {
   beforeAll(async () => {
     for (const [id, personalWorkspaceId] of [
@@ -219,6 +232,11 @@ describe.skipIf(!enabled)("moving overdue Tasks", () => {
     expect(await dueOf(ids.completed)).toBe("2026-11-01");
     expect(await dueOf(ids.dueToday)).toBe(TODAY);
     expect(await dueOf(ids.elsewhere)).toBe("2026-11-01");
+    // Each forward move is a "due date moved later" moment for followers.
+    expect(await movedLater([ids.overdue, ids.assignedToAda])).toEqual([
+      [ids.overdue, "2026-11-02", TO, adaId],
+      [ids.assignedToAda, "2026-11-05", TO, adaId],
+    ]);
 
     // A teammate changes the date and then deliberately back to the same
     // day. The date matches, but the Task is no longer as the move left it.
@@ -240,6 +258,8 @@ describe.skipIf(!enabled)("moving overdue Tasks", () => {
     expect(undone).toEqual({ restored: [ids.assignedToAda], skipped: 1 });
     expect(await dueOf(ids.overdue)).toBe(TO);
     expect(await dueOf(ids.assignedToAda)).toBe("2026-11-05");
+    // Undo moves earlier, which is no moment.
+    expect(await movedLater([ids.assignedToAda])).toHaveLength(1);
 
     // A second Undo of the same move changes nothing.
     expect(

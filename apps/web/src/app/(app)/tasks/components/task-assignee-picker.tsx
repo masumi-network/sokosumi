@@ -48,17 +48,22 @@ interface TaskAssigneePickerProps {
   align?: "start" | "end";
 }
 
-function AssigneeAvatar({
+const AVATAR_CLASS = {
+  trigger: "ring-border size-9 shrink-0 rounded-full ring-1",
+  row: "size-6 shrink-0 rounded-full",
+  compact: "size-5 shrink-0 rounded-full",
+} as const;
+
+const ORB_SIZE = { trigger: 36, row: 24, compact: 20 } as const;
+
+export function AssigneeAvatar({
   option,
   size = "trigger",
 }: {
   option: CoworkerOption | null;
-  size?: "trigger" | "row";
+  size?: keyof typeof AVATAR_CLASS;
 }) {
-  const avatarClass =
-    size === "trigger"
-      ? "ring-border size-9 shrink-0 rounded-full ring-1"
-      : "size-6 shrink-0 rounded-full";
+  const avatarClass = AVATAR_CLASS[size];
 
   if (!option) {
     return (
@@ -82,7 +87,7 @@ function AssigneeAvatar({
         seed={option.avatarSeed}
         expression="idle"
         animate={false}
-        size={size === "trigger" ? 36 : 24}
+        size={ORB_SIZE[size]}
         className={avatarClass}
         alt={option.name}
       />

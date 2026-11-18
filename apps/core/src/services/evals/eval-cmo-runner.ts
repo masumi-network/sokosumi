@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { isProjectSocialProvider } from "@/config/social-providers";
 import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
@@ -19,6 +20,7 @@ import {
   parseMarketingPlan,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { SETTLED_TURN_STATUSES } from "@/services/soko-bot-lab-scenario.service";
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
@@ -35,6 +37,10 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
+import {
+  isCompetitorSetup,
+  prepareCompetitorCase,
+} from "./eval-cmo-competitors";
 import {
   evalInfrastructureFailure,
   infrastructureCaseOutcome,
@@ -132,8 +138,8 @@ async function cusoIsBusy(lane: EvalLaneRecord) {
     },
     select: { id: true, deadlineAt: true },
   });
-  const now = Date.now();
-  const dead = active.filter((turn) => turn.deadlineAt.getTime() <= now);
+  const now = await databaseNow();
+  const dead = active.filter((turn) => turn.deadlineAt <= now);
   await Promise.all(dead.map((turn) => endTurn(turn.id)));
   return active.length > dead.length;
 }
@@ -190,7 +196,7 @@ function spread<T extends { share: number }>(items: T[], count: number): T[] {
   return slots.sort((a, b) => a.at - b.at).map((slot) => slot.item);
 }
 
-/** One title per piece, none repeating a message, one SEO comparison page. */
+/** One title per piece, none repeating a message. */
 const CHANGE_REQUEST_TITLES = [
   "One booking link for the whole team",
   "Cal.com vs Calendly for team booking",
@@ -198,39 +204,39 @@ const CHANGE_REQUEST_TITLES = [
   "Embed a booking widget in five lines",
   "Why reps stop chasing meeting times",
   "This week's team scheduling tip",
-  "Fix the title of the team booking page",
+  "A tour of the team booking page",
   "How routing forms pick the right rep",
   "Booking pages that sales teams share",
   "Collective events for panel interviews",
   "Webhooks after every new booking",
   "A Teams trial checklist for week one",
   "Monthly recap of booking flows",
-  "Clearer headings on the pricing page",
+  "What each plan on the pricing page includes",
   "Buffer times that protect focus hours",
   "Routing inbound demos by company size",
   "Group availability across time zones",
   "Booking API rate limits explained",
   "Managed event types for large teams",
   "Five settings admins change first",
-  "A meta description for the routing page",
+  "Routing forms in one picture",
   "Reminders that cut no-shows",
   "Open source scheduling for regulated teams",
   "Handing a lead to the next rep",
   "Self-hosting Cal.com on your own server",
   "Insights that show booking volume",
   "What changed in team booking this month",
-  "A shorter intro on the enterprise page",
+  "Enterprise scheduling in one minute",
 ];
 
 /** A week of the change request's month: LinkedIn three times, four other formats. */
 const CHANGE_REQUEST_WEEK = [
   { channel: "linkedin", format: "post" },
-  { channel: "seo", format: "article" },
+  { channel: "facebook", format: "post" },
   { channel: "linkedin", format: "image" },
   { channel: "x", format: "post" },
   { channel: "linkedin", format: "post" },
   { channel: "newsletter", format: "issue" },
-  { channel: "seo", format: "page_fix" },
+  { channel: "facebook", format: "image" },
 ] as const;
 
 const CHANGE_REQUEST_CHANNELS = [
@@ -240,9 +246,9 @@ const CHANGE_REQUEST_CHANNELS = [
     why: "Reach operators with concrete team scheduling examples.",
   },
   {
-    channel: "seo",
-    cadence: "2 pieces a week",
-    why: "Answer practical scheduling searches over time.",
+    channel: "facebook",
+    cadence: "2 posts a week",
+    why: "Reach small business owners who book on Facebook.",
   },
   {
     channel: "x",
@@ -401,10 +407,14 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
 export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
-): Promise<{ comments?: Record<string, string> }> {
+): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
   if (setup === "cmo-plan") {
     await prepareCmoPlan(lane);
     return {};
+  }
+  if (isCompetitorSetup(setup)) {
+    await prepareCmoChat(lane, true);
+    return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
   if (setup !== "cmo-comments") return {};
@@ -441,6 +451,31 @@ export async function prepareCmoChatCase(
     ids[comment.key] = created.id;
   }
   return { comments: ids };
+}
+
+/**
+ * The picture of the chat post case: started as a job with a reference
+ * library image. No check where the library is not set up.
+ */
+export async function styledPictureChecks(
+  lane: EvalLaneRecord,
+  since: Date,
+): Promise<ScenarioCheck[]> {
+  if (!referenceLibraryAvailable()) return [];
+  const styled = await prisma.projectImageJob.count({
+    where: {
+      projectId: lane.cusoProjectId,
+      createdAt: { gte: since },
+      referenceLibraryIds: { isEmpty: false },
+    },
+  });
+  return [
+    {
+      label: "Starts the picture in a reference library style",
+      pass: styled > 0,
+      actual: `${styled} styled job${styled === 1 ? "" : "s"}`,
+    },
+  ];
 }
 
 /**
@@ -490,13 +525,15 @@ export async function startCmoCase(
     const cuso = await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
     // Core starts at most four production runs a day per Cuso; a lane makes
     // several months a day, so earlier months' runs count as yesterday's.
+    // createdAt and the cap's window are PostgreSQL time.
+    const now = (await databaseNow()).getTime();
     await prisma.sokoBotTurn.updateMany({
       where: {
         sokoBotId: lane.cusoBotId,
         clientTurnId: { startsWith: CMO_PRODUCTION_TURN_PREFIX },
-        createdAt: { gt: new Date(Date.now() - DAY_MS) },
+        createdAt: { gt: new Date(now - DAY_MS) },
       },
-      data: { createdAt: new Date(Date.now() - DAY_MS - 60 * 60_000) },
+      data: { createdAt: new Date(now - DAY_MS - 60 * 60_000) },
     });
     const plan = monthPlanFromTomorrow(frozen, new Date());
     await connectPlanChannels(lane, plan);
@@ -562,11 +599,9 @@ async function cancelMonthPosts(strategyId: string) {
   });
 }
 
-async function monthProductionTurns(
-  botId: string,
-  prefix: string,
-  since: Date,
-) {
+// Scoped by the approval's id prefix and the parent chain, not by time: the
+// turns' createdAt is PostgreSQL time and the case start is the host's.
+async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
     status: true,
@@ -577,7 +612,6 @@ async function monthProductionTurns(
     where: {
       sokoBotId: botId,
       source: "EVENT",
-      createdAt: { gte: since },
       clientTurnId: { startsWith: prefix },
     },
     select,
@@ -587,7 +621,6 @@ async function monthProductionTurns(
     const children = await prisma.sokoBotTurn.findMany({
       where: {
         sokoBotId: botId,
-        createdAt: { gte: since },
         parentTurnId: { in: frontier.map((turn) => turn.id) },
       },
       select,
@@ -612,7 +645,7 @@ async function pollMonth(
         status: "ERROR",
         checks: [],
         output: {},
-        error: "The month case lost its plan",
+        error: "The month case lost its strategy",
         turnIds: [],
       },
     };
@@ -630,11 +663,7 @@ async function pollMonth(
   if (approval.approvedAt) {
     // Production IDs bind retries to the current approval, including rewrites.
     const prefix = `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`;
-    const productionTurns = await monthProductionTurns(
-      lane.cusoBotId,
-      prefix,
-      context.startedAt,
-    );
+    const productionTurns = await monthProductionTurns(lane.cusoBotId, prefix);
     const exhausted = productionTurns.find(
       (turn) => evalInfrastructureFailure(turn)?.stopsRun,
     );

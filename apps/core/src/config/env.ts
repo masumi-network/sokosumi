@@ -232,6 +232,12 @@ const baseEnvSchema = z.object({
   /** Exa search for Cuso's research (search_exa); without it the tool refuses. */
   EXA_API_KEY: z.string().min(1).optional(),
   /**
+   * A Meta user access token with Ad Library API access (an identity-verified
+   * Meta account on an app with the Ad Library API). Without it the
+   * competitor check reads no ads and says so.
+   */
+  META_AD_LIBRARY_ACCESS_TOKEN: z.string().min(1).optional(),
+  /**
    * Soko Bot ids that may write the announcements every user sees (the
    * sidebar card and popup). Comma-separated; empty, no bot has the tools.
    */
@@ -266,6 +272,20 @@ const baseEnvSchema = z.object({
    * model, so a case for changing it can be made with numbers.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
+  /**
+   * Who runs the judge. `gateway` calls `SOKO_BOT_JUDGE_MODEL` through the AI
+   * Gateway. `claude-code` runs the same prompt through the local `claude`
+   * CLI on the developer's Claude Code subscription, for evals run on a
+   * developer machine. It is refused on Vercel, and it is not pinned to the
+   * EU as the Gateway judge is. The bots under test keep their own models
+   * either way.
+   */
+  SOKO_BOT_JUDGE_RUNNER: z.enum(["gateway", "claude-code"]).default("gateway"),
+  /** The `claude --model` value the `claude-code` judge runs on. */
+  SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL: z
+    .string()
+    .min(1)
+    .default("claude-opus-5-5"),
   /** Immutable operator-issued preview partition; never accepted from API input. */
   SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
   /**
@@ -360,6 +380,7 @@ const baseEnvSchema = z.object({
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
   COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  ZERNIO_API_KEY: z.string().trim().min(1).optional(),
   COMPOSIO_TIKTOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: z.string().min(1).optional(),

@@ -12,6 +12,8 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
+import { SETUP_ASSISTANT_MESSAGE_PATHS } from "@/i18n/message-namespaces";
+import { pickMessages } from "@/i18n/pick-messages";
 import en from "@/messages/en.json";
 
 import { AvatarStudio, AvatarStudioDialog } from "./avatar-studio.client";
@@ -46,6 +48,22 @@ function lastCode(onChange: ReturnType<typeof vi.fn>): string {
 }
 
 describe("AvatarStudio", () => {
+  it("names every control with setup's messages, not raw keys", () => {
+    // `/setup/assistant` hands the client only its own bag; a key outside it
+    // shows as `App.SokoBot.AvatarStudio.states.idle` and widens the phone page.
+    render(
+      <NextIntlClientProvider
+        locale="en"
+        messages={pickMessages(en, SETUP_ASSISTANT_MESSAGE_PATHS)}
+        onError={() => {}}
+      >
+        <AvatarStudio initialCode={formatAvatarCode(fox)} onChange={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("radio", { name: "Idle" })).toBeTruthy();
+    expect(document.body.textContent).not.toContain("App.SokoBot");
+  });
+
   it("opens on the code it is given and reports it", () => {
     const onChange = vi.fn();
     render(
@@ -122,6 +140,36 @@ describe("AvatarStudio", () => {
       seen.add(code);
     }
     expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it("in setup shows the preview, Shuffle and animals first, the rest under More details", async () => {
+    const user = userEvent.setup();
+    render(
+      withIntl(
+        <AvatarStudio
+          compact
+          initialCode={formatAvatarCode(fox)}
+          onChange={vi.fn()}
+        />,
+      ),
+    );
+    expect(screen.getByTestId("preview")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Shuffle" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Owl" })).toBeTruthy();
+    // Preview states belong to the Change-look dialog, not setup.
+    expect(
+      screen.queryByRole("radiogroup", { name: "Preview state" }),
+    ).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Background" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /More details/ }));
+    expect(
+      screen.getByRole("radiogroup", { name: "Background" }),
+    ).toBeVisible();
+    expect(screen.getByRole("group", { name: "Headwear" })).toBeTruthy();
+    expect(
+      screen.queryByRole("radiogroup", { name: "Preview state" }),
+    ).toBeNull();
   });
 
   it("changes the preview state without touching the look", async () => {

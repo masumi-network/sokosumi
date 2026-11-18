@@ -1900,6 +1900,26 @@ export type Task = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    workspaceTags?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+        source?: 'manual' | 'jev';
+        taskTopicId?: TaskTagId;
+    }>;
+    workspaceTagSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+    }>;
     /**
      * Sequence number within the project. Null when the task has no project.
      */
@@ -1943,6 +1963,10 @@ export type Task = {
     workspace: WorkspaceSummary;
     share: TaskShare | null;
     links: Array<TaskLink>;
+    /**
+     * People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.
+     */
+    followers?: Array<TaskFollower>;
     /**
      * Files uploaded to this task (newest first).
      */
@@ -2061,6 +2085,21 @@ export const TaskTagId = {
 } as const;
 
 export type TaskTagId = typeof TaskTagId[keyof typeof TaskTagId];
+
+export const TagColor = {
+    GRAY: 'gray',
+    RED: 'red',
+    ORANGE: 'orange',
+    YELLOW: 'yellow',
+    GREEN: 'green',
+    TEAL: 'teal',
+    BLUE: 'blue',
+    PURPLE: 'purple',
+    PINK: 'pink',
+    NULL: null
+} as const;
+
+export type TagColor = typeof TagColor[keyof typeof TagColor];
 
 /**
  * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
@@ -2360,6 +2399,14 @@ export type TaskLinkPeerTask = {
      * Project identifier and number, e.g. SOK-123. Null when the peer has no project.
      */
     identifier: string | null;
+};
+
+export type TaskFollower = {
+    user: UserSummary;
+    /**
+     * When this person started following the Task.
+     */
+    followedAt: Date;
 };
 
 export type TaskFile = {
@@ -4818,6 +4865,10 @@ export type DataRoomQuestion = {
     body: string;
     answer: string | null;
     answeredAt: string | null;
+    /**
+     * When the answer was shown to everyone in the room who may open the document; null while only the asker sees it.
+     */
+    sharedAt: string | null;
     email: string;
     name: string | null;
 };
@@ -4937,6 +4988,10 @@ export type AnswerDataRoomQuestionRequest = {
     scope: 'me' | 'org';
     organizationId?: string;
     answer: string;
+    /**
+     * Show the question and answer to everyone in the room who may open the document, without who asked. Left out keeps the current choice.
+     */
+    shared?: boolean;
 };
 
 export type SetDataRoomOrderRequest = {
@@ -5190,6 +5245,12 @@ export type DeleteDriveFileRequest = {
 };
 
 export type WorkspaceLabel = {
+    taskTopicId?: TaskTagId;
+    color?: TagColor;
+    /**
+     * Exact six-digit hex color for the tag. Overrides its named color when present.
+     */
+    customColor?: string | null;
     id: string;
     kind: 'TAG' | 'CATEGORY';
     displayName: string;
@@ -6211,6 +6272,7 @@ export type ProjectImageStudioCatalog = {
     defaultVideoModelId: string;
     defaultAnimateModelId: string;
     videoModels: Array<ProjectImageStudioVideoCatalogModel>;
+    talkingVideo: ProjectImageStudioTalkingVideoCatalog;
     snapshotDate: string;
     refreshedAt: string | null;
 };
@@ -6269,6 +6331,35 @@ export type ProjectImageStudioVideoCatalogModel = {
     };
 };
 
+export type ProjectImageStudioTalkingVideoCatalog = {
+    defaultModelId: string;
+    models: Array<{
+        id: string;
+        label: string;
+        description: string;
+        endpoint: string;
+        price: {
+            perSecondUsd: number;
+            minimumVideoUsd: number;
+            voicePer1000CharactersUsd: number;
+            captionsPerMinuteUsd: number;
+            basis: string;
+            sourceUrl: string;
+            verifiedAt: string;
+        };
+    }>;
+    presenters: Array<{
+        id: string;
+        name: string;
+        description: string;
+        imageUrl: string;
+    }>;
+    defaultVoice: string;
+    voices: Array<string>;
+    scriptMinLength: number;
+    scriptMaxLength: number;
+};
+
 export type ImageStudioWorkspaceState = {
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
@@ -6297,6 +6388,7 @@ export type ProjectImageAsset = {
     contentType: string;
     mediaType: 'IMAGE' | 'VIDEO';
     video: ProjectVideoSettings | null;
+    aiGenerated?: boolean;
     createdAt: Date;
     jobId: string;
     settings: ProjectImageSettings;
@@ -6326,7 +6418,7 @@ export type ProjectImageJob = {
     id: string;
     projectId: string;
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
-    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO';
+    kind: 'GENERATE' | 'EDIT' | 'TEXT_TO_VIDEO' | 'IMAGE_TO_VIDEO' | 'TALKING_VIDEO';
     model: string;
     prompt: string;
     templateId?: string;
@@ -6334,6 +6426,7 @@ export type ProjectImageJob = {
     variationIndex?: number;
     settings: ProjectImageSettings;
     video: ProjectVideoSettings | null;
+    talkingVideo?: ProjectTalkingVideo;
     referenceAssetIds: Array<string>;
     referenceFileIds?: Array<string>;
     exportHeadline?: string;
@@ -6341,7 +6434,7 @@ export type ProjectImageJob = {
     lettering?: 'overlay' | 'ideogram';
     product?: StudioProductIdentity;
     error: string | null;
-    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'product_cutout_unavailable' | 'voice_unavailable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
     parentAssetId: string | null;
     assetId: string | null;
     createdAt: Date;
@@ -6351,6 +6444,12 @@ export type ProjectImageJob = {
     retryMayDuplicateCharge: boolean;
     credits: number | null;
     refunded: boolean;
+};
+
+export type ProjectTalkingVideo = {
+    voice: string;
+    presenterId: string | null;
+    languageCode: string;
 };
 
 export type ImageStudioRecentProjects = {
@@ -8599,6 +8698,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -8652,6 +8755,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 styleReferenceId?: string;
                 headline?: string;
                 slides?: Array<string>;
+                script?: string;
+                presenter?: string;
+                voice?: string;
+                languageCode?: string;
                 story?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
@@ -8899,6 +9006,10 @@ export type MarketingStrategyRequest = {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -8952,6 +9063,10 @@ export type MarketingStrategyRequest = {
                 styleReferenceId?: string;
                 headline?: string;
                 slides?: Array<string>;
+                script?: string;
+                presenter?: string;
+                voice?: string;
+                languageCode?: string;
                 story?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
@@ -9710,6 +9825,15 @@ export type ProjectSocialConnectionSubscription = {
     textLimit: number;
 };
 
+export type TikTokCreatorInfo = {
+    creator_nickname: string;
+    privacy_level_options: Array<string>;
+    comment_disabled: boolean;
+    duet_disabled: boolean;
+    stitch_disabled: boolean;
+    max_video_post_duration_sec: number;
+};
+
 export type SocialAccountStatisticsPage = {
     accounts: Array<SocialAccountStatisticsAccount>;
     posts: Array<SocialAccountPost>;
@@ -9888,6 +10012,10 @@ export type InitiateProjectSocialConnectionRequest = {
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
+    /**
+     * Proof returned with a Zernio connection callback.
+     */
+    callbackProof?: string;
     connectionId: string;
 };
 
@@ -10620,6 +10748,10 @@ export type SocialPost = {
         styleReferenceId?: string;
         headline?: string;
         slides?: Array<string>;
+        script?: string;
+        presenter?: string;
+        voice?: string;
+        languageCode?: string;
         story?: string;
     } | null;
     createdAt: Date;
@@ -10755,6 +10887,17 @@ export type PublishSocialPostRequest = {
      * Revision the client last observed; mismatches return 409
      */
     revision: number;
+    tikTokSettings?: TikTokPostSettings;
+};
+
+export type TikTokPostSettings = {
+    privacyLevel: 'SELF_ONLY' | 'PUBLIC_TO_EVERYONE';
+    allowComment: boolean;
+    allowDuet: boolean;
+    allowStitch: boolean;
+    promotesOwnBrand: boolean;
+    acceptedMusicUsage: true;
+    previewConsent?: true;
 };
 
 export type CreateSocialPostRequest = {
@@ -11077,6 +11220,39 @@ export type CreateProjectVideoJobRequest = {
     sourceAssetId?: string | null;
     sessionId?: string | null;
     idempotencyKey: string;
+};
+
+export type CreateProjectTalkingVideoJobRequest = {
+    modelId?: string;
+    script: string;
+    voice?: 'Aria' | 'Roger' | 'Sarah' | 'Laura' | 'Charlie' | 'George' | 'Callum' | 'River' | 'Liam' | 'Charlotte' | 'Alice' | 'Matilda' | 'Will' | 'Jessica' | 'Eric' | 'Chris' | 'Brian' | 'Daniel' | 'Lily' | 'Bill';
+    languageCode?: string;
+    presenter: {
+        kind: 'stock';
+        id: string;
+    } | {
+        kind: 'file';
+        fileId: string;
+        consent: true;
+    };
+    idempotencyKey: string;
+};
+
+export type ProjectTalkingVideoScripts = {
+    scripts: Array<{
+        hook: string;
+        script: string;
+    }>;
+};
+
+export type WriteProjectTalkingVideoScriptsRequest = {
+    topic?: string;
+    languageCode?: string;
+};
+
+export type ProjectTalkingVideos = {
+    jobs: Array<ProjectImageJob>;
+    assets: Array<ProjectImageAsset>;
 };
 
 export type CancelProjectImageJobResponse = {
@@ -12347,6 +12523,25 @@ export type DataRoomSessionRequest = {
     code: string;
 };
 
+export type DataRoomViewerQuestions = Array<DataRoomViewerQuestion>;
+
+export type DataRoomViewerQuestion = {
+    id: string;
+    createdAt: string;
+    path: string;
+    body: string;
+    answer: string | null;
+    answeredAt: string | null;
+    /**
+     * The viewer asked it.
+     */
+    mine: boolean;
+    /**
+     * The owner showed the answer to everyone in the room.
+     */
+    shared: boolean;
+};
+
 export type AskDataRoomQuestionRequest = {
     resourceId: string;
     body: string;
@@ -12479,8 +12674,13 @@ export type CmoOverview = {
      */
     viewerCanApprove: boolean;
     work: CmoWork | null;
+    /**
+     * What Cuso is doing in the turn he runs now, whatever started it (a chat message, hiring, a rhythm, the month's production); null while he rests.
+     */
+    activity: CmoActivity | null;
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
+    presenterSet: boolean;
     /**
      * Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.
      */
@@ -12997,6 +13197,17 @@ export type CmoWorkStep = {
     at: Date;
 };
 
+export type CmoActivity = {
+    /**
+     * The step Cuso is on, in CMO's words ("Looking for a picture style"); null before his first one.
+     */
+    step: string | null;
+    /**
+     * The model's latest summary of its reasoning in this turn; null when it gave none.
+     */
+    reasoning: string | null;
+};
+
 /**
  * The brand's look, read from the Project's logo and DESIGN.md (colours, fonts and name).
  */
@@ -13265,6 +13476,10 @@ export type CmoPlan = {
         styleReferenceId?: string;
         headline?: string;
         slides?: Array<string>;
+        script?: string;
+        presenter?: string;
+        voice?: string;
+        languageCode?: string;
         story?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
@@ -13318,6 +13533,10 @@ export type CmoPlan = {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            script?: string;
+            presenter?: string;
+            voice?: string;
+            languageCode?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -13495,6 +13714,203 @@ export type CmoPieceText = {
     text: string;
 };
 
+export type CmoCompetitors = {
+    competitors: Array<CmoCompetitor>;
+    /**
+     * Cuso's This week: null until he wrote one.
+     */
+    feed: {
+        /**
+         * The day of the check it was written from.
+         */
+        checkDay: string;
+        savedAt: Date;
+        items: Array<CmoCompetitorFeedItem>;
+        /**
+         * What the sources could not settle this week.
+         */
+        openQuestions: Array<string>;
+    } | null;
+    /**
+     * How many competitors can be tracked.
+     */
+    limit: number;
+    /**
+     * The Brand Brain market map's players that are still watched, in the map's spelling.
+     */
+    mapPlayers: Array<string>;
+    /**
+     * What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.
+     */
+    signals: Array<CmoCompetitorSignal>;
+    /**
+     * Instagram numbers: the business first, then each competitor. A null cell has no data.
+     */
+    scoreboard: Array<CmoCompetitorScoreRow>;
+    /**
+     * Each competitor's three strongest Instagram posts.
+     */
+    topPosts: Array<CmoCompetitorTopPost>;
+    check: {
+        lastCheckedAt: Date | null;
+        nextCheckAt: Date | null;
+        creditsPerCompetitor: number;
+        sources: {
+            pages: CmoCompetitorSource;
+            news: CmoCompetitorSource;
+            ads: CmoCompetitorSource;
+            social: CmoCompetitorSource;
+        };
+    };
+};
+
+export type CmoCompetitor = {
+    id: string;
+    name: string;
+    websiteUrl: string | null;
+    pricingUrl: string | null;
+    instagramHandle: string | null;
+    facebookHandle: string | null;
+    /**
+     * Who put it on the list: Brand Brain research, or a member.
+     */
+    source: 'RESEARCH' | 'MEMBER';
+    createdAt: Date;
+};
+
+export type CmoCompetitorFeedItem = {
+    id: string;
+    competitorId: string;
+    facts: Array<{
+        text: string;
+        /**
+         * The signals that back it; their sources show on hover.
+         */
+        signalIds: Array<string>;
+        /**
+         * weak: the sources back it only in part.
+         */
+        support: 'strong' | 'weak';
+    }>;
+    /**
+     * What this means for you.
+     */
+    meaning: string;
+    /**
+     * One suggested move.
+     */
+    move: string;
+    /**
+     * A price change, launch or ad burst, told in chat at once.
+     */
+    big: boolean;
+    addedToStrategyAt: string | null;
+};
+
+export type CmoCompetitorSignal = {
+    id: string;
+    competitorId: string;
+    kind: 'WEBSITE_CHANGE' | 'PRICE_CHANGE' | 'NEWS' | 'AD' | 'SOCIAL';
+    /**
+     * What happened, in one line.
+     */
+    summary: string;
+    observedAt: Date;
+    sourceUrl: string | null;
+    sourceTitle: string | null;
+    sourcePublisher: string | null;
+    /**
+     * The source's own words that back the summary.
+     */
+    quote: string | null;
+};
+
+export type CmoCompetitorScoreRow = {
+    /**
+     * Null for the business itself.
+     */
+    competitorId: string | null;
+    name: string;
+    postsPerWeek: CmoCompetitorMeasure | null;
+    /**
+     * Likes and comments per post over the week's posts.
+     */
+    engagementPerPost: CmoCompetitorMeasure | null;
+    followers: CmoCompetitorMeasure | null;
+    /**
+     * Followers gained since the reading a week before.
+     */
+    followerGrowth: CmoCompetitorMeasure | null;
+};
+
+export type CmoCompetitorMeasure = {
+    value: number;
+    sourceUrl: string | null;
+    observedAt: Date;
+};
+
+export type CmoCompetitorTopPost = {
+    competitorId: string;
+    signalId: string;
+    url: string | null;
+    caption: string | null;
+    type: string | null;
+    postedAt: Date;
+    likes: number | null;
+    comments: number | null;
+};
+
+export type CmoCompetitorSource = {
+    /**
+     * not_configured: CMO lacks access to this source. not_connected: the owner has not connected the account it is read through. failed: the last check could not read it.
+     */
+    status: 'ok' | 'not_configured' | 'not_connected' | 'failed';
+    /**
+     * What it takes to read this source, when it cannot be read.
+     */
+    needs: string | null;
+};
+
+export type CmoCompetitorCreate = {
+    name: string;
+    /**
+     * Its website. A bare domain is read as https.
+     */
+    websiteUrl?: string | null;
+    /**
+     * The page that lists its prices.
+     */
+    pricingUrl?: string | null;
+    /**
+     * Its Instagram account: the handle or its address.
+     */
+    instagramHandle?: string | null;
+    /**
+     * Its Facebook Page: the name in its address, or the address.
+     */
+    facebookHandle?: string | null;
+};
+
+export type CmoCompetitorUpdate = {
+    name?: string;
+    /**
+     * Its website. A bare domain is read as https.
+     */
+    websiteUrl?: string | null;
+    /**
+     * The page that lists its prices.
+     */
+    pricingUrl?: string | null;
+    /**
+     * Its Instagram account: the handle or its address.
+     */
+    instagramHandle?: string | null;
+    /**
+     * Its Facebook Page: the name in its address, or the address.
+     */
+    facebookHandle?: string | null;
+};
+
 export type CmoCheckout = {
     url: string;
 };
@@ -13513,6 +13929,131 @@ export type CmoPlanChange = {
 
 export type CmoCustomerPortal = {
     url: string;
+};
+
+export type CmoSeo = {
+    websiteUrl: string;
+    countryCode: string;
+    languageCode: string;
+    audit: CmoSeoAudit;
+    searchConsole: CmoSearchConsole;
+    articles: Array<CmoSeoSuggestion>;
+    pageChanges: Array<CmoSeoSuggestion>;
+    keywordSearches: Array<CmoKeywordSearch>;
+    keywordSearchesLeft: number;
+};
+
+export type CmoSeoAudit = {
+    creditsPerAudit: number;
+    status: 'active' | 'paused' | 'not_started' | 'unavailable';
+    nextRunAt: Date | null;
+    running: boolean;
+    skipped: Array<Date>;
+    latest: {
+        observedAt: Date;
+        checked: number;
+        passed: number;
+        issues: Array<{
+            title: string;
+            pageUrl: string;
+            severity: 'critical' | 'major' | 'minor';
+            detail: string | null;
+        }>;
+        fixes: Array<{
+            title: string;
+            why: string;
+            effort: string;
+            pageUrl: string;
+        }>;
+    } | null;
+    lastFailedAt: Date | null;
+};
+
+export type CmoSearchConsole = {
+    status: 'connected' | 'not_connected' | 'no_property' | 'unavailable';
+    property: string | null;
+    from: string | null;
+    to: string | null;
+    observedAt: Date | null;
+    totals: {
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    } | null;
+    nearFirstPage: Array<{
+        query: string;
+        pageUrl: string;
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    }>;
+    lowClickRate: Array<{
+        query: string;
+        pageUrl: string;
+        clicks: number;
+        impressions: number;
+        ctr: number | null;
+        position: number | null;
+    }>;
+};
+
+export type CmoSeoSuggestion = {
+    id: string;
+    kind: 'article' | 'page_change';
+    source: 'audit' | 'cuso';
+    title: string;
+    keyword: string | null;
+    pageUrl: string | null;
+    why: string;
+    body: string;
+    newText: string | null;
+    draft: string | null;
+    evidence: Array<CmoSeoEvidence>;
+    status: 'open' | 'done' | 'verified' | 'dismissed';
+    createdAt: Date;
+    doneAt: Date | null;
+    verifiedAt: Date | null;
+};
+
+export type CmoSeoEvidence = {
+    metric: 'searchVolume' | 'difficulty' | 'intent' | 'position' | 'clicks' | 'impressions' | 'ctr' | 'auditIssue';
+    keyword: string | null;
+    pageUrl: string | null;
+    value: string;
+    source: 'keyword_research' | 'search_console' | 'weekly_audit';
+    observedAt: Date;
+};
+
+export type CmoKeywordSearch = {
+    topic: string;
+    countryCode: string;
+    languageCode: string;
+    observedAt: Date;
+    ideas: Array<CmoKeywordIdea>;
+};
+
+export type CmoKeywordIdea = {
+    keyword: string;
+    searchVolume: number | null;
+    difficulty: number | null;
+    intent: 'informational' | 'navigational' | 'commercial' | 'transactional' | null;
+    position: number | null;
+    positionSource: 'search_console' | 'weekly_audit' | null;
+};
+
+export type CmoKeywordSearchRequest = {
+    topic: string;
+};
+
+export type CmoSeoSuggestionStatusRequest = {
+    status: 'open' | 'done' | 'dismissed';
+};
+
+export type CmoPresenterPhoto = {
+    photo: string;
+    consent: true;
 };
 
 export type CmoAdBudgetRequest = {
@@ -13640,6 +14181,11 @@ export type SokoBotActivity = {
     activeTurnId: string | null;
     lastTurnAt: Date | null;
     lastActivityAt: Date | null;
+    id: string;
+    userId: string | null;
+    avatarSeed: string | null;
+    avatarImageUrl: string | null;
+    avatarCode: string | null;
 };
 
 export type CreateSokoBotRequest = {
@@ -14200,6 +14746,26 @@ export type TaskListItem = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    workspaceTags?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+        source?: 'manual' | 'jev';
+        taskTopicId?: TaskTagId;
+    }>;
+    workspaceTagSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+    }>;
     /**
      * Sequence number within the project. Null when the task has no project.
      */
@@ -14279,6 +14845,16 @@ export type TaskActivitySummary = {
 
 export type TaskTagSuggestion = {
     tags: Array<TaskTagId>;
+    workspaceSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+        autoApply: boolean;
+    }>;
     receipt: string;
 };
 
@@ -14648,6 +15224,10 @@ export type TaskLinkDeleted = {
 
 export type TaskParticipants = {
     participants: Array<TaskParticipant>;
+};
+
+export type TaskFollowers = {
+    followers: Array<TaskFollower>;
 };
 
 export type TaskSellerReceipt = {
@@ -43647,6 +44227,11 @@ export type GetDriveLabelsResponse = GetDriveLabelsResponses[keyof GetDriveLabel
 
 export type PostDriveLabelsData = {
     body: {
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         kind: 'TAG' | 'CATEGORY';
         displayName: string;
         description?: string | null;
@@ -43773,6 +44358,11 @@ export type PostDriveLabelsResponse = PostDriveLabelsResponses[keyof PostDriveLa
 
 export type PatchDriveLabelsByIdData = {
     body: {
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         displayName?: string;
         description?: string | null;
         archived?: boolean;
@@ -65678,6 +66268,133 @@ export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses 
 
 export type GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponse = GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdSubscriptionResponses];
 
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        connectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-connections/{connectionId}/tiktok-creator';
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorError = GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors[keyof GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorErrors];
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses = {
+    /**
+     * Current TikTok creator settings
+     */
+    200: {
+        data: TikTokCreatorInfo;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponse = GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses[keyof GetProjectsByIdSocialConnectionsByConnectionIdTiktokCreatorResponses];
+
 export type GetProjectsByIdSocialConnectionsStatisticsData = {
     body?: never;
     headers?: {
@@ -73872,6 +74589,369 @@ export type PostProjectsByIdImageStudioVideoJobsResponses = {
 };
 
 export type PostProjectsByIdImageStudioVideoJobsResponse = PostProjectsByIdImageStudioVideoJobsResponses[keyof PostProjectsByIdImageStudioVideoJobsResponses];
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsData = {
+    body: CreateProjectTalkingVideoJobRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-video-jobs';
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsError = PostProjectsByIdImageStudioTalkingVideoJobsErrors[keyof PostProjectsByIdImageStudioTalkingVideoJobsErrors];
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsResponses = {
+    /**
+     * Talking video started
+     */
+    201: {
+        data: ProjectImageJob;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoJobsResponse = PostProjectsByIdImageStudioTalkingVideoJobsResponses[keyof PostProjectsByIdImageStudioTalkingVideoJobsResponses];
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsData = {
+    body: WriteProjectTalkingVideoScriptsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-video-scripts';
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsError = PostProjectsByIdImageStudioTalkingVideoScriptsErrors[keyof PostProjectsByIdImageStudioTalkingVideoScriptsErrors];
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsResponses = {
+    /**
+     * Scripts written
+     */
+    200: {
+        data: ProjectTalkingVideoScripts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioTalkingVideoScriptsResponse = PostProjectsByIdImageStudioTalkingVideoScriptsResponses[keyof PostProjectsByIdImageStudioTalkingVideoScriptsResponses];
+
+export type GetProjectsByIdImageStudioTalkingVideosData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/talking-videos';
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosError = GetProjectsByIdImageStudioTalkingVideosErrors[keyof GetProjectsByIdImageStudioTalkingVideosErrors];
+
+export type GetProjectsByIdImageStudioTalkingVideosResponses = {
+    /**
+     * The Project's talking videos
+     */
+    200: {
+        data: ProjectTalkingVideos;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioTalkingVideosResponse = GetProjectsByIdImageStudioTalkingVideosResponses[keyof GetProjectsByIdImageStudioTalkingVideosResponses];
 
 export type PostProjectsByIdImageStudioJobsByJobIdCancelData = {
     body?: never;
@@ -83579,7 +84659,7 @@ export type GetShareRoomsByTokenQuestionsResponses = {
      * Questions
      */
     200: {
-        data: DataRoomQuestions;
+        data: DataRoomViewerQuestions;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -83669,7 +84749,7 @@ export type PostShareRoomsByTokenQuestionsResponses = {
      * Question
      */
     201: {
-        data: DataRoomQuestion;
+        data: DataRoomViewerQuestion;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -85005,6 +86085,459 @@ export type GetCmoOverviewForProjectResponses = {
 
 export type GetCmoOverviewForProjectResponse = GetCmoOverviewForProjectResponses[keyof GetCmoOverviewForProjectResponses];
 
+export type GetCmoCompetitorsForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors';
+};
+
+export type GetCmoCompetitorsForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoCompetitorsForProjectError = GetCmoCompetitorsForProjectErrors[keyof GetCmoCompetitorsForProjectErrors];
+
+export type GetCmoCompetitorsForProjectResponses = {
+    /**
+     * Tracked competitors
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoCompetitorsForProjectResponse = GetCmoCompetitorsForProjectResponses[keyof GetCmoCompetitorsForProjectResponses];
+
+export type AddCmoCompetitorForProjectData = {
+    body: CmoCompetitorCreate;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors';
+};
+
+export type AddCmoCompetitorForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Already tracked, or the limit is reached
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a web address or an account
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddCmoCompetitorForProjectError = AddCmoCompetitorForProjectErrors[keyof AddCmoCompetitorForProjectErrors];
+
+export type AddCmoCompetitorForProjectResponses = {
+    /**
+     * Competitor added
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddCmoCompetitorForProjectResponse = AddCmoCompetitorForProjectResponses[keyof AddCmoCompetitorForProjectResponses];
+
+export type RemoveCmoCompetitorForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        competitorId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors/{competitorId}';
+};
+
+export type RemoveCmoCompetitorForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such competitor
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveCmoCompetitorForProjectError = RemoveCmoCompetitorForProjectErrors[keyof RemoveCmoCompetitorForProjectErrors];
+
+export type RemoveCmoCompetitorForProjectResponses = {
+    /**
+     * Competitor removed
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveCmoCompetitorForProjectResponse = RemoveCmoCompetitorForProjectResponses[keyof RemoveCmoCompetitorForProjectResponses];
+
+export type UpdateCmoCompetitorForProjectData = {
+    body: CmoCompetitorUpdate;
+    path: {
+        projectId: string;
+        competitorId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors/{competitorId}';
+};
+
+export type UpdateCmoCompetitorForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such competitor
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Another tracked competitor has this name
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a web address or an account
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateCmoCompetitorForProjectError = UpdateCmoCompetitorForProjectErrors[keyof UpdateCmoCompetitorForProjectErrors];
+
+export type UpdateCmoCompetitorForProjectResponses = {
+    /**
+     * Competitor changed
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateCmoCompetitorForProjectResponse = UpdateCmoCompetitorForProjectResponses[keyof UpdateCmoCompetitorForProjectResponses];
+
+export type AddCmoCompetitorMoveToStrategyForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        itemId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/competitors/feed/{itemId}/strategy';
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or the move is gone
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Already in the strategy, Cuso is finishing a change, or he is paused
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectError = AddCmoCompetitorMoveToStrategyForProjectErrors[keyof AddCmoCompetitorMoveToStrategyForProjectErrors];
+
+export type AddCmoCompetitorMoveToStrategyForProjectResponses = {
+    /**
+     * Sent to the strategy
+     */
+    200: {
+        data: CmoCompetitors;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddCmoCompetitorMoveToStrategyForProjectResponse = AddCmoCompetitorMoveToStrategyForProjectResponses[keyof AddCmoCompetitorMoveToStrategyForProjectResponses];
+
 export type StartCmoPlanCheckoutForProjectData = {
     body?: {
         interval: 'month' | 'year';
@@ -85719,6 +87252,447 @@ export type StartCmoOverForProjectResponses = {
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
 
+export type GetCmoSeoForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo';
+};
+
+export type GetCmoSeoForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoSeoForProjectError = GetCmoSeoForProjectErrors[keyof GetCmoSeoForProjectErrors];
+
+export type GetCmoSeoForProjectResponses = {
+    /**
+     * The SEO tab
+     */
+    200: {
+        data: CmoSeo;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoSeoForProjectResponse = GetCmoSeoForProjectResponses[keyof GetCmoSeoForProjectResponses];
+
+export type SearchCmoKeywordsForProjectData = {
+    body: CmoKeywordSearchRequest;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/keywords';
+};
+
+export type SearchCmoKeywordsForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No keyword searches left today
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Keyword research is unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchCmoKeywordsForProjectError = SearchCmoKeywordsForProjectErrors[keyof SearchCmoKeywordsForProjectErrors];
+
+export type SearchCmoKeywordsForProjectResponses = {
+    /**
+     * The keyword ideas
+     */
+    200: {
+        data: CmoKeywordSearch;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchCmoKeywordsForProjectResponse = SearchCmoKeywordsForProjectResponses[keyof SearchCmoKeywordsForProjectResponses];
+
+export type RequestCmoArticleIdeasForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/ideas';
+};
+
+export type RequestCmoArticleIdeasForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is paused or out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestCmoArticleIdeasForProjectError = RequestCmoArticleIdeasForProjectErrors[keyof RequestCmoArticleIdeasForProjectErrors];
+
+export type RequestCmoArticleIdeasForProjectResponses = {
+    /**
+     * Cuso started
+     */
+    200: {
+        data: {
+            turnId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoArticleIdeasForProjectResponse = RequestCmoArticleIdeasForProjectResponses[keyof RequestCmoArticleIdeasForProjectResponses];
+
+export type RequestCmoArticleDraftForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/draft';
+};
+
+export type RequestCmoArticleDraftForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such article
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is paused or out of credits
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestCmoArticleDraftForProjectError = RequestCmoArticleDraftForProjectErrors[keyof RequestCmoArticleDraftForProjectErrors];
+
+export type RequestCmoArticleDraftForProjectResponses = {
+    /**
+     * Cuso started
+     */
+    200: {
+        data: {
+            turnId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoArticleDraftForProjectResponse = RequestCmoArticleDraftForProjectResponses[keyof RequestCmoArticleDraftForProjectResponses];
+
+export type SetCmoSeoSuggestionStatusForProjectData = {
+    body: CmoSeoSuggestionStatusRequest;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/status';
+};
+
+export type SetCmoSeoSuggestionStatusForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such suggestion
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoSeoSuggestionStatusForProjectError = SetCmoSeoSuggestionStatusForProjectErrors[keyof SetCmoSeoSuggestionStatusForProjectErrors];
+
+export type SetCmoSeoSuggestionStatusForProjectResponses = {
+    /**
+     * The suggestion
+     */
+    200: {
+        data: CmoSeoSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoSeoSuggestionStatusForProjectResponse = SetCmoSeoSuggestionStatusForProjectResponses[keyof SetCmoSeoSuggestionStatusForProjectResponses];
+
 export type SkipCmoSubscriptionForProjectData = {
     body?: never;
     path: {
@@ -85810,6 +87784,175 @@ export type SkipCmoSubscriptionForProjectResponses = {
 };
 
 export type SkipCmoSubscriptionForProjectResponse = SkipCmoSubscriptionForProjectResponses[keyof SkipCmoSubscriptionForProjectResponses];
+
+export type ClearCmoPresenterForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/presenter';
+};
+
+export type ClearCmoPresenterForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ClearCmoPresenterForProjectError = ClearCmoPresenterForProjectErrors[keyof ClearCmoPresenterForProjectErrors];
+
+export type ClearCmoPresenterForProjectResponses = {
+    /**
+     * Photo removed
+     */
+    200: {
+        data: {
+            presenterSet: false;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ClearCmoPresenterForProjectResponse = ClearCmoPresenterForProjectResponses[keyof ClearCmoPresenterForProjectResponses];
+
+export type SetCmoPresenterForProjectData = {
+    body: CmoPresenterPhoto;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/presenter';
+};
+
+export type SetCmoPresenterForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a usable photo
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoPresenterForProjectError = SetCmoPresenterForProjectErrors[keyof SetCmoPresenterForProjectErrors];
+
+export type SetCmoPresenterForProjectResponses = {
+    /**
+     * Photo saved
+     */
+    200: {
+        data: {
+            presenterSet: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoPresenterForProjectResponse = SetCmoPresenterForProjectResponses[keyof SetCmoPresenterForProjectResponses];
 
 export type SetCmoAdBudgetForProjectData = {
     body?: CmoAdBudgetRequest;
@@ -94543,6 +96686,14 @@ export type GetTasksData = {
          */
         q?: string;
         /**
+         * Only Tasks with this workspace tag.
+         */
+        workspaceTagId?: string;
+        /**
+         * Only Tasks with this visible topic tag.
+         */
+        topicTagId?: TaskTagId & unknown;
+        /**
          * Comma-separated status filters
          */
         status?: Array<TaskStatus>;
@@ -94691,6 +96842,18 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 
 export type PostTasksData = {
     body?: {
+        /**
+         * Workspace tag IDs to assign. An empty array clears all workspace tags.
+         */
+        workspaceTagIds?: Array<string>;
+        /**
+         * Workspace tags that Jev should stop suggesting or adding to this Task.
+         */
+        dismissedWorkspaceTagIds?: Array<string>;
+        /**
+         * Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.
+         */
+        dismissedTopicIds?: Array<TaskTagId>;
         tagSuggestionReceipt?: string;
         /**
          * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.
@@ -97177,6 +99340,171 @@ export type DeleteTasksByIdParticipantsByUserIdResponses = {
 
 export type DeleteTasksByIdParticipantsByUserIdResponse = DeleteTasksByIdParticipantsByUserIdResponses[keyof DeleteTasksByIdParticipantsByUserIdResponses];
 
+export type DeleteTasksByIdFollowData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/follow';
+};
+
+export type DeleteTasksByIdFollowErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteTasksByIdFollowError = DeleteTasksByIdFollowErrors[keyof DeleteTasksByIdFollowErrors];
+
+export type DeleteTasksByIdFollowResponses = {
+    /**
+     * Task followers
+     */
+    200: {
+        data: TaskFollowers;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteTasksByIdFollowResponse = DeleteTasksByIdFollowResponses[keyof DeleteTasksByIdFollowResponses];
+
+export type PostTasksByIdFollowData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/follow';
+};
+
+export type PostTasksByIdFollowErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No personal Soko Bot
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdFollowError = PostTasksByIdFollowErrors[keyof PostTasksByIdFollowErrors];
+
+export type PostTasksByIdFollowResponses = {
+    /**
+     * Task followers
+     */
+    200: {
+        data: TaskFollowers;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdFollowResponse = PostTasksByIdFollowResponses[keyof PostTasksByIdFollowResponses];
+
 export type DeleteTasksByIdData = {
     body?: never;
     path: {
@@ -97381,6 +99709,22 @@ export type PatchTasksByIdData = {
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
         priority?: TaskPriority;
+        /**
+         * Workspace tag IDs to assign. An empty array clears all workspace tags.
+         */
+        workspaceTagIds?: Array<string>;
+        /**
+         * When replacing workspaceTagIds, return 409 if the currently applied workspace tags differ from this set.
+         */
+        expectedWorkspaceTagIds?: Array<string>;
+        /**
+         * Workspace tags that Jev should stop suggesting or adding to this Task.
+         */
+        dismissedWorkspaceTagIds?: Array<string>;
+        /**
+         * Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.
+         */
+        dismissedTopicIds?: Array<TaskTagId>;
         /**
          * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
          */

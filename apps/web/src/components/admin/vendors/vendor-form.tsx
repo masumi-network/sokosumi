@@ -451,6 +451,7 @@ export function VendorForm(props: VendorFormProps) {
               }
               onRemove={() => handleRemoveLogo("light")}
               pendingLogoFiles={pendingLightLogoFiles}
+              previewSurface="light"
             />
           </FormItem>
 
@@ -472,6 +473,7 @@ export function VendorForm(props: VendorFormProps) {
               }
               onRemove={() => handleRemoveLogo("dark")}
               pendingLogoFiles={pendingDarkLogoFiles}
+              previewSurface="dark"
             />
           </FormItem>
         </div>

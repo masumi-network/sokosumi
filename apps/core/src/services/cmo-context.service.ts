@@ -12,6 +12,7 @@ import {
 } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
+import { recentCompetitorMoves } from "@/services/cmo-competitor-feed.service";
 import { findCusoForBot, listCmoChannels } from "@/services/cmo-cuso.service";
 import { listCmoReports } from "@/services/cmo-reports.service";
 import {
@@ -59,13 +60,21 @@ export async function loadCmoMarketingContext(
   const [project, brandPictures] = await Promise.all([
     prisma.project.findUnique({
       where: { id: cuso.projectId },
-      select: { logo: true, designMdUrl: true },
+      select: {
+        logo: true,
+        designMdUrl: true,
+        presenterFileId: true,
+        presenterConsentAt: true,
+      },
     }),
     listCmoBrandPictures(cuso.projectId),
   ]);
   const designMd = await readDesignMdContent(project?.designMdUrl ?? null);
   // A month of reports covers the last four weekly reviews.
-  const reports = await listCmoReports(sokoBotId, REPORTS_READ);
+  const [reports, competitorMoves] = await Promise.all([
+    listCmoReports(sokoBotId, REPORTS_READ),
+    recentCompetitorMoves(cuso.projectId, now),
+  ]);
   const context: MarketingContext = {
     business: {
       name: cuso.businessName,
@@ -97,6 +106,13 @@ export async function loadCmoMarketingContext(
       ...picture,
       alt: picture.alt.slice(0, 80),
     })),
+    /**
+     * The owner gave their photo, with consent, to be the face of talking
+     * videos: presenter "owner" uses it.
+     */
+    ...(project?.presenterFileId && project.presenterConsentAt
+      ? { ownerPresenter: true }
+      : {}),
     /** How to write each kind of piece: read one in full with read_writing_skill. */
     writingSkills: WRITING_SKILLS.map((skill) => ({
       id: skill.id,
@@ -151,6 +167,9 @@ export async function loadCmoMarketingContext(
         learnings: report.learnings ?? [],
       })),
   };
+  if (competitorMoves.length > 0)
+    /** The competitor feed's moves of about the last month, newest first. */
+    context.competitorMoves = competitorMoves;
   return fitCmoMarketingContext(context, now);
 }
 

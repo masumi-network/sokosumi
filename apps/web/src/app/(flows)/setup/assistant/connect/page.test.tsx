@@ -53,17 +53,17 @@ vi.mock("@/app/components/core-unavailable-notice.client", () => ({
 vi.mock("./components/assistant-connect-step.client", () => ({
   AssistantConnectStep: ({
     botName,
-    chatUrl,
+    doneUrl,
     returnTo,
     offers,
   }: {
     botName: string;
-    chatUrl: string;
+    doneUrl: string;
     returnTo: string;
     offers: { provider: string }[];
   }) => (
     <div data-testid="connect-step">
-      {botName}|{chatUrl}|{returnTo}|{offers.length}
+      {botName}|{doneUrl}|{returnTo}|{offers.length}
     </div>
   ),
 }));
@@ -128,6 +128,27 @@ describe("SetupAssistantConnectPage", () => {
 
     await expect(renderPage()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirectMock).toHaveBeenCalledWith("/chat/rooms/room-1");
+  });
+
+  it("ends on the Task when setup started to follow it", async () => {
+    const next = "/tasks/task-1?follow=1";
+    render(await renderPage({ next }));
+
+    expect(screen.getByTestId("connect-step").textContent).toBe(
+      `Atlas|${next}|/setup/assistant/connect?${new URLSearchParams({ next })}|3`,
+    );
+  });
+
+  it("goes back to the Task, not the chat, when nothing is left to connect", async () => {
+    listIntegrationsMock.mockResolvedValue({
+      configured: false,
+      integrations: [],
+    });
+
+    await expect(
+      renderPage({ next: "/tasks/task-1?follow=1" }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirectMock).toHaveBeenCalledWith("/tasks/task-1?follow=1");
   });
 
   it("goes straight on without a bot", async () => {

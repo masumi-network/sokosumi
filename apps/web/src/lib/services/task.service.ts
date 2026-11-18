@@ -8,10 +8,12 @@ import type {
   TaskActivitySummary,
   TaskEvent,
   TaskEventsPaginationMetadata,
+  TaskFollower,
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
   TaskPriority,
+  TaskTagId,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarEntry,
@@ -26,6 +28,8 @@ interface ListTasksParams {
   assigneeSokoBotId?: string;
   assigneeUserId?: string;
   projectId?: string;
+  workspaceTagId?: string;
+  topicTagId?: TaskTagId;
   q?: string;
   scope?: "workspace" | "owned" | "mine";
   visibility?: "PUBLIC" | "PRIVATE";
@@ -43,6 +47,9 @@ interface ListTasksParams {
 }
 
 interface CreateTaskInput {
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   tagSuggestionReceipt?: string;
   name?: string;
   description: string | null;
@@ -58,6 +65,10 @@ interface CreateTaskInput {
 }
 
 interface PatchTaskInput {
+  expectedWorkspaceTagIds?: string[];
+  workspaceTagIds?: string[];
+  dismissedWorkspaceTagIds?: string[];
+  dismissedTopicIds?: TaskTagId[];
   name?: string;
   description?: string | null;
   assigneeId?: string | null;
@@ -151,6 +162,8 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      workspaceTagId: params.workspaceTagId,
+      topicTagId: params.topicTagId,
       scheduleId: params.scheduleId,
       dueOnTo: params.dueOnTo,
       statusBefore: params.statusBefore,
@@ -411,6 +424,26 @@ export const taskService = (() => {
     return result.data.participants;
   }
 
+  async function followTask(taskId: string): Promise<TaskFollower[]> {
+    const result = await coreClient.followTask(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to follow task");
+    }
+
+    return result.data.followers;
+  }
+
+  async function unfollowTask(taskId: string): Promise<TaskFollower[]> {
+    const result = await coreClient.unfollowTask(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to stop following task");
+    }
+
+    return result.data.followers;
+  }
+
   async function subscribeTaskParticipant(
     taskId: string,
   ): Promise<TaskParticipant[]> {
@@ -472,6 +505,8 @@ export const taskService = (() => {
     deleteTaskLink,
     removeTaskParticipant,
     subscribeTaskParticipant,
+    followTask,
+    unfollowTask,
     moveTaskToWorkspace,
     moveOverdueTasks,
     undoMoveOverdueTasks,

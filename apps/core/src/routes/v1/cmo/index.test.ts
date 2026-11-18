@@ -133,9 +133,11 @@ function overview() {
     botStatus: "IDLE",
     learning: "done",
     work: null,
+    activity: { step: "Reading acme.io/pricing", reasoning: null },
     brandVisual: null,
     brandMedia: null,
     projectLogo: null,
+    presenterSet: false,
     routines: [],
     updates: [
       {

@@ -382,6 +382,7 @@ export async function backfillMissingSuggestionJobs(input?: {
       AND EXISTS (
         SELECT 1 FROM workspace_label wl
         WHERE wl."workspaceId" = fr."workspaceId"
+          AND NOT wl."isTaskPreset"
           AND wl."archivedAt" IS NULL
           AND wl."mergedIntoId" IS NULL
       )

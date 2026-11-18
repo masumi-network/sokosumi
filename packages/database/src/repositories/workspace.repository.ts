@@ -1,6 +1,7 @@
 import {
   CURATED_VOCABULARY_VERSION,
   curatedFileVocabularyRows,
+  TASK_TAG_PRESETS,
 } from "@sokosumi/utils";
 
 import { Prisma, type Workspace } from "../generated/prisma/client.js";
@@ -51,12 +52,12 @@ async function seedCuratedVocabulary(
   tx: Prisma.TransactionClient,
 ): Promise<void> {
   await tx.workspaceLabel.createMany({
-    data: curatedFileVocabularyRows().map((row) => ({
+    data: [
+      ...curatedFileVocabularyRows(),
+      ...TASK_TAG_PRESETS.map((row) => ({ ...row, isTaskPreset: true })),
+    ].map((row) => ({
       workspaceId,
-      kind: row.kind,
-      displayName: row.displayName,
-      normalizedName: row.normalizedName,
-      description: row.description,
+      ...row,
       vocabularyVersion: CURATED_VOCABULARY_VERSION,
       // Deliberately absent: see the note above.
       createdByUserId: null,

@@ -84,6 +84,7 @@ describe("proxy", () => {
     "/seo/connections/callback",
     "/seo/connections/return",
     "/composio/callback",
+    "/zernio/callback",
     "/composio/handoff",
   ])(
     "keeps OAuth return documents out of sign-in URLs after session expiry: %s",

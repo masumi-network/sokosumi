@@ -25,12 +25,18 @@ vi.mock("./avatar-studio.client", async () => {
   const { useEffect } = await import("react");
   return {
     // Reports a random look on mount, as the real studio does.
-    AvatarStudio: ({ onChange }: { onChange: (code: string) => void }) => {
+    AvatarStudio: ({
+      onChange,
+      compact,
+    }: {
+      onChange: (code: string) => void;
+      compact?: boolean;
+    }) => {
       useEffect(() => {
         if (studioReportsOnMount) onChange("v1-first");
       }, [onChange]);
       return (
-        <div data-testid="avatar-studio">
+        <div data-testid="avatar-studio" data-compact={String(!!compact)}>
           <button type="button" onClick={() => onChange("v1-owl")}>
             owl look
           </button>
@@ -91,9 +97,33 @@ describe("CreateState", () => {
       screen.getByRole("heading", { name: "Choose a look for Atlas" }),
     ).toBeTruthy();
     expect(screen.getByRole("list", { name: "Step 2 of 3" })).toBeTruthy();
+    // Setup shows the short studio; the full one is in the Change-look dialog.
+    expect(screen.getByTestId("avatar-studio")).toHaveAttribute(
+      "data-compact",
+      "true",
+    );
 
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.getByLabelText("Name")).toHaveValue("Atlas");
+  });
+
+  it("says a name is needed when it holds only spaces", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    const input = screen.getByLabelText("Name");
+
+    await user.type(input, "   ");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Name your Soko Bot" }),
+    ).toBeTruthy();
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription("Enter a name.");
+    expect(input).toHaveFocus();
+
+    await user.type(input, "Atlas");
+    expect(input).not.toHaveAttribute("aria-invalid");
   });
 
   it("moves focus into each step, since the old step hides the focused control", async () => {

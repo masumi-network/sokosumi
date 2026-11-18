@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/database";
 import { calendarDateSchema, isDesignMdBlobUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime.js";
-import { taskTagsSchema } from "@/helpers/task-tags";
+import { taskTagIdSchema, taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
@@ -24,6 +24,7 @@ import { organizationSummarySchema } from "@/schemas/organization.schema";
 import { projectSummarySchema } from "@/schemas/project.schema";
 import { taskShareSchema } from "@/schemas/share.schema";
 import { sokoBotSummarySchema } from "@/schemas/soko-bot.schema";
+import { workspaceTagColorFields } from "@/schemas/tag-color.schema";
 import { taskFileSchema } from "@/schemas/task-file.schema";
 import { taskLinksSchema } from "@/schemas/task-link.schema";
 import { userSummarySchema } from "@/schemas/user.schema";
@@ -104,6 +105,20 @@ export const taskParticipantSchema = z
     }),
   })
   .openapi("TaskParticipant");
+
+export const taskFollowerSchema = z
+  .object({
+    user: userSummarySchema,
+    followedAt: dateTimeSchema.openapi({
+      description: "When this person started following the Task.",
+      example: "2026-09-24T12:00:00.000Z",
+    }),
+  })
+  .openapi("TaskFollower");
+
+export const taskFollowersResponseSchema = z
+  .object({ followers: z.array(taskFollowerSchema) })
+  .openapi("TaskFollowers");
 
 const taskEventActorSchema = z
   .discriminatedUnion("type", [
@@ -209,6 +224,33 @@ const taskAssigneeSchema = z
   ])
   .openapi("TaskAssignee");
 
+const workspaceTaskTag = z.object({
+  id: z.uuid(),
+  displayName: z.string(),
+  ...workspaceTagColorFields,
+});
+
+export const dismissedTopicIdsSchema = z
+  .array(taskTagIdSchema)
+  .optional()
+  .openapi({
+    description:
+      "Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.",
+  });
+
+export const dismissedWorkspaceTagIdsSchema = z
+  .array(z.uuid())
+  .optional()
+  .openapi({
+    description:
+      "Workspace tags that Jev should stop suggesting or adding to this Task.",
+  });
+
+export const taskWorkspaceTagIdsSchema = z.array(z.uuid()).optional().openapi({
+  description:
+    "Workspace tag IDs to assign. An empty array clears all workspace tags.",
+});
+
 const taskBaseSchema = z.object({
   id: z.string().openapi({ example: "tsk_123" }),
   createdAt: dateTimeSchema,
@@ -286,6 +328,15 @@ const taskBaseSchema = z.object({
       "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
   tags: taskTagsSchema.optional(),
+  workspaceTags: z
+    .array(
+      workspaceTaskTag.extend({
+        source: z.enum(["manual", "jev"]).optional(),
+        taskTopicId: taskTagIdSchema.optional(),
+      }),
+    )
+    .optional(),
+  workspaceTagSuggestions: z.array(workspaceTaskTag).optional(),
   number: z.number().int().positive().nullable().openapi({
     example: 123,
     description:
@@ -370,6 +421,13 @@ export const taskSchema = taskBaseSchema
     // Mirrors `jobSchema.share`.
     share: z.union([taskShareSchema, z.null()]).openapi({ example: null }),
     links: taskLinksSchema.openapi({ example: [] }),
+    // Optional on the wire: a Web build that reaches a Core without it
+    // (deploy order) reads no followers instead of failing the page.
+    followers: z.array(taskFollowerSchema).optional().openapi({
+      example: [],
+      description:
+        "People whose personal Soko Bot follows the Task for them, in follow order. Separate from `participants`: following never adds a participant. Always sent; optional only for older servers.",
+    }),
     files: z.array(taskFileSchema).openapi({
       example: [],
       description: "Files uploaded to this task (newest first).",

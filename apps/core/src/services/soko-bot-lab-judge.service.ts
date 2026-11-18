@@ -11,6 +11,7 @@ import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -44,8 +45,12 @@ const TOOL_BUDGET = 60_000;
 
 export class SokoBotLabJudgeError extends Error {}
 
+/** The judge a verdict is recorded under: a Gateway id, or `claude-code:<model>`. */
 export function sokoBotJudgeModel(): string {
-  return getEnv().SOKO_BOT_JUDGE_MODEL;
+  const env = getEnv();
+  return env.SOKO_BOT_JUDGE_RUNNER === "claude-code"
+    ? `claude-code:${env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL}`
+    : env.SOKO_BOT_JUDGE_MODEL;
 }
 
 function clip(value: unknown, limit = VALUE_LIMIT): string {
@@ -219,10 +224,28 @@ async function askJudge(
     costUsd: 0,
     inference: [],
   };
+  const env = getEnv();
+  const onClaudeCode = env.SOKO_BOT_JUDGE_RUNNER === "claude-code";
+  if (onClaudeCode && env.VERCEL_ENV) {
+    throw new SokoBotJudgeFailure(
+      "SOKO_BOT_JUDGE_RUNNER=claude-code needs the local claude CLI and does not run on Vercel. Use the gateway judge here.",
+      usage,
+    );
+  }
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
+      if (onClaudeCode) {
+        // The subscription pays for it, so nothing is added to the usage.
+        const output = await runClaudeCodeJudge({
+          model: env.SOKO_BOT_JUDGE_CLAUDE_CODE_MODEL,
+          instructions: SOKO_BOT_JUDGE_RUBRIC,
+          prompt: JSON.stringify(payload),
+          timeoutMs: JUDGE_TIMEOUT_MS,
+        });
+        return { verdict: sokoBotJudgeVerdictSchema.parse(output), usage };
+      }
       const result = await generateSokoBotJudgeText({
-        model: modelOverride ?? sokoBotJudgeModel(),
+        model: modelOverride ?? env.SOKO_BOT_JUDGE_MODEL,
         payload,
         abortSignal: AbortSignal.timeout(JUDGE_TIMEOUT_MS),
       });

@@ -29,6 +29,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "reply_to_task",
   "update_assigned_task",
   "link_tasks",
+  "list_followed_tasks",
+  "stop_following_task",
   "find_agents",
   "get_agent_input_schema",
   "hire_agent",
@@ -61,6 +63,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "get_image",
   "generate_video",
   "get_video",
+  "generate_talking_video",
   "generate_voiceover",
   "list_skills",
   "install_skill",
@@ -154,6 +157,12 @@ export const SOKO_BOT_CAPABILITIES = [
   "find_style_references",
   "list_social_comments",
   "handle_social_comment",
+  "read_seo",
+  "research_keywords",
+  "check_search_rankings",
+  "save_seo_suggestions",
+  "check_competitors",
+  "save_competitor_feed",
   "start_background_run",
   "list_background_runs",
   "stop_background_run",
@@ -205,6 +214,15 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",
+  // The SEO tab: the weekly audit, Search Console, keyword research, the
+  // SEO specialist's position checks, and the articles and page changes.
+  "read_seo",
+  "research_keywords",
+  "check_search_rankings",
+  "save_seo_suggestions",
+  // The weekly competitor watch: what Core's check found, and the feed.
+  "check_competitors",
+  "save_competitor_feed",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotCmoCapability(value: string): boolean {
@@ -307,6 +325,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "update_newsletter_subscriber",
   "remove_newsletter_subscriber",
   "generate_video",
+  "generate_talking_video",
   // Spends the owner's money on words a page could have written.
   "generate_voiceover",
   "post_chat",
@@ -383,6 +402,7 @@ const DIRECT_READ_CAPABILITIES = [
   "get_task_status",
   "preview_result",
   "list_tasks",
+  "list_followed_tasks",
   "get_job_status",
   "read_memory",
   "list_schedules",
@@ -534,6 +554,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   "save_email_attachment",
   "generate_image",
   "generate_video",
+  "generate_talking_video",
   "generate_voiceover",
   "create_table",
   "write_table_rows",
@@ -635,6 +656,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "reply_to_task",
     "update_assigned_task",
     "link_tasks",
+    "stop_following_task",
   ],
   HIRE_AGENT: [
     ...OWNER_BASE_CAPABILITIES,
@@ -663,6 +685,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "reply_to_task",
     "update_assigned_task",
     "link_tasks",
+    "stop_following_task",
     "find_coworkers",
     "create_task",
   ],
@@ -714,6 +737,7 @@ export function capabilitiesForClassification(
       "save_email_attachment",
       "generate_image",
       "generate_video",
+      "generate_talking_video",
       "generate_voiceover",
       "wait_for",
       "create_table",

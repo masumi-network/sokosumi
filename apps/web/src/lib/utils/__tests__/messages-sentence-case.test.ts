@@ -19,6 +19,7 @@ const PROPER_PHRASES = [
   "Soko Bot",
   "Soko Bots",
   "Content Studio",
+  "TikTok Studio",
   "Sokosumi Projects",
   "Agent Identities",
   // Ad platforms.
@@ -86,6 +87,7 @@ const PROPER_WORDS = new Set([
   "LinkedIn",
   "Claude",
   "Eve",
+  "Jev",
   "YouTube",
   // AI assistants that GA4 counts in its AI Assistant channel.
   "ChatGPT",

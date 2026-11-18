@@ -121,11 +121,13 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Bring me to the task" })
         .click({ timeout: 120_000 });
 
-      const subscribe = page.getByRole("button", { name: "Subscribe" });
-      const subscribeBox = await subscribe.boundingBox();
+      const participants = page.getByRole("button", {
+        name: /^Participants:/,
+      });
+      const participantsBox = await participants.boundingBox();
       assert.ok(
-        subscribeBox && subscribeBox.height >= 24,
-        `Subscribe is ${subscribeBox?.height}px tall`,
+        participantsBox && participantsBox.height >= 24,
+        `Participants is ${participantsBox?.height}px tall`,
       );
       await shot(page, size, "1-task");
 

@@ -105,10 +105,12 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     botStatus: "IDLE",
     learning: "done",
     work: null,
+    activity: null,
     brandVisual: null,
     brandMedia: null,
     brandBrainConfirmedAt: null,
     projectLogo: null,
+    presenterSet: false,
     onboardingStep: "done",
     routines: [
       {
@@ -188,7 +190,7 @@ export function cmoChatMessage(
     id: "m1",
     roomId: "room-1",
     parentMessageId: null,
-    content: "Plan is ready.",
+    content: "Strategy is ready.",
     createdAt: new Date("2026-10-01T09:03:00Z"),
     deletedAt: null,
     editedAt: null,

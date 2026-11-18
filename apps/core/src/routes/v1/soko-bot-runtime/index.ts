@@ -3,6 +3,7 @@ import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { badRequest, unauthorized, unprocessableEntity } from "@/helpers/error";
+import { databaseNow } from "@/lib/db/database-now";
 import { tryUseLogger } from "@/lib/evlog";
 import { runnerDiagnostic } from "@/lib/soko-bot/runner-log-events";
 import {
@@ -16,6 +17,7 @@ import {
   proxySandboxModelCall,
   recordSandboxAction,
   recordSandboxActionResult,
+  recordSandboxReasoning,
   runSandboxTool,
   sandboxFileSource,
   startSandboxTurn,
@@ -51,9 +53,9 @@ const uploadSchema = z.object({
 const completeSchema = z.object({
   text: z.string().max(200_000),
   finishReason: z.string().max(64),
-  /** The provider's reasoning summary, when the model returned one. */
-  reasoning: z.string().max(20_000).optional(),
 });
+/** One model step's reasoning summary, as the provider returned it. */
+const reasoningSchema = z.object({ text: z.string().min(1).max(20_000) });
 const failSchema = z.object({
   code: z.string().max(100),
   message: z.string().max(2_000),
@@ -62,9 +64,10 @@ const failSchema = z.object({
 });
 
 app.use("/turns/:turnId/*", async (c, next) => {
-  const claims = verifyTurnToken(
+  const claims = await verifyTurnToken(
     c.req.header(SOKO_BOT_TURN_TOKEN_HEADER),
     c.req.param("turnId"),
+    async () => (await databaseNow()).getTime(),
   );
   if (!claims) throw unauthorized();
   c.set("turn", claims);
@@ -132,6 +135,12 @@ app.post("/turns/:turnId/actions", async (c) => {
 app.post("/turns/:turnId/actions/result", async (c) => {
   const action = await parseJsonBody(c, actionSchema);
   await recordSandboxActionResult(c.get("turn"), action);
+  return c.json({ ok: true });
+});
+
+app.post("/turns/:turnId/reasoning", async (c) => {
+  const { text } = await parseJsonBody(c, reasoningSchema);
+  await recordSandboxReasoning(c.get("turn"), text);
   return c.json({ ok: true });
 });
 
