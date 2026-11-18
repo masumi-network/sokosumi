@@ -273,12 +273,14 @@ export function AvatarStudio({
     // Laid out by its own width: setup draws it in a narrow frame on wide screens, the
     // Change-look dialog wide. Viewport breakpoints squeezed setup's animals to 8 px.
     <div className="@container min-w-0">
-      <div className="grid min-w-0 gap-6 @2xl:grid-cols-[14rem_minmax(0,1fr)] @2xl:gap-8">
+      {/* One shrinkable column: content wider than the frame wraps instead of widening it. */}
+      <div className="grid min-w-0 grid-cols-1 gap-6 @2xl:grid-cols-[14rem_minmax(0,1fr)] @2xl:gap-8">
         <div
           className={cn(
             "flex items-center gap-4 @2xl:sticky @2xl:top-0 @2xl:self-start",
-            // Setup: Shuffle beside the preview, so the animals come up sooner.
-            compact ? "justify-between" : "flex-col",
+            // Setup: Shuffle beside the preview, so the animals come up sooner;
+            // below it when the frame is too narrow for both.
+            compact ? "flex-wrap justify-center" : "flex-col",
           )}
         >
           <LiveBotAvatar
@@ -352,11 +354,9 @@ export function AvatarStudio({
                   </span>
                 </span>
               </DisclosureTrigger>
-              <DisclosureContent>
-                {/* Room around the content for the focus ring that the fold clips. */}
-                <div className="-mx-1 flex flex-col gap-5 px-1 pt-4 pb-1">
-                  {details}
-                </div>
+              {/* Room in the fold's own clip box for the 4 px selected and focus rings. */}
+              <DisclosureContent className="-mx-2 px-2">
+                <div className="flex flex-col gap-5 pt-4 pb-2">{details}</div>
               </DisclosureContent>
             </Collapsible>
           ) : (

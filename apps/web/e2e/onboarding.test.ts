@@ -137,6 +137,48 @@ for (const { name, ...viewport } of PROJECTS) {
       await owl.click();
       assert.equal(await owl.getAttribute("aria-pressed"), "true");
       await shot("3-picture");
+
+      // The rest of the look folds under More details. Open, every control
+      // stays inside the studio's frame, a pick survives a fold, and the last
+      // option clears the pinned Create.
+      const more = page.getByRole("button", { name: /More details/ });
+      await more.click();
+      // The studio's own box; the frame around it has padding that hides overflow.
+      const studio = owl.locator(
+        "xpath=ancestor::div[contains(@class,'@container')]",
+      );
+      const frame = await studio.boundingBox();
+      const sticking = await studio
+        .locator("button, [role=radio]")
+        .evaluateAll(
+          (els, right) =>
+            els.filter((el) => el.getBoundingClientRect().right > right + 0.5)
+              .length,
+          (frame?.x ?? 0) + (frame?.width ?? 0),
+        );
+      assert.equal(sticking, 0, "no studio control sticks out of its frame");
+      const headwear = page.getByRole("radiogroup", { name: "Headwear" });
+      await headwear.getByRole("radio", { name: "Crown" }).click();
+      await more.click();
+      await more.click();
+      assert.equal(
+        await headwear
+          .getByRole("radio", { name: "Crown" })
+          .getAttribute("aria-checked"),
+        "true",
+        "a pick survives folding More details",
+      );
+      const star = headwear.getByRole("radio", { name: "Star" });
+      await star.focus();
+      const starBox = await star.boundingBox();
+      const pinned = await create.boundingBox();
+      assert.ok(
+        starBox &&
+          pinned &&
+          starBox.y + starBox.height <= pinned.y &&
+          pinned.y + pinned.height <= viewport.height,
+        "the last option clears Create, which stays on screen",
+      );
       await create.click();
 
       await expectStep(
