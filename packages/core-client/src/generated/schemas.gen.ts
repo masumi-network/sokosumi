@@ -46244,6 +46244,35 @@ export const SaveSeoAuditBriefRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const SeoBriefSuggestionSchema = {
+    type: 'object',
+    properties: {
+        action: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'sign up',
+                'buy',
+                'contact sales',
+                'book',
+                'subscribe',
+                'download',
+                'call',
+                'visit',
+                'read',
+                'none',
+                null
+            ]
+        }
+    },
+    required: [
+        'action'
+    ],
+    additionalProperties: false
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {

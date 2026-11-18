@@ -23,6 +23,11 @@ export const seoBriefAction = z.enum([
   "none",
 ]);
 
+export const seoBriefSuggestionQuery = z.strictObject({ pageId: seoIdSchema });
+export const seoBriefSuggestionSchema = z
+  .strictObject({ action: seoBriefAction.nullable() })
+  .openapi("SeoBriefSuggestion");
+
 const text = (max: number) => z.string().trim().min(1).max(max).nullable();
 const shortTextLimit = 300;
 const constraintsLimit = 600;

@@ -11862,6 +11862,10 @@ export type SaveSeoAuditBriefRequest = {
     expectedRevision: number;
 };
 
+export type SeoBriefSuggestion = {
+    action: 'sign up' | 'buy' | 'contact sales' | 'book' | 'subscribe' | 'download' | 'call' | 'visit' | 'read' | 'none' | null;
+};
+
 export type PatchProjectRequest = {
     name?: string;
     briefing?: string | null;
@@ -77057,6 +77061,104 @@ export type SaveProjectSeoBriefResponses = {
 
 export type SaveProjectSeoBriefResponse = SaveProjectSeoBriefResponses[keyof SaveProjectSeoBriefResponses];
 
+export type GetProjectSeoBriefSuggestionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        pageId: string;
+    };
+    url: '/projects/{id}/seo/brief/suggestion';
+};
+
+export type GetProjectSeoBriefSuggestionErrors = {
+    /**
+     * Invalid SEO brief
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * SEO collection or page not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectSeoBriefSuggestionError = GetProjectSeoBriefSuggestionErrors[keyof GetProjectSeoBriefSuggestionErrors];
+
+export type GetProjectSeoBriefSuggestionResponses = {
+    /**
+     * A suggested page action, or null for manual selection
+     */
+    200: {
+        data: SeoBriefSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectSeoBriefSuggestionResponse = GetProjectSeoBriefSuggestionResponses[keyof GetProjectSeoBriefSuggestionResponses];
+
 export type ListSeoAuditsData = {
     body?: never;
     headers?: {
@@ -79626,6 +79728,104 @@ export type SaveSeoAuditBriefResponses = {
 };
 
 export type SaveSeoAuditBriefResponse = SaveSeoAuditBriefResponses[keyof SaveSeoAuditBriefResponses];
+
+export type GetSeoAuditBriefSuggestionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query: {
+        pageId: string;
+    };
+    url: '/seo/audits/{id}/brief/suggestion';
+};
+
+export type GetSeoAuditBriefSuggestionErrors = {
+    /**
+     * Invalid SEO brief
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * SEO collection or page not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSeoAuditBriefSuggestionError = GetSeoAuditBriefSuggestionErrors[keyof GetSeoAuditBriefSuggestionErrors];
+
+export type GetSeoAuditBriefSuggestionResponses = {
+    /**
+     * A suggested page action, or null for manual selection
+     */
+    200: {
+        data: SeoBriefSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSeoAuditBriefSuggestionResponse = GetSeoAuditBriefSuggestionResponses[keyof GetSeoAuditBriefSuggestionResponses];
 
 export type DisconnectSeoConnectionData = {
     body?: never;
