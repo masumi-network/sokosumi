@@ -146,7 +146,7 @@ export function SeoRunDayDialog({
   return (
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
-        className="max-h-[85vh] overflow-y-auto"
+        className="max-h-[85dvh] overflow-y-auto"
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader>
