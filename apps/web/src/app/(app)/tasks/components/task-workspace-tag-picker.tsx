@@ -3,12 +3,13 @@
 import type { WorkspaceLabel } from "@sokosumi/core-client";
 import { checkFileLabelName } from "@sokosumi/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, Plus, X } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import type { TaskWorkspaceTag } from "@/app/tasks/types/task-board";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { Input } from "@/components/ui/input";
 import {
   Popover,
@@ -83,21 +84,21 @@ function TagPicker(props: TaskWorkspaceTagPickerProps) {
       </h2>
       <div className="flex flex-wrap items-center gap-1">
         {props.selected.map((tag) => (
-          <Badge variant="secondary" key={tag.id} className="gap-1">
+          <Badge
+            variant="secondary"
+            key={tag.id}
+            className="gap-1 overflow-visible py-0 pe-0"
+          >
             {tag.displayName}
-            <button
-              type="button"
+            <ChipRemoveButton
               disabled={props.disabled || creating}
               aria-label={t("remove", { name: tag.displayName })}
-              className="hit-area relative rounded-sm focus-visible:outline-ring focus-visible:outline-2"
               onClick={() =>
                 props.onChange(
                   props.selected.filter((item) => item.id !== tag.id),
                 )
               }
-            >
-              <X className="size-3" aria-hidden />
-            </button>
+            />
           </Badge>
         ))}
         <Popover
