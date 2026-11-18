@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
+import { unavailableGscTaskInspection } from "@/lib/seo/native-gsc-task-inspection";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import {
   addProjectSeoPage,
@@ -311,87 +312,217 @@ describe.skipIf(!enabled)("immutable private SEO briefs", () => {
     );
   });
 
-  it("uses the newest page inspection across tasks when another page recovers later", async () => {
-    const page = await addProjectSeoPage(actor, {
-      url: "https://example.test/newest-inspection",
-      relationship: "primary",
-    });
-    const first = "2026-06-02T10:00:00.000Z";
-    const second = "2026-06-02T11:00:00.000Z";
-    const retry = "2026-06-02T12:00:00.000Z";
-    const otherUrl = "https://example.test/related-page";
-    const row = {
-      projectId,
-      kind: "index_inspection",
-      source: "search_console",
-      visibility: "PRIVATE" as const,
-      ownerId: userId,
-      pageIds: [page.id],
-      artifactHash: "fixture",
-    };
-    const indexed = {
-      pageUrl: page.url,
-      verdict: "PASS",
-      indexingState: "INDEXING_ALLOWED",
-      lastCrawlTime: second,
-    };
-    await prisma.projectSeoObservation.createMany({
-      data: [
-        {
-          ...row,
-          sourceKey: randomUUID(),
-          observedAt: new Date(second),
-          payload: {
-            receipt: {
-              taskId: randomUUID(),
-              checkedAt: second,
-              pages: [indexed],
-            },
-          },
-        },
-        {
-          ...row,
-          sourceKey: randomUUID(),
-          observedAt: new Date(retry),
-          payload: {
-            reusedCheckedAt: { [page.url]: first },
-            receipt: {
-              taskId: randomUUID(),
-              checkedAt: retry,
-              pages: [
-                { ...indexed, verdict: "FAIL", lastCrawlTime: first },
-                { ...indexed, pageUrl: otherUrl, lastCrawlTime: retry },
-              ],
-            },
-          },
-        },
-      ],
-    });
-    const [followUp] = await loadBriefFollowUps(
-      actor,
-      {
-        objective: "support",
-        audience: null,
-        constraints: null,
-        outcome: null,
-        pages: [
+  it.each(["index_inspection", "metrics"])(
+    "uses the actual Google read time when a later %s reuses an older inspection",
+    async (kind) => {
+      const page = await addProjectSeoPage(actor, {
+        url: `https://example.test/newest-${kind}`,
+        relationship: "primary",
+      });
+      const first = "2026-06-02T10:00:00.000Z";
+      const second = "2026-06-02T11:00:00.000Z";
+      const retry = "2026-06-02T12:00:00.000Z";
+      const otherUrl = "https://example.test/related-page";
+      const row = {
+        projectId,
+        kind,
+        source: "search_console",
+        visibility: "PRIVATE" as const,
+        ownerId: userId,
+        pageIds: [page.id],
+        artifactHash: "fixture",
+      };
+      const indexed = {
+        pageUrl: page.url,
+        verdict: "PASS",
+        indexingState: "INDEXING_ALLOWED",
+        lastCrawlTime: second,
+      };
+      await prisma.projectSeoObservation.createMany({
+        data: [
           {
-            pageId: page.id,
-            role: "support",
-            action: "read",
-            job: null,
-            indexIntent: "index",
+            ...row,
+            sourceKey: randomUUID(),
+            observedAt: new Date(second),
+            payload:
+              kind === "metrics"
+                ? { indexedPages: [indexed] }
+                : {
+                    receipt: {
+                      taskId: randomUUID(),
+                      checkedAt: second,
+                      pages: [indexed],
+                    },
+                  },
+          },
+          {
+            ...row,
+            sourceKey: randomUUID(),
+            observedAt: new Date(retry),
+            payload:
+              kind === "metrics"
+                ? {
+                    collectedAt: first,
+                    indexedPages: [
+                      { ...indexed, verdict: "FAIL", lastCrawlTime: first },
+                    ],
+                  }
+                : {
+                    reusedCheckedAt: { [page.url]: first },
+                    receipt: {
+                      taskId: randomUUID(),
+                      checkedAt: retry,
+                      pages: [
+                        { ...indexed, verdict: "FAIL", lastCrawlTime: first },
+                        { ...indexed, pageUrl: otherUrl, lastCrawlTime: retry },
+                      ],
+                    },
+                  },
           },
         ],
-      },
-      [page],
-      prisma,
-    );
-    expect(followUp).toMatchObject({
-      indexReview: "matches_intent",
-      lastCrawlAt: second,
-    });
-  });
+      });
+      const [followUp] = await loadBriefFollowUps(
+        actor,
+        {
+          objective: "support",
+          audience: null,
+          constraints: null,
+          outcome: null,
+          pages: [
+            {
+              pageId: page.id,
+              role: "support",
+              action: "read",
+              job: null,
+              indexIntent: "index",
+            },
+          ],
+        },
+        [page],
+        prisma,
+      );
+      expect(followUp).toMatchObject({
+        indexReview: "matches_intent",
+        lastCrawlAt: second,
+      });
+    },
+  );
+
+  it.each(["metrics", "index_inspection"])(
+    "keeps the last %s read through an inspection outage until Google answers",
+    async (source) => {
+      const page = await addProjectSeoPage(actor, {
+        url: `https://example.test/inspections/${source}`,
+        relationship: "primary",
+      });
+      const original = "2026-06-15T10:00:00.000Z";
+      const latest = "2026-06-15T11:00:00.000Z";
+      const unanswered = unavailableGscTaskInspection(page.url);
+      const indexed = {
+        ...unanswered,
+        verdict: "PASS",
+        lastCrawlTime: original,
+      };
+      const row = {
+        projectId,
+        kind: source,
+        source: "search_console",
+        ownerId: userId,
+        visibility: "PRIVATE" as const,
+        pageIds: [page.id],
+        artifactHash: "fixture",
+      };
+      await prisma.projectSeoObservation.create({
+        data: {
+          ...row,
+          sourceKey: randomUUID(),
+          observedAt: new Date(original),
+          payload:
+            source === "metrics"
+              ? { indexedPages: [indexed] }
+              : {
+                  receipt: {
+                    checkedAt: original,
+                    status: "available",
+                    pages: [indexed],
+                  },
+                },
+        },
+      });
+      const partial = {
+        checkedAt: latest,
+        status: "unavailable",
+        pages: [unanswered],
+      };
+      const newest = await prisma.projectSeoObservation.create({
+        data: {
+          ...row,
+          kind: "index_inspection",
+          sourceKey: randomUUID(),
+          observedAt: new Date(latest),
+          payload: { propertyId: "sc-domain:example.test", receipt: partial },
+        },
+      });
+      const read = async () =>
+        (
+          await loadBriefFollowUps(
+            actor,
+            {
+              objective: "support",
+              outcome: null,
+              audience: null,
+              constraints: null,
+              pages: [
+                {
+                  pageId: page.id,
+                  role: "support",
+                  action: "read",
+                  job: null,
+                  indexIntent: "index",
+                },
+              ],
+            },
+            [page],
+            prisma,
+          )
+        )[0];
+      const originalVerdict = {
+        indexReview: "matches_intent",
+        lastCrawlAt: original,
+      };
+      expect(await read()).toMatchObject(originalVerdict);
+      await prisma.projectSeoObservation.update({
+        where: { id: newest.id },
+        data: {
+          payload: {
+            propertyId: "https://example.test/elsewhere/",
+            providerAnsweredAll: true,
+            receipt: partial,
+          },
+        },
+      });
+      expect(await read()).toMatchObject(originalVerdict);
+      for (const answers of [
+        { providerAnsweredAll: true },
+        { answeredUnknownPageUrls: [page.url] },
+      ]) {
+        await prisma.projectSeoObservation.update({
+          where: { id: newest.id },
+          data: {
+            payload: {
+              propertyId: "sc-domain:example.test",
+              ...answers,
+              receipt: partial,
+            },
+          },
+        });
+        expect(await read()).toMatchObject({
+          indexReview: "unknown",
+          lastCrawlAt: null,
+        });
+      }
+    },
+  );
 
   it("keeps the private exclusion evidence for the same Google crawl after a legacy statistics sync", async () => {
     const page = await addProjectSeoPage(actor, {

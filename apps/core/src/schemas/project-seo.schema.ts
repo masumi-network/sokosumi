@@ -545,8 +545,7 @@ export const seoIndexAssessmentSchema = z
     evidence: z.array(z.string().max(2000)).max(20),
   })
   .strict()
-  .refine((value) => value.report === (value.status === "issue"))
-  .openapi("ProjectSeoIndexAssessment");
+  .refine((value) => value.report === (value.status === "issue"));
 export const seoIndexTriageSchema = z
   .object({
     assessments: z

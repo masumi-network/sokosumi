@@ -15400,6 +15400,7 @@ export type ProjectSeoIndexAssessment = {
     reason: string;
     suggestedFix: string | null;
     evidence: Array<string>;
+    publicEvidenceAvailable?: boolean;
 };
 
 export type SeoTaskRelatedPagesReceipt = {

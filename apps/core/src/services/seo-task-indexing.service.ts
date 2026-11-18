@@ -28,6 +28,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import {
   type SeoTaskIndexingReceipt,
   type SeoTaskIndexingResultRequest,
+  seoAnsweredUnknownPageUrlsSchema,
   seoReusedInspectionTimesSchema,
   seoTaskIndexingReceiptSchema,
   seoTaskIndexingResultSchema,
@@ -55,6 +56,7 @@ const storedReceiptSchema = z.strictObject({
   contextFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   propertyId: z.string().max(500).nullable(),
   providerAnsweredAll: z.literal(true).optional(),
+  answeredUnknownPageUrls: seoAnsweredUnknownPageUrlsSchema.optional(),
   reusedCheckedAt: seoReusedInspectionTimesSchema.optional(),
   retainedAssessments: seoTaskIndexingResultSchema.shape.assessments.optional(),
   receipt: persistedReceiptSchema,
@@ -298,8 +300,19 @@ async function collect(
     if (
       results.every((result) => result.status === "fulfilled") &&
       shouldRetryInspection(collected)
-    )
+    ) {
       collected.providerAnsweredAll = true;
+    } else if (results.some((result) => result.status === "rejected")) {
+      // A mixed batch cannot use the receipt-wide marker. Record only the unknowns Google actually returned.
+      const answered = results.flatMap((result) =>
+        result.status === "fulfilled" &&
+        result.value.verdict === "VERDICT_UNSPECIFIED" &&
+        gscPropertyCovers(property, [result.value.pageUrl])
+          ? [result.value.pageUrl]
+          : [],
+      );
+      if (answered.length) collected.answeredUnknownPageUrls = answered;
+    }
     return collected;
   } catch {
     // Upstream failures can contain account data. No raw error crosses the Task boundary.
@@ -396,12 +409,11 @@ async function withRetainedAssessments(
     )
       ? seoTaskIndexingResultSchema.parse(row.payload).assessments
       : previous.retainedAssessments;
-  // Keep confirmed evidence through repeated partial reads, including a lost result submission.
+  // Keep earlier observations through repeated partial reads, including a lost result submission.
   const retained = assessments?.filter((page) => {
     const original =
       previous.reusedCheckedAt?.[page.pageUrl] ?? previous.receipt.checkedAt;
     return (
-      page.status !== "review" &&
       page.status !== "unavailable" &&
       payload.reusedCheckedAt?.[page.pageUrl] === original
     );
@@ -571,14 +583,23 @@ export async function recordSeoTaskIndexingResult(
       receiptHash: input.receiptHash,
       checkedAt: receipt.checkedAt,
       auditPageUrl: context.auditPageUrl,
-      assessments: input.assessments.map((page) => {
-        const checkedAt = parsed.data.reusedCheckedAt?.[page.pageUrl];
-        if (!checkedAt) return page;
-        const retained = parsed.data.retainedAssessments?.find(
-          (assessment) => assessment.pageUrl === page.pageUrl,
-        );
-        return { ...(retained ?? page), checkedAt };
-      }),
+      assessments: input.assessments.map(
+        ({ publicEvidenceAvailable, ...page }) => {
+          const checkedAt = parsed.data.reusedCheckedAt?.[page.pageUrl];
+          if (!checkedAt) return page;
+          const retained = parsed.data.retainedAssessments?.find(
+            (assessment) => assessment.pageUrl === page.pageUrl,
+          );
+          if (!retained) return { ...page, checkedAt };
+          // A legacy review does not say whether its public read succeeded. Keep earlier conclusive evidence only.
+          const keepPrevious =
+            publicEvidenceAvailable === undefined
+              ? retained.status !== "review" &&
+                (page.status === "review" || page.status === "unavailable")
+              : !publicEvidenceAvailable;
+          return { ...(keepPrevious ? retained : page), checkedAt };
+        },
+      ),
     });
     const artifactHash = sha256(JSON.stringify(result));
     const sourceKey = `task-index-triage:${taskId}:${input.receiptHash}`;
