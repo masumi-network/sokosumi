@@ -48,29 +48,33 @@ function row(id: string, overrides: Partial<SubtaskRow> = {}): SubtaskRow {
 function renderList(
   rows: SubtaskRow[],
   progress = { completed: 0, total: rows.length },
+  renderedAt = 1_000,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
   // The refetch after a change answers with what the server would hold.
   getTasks.mockImplementation(async () => ({ data: [] }));
-  const list = (initialRows: SubtaskRow[]) => (
+  const list = (initialRows: SubtaskRow[], at: number) => (
     <QueryClientProvider client={queryClient}>
       <TaskSubtaskList
         parentTaskId="parent"
         initialRows={initialRows}
+        renderedAt={at}
         readOnly={false}
         canAdd
         progress={progress}
       />
     </QueryClientProvider>
   );
-  const { unmount } = render(list(rows));
+  const { rerender, unmount } = render(list(rows, renderedAt));
   return {
-    // A new visit to the page: same cache, rows from the page payload.
-    remount: (next: SubtaskRow[]) => {
+    // A refresh: the same list gets the page's new rows.
+    rerender: (next: SubtaskRow[], at: number) => rerender(list(next, at)),
+    // Back: a new list over the same cache, with a replayed page payload.
+    remount: (next: SubtaskRow[], at: number) => {
       unmount();
-      render(list(next));
+      render(list(next, at));
     },
   };
 }
@@ -168,21 +172,40 @@ describe("TaskSubtaskList", () => {
     await waitFor(() => expect(input).toHaveValue("Book the venue"));
   });
 
-  it("reads Core again when the list mounts over a cached one", async () => {
-    const { remount } = renderList([row("a")]);
-    getTasks.mockResolvedValue({
-      data: [
-        { ...row("a"), status: TaskStatus.COMPLETED, assignee: null },
-        { ...row("b"), assignee: null },
-      ],
-    });
+  it("takes newer page rows after a refresh", async () => {
+    const { rerender } = renderList([row("a")], undefined, 1_000);
 
-    remount([row("a")]);
+    rerender([row("a", { status: TaskStatus.COMPLETED }), row("b")], 2_000);
 
     await waitFor(() => expect(rowNames()).toEqual(["a", "b"]));
     expect(
       screen.getByRole("checkbox", { name: "toggleLabel a" }),
     ).toBeChecked();
+  });
+
+  it("keeps the cache over older page rows that Back replays", async () => {
+    const { remount } = renderList([row("a"), row("b")], undefined, 2_000);
+
+    remount([row("a")], 1_000);
+    // TanStack Query renders a cache write on a timer; let one land first.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(rowNames()).toEqual(["a", "b"]);
+  });
+
+  it("keeps its own count at exactly the first page", () => {
+    renderList(
+      Array.from({ length: SUBTASK_LIST_LIMIT }, (_, index) =>
+        row(`r${index}`, {
+          status: index === 0 ? TaskStatus.COMPLETED : TaskStatus.READY,
+        }),
+      ),
+      { completed: 0, total: SUBTASK_LIST_LIMIT },
+    );
+
+    expect(
+      screen.getByText(`progressLabel 1 ${SUBTASK_LIST_LIMIT}`),
+    ).toBeInTheDocument();
   });
 
   it("counts every sub-task and offers no add past the first page", () => {

@@ -26,6 +26,7 @@ export async function TaskSubtaskSection({
     getTranslations("App.Tasks"),
   ]);
   if (!listed) return null;
+  const renderedAt = Date.now();
   const readOnly = isReadOnlyForViewer({
     forceReadOnly: false,
     taskStatus: task.status,
@@ -42,6 +43,7 @@ export async function TaskSubtaskSection({
       initialRows={listed.tasks.map((child) =>
         toSubtaskRow(child, tTasks("personalAssistant")),
       )}
+      renderedAt={renderedAt}
       readOnly={readOnly}
       canAdd={canAdd}
       progress={task.subtaskProgress}

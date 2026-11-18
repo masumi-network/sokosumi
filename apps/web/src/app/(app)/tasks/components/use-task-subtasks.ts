@@ -2,7 +2,7 @@
 
 import { TaskStatus } from "@sokosumi/core-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect } from "react";
 import {
   SUBTASK_LIST_LIMIT,
   type SubtaskRow,
@@ -73,6 +73,8 @@ function sendSubtaskChange(parentTaskId: string, change: SubtaskChange) {
 interface UseTaskSubtasksOptions {
   parentTaskId: string;
   initialRows: SubtaskRow[];
+  /** When the server read `initialRows`, in epoch milliseconds. */
+  renderedAt: number;
   personalAssistantFallback: string;
   /** Core refused `change` or the request failed; the checklist is rolled back. */
   onError: (change: SubtaskChange) => void;
@@ -85,16 +87,12 @@ interface UseTaskSubtasksOptions {
 export function useTaskSubtasks({
   parentTaskId,
   initialRows,
+  renderedAt,
   personalAssistantFallback,
   onError,
 }: UseTaskSubtasksOptions) {
   const queryClient = useQueryClient();
   const queryKey = taskSubtasksQueryKey(parentTaskId);
-  // A cached list outlives the page, and a sub-task can change on its own
-  // page meanwhile. Back can replay older page rows, so Core answers instead.
-  const [cachedAtMount] = useState(
-    () => queryClient.getQueryData(queryKey) !== undefined,
-  );
   const { data: rows } = useQuery({
     queryKey,
     queryFn: async () => {
@@ -107,8 +105,20 @@ export function useTaskSubtasks({
       );
     },
     initialData: initialRows,
-    refetchOnMount: cachedAtMount ? "always" : true,
+    initialDataUpdatedAt: renderedAt,
   });
+  // The cache outlives the page. A refresh brings newer page rows; Back can
+  // replay older ones, so only newer rows replace it. A change in flight
+  // keeps its optimistic order.
+  useEffect(() => {
+    const key = taskSubtasksQueryKey(parentTaskId);
+    const cachedAt = queryClient.getQueryState(key)?.dataUpdatedAt ?? 0;
+    if (
+      renderedAt > cachedAt &&
+      queryClient.isMutating({ mutationKey: key }) === 0
+    )
+      queryClient.setQueryData(key, initialRows, { updatedAt: renderedAt });
+  }, [queryClient, parentTaskId, initialRows, renderedAt]);
 
   // Changes overlap: a quick second toggle starts before the first settles.
   const lastInFlight = () =>

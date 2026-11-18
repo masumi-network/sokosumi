@@ -40,6 +40,8 @@ import { useTaskSubtasks } from "./use-task-subtasks";
 interface TaskSubtaskListProps {
   parentTaskId: string;
   initialRows: SubtaskRow[];
+  /** When the server read `initialRows`, in epoch milliseconds. */
+  renderedAt: number;
   readOnly: boolean;
   /** False at the deepest level, where Core refuses another sub-task. */
   canAdd: boolean;
@@ -55,6 +57,7 @@ interface TaskSubtaskListProps {
 export function TaskSubtaskList({
   parentTaskId,
   initialRows,
+  renderedAt,
   readOnly,
   canAdd,
   progress,
@@ -64,6 +67,7 @@ export function TaskSubtaskList({
   const { rows, setStatus, move, add } = useTaskSubtasks({
     parentTaskId,
     initialRows,
+    renderedAt,
     personalAssistantFallback: tTasks("personalAssistant"),
     onError: (change) => {
       toast.error(t("changeError"));
