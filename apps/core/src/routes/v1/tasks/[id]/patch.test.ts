@@ -859,6 +859,28 @@ describe("PATCH /tasks/{id}", () => {
       );
     });
 
+    it("parks a queued one too and drops its Run at", async () => {
+      requireTaskWriteAccessMock.mockResolvedValue({
+        id: "tsk_123",
+        status: TaskStatus.QUEUED,
+        runAt: new Date(Date.now() + 86_400_000),
+        assigneeId: null,
+        assigneeSokoBotId: null,
+        assigneeUserId: null,
+        projectId: null,
+        workspaceId: WORKSPACE_ID,
+        ownerId: "user_123",
+        visibility: TaskVisibility.PUBLIC,
+      });
+      taskEventCountMock.mockResolvedValue(0);
+
+      expect((await assignCoworker()).status).toBe(200);
+      expect(taskUpdateMock.mock.calls[0]?.[0].data).toMatchObject({
+        status: TaskStatus.INPUT_REQUIRED,
+        runAt: null,
+      });
+    });
+
     it("keeps it Ready when a person commented after the reopen", async () => {
       taskEventCountMock.mockResolvedValue(1);
 

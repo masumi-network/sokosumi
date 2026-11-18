@@ -334,13 +334,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // A Coworker or Soko Bot handed a silently reopened Task would run with
       // no instructions. It waits in Input required for a person to say what
       // to do (SOKD-279).
+      // Queued work turns READY later on its own, so it parks the same way.
       const parksForInstructions =
-        nextStatus === TaskStatus.READY &&
+        (nextStatus === TaskStatus.READY || nextStatus === TaskStatus.QUEUED) &&
         (nextAssigneeId ?? nextAssigneeSokoBotId) !== null &&
         (nextAssigneeId !== task.assigneeId ||
           nextAssigneeSokoBotId !== task.assigneeSokoBotId) &&
         (await taskReopenedWithoutInstructions(tx, id));
-      if (parksForInstructions) nextStatus = TaskStatus.INPUT_REQUIRED;
+      if (parksForInstructions) {
+        // Without the Run at, nothing starts it before a person answers.
+        if (nextStatus === TaskStatus.QUEUED) runAtWrite = null;
+        nextStatus = TaskStatus.INPUT_REQUIRED;
+      }
 
       const previousAssigneeUserId = task.assigneeUserId;
 

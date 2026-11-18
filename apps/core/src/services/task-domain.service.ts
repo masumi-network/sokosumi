@@ -30,6 +30,7 @@ import {
 } from "@/helpers/soko-bot-task-assign";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { taskCreationEvents } from "@/helpers/task-creation-events";
+import { TASK_MOVED_TO_PROJECT_COMMENT } from "@/helpers/task-reopen-instructions";
 import {
   newSubtaskPosition,
   requireNotSubtask,
@@ -522,7 +523,7 @@ export async function updateTaskForActor(
           ? {
               create: {
                 id: input.effectEventId,
-                comment: "Task moved to a project",
+                comment: TASK_MOVED_TO_PROJECT_COMMENT,
                 ...eventActorFields(input.actor),
               },
             }

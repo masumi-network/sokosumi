@@ -1,5 +1,9 @@
 import { type Prisma, TaskStatus } from "@sokosumi/database";
 
+/** Events Core writes for a person's action; they tell an assignee nothing. */
+export const TASK_RESTORED_COMMENT = "Task restored";
+export const TASK_MOVED_TO_PROJECT_COMMENT = "Task moved to a project";
+
 /**
  * True when a Task came back from COMPLETED or CANCELED and no person has
  * commented since. A Coworker or Soko Bot assigned now would start with no
@@ -24,7 +28,11 @@ export async function taskReopenedWithoutInstructions(
       createdAt: { gt: finished.createdAt },
       userId: { not: null },
       comment: { not: null },
-      NOT: { comment: "" },
+      NOT: {
+        comment: {
+          in: ["", TASK_RESTORED_COMMENT, TASK_MOVED_TO_PROJECT_COMMENT],
+        },
+      },
     },
   });
   return instructions === 0;

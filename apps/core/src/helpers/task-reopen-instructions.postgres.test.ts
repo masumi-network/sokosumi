@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { TaskStatus } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { taskReopenedWithoutInstructions } from "@/helpers/task-reopen-instructions";
+import {
+  TASK_MOVED_TO_PROJECT_COMMENT,
+  TASK_RESTORED_COMMENT,
+  taskReopenedWithoutInstructions,
+} from "@/helpers/task-reopen-instructions";
 import prisma from "@/lib/db/prisma";
 
 const enabled =
@@ -92,6 +96,16 @@ describe.skipIf(!enabled)("taskReopenedWithoutInstructions", () => {
       { status: TaskStatus.COMPLETED },
       { status: TaskStatus.READY, comment: "" },
       { comment: "Reopened without instructions.", byUser: false },
+    ]);
+    expect(await reopened(taskId)).toBe(true);
+  });
+
+  it("does not take a restore or project move for instructions", async () => {
+    const taskId = await taskWithEvents([
+      { status: TaskStatus.COMPLETED },
+      { comment: TASK_RESTORED_COMMENT },
+      { comment: TASK_MOVED_TO_PROJECT_COMMENT },
+      { status: TaskStatus.READY },
     ]);
     expect(await reopened(taskId)).toBe(true);
   });
