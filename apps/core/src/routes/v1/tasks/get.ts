@@ -26,6 +26,7 @@ import {
   applyTaskListStatusWhere,
   buildTaskListStatusWhere,
 } from "@/helpers/task-list-filters";
+import { taskTagIdSchema } from "@/helpers/task-tags";
 import {
   buildHumanTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
@@ -48,7 +49,7 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
-import { taskListInclude } from "@/types/task";
+import { taskListInclude, taskTagSuggestionsForViewer } from "@/types/task";
 
 const taskStatusQuerySchema = z
   .preprocess(
@@ -157,6 +158,17 @@ const archivedQuerySchema = z
 const query = z
   .object({
     q: taskNameQuerySchema,
+    workspaceTagId: z
+      .uuid()
+      .optional()
+      .openapi({
+        param: { name: "workspaceTagId", in: "query" },
+        description: "Only Tasks with this workspace tag.",
+      }),
+    topicTagId: taskTagIdSchema.optional().openapi({
+      param: { name: "topicTagId", in: "query" },
+      description: "Only Tasks with this visible topic tag.",
+    }),
     status: taskStatusQuerySchema,
     scope: taskScopeQuerySchema,
     projectId: projectIdQuerySchema,
@@ -409,6 +421,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    if (queryParams.workspaceTagId) {
+      where.workspaceTags = { some: { labelId: queryParams.workspaceTagId } };
+    }
+    if (queryParams.topicTagId) {
+      where.visibleTopics = { some: { topicId: queryParams.topicTagId } };
+    }
+
     const takePlusOne = take + 1;
     // Default to the field the Task cards display. "updatedAt" is Prisma's
     // @updatedAt row touch, so ordering by it floats every row a bulk write
@@ -442,7 +461,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         skip,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: [...orderBy],
-        include: taskListInclude,
+        include: {
+          ...taskListInclude,
+          ...taskTagSuggestionsForViewer(
+            authContext,
+            c.var.workspaceContext?.workspaceId,
+          ),
+        },
       }),
       prisma.task.count({ where }),
     ]);

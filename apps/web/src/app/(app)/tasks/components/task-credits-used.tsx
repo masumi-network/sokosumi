@@ -1,14 +1,13 @@
-import { Coins } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { PropertyRow } from "@/app/tasks/components/task-metadata";
 import { historyService } from "@/lib/services/history.service";
 
 /**
- * Credits row in a Task's properties: the net credits its charges and its
- * Jobs took, minus refunds, opening that slice of Transactions. No row when
- * the ledger cannot be read (no seat, Core down): unknown is not zero.
+ * Credits line under the Organization row in a Task's properties: the net
+ * credits its charges and its Jobs took, minus refunds, opening that slice of
+ * Transactions. No line when the ledger cannot be read (no seat, Core down):
+ * unknown is not zero.
  */
 export async function TaskCreditsUsed({ taskId }: { taskId: string }) {
   const [total, t] = await Promise.all([
@@ -27,22 +26,21 @@ export async function TaskCreditsUsed({ taskId }: { taskId: string }) {
         t("creditsUsed", { credits: Math.trunc(total.credits * 100) / 100 });
   const params = new URLSearchParams({ taskId, scope: "workspace" });
 
+  // A sub-line of the Organization row: indented to its name, a size down.
+  // Truncate the child, not the line, so the line never clips the focus ring.
+  const fit = "inline-block max-w-full truncate align-top";
   return (
-    <PropertyRow
-      label={t("credits")}
-      value={value}
-      icon={<Coins className="text-muted-foreground size-4" />}
-    >
+    <p className="text-muted-foreground -mt-1 pb-1 pl-7 text-xs">
       {total.count === 0 ? (
-        <span className="text-muted-foreground truncate">{value}</span>
+        <span className={fit}>{value}</span>
       ) : (
         <Link
           href={`/history?${params.toString()}`}
-          className="hover:text-foreground truncate font-medium transition-colors"
+          className={`${fit} hover:text-foreground rounded-sm underline-offset-2 transition-colors hover:underline`}
         >
           {value}
         </Link>
       )}
-    </PropertyRow>
+    </p>
   );
 }

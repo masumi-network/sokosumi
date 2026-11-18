@@ -14,6 +14,7 @@ import { buildChatMessagePreview } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -88,10 +89,9 @@ export interface ProactiveGate {
  * by the owner or the platform, and under its daily cap of self-started
  * turns (SCHEDULE, EVENT, INGEST) for its local day.
  */
-export async function proactiveGate(
-  sokoBotId: string,
-  now = new Date(),
-): Promise<ProactiveGate> {
+export async function proactiveGate(sokoBotId: string): Promise<ProactiveGate> {
+  // PostgreSQL time: the counted turns' createdAt is.
+  const now = await databaseNow();
   const bot = await prisma.sokoBot.findUniqueOrThrow({
     where: { id: sokoBotId },
     select: {

@@ -1,8 +1,11 @@
 import { TaskStatus } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { workspaceTagsQueryKey } from "@/queries/workspace-tags";
 
+const WORKSPACE_TAG_ID = "11223344-55aa-7111-8123-456789012345";
 const filterDropdownMenuMock = vi.fn();
 
 vi.mock("@/components/common/filter-dropdown-menu", () => ({
@@ -74,27 +77,38 @@ function renderTasksViewFilters(
   activeOrganizationId: string | null,
   userId: string | null = null,
 ) {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(workspaceTagsQueryKey(activeOrganizationId), [
+    { id: WORKSPACE_TAG_ID, displayName: "Release blocker", archived: false },
+    {
+      id: "12345678-abcd-7123-8123-456789012345",
+      displayName: "Past release",
+      archived: true,
+    },
+  ]);
   render(
-    <TasksViewFilters
-      activeOrganizationId={activeOrganizationId}
-      userId={userId}
-      coworkerOptions={[
-        mockCoworkerOption({ id: "user-1", name: "Me", kind: "user" }),
-        mockCoworkerOption({
-          id: "coworker-1",
-          slug: "elena",
-          name: "Elena",
-          image: "elena.png",
-        }),
-      ]}
-      projectOptions={[
-        {
-          id: "33333333-3333-4333-8333-333333333333",
-          name: "Research",
-        },
-      ]}
-      labels={labels}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <TasksViewFilters
+        activeOrganizationId={activeOrganizationId}
+        userId={userId}
+        coworkerOptions={[
+          mockCoworkerOption({ id: "user-1", name: "Me", kind: "user" }),
+          mockCoworkerOption({
+            id: "coworker-1",
+            slug: "elena",
+            name: "Elena",
+            image: "elena.png",
+          }),
+        ]}
+        projectOptions={[
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            name: "Research",
+          },
+        ]}
+        labels={labels}
+      />
+    </QueryClientProvider>,
   );
 
   return filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
@@ -143,6 +157,7 @@ describe("TasksViewFilters", () => {
       "visibility",
       "coworker",
       "status",
+      "tag",
     ]);
   });
 
@@ -164,7 +179,35 @@ describe("TasksViewFilters", () => {
     expect(props.sections.map((section) => section.id)).toEqual([
       "coworker",
       "status",
+      "tag",
     ]);
+  });
+
+  it("keeps a workspace tag distinct from a built-in topic when switching filters", () => {
+    const props = renderTasksViewFilters("org-1");
+    const tag = props.sections.find((section) => section.id === "tag");
+    expect(tag?.options).toContainEqual(
+      expect.objectContaining({
+        value: WORKSPACE_TAG_ID,
+        label: "Release blocker",
+        group: "workspaceTags",
+      }),
+    );
+    expect(tag?.options).toContainEqual(
+      expect.objectContaining({
+        value: "12345678-abcd-7123-8123-456789012345",
+        label: "Past release",
+        group: "archivedTags",
+      }),
+    );
+    tag?.onChange(WORKSPACE_TAG_ID);
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      `/tasks?tag=${WORKSPACE_TAG_ID}`,
+    );
+    tag?.onChange("research");
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?tag=research");
+    tag?.onChange(null);
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks");
   });
 
   it("groups every status under its board column, Done holding the finished ones", () => {

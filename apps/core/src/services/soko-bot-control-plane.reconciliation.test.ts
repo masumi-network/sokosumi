@@ -49,6 +49,10 @@ vi.mock("@/services/soko-bot-availability.service", () => ({
     disabledReason: null,
   }),
 }));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,

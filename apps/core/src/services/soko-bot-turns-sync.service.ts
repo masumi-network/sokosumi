@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { SokoBotTurnStatus } from "@sokosumi/database";
 
 import { getEnv } from "@/config/env";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -81,7 +82,7 @@ export class SokoBotTurnsSyncService {
     const scope = input.sokoBotIds
       ? { sokoBotId: { in: [...input.sokoBotIds] } }
       : {};
-    const now = new Date();
+    const now = await databaseNow();
     result.expired += await this.expireTurns(
       await prisma.sokoBotTurn.findMany({
         where: {
@@ -195,7 +196,7 @@ export class SokoBotTurnsSyncService {
     const claimed: { id: string; leaseToken: string }[] = [];
     for (const turn of stale) {
       if (!input.shouldContinue()) break;
-      const claimedAt = new Date();
+      const claimedAt = await databaseNow();
       const leaseToken = randomUUID();
       const updated = await prisma.sokoBotTurn.updateMany({
         where: {

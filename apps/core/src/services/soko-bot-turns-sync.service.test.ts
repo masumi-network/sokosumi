@@ -20,6 +20,10 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: {

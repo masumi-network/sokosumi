@@ -37,6 +37,7 @@ interface TasksPageProps {
     status?: string | string[];
     projectId?: string | string[];
     visibility?: string | string[];
+    tag?: string | string[];
     stuck?: string | string[];
     /** The retired Calendar tab (`tab=calendar`) moved to `/calendar`. */
     tab?: string | string[];
@@ -78,6 +79,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     status,
     projectId,
     visibility,
+    tag,
     stuck,
   } = resolvedSearchParams;
   const [t, tColumns, tDetailActions, tApp, cookieStore, defaultViewMode] =
@@ -121,6 +123,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       status,
       projectId,
       visibility,
+      tag,
       stuck,
     },
     viewMode: defaultViewMode,

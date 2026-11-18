@@ -1900,6 +1900,26 @@ export type Task = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    workspaceTags?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+        source?: 'manual' | 'jev';
+        taskTopicId?: TaskTagId;
+    }>;
+    workspaceTagSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+    }>;
     /**
      * Sequence number within the project. Null when the task has no project.
      */
@@ -2065,6 +2085,21 @@ export const TaskTagId = {
 } as const;
 
 export type TaskTagId = typeof TaskTagId[keyof typeof TaskTagId];
+
+export const TagColor = {
+    GRAY: 'gray',
+    RED: 'red',
+    ORANGE: 'orange',
+    YELLOW: 'yellow',
+    GREEN: 'green',
+    TEAL: 'teal',
+    BLUE: 'blue',
+    PURPLE: 'purple',
+    PINK: 'pink',
+    NULL: null
+} as const;
+
+export type TagColor = typeof TagColor[keyof typeof TagColor];
 
 /**
  * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
@@ -5210,6 +5245,12 @@ export type DeleteDriveFileRequest = {
 };
 
 export type WorkspaceLabel = {
+    taskTopicId?: TaskTagId;
+    color?: TagColor;
+    /**
+     * Exact six-digit hex color for the tag. Overrides its named color when present.
+     */
+    customColor?: string | null;
     id: string;
     kind: 'TAG' | 'CATEGORY';
     displayName: string;
@@ -14805,6 +14846,26 @@ export type TaskListItem = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    workspaceTags?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+        source?: 'manual' | 'jev';
+        taskTopicId?: TaskTagId;
+    }>;
+    workspaceTagSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+    }>;
     /**
      * Sequence number within the project. Null when the task has no project.
      */
@@ -14884,6 +14945,16 @@ export type TaskActivitySummary = {
 
 export type TaskTagSuggestion = {
     tags: Array<TaskTagId>;
+    workspaceSuggestions?: Array<{
+        id: string;
+        displayName: string;
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
+        autoApply: boolean;
+    }>;
     receipt: string;
 };
 
@@ -44256,6 +44327,11 @@ export type GetDriveLabelsResponse = GetDriveLabelsResponses[keyof GetDriveLabel
 
 export type PostDriveLabelsData = {
     body: {
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         kind: 'TAG' | 'CATEGORY';
         displayName: string;
         description?: string | null;
@@ -44382,6 +44458,11 @@ export type PostDriveLabelsResponse = PostDriveLabelsResponses[keyof PostDriveLa
 
 export type PatchDriveLabelsByIdData = {
     body: {
+        color?: TagColor;
+        /**
+         * Exact six-digit hex color for the tag. Overrides its named color when present.
+         */
+        customColor?: string | null;
         displayName?: string;
         description?: string | null;
         archived?: boolean;
@@ -97449,6 +97530,14 @@ export type GetTasksData = {
          */
         q?: string;
         /**
+         * Only Tasks with this workspace tag.
+         */
+        workspaceTagId?: string;
+        /**
+         * Only Tasks with this visible topic tag.
+         */
+        topicTagId?: TaskTagId & unknown;
+        /**
          * Comma-separated status filters
          */
         status?: Array<TaskStatus>;
@@ -97597,6 +97686,18 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 
 export type PostTasksData = {
     body?: {
+        /**
+         * Workspace tag IDs to assign. An empty array clears all workspace tags.
+         */
+        workspaceTagIds?: Array<string>;
+        /**
+         * Workspace tags that Jev should stop suggesting or adding to this Task.
+         */
+        dismissedWorkspaceTagIds?: Array<string>;
+        /**
+         * Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.
+         */
+        dismissedTopicIds?: Array<TaskTagId>;
         tagSuggestionReceipt?: string;
         /**
          * A Task the caller can read in the active workspace. The new Task takes its tags instead of being classified, and its name when `name` is omitted, so a copy calls no model.
@@ -100452,6 +100553,22 @@ export type PatchTasksByIdData = {
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
         priority?: TaskPriority;
+        /**
+         * Workspace tag IDs to assign. An empty array clears all workspace tags.
+         */
+        workspaceTagIds?: Array<string>;
+        /**
+         * When replacing workspaceTagIds, return 409 if the currently applied workspace tags differ from this set.
+         */
+        expectedWorkspaceTagIds?: Array<string>;
+        /**
+         * Workspace tags that Jev should stop suggesting or adding to this Task.
+         */
+        dismissedWorkspaceTagIds?: Array<string>;
+        /**
+         * Built-in topics to remove from this Task and suppress in future classifications. Previous dismissals are preserved.
+         */
+        dismissedTopicIds?: Array<TaskTagId>;
         /**
          * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
          */

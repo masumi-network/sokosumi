@@ -263,6 +263,17 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
       select: { id: true },
     });
 
+    const taskPreset = await prisma.workspaceLabel.create({
+      data: {
+        workspaceId,
+        kind: FileLabelKind.TAG,
+        displayName: "Bug",
+        normalizedName: "bug",
+        isTaskPreset: true,
+      },
+      select: { id: true },
+    });
+
     try {
       await queueSuggestionJob(50);
       const leased = await leaseNextFileIndexJob({
@@ -286,7 +297,9 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
       ).resolves.toBe(1);
     } finally {
       await prisma.fileLabel.deleteMany({ where: { resourceId } });
-      await prisma.workspaceLabel.deleteMany({ where: { id: second.id } });
+      await prisma.workspaceLabel.deleteMany({
+        where: { id: { in: [second.id, taskPreset.id] } },
+      });
     }
   });
 

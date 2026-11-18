@@ -41,6 +41,10 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({ BLOB_READ_WRITE_TOKEN: "t" }),
   getWebAppBaseUrl: () => "https://app.example.com",
 }));
+// PostgreSQL's clock is the test clock here.
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findUnique: m.receipt, updateMany: m.finish },
