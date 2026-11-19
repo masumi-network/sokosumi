@@ -7759,6 +7759,7 @@ describe("Soko Bot project social tools", () => {
       avatarUrl: null,
       subscriptionType: null,
       status: "active",
+      personalProfile: false,
     },
     creator: { kind: "sokoBot", id: SCOPE.sokoBotId, name: "Lili" },
     scheduledByUserId: null,
@@ -7821,6 +7822,7 @@ describe("Soko Bot project social tools", () => {
         status: "active",
         connectedAt: "2026-09-28T12:00:00Z",
         disconnectedAt: null,
+        personalProfile: false,
       },
     ]);
     social.listStatistics.mockResolvedValue({
@@ -8004,6 +8006,7 @@ describe("Soko Bot project social tools", () => {
       status: "active",
       connectedAt: "2026-09-28T12:00:00Z",
       disconnectedAt: null,
+      personalProfile: false,
     };
     const premiumId = "01960001-0001-7001-8001-000000000021";
     const basicId = "01960001-0001-7001-8001-000000000022";

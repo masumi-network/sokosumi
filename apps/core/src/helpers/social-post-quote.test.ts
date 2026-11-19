@@ -512,6 +512,8 @@ describe("quoted post response", () => {
   it("selects every account field the response schema requires", () => {
     const account = {
       id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
+      provider: "x",
+      externalAccountId: "1384455565187891201",
       externalHandle: "sokosumi",
       displayName: null,
       avatarUrl: null,
@@ -545,5 +547,34 @@ describe("quoted post response", () => {
     );
 
     expect(result.error?.issues).toBeUndefined();
+    expect(result.data?.account).toMatchObject({ personalProfile: false });
+  });
+
+  it("never carries the provider's account id", () => {
+    const quote = mapSocialPostQuote({
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      projectId: "project",
+      workspaceId: "workspace",
+      provider: "x",
+      status: "SCHEDULED",
+      scheduledAt: NOW,
+      timezone: null,
+      publishedExternalId: null,
+      publishedUrl: null,
+      text: "Quoted",
+      media: [],
+      quotedPostId: null,
+      socialConnection: {
+        id: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
+        provider: "x",
+        externalAccountId: "1384455565187891201",
+        externalHandle: "sokosumi",
+        displayName: null,
+        avatarUrl: null,
+        subscriptionType: null,
+        status: "active",
+      },
+    });
+    expect(JSON.stringify(quote)).not.toContain("1384455565187891201");
   });
 });

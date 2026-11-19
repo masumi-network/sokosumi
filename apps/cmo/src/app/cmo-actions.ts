@@ -17,7 +17,6 @@ import {
   type CmoMeasurement,
   type CmoOverview,
   type CmoSeo,
-  type CmoSocialAccountChoice,
   type CmoSubscriptionPlan,
   type CmoTikTokCreator,
   changeCmoPlanForProject,
@@ -63,6 +62,7 @@ import {
   requestCmoStrategyForProject,
   retryCmoOnboardingForProject,
   revertCmoUpdateForProject,
+  type SocialAccountChoice,
   searchCmoKeywordsForProject,
   setCmoAdBudgetForProject,
   setCmoAdCampaignStatusForProject,
@@ -943,7 +943,7 @@ export interface ChannelSignIn {
 export type ChannelFinalized =
   | { state: "connected" }
   /** The sign-in reaches several accounts: the owner picks one. */
-  | { state: "choose"; choices: CmoSocialAccountChoice[] }
+  | { state: "choose"; choices: SocialAccountChoice[] }
   | { state: "failed"; reason: ConnectFailure };
 
 const CONNECT_FAILURES: Partial<Record<CoreApiErrorKind, ConnectFailure>> = {
@@ -958,7 +958,7 @@ const CONNECT_FAILURES: Partial<Record<CoreApiErrorKind, ConnectFailure>> = {
 export async function finalizeChannel(
   projectId: string,
   signIn: ChannelSignIn,
-  externalAccountId?: string,
+  accountChoiceId?: string,
 ): Promise<ChannelFinalized> {
   await redeemCallback(
     projectId,
@@ -975,7 +975,7 @@ export async function finalizeChannel(
         ? { pendingDataToken: signIn.pendingDataToken }
         : {}),
       ...(signIn.connectToken ? { connectToken: signIn.connectToken } : {}),
-      ...(externalAccountId ? { externalAccountId } : {}),
+      ...(accountChoiceId ? { accountChoiceId } : {}),
     },
   });
   if (!data) {
@@ -1038,14 +1038,14 @@ export async function waitingChannelSignIn(): Promise<WaitingChannelSignIn | nul
 
 /** Connects the account the owner picked and ends the waiting sign-in. */
 export async function chooseChannelAccount(
-  externalAccountId: string,
+  accountChoiceId: string,
 ): Promise<ChannelFinalized> {
   const waiting = await waitingChannelSignIn();
   if (!waiting) return { state: "failed", reason: "failed" };
   const result = await finalizeChannel(
     waiting.project,
     waiting.signIn,
-    externalAccountId,
+    accountChoiceId,
   ).catch((): ChannelFinalized => ({ state: "failed", reason: "failed" }));
   (await cookies()).delete({ name: CONNECT_SIGN_IN_COOKIE, path: "/connect" });
   return result;

@@ -5,6 +5,7 @@ import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
+import { socialAccountChoiceId } from "@/helpers/social-account-choice";
 import { expectCoreLogWhys } from "@/test/core-log";
 
 const {
@@ -371,7 +372,10 @@ describe("project social connections service", () => {
       });
       await finalizeProjectSocialConnection({
         ...signIn,
-        externalAccountId: "urn:li:organization:42",
+        accountChoiceId: socialAccountChoiceId(
+          connectionId,
+          "urn:li:organization:42",
+        ),
       });
       expect(socialConnectionCreateMock).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -385,6 +389,41 @@ describe("project social connections service", () => {
       });
     });
 
+    it("connects the account Zernio kept at once when there was nothing to pick", async () => {
+      zernioRequest.mockResolvedValueOnce({
+        accounts: [
+          {
+            _id: accountId,
+            platform: "linkedin",
+            profileId,
+            isActive: true,
+            platformUserId: "member-1",
+            username: "alice",
+            displayName: "Alice Doe",
+          },
+        ],
+      });
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await finalizeProjectSocialConnection({
+        ...input,
+        connectionId,
+        callbackProof: proof,
+        offerChoice: true,
+      });
+      expect(zernioRequest.mock.calls[0][0]).toContain(
+        `/accounts?profileId=${profileId}`,
+      );
+      expect(socialConnectionCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          composioConnectedAccountId: `zernio:${accountId}`,
+          externalAccountId: "member-1",
+          displayName: "Alice Doe",
+        }),
+      });
+    });
+
     it("refuses a callback without the sign-in's tokens or with a wrong proof", async () => {
       const { finalizeProjectSocialConnection } = await import(
         "./project-social-connections.service"
@@ -394,6 +433,7 @@ describe("project social connections service", () => {
           ...input,
           connectionId,
           callbackProof: proof,
+          pendingDataToken: "pending-token",
         }),
       ).rejects.toMatchObject({ status: 404 });
       await expect(
@@ -822,6 +862,10 @@ describe("project social connections service", () => {
             socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
               intent,
             );
+            // A Facebook reconnect first reads the Page the row holds, to keep it.
+            if (provider === "facebook" && action === "reconnect") {
+              socialConnectionFindFirstMock.mockResolvedValueOnce(target);
+            }
             socialConnectionFindFirstMock
               .mockResolvedValueOnce(target)
               .mockResolvedValueOnce(null);
@@ -852,6 +896,10 @@ describe("project social connections service", () => {
               provider,
               connectedAccountId: CONNECTION_ID,
               executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+              // A Facebook reconnect keeps the Page the row already holds.
+              ...(provider === "facebook" && action === "reconnect"
+                ? { pick: { externalAccountId: target.externalAccountId } }
+                : {}),
             });
           }
         },
@@ -2326,6 +2374,7 @@ describe("project social connections service", () => {
         status: "active",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
         disconnectedAt: null,
+        personalProfile: false,
       },
     ]);
   });

@@ -10097,6 +10097,10 @@ export type ProjectSocialConnection = {
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
     connectedAt: Date | null;
     disconnectedAt: Date | null;
+    /**
+     * A LinkedIn connection that posts as the person, not as a company Page.
+     */
+    personalProfile: boolean;
 };
 
 export type ProjectSocialConnectionSubscription = {
@@ -10274,6 +10278,10 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
 } | {
     action: 'reconnect';
     socialConnectionId: string;
@@ -10281,6 +10289,10 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
 } | {
     action: 'replace';
     socialConnectionId: string;
@@ -10288,6 +10300,24 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
+};
+
+export type SocialAccountChoices = {
+    choices: Array<SocialAccountChoice>;
+};
+
+export type SocialAccountChoice = {
+    /**
+     * Names this account within this sign-in only; send it back as `accountChoiceId`.
+     */
+    id: string;
+    name: string;
+    handle: string | null;
+    kind: 'page' | 'profile';
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
@@ -10296,6 +10326,22 @@ export type FinalizeProjectSocialConnectionRequest = {
      */
     callbackProof?: string;
     connectionId: string;
+    /**
+     * Returned with a LinkedIn sign-in that waits for its account: names the Pages it reaches.
+     */
+    pendingDataToken?: string;
+    /**
+     * Returned with a LinkedIn sign-in that waits for its account: lets Core finish it.
+     */
+    connectToken?: string;
+    /**
+     * The `id` of the account the person picked among the sign-in's accounts (`SocialAccountChoices`).
+     */
+    accountChoiceId?: string;
+    /**
+     * Answer 200 with the accounts to pick from when the sign-in reaches several and none is picked. Without it such a sign-in is refused, or LinkedIn connects the person's profile.
+     */
+    offerChoice?: boolean;
 };
 
 export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection & {
@@ -11132,6 +11178,10 @@ export type SocialPostSocialConnection = {
      */
     subscriptionType: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
+    /**
+     * A LinkedIn connection that posts as the person, not as a company Page.
+     */
+    personalProfile: boolean;
 };
 
 export type SocialPostThreadPart = {
@@ -14595,29 +14645,7 @@ export type CmoSocialConnectionFinalized = {
      * `choose`: the sign-in reaches several accounts; finalize again with the owner's pick.
      */
     state: 'connected' | 'choose';
-    choices: Array<CmoSocialAccountChoice>;
-};
-
-export type CmoSocialAccountChoice = {
-    externalAccountId: string;
-    name: string;
-    handle: string | null;
-    kind: 'page' | 'profile';
-};
-
-export type CmoFinalizeSocialConnectionRequest = FinalizeProjectSocialConnectionRequest & {
-    /**
-     * Returned with a LinkedIn sign-in: names the Pages it reaches.
-     */
-    pendingDataToken?: string;
-    /**
-     * Returned with a LinkedIn sign-in: lets Core finish it.
-     */
-    connectToken?: string;
-    /**
-     * The Page or profile the owner picked among the sign-in's accounts.
-     */
-    externalAccountId?: string;
+    choices: Array<SocialAccountChoice>;
 };
 
 export type SokoBotApiKey = {
@@ -68759,6 +68787,17 @@ export type PostProjectsByIdSocialConnectionsFinalizeError = PostProjectsByIdSoc
 
 export type PostProjectsByIdSocialConnectionsFinalizeResponses = {
     /**
+     * The sign-in reaches several accounts: pick one
+     */
+    200: {
+        data: SocialAccountChoices;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
      * Project social connection finalized
      */
     201: {
@@ -92268,7 +92307,7 @@ export type InitiateCmoSocialConnectionForProjectResponses = {
 export type InitiateCmoSocialConnectionForProjectResponse = InitiateCmoSocialConnectionForProjectResponses[keyof InitiateCmoSocialConnectionForProjectResponses];
 
 export type FinalizeCmoSocialConnectionForProjectData = {
-    body: CmoFinalizeSocialConnectionRequest;
+    body: FinalizeProjectSocialConnectionRequest;
     path: {
         projectId: string;
     };
