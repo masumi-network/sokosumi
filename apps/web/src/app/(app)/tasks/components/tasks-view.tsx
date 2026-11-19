@@ -40,6 +40,7 @@ import { TaskCard } from "./task-card";
 import { isTaskDnDDraggable } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
+import { ShowOpenSubtasksContext } from "./task-open-subtasks";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
@@ -445,7 +446,9 @@ export function TasksView(props: TasksViewProps) {
         {/* The page's seat check is fresher than the layout's after a soft navigation. */}
         <OrganizationSeatContext value={canCreateTask}>
           <TasksKeyboard />
-          {content}
+          <ShowOpenSubtasksContext value={routeFilters.subtasks === true}>
+            {content}
+          </ShowOpenSubtasksContext>
         </OrganizationSeatContext>
         {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
         <CreateTaskModal

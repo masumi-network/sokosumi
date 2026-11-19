@@ -48,7 +48,6 @@ interface TasksLoadMoreFilters {
   needsMe?: boolean;
   mentions?: boolean;
   sort?: string;
-  subtasks?: boolean;
 }
 
 interface LoadMoreTasksColumnParams extends TasksLoadMoreFilters {
@@ -85,7 +84,6 @@ async function loadSanitizedTasksPageFilters({
   needsMe,
   mentions,
   sort,
-  subtasks,
 }: TasksLoadMoreFilters) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
@@ -126,7 +124,6 @@ async function loadSanitizedTasksPageFilters({
     needsMe: sanitizeTasksStuckInput(needsMe),
     mentions: sanitizeTasksStuckInput(mentions),
     sort: parseTasksSort(sort),
-    subtasks: sanitizeTasksStuckInput(subtasks),
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   };

@@ -37,7 +37,6 @@ interface GetTasksColumnPageParams {
   needsMe?: boolean;
   mentions?: boolean;
   sort?: TasksSort;
-  subtasks?: boolean;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -67,7 +66,6 @@ export async function getTasksColumnPage({
   needsMe = false,
   mentions = false,
   sort,
-  subtasks = false,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksColumnPageParams): Promise<GetTasksColumnPageResult> {
@@ -92,7 +90,6 @@ export async function getTasksColumnPage({
     scope: tasksQueryScope(scope, { needsMe, mentions }),
     ...(mentions ? { unansweredMention: true } : {}),
     ...(sort ? { sort } : {}),
-    ...(subtasks ? { includeSubtasks: true } : {}),
     assigneeId: assigneeId ?? undefined,
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,

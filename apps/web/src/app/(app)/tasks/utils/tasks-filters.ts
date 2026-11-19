@@ -51,7 +51,10 @@ export interface TasksFilters {
    * A view setting, not a filter: clearing filters keeps it.
    */
   sort?: TasksSort;
-  /** Sub-tasks listed too. A view setting like `sort`: clearing filters keeps it. */
+  /**
+   * Open sub-tasks listed under each Task. A view setting like `sort`:
+   * clearing filters keeps it, and it does not change which Tasks load.
+   */
   subtasks?: boolean;
 }
 
@@ -498,7 +501,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}${filters.subtasks ? ":subtasks" : ""}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}`;
 }
 
 /**
