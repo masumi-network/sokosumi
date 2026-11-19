@@ -65,12 +65,10 @@ function mapOverview(overview: CmoOverview) {
       }),
     ),
     drafts: overview.drafts,
-    channels: overview.channels.map((channel) => ({
-      id: channel.id,
-      provider: channel.provider,
-      handle: channel.externalHandle,
-      displayName: channel.displayName,
-      status: channel.status,
+    // Every field of the row, so a field the schema gains is never dropped here.
+    channels: overview.channels.map(({ externalHandle, ...channel }) => ({
+      ...channel,
+      handle: externalHandle,
     })),
     upNext: overview.upNext,
     connectChannelUrl: overview.connectChannelUrl,

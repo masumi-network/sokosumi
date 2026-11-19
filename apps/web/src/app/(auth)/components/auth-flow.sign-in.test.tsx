@@ -700,6 +700,13 @@ describe("AuthFlow signIn", () => {
       return screen.getByRole("link", { name: "Register.link" });
     }
 
+    it("is a target at least 24px tall", () => {
+      render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
+
+      // WCAG 2.5.8: a bare text-sm link is 20px tall on a phone.
+      expect(register()).toHaveClass("min-h-6");
+    });
+
     it("hands the typed email to sign-up instead of putting it in the link", async () => {
       const user = userEvent.setup();
       mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });

@@ -100,6 +100,9 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_integration_tools",
   "read_integration_tool",
   "run_integration_tool",
+  "list_mcp_tools",
+  "read_mcp_tool",
+  "run_mcp_tool",
   "list_project_social_accounts",
   "get_posting_instructions",
   "list_ad_accounts",
@@ -348,6 +351,9 @@ const DIRECT_READ_CAPABILITIES = [
   "list_integration_tools",
   // Only tools Composio marks read-only; Core refuses the rest.
   "read_integration_tool",
+  // The owner's MCP servers; only tools the owner labelled as reading.
+  "list_mcp_tools",
+  "read_mcp_tool",
   "list_project_social_accounts",
   "get_posting_instructions",
   "list_ad_accounts",
@@ -481,6 +487,8 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // Runs a real tool on a connected account (send, create, update). It is a
   // write in every sense, so it belongs with the writes rather than the reads.
   "run_integration_tool",
+  // The same for a tool of the owner's MCP servers (ADR 0074).
+  "run_mcp_tool",
   // A draft nobody sees; publishing it is Core-checked on the owner's word.
   "save_announcement",
   "publish_announcement",
@@ -664,6 +672,7 @@ export function capabilitiesForClassification(
     ],
     INTEGRATION: [
       "run_integration_tool",
+      "run_mcp_tool",
       "update_emails",
       "draft_email",
       "send_email_draft",

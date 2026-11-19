@@ -32893,6 +32893,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 10
                                     },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
+                                        },
+                                        maxItems: 10
+                                    },
                                     script: {
                                         type: 'string',
                                         minLength: 20,
@@ -33249,6 +33258,15 @@ export const MarketingStrategySchema = {
                                                     type: 'string',
                                                     minLength: 1,
                                                     maxLength: 400
+                                                },
+                                                maxItems: 10
+                                            },
+                                            slideHeadlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 60
                                                 },
                                                 maxItems: 10
                                             },
@@ -34708,6 +34726,15 @@ export const MarketingStrategyRequestSchema = {
                                 },
                                 maxItems: 10
                             },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
+                                },
+                                maxItems: 10
+                            },
                             script: {
                                 type: 'string',
                                 minLength: 20,
@@ -35064,6 +35091,15 @@ export const MarketingStrategyRequestSchema = {
                                             type: 'string',
                                             minLength: 1,
                                             maxLength: 400
+                                        },
+                                        maxItems: 10
+                                    },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
                                         },
                                         maxItems: 10
                                     },
@@ -38178,6 +38214,10 @@ export const ProjectSocialConnectionSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -38189,7 +38229,8 @@ export const ProjectSocialConnectionSchema = {
         'avatarUrl',
         'status',
         'connectedAt',
-        'disconnectedAt'
+        'disconnectedAt',
+        'personalProfile'
     ]
 } as const;
 
@@ -38995,6 +39036,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39021,6 +39066,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39047,6 +39096,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39054,6 +39107,54 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 'socialConnectionId'
             ]
         }
+    ]
+} as const;
+
+export const SocialAccountChoicesSchema = {
+    type: 'object',
+    properties: {
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountChoice'
+            },
+            minItems: 2
+        }
+    },
+    required: [
+        'choices'
+    ]
+} as const;
+
+export const SocialAccountChoiceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Names this account within this sign-in only; send it back as `accountChoiceId`.'
+        },
+        name: {
+            type: 'string'
+        },
+        handle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page',
+                'profile'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'handle',
+        'kind'
     ]
 } as const;
 
@@ -39070,6 +39171,28 @@ export const FinalizeProjectSocialConnectionRequestSchema = {
             type: 'string',
             minLength: 1,
             example: 'ca_123'
+        },
+        pendingDataToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: names the Pages it reaches.'
+        },
+        connectToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4096,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: lets Core finish it.'
+        },
+        accountChoiceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The `id` of the account the person picked among the sign-in\'s accounts (`SocialAccountChoices`).'
+        },
+        offerChoice: {
+            type: 'boolean',
+            description: 'Answer 200 with the accounts to pick from when the sign-in reaches several and none is picked. Without it such a sign-in is refused, or LinkedIn connects the person\'s profile.'
         }
     },
     required: [
@@ -41360,6 +41483,15 @@ export const SocialPostSchema = {
                     },
                     maxItems: 10
                 },
+                slideHeadlines: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
+                    },
+                    maxItems: 10
+                },
                 script: {
                     type: 'string',
                     minLength: 20,
@@ -41771,6 +41903,10 @@ export const SocialPostSocialConnectionSchema = {
                 'disconnected'
             ],
             example: 'active'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -41779,7 +41915,8 @@ export const SocialPostSocialConnectionSchema = {
         'displayName',
         'avatarUrl',
         'subscriptionType',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -53817,6 +53954,17 @@ export const CmoBrandMediaSchema = {
                             'desktop',
                             'mobile'
                         ]
+                    },
+                    fullUrl: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The page from the top, several screens down.'
                     }
                 },
                 required: [
@@ -53824,10 +53972,64 @@ export const CmoBrandMediaSchema = {
                     'fileId',
                     'label',
                     'pageUrl',
-                    'device'
+                    'device',
+                    'fullUrl'
                 ]
             },
-            description: 'The brand\'s own pages, home first, then home on a phone.'
+            description: 'The brand\'s own pages Cuso read, home first, each on a desktop and then on a phone.'
+        },
+        sections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    fileId: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'hero',
+                            'pricing',
+                            'testimonials',
+                            'customers',
+                            'faq',
+                            'product',
+                            'features',
+                            'cta',
+                            'section'
+                        ]
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageLabel: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'url',
+                    'fileId',
+                    'kind',
+                    'title',
+                    'pageLabel',
+                    'pageUrl'
+                ]
+            },
+            description: 'Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.'
         },
         competitors: {
             type: 'array',
@@ -53892,13 +54094,113 @@ export const CmoBrandMediaSchema = {
                 ]
             },
             description: 'The large pictures on the brand\'s pages: products, screens, people.'
+        },
+        logos: {
+            type: 'object',
+            properties: {
+                logo: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                dark: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                mark: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                }
+            },
+            required: [
+                'logo',
+                'dark',
+                'mark'
+            ],
+            description: 'The brand\'s logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.'
         }
     },
     required: [
         'capturedAt',
         'pages',
+        'sections',
         'competitors',
-        'pictures'
+        'pictures',
+        'logos'
     ]
 } as const;
 
@@ -55129,6 +55431,15 @@ export const CmoPlanSchema = {
                         },
                         maxItems: 10
                     },
+                    slideHeadlines: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 60
+                        },
+                        maxItems: 10
+                    },
                     script: {
                         type: 'string',
                         minLength: 20,
@@ -55485,6 +55796,15 @@ export const CmoPlanSchema = {
                                     type: 'string',
                                     minLength: 1,
                                     maxLength: 400
+                                },
+                                maxItems: 10
+                            },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
                                 },
                                 maxItems: 10
                             },
@@ -56107,6 +56427,22 @@ export const CmoProductionSchema = {
                 }
             ],
             description: 'Once the made month was read: each pillar\'s planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.'
+        },
+        level: {
+            type: 'string',
+            enum: [
+                'steady',
+                'active',
+                'all_in'
+            ],
+            description: 'How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.'
+        },
+        beyondPlan: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Calendar entries the plan bought does not make. A bigger plan makes them.'
         }
     },
     required: [
@@ -56117,7 +56453,9 @@ export const CmoProductionSchema = {
         'pictured',
         'needPictures',
         'finishedAt',
-        'pillars'
+        'pillars',
+        'level',
+        'beyondPlan'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
@@ -57934,79 +58272,13 @@ export const CmoSocialConnectionFinalizedSchema = {
         choices: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/CmoSocialAccountChoice'
+                $ref: '#/components/schemas/SocialAccountChoice'
             }
         }
     },
     required: [
         'state',
         'choices'
-    ]
-} as const;
-
-export const CmoSocialAccountChoiceSchema = {
-    type: 'object',
-    properties: {
-        externalAccountId: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        handle: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'page',
-                'profile'
-            ]
-        }
-    },
-    required: [
-        'externalAccountId',
-        'name',
-        'handle',
-        'kind'
-    ]
-} as const;
-
-export const CmoFinalizeSocialConnectionRequestSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/FinalizeProjectSocialConnectionRequest'
-        },
-        {
-            type: 'object',
-            properties: {
-                pendingDataToken: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 512,
-                    description: 'Returned with a LinkedIn sign-in: names the Pages it reaches.'
-                },
-                connectToken: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 4096,
-                    description: 'Returned with a LinkedIn sign-in: lets Core finish it.'
-                },
-                externalAccountId: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 256,
-                    description: 'The Page or profile the owner picked among the sign-in\'s accounts.'
-                }
-            }
-        }
     ]
 } as const;
 
@@ -60018,6 +60290,325 @@ export const SokoBotScopeSchema = {
         'personal',
         'project',
         'workspace'
+    ]
+} as const;
+
+export const SokoBotSecretSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            example: 'VERCEL_TOKEN'
+        },
+        shellAccess: {
+            type: 'boolean',
+            description: 'Whether shell commands get this key as an env variable'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'shellAccess',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SaveSokoBotSecretRequestSchema = {
+    type: 'object',
+    properties: {
+        value: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 8000,
+            description: 'The key. Required for a new name; leave out to keep the saved value.'
+        },
+        shellAccess: {
+            type: 'boolean'
+        }
+    }
+} as const;
+
+export const SokoBotSandboxSetupSchema = {
+    type: 'object',
+    properties: {
+        commands: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 500
+            },
+            maxItems: 10,
+            example: [
+                'npm install -g vercel'
+            ]
+        }
+    },
+    required: [
+        'commands'
+    ]
+} as const;
+
+export const SokoBotMcpServerSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            example: 'Linear'
+        },
+        url: {
+            type: 'string',
+            example: 'https://mcp.linear.app/mcp'
+        },
+        authKind: {
+            type: 'string',
+            example: 'header'
+        },
+        tools: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotMcpTool'
+            }
+        },
+        toolsRefreshedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'url',
+        'authKind',
+        'tools',
+        'toolsRefreshedAt',
+        'lastError',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotMcpToolSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'search_issues'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        inputSchema: {},
+        readOnly: {
+            type: 'boolean',
+            description: 'Reads when true; changes things when false'
+        },
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'name',
+        'description',
+        'readOnly',
+        'enabled'
+    ]
+} as const;
+
+export const AddedSokoBotMcpServerSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SokoBotMcpServer'
+        },
+        {
+            type: 'object',
+            properties: {
+                authorizationUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    description: 'The server\'s sign-in page to send the owner to; null when no sign-in is needed'
+                }
+            },
+            required: [
+                'authorizationUrl'
+            ]
+        }
+    ]
+} as const;
+
+export const AddSokoBotMcpServerRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            pattern: '^[A-Za-z0-9][A-Za-z0-9 ._-]{0,39}$',
+            example: 'Linear'
+        },
+        url: {
+            type: 'string',
+            maxLength: 2000,
+            example: 'https://mcp.linear.app/mcp'
+        },
+        auth: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'none'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'oauth'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'bearer'
+                            ]
+                        },
+                        token: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 8000
+                        }
+                    },
+                    required: [
+                        'type',
+                        'token'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'header'
+                            ]
+                        },
+                        name: {
+                            type: 'string',
+                            pattern: '^[A-Za-z0-9-]{1,64}$'
+                        },
+                        value: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 8000
+                        }
+                    },
+                    required: [
+                        'type',
+                        'name',
+                        'value'
+                    ]
+                }
+            ]
+        }
+    },
+    required: [
+        'name',
+        'url',
+        'auth'
+    ]
+} as const;
+
+export const SokoBotMcpSignInSchema = {
+    type: 'object',
+    properties: {
+        authorizationUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'authorizationUrl'
+    ]
+} as const;
+
+export const UpdateSokoBotMcpToolRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        enabled: {
+            type: 'boolean'
+        },
+        readOnly: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'name'
     ]
 } as const;
 

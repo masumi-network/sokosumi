@@ -107,6 +107,18 @@ const WAITING_DRAFT: CmoOverview["drafts"][number] = {
   media: [{ kind: "image", url: PICTURE, name: "test-stand.jpg" }],
 };
 
+/** A TikTok video of the month: it goes out only once the owner confirms it. */
+const TIKTOK_DRAFT: CmoOverview["drafts"][number] = {
+  id: "d2",
+  provider: "tiktok",
+  text: "Three things nobody tells you about a test burn.",
+  status: "NEEDS_APPROVAL",
+  revision: 0,
+  scheduledAt: null,
+  publishedUrl: null,
+  media: [{ kind: "image", url: PICTURE, name: "test-burn.jpg" }],
+};
+
 export const overview: CmoOverview = cmoOverview({
   ...cmoStrategyVersion(new Date("2026-11-01T09:10:00Z")),
   businessName: "Acme",
@@ -187,6 +199,9 @@ export const overview: CmoOverview = cmoOverview({
       ],
       rewriting: false,
     },
+    level: "active",
+    // Growth: the month's third X post and last LinkedIn post wait for Scale.
+    beyondPlan: ["e18-x", "e27-linkedin"],
   },
   timeZone: "Europe/Berlin",
   routines: [
@@ -317,7 +332,8 @@ export const overview: CmoOverview = cmoOverview({
       media: [],
     },
   ],
-  drafts: [WAITING_DRAFT],
+  drafts: [WAITING_DRAFT, TIKTOK_DRAFT],
+  tiktokEnabled: true,
   measurement: [
     {
       provider: "google_analytics",

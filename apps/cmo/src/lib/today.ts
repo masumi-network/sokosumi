@@ -1,0 +1,156 @@
+import type { CmoOverview } from "@sokosumi/core-client";
+import { AGENT_NAME } from "./agent";
+import { channelLabel, connectedNetworks, waitsForNetwork } from "./calendar";
+import { strategyApproved } from "./strategy";
+import type { View } from "./views";
+
+type Entry = NonNullable<CmoOverview["strategy"]>["calendar"][number];
+
+/** One thing only the owner can do, and the page where they do it. */
+export interface NeedsYou {
+  id: string;
+  title: string;
+  detail: string;
+  action: string;
+  view: View;
+}
+
+/** The month as it goes out: the strategy being made, skipped posts left out. */
+export function monthEntries(overview: CmoOverview): Entry[] {
+  const strategy = overview.approvedStrategy ?? overview.strategy;
+  return (strategy?.calendar ?? [])
+    .filter((entry) => entry.status !== "skipped")
+    .sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        (a.time ?? "").localeCompare(b.time ?? ""),
+    );
+}
+
+function plural(count: number, one: string, many: string): string {
+  return count === 1 ? `1 ${one}` : `${count} ${many}`;
+}
+
+/**
+ * Everything waiting on the owner, most urgent first: Cuso stopped, a
+ * strategy to approve, posts to approve, a network posts wait for.
+ */
+export function needsYou(overview: CmoOverview): NeedsYou[] {
+  const items: NeedsYou[] = [];
+  const approved = strategyApproved(overview);
+  if (approved && overview.billing.availableCredits <= 0) {
+    items.push({
+      id: "credits",
+      title: `${AGENT_NAME} is out of credits`,
+      detail: "Scheduled work waits until you top up.",
+      action: "Top up",
+      view: "settings",
+    });
+  }
+  if (overview.learning === "failed") {
+    items.push({
+      id: "learning",
+      title: `${AGENT_NAME} could not read your site`,
+      detail: "Tell him where to look, or try again.",
+      action: `Open ${AGENT_NAME}`,
+      view: "chat",
+    });
+  }
+  if (overview.strategy && !approved && overview.viewerCanApprove) {
+    items.push({
+      id: "strategy",
+      title: "Your strategy is ready",
+      detail: "Approve it and he makes the month.",
+      action: "Review strategy",
+      view: "strategy",
+    });
+  }
+  const drafts = overview.drafts.filter(
+    (draft) => draft.status === "NEEDS_APPROVAL",
+  );
+  if (drafts.length > 0) {
+    items.push({
+      id: "drafts",
+      title: `${plural(drafts.length, "post waits", "posts wait")} for your OK`,
+      detail: "Nothing goes out until you approve.",
+      action: drafts.length === 1 ? "Review post" : "Review posts",
+      view: "calendar",
+    });
+  }
+  const connected = connectedNetworks(overview.channels);
+  const waiting = new Map<string, number>();
+  for (const entry of monthEntries(overview)) {
+    const network = waitsForNetwork(entry, connected);
+    if (network) waiting.set(network, (waiting.get(network) ?? 0) + 1);
+  }
+  for (const [network, count] of waiting) {
+    const name = channelLabel(network);
+    items.push({
+      id: `connect-${network}`,
+      title: `Connect ${name}`,
+      detail: `${plural(count, "post is", "posts are")} written and ${count === 1 ? "waits" : "wait"} for it.`,
+      action: `Connect ${name}`,
+      view: "channels",
+    });
+  }
+  return items;
+}
+
+/** The owner's day (YYYY-MM-DD) in Cuso's time zone. */
+export function dayIn(timeZone: string, now: Date = new Date()): string {
+  try {
+    return now.toLocaleDateString("en-CA", { timeZone });
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
+
+/** The Monday-first week holding `day`. */
+export function weekOf(day: string): string[] {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+  return Array.from({ length: 7 }, (_, index) => {
+    const next = new Date(date);
+    next.setUTCDate(date.getUTCDate() + index);
+    return next.toISOString().slice(0, 10);
+  });
+}
+
+/** How far the month is, in the four places a post can stand. */
+export interface MonthProgress {
+  out: number;
+  scheduled: number;
+  written: number;
+  planned: number;
+  total: number;
+}
+
+export function monthProgress(entries: Entry[]): MonthProgress {
+  const count = (status: Entry["status"]) =>
+    entries.filter((entry) => entry.status === status).length;
+  return {
+    out: count("published"),
+    scheduled: count("scheduled"),
+    written: count("draft"),
+    planned: count("idea"),
+    total: entries.length,
+  };
+}
+
+/** "Good morning" by the hour in Cuso's time zone. */
+export function greeting(timeZone: string, now: Date = new Date()): string {
+  let hour = now.getUTCHours();
+  try {
+    hour = Number(
+      new Intl.DateTimeFormat("en-GB", {
+        hour: "numeric",
+        hourCycle: "h23",
+        timeZone,
+      }).format(now),
+    );
+  } catch {}
+  if (hour < 5) return "Good evening";
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+}

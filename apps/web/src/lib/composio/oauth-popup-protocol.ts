@@ -156,6 +156,9 @@ export interface ComposioOAuthCallbackPayload {
   connectionId: string | null;
   sessionUri: string | null;
   callbackProof?: string;
+  /** A LinkedIn sign-in that waits for its account: Zernio's handles on it. */
+  pendingDataToken?: string;
+  connectToken?: string;
   errorMessage: string | null;
   nonce: string;
 }
@@ -253,9 +256,13 @@ if(!nonce)return;
 var connectionId=p.get("connection");
 var proof=p.get("proof");
 var profileId=p.get("profileId");
-var success=!p.has("error")&&!p.has("error_description")&&p.get("connected")==="tiktok"
-  &&proof&&p.get("accountId")&&profileId&&connectionId==="zernio:"+profileId;
-var payload={type:${JSON.stringify(COMPOSIO_OAUTH_MESSAGE_TYPE)},status:success?"success":"error",connectionId:connectionId,callbackProof:success?proof:undefined,sessionUri:null,errorMessage:null,nonce:nonce};`);
+var pendingDataToken=p.get("pendingDataToken");
+var connectToken=p.get("connect_token");
+var kept=(p.get("connected")==="tiktok"||p.get("connected")==="linkedin")&&p.get("accountId");
+var waiting=p.get("platform")==="linkedin"&&pendingDataToken&&connectToken;
+var success=!p.has("error")&&!p.has("error_description")&&(kept||waiting)
+  &&proof&&profileId&&connectionId==="zernio:"+profileId;
+var payload={type:${JSON.stringify(COMPOSIO_OAUTH_MESSAGE_TYPE)},status:success?"success":"error",connectionId:connectionId,callbackProof:success?proof:undefined,pendingDataToken:success&&waiting?pendingDataToken:undefined,connectToken:success&&waiting?connectToken:undefined,sessionUri:null,errorMessage:null,nonce:nonce};`);
 }
 
 function buildPopupScript(readPayload: string): string {

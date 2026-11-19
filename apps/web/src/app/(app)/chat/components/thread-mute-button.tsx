@@ -1,6 +1,6 @@
 "use client";
 
-import { Megaphone, MegaphoneOff } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 
@@ -108,10 +108,11 @@ export function ThreadMuteButton({
       disabled={isPending}
       data-testid="thread-panel-mute"
     >
+      {/* The bell, as on a muted room: a megaphone is the Announcement tag. */}
       {muted ? (
-        <MegaphoneOff className="size-4" aria-hidden />
+        <BellOff className="size-4" aria-hidden />
       ) : (
-        <Megaphone className="size-4" aria-hidden />
+        <Bell className="size-4" aria-hidden />
       )}
     </Button>
   );

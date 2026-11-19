@@ -66,6 +66,7 @@ export function CreateDirectDialog({ trigger }: CreateDirectDialogProps = {}) {
               key: `self:${roster.currentUserId}`,
               id: roster.currentUserId,
               name: t("SelfDirect.messageYourself"),
+              initialsName: roster.currentUserName,
               detail: `${t("SelfDirect.you")} · ${roster.currentUserName}`,
               image: roster.currentUserImage,
               kind: "self" as const,
@@ -250,7 +251,7 @@ export function CreateDirectDialog({ trigger }: CreateDirectDialogProps = {}) {
               <Avatar className="size-5">
                 <AvatarImage src={target.image ?? undefined} alt="" />
                 <AvatarFallback className="text-2xs">
-                  {getInitials(target.name)}
+                  {getInitials(target.initialsName ?? target.name)}
                 </AvatarFallback>
               </Avatar>
               <span className="flex min-w-0 items-center gap-1">

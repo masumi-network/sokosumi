@@ -33,6 +33,20 @@
   --ok: #00d43b;
   --warn: #ffd300;
   /*
+   * Network fills: a light, solid tint of each network's colour under a
+   * primary-foreground glyph, the same in both themes, so a post's network
+   * reads at a glance. Fills only, never text or a line.
+   */
+  --net-linkedin: #cfe3f8;
+  --net-x: #e5e5e5;
+  --net-facebook: #d6e4ff;
+  --net-instagram: #ffd6ee;
+  --net-youtube: #ffd9d6;
+  --net-tiktok: #c8f6f4;
+  --net-newsletter: #fff0a8;
+  --net-seo: #d4f5dc;
+  --net-ads: #ffe2c4;
+  /*
    * Hard shadows: an offset, no blur, nothing above 6px. The shadow sits
    * under anything you can click or type in; the big one only under the one
    * card that needs the owner now and the hire screen's button. What you
@@ -892,6 +906,10 @@ textarea {
   white-space: nowrap;
 }
 
+.nav-label {
+  flex: 1;
+}
+
 .nav a svg {
   flex: none;
   color: var(--muted);
@@ -1479,6 +1497,23 @@ button.card-focus {
   resize: vertical;
 }
 
+/* The owner's confirmation of one TikTok video: a plain column in the card's foot. */
+.tiktok-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tiktok-confirm legend {
+  padding: 0;
+  font-weight: 600;
+}
+
 .draft-media {
   display: block;
   align-self: flex-start;
@@ -2005,38 +2040,14 @@ button.card-focus {
 }
 
 @media (max-width: 860px) {
+  /* A phone: the page, and the tab bar under the thumb. */
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .side {
-    flex-direction: row;
-    align-items: center;
-    overflow-x: auto;
-    border-right: 0;
-    border-bottom: var(--line-width) solid var(--line);
-  }
-
-  .side .grow,
-  .cuso-status,
-  .side .ob-who {
     display: none;
-  }
-
-  .business {
-    flex: none;
-    margin: 8px 0 8px 8px;
-    padding: 6px 10px;
-  }
-
-  .business-text .note {
-    display: none;
-  }
-
-  .nav {
-    flex-direction: row;
-    padding: 8px;
   }
 
   .grid4,
@@ -2829,6 +2840,8 @@ button.card-focus {
 /* What research found on the site: key pages, then its pictures */
 .bm-gallery {
   display: grid;
+  /* A swipeable row must not widen the column it sits in. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -2923,6 +2936,80 @@ button.card-focus {
   .bm-pictures img {
     max-width: 280px;
     height: 160px;
+  }
+}
+
+/* A page's sections: the same row, each named under its picture. */
+.bm-sections a {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.bm-sections img {
+  object-position: top;
+}
+
+.bm-about {
+  /* As wide as its picture, never wider: the words must not set the width. */
+  width: 0;
+  min-width: 100%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The logo on the page's own ground; its dark version on the strip. */
+.bm-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bm-logos li {
+  display: grid;
+  place-items: center;
+  height: 88px;
+  padding: 16px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--card);
+}
+
+.bm-logos li.bm-logo-dark {
+  background: var(--strip);
+}
+
+.bm-logos img {
+  display: block;
+  max-width: 220px;
+  max-height: 56px;
+}
+
+.bm-logos li.bm-logo-mark img {
+  max-width: 56px;
+}
+
+.bm-gallery h3 {
+  margin: 0 0 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ob-found .bm-gallery {
+  padding-top: 16px;
+}
+
+@media (max-width: 600px) {
+  .bm-sections a {
+    max-width: 280px;
   }
 }
 
@@ -4241,4 +4328,601 @@ button.cal-card:hover {
 
 .comp-skeleton span:last-child {
   width: 60%;
+}
+
+/* ── Network fills ── */
+.net-linkedin {
+  background: var(--net-linkedin);
+}
+.net-x {
+  background: var(--net-x);
+}
+.net-facebook {
+  background: var(--net-facebook);
+}
+.net-instagram {
+  background: var(--net-instagram);
+}
+.net-youtube {
+  background: var(--net-youtube);
+}
+.net-tiktok {
+  background: var(--net-tiktok);
+}
+.net-newsletter {
+  background: var(--net-newsletter);
+}
+.net-seo {
+  background: var(--net-seo);
+}
+.net-meta_ads,
+.net-google_ads {
+  background: var(--net-ads);
+}
+.net-other {
+  background: var(--surface);
+}
+
+[class*="net-"]:not(.net-other) {
+  color: var(--primary-foreground);
+}
+
+/* ── Today: home ── */
+.today {
+  display: grid;
+  gap: 32px;
+}
+
+.today-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Cuso in the pose of the day, on his Iris stage: a picture, so flat. */
+.today-cuso {
+  flex: none;
+  width: 112px;
+  height: 112px;
+  padding: 10px 8px 2px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--primary-hover);
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+
+.today-hello {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.today-hello h1 {
+  margin: 0;
+}
+
+.today-says {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
+  letter-spacing: -0.005em;
+}
+
+.today-section {
+  display: grid;
+  gap: 12px;
+}
+
+.today-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.today-section-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.today-section-head .button-ghost {
+  margin-left: auto;
+}
+
+.today-clear {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--ok);
+  color: var(--primary-foreground);
+}
+
+/* What needs the owner: one yellow card, a row each. */
+.needs {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--warn);
+  color: var(--primary-foreground);
+  list-style: none;
+}
+
+.needs .needs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  max-width: none;
+  padding: 16px 20px;
+}
+
+.needs-row + .needs-row {
+  border-top: 1px solid var(--line);
+}
+
+.needs-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.needs-text {
+  display: grid;
+  flex: 1 1 220px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.needs-text .note {
+  color: var(--primary-foreground);
+}
+
+.needs .button-secondary {
+  margin-left: auto;
+}
+
+/* The week: seven days side by side, today on Iris. */
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  list-style: none;
+}
+
+.week .week-day {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 176px;
+  max-width: none;
+  padding: 10px 8px 12px;
+}
+
+.week-day + .week-day {
+  border-left: 1px solid var(--border);
+}
+
+.week-today {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.week-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.week-date b {
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
+}
+
+.week-label {
+  font-weight: 600;
+}
+
+.week-none {
+  color: var(--muted);
+}
+
+.week-today .week-none {
+  color: var(--primary-foreground);
+}
+
+.week-posts {
+  display: grid;
+  gap: 8px;
+}
+
+button.week-post {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow);
+  font: inherit;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms;
+}
+
+button.week-post:active {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+.week-post-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-out {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--ok);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.week-post-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-weight: 500;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* The month as one bar. */
+.month {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+}
+
+.month-lead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+
+.month-lead .value {
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
+}
+
+.month-bar {
+  display: flex;
+  gap: 4px;
+  height: 20px;
+}
+
+.month-part {
+  min-width: 8px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  transform-origin: left center;
+}
+
+.month-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  padding: 0;
+  font-size: 0.75rem;
+  list-style: none;
+}
+
+.month-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.month-swatch {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+
+.month-out {
+  background: var(--ok);
+}
+.month-scheduled {
+  background: var(--primary);
+}
+.month-written {
+  background: var(--warn);
+}
+.month-planned {
+  background: var(--surface);
+}
+
+/* The chat, one tap away. */
+button.today-ask {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 20px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--muted);
+  font: inherit;
+  font-size: 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    transform 150ms;
+}
+
+button.today-ask:hover {
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+button.today-ask:active {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+/* Pieces settle in one after another, from where they rest. */
+@media (prefers-reduced-motion: no-preference) {
+  .today > * {
+    animation: today-in 360ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+  .today > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .today > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .today > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .today > :nth-child(5) {
+    animation-delay: 240ms;
+  }
+
+  .month-part {
+    animation: month-grow 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both 200ms;
+  }
+}
+
+@keyframes today-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes month-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@media (max-width: 860px) {
+  .today-hero {
+    gap: 14px;
+  }
+
+  .today-cuso {
+    width: 80px;
+    height: 80px;
+  }
+
+  .today-says {
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.375rem;
+  }
+
+  /* The week as a list: the days with posts, and today. */
+  .week {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .week .week-day {
+    flex-direction: row;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .week-day + .week-day {
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .week-day[data-empty]:not(.week-today) {
+    display: none;
+  }
+
+  .week-date {
+    flex: none;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 56px;
+    gap: 0;
+  }
+
+  .week-posts {
+    flex: 1;
+  }
+}
+
+/* ── Tab bar: the phone's navigation ── */
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .tabbar {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    border-top: var(--line-width) solid var(--line);
+    background: var(--surface);
+  }
+}
+
+.tab {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: var(--clear);
+}
+
+/* The icon sits on a pill; the page you are on fills it with Iris. */
+.tab-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 30px;
+  border: var(--line-width-small) solid var(--clear);
+  border-radius: var(--radius-pill);
+  transition:
+    background-color 150ms,
+    transform 150ms;
+}
+
+.tab.active {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.tab.active .tab-icon {
+  border-color: var(--line);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Pressed: the pill gives under the thumb at once. */
+.tab:active .tab-icon {
+  transform: scale(0.92);
+}
+
+.tab-icon .count {
+  position: absolute;
+  top: -6px;
+  right: 2px;
+}
+
+.tabbar-more {
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  z-index: 20;
+  display: grid;
+  padding: 6px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  transform-origin: bottom right;
+}
+
+.tabbar-more a,
+.tabbar-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tabbar-more a:hover,
+.tabbar-more-item:hover {
+  background: var(--surface);
+}
+
+.tabbar-more a.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+
+.tabbar-more form {
+  border-top: 1px solid var(--border);
+}
+
+.tab:focus-visible,
+.tabbar-more a:focus-visible,
+.tabbar-more-item:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tabbar-more {
+    animation: more-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes more-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
 }

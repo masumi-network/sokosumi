@@ -1,6 +1,8 @@
 import "server-only";
 
 import type {
+  AddedSokoBotMcpServer,
+  AddSokoBotMcpServerRequest,
   CreateScopedSokoBotRequest,
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
@@ -18,6 +20,8 @@ import type {
   SokoBotLabRun,
   SokoBotLabTaskEvent,
   SokoBotLabVerdict,
+  SokoBotMcpServer,
+  SokoBotSecret,
   SokoBotSkillBrowse,
   SokoBotSkillSearchResult,
   SokoBotState,
@@ -267,6 +271,70 @@ export const sokoBotService = {
 
   async removeSkill(skillId: string): Promise<void> {
     await coreClient.removeMySokoBotSkill(skillId);
+  },
+
+  async listSecrets(botId: string): Promise<SokoBotSecret[]> {
+    return (await coreClient.listSokoBotSecrets(botId)).data;
+  },
+
+  async saveSecret(
+    botId: string,
+    name: string,
+    input: { value?: string; shellAccess?: boolean },
+  ): Promise<SokoBotSecret> {
+    return (await coreClient.saveSokoBotSecret(botId, name, input)).data;
+  },
+
+  async deleteSecret(botId: string, name: string): Promise<void> {
+    await coreClient.deleteSokoBotSecret(botId, name);
+  },
+
+  async getSandboxSetup(botId: string): Promise<string[]> {
+    return (await coreClient.getSokoBotSandboxSetup(botId)).data.commands;
+  },
+
+  async setSandboxSetup(botId: string, commands: string[]): Promise<string[]> {
+    return (await coreClient.setSokoBotSandboxSetup(botId, commands)).data
+      .commands;
+  },
+
+  async listMcpServers(botId: string): Promise<SokoBotMcpServer[]> {
+    return (await coreClient.listSokoBotMcpServers(botId)).data;
+  },
+
+  async addMcpServer(
+    botId: string,
+    input: AddSokoBotMcpServerRequest,
+  ): Promise<AddedSokoBotMcpServer> {
+    return (await coreClient.addSokoBotMcpServer(botId, input)).data;
+  },
+
+  async refreshMcpServer(
+    botId: string,
+    serverId: string,
+  ): Promise<SokoBotMcpServer> {
+    return (await coreClient.refreshSokoBotMcpServer(botId, serverId)).data;
+  },
+
+  async signInToMcpServer(
+    botId: string,
+    serverId: string,
+  ): Promise<string | null> {
+    return (await coreClient.signInToSokoBotMcpServer(botId, serverId)).data
+      .authorizationUrl;
+  },
+
+  async updateMcpTool(
+    botId: string,
+    serverId: string,
+    change: { name: string; enabled?: boolean; readOnly?: boolean },
+  ): Promise<SokoBotMcpServer> {
+    return (await coreClient.updateSokoBotMcpTool(botId, serverId, change))
+      .data;
+  },
+
+  async removeMcpServer(botId: string, serverId: string): Promise<void> {
+    await coreClient.removeSokoBotMcpServer(botId, serverId);
   },
 
   async browseSkills(page: number): Promise<SokoBotSkillBrowse> {

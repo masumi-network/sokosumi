@@ -60,6 +60,7 @@ import {
   onboard,
   openPortal,
   pauseEntry,
+  readTikTokCreator,
   removeCompetitor,
   requestStrategy,
   retryLearning,
@@ -302,7 +303,7 @@ export async function Home({ searchParams, view }: HomeProps) {
   if (overview.onboardingStep !== "done" || backInHiring) {
     const skipped = await skippedSteps(projectId);
     // The app's pages open once onboarding ends; until then it is the first run.
-    if (view !== "chat") {
+    if (view !== "today") {
       redirect(`/?project=${encodeURIComponent(projectId)}`);
     }
     return (
@@ -398,6 +399,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         saveBrandBrain: saveBrandBrain.bind(null, projectId),
         pauseEntry: pauseEntry.bind(null, projectId),
         approveDraft: approveDraft.bind(null, projectId),
+        readTikTokCreator: readTikTokCreator.bind(null, projectId),
         declineDraft: declineDraft.bind(null, projectId),
         editDraft: editDraft.bind(null, projectId),
         competitors: {

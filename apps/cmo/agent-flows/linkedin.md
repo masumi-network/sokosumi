@@ -9,4 +9,4 @@
 
 **The owner should see:** posts on the Calendar that sound like them; a weekly line on what worked.
 
-**Missing today:** reading and answering comments. Numbers for a profile connected before Pages opened (LinkedIn gives none); company Pages outside utxo AG.
+**Missing today:** reading and answering comments. Numbers for a profile connected before Pages opened (LinkedIn gives none).

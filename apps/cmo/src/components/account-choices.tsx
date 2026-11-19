@@ -1,4 +1,4 @@
-import type { CmoSocialAccountChoice } from "@sokosumi/core-client";
+import type { SocialAccountChoice } from "@sokosumi/core-client";
 
 import { AGENT_NAME } from "../lib/agent";
 import { SubmitButton } from "./submit-button";
@@ -12,7 +12,7 @@ export function AccountChoices({
   choices,
   choose,
 }: {
-  choices: CmoSocialAccountChoice[];
+  choices: SocialAccountChoice[];
   /** Receives the picked account as the form's `account`. */
   choose: (formData: FormData) => Promise<void>;
 }) {
@@ -29,7 +29,7 @@ export function AccountChoices({
       </p>
       <ul className="list">
         {ordered.map((choice) => (
-          <li key={choice.externalAccountId} className="li">
+          <li key={choice.id} className="li">
             <span className="grow">
               <b>{choice.name}</b>
               <br />
@@ -40,11 +40,7 @@ export function AccountChoices({
               </span>
             </span>
             <form action={choose}>
-              <input
-                type="hidden"
-                name="account"
-                value={choice.externalAccountId}
-              />
+              <input type="hidden" name="account" value={choice.id} />
               <SubmitButton className="button button-small">
                 Use this one
               </SubmitButton>

@@ -96,15 +96,6 @@ export function requireOwnTikTokAppAllowed(
   }
 }
 
-/**
- * Whether this Project's LinkedIn signs in through Zernio, which reaches the
- * person's company Pages. Zernio charges per connected account, so it is
- * utxo AG's for now. THE SWITCH: return true to open it to everyone.
- */
-export function linkedInPagesEnabled(project: SocialProviderProject): boolean {
-  return isSocialBetaProject(project);
-}
-
 /** Always resolve availability from the owning Project, never the actor's memberships. */
 export const socialProviderProjectSelect = {
   workspace: {

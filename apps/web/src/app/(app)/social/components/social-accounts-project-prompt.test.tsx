@@ -97,7 +97,8 @@ describe("SocialAccountsProjectPrompt", () => {
       [...primary.querySelectorAll("li p")].map((name) => name.textContent),
     ).toEqual(["X", "Instagram", "LinkedIn", "Facebook", "YouTube", "TikTok"]);
     expect(within(primary).getAllByText("Coming soon")).toHaveLength(1);
-    expect(within(primary).getAllByText("Personal profile")).toHaveLength(1);
+    // LinkedIn connects a company Page where Pages are open, so no profile-only claim.
+    expect(within(primary).queryByText("Personal profile")).toBeNull();
   });
 
   it("asks to choose a project before connecting", () => {

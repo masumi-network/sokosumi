@@ -17,8 +17,8 @@ import {
   type CmoMeasurement,
   type CmoOverview,
   type CmoSeo,
-  type CmoSocialAccountChoice,
   type CmoSubscriptionPlan,
+  type CmoTikTokCreator,
   changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
   clearCmoPresenterForProject,
@@ -55,12 +55,14 @@ import {
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
+  readCmoTikTokCreatorForDraft,
   removeCmoCompetitorForProject,
   requestCmoArticleDraftForProject,
   requestCmoArticleIdeasForProject,
   requestCmoStrategyForProject,
   retryCmoOnboardingForProject,
   revertCmoUpdateForProject,
+  type SocialAccountChoice,
   searchCmoKeywordsForProject,
   setCmoAdBudgetForProject,
   setCmoAdCampaignStatusForProject,
@@ -72,6 +74,7 @@ import {
   startCmoOverForProject,
   startCmoPlanCheckoutForProject,
   startCmoTopUpForProject,
+  type TikTokPostSettings,
   updateCmoBrandBrainForProject,
   updateCmoCompetitorForProject,
 } from "@sokosumi/core-client";
@@ -446,20 +449,41 @@ async function draftResult(
     : { overview: null, error: errorText(result.error, fallback) };
 }
 
-/** Approves a post Cuso made outside the month; it then goes out. */
+/**
+ * Approves a post that waits for the owner; it then goes out. A TikTok video
+ * goes out at once, with the owner's choices and confirmation.
+ */
 export async function approveDraft(
   projectId: string,
   postId: string,
   revision: number,
+  tikTokSettings?: TikTokPostSettings,
 ): Promise<DraftResult> {
   return draftResult(
     await approveCmoDraftForProject({
       ...(await requireCore()),
       path: { projectId, postId },
-      body: { revision },
+      body: { revision, ...(tikTokSettings ? { tikTokSettings } : {}) },
     }),
     "Could not approve this post",
   );
+}
+
+/** What TikTok allows on the account a waiting video goes to, read now. */
+export async function readTikTokCreator(
+  projectId: string,
+  postId: string,
+): Promise<{ creator: CmoTikTokCreator | null; error: string | null }> {
+  const { data, error } = await readCmoTikTokCreatorForDraft({
+    ...(await requireCore()),
+    path: { projectId, postId },
+  });
+  return data
+    ? { creator: data.data, error: null }
+    : {
+        creator: null,
+        error: errorText(error, "TikTok could not be read. Try again."),
+      };
 }
 
 /** Declines a post Cuso made, or stops an approved one before it goes out. */
@@ -919,7 +943,7 @@ export interface ChannelSignIn {
 export type ChannelFinalized =
   | { state: "connected" }
   /** The sign-in reaches several accounts: the owner picks one. */
-  | { state: "choose"; choices: CmoSocialAccountChoice[] }
+  | { state: "choose"; choices: SocialAccountChoice[] }
   | { state: "failed"; reason: ConnectFailure };
 
 const CONNECT_FAILURES: Partial<Record<CoreApiErrorKind, ConnectFailure>> = {
@@ -934,7 +958,7 @@ const CONNECT_FAILURES: Partial<Record<CoreApiErrorKind, ConnectFailure>> = {
 export async function finalizeChannel(
   projectId: string,
   signIn: ChannelSignIn,
-  externalAccountId?: string,
+  accountChoiceId?: string,
 ): Promise<ChannelFinalized> {
   await redeemCallback(
     projectId,
@@ -951,7 +975,7 @@ export async function finalizeChannel(
         ? { pendingDataToken: signIn.pendingDataToken }
         : {}),
       ...(signIn.connectToken ? { connectToken: signIn.connectToken } : {}),
-      ...(externalAccountId ? { externalAccountId } : {}),
+      ...(accountChoiceId ? { accountChoiceId } : {}),
     },
   });
   if (!data) {
@@ -1014,14 +1038,14 @@ export async function waitingChannelSignIn(): Promise<WaitingChannelSignIn | nul
 
 /** Connects the account the owner picked and ends the waiting sign-in. */
 export async function chooseChannelAccount(
-  externalAccountId: string,
+  accountChoiceId: string,
 ): Promise<ChannelFinalized> {
   const waiting = await waitingChannelSignIn();
   if (!waiting) return { state: "failed", reason: "failed" };
   const result = await finalizeChannel(
     waiting.project,
     waiting.signIn,
-    externalAccountId,
+    accountChoiceId,
   ).catch((): ChannelFinalized => ({ state: "failed", reason: "failed" }));
   (await cookies()).delete({ name: CONNECT_SIGN_IN_COOKIE, path: "/connect" });
   return result;

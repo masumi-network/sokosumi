@@ -2637,6 +2637,8 @@ model SokoBot {
   labRuns               SokoBotLabRun[]
   installedSkills       SokoBotInstalledSkill[]
   integrations          SokoBotIntegration[]
+  secrets               SokoBotSecret[]
+  mcpServers            SokoBotMcpServer[]
   mailDrafts            SokoBotMailDraft[]
   taskWatches           SokoBotTaskWatch[]
   watches               SokoBotWatch[]
@@ -2644,6 +2646,9 @@ model SokoBot {
 
   /// Timezone for the morning briefing and "today" in ingest packets.
   ingestTimezone      String    @default("Europe/Berlin")
+  /// Shell lines the owner saved; they run each time this bot's sandbox
+  /// starts, so command-line tools are there again (ADR 0074).
+  sandboxSetupCommands String[] @default([])
   /// Follow every open Task on the workspace board, not only its own. On by
   /// default: an assistant that only watches what it created misses most of
   /// what its owner is actually working on.
@@ -4885,6 +4890,59 @@ model SokoBotLabRun {
 }
 
 /// A skill the owner installed from skills.sh / GitHub for their Soko Bot.
+/// A key the owner saved for one personal Soko Bot (ADR 0074). The value is
+/// encrypted by Core and no route returns it. `name` is the environment
+/// variable a shell command gets it under, when `shellAccess` is on.
+model SokoBotSecret {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  name            String
+  ciphertext      String
+  /// Which key encrypted `ciphertext`, so a later key can replace it.
+  keyId           String
+  shellAccess     Boolean @default(false)
+  /// Member who saved it. No foreign key: the row outlives a renamed account.
+  createdByUserId String
+
+  @@unique([sokoBotId, name])
+  @@map("soko_bot_secret")
+}
+
+/// A remote MCP server the owner added to one personal Soko Bot (ADR 0074).
+/// Core makes every call and adds the credential, which is encrypted here
+/// and never returned.
+model SokoBotMcpServer {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  /// What the owner and the bot call it; unique per bot, compared lower-case.
+  name                String
+  url                 String
+  /// "none", "header" or "oauth".
+  authKind            String
+  credentialCiphertext String?
+  credentialKeyId     String?
+  /// The server's tools as last read, each with the owner's switch and label
+  /// (`sokoBotMcpToolSchema` in Core).
+  tools               Json      @default("[]")
+  toolsRefreshedAt    DateTime?
+  lastError           String?
+  /// Member who added it. No foreign key, like SokoBotSecret.
+  createdByUserId     String
+
+  @@unique([sokoBotId, name])
+  @@map("soko_bot_mcp_server")
+}
+
 /// Stored as the SKILL.md markdown; the runtime advertises it as a
 /// load-on-demand skill. `slug` is the source id (owner/repo/skill-name).
 model SokoBotInstalledSkill {

@@ -240,17 +240,26 @@ export function CreateState({
           </div>
         </fieldset>
         {/* Pinned to the foot at every size, so Create stays in reach above the pictures.
-            Only the create button: a taller bar hid the pictures it sits over. */}
+            Back sits beside Create in one row: a taller bar hid the pictures it sits over. */}
         <div
           className={cn(
-            "bg-background sticky bottom-0 flex flex-col gap-2 pt-3",
+            "bg-background sticky bottom-0 flex gap-2 pt-3",
             CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
           )}
         >
           <Button
+            type="button"
+            variant="ghost"
+            disabled={isPending}
+            onClick={() => goToStep("name")}
+          >
+            <ArrowLeft aria-hidden />
+            {t("back")}
+          </Button>
+          <Button
             type="submit"
             variant="primary"
-            className="w-full"
+            className="min-w-0 flex-1"
             // Locked while it creates, so a second submit cannot race the first.
             disabled={isPending || !avatarCode}
             loading={isPending}
@@ -259,19 +268,6 @@ export function CreateState({
             <span className="truncate">
               {t("submit", { name: name.trim() })}
             </span>
-          </Button>
-        </div>
-        {/* Right under the pinned button once scrolled to the end. */}
-        <div className="-mt-6 flex flex-col gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            className="w-full"
-            disabled={isPending}
-            onClick={() => goToStep("name")}
-          >
-            <ArrowLeft aria-hidden />
-            {t("back")}
           </Button>
         </div>
       </form>

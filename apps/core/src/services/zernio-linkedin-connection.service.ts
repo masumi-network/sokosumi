@@ -5,6 +5,7 @@ import { LINKEDIN_ORGANIZATION_URN_PREFIX } from "@/helpers/linkedin-person";
 import {
   pickSocialAccount,
   type SocialAccountChoice,
+  type SocialAccountPick,
 } from "@/helpers/social-account-choice";
 
 const userProfile = z.looseObject({
@@ -34,7 +35,8 @@ const selected = z.object({
   }),
 });
 
-type LinkedInAccount = SocialAccountChoice & {
+type LinkedInAccount = Omit<SocialAccountChoice, "id"> & {
+  externalAccountId: string;
   organization: z.infer<typeof organization> | null;
 };
 
@@ -59,11 +61,12 @@ function accountsOf(pending: z.infer<typeof pendingData>): LinkedInAccount[] {
   ];
 }
 
-function toChoice({
-  organization: _organization,
-  ...choice
-}: LinkedInAccount): SocialAccountChoice {
-  return choice;
+function describe({
+  name,
+  handle,
+  kind,
+}: LinkedInAccount): Omit<SocialAccountChoice, "id"> {
+  return { name, handle, kind };
 }
 
 export interface ZernioLinkedInSignIn {
@@ -73,10 +76,8 @@ export interface ZernioLinkedInSignIn {
   pendingDataToken: string;
   /** Lets an API caller finish the sign-in; good for fifteen minutes. */
   connectToken: string;
-  /** The Page URN or member id the owner picked. */
-  externalAccountId?: string;
-  /** Ask the owner when the sign-in reaches a Page; otherwise the profile connects. */
-  offerChoice?: boolean;
+  /** The owner's pick, or Core's (the account a reconnect keeps). */
+  pick: SocialAccountPick;
 }
 
 /**
@@ -95,10 +96,16 @@ export async function connectZernioLinkedInAccount(
     throw conflict("LinkedIn sign-in does not belong to this connection");
   }
   const accounts = accountsOf(pending);
+  const picked = Boolean(input.pick.choiceId || input.pick.externalAccountId);
   const account =
-    pickSocialAccount(accounts, input, toChoice) ??
+    pickSocialAccount(
+      `zernio:${input.profileId}`,
+      accounts,
+      input.pick,
+      describe,
+    ) ??
     // No pick and no picker: the person's own profile, as before Pages.
-    (input.externalAccountId ? null : accounts[accounts.length - 1]);
+    (picked ? null : accounts[accounts.length - 1]);
   if (!account) throw conflict("That LinkedIn account is not in this sign-in");
 
   const result = selected.parse(
