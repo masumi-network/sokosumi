@@ -29,6 +29,16 @@ export function backgroundFailureText(
   return `${heading} ${copy}`;
 }
 
+function legacyFailureKind(
+  deadline: boolean,
+  suffix: string,
+): BackgroundFailureKind {
+  if (deadline) return "turn_deadline_exceeded";
+  return suffix === ` (${AI_BUDGET_EXCEEDED_MESSAGE})`
+    ? AI_BUDGET_EXCEEDED
+    : "unknown";
+}
+
 /** Old delivery messages appended a substring of the turn's raw error to this heading. */
 export function readLegacyBackgroundFailure(
   content: string,
@@ -56,11 +66,7 @@ export function readLegacyBackgroundFailure(
       !(text.startsWith(`${heading} (`) && text.endsWith(")"))
     )
       continue;
-    const kind = deadline
-      ? "turn_deadline_exceeded"
-      : text === `${heading} (${AI_BUDGET_EXCEEDED_MESSAGE})`
-        ? AI_BUDGET_EXCEEDED
-        : "unknown";
+    const kind = legacyFailureKind(deadline, text.slice(heading.length));
     return {
       content: `${prefix}${backgroundFailureText(title, kind)}`,
       metadata: {
@@ -70,4 +76,34 @@ export function readLegacyBackgroundFailure(
     };
   }
   return null;
+}
+
+export function readBackgroundMessageContent(message: {
+  content: string;
+  metadata: unknown;
+  senderSokoBotId: string | null;
+}): string {
+  return (
+    (message.senderSokoBotId
+      ? readLegacyBackgroundFailure(message.content, message.metadata)?.content
+      : null) ?? message.content
+  );
+}
+
+/** Stored previews carry the old delivery heading without its source metadata. */
+export function readLegacyBackgroundFailureSnapshot(
+  text: string,
+): string | null {
+  // Snapshots carry no sender, so the legacy delivery heading identifies them.
+  const match =
+    /^(?:(@[^\n]*? ))?Background run "([\s\S]*?)" (failed|ran out of time) before it could report\.(?= \()/.exec(
+      text,
+    );
+  if (!match) return null;
+  const [heading, prefix = "", title = "", how] = match;
+  const kind = legacyFailureKind(
+    how === "ran out of time",
+    text.slice(heading.length),
+  );
+  return `${prefix}${backgroundFailureText(title, kind)}`;
 }

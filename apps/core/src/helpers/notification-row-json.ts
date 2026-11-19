@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node";
+import { readLegacyBackgroundFailureSnapshot } from "@/lib/soko-bot/background-failure";
 
 /** The JSON columns a notification row carries. */
 type NotificationRowJsonField = "messageParams" | "metadata";
@@ -46,7 +47,13 @@ export function readNotificationRowJson(
     return null;
   }
 
-  return stored as Record<string, unknown>;
+  const value = stored as Record<string, unknown>;
+  if (field === "messageParams" && typeof value.messagePreview === "string") {
+    value.messagePreview =
+      readLegacyBackgroundFailureSnapshot(value.messagePreview) ??
+      value.messagePreview;
+  }
+  return value;
 }
 
 /**

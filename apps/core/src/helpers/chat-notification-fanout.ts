@@ -22,7 +22,7 @@ import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
-import { readLegacyBackgroundFailure } from "@/lib/soko-bot/background-failure";
+import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
 
 const previewMessageSelect = {
   content: true,
@@ -37,10 +37,7 @@ function previewMessageContent(
   }> | null,
 ): string {
   if (message === null || message.deletedAt !== null) return "";
-  const legacyFailure = message.senderSokoBotId
-    ? readLegacyBackgroundFailure(message.content, message.metadata)
-    : null;
-  return legacyFailure?.content ?? message.content;
+  return readBackgroundMessageContent(message);
 }
 
 export interface FanOutChatNotificationsParams {

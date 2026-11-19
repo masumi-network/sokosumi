@@ -35,7 +35,10 @@ import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { toChatMessageSignalDto } from "@/lib/chat-signals/derive";
 import prisma from "@/lib/db/prisma";
-import { readLegacyBackgroundFailure } from "@/lib/soko-bot/background-failure";
+import {
+  readLegacyBackgroundFailure,
+  readLegacyBackgroundFailureSnapshot,
+} from "@/lib/soko-bot/background-failure";
 import {
   type ChatRoom,
   type ChatRoomMessageQuote,
@@ -814,6 +817,16 @@ export function mapChatRoomMessage(
       ? readLegacyBackgroundFailure(message.content, storedMetadata)
       : null;
   const metadata = legacyFailure?.metadata ?? storedMetadata;
+  const quote = isDeleted ? null : readQuoteFromMetadata(metadata);
+  const rawQuote = metadata?.quote;
+  const publicMetadata =
+    quote &&
+    rawQuote &&
+    typeof rawQuote === "object" &&
+    "snippet" in rawQuote &&
+    rawQuote.snippet !== quote.snippet
+      ? { ...metadata, quote }
+      : metadata;
 
   return {
     id: message.id,
@@ -847,7 +860,7 @@ export function mapChatRoomMessage(
     ...(threadUnreadReplyCount === undefined ? {} : { threadUnreadReplyCount }),
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     threadRepliers: mapThreadRepliers(message.replies, currentUserId),
-    metadata: isDeleted ? null : publicChatRoomMessageMetadata(metadata),
+    metadata: isDeleted ? null : publicChatRoomMessageMetadata(publicMetadata),
     ...(isDeleted || !metadata?.[RESULT_SNAPSHOTS_KEY]
       ? {}
       : {
@@ -855,7 +868,7 @@ export function mapChatRoomMessage(
             metadata?.[RESULT_SNAPSHOTS_KEY],
           ),
         }),
-    quote: isDeleted ? null : readQuoteFromMetadata(metadata),
+    quote,
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
     groupNameChange: isDeleted
       ? null
@@ -978,12 +991,17 @@ export function readQuoteFromMetadata(
   ) {
     return null;
   }
-  const attachment = readQuoteAttachmentFromMetadata(candidate);
-  const attachments = readQuoteAttachmentsFromMetadata(candidate, attachment);
+  const safeSnippet = readLegacyBackgroundFailureSnapshot(candidate.snippet);
+  const attachment = safeSnippet
+    ? null
+    : readQuoteAttachmentFromMetadata(candidate);
+  const attachments = safeSnippet
+    ? []
+    : readQuoteAttachmentsFromMetadata(candidate, attachment);
   return {
     messageId: candidate.messageId,
     authorName: candidate.authorName,
-    snippet: candidate.snippet,
+    snippet: safeSnippet ?? candidate.snippet,
     ...(attachment !== undefined ? { attachment } : {}),
     ...(attachments !== undefined ? { attachments } : {}),
     ...(typeof candidate.roomId === "string"

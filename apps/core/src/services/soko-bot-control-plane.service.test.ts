@@ -4521,7 +4521,7 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it("recursively redacts sensitive admin presentation fields", async () => {
-    botFindUniqueMock.mockResolvedValue(
+    botFindFirstMock.mockResolvedValue(
       adminBot({
         name: "Soko",
         memoryHash: "hash",
@@ -4531,7 +4531,13 @@ describe("SokoBotControlPlane lifecycle", () => {
             userMessage: "password=turn-secret",
             finalAnswer: "token=answer-secret",
             events: [],
-            toolCalls: [{ result: { nested: "api_key=tool-secret" } }],
+            toolCalls: [
+              {
+                errorKind: "provider_error",
+                errorDetail: "Provider rejected the request (HTTP 429)",
+                result: { nested: "api_key=tool-secret" },
+              },
+            ],
             pendingDecisions: [
               {
                 proposal: {
@@ -4550,6 +4556,10 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
 
     const detail = await new SokoBotControlPlane().getForAdmin(BOT_ID);
+    expect(detail.turns[0].toolCalls[0]).toMatchObject({
+      errorKind: "provider_error",
+      errorDetail: "Provider rejected the request (HTTP 429)",
+    });
     const serialized = JSON.stringify(detail);
 
     for (const secret of [

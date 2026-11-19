@@ -51,7 +51,7 @@ const HOUR = 60 * 60 * 1000;
 const now = Date.now();
 
 /** Jev, scripted by what each message says. */
-const evaluate: ChatSignalEvaluator = async ({ state }) => {
+const evaluate: ChatSignalEvaluator = async ({ state, questions }) => {
   const messages = state.messages as { key: string; text: string }[];
   const answers: Record<string, unknown> = {};
   for (const { key, text } of messages) {
@@ -74,10 +74,18 @@ const evaluate: ChatSignalEvaluator = async ({ state }) => {
     answers[`${key}_due`] = { choice: "NONE", probabilities: { NONE: 0.9 } };
     if (text.includes("pricing sheet")) {
       yes("question", 0.97);
-      // Bob wrote it; Jev picks Alice, the first person besides him.
+      // Bob wrote it; Jev picks Alice by name, regardless of member order.
+      const addressee = questions[`${key}_addressee`];
+      const choice =
+        addressee?.type === "choice"
+          ? Object.entries(addressee.criteria).find(
+              ([, name]) => name === "Alice",
+            )?.[0]
+          : undefined;
+      if (!choice) throw new Error("Missing Alice from the addressee choices");
       answers[`${key}_addressee`] = {
-        choice: "p0",
-        probabilities: { p0: 0.9 },
+        choice,
+        probabilities: { [choice]: 0.9 },
       };
     } else if (text.startsWith("Decided")) {
       yes("decisionMade", 0.98);
@@ -403,10 +411,15 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     // The prompt carries no ids, only message keys, authors, labels and text.
     expect(generate.mock.calls[0][0].prompt).not.toContain(channelId);
 
-    await getChatCatchUpSummary(
+    await prisma.chatCatchUpSummary.update({
+      where: { userId_scope: { userId: alice, scope: "all" } },
+      data: { content: { headline: "Cached pricing summary", topics: [] } },
+    });
+    const cached = await getChatCatchUpSummary(
       { userId: alice, organizationId, roomId: null },
       { generate },
     );
+    expect(cached.headline).toBe("Cached pricing summary");
     expect(generate).toHaveBeenCalledOnce();
 
     await postMessage(
@@ -420,6 +433,167 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
       { generate },
     );
     expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("rewrites old background failures in catch-up excerpts and the summary prompt", async () => {
+    const room = await prisma.chatRoom.create({
+      data: {
+        organizationId,
+        name: "failure-review",
+        slug: `failure-${channelId.slice(0, 8)}`,
+        kind: "channel",
+        discoverability: "public",
+        createdByUserId: alice,
+        userMembers: { create: [{ userId: alice }] },
+        readStates: {
+          create: {
+            userId: alice,
+            lastReadAt: new Date(now - 2 * HOUR),
+            createdAt: new Date(now - 2 * HOUR),
+          },
+        },
+      },
+    });
+    const workspace = await prisma.workspace.create({
+      data: { organizationId },
+    });
+    try {
+      const bot = await prisma.sokoBot.create({
+        data: { workspaceId: workspace.id, name: "Assistant" },
+      });
+      const failure = await prisma.chatRoomMessage.create({
+        data: {
+          roomId: room.id,
+          senderSokoBotId: bot.id,
+          createdAt: new Date(now - HOUR),
+          content:
+            'Background run "Review" failed before it could report. (Raw provider diagnostic)',
+          metadata: { soko_bot: { background_run_title: "Review" } },
+        },
+      });
+      const input = { userId: alice, organizationId, roomId: room.id };
+      const quiet = await getChatCatchUpSummary(input);
+      expect(quiet.quietRooms[0]?.latest).toMatchObject({
+        messageId: failure.id,
+        excerpt: expect.stringContaining('Background run "Review" failed'),
+      });
+      expect(JSON.stringify(quiet.quietRooms)).not.toContain(
+        "Raw provider diagnostic",
+      );
+      await prisma.chatMessageSignal.create({
+        data: {
+          messageId: failure.id,
+          roomId: room.id,
+          state: "tagged",
+          probabilities: { urgent: 0.95 },
+        },
+      });
+      const reply = await taggedMessage({
+        roomId: room.id,
+        parentMessageId: failure.id,
+        content: "Decided to postpone the review.",
+        createdAt: new Date(now),
+      });
+      const generate = vi.fn<ChatSummaryDeps["generate"]>(async () => ({
+        text: JSON.stringify({ headline: "Review postponed", topics: [] }),
+        costUsd: 0,
+      }));
+
+      const summary = await getChatCatchUpSummary(input, { generate });
+      expect(
+        summary.topics.find((topic) => topic.id === failure.id),
+      ).toMatchObject({
+        summary: expect.stringContaining('Background run "Review" failed'),
+        messages: [
+          {
+            excerpt: expect.stringContaining('Background run "Review" failed'),
+          },
+        ],
+      });
+      expect(
+        summary.decisions.find((item) => item.messageId === reply)?.inReplyTo
+          ?.excerpt,
+      ).toContain('Background run "Review" failed');
+      expect(JSON.stringify(summary)).not.toContain("Raw provider diagnostic");
+      expect(summary.headline).toBe("Review postponed");
+      expect(generate.mock.calls[0][0].prompt).not.toContain(
+        "Raw provider diagnostic",
+      );
+    } finally {
+      await prisma.chatRoom.delete({ where: { id: room.id } });
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+    }
+  });
+
+  it("keeps old provider diagnostics out of Jev's earlier and parent context", async () => {
+    const workspace = await prisma.workspace.create({
+      data: { organizationId },
+    });
+    const room = await prisma.chatRoom.create({
+      data: {
+        organizationId,
+        name: "jev-review",
+        slug: `jev-${channelId.slice(0, 8)}`,
+        kind: "channel",
+        discoverability: "public",
+        createdByUserId: alice,
+        userMembers: { create: [{ userId: alice }, { userId: bob }] },
+      },
+    });
+    const diagnostic = "Raw provider diagnostic in Jev context";
+    const createdAt = new Date();
+    try {
+      const bot = await prisma.sokoBot.create({
+        data: { workspaceId: workspace.id },
+      });
+      const failure = await prisma.chatRoomMessage.create({
+        data: {
+          roomId: room.id,
+          senderSokoBotId: bot.id,
+          createdAt: new Date(createdAt.getTime() - 1),
+          content: `Background run "Review" failed before it could report. (${diagnostic})`,
+          metadata: { soko_bot: { background_run_title: "Review" } },
+        },
+      });
+      const reply = await prisma.chatRoomMessage.create({
+        data: {
+          roomId: room.id,
+          parentMessageId: failure.id,
+          senderUserId: bob,
+          createdAt,
+          content: "The review can wait until Monday.",
+        },
+      });
+      await prisma.chatMessageSignal.create({
+        data: { messageId: reply.id, roomId: room.id, createdAt },
+      });
+      const classify = vi.fn(evaluate);
+      await tagRoomChatSignals(room.id, { source: "live", evaluate: classify });
+
+      const state = classify.mock.calls[0]?.[0].state;
+      const safeHeading =
+        'Background run "Review" failed before it could report.';
+      expect(state?.earlierMessages).toEqual(
+        expect.arrayContaining([
+          { author: "Someone", text: expect.stringContaining(safeHeading) },
+        ]),
+      );
+      expect(state?.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            text: "The review can wait until Monday.",
+            repliesTo: expect.stringContaining(safeHeading),
+          }),
+        ]),
+      );
+      expect
+        .soft(JSON.stringify(state?.earlierMessages))
+        .not.toContain(diagnostic);
+      expect.soft(JSON.stringify(state?.messages)).not.toContain(diagnostic);
+    } finally {
+      await prisma.chatRoom.delete({ where: { id: room.id } });
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+    }
   });
 
   it("sweeps a lease a crashed batch left, and fails rows out of attempts", async () => {
