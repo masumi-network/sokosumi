@@ -559,4 +559,14 @@ describe("buildHistoryWhere search", () => {
 
     expect(findMany).not.toHaveBeenCalled();
   });
+
+  it("does not read job results without a search query", async () => {
+    const findMany = vi.fn();
+    const client = createHistoryPrismaClient({ job: { findMany } });
+    const { q: _q, ...withoutQuery } = params;
+
+    await buildHistoryWhere(withoutQuery, client);
+
+    expect(findMany).not.toHaveBeenCalled();
+  });
 });

@@ -7,7 +7,7 @@ export interface TaskListStatusFilterParams {
 
 export function buildTaskListStatusWhere(
   params: TaskListStatusFilterParams,
-): Prisma.TaskWhereInput {
+): Pick<Prisma.TaskWhereInput, "status"> {
   const { statuses } = params;
 
   if (!statuses?.length) {
@@ -17,39 +17,9 @@ export function buildTaskListStatusWhere(
   return { status: { in: statuses } };
 }
 
-function normalizeAnd(
-  and: Prisma.TaskWhereInput | Prisma.TaskWhereInput[] | undefined,
-): Prisma.TaskWhereInput[] {
-  if (!and) {
-    return [];
-  }
-
-  return Array.isArray(and) ? and : [and];
-}
-
-function mergeTaskListWhere(
-  where: Prisma.TaskWhereInput,
-  extraWhere: Prisma.TaskWhereInput,
-): Prisma.TaskWhereInput {
-  if (Object.keys(extraWhere).length === 0) {
-    return where;
-  }
-
-  const existingAnd = normalizeAnd(where.AND);
-  const extraAnd = normalizeAnd(extraWhere.AND);
-  const { AND: _extraAnd, ...extraRest } = extraWhere;
-  const mergedAnd = [...existingAnd, ...extraAnd];
-
-  return {
-    ...where,
-    ...extraRest,
-    ...(mergedAnd.length > 0 ? { AND: mergedAnd } : {}),
-  };
-}
-
 export function applyTaskListStatusWhere(
   where: Prisma.TaskWhereInput,
-  statusWhere: Prisma.TaskWhereInput,
+  { status }: Pick<Prisma.TaskWhereInput, "status">,
 ): Prisma.TaskWhereInput {
-  return mergeTaskListWhere(where, statusWhere);
+  return status === undefined ? where : { ...where, status };
 }
