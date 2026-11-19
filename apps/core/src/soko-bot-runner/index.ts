@@ -44,8 +44,10 @@ import {
   readWorkspaceFile,
   readWorkspaceUpload,
   runCommand,
+  runSetupCommands,
   saveDownloadToWorkspace,
   searchWorkspace,
+  setShellSecrets,
   writeWorkspaceFile,
 } from "./local-tools";
 import { runTurnLoop } from "./loop";
@@ -64,6 +66,8 @@ interface TurnStart {
   parts?: TurnPart[];
   /** Tool descriptions written for this bot; an older Core sends none. */
   toolDescriptions?: Partial<Record<SokoBotCapability, string>>;
+  /** The owner's setup commands and the keys shell commands get (ADR 0074). */
+  shell?: { setupCommands: string[]; env: Record<string, string> };
 }
 
 class CoreRejected extends Error {
@@ -436,6 +440,11 @@ async function main(): Promise<void> {
     30_000,
     Date.parse(start.deadlineAt) - Date.now() - 20_000,
   );
+  if (start.shell) {
+    setShellSecrets(start.shell.env);
+    const failed = await runSetupCommands(start.shell.setupCommands);
+    if (failed) start.message = `${start.message}\n\n${failed}`;
+  }
   try {
     const tools = buildTools(start.capabilities, gateway, start.model, {
       forSubagent: false,

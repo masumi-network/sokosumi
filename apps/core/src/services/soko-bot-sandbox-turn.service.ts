@@ -64,6 +64,11 @@ import {
 } from "@/lib/soko-bot/turn-loop";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 import { withTurnSkills } from "@/services/chat-message-skills.service";
+import {
+  type SokoBotSandboxShell,
+  sandboxShellFor,
+  sandboxShellNote,
+} from "@/services/soko-bot-secrets.service";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /**
@@ -150,6 +155,8 @@ export interface SandboxTurnStart
   deadlineAt: string;
   maxSteps: number;
   background: boolean;
+  /** The owner's setup commands and allowed keys, when this turn has a shell. */
+  shell?: SokoBotSandboxShell;
 }
 
 /** What the runner needs to run the loop; records the turn as started once. */
@@ -176,19 +183,24 @@ export async function startSandboxTurn(
       deadlineAt: true,
       createdAt: true,
       parentTurnId: true,
+      sokoBotId: true,
     },
   });
   await announceTurn(logFor(claims), stored.userMessage);
   const { inferenceRegion: _region, ...turn } = prepared;
+  const shell = await sandboxShellFor(stored.sokoBotId, turn.capabilities);
+  const shellNote = shell ? sandboxShellNote(shell) : null;
+  const message = await withCmoReplyLanguage(
+    claims.turnId,
+    await withActiveBackgroundRuns(
+      claims.turnId,
+      await withTurnSkills(claims.turnId, stored.userMessage),
+    ),
+  );
   return {
     ...turn,
-    message: await withCmoReplyLanguage(
-      claims.turnId,
-      await withActiveBackgroundRuns(
-        claims.turnId,
-        await withTurnSkills(claims.turnId, stored.userMessage),
-      ),
-    ),
+    message: shellNote ? `${message}\n\n${shellNote}` : message,
+    ...(shell ? { shell } : {}),
     deadlineAt: stored.deadlineAt.toISOString(),
     maxSteps: sokoBotMaxSteps(
       stored.deadlineAt.getTime() - stored.createdAt.getTime(),

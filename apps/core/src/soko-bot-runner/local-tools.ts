@@ -32,6 +32,30 @@ function clip(text: string, limit = MAX_OUTPUT_CHARS): string {
     : text;
 }
 
+/** Keys the owner allowed in shell commands, by environment variable name. */
+let shellSecrets: Record<string, string> = {};
+
+/** A value this short would blank out ordinary words, so it is not hidden. */
+const MIN_REDACTED_LENGTH = 6;
+
+/** Sets the keys every shell command gets for this turn (ADR 0074). */
+export function setShellSecrets(secrets: Record<string, string>): void {
+  shellSecrets = { ...secrets };
+}
+
+/**
+ * Replaces each key's value with `[secret NAME]`, so a command that prints
+ * one, or a file it was written to, does not hand it to the model. Only the
+ * value as written: a script that encodes it first gets past this.
+ */
+export function redactSecrets(text: string): string {
+  let redacted = text;
+  for (const [name, value] of Object.entries(shellSecrets))
+    if (value.length >= MIN_REDACTED_LENGTH)
+      redacted = redacted.split(value).join(`[secret ${name}]`);
+  return redacted;
+}
+
 /** Resolves a workspace path and refuses anything outside the workspace. */
 export function workspacePath(relative = "."): string {
   const resolved = path.resolve(WORKSPACE, relative);
@@ -85,7 +109,7 @@ export function runCommand(
     // just bash, whose children would otherwise hold the output open forever.
     const child = spawn("bash", ["-lc", input.command], {
       cwd: WORKSPACE,
-      env: commandEnv(env),
+      env: commandEnv({ ...shellSecrets, ...env }),
       detached: true,
     });
     let timedOut = false;
@@ -109,9 +133,13 @@ export function runCommand(
       clearTimeout(timer);
       resolve({
         exitCode: code,
-        stdout: clip(stdout),
+        stdout: clip(redactSecrets(stdout)),
         stderr: clip(
-          timedOut ? `${stderr}\n[killed after ${timeoutMs / 1_000}s]` : stderr,
+          redactSecrets(
+            timedOut
+              ? `${stderr}\n[killed after ${timeoutMs / 1_000}s]`
+              : stderr,
+          ),
         ),
       });
     });
@@ -132,7 +160,7 @@ export async function readWorkspaceFile(input: {
   const limit = Math.min(input.limit ?? MAX_OUTPUT_CHARS * 2, 200_000);
   return {
     path: input.path,
-    content: text.slice(offset, offset + limit),
+    content: redactSecrets(text.slice(offset, offset + limit)),
     totalChars: text.length,
   };
 }
@@ -219,7 +247,9 @@ export async function searchWorkspace(input: {
     });
     child.on("close", () => {
       resolve({
-        matches: clip(output.split(`${WORKSPACE}/`).join("")) || "(no matches)",
+        matches:
+          clip(redactSecrets(output.split(`${WORKSPACE}/`).join(""))) ||
+          "(no matches)",
       });
     });
     child.on("error", (error) => resolve({ matches: error.message }));
@@ -331,4 +361,30 @@ export function citableSources(name: string, output: unknown): string[] {
     return page.success ? urlsIn(page.data.url) : [];
   }
   return name === "web_search" ? urlsIn(output).slice(0, MAX_SOURCES) : [];
+}
+
+/** One owner setup command may install a CLI; it may not eat the turn. */
+const SETUP_COMMAND_TIMEOUT_S = 180;
+
+/**
+ * Runs the owner's setup commands in order before the turn starts. Returns
+ * a line for the model naming each one that failed, or null when all ran.
+ */
+export async function runSetupCommands(
+  commands: readonly string[],
+): Promise<string | null> {
+  const failed: string[] = [];
+  for (const command of commands) {
+    const result = await runCommand({
+      command,
+      timeoutSeconds: SETUP_COMMAND_TIMEOUT_S,
+    });
+    if (result.exitCode !== 0)
+      failed.push(
+        `"${command}" (exit ${result.exitCode ?? "none"}: ${result.stderr.trim().split("\n").at(-1)?.slice(0, 200) ?? ""})`,
+      );
+  }
+  return failed.length
+    ? `These setup commands failed before this turn: ${failed.join("; ")}. Tell the owner if the work needs them.`
+    : null;
 }
