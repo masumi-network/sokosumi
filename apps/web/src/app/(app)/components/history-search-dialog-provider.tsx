@@ -127,6 +127,7 @@ export function HistorySearchDialogProvider({
           filesGroup: tSearch("filesGroup"),
           filesSeeAll: tSearch("filesSeeAll"),
           filesFilenameMatch: tSearch("filesFilenameMatch"),
+          peopleGroup: tSearch("peopleGroup"),
           tagsGroup: tSearch("tagsGroup"),
           tagTasksGroup: (tag) => tSearch("tagTasksGroup", { tag }),
           tagsError: tSearch("tagsError"),

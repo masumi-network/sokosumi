@@ -45,6 +45,7 @@ const labels = {
   filesGroup: "Files",
   filesSeeAll: "See all files",
   filesFilenameMatch: "Filename match",
+  peopleGroup: "People",
   tagsGroup: "Tags",
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
   tagsError: "Couldn't load tags",

@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  Contact,
   FileResource,
   HistoryItem,
   TaskListItem,
@@ -16,9 +17,12 @@ import {
 } from "@/app/components/history-search-item";
 import { getHistorySearchItemHref } from "@/app/components/history-search-item-href";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
+import { useContactSearchGroup } from "@/app/components/use-contact-search-group";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
 import { useTagSearchGroup } from "@/app/components/use-tag-search-group";
+import { ContactAvatar } from "@/app/contacts/components/contact-visuals";
+import { primaryEmail } from "@/app/contacts/contacts-view";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
 import { taskHref } from "@/app/tasks/utils/task-href";
@@ -43,6 +47,7 @@ interface HistorySearchDialogLabels {
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
+  peopleGroup: string;
   tagsGroup: string;
   tagTasksGroup: (tag: string) => string;
   tagsError: string;
@@ -80,6 +85,11 @@ export function HistorySearchDialog({
     activeOrganizationId,
     debouncedQuery: query,
   });
+  const { contacts } = useContactSearchGroup({
+    open,
+    activeOrganizationId,
+    debouncedQuery: query,
+  });
   const { tags, tagsState, topTag, tasks, tasksState } = useTagSearchGroup({
     open,
     activeOrganizationId,
@@ -92,6 +102,7 @@ export function HistorySearchDialog({
     history.length === 0 &&
     tags.length === 0 &&
     files.length === 0 &&
+    contacts.length === 0 &&
     tagsState !== "error";
 
   const { listRef, listMaxHeight } = useListFitsVisibleViewport(open);
@@ -133,6 +144,10 @@ export function HistorySearchDialog({
     closeAndGo(
       `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
     );
+  }
+
+  function handleSelectContact(contact: Contact) {
+    closeAndGo(`/contacts?contact=${encodeURIComponent(contact.id)}`);
   }
 
   function handleSelectTag(tag: WorkspaceLabel) {
@@ -195,6 +210,12 @@ export function HistorySearchDialog({
           formatShortDate={formatDateWithYear}
           onSelectTag={handleSelectTag}
           onSelectTask={handleSelectTask}
+        />
+
+        <PeopleSearchGroup
+          contacts={contacts}
+          heading={labels.peopleGroup}
+          onSelect={handleSelectContact}
         />
 
         {history.length > 0 ? (
@@ -363,6 +384,49 @@ function TagSearchGroups({
         </CommandGroup>
       ) : null}
     </>
+  );
+}
+
+/** Contacts matching the query; picking one opens its panel in Contacts. */
+function PeopleSearchGroup({
+  contacts,
+  heading,
+  onSelect,
+}: {
+  contacts: Contact[];
+  heading: string;
+  onSelect: (contact: Contact) => void;
+}) {
+  if (contacts.length === 0) return null;
+  return (
+    <CommandGroup heading={heading}>
+      {contacts.map((contact) => (
+        <CommandItem
+          key={contact.id}
+          value={`contact:${contact.id}`}
+          onSelect={() => onSelect(contact)}
+          className="flex items-center gap-2"
+        >
+          <ContactAvatar
+            name={contact.name}
+            src={contact.avatarUrl}
+            email={primaryEmail(contact.channels)}
+            kind={contact.kind}
+            className="size-5"
+          />
+          <div className="min-w-0 flex-1">
+            <span className="block truncate">{contact.name}</span>
+            {contact.organization || contact.role ? (
+              <span className="text-muted-foreground block truncate text-xs">
+                {[contact.role, contact.organization]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            ) : null}
+          </div>
+        </CommandItem>
+      ))}
+    </CommandGroup>
   );
 }
 

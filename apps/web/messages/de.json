@@ -5866,7 +5866,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Tags, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Personen, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -5875,6 +5875,7 @@
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
       "filesFilenameMatch": "Treffer im Dateinamen",
+      "peopleGroup": "Personen",
       "tagsGroup": "Tags",
       "tagTasksGroup": "Aufgaben mit dem Tag {tag}",
       "tagsError": "Tags konnten nicht geladen werden",

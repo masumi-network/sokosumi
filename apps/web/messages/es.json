@@ -5866,7 +5866,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, etiquetas, trabajos, resultados de trabajos, imágenes o archivos",
+      "description": "Buscar tareas, etiquetas, personas, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
@@ -5875,6 +5875,7 @@
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
       "filesFilenameMatch": "Coincide el nombre",
+      "peopleGroup": "Personas",
       "tagsGroup": "Etiquetas",
       "tagTasksGroup": "Tareas con la etiqueta {tag}",
       "tagsError": "No se pudieron cargar las etiquetas",
