@@ -2076,8 +2076,8 @@ function MessageTimeOrOutboundStatus({
 }
 
 /**
- * A reply that did not finish, said in place of it. The cause is not shown:
- * the shell does not carry one the reader can act on. "Your message is saved"
+ * A reply that did not finish, said in place of it. The cause is not shown
+ * for generic failures: the shell does not carry one the reader can act on. "Your message is saved"
  * only when the shell names the message it answers, which Core keeps.
  */
 function FailedMentionCard({
@@ -2090,7 +2090,17 @@ function FailedMentionCard({
   onRetryMention?: () => void;
 }) {
   const t = useTranslations("App.Channels");
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
   const saved = readFailedMentionShellTarget(metadata) !== null;
+  const failure =
+    metadata && typeof metadata === "object" && "mention_failure" in metadata
+      ? metadata.mention_failure
+      : null;
+  const budgetExceeded =
+    failure &&
+    typeof failure === "object" &&
+    "kind" in failure &&
+    failure.kind === "ai_budget_exceeded";
   return (
     <div
       className="border-border flex w-fit max-w-full flex-col gap-1 rounded-lg border px-3 py-2"
@@ -2105,7 +2115,11 @@ function FailedMentionCard({
         {t("MentionStatus.failed", { name })}
       </p>
       <p className="text-muted-foreground text-sm">
-        {saved ? t("MentionStatus.failedSaved") : t("MentionStatus.failedBody")}
+        {budgetExceeded
+          ? tFailure("aiBudgetExceeded")
+          : saved
+            ? t("MentionStatus.failedSaved")
+            : t("MentionStatus.failedBody")}
       </p>
       {onRetryMention ? (
         <button

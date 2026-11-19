@@ -68,6 +68,12 @@ import {
   sokoBotSharedScopeOf,
   sokoBotTurnReader,
 } from "@/helpers/task-visibility";
+import {
+  AI_BUDGET_EXCEEDED,
+  AI_BUDGET_EXCEEDED_MESSAGE,
+  aiGatewayBudgetScope,
+  GATEWAY_INTERNAL_SERVER_ERROR,
+} from "@/lib/ai-gateway-budget";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -402,6 +408,18 @@ function safeRuntimeDiagnostic(
   return redactSokoBotSensitiveText(value).slice(0, maxLength);
 }
 
+function runtimeFailureCode(data: Record<string, unknown>) {
+  if (
+    GATEWAY_INTERNAL_SERVER_ERROR === data.code &&
+    aiGatewayBudgetScope(data.message)
+  ) {
+    return AI_BUDGET_EXCEEDED;
+  }
+  return typeof data.code === "string"
+    ? safeRuntimeDiagnostic(data.code, 120)
+    : undefined;
+}
+
 interface SokoBotUsageBySource {
   costUsd: number;
   calls: number;
@@ -595,10 +613,7 @@ export function safeEventProjection(
     };
   }
   if (type.endsWith(".failed")) {
-    const code =
-      typeof data.code === "string"
-        ? safeRuntimeDiagnostic(data.code, 120)
-        : undefined;
+    const code = runtimeFailureCode(data);
     return {
       summary: code ?? "Runtime failure",
       payload: jsonInput({ code: code ?? "unknown" }),
@@ -1709,12 +1724,22 @@ export class SokoBotControlPlane {
           input.providerCompletedAt >= turn.cancellationRequestedAt);
       const settledStatus: TerminalSokoBotTurnStatus =
         completionLostToCancellation ? "CANCELLED" : input.status;
-      const errorKind = usageCharge.shortfall
-        ? "insufficient_credits"
-        : safeRuntimeDiagnostic(input.errorKind, 120);
-      const errorDetail = usageCharge.shortfall
-        ? "Available credits were exhausted while settling this Soko Bot turn"
-        : safeRuntimeDiagnostic(input.errorDetail);
+      const budgetExceeded =
+        settledStatus === "FAILED" &&
+        runtimeFailureCode({
+          code: input.errorKind,
+          message: input.errorDetail,
+        }) === AI_BUDGET_EXCEEDED;
+      const errorKind = budgetExceeded
+        ? AI_BUDGET_EXCEEDED
+        : usageCharge.shortfall
+          ? "insufficient_credits"
+          : safeRuntimeDiagnostic(input.errorKind, 120);
+      const errorDetail = budgetExceeded
+        ? AI_BUDGET_EXCEEDED_MESSAGE
+        : usageCharge.shortfall
+          ? "Available credits were exhausted while settling this Soko Bot turn"
+          : safeRuntimeDiagnostic(input.errorDetail);
 
       const responseContract =
         settledStatus === "COMPLETED"
@@ -3713,13 +3738,13 @@ export class SokoBotControlPlane {
         ) {
           pendingStatus = "FAILED";
           pendingErrorKind =
-            typeof indexed.event.data.code === "string"
-              ? safeRuntimeDiagnostic(indexed.event.data.code, 120)
-              : "runtime_failed";
+            runtimeFailureCode(indexed.event.data) ?? "runtime_failed";
           pendingErrorDetail =
-            typeof indexed.event.data.message === "string"
-              ? safeRuntimeDiagnostic(indexed.event.data.message)
-              : undefined;
+            pendingErrorKind === AI_BUDGET_EXCEEDED
+              ? AI_BUDGET_EXCEEDED_MESSAGE
+              : typeof indexed.event.data.message === "string"
+                ? safeRuntimeDiagnostic(indexed.event.data.message)
+                : undefined;
           turnData.errorKind = pendingErrorKind;
           turnData.errorDetail = pendingErrorDetail;
         }

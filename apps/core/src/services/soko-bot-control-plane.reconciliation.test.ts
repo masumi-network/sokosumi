@@ -4,6 +4,7 @@ import type {
   RuntimeJsonValue,
   SokoBotRuntime,
 } from "@sokosumi/soko-bot";
+import { createGateway } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { jevRoute } from "@/test/jev-routes";
 
@@ -373,6 +374,71 @@ describe("SokoBotControlPlane reconciliation", () => {
         data: expect.objectContaining({
           status: "IDLE",
           consecutiveTurnFailures: 0,
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ["API key budget exceeded. Limit: $400.", "ai_budget_exceeded"],
+    ["Team budget exceeded. Limit: $1000.", "ai_budget_exceeded"],
+    ["Temporary upstream failure", "GatewayInternalServerError"],
+  ])("settles a failed Gateway turn for %s", async (message, errorKind) => {
+    const gateway = createGateway({
+      apiKey: "test-key",
+      fetch: async () =>
+        Response.json(
+          {
+            error: {
+              type: "internal_server_error",
+              message,
+            },
+          },
+          { status: 500 },
+        ),
+    });
+    const runtime = runtimeFor([]);
+    runtime.streamEvents = vi.fn(async function* () {
+      try {
+        await gateway("google/gemini-3.6-flash").doStream({
+          prompt: [
+            {
+              role: "user",
+              content: [{ type: "text", text: "Plan the launch" }],
+            },
+          ],
+        });
+      } catch (error) {
+        if (!(error instanceof Error)) throw error;
+        yield {
+          startIndex: 0,
+          event: runtimeEvent("turn.failed", "failed_1", {
+            code: error.name,
+            message: error.message,
+          }),
+        };
+        yield {
+          startIndex: 1,
+          event: runtimeEvent("session.waiting", "wait_1"),
+        };
+      }
+    });
+
+    await new SokoBotControlPlane(runtime, undefined, undefined).reconcileTurn(
+      TURN_ID,
+      undefined,
+      LEASE_TOKEN,
+    );
+
+    expect(turnUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          errorKind,
+          errorDetail:
+            errorKind === "ai_budget_exceeded"
+              ? "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets."
+              : message,
         }),
       }),
     );

@@ -16,6 +16,10 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
+import {
+  aiGatewayBudgetScope,
+  reportAiGatewayBudgetFailure,
+} from "@/lib/ai-gateway-budget";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import prisma from "@/lib/db/prisma";
@@ -540,6 +544,20 @@ function gatewayStreamParts(
   return parts;
 }
 
+function gatewayBudgetScopeFromResponse(text: string) {
+  try {
+    const error = asRecord(asRecord(JSON.parse(text))?.error);
+    if (
+      error?.type === "internal_server_error" ||
+      error?.type === "quota_for_entity_exceeded"
+    ) {
+      return aiGatewayBudgetScope(error.message);
+    }
+  } catch {
+    // Non-JSON upstream failures are passed through to the SDK.
+  }
+}
+
 /**
  * One model call from the runner. Core owns the Gateway key and the EU
  * routing policy: only the turn's version model, only the Gateway protocol
@@ -627,12 +645,17 @@ export async function proxySandboxModelCall(
       { cause: error },
     );
   }
-  if (!upstream.ok)
+  if (!upstream.ok) {
+    const budgetScope = gatewayBudgetScopeFromResponse(text);
+    if (budgetScope) {
+      await reportAiGatewayBudgetFailure(budgetScope, purpose, apiKey);
+    }
     return {
       status: upstream.status,
       body: text,
       contentType: upstream.headers.get("content-type") ?? "application/json",
     };
+  }
 
   const parts = gatewayStreamParts(text);
   if (!parts) throw badGateway("Unreadable model response");

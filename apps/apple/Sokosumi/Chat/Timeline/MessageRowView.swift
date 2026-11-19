@@ -226,7 +226,12 @@ import SwiftUI
     }
 
     private var failedMentionView: some View {
-      CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention)
+      let failure = message.metadata?.additionalProperties["mention_failure"]?.value as? [String: Any]
+      return CoworkerMentionFailedView(
+        onRetry: mentionRetryHandler,
+        isRetrying: isRetryingMention,
+        aiBudgetExceeded: failure?["kind"] as? String == "ai_budget_exceeded"
+      )
     }
 
     private var pinnedLabel: some View {

@@ -19,7 +19,7 @@ What Cuso does without being asked, per channel, and what the owner should see c
 | [Measurement](measurement.md)                   | Analytics, Search Console         | Works once connected                              |
 | [Reviews and learning](reviews-and-learning.md) | All                               | Weekly works; month handoff not automatic         |
 | [Handing work on](handing-work-on.md)           | Coworkers, Agents, SEO specialist | Works                                             |
-| [Asking the owner](asking-the-owner.md)         | Chat                              | Partly: no single "waiting for you" list          |
+| [Asking the owner](asking-the-owner.md)         | Chat                              | Usage-limit notice in chat. No unified list.      |
 
 ## How to judge what Cuso makes
 
