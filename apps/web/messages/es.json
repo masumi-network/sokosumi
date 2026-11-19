@@ -5567,16 +5567,36 @@
         "description": "Inténtalo de nuevo en un momento.",
         "retry": "Reintentar"
       },
+      "start": {
+        "title": "Mira qué han cambiado tus competidores esta semana",
+        "body": "Una vez por semana Sokosumi lee sus sitios web, precios, noticias, anuncios e Instagram y muestra qué ha cambiado, con su fuente.",
+        "add": "Añadir a mano",
+        "price": "Buscar competidores es gratis. La revisión semanal cuesta {credits} créditos por competidor a la semana y sigue apagada hasta que la actives."
+      },
+      "example": {
+        "label": "Ejemplo",
+        "price": {
+          "name": "Acme",
+          "summary": "Plan Pro $12 -> $10 por puesto al mes",
+          "quote": "Pro $10 por puesto/mes, facturación anual",
+          "source": "acme.com/pricing"
+        },
+        "news": {
+          "name": "Northwind",
+          "summary": "Northwind lanzó un asistente de IA que reserva reuniones",
+          "quote": "El asistente propone tres horas que convienen a todos.",
+          "source": "TechCrunch"
+        },
+        "website": {
+          "name": "Globex",
+          "summary": "La página de inicio se dirige ahora a equipos de ventas, antes a autónomos",
+          "quote": "Hecho para equipos de ventas",
+          "source": "globex.com"
+        }
+      },
       "check": {
-        "title": "Revisión semanal",
-        "on": "Activada",
-        "off": "Desactivada",
-        "what": "Una vez por semana Sokosumi lee de cada competidor su sitio web y su página de precios, las noticias sobre él, sus anuncios nuevos y su Instagram, y guarda lo que cambió con su fuente.",
-        "price": "Cuesta {credits} créditos por competidor a la semana.",
-        "priceTotal": "{count, plural, one {Con # competidor son {credits} créditos a la semana.} other {Con # competidores son {credits} créditos a la semana.}}",
-        "payer": "Los créditos salen de este espacio de trabajo.",
+        "price": "{count, plural, =0 {Cuesta {each} créditos por competidor a la semana.} one {Cuesta {credits} créditos a la semana por # competidor.} other {Cuesta {credits} créditos a la semana por # competidores, {each} cada uno.}}",
         "last": "Última revisión {last}, próxima {next}.",
-        "first": "La primera revisión se hace en menos de una hora, o ahora.",
         "sourceFailed": "La última revisión no pudo leer: {sources}. La próxima lo intenta de nuevo.",
         "source": {
           "pages": "sitios web",
@@ -5584,7 +5604,7 @@
           "ads": "anuncios",
           "social": "Instagram"
         },
-        "turnOn": "Activar",
+        "turnOn": "Activar revisión semanal",
         "turnOff": "Desactivar",
         "runNow": "Revisar ahora",
         "failed": "No funcionó. Inténtalo de nuevo.",
@@ -5593,18 +5613,21 @@
           "no_competitors": "Añade primero un competidor.",
           "paused": "La revisión semanal está desactivada.",
           "unfunded": "Esta revisión cuesta {credits} créditos y el espacio de trabajo tiene menos. Añade créditos y revisa de nuevo."
-        }
+        },
+        "status": {
+          "off": "La revisión semanal está apagada",
+          "running": "La primera revisión está en marcha",
+          "on": "La revisión semanal está activa"
+        },
+        "running": "Lo que encuentre aparecerá aquí en un minuto."
       },
       "list": {
-        "title": "Lista de seguimiento",
+        "title": "En seguimiento",
         "count": "{count} de {limit}",
-        "empty": "Nadie todavía. Añade los competidores que quieres observar.",
         "emptyReadOnly": "Nadie todavía.",
         "noWebsite": "Sin sitio web",
         "pricingPage": "página de precios",
         "facebook": "Facebook {handle}",
-        "edit": "Editar",
-        "remove": "Quitar",
         "editNamed": "Editar {name}",
         "removeNamed": "Quitar {name}",
         "add": "Añadir competidor",
@@ -5656,8 +5679,6 @@
       "thisWeek": {
         "title": "Esta semana",
         "checked": "Revisión del {date}",
-        "none": "Aún no hay resumen. Pide a un Soko Bot que escriba los movimientos de los competidores de esta semana; todo lo que encuentran las revisiones está abajo con su fuente.",
-        "noneReadOnly": "Aún no hay resumen. Todo lo que encuentran las revisiones está abajo con su fuente.",
         "quiet": "Una semana tranquila: nada que contar.",
         "unknown": "Un competidor",
         "big": "Movimiento grande",
@@ -5667,16 +5688,18 @@
         "open": "Sigue abierto"
       },
       "findings": {
-        "title": "Lo que encontraron las revisiones",
-        "notChecked": "Nada todavía. Los hallazgos aparecen aquí tras la primera revisión.",
-        "nothing": "Las revisiones no encontraron cambios en las últimas cinco semanas.",
+        "title": "Qué ha cambiado",
+        "nothing": "Sin cambios en las últimas cinco semanas.",
         "kind": {
           "WEBSITE_CHANGE": "Sitio web",
           "PRICE_CHANGE": "Precio",
           "NEWS": "Noticias",
           "AD": "Anuncios",
           "SOCIAL": "Instagram"
-        }
+        },
+        "preview": "Lo que muestra la revisión semanal",
+        "example": "Ejemplo",
+        "running": "Nada todavía. Lo que encuentre la primera revisión aparecerá aquí."
       },
       "scoreboard": {
         "title": "Instagram",

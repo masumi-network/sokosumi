@@ -1,19 +1,17 @@
 import type { ProjectCompetitors } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 
-import { Badge } from "@/components/ui/badge";
-
-import {
-  CompetitorsEmpty,
-  CompetitorsItem,
-  CompetitorsPanel,
-} from "./competitors-panel";
+import { CompetitorsExample, CompetitorsFinding } from "./competitors-finding";
+import { CompetitorsEmpty, CompetitorsPanel } from "./competitors-panel";
 import { CompetitorsSource } from "./competitors-source";
+
+const SOURCES = ["news", "ads", "social"] as const;
 
 /**
  * Everything the checks stored in the last weeks, newest first: what
  * happened in one line, the source's own words, and where to read it.
- * Instagram readings are numbers and show on the scoreboard instead.
+ * Instagram readings are numbers and show on the scoreboard instead. Before
+ * the first check it shows an example of a week instead of an empty box.
  */
 export async function CompetitorsFindings({
   data,
@@ -23,6 +21,20 @@ export async function CompetitorsFindings({
   const t = await getTranslations("App.Competitors.findings");
   const names = new Map(data.competitors.map((c) => [c.id, c.name]));
   const findings = data.signals.filter((signal) => signal.kind !== "SOCIAL");
+  const { check } = data;
+  // What a source needs before it can be read, said where its findings go.
+  const needs = SOURCES.flatMap((source) => check.sources[source].needs ?? []);
+
+  if (findings.length === 0 && !check.lastCheckedAt && !check.on)
+    return (
+      <CompetitorsPanel
+        aside={t("example")}
+        id="competitors-findings"
+        title={t("preview")}
+      >
+        <CompetitorsExample />
+      </CompetitorsPanel>
+    );
 
   return (
     <CompetitorsPanel
@@ -32,27 +44,25 @@ export async function CompetitorsFindings({
     >
       {findings.length === 0 ? (
         <CompetitorsEmpty>
-          {data.check.lastCheckedAt ? t("nothing") : t("notChecked")}
+          {check.lastCheckedAt ? t("nothing") : t("running")}
         </CompetitorsEmpty>
       ) : (
         findings.map((signal) => (
-          <CompetitorsItem className="flex flex-col gap-1" key={signal.id}>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm font-semibold">
-                {names.get(signal.competitorId)}
-              </span>
-              <Badge variant="outline">{t(`kind.${signal.kind}`)}</Badge>
-            </div>
-            <p className="text-sm">{signal.summary}</p>
-            {signal.quote ? (
-              <blockquote className="text-muted-foreground border-l-2 pl-3 text-sm">
-                {signal.quote}
-              </blockquote>
-            ) : null}
-            <CompetitorsSource signal={signal} />
-          </CompetitorsItem>
+          <CompetitorsFinding
+            key={signal.id}
+            kind={t(`kind.${signal.kind}`)}
+            name={names.get(signal.competitorId) ?? ""}
+            quote={signal.quote}
+            source={<CompetitorsSource signal={signal} />}
+            summary={signal.summary}
+          />
         ))
       )}
+      {needs.length > 0 ? (
+        <p className="text-muted-foreground px-2 pb-1 text-xs">
+          {needs.join(" ")}
+        </p>
+      ) : null}
     </CompetitorsPanel>
   );
 }

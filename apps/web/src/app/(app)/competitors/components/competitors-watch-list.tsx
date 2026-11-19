@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectCompetitor } from "@sokosumi/core-client";
+import { PencilIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 
@@ -61,9 +62,7 @@ export function CompetitorsWatchList({
       title={t("title")}
     >
       {competitors.length === 0 ? (
-        <CompetitorsEmpty>
-          {readOnly ? t("emptyReadOnly") : t("empty")}
-        </CompetitorsEmpty>
+        <CompetitorsEmpty>{t("emptyReadOnly")}</CompetitorsEmpty>
       ) : (
         competitors.map((competitor) => {
           const facts = [
@@ -87,28 +86,32 @@ export function CompetitorsWatchList({
                 <p className="truncate text-sm font-medium">
                   {competitor.name}
                 </p>
-                <p className="text-muted-foreground truncate text-xs">
+                <p className="text-muted-foreground text-xs break-words">
                   {facts.join(" · ")}
                 </p>
               </div>
               {readOnly ? null : (
-                <div className="flex shrink-0 gap-2">
+                <div className="flex shrink-0">
                   <Button
                     aria-label={t("editNamed", { name: competitor.name })}
+                    className="size-8 px-0"
                     disabled={removing !== null}
                     onClick={() => setEditing(competitor)}
                     size="sm"
+                    variant="ghost"
                   >
-                    {t("edit")}
+                    <PencilIcon aria-hidden />
                   </Button>
                   <Button
                     aria-label={t("removeNamed", { name: competitor.name })}
+                    className="size-8 px-0"
                     disabled={removing !== null}
                     loading={removing === competitor.id}
                     onClick={() => remove(competitor)}
                     size="sm"
+                    variant="ghost"
                   >
-                    {t("remove")}
+                    <XIcon aria-hidden />
                   </Button>
                 </div>
               )}

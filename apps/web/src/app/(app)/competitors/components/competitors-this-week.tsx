@@ -12,43 +12,34 @@ import { CompetitorsSource } from "./competitors-source";
 
 /**
  * This week: each competitor move with the facts behind it and their
- * sources, what it means for the business and one suggested move.
+ * sources, what it means for the business and one suggested move. Left out
+ * until somebody has written the week up.
  */
 export async function CompetitorsThisWeek({
   data,
-  readOnly,
 }: {
   data: ProjectCompetitors;
-  /** A CMO Project: Cuso writes its week, no Soko Bot does. */
-  readOnly: boolean;
 }) {
   const t = await getTranslations("App.Competitors.thisWeek");
   const format = await getFormatter();
   const { feed } = data;
   const names = new Map(data.competitors.map((c) => [c.id, c.name]));
   const signals = new Map(data.signals.map((signal) => [signal.id, signal]));
+  if (!feed) return null;
 
   return (
     <CompetitorsPanel
-      aside={
-        feed
-          ? t("checked", {
-              date: format.dateTime(new Date(feed.checkDay), {
-                day: "numeric",
-                month: "short",
-                timeZone: "UTC",
-              }),
-            })
-          : null
-      }
+      aside={t("checked", {
+        date: format.dateTime(new Date(feed.checkDay), {
+          day: "numeric",
+          month: "short",
+          timeZone: "UTC",
+        }),
+      })}
       id="competitors-this-week"
       title={t("title")}
     >
-      {!feed ? (
-        <CompetitorsEmpty>
-          {readOnly ? t("noneReadOnly") : t("none")}
-        </CompetitorsEmpty>
-      ) : feed.items.length === 0 ? (
+      {feed.items.length === 0 ? (
         <CompetitorsEmpty>{t("quiet")}</CompetitorsEmpty>
       ) : (
         feed.items.map((item) => (
@@ -94,7 +85,7 @@ export async function CompetitorsThisWeek({
           </CompetitorsItem>
         ))
       )}
-      {feed && feed.openQuestions.length > 0 ? (
+      {feed.openQuestions.length > 0 ? (
         <CompetitorsItem>
           <p className="text-muted-foreground text-xs">{t("open")}</p>
           <ul className="mt-1 list-disc pl-4 text-sm">
