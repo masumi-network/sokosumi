@@ -35,8 +35,7 @@ export function TasksViewToolbarActions({
           <PopoverClose asChild>
             <Button
               variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2"
+              className="w-full justify-start gap-2 px-2"
               asChild
             >
               <Link href="/tasks/archived">

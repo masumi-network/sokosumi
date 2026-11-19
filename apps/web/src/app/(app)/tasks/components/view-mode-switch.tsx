@@ -13,6 +13,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import useIsClient from "@/hooks/use-is-client";
 import type { TasksDensity } from "@/lib/ui-preferences/tasks-density";
 
+/** One group of the menu: a rule above it and room around it. */
+export const VIEW_MENU_SECTION_CLASS = "space-y-2.5 border-t pt-4";
+
 export interface ViewModeSwitchProps {
   value: "board" | "list";
   onChange: (value: "board" | "list") => void;
@@ -73,8 +76,8 @@ export function ViewModeSwitch({
         </Button>
       </PopoverTrigger>
       {isClient ? (
-        <PopoverContent align="end" className="w-56 space-y-3">
-          <div className="space-y-3">
+        <PopoverContent align="end" className="w-60 space-y-4 p-4">
+          <div className="space-y-2.5">
             <p className="text-sm font-medium">{labels.layout}</p>
             <ToggleGroup
               type="single"
@@ -109,7 +112,7 @@ export function ViewModeSwitch({
             </ToggleGroup>
           </div>
 
-          <div className="space-y-3 pt-3 border-t">
+          <div className={VIEW_MENU_SECTION_CLASS}>
             <p className="text-sm font-medium">{labels.density}</p>
             <ToggleGroup
               type="single"
@@ -143,7 +146,9 @@ export function ViewModeSwitch({
               </PopoverClose>
             </ToggleGroup>
           </div>
-          {children ? <div className="border-t pt-3">{children}</div> : null}
+          {children ? (
+            <div className="space-y-1 border-t pt-3">{children}</div>
+          ) : null}
         </PopoverContent>
       ) : null}
     </Popover>
