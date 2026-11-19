@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
@@ -11,6 +12,7 @@ import {
   sokoBotCreateTaskInputSchema,
   sokoBotLinkTasksInputSchema,
   sokoBotListTasksInputSchema,
+  sokoBotPostChatInputSchema,
   sokoBotReplyToTaskInputSchema,
   sokoBotSetTaskParentInputSchema,
   sokoBotUpdateAssignedTaskInputSchema,
@@ -18,6 +20,18 @@ import {
 } from "../index.js";
 
 describe("Soko Bot tool contracts", () => {
+  it("lets post_chat send as much as a person may post", () => {
+    const post = (length: number) =>
+      sokoBotPostChatInputSchema.safeParse({
+        roomId: "room-1",
+        content: "x".repeat(length),
+      }).success;
+    // A day's complete PR roundup ran past the old 4,000 characters.
+    expect(post(9_000)).toBe(true);
+    expect(post(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH)).toBe(true);
+    expect(post(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH + 1)).toBe(false);
+  });
+
   it("defines one input schema and description for every capability", () => {
     expect(Object.keys(SOKO_BOT_TOOL_INPUT_SCHEMAS).sort()).toEqual(
       [...SOKO_BOT_CAPABILITIES].sort(),

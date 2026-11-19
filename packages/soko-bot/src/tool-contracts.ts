@@ -1,5 +1,6 @@
 import {
   AD_CAMPAIGN_SETTABLE_STATUSES,
+  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   CONTACT_LIST_COLORS,
   CONTACT_SORT_FIELDS,
   CONTACT_STAGES,
@@ -186,7 +187,8 @@ export const sokoBotPostChatInputSchema = z.object({
     .optional(),
   /** Room id from `list_chats`. */
   roomId: z.string().min(1),
-  content: z.string().min(1).max(4_000),
+  /** As long as a person's message may be. */
+  content: z.string().min(1).max(CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH),
 });
 
 export const sokoBotListFilesInputSchema = z.object({
