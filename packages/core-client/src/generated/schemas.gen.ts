@@ -53275,6 +53275,10 @@ export const CmoOverviewSchema = {
         connectChannelUrl: {
             type: 'string'
         },
+        tiktokEnabled: {
+            type: 'boolean',
+            description: 'TikTok may be connected to this Cuso\'s Project. Cuso plans no TikTok posts yet.'
+        },
         adProviders: {
             type: 'array',
             items: {
@@ -53457,6 +53461,7 @@ export const CmoOverviewSchema = {
         'channels',
         'upNext',
         'connectChannelUrl',
+        'tiktokEnabled',
         'adProviders',
         'connectAdsUrl',
         'measurement',

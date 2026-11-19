@@ -4,7 +4,7 @@
 
 **Steps**
 
-1. Connects their LinkedIn profile (or company page) on Launch or in Channels.
+1. Connects their LinkedIn profile on Launch or in Channels. A company page cannot be connected yet: every post goes out as the person.
 2. Opens the Calendar and skims the week's two or three posts: stories, lessons, launches, in their own voice.
 3. Changes one in chat: "shorter, less salesy", or "add that we just signed Acme".
 4. Lets the rest go out on schedule.

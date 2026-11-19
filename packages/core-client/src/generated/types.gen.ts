@@ -13508,6 +13508,10 @@ export type CmoOverview = {
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
     connectChannelUrl: string;
+    /**
+     * TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.
+     */
+    tiktokEnabled: boolean;
     adProviders: Array<string>;
     connectAdsUrl: string;
     /**

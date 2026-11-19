@@ -144,6 +144,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
+    tiktokEnabled: false,
     adProviders: [],
     connectAdsUrl: "http://web/ads?projectId=project-1",
     production: {
