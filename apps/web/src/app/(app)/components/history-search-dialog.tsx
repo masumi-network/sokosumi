@@ -72,7 +72,7 @@ export function HistorySearchDialog({
   const router = useRouter();
   const { formatDateWithYear } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
-  const { query, setQuery, history, error, isLoading, reset } =
+  const { query, debouncedQuery, setQuery, history, error, isLoading, reset } =
     useHistorySearchCorpus({
       open,
       activeOrganizationId,
@@ -85,25 +85,25 @@ export function HistorySearchDialog({
     activeOrganizationId,
     debouncedQuery: query,
   });
-  const { contacts } = useContactSearchGroup({
+  const { contacts, isLoading: contactsLoading } = useContactSearchGroup({
     open,
     activeOrganizationId,
-    debouncedQuery: query,
+    debouncedQuery,
   });
   const { tags, tagsState, topTag, tasks, tasksState } = useTagSearchGroup({
     open,
     activeOrganizationId,
     debouncedQuery: query,
   });
-  // Tags still loading or failed never read as "No results found".
-  const searching = isLoading || tagsState === "loading";
+  // Tags or People still loading, or Tags failed, never read as "No
+  // results found".
+  const searching = [isLoading, contactsLoading, tagsState === "loading"].some(
+    Boolean,
+  );
   const nothingFound =
     !searching &&
-    history.length === 0 &&
-    tags.length === 0 &&
-    files.length === 0 &&
-    contacts.length === 0 &&
-    tagsState !== "error";
+    tagsState !== "error" &&
+    [history, tags, files, contacts].every((group) => group.length === 0);
 
   const { listRef, listMaxHeight } = useListFitsVisibleViewport(open);
 

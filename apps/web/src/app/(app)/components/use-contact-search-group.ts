@@ -17,9 +17,10 @@ export function useContactSearchGroup(input: {
   open: boolean;
   activeOrganizationId: string | null;
   debouncedQuery: string;
-}): { contacts: Contact[] } {
+}): { contacts: Contact[]; isLoading: boolean } {
   const search = input.debouncedQuery.trim();
-  const { data } = useQuery({
+  const enabled = input.open && search.length > 0;
+  const { data, isPending } = useQuery({
     queryKey: ["contact-search-group", input.activeOrganizationId, search],
     queryFn: async () =>
       (
@@ -28,7 +29,8 @@ export function useContactSearchGroup(input: {
           limit: GLOBAL_SEARCH_CONTACTS_LIMIT,
         })
       ).contacts,
-    enabled: input.open && search.length > 0,
+    enabled,
   });
-  return { contacts: data ?? [] };
+  // Only the first answer for a query counts as loading; a failure is not.
+  return { contacts: data ?? [], isLoading: enabled && isPending };
 }

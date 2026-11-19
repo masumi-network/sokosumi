@@ -106,6 +106,41 @@ describe("HistorySearchDialog People group", () => {
     expect(pushMock).toHaveBeenCalledWith("/contacts?contact=c-1");
   });
 
+  it("asks Core once for the final query, not per keystroke", async () => {
+    listContactsMock.mockResolvedValue({ contacts: [] });
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "nina");
+
+    await waitFor(() => expect(listContactsMock).toHaveBeenCalled());
+    // Past another debounce window: no late calls for "n", "ni", "nin".
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(listContactsMock).toHaveBeenCalledTimes(1);
+    expect(listContactsMock).toHaveBeenCalledWith({ search: "nina", limit: 5 });
+  });
+
+  it("does not say No results found while contacts are loading", async () => {
+    let answer: (value: unknown) => void = () => {};
+    listContactsMock.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "nina");
+    await waitFor(() => expect(listContactsMock).toHaveBeenCalled());
+    // History and Tags have answered empty by now; People has not.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(screen.queryByText("No results found")).not.toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+
+    answer({ contacts: [contact("c-1", "Nina Berg", "Acme")] });
+    expect(await screen.findByText("Nina Berg")).toBeInTheDocument();
+  });
+
   it("hides the group when the contacts request fails", async () => {
     listContactsMock.mockRejectedValue(new Error("422"));
     const user = userEvent.setup();
