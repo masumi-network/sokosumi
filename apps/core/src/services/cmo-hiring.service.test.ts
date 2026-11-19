@@ -7,11 +7,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { unpaidCuso, testCopy } = vi.hoisted(() => ({
   unpaidCuso: vi.fn(),
-  testCopy: { requireSource: vi.fn(), link: vi.fn() },
+  testCopy: {
+    requireSource: vi.fn(),
+    link: vi.fn(),
+    tearDown: vi.fn(),
+    is: vi.fn(async () => false),
+  },
 }));
 vi.mock("@/services/cmo-test-copy.service", () => ({
   requireTestCopySource: testCopy.requireSource,
   linkTestCopyConnections: testCopy.link,
+  tearDownTestCopyFor: testCopy.tearDown,
+}));
+vi.mock("@/services/project-test-copy", () => ({
+  isTestCopyProject: testCopy.is,
 }));
 
 import {
@@ -458,6 +467,16 @@ describe("research groups", () => {
 });
 
 describe("starting over", () => {
+  it("tears a test copy down on Start over, without archiving as the caller", async () => {
+    testCopy.is.mockResolvedValueOnce(true);
+    await startCmoOver({ projectId: "project-1", userId: "user-1" });
+    expect(testCopy.tearDown).toHaveBeenCalledWith({
+      projectId: "project-1",
+      userId: "user-1",
+    });
+    expect(archiveBot).not.toHaveBeenCalled();
+  });
+
   it("archives the Cuso and cancels his unsent posts", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     postFindMany.mockResolvedValue([{ id: "post-1", revision: 3 }]);
