@@ -63,8 +63,11 @@ interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
   /** The viewer, for the view switcher; without one it is hidden. */
   userId?: string | null;
-  /** The view options menu, shown after the Filters menu. */
-  display?: React.ReactNode;
+  /**
+   * The view options menu, shown after the Filters menu. As a function it
+   * gets the view and filters in effect, each named for a reader.
+   */
+  display?: React.ReactNode | ((activeFilters: string[]) => React.ReactNode);
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   labels: {
@@ -399,6 +402,22 @@ export function TasksViewFilters({
     },
   ].filter((chip) => !!chip);
 
+  const currentView = getTasksView(filters, userId);
+  const project = projectOptions.find(
+    (option) => option.id === filters.projectId,
+  );
+  const viewName = {
+    all: labels.all,
+    mine: labels.assignedToMe,
+    "needs-me": t("needsMe"),
+    mentions: t("mentions"),
+  }[currentView];
+  const activeFilters = [
+    t("chip", { label: t("viewLabel"), value: viewName }),
+    project && t("chip", { label: t("projectLabel"), value: project.name }),
+    ...chips.map((chip) => t("chip", { label: chip.label, value: chip.value })),
+  ].filter((name): name is string => !!name);
+
   return (
     // Anchored to the board's left edge: the view switcher first, then what
     // is active, because those are what a reader changes most. Chips wrap
@@ -407,7 +426,7 @@ export function TasksViewFilters({
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
       {userId ? (
         <TasksViewSwitcher
-          value={getTasksView(filters, userId)}
+          value={currentView}
           onChange={(view) =>
             handleFilterChange(getTasksViewPatch(view, filters, userId))
           }
@@ -471,7 +490,7 @@ export function TasksViewFilters({
           }
         />
       </span>
-      {display}
+      {typeof display === "function" ? display(activeFilters) : display}
     </div>
   );
 }

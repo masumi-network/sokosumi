@@ -33,6 +33,11 @@ import {
 } from "./utils/task-schedules-filters";
 import { parseTasksSort } from "./utils/task-sort";
 import { getTasksColumnPage } from "./utils/tasks-column-page";
+import {
+  TASKS_EXPORT_LIMIT,
+  type TaskCsvRow,
+  toTaskCsvRow,
+} from "./utils/tasks-csv";
 import { getTasksListPage } from "./utils/tasks-list-page";
 
 interface TasksLoadMoreFilters {
@@ -161,6 +166,64 @@ export async function loadMoreTasksList({
     tasks: page.tasks,
     nextCursor: page.nextCursor,
   };
+}
+
+/** Core's largest page. */
+const TASKS_EXPORT_PAGE_LIMIT = 100;
+
+/**
+ * The Tasks that match the current filters, in the order shown, for a CSV
+ * download. Stops at TASKS_EXPORT_LIMIT; `truncated` says more matched.
+ */
+export async function exportTasks(
+  filters: TasksLoadMoreFilters,
+): Promise<{ rows: TaskCsvRow[]; truncated: boolean }> {
+  const pageFilters = await loadSanitizedTasksPageFilters(filters);
+  const rows: TaskCsvRow[] = [];
+  // Last updated moves a Task between pages when it changes mid-export.
+  const seenIds = new Set<string>();
+  let cursor: string | null = null;
+  do {
+    const page = await getTasksListPage({
+      ...pageFilters,
+      cursor,
+      // One row past the limit tells a full export from a cut one.
+      limit: Math.min(
+        TASKS_EXPORT_PAGE_LIMIT,
+        TASKS_EXPORT_LIMIT + 1 - rows.length,
+      ),
+    });
+    for (const task of page.tasks) {
+      if (seenIds.has(task.id)) continue;
+      seenIds.add(task.id);
+      rows.push(toTaskCsvRow(task));
+    }
+    cursor = page.nextCursor;
+  } while (cursor && rows.length <= TASKS_EXPORT_LIMIT);
+
+  return {
+    rows: rows.slice(0, TASKS_EXPORT_LIMIT),
+    truncated: rows.length > TASKS_EXPORT_LIMIT,
+  };
+}
+
+/** Enough rows to show what the file looks like. */
+const TASKS_EXPORT_PREVIEW_ROWS = 3;
+
+/**
+ * What Export as CSV would save, from one page of Tasks: how many match,
+ * and the first few rows. The confirm dialog shows it before the full
+ * export runs.
+ */
+export async function previewTasksExport(
+  filters: TasksLoadMoreFilters,
+): Promise<{ rows: TaskCsvRow[]; matched: number }> {
+  const page = await getTasksListPage({
+    ...(await loadSanitizedTasksPageFilters(filters)),
+    cursor: null,
+    limit: TASKS_EXPORT_PREVIEW_ROWS,
+  });
+  return { rows: page.tasks.map(toTaskCsvRow), matched: page.total };
 }
 
 async function loadCreateTaskData(userId: string | null) {
