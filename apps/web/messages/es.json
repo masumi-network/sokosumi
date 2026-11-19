@@ -9967,6 +9967,7 @@
         "you": "Tú",
         "youNamed": "{name} (tú)",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
+        "composerPlaceholder": "Escríbete una nota",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       },
       "Signals": {
