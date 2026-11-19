@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
-import { Loader2, MegaphoneOff, X } from "lucide-react";
+import { BellOff, Loader2, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   listThreadsAction,
@@ -258,7 +258,7 @@ export function ThreadListPanel({
           }
           trailing={
             item.mutedAt ? (
-              <MegaphoneOff
+              <BellOff
                 className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
                 aria-label={labels.muted}
                 data-testid="thread-list-muted"

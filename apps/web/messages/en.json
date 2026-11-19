@@ -9967,6 +9967,7 @@
         "you": "You",
         "youNamed": "{name} (you)",
         "description": "Send yourself notes and to-dos. Only you can see them.",
+        "composerPlaceholder": "Write a note to yourself",
         "exclusive": "Self-chat cannot include other recipients."
       },
       "Signals": {
