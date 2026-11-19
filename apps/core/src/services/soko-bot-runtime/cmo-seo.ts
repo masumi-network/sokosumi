@@ -143,6 +143,8 @@ export async function executeCmoSeoTool(
           });
           return {
             status: check.status,
+            // What the owner's chat shows this check by, while it runs and after.
+            analysisId: check.analysisId,
             note: "The SEO specialist is checking now; it usually takes a few minutes. End your turn: tell the owner in one sentence that you asked the SEO specialist and will answer here once the result is in. Core wakes you with it.",
           };
         }

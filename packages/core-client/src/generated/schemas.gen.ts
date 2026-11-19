@@ -56330,7 +56330,7 @@ export const CmoChatWorkItemSchema = {
     properties: {
         id: {
             type: 'string',
-            description: 'The tool call that started it.'
+            description: 'The tool call that started it; a weekly audit\'s own id.'
         },
         kind: {
             type: 'string',
@@ -56344,9 +56344,11 @@ export const CmoChatWorkItemSchema = {
                 'table',
                 'contacts',
                 'run',
-                'question'
+                'question',
+                'seo',
+                'audit'
             ],
-            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, or a question to a Coworker.'
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist\'s weekly audit of the site (audit).'
         },
         state: {
             type: 'string',
