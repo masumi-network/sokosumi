@@ -283,6 +283,9 @@ importers:
 
   apps/core:
     dependencies:
+      '@ai-sdk/mcp':
+        specifier: 2.0.101
+        version: 2.0.101(zod@4.6.7)
       '@better-auth/api-key':
         specifier: 1.7.26
         version: 1.7.26(90fb02194f758dc17fd2dc6afb488f23)

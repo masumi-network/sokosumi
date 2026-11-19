@@ -15095,6 +15095,50 @@ export type SokoBotSandboxSetup = {
     commands: Array<string>;
 };
 
+export type SokoBotMcpServer = {
+    id: string;
+    name: string;
+    url: string;
+    authKind: string;
+    tools: Array<SokoBotMcpTool>;
+    toolsRefreshedAt: Date | null;
+    lastError: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SokoBotMcpTool = {
+    name: string;
+    description: string | null;
+    inputSchema?: unknown;
+    /**
+     * Reads when true; changes things when false
+     */
+    readOnly: boolean;
+    enabled: boolean;
+};
+
+export type AddSokoBotMcpServerRequest = {
+    name: string;
+    url: string;
+    auth: {
+        type: 'none';
+    } | {
+        type: 'bearer';
+        token: string;
+    } | {
+        type: 'header';
+        name: string;
+        value: string;
+    };
+};
+
+export type UpdateSokoBotMcpToolRequest = {
+    name: string;
+    enabled?: boolean;
+    readOnly?: boolean;
+};
+
 export type Coworker = {
     id: string;
     createdAt: Date;
@@ -98581,6 +98625,461 @@ export type SetSokoBotSandboxSetupResponses = {
 };
 
 export type SetSokoBotSandboxSetupResponse = SetSokoBotSandboxSetupResponses[keyof SetSokoBotSandboxSetupResponses];
+
+export type ListSokoBotMcpServersData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers';
+};
+
+export type ListSokoBotMcpServersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListSokoBotMcpServersError = ListSokoBotMcpServersErrors[keyof ListSokoBotMcpServersErrors];
+
+export type ListSokoBotMcpServersResponses = {
+    /**
+     * The bot's MCP servers and their tools
+     */
+    200: {
+        data: Array<SokoBotMcpServer>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListSokoBotMcpServersResponse = ListSokoBotMcpServersResponses[keyof ListSokoBotMcpServersResponses];
+
+export type AddSokoBotMcpServerData = {
+    body?: AddSokoBotMcpServerRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers';
+};
+
+export type AddSokoBotMcpServerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddSokoBotMcpServerError = AddSokoBotMcpServerErrors[keyof AddSokoBotMcpServerErrors];
+
+export type AddSokoBotMcpServerResponses = {
+    /**
+     * The server, connected, with its tools
+     */
+    200: {
+        data: SokoBotMcpServer;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddSokoBotMcpServerResponse = AddSokoBotMcpServerResponses[keyof AddSokoBotMcpServerResponses];
+
+export type RefreshSokoBotMcpServerData = {
+    body?: never;
+    path: {
+        id: string;
+        serverId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers/{serverId}/refresh';
+};
+
+export type RefreshSokoBotMcpServerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RefreshSokoBotMcpServerError = RefreshSokoBotMcpServerErrors[keyof RefreshSokoBotMcpServerErrors];
+
+export type RefreshSokoBotMcpServerResponses = {
+    /**
+     * The tools, read again
+     */
+    200: {
+        data: SokoBotMcpServer;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RefreshSokoBotMcpServerResponse = RefreshSokoBotMcpServerResponses[keyof RefreshSokoBotMcpServerResponses];
+
+export type UpdateSokoBotMcpToolData = {
+    body?: UpdateSokoBotMcpToolRequest;
+    path: {
+        id: string;
+        serverId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers/{serverId}/tools';
+};
+
+export type UpdateSokoBotMcpToolErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateSokoBotMcpToolError = UpdateSokoBotMcpToolErrors[keyof UpdateSokoBotMcpToolErrors];
+
+export type UpdateSokoBotMcpToolResponses = {
+    /**
+     * The changed server
+     */
+    200: {
+        data: SokoBotMcpServer;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateSokoBotMcpToolResponse = UpdateSokoBotMcpToolResponses[keyof UpdateSokoBotMcpToolResponses];
+
+export type RemoveSokoBotMcpServerData = {
+    body?: never;
+    path: {
+        id: string;
+        serverId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers/{serverId}';
+};
+
+export type RemoveSokoBotMcpServerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveSokoBotMcpServerError = RemoveSokoBotMcpServerErrors[keyof RemoveSokoBotMcpServerErrors];
+
+export type RemoveSokoBotMcpServerResponses = {
+    /**
+     * The server and its key are gone
+     */
+    200: {
+        data: {
+            removed: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveSokoBotMcpServerResponse = RemoveSokoBotMcpServerResponses[keyof RemoveSokoBotMcpServerResponses];
 
 export type GetCoworkersData = {
     body?: never;
