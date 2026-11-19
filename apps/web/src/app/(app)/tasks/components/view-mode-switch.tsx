@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Columns3,
-  LayoutGrid,
-  List,
-  Rows3,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Columns3, Ellipsis, LayoutGrid, List, Rows3 } from "lucide-react";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,20 +13,25 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import useIsClient from "@/hooks/use-is-client";
 import type { TasksDensity } from "@/lib/ui-preferences/tasks-density";
 
+/** One group of the menu: a rule above it and room around it. */
+const VIEW_MENU_SECTION_CLASS = "space-y-2.5 border-t pt-4";
+
 export interface ViewModeSwitchProps {
   value: "board" | "list";
   onChange: (value: "board" | "list") => void;
   density: TasksDensity;
   onDensityChange: (value: TasksDensity) => void;
   labels: {
+    /** The trigger's name: it opens layout, density and view actions. */
     button: string;
+    layout: string;
     list: string;
     board: string;
     density: string;
     normal: string;
     compact: string;
   };
-  /** Rows under the display options, for where else the Tasks can be seen. */
+  /** Rows under the display options: view actions and where else the Tasks can be seen. */
   children?: React.ReactNode;
 }
 
@@ -73,13 +72,13 @@ export function ViewModeSwitch({
           aria-label={labels.button}
           title={labels.button}
         >
-          <SlidersHorizontal className="size-4" aria-hidden />
+          <Ellipsis className="size-4" aria-hidden />
         </Button>
       </PopoverTrigger>
       {isClient ? (
-        <PopoverContent align="end" className="w-56 space-y-3">
-          <div className="space-y-3">
-            <p className="text-sm font-medium">{labels.button}</p>
+        <PopoverContent align="end" className="w-60 space-y-4 p-4">
+          <div className="space-y-2.5">
+            <p className="text-sm font-medium">{labels.layout}</p>
             <ToggleGroup
               type="single"
               value={value}
@@ -113,7 +112,7 @@ export function ViewModeSwitch({
             </ToggleGroup>
           </div>
 
-          <div className="space-y-3 pt-3 border-t">
+          <div className={VIEW_MENU_SECTION_CLASS}>
             <p className="text-sm font-medium">{labels.density}</p>
             <ToggleGroup
               type="single"
@@ -147,7 +146,9 @@ export function ViewModeSwitch({
               </PopoverClose>
             </ToggleGroup>
           </div>
-          {children ? <div className="border-t pt-3">{children}</div> : null}
+          {children ? (
+            <div className="space-y-1 border-t pt-3">{children}</div>
+          ) : null}
         </PopoverContent>
       ) : null}
     </Popover>

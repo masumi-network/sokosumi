@@ -1882,7 +1882,8 @@
         "date": "Fecha"
       },
       "Display": {
-        "button": "Vista",
+        "button": "Opciones de vista",
+        "layout": "Diseño",
         "list": "Lista",
         "board": "Tablero",
         "density": "Densidad",
