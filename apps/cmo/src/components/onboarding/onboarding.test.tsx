@@ -396,11 +396,33 @@ describe("Brand", () => {
         brandMedia: {
           capturedAt: "2026-10-05T09:02:00Z",
           pages: [
-            { ...shot, label: "Home", device: "desktop" },
-            { ...shot, label: "Home", device: "mobile" },
+            { ...shot, label: "Home", device: "desktop", fullUrl: null },
+            { ...shot, label: "Home", device: "mobile", fullUrl: null },
+            {
+              ...shot,
+              url: "/pricing.jpg",
+              label: "Pricing",
+              pageUrl: "https://acme.io/plans",
+              device: "desktop",
+              fullUrl: null,
+            },
+          ],
+          sections: [
+            {
+              ...shot,
+              url: "/plans.jpg",
+              kind: "pricing",
+              title: "Plans for every launch",
+              pageLabel: "Pricing",
+            },
           ],
           competitors: [],
           pictures: [],
+          logos: {
+            logo: { url: "/logo.png", fileId: null },
+            dark: null,
+            mark: { url: "/mark.png", fileId: null },
+          },
         },
         brandVisual: {
           logoUrl: null,
@@ -415,6 +437,15 @@ describe("Brand", () => {
     expect(html).toContain("Your site");
     expect(html).toContain("acme.io homepage");
     expect(html).toContain("acme.io on a phone");
+    // The pages Cuso read and what he cut from them, under one fold.
+    expect(html).toContain("What I found on your site");
+    expect(html).toContain('alt="Your logo"');
+    expect(html).toContain('alt="Your mark"');
+    expect(html).not.toContain("on a dark background");
+    expect(html).toContain('href="https://acme.io/plans"');
+    expect(html).toContain(
+      "Pricing on the Pricing page: Plans for every launch",
+    );
     expect(html.match(/ob-swatches/g)).toHaveLength(1);
     expect(html.match(/<li style="background:/g)).toHaveLength(5);
     expect(render(draft())).not.toContain("Your site");
@@ -618,7 +649,7 @@ describe("Plan", () => {
     expect(html).toContain("Why this strategy");
   });
 
-  it("is read-only once approved: answers, pace and budget as text, no change", () => {
+  it("is read-only once approved: answers and budget as text, no change", () => {
     const base = draft(cmoStrategyVersion(new Date()));
     const html = renderToStaticMarkup(
       <PlanStep
@@ -657,8 +688,8 @@ describe("Plan", () => {
     expect(html).toContain("Continue to Launch");
     expect(html).toContain("Do you ship every month?");
     expect(html).toContain("Every quarter");
-    expect(html).toContain("Pace:");
-    expect(html).toContain("two a day on each network");
+    expect(html).not.toContain("Pace:");
+    expect(html).not.toContain("two a day on each network");
     expect(html).toContain("€200 a month for ads");
     for (const live of [
       "Ask for a change",
@@ -734,7 +765,7 @@ describe("Plan", () => {
         },
       },
     });
-    expect(html).toContain("Active");
+    expect(html).toContain("written at the most a plan makes");
     expect(html).toContain("Do you want ads?");
     expect(html).toContain("Ads are extra to your plan");
     // The strategy has ads: Yes is picked and the amount can be changed.

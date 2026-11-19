@@ -8975,6 +8975,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            slideHeadlines?: Array<string>;
             script?: string;
             presenter?: string;
             voice?: string;
@@ -9034,6 +9035,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 styleReferenceId?: string;
                 headline?: string;
                 slides?: Array<string>;
+                slideHeadlines?: Array<string>;
                 script?: string;
                 presenter?: string;
                 voice?: string;
@@ -9297,6 +9299,7 @@ export type MarketingStrategyRequest = {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            slideHeadlines?: Array<string>;
             script?: string;
             presenter?: string;
             voice?: string;
@@ -9356,6 +9359,7 @@ export type MarketingStrategyRequest = {
                 styleReferenceId?: string;
                 headline?: string;
                 slides?: Array<string>;
+                slideHeadlines?: Array<string>;
                 script?: string;
                 presenter?: string;
                 voice?: string;
@@ -10113,6 +10117,10 @@ export type ProjectSocialConnection = {
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
     connectedAt: Date | null;
     disconnectedAt: Date | null;
+    /**
+     * A LinkedIn connection that posts as the person, not as a company Page.
+     */
+    personalProfile: boolean;
 };
 
 export type ProjectSocialConnectionSubscription = {
@@ -10290,6 +10298,10 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
 } | {
     action: 'reconnect';
     socialConnectionId: string;
@@ -10297,6 +10309,10 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
 } | {
     action: 'replace';
     socialConnectionId: string;
@@ -10304,6 +10320,24 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
+};
+
+export type SocialAccountChoices = {
+    choices: Array<SocialAccountChoice>;
+};
+
+export type SocialAccountChoice = {
+    /**
+     * Names this account within this sign-in only; send it back as `accountChoiceId`.
+     */
+    id: string;
+    name: string;
+    handle: string | null;
+    kind: 'page' | 'profile';
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
@@ -10312,6 +10346,22 @@ export type FinalizeProjectSocialConnectionRequest = {
      */
     callbackProof?: string;
     connectionId: string;
+    /**
+     * Returned with a LinkedIn sign-in that waits for its account: names the Pages it reaches.
+     */
+    pendingDataToken?: string;
+    /**
+     * Returned with a LinkedIn sign-in that waits for its account: lets Core finish it.
+     */
+    connectToken?: string;
+    /**
+     * The `id` of the account the person picked among the sign-in's accounts (`SocialAccountChoices`).
+     */
+    accountChoiceId?: string;
+    /**
+     * Answer 200 with the accounts to pick from when the sign-in reaches several and none is picked. Without it such a sign-in is refused, or LinkedIn connects the person's profile.
+     */
+    offerChoice?: boolean;
 };
 
 export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection & {
@@ -11043,6 +11093,7 @@ export type SocialPost = {
         styleReferenceId?: string;
         headline?: string;
         slides?: Array<string>;
+        slideHeadlines?: Array<string>;
         script?: string;
         presenter?: string;
         voice?: string;
@@ -11147,6 +11198,10 @@ export type SocialPostSocialConnection = {
      */
     subscriptionType: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
+    /**
+     * A LinkedIn connection that posts as the person, not as a company Page.
+     */
+    personalProfile: boolean;
 };
 
 export type SocialPostThreadPart = {
@@ -13657,7 +13712,7 @@ export type CmoRoutine = {
 export type CmoBrandMedia = {
     capturedAt: string;
     /**
-     * The brand's own pages, home first, then home on a phone.
+     * The brand's own pages Cuso read, home first, each on a desktop and then on a phone.
      */
     pages: Array<{
         url: string;
@@ -13665,6 +13720,21 @@ export type CmoBrandMedia = {
         label: string;
         pageUrl: string;
         device: 'desktop' | 'mobile';
+        /**
+         * The page from the top, several screens down.
+         */
+        fullUrl: string | null;
+    }>;
+    /**
+     * Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.
+     */
+    sections: Array<{
+        url: string;
+        fileId: string | null;
+        kind: 'hero' | 'pricing' | 'testimonials' | 'customers' | 'faq' | 'product' | 'features' | 'cta' | 'section';
+        title: string;
+        pageLabel: string;
+        pageUrl: string;
     }>;
     /**
      * Each competitor's homepage, in the Brand Brain's order.
@@ -13683,6 +13753,23 @@ export type CmoBrandMedia = {
         fileId: string | null;
         alt: string;
     }>;
+    /**
+     * The brand's logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.
+     */
+    logos: {
+        logo: {
+            url: string;
+            fileId: string | null;
+        } | null;
+        dark: {
+            url: string;
+            fileId: string | null;
+        } | null;
+        mark: {
+            url: string;
+            fileId: string | null;
+        } | null;
+    };
 };
 
 export type CmoPlan = {
@@ -13908,6 +13995,7 @@ export type CmoPlan = {
         styleReferenceId?: string;
         headline?: string;
         slides?: Array<string>;
+        slideHeadlines?: Array<string>;
         script?: string;
         presenter?: string;
         voice?: string;
@@ -13967,6 +14055,7 @@ export type CmoPlan = {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            slideHeadlines?: Array<string>;
             script?: string;
             presenter?: string;
             voice?: string;
@@ -14104,6 +14193,14 @@ export type CmoProduction = {
         }>;
         rewriting: boolean;
     } | null;
+    /**
+     * How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.
+     */
+    level: 'steady' | 'active' | 'all_in';
+    /**
+     * Calendar entries the plan bought does not make. A bigger plan makes them.
+     */
+    beyondPlan: Array<string>;
 };
 
 export type CmoOnboardingConflictError = {
@@ -14610,29 +14707,7 @@ export type CmoSocialConnectionFinalized = {
      * `choose`: the sign-in reaches several accounts; finalize again with the owner's pick.
      */
     state: 'connected' | 'choose';
-    choices: Array<CmoSocialAccountChoice>;
-};
-
-export type CmoSocialAccountChoice = {
-    externalAccountId: string;
-    name: string;
-    handle: string | null;
-    kind: 'page' | 'profile';
-};
-
-export type CmoFinalizeSocialConnectionRequest = FinalizeProjectSocialConnectionRequest & {
-    /**
-     * Returned with a LinkedIn sign-in: names the Pages it reaches.
-     */
-    pendingDataToken?: string;
-    /**
-     * Returned with a LinkedIn sign-in: lets Core finish it.
-     */
-    connectToken?: string;
-    /**
-     * The Page or profile the owner picked among the sign-in's accounts.
-     */
-    externalAccountId?: string;
+    choices: Array<SocialAccountChoice>;
 };
 
 export type SokoBotApiKey = {
@@ -15079,6 +15154,73 @@ export const SokoBotScope = {
 } as const;
 
 export type SokoBotScope = typeof SokoBotScope[keyof typeof SokoBotScope];
+
+export type SokoBotSecret = {
+    id: string;
+    name: string;
+    /**
+     * Whether shell commands get this key as an env variable
+     */
+    shellAccess: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SaveSokoBotSecretRequest = {
+    /**
+     * The key. Required for a new name; leave out to keep the saved value.
+     */
+    value?: string;
+    shellAccess?: boolean;
+};
+
+export type SokoBotSandboxSetup = {
+    commands: Array<string>;
+};
+
+export type SokoBotMcpServer = {
+    id: string;
+    name: string;
+    url: string;
+    authKind: string;
+    tools: Array<SokoBotMcpTool>;
+    toolsRefreshedAt: Date | null;
+    lastError: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SokoBotMcpTool = {
+    name: string;
+    description: string | null;
+    inputSchema?: unknown;
+    /**
+     * Reads when true; changes things when false
+     */
+    readOnly: boolean;
+    enabled: boolean;
+};
+
+export type AddSokoBotMcpServerRequest = {
+    name: string;
+    url: string;
+    auth: {
+        type: 'none';
+    } | {
+        type: 'bearer';
+        token: string;
+    } | {
+        type: 'header';
+        name: string;
+        value: string;
+    };
+};
+
+export type UpdateSokoBotMcpToolRequest = {
+    name: string;
+    enabled?: boolean;
+    readOnly?: boolean;
+};
 
 export type Coworker = {
     id: string;
@@ -68707,6 +68849,17 @@ export type PostProjectsByIdSocialConnectionsFinalizeError = PostProjectsByIdSoc
 
 export type PostProjectsByIdSocialConnectionsFinalizeResponses = {
     /**
+     * The sign-in reaches several accounts: pick one
+     */
+    200: {
+        data: SocialAccountChoices;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
      * Project social connection finalized
      */
     201: {
@@ -92216,7 +92369,7 @@ export type InitiateCmoSocialConnectionForProjectResponses = {
 export type InitiateCmoSocialConnectionForProjectResponse = InitiateCmoSocialConnectionForProjectResponses[keyof InitiateCmoSocialConnectionForProjectResponses];
 
 export type FinalizeCmoSocialConnectionForProjectData = {
-    body: CmoFinalizeSocialConnectionRequest;
+    body: FinalizeProjectSocialConnectionRequest;
     path: {
         projectId: string;
     };
@@ -98142,6 +98295,885 @@ export type GetSokoBotStatsResponses = {
 };
 
 export type GetSokoBotStatsResponse = GetSokoBotStatsResponses[keyof GetSokoBotStatsResponses];
+
+export type ListSokoBotSecretsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets';
+};
+
+export type ListSokoBotSecretsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListSokoBotSecretsError = ListSokoBotSecretsErrors[keyof ListSokoBotSecretsErrors];
+
+export type ListSokoBotSecretsResponses = {
+    /**
+     * The bot's saved keys, without their values
+     */
+    200: {
+        data: Array<SokoBotSecret>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListSokoBotSecretsResponse = ListSokoBotSecretsResponses[keyof ListSokoBotSecretsResponses];
+
+export type DeleteSokoBotSecretData = {
+    body?: never;
+    path: {
+        id: string;
+        name: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets/{name}';
+};
+
+export type DeleteSokoBotSecretErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteSokoBotSecretError = DeleteSokoBotSecretErrors[keyof DeleteSokoBotSecretErrors];
+
+export type DeleteSokoBotSecretResponses = {
+    /**
+     * The key is gone
+     */
+    200: {
+        data: {
+            deleted: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteSokoBotSecretResponse = DeleteSokoBotSecretResponses[keyof DeleteSokoBotSecretResponses];
+
+export type SaveSokoBotSecretData = {
+    body?: SaveSokoBotSecretRequest;
+    path: {
+        id: string;
+        name: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets/{name}';
+};
+
+export type SaveSokoBotSecretErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveSokoBotSecretError = SaveSokoBotSecretErrors[keyof SaveSokoBotSecretErrors];
+
+export type SaveSokoBotSecretResponses = {
+    /**
+     * The saved key
+     */
+    200: {
+        data: SokoBotSecret;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveSokoBotSecretResponse = SaveSokoBotSecretResponses[keyof SaveSokoBotSecretResponses];
+
+export type GetSokoBotSandboxSetupData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/sandbox-setup';
+};
+
+export type GetSokoBotSandboxSetupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotSandboxSetupError = GetSokoBotSandboxSetupErrors[keyof GetSokoBotSandboxSetupErrors];
+
+export type GetSokoBotSandboxSetupResponses = {
+    /**
+     * Commands that run each time the bot's sandbox starts
+     */
+    200: {
+        data: SokoBotSandboxSetup;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotSandboxSetupResponse = GetSokoBotSandboxSetupResponses[keyof GetSokoBotSandboxSetupResponses];
+
+export type SetSokoBotSandboxSetupData = {
+    body?: SokoBotSandboxSetup;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/sandbox-setup';
+};
+
+export type SetSokoBotSandboxSetupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetSokoBotSandboxSetupError = SetSokoBotSandboxSetupErrors[keyof SetSokoBotSandboxSetupErrors];
+
+export type SetSokoBotSandboxSetupResponses = {
+    /**
+     * The saved commands
+     */
+    200: {
+        data: SokoBotSandboxSetup;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetSokoBotSandboxSetupResponse = SetSokoBotSandboxSetupResponses[keyof SetSokoBotSandboxSetupResponses];
+
+export type ListSokoBotMcpServersData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers';
+};
+
+export type ListSokoBotMcpServersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListSokoBotMcpServersError = ListSokoBotMcpServersErrors[keyof ListSokoBotMcpServersErrors];
+
+export type ListSokoBotMcpServersResponses = {
+    /**
+     * The bot's MCP servers and their tools
+     */
+    200: {
+        data: Array<SokoBotMcpServer>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListSokoBotMcpServersResponse = ListSokoBotMcpServersResponses[keyof ListSokoBotMcpServersResponses];
+
+export type AddSokoBotMcpServerData = {
+    body?: AddSokoBotMcpServerRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers';
+};
+
+export type AddSokoBotMcpServerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AddSokoBotMcpServerError = AddSokoBotMcpServerErrors[keyof AddSokoBotMcpServerErrors];
+
+export type AddSokoBotMcpServerResponses = {
+    /**
+     * The server, connected, with its tools
+     */
+    200: {
+        data: SokoBotMcpServer;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AddSokoBotMcpServerResponse = AddSokoBotMcpServerResponses[keyof AddSokoBotMcpServerResponses];
+
+export type RefreshSokoBotMcpServerData = {
+    body?: never;
+    path: {
+        id: string;
+        serverId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers/{serverId}/refresh';
+};
+
+export type RefreshSokoBotMcpServerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RefreshSokoBotMcpServerError = RefreshSokoBotMcpServerErrors[keyof RefreshSokoBotMcpServerErrors];
+
+export type RefreshSokoBotMcpServerResponses = {
+    /**
+     * The tools, read again
+     */
+    200: {
+        data: SokoBotMcpServer;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RefreshSokoBotMcpServerResponse = RefreshSokoBotMcpServerResponses[keyof RefreshSokoBotMcpServerResponses];
+
+export type UpdateSokoBotMcpToolData = {
+    body?: UpdateSokoBotMcpToolRequest;
+    path: {
+        id: string;
+        serverId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers/{serverId}/tools';
+};
+
+export type UpdateSokoBotMcpToolErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateSokoBotMcpToolError = UpdateSokoBotMcpToolErrors[keyof UpdateSokoBotMcpToolErrors];
+
+export type UpdateSokoBotMcpToolResponses = {
+    /**
+     * The changed server
+     */
+    200: {
+        data: SokoBotMcpServer;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateSokoBotMcpToolResponse = UpdateSokoBotMcpToolResponses[keyof UpdateSokoBotMcpToolResponses];
+
+export type RemoveSokoBotMcpServerData = {
+    body?: never;
+    path: {
+        id: string;
+        serverId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers/{serverId}';
+};
+
+export type RemoveSokoBotMcpServerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RemoveSokoBotMcpServerError = RemoveSokoBotMcpServerErrors[keyof RemoveSokoBotMcpServerErrors];
+
+export type RemoveSokoBotMcpServerResponses = {
+    /**
+     * The server and its key are gone
+     */
+    200: {
+        data: {
+            removed: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RemoveSokoBotMcpServerResponse = RemoveSokoBotMcpServerResponses[keyof RemoveSokoBotMcpServerResponses];
 
 export type GetCoworkersData = {
     body?: never;

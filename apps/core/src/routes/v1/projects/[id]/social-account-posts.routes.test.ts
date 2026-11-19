@@ -69,6 +69,7 @@ const recycled = {
     avatarUrl: null,
     subscriptionType: null,
     status: "active",
+    personalProfile: false,
   },
   creator: { kind: "user", id: "owner", name: "Ada" },
   scheduledByUserId: null,

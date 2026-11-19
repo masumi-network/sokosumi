@@ -119,9 +119,17 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("textbox", { name: "Details" })
         .fill("Three sections, one recipe teaser and a short chef note.");
       await newTask.getByRole("button", { name: "Create task" }).click();
+      const goToTask = newTask.getByRole("button", {
+        name: "Bring me to the task",
+      });
+      await goToTask.waitFor({ timeout: 120_000 });
+      // A new Task is a Draft: the dialog says it waits, not "ready to go".
       await newTask
-        .getByRole("button", { name: "Bring me to the task" })
-        .click({ timeout: 120_000 });
+        .getByText("Nothing starts until you set it to Ready.", {
+          exact: false,
+        })
+        .waitFor();
+      await goToTask.click();
 
       const participants = page.getByRole("button", {
         name: /^Participants:/,
@@ -161,6 +169,17 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Save" })
         .click();
       await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
+      // Saving refreshes Properties; each row shows once, not once per refresh.
+      const assigneeRows = page
+        .getByRole("combobox", { name: /^Assignee:/ })
+        .filter({ visible: true });
+      await assigneeRows.first().waitFor();
+      const assigneeCount = await assigneeRows.count();
+      assert.equal(
+        assigneeCount,
+        1,
+        `the Assignee row shows ${assigneeCount} times after Save`,
+      );
 
       // Back on the board: a card without tags has no empty tags line. Only
       // cards count: the task page stays in the DOM, hidden, and its Auto
@@ -177,17 +196,17 @@ for (const { name: size, ...viewport } of PROJECTS) {
         0,
         "a board card shows an empty tags line",
       );
-      // Keyboard order: the next Tab stop after the toolbar's Archived link is
-      // the card's task link, with no extra stop on the card around it.
+      // Keyboard order: the next Tab stop after the toolbar's last control,
+      // Filters, is the card's task link, with no extra stop on the card.
       await page
-        .getByRole("link", { name: "Archived tasks" })
+        .getByRole("button", { name: "Filters" })
         .filter({ visible: true })
         .focus();
       await page.keyboard.press("Tab");
       assert.equal(
         await page.evaluate(() => document.activeElement?.textContent),
         LONG_NAME,
-        "Tab after Archived does not land on the card's task link",
+        "Tab after Filters does not land on the card's task link",
       );
       // Enter opens the task and moves focus to its heading, visibly, so a
       // screen reader reads the name even when the streamed tab title is late.
@@ -203,7 +222,12 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       await page.getByRole("button", { name: "Archive", exact: true }).click();
       await page.waitForURL(`${BASE_URL}/tasks`);
-      await page.getByRole("link", { name: "Archived tasks" }).click();
+      // Archived tasks live in the Display popover.
+      await page
+        .getByRole("button", { name: "Display" })
+        .filter({ visible: true })
+        .click();
+      await page.getByRole("link", { name: "Archived", exact: true }).click();
       const row = page.getByRole("link", { name: LONG_NAME });
       await row.waitFor();
       const nameStyle = await row

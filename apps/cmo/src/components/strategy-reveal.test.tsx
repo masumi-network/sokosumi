@@ -198,6 +198,8 @@ describe("strategy reveal", () => {
           ],
           rewriting: true,
         },
+        level: "all_in" as const,
+        beyondPlan: [],
       },
     };
     const html = renderToStaticMarkup(

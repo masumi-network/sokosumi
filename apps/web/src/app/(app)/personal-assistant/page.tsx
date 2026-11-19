@@ -46,6 +46,21 @@ async function loadState(): Promise<StateLoad> {
   }
 }
 
+/** The bot's MCP servers, setup commands and keys; null when Core fails. */
+async function loadOwnTools(botId: string) {
+  return Promise.all([
+    sokoBotService.listMcpServers(botId),
+    sokoBotService.getSandboxSetup(botId),
+    sokoBotService.listSecrets(botId),
+  ])
+    .then(([mcpServers, setupCommands, secrets]) => ({
+      mcpServers,
+      setupCommands,
+      secrets,
+    }))
+    .catch(() => null);
+}
+
 export const instant = false;
 
 interface SokoBotPageProps {
@@ -100,17 +115,25 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
   // Skills, the version chip and ad accounts are only rendered behind
   // Advanced, which is off by default; the connectors need integrations in both.
   const wantsAdvanced = params.view === "advanced" || focusTurnId !== null;
-  const [versions, installedSkills, stats, usage, integrations, adAccounts] =
-    await Promise.all([
-      wantsAdvanced ? sokoBotService.listVersions().catch(() => []) : [],
-      wantsAdvanced ? sokoBotService.listSkills().catch(() => []) : [],
-      sokoBotService.getStats().catch(() => null),
-      sokoBotService.getMyUsage().catch(() => null),
-      sokoBotService.listIntegrations().catch(() => null),
-      wantsAdvanced
-        ? loadBotAdAccounts({ projectId: null }).catch(() => null)
-        : null,
-    ]);
+  const [
+    versions,
+    installedSkills,
+    stats,
+    usage,
+    integrations,
+    adAccounts,
+    ownTools,
+  ] = await Promise.all([
+    wantsAdvanced ? sokoBotService.listVersions().catch(() => []) : [],
+    wantsAdvanced ? sokoBotService.listSkills().catch(() => []) : [],
+    sokoBotService.getStats().catch(() => null),
+    sokoBotService.getMyUsage().catch(() => null),
+    sokoBotService.listIntegrations().catch(() => null),
+    wantsAdvanced
+      ? loadBotAdAccounts({ projectId: null }).catch(() => null)
+      : null,
+    wantsAdvanced ? loadOwnTools(state.bot.id) : null,
+  ]);
   const version =
     versions.find((v) => v.id === state.bot.versionId) ?? versions[0] ?? null;
   const isAdmin = hasAdminRole(
@@ -135,6 +158,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       canManage={state.bot.viewerCanManage}
       sharedRoomId={null}
       ads={adAccounts && { accounts: adAccounts, projectId: null }}
+      ownTools={ownTools}
       adminHref={
         isAdmin
           ? `${ADMIN_SOKO_BOTS_ROUTE}/${encodeURIComponent(state.bot.id)}`

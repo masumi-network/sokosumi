@@ -10,7 +10,13 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   coreClient: { getTasks: async () => ({ data: [], meta: {} }) },
 }));
 
-const option = { id: "move-under", label: "Move under", icon: ListTree };
+const option = {
+  id: "move-under",
+  label: "Move under",
+  title: "Move under a task",
+  description: "Pick the task this one goes under.",
+  icon: ListTree,
+};
 
 function picker(open: boolean, onCloseAutoFocus: (event: Event) => void) {
   return (
@@ -48,5 +54,19 @@ describe("TaskLinkTaskPickerDialog", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Actions" })).toHaveFocus(),
     );
+  });
+
+  it("shows the picker's title and what picking does", async () => {
+    render(picker(true, () => {}));
+
+    const heading = await screen.findByRole("heading", {
+      name: "Move under a task",
+    });
+    expect(heading.closest(".sr-only")).toBeNull();
+    expect(
+      screen
+        .getByText("Pick the task this one goes under.")
+        .closest(".sr-only"),
+    ).toBeNull();
   });
 });

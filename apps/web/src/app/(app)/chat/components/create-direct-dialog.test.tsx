@@ -211,6 +211,29 @@ describe("CreateDirectDialog", () => {
     expect(assignMock).toHaveBeenCalledWith("/chat/rooms/room-direct");
   });
 
+  it("shows the reader's own initials on Message yourself, not the label's", async () => {
+    const roster = await loadChatComposeRosterActionMock();
+    loadChatComposeRosterActionMock.mockResolvedValueOnce({
+      ...roster,
+      value: {
+        ...roster.value,
+        currentUserName: "Ada Tester",
+        currentUserImage: null,
+      },
+    });
+    const user = userEvent.setup();
+    renderSeated(<CreateDirectDialog />);
+    await user.click(screen.getByRole("button", { name: "Draft.title" }));
+    const self = await screen.findByRole("button", {
+      name: /SelfDirect.messageYourself/,
+    });
+    expect(self).toHaveTextContent(/^AT/);
+    await user.click(self);
+    expect(screen.getByTestId("direct-recipient-composer")).toHaveTextContent(
+      /AT\s*SelfDirect.messageYourself/,
+    );
+  });
+
   it("prevents selecting self alongside a peer", async () => {
     const user = userEvent.setup();
     renderSeated(<CreateDirectDialog />);

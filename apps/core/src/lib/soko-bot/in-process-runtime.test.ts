@@ -142,6 +142,7 @@ describe("InProcessSokoBotRuntime", () => {
       version: { id: "v11", name: "v11 test", systemPrompt: "Be useful." },
       packet: { memory: { version: 1 } },
     });
+    cmoTurnPartsMock.mockResolvedValue([]);
     streamModelCallMock.mockImplementation(async (options) => {
       // The SDK reports each step through onStepFinish; the drain meters those.
       await options.onStepFinish?.({
@@ -211,6 +212,36 @@ describe("InProcessSokoBotRuntime", () => {
       replyWithheld: { reason: "claims_unconfirmed_change" },
     });
   });
+
+  it.each([
+    ["cmo-v1-gemini-25-flash-lite", "google/gemini-2.5-flash-lite", undefined],
+    [
+      "v11",
+      "google/gemini-3.6-flash",
+      { thinkingConfig: { includeThoughts: true } },
+    ],
+  ])(
+    "sends the Google reasoning summary options for %s",
+    async (versionId, modelId, google) => {
+      authorizeMock.mockResolvedValueOnce({
+        turn: { id: TURN_ID, versionId },
+        grant: { capabilities: ["create_task"] },
+      });
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Plan the launch",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+      await Promise.all(pendingTurns);
+
+      const request = streamModelCallMock.mock.calls[0]?.[0];
+      expect(request.model.modelId).toBe(modelId);
+      expect(request.providerOptions.google).toEqual(google);
+    },
+  );
 
   it("ends a Cuso turn's message with the owner's language, and no other bot's", async () => {
     const findTurn = vi.mocked(prisma.sokoBotTurn.findUnique);

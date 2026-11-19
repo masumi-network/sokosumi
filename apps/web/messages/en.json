@@ -2029,7 +2029,25 @@
           "moveToWorkspaceCancel": "Cancel",
           "moveToWorkspaceSuccess": "Task moved successfully",
           "moveToWorkspaceError": "Failed to move task",
-          "markAs": "Mark as",
+          "linkToTask": "Link to task",
+          "linkPicker": {
+            "related": {
+              "title": "Link as related",
+              "description": "Pick a task. Each task lists the other under Related."
+            },
+            "blocks": {
+              "title": "Link as blocking",
+              "description": "Pick the task this one blocks. This task lists it under Blocking, and that task lists this one under Blocked by."
+            },
+            "blockedBy": {
+              "title": "Link as blocked by",
+              "description": "Pick the task this one waits on. This task lists it under Blocked by, and that task lists this one under Blocking."
+            },
+            "duplicate": {
+              "title": "Link as duplicate",
+              "description": "Pick the task this one repeats. Each task lists the other under Duplicate. Nothing is copied."
+            }
+          },
           "createRelated": "Create related",
           "removeRelated": "Remove related",
           "removeRelatedSuccess": "Related task removed",
@@ -2037,8 +2055,6 @@
           "linkTaskSuccess": "Task linked",
           "linkTaskError": "Failed to link task",
           "createRelatedSuccess": "Related task created",
-          "taskPickerTitle": "{relation}...",
-          "taskPickerDescription": "Choose a task to link with the current task.",
           "taskPickerSearchPlaceholder": "Search tasks...",
           "taskPickerLoading": "Loading tasks...",
           "taskPickerEmpty": "No tasks found.",
@@ -2061,7 +2077,7 @@
           "markComplete": "Mark complete",
           "repeat": "Repeat",
           "repeatError": "Couldn't open the schedule form. Try again.",
-          "duplicate": "Duplicate as draft",
+          "duplicate": "Copy as draft",
           "sendToChat": {
             "menuItem": "Send to chat",
             "title": "Send task to chat",
@@ -2255,7 +2271,7 @@
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "taskCreated": "Task created",
-        "taskCreatedHint": "Everything's set up and ready to go.",
+        "taskCreatedHint": "{status, select, DRAFT {It's a draft in Backlog. Nothing starts until you set it to Ready.} QUEUED {It waits in Backlog and starts at the time you set.} other {It's in Todo, ready to start.}}",
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
         "close": "Close",
@@ -9967,6 +9983,7 @@
         "you": "You",
         "youNamed": "{name} (you)",
         "description": "Send yourself notes and to-dos. Only you can see them.",
+        "composerPlaceholder": "Write a note to yourself",
         "exclusive": "Self-chat cannot include other recipients."
       },
       "Signals": {
@@ -11102,6 +11119,55 @@
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"
         }
+      },
+      "Mcp": {
+        "title": "MCP servers",
+        "description": "Connect your bot to any remote MCP server. Sokosumi makes every call and keeps the key; the bot never sees it.",
+        "addTitle": "Add a server",
+        "nameLabel": "Name",
+        "namePlaceholder": "Linear",
+        "urlLabel": "Address",
+        "authLabel": "Sign-in",
+        "authBearer": "API key",
+        "authHeader": "Key in a custom header",
+        "authNone": "None",
+        "keyLabel": "Key",
+        "headerNameLabel": "Header name",
+        "connect": "Connect",
+        "addHelp": "Sokosumi reads the server's tools right away.",
+        "added": "{name} is connected",
+        "addError": "Could not connect the server",
+        "toolCount": "{enabled} of {total} tools on",
+        "refresh": "Read {name}'s tools again",
+        "refreshed": "{name}'s tools are up to date",
+        "refreshError": "Could not read the server's tools",
+        "remove": "Remove {name}",
+        "removeError": "Could not remove the server",
+        "reads": "Reads",
+        "changes": "Changes things",
+        "kindLabel": "What {name} does",
+        "enabledLabel": "Let the bot use {name}",
+        "toolError": "Could not change the tool"
+      },
+      "Shell": {
+        "title": "Command-line tools",
+        "description": "Set up the tools your bot's shell needs. Its sandbox starts empty each turn, so these run again every time.",
+        "commandsTitle": "Setup commands",
+        "commandsHelp": "One command per line, up to ten. They run before each turn that has a shell.",
+        "saveCommands": "Save commands",
+        "commandsSaved": "Setup commands saved",
+        "commandsError": "Could not save the setup commands",
+        "keysTitle": "Keys",
+        "keysHelp": "A key with shell access reaches every command as an environment variable of that name. The bot sees the name, not the value, but a command it runs can read the value, so add only keys you would give to a script.",
+        "keyNameLabel": "Key name",
+        "keyValueLabel": "Key value",
+        "keyValuePlaceholder": "Paste the key",
+        "addKey": "Add key",
+        "keySaved": "{name} saved",
+        "keyError": "Could not save the key",
+        "shellAccess": "Shell access",
+        "shellAccessLabel": "Let shell commands use {name}",
+        "deleteKey": "Delete {name}"
       }
     },
     "SokoBots": {
@@ -11418,6 +11484,21 @@
       "descending": "descending",
       "noHistory": "No changes recorded.",
       "undoBatch": "Undo batch",
+      "findReplace": {
+        "title": "Find and replace",
+        "description": "Change every cell in one column that holds exactly the value you look for, ignoring capitals. It saves as one change you can undo from History and sources.",
+        "column": "Column",
+        "find": "Find",
+        "replace": "Replace with",
+        "replaceEmpty": "Leave empty to clear the cells",
+        "findMatches": "Find matches",
+        "matches": "{count, plural, one {# cell will change.} other {# cells will change.}}",
+        "unchanged": "Every matching cell already holds the new value. Nothing to change.",
+        "none": "No cell in this column holds exactly that value. Check spaces and spelling.",
+        "tooMany": "More than {limit} cells in this column contain that text, and Find and replace checks up to {limit}. Nothing was changed.",
+        "apply": "{count, plural, one {Replace # cell} other {Replace # cells}}",
+        "done": "{count, plural, one {Replaced # cell.} other {Replaced # cells.}} You can undo it from History and sources."
+      },
       "before": "Before",
       "after": "After",
       "openTask": "Open task",

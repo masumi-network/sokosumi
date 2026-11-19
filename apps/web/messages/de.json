@@ -2028,7 +2028,25 @@
           "moveToWorkspaceCancel": "Abbrechen",
           "moveToWorkspaceSuccess": "Task wurde verschoben",
           "moveToWorkspaceError": "Task konnte nicht verschoben werden",
-          "markAs": "Markieren als",
+          "linkToTask": "Mit Task verknüpfen",
+          "linkPicker": {
+            "related": {
+              "title": "Als zugehörig verknüpfen",
+              "description": "Wählen Sie einen Task. Jeder Task zeigt den anderen unter Zugehörig."
+            },
+            "blocks": {
+              "title": "Als blockierend verknüpfen",
+              "description": "Wählen Sie den Task, den dieser blockiert. Dieser Task zeigt ihn unter Blockiert, der andere zeigt diesen unter Blockiert durch."
+            },
+            "blockedBy": {
+              "title": "Als blockiert durch verknüpfen",
+              "description": "Wählen Sie den Task, auf den dieser wartet. Dieser Task zeigt ihn unter Blockiert durch, der andere zeigt diesen unter Blockiert."
+            },
+            "duplicate": {
+              "title": "Als Duplikat verknüpfen",
+              "description": "Wählen Sie den Task, den dieser wiederholt. Jeder Task zeigt den anderen unter Duplikat. Es wird nichts kopiert."
+            }
+          },
           "createRelated": "Verknüpften Task erstellen",
           "removeRelated": "Verknüpften Task entfernen",
           "removeRelatedSuccess": "Verknüpfter Task entfernt",
@@ -2036,8 +2054,6 @@
           "linkTaskSuccess": "Task verknüpft",
           "linkTaskError": "Task konnte nicht verknüpft werden",
           "createRelatedSuccess": "Verknüpfter Task erstellt",
-          "taskPickerTitle": "Markieren als {relation}",
-          "taskPickerDescription": "Wählen Sie einen Task aus, den Sie mit dem aktuellen Task verknüpfen möchten.",
           "taskPickerSearchPlaceholder": "Tasks suchen...",
           "taskPickerLoading": "Tasks werden geladen...",
           "taskPickerEmpty": "Keine Tasks gefunden.",
@@ -2060,7 +2076,7 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren",
+          "duplicate": "Als Entwurf kopieren",
           "sendToChat": {
             "menuItem": "In Chat senden",
             "title": "Aufgabe in Chat senden",
@@ -2255,7 +2271,7 @@
         "previewUse": "Diesen Task verwenden",
         "previewEmpty": "Noch kein Beispiel verfügbar.",
         "taskCreated": "Task erstellt",
-        "taskCreatedHint": "Alles ist eingerichtet und bereit.",
+        "taskCreatedHint": "{status, select, DRAFT {Er liegt als Entwurf im Backlog. Nichts startet, bis du ihn auf Bereit setzt.} QUEUED {Er wartet im Backlog und startet zur festgelegten Zeit.} other {Er steht unter Offen und kann starten.}}",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
@@ -9967,6 +9983,7 @@
         "you": "Du",
         "youNamed": "{name} (du)",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
+        "composerPlaceholder": "Schreibe dir eine Notiz",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       },
       "Signals": {
@@ -11102,6 +11119,55 @@
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"
         }
+      },
+      "Mcp": {
+        "title": "MCP-Server",
+        "description": "Verbinde deinen Bot mit einem beliebigen entfernten MCP-Server. Sokosumi führt jeden Aufruf aus und verwahrt den Schlüssel; der Bot sieht ihn nie.",
+        "addTitle": "Server hinzufügen",
+        "nameLabel": "Name",
+        "namePlaceholder": "Linear",
+        "urlLabel": "Adresse",
+        "authLabel": "Anmeldung",
+        "authBearer": "API-Schlüssel",
+        "authHeader": "Schlüssel in eigenem Header",
+        "authNone": "Keine",
+        "keyLabel": "Schlüssel",
+        "headerNameLabel": "Header-Name",
+        "connect": "Verbinden",
+        "addHelp": "Sokosumi liest die Tools des Servers sofort.",
+        "added": "{name} ist verbunden",
+        "addError": "Der Server konnte nicht verbunden werden",
+        "toolCount": "{enabled} von {total} Tools an",
+        "refresh": "Tools von {name} neu lesen",
+        "refreshed": "Die Tools von {name} sind aktuell",
+        "refreshError": "Die Tools des Servers konnten nicht gelesen werden",
+        "remove": "{name} entfernen",
+        "removeError": "Der Server konnte nicht entfernt werden",
+        "reads": "Liest",
+        "changes": "Ändert etwas",
+        "kindLabel": "Was {name} tut",
+        "enabledLabel": "Bot darf {name} nutzen",
+        "toolError": "Das Tool konnte nicht geändert werden"
+      },
+      "Shell": {
+        "title": "Kommandozeilen-Tools",
+        "description": "Richte die Tools ein, die die Shell deines Bots braucht. Seine Sandbox startet in jedem Durchgang leer, deshalb laufen diese jedes Mal neu.",
+        "commandsTitle": "Einrichtungsbefehle",
+        "commandsHelp": "Ein Befehl pro Zeile, höchstens zehn. Sie laufen vor jedem Durchgang mit Shell.",
+        "saveCommands": "Befehle speichern",
+        "commandsSaved": "Einrichtungsbefehle gespeichert",
+        "commandsError": "Die Einrichtungsbefehle konnten nicht gespeichert werden",
+        "keysTitle": "Schlüssel",
+        "keysHelp": "Ein Schlüssel mit Shell-Zugriff erreicht jeden Befehl als Umgebungsvariable mit diesem Namen. Der Bot sieht den Namen, nicht den Wert, aber ein Befehl, den er ausführt, kann den Wert lesen. Füge also nur Schlüssel hinzu, die du auch einem Skript geben würdest.",
+        "keyNameLabel": "Name des Schlüssels",
+        "keyValueLabel": "Wert des Schlüssels",
+        "keyValuePlaceholder": "Schlüssel einfügen",
+        "addKey": "Schlüssel hinzufügen",
+        "keySaved": "{name} gespeichert",
+        "keyError": "Der Schlüssel konnte nicht gespeichert werden",
+        "shellAccess": "Shell-Zugriff",
+        "shellAccessLabel": "Shell-Befehle dürfen {name} nutzen",
+        "deleteKey": "{name} löschen"
       }
     },
     "SokoBots": {
@@ -11418,6 +11484,21 @@
       "descending": "absteigend",
       "noHistory": "Keine Änderungen erfasst.",
       "undoBatch": "Stapel rückgängig",
+      "findReplace": {
+        "title": "Suchen und ersetzen",
+        "description": "Ändert jede Zelle einer Spalte, die genau den gesuchten Wert enthält, egal ob groß oder klein geschrieben. Wird als eine Änderung gespeichert, die du in Verlauf und Quellen rückgängig machen kannst.",
+        "column": "Spalte",
+        "find": "Suchen",
+        "replace": "Ersetzen durch",
+        "replaceEmpty": "Leer lassen, um die Zellen zu leeren",
+        "findMatches": "Treffer suchen",
+        "matches": "{count, plural, one {# Zelle wird geändert.} other {# Zellen werden geändert.}}",
+        "unchanged": "Jede passende Zelle enthält schon den neuen Wert. Nichts zu ändern.",
+        "none": "Keine Zelle in dieser Spalte enthält genau diesen Wert. Prüfe Leerzeichen und Schreibweise.",
+        "tooMany": "Mehr als {limit} Zellen in dieser Spalte enthalten diesen Text, und Suchen und ersetzen prüft höchstens {limit}. Nichts wurde geändert.",
+        "apply": "{count, plural, one {# Zelle ersetzen} other {# Zellen ersetzen}}",
+        "done": "{count, plural, one {# Zelle ersetzt.} other {# Zellen ersetzt.}} Du kannst es in Verlauf und Quellen rückgängig machen."
+      },
       "before": "Vorher",
       "after": "Nachher",
       "openTask": "Aufgabe öffnen",

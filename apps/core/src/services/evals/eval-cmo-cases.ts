@@ -55,6 +55,11 @@ export type CmoEvalCase =
       brand: CmoEvalBrand;
       brandBrain: unknown;
       plan: unknown;
+      /**
+       * A month of pictures alone, one of them of the brand's own homepage:
+       * the lane gets the homepage's screenshot as a brand picture first.
+       */
+      pictures?: true;
     };
 
 /**
@@ -138,6 +143,49 @@ const frozenPlans = monthPlans as Record<string, unknown>;
  */
 const MONTH_BRANDS = ["cal.com", "Hiltl", "Blue Bottle Coffee"];
 
+/**
+ * Two single pictures and a carousel on cal.com's frozen month. The second
+ * must show the real homepage, so its screenshot has to sit inside the style.
+ */
+const PICTURE_PIECES = [
+  {
+    id: "cal-pictures-trial",
+    time: "09:00",
+    title: "Fourteen days to try team booking",
+    format: "image",
+    brief:
+      "Announce the 14-day Teams trial with one bold picture that stops a revenue leader mid-scroll.",
+    approach: "promotional",
+    pillar: "Team booking",
+  },
+  {
+    id: "cal-pictures-homepage",
+    time: "10:00",
+    title: "This is where a team booking starts",
+    format: "image",
+    brief:
+      "Show Cal.com's real homepage as a visitor sees it and say that every team booking flow starts there. The picture must show the actual page, not a drawing of one.",
+    approach: "product-led",
+    pillar: "Setup and control",
+  },
+  {
+    id: "cal-pictures-routing",
+    time: "11:00",
+    title: "How a lead reaches the right rep",
+    format: "images",
+    brief:
+      "Two slides: a lead picks a time on the booking page; routing hands the meeting to the right sales rep.",
+    approach: "educational",
+    pillar: "Lead routing",
+  },
+].map((piece) => ({
+  ...piece,
+  date: "2026-11-10",
+  channel: "linkedin",
+  status: "idea",
+  campaignId: "team-routing-trial",
+}));
+
 export const CMO_EVAL_CASES = [
   ...RESEARCH_BRANDS.map((name) => ({
     id: `cmo-research-${slug(name)}`,
@@ -191,6 +239,26 @@ export const CMO_EVAL_CASES = [
       plan: frozenPlans[name],
     }),
   ),
+  ...(frozenBrains["cal.com"] && frozenPlans["cal.com"]
+    ? [
+        {
+          id: "cmo-month-styled-pictures",
+          suite: "cmo" as const,
+          area: "Month",
+          title: "Styles every picture of cal.com's month",
+          intent:
+            "Every picture of the month is made in a reference library style, each from its own reference: a carousel's slides with their own words, and the real homepage set inside the style where a piece shows it.",
+          kind: "cmo-month" as const,
+          brand: brand("cal.com"),
+          brandBrain: frozenBrains["cal.com"],
+          plan: {
+            ...(frozenPlans["cal.com"] as object),
+            calendar: PICTURE_PIECES,
+          },
+          pictures: true as const,
+        },
+      ]
+    : []),
 ];
 
 /** What a Cuso chat case finds in its lane, whatever case ran there before. */

@@ -84,6 +84,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 import { conflict } from "@/helpers/error";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { SokoBotRuntimeUnavailableError } from "@/lib/soko-bot/runtime-errors";
+import { PERSON_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   SokoBotNoDestinationError,
@@ -299,6 +300,10 @@ describe("SokoBotSchedulesSyncService", () => {
       message: dueSchedule.prompt,
       source: "SCHEDULE",
       ownScheduleId: dueSchedule.id,
+      presetRoute: expect.objectContaining({
+        route: "DELEGATE_TASK",
+        capabilities: PERSON_SCHEDULE_CAPABILITIES,
+      }),
       scheduleReservation: {
         runId: claimedRun.id,
         attempt: claimedRun.attempt,

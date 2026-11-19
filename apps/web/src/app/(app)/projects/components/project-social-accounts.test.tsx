@@ -165,6 +165,7 @@ function buildConnection(
   overrides: Partial<ProjectSocialConnection> = {},
 ): ProjectSocialConnection {
   return {
+    personalProfile: false,
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",

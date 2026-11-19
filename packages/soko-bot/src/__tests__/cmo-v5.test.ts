@@ -83,7 +83,9 @@ describe("cmo-v5", () => {
     expect(skill).toContain(
       "list every other network in the strategy that takes a talking_video in its alsoOn",
     );
-    expect(skill).toContain('it is in channels with the cadence "1 a week"');
+    expect(skill).toContain(
+      'YouTube and TikTok take only video: each is in channels with the cadence "1 a week"',
+    );
   });
 
   it("keeps cmo-v3's pace per network, its roles and its week by week saves", () => {

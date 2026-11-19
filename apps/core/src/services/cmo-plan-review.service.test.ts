@@ -1097,9 +1097,14 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
       ...patch,
     }) as MarketingStrategyPlan["channels"][number];
   const everywhere = plan({
-    channels: ["linkedin", "x", "facebook", "instagram", "youtube"].map((key) =>
-      channel(key),
-    ),
+    channels: [
+      "linkedin",
+      "x",
+      "facebook",
+      "instagram",
+      "youtube",
+      "tiktok",
+    ].map((key) => channel(key)),
   });
   const networkProblems = (strategy: MarketingStrategyPlan) =>
     cmoPlanProblems(strategy, { everyNetwork: true }).filter((problem) =>
@@ -1132,7 +1137,7 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
     expect(
       networkProblems(plan({ channels: [channel("linkedin"), channel("x")] })),
     ).toEqual([
-      'facebook, instagram, youtube are in neither channels nor leftOut; plan every live network (one the business has no account on as a side channel whose why starts with "New:"), or name it in leftOut with why it does not fit this buyer.',
+      'facebook, instagram, youtube, tiktok are in neither channels nor leftOut; plan every live network (one the business has no account on as a side channel whose why starts with "New:"), or name it in leftOut with why it does not fit this buyer.',
     ]);
   });
 
@@ -1262,7 +1267,14 @@ describe("a network the Brand Brain shows no profile on", () => {
 });
 
 describe("ads and questions, for a Cuso on cmo-v5's strategy skill", () => {
-  const live = ["linkedin", "x", "facebook", "instagram", "youtube"].map(
+  const live = [
+    "linkedin",
+    "x",
+    "facebook",
+    "instagram",
+    "youtube",
+    "tiktok",
+  ].map(
     (channel) =>
       ({
         channel,

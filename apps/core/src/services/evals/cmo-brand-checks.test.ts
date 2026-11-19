@@ -321,9 +321,13 @@ describe("a business with only a website", () => {
     expect(
       labelled(
         strategy({
-          channels: ["linkedin", "facebook", "instagram", "youtube"].map(
-            (channel) => side(channel),
-          ),
+          channels: [
+            "linkedin",
+            "facebook",
+            "instagram",
+            "youtube",
+            "tiktok",
+          ].map((channel) => side(channel)),
           leftOut: [{ channel: "x", why: "Its buyers are not on X." }],
         }),
       ),

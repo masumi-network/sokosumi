@@ -56,6 +56,7 @@ function drafts(): DraftActions {
     approve: vi.fn(async () => null),
     decline: vi.fn(async () => null),
     edit: vi.fn(async () => null),
+    tikTokCreator: async () => ({ creator: null, error: null }),
   };
 }
 

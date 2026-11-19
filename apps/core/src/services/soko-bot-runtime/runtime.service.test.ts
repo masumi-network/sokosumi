@@ -61,6 +61,7 @@ const {
   coworkerFindManyMock,
   userFindManyMock,
   integrationListMock,
+  mcpServerListMock,
   transactionBotFindUniqueOrThrowMock,
   transactionBotFindUniqueMock,
   transactionBotUpdateMock,
@@ -201,6 +202,7 @@ const {
   coworkerFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   integrationListMock: vi.fn(),
+  mcpServerListMock: vi.fn(async () => [] as unknown[]),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
   transactionBotFindUniqueMock: vi.fn(),
   transactionBotUpdateMock: vi.fn(),
@@ -430,13 +432,17 @@ vi.mock("@/services/reference-library.service", () => ({
   referenceLibraryAvailable: images.libraryAvailable,
 }));
 vi.mock("@/services/cmo-media-maker.service", () => ({
+  MAX_STYLE_BRAND_PICTURES: 2,
   REFERENCE_STYLE_MODELS: [
     "gpt-image-2-6",
     "nano-banana-2-1",
     "seedream-5-pro",
   ],
-  cmoStylePrompt: (input: { piece: { visual: string; headline?: string } }) =>
-    `styled: ${input.piece.visual} / ${input.piece.headline ?? "no words"}`,
+  cmoStylePrompt: (input: {
+    piece: { visual: string; headline?: string };
+    brandPictures?: number;
+  }) =>
+    `styled: ${input.piece.visual} / ${input.piece.headline ?? "no words"}${input.brandPictures ? ` / ${input.brandPictures} brand` : ""}`,
   loadStyleBrand: async () => ({ colours: [], logo: null }),
   finishCmoChatPicture: images.finishChatPicture,
 }));
@@ -595,6 +601,10 @@ vi.mock("@/lib/soko-bot/jev-tool", () => ({
 }));
 vi.mock("@/services/soko-bot-integration-list.service", () => ({
   listSokoBotIntegrationsForBot: integrationListMock,
+}));
+vi.mock("@/services/soko-bot-mcp.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/soko-bot-mcp.service")>()),
+  listMcpServersForBot: mcpServerListMock,
 }));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: serializableTransactionMock.mockImplementation(
@@ -3884,6 +3894,35 @@ describe("SokoBotRuntimeService authorization", () => {
         expect(integrationListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
       },
     );
+
+    it("names the bot's MCP servers among its integrations", async () => {
+      sharedTurn("list_integrations", {
+        ...PROJECT_BOT,
+        userId: SCOPE.userId,
+        projectId: null,
+      });
+      integrationListMock.mockResolvedValue({
+        configured: true,
+        integrations: [{ provider: "gmail", status: "ACTIVE" }],
+      });
+      const tracker = {
+        provider: "mcp",
+        name: "Tracker",
+        status: "ACTIVE",
+        tools: 4,
+        use: 'list_mcp_tools with server "Tracker"',
+      };
+      mcpServerListMock.mockResolvedValueOnce([tracker]);
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "list_integrations",
+          toolCallId: "call_integrations_mcp",
+          input: {},
+        }),
+      ).resolves.toEqual([{ provider: "gmail", status: "ACTIVE" }, tracker]);
+      expect(mcpServerListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
+    });
 
     it("asks Jev for the bot and books the call as turn overhead", async () => {
       sharedTurn("evaluate_with_jev", {
@@ -7755,6 +7794,7 @@ describe("Soko Bot project social tools", () => {
       avatarUrl: null,
       subscriptionType: null,
       status: "active",
+      personalProfile: false,
     },
     creator: { kind: "sokoBot", id: SCOPE.sokoBotId, name: "Lili" },
     scheduledByUserId: null,
@@ -7817,6 +7857,7 @@ describe("Soko Bot project social tools", () => {
         status: "active",
         connectedAt: "2026-09-28T12:00:00Z",
         disconnectedAt: null,
+        personalProfile: false,
       },
     ]);
     social.listStatistics.mockResolvedValue({
@@ -8000,6 +8041,7 @@ describe("Soko Bot project social tools", () => {
       status: "active",
       connectedAt: "2026-09-28T12:00:00Z",
       disconnectedAt: null,
+      personalProfile: false,
     };
     const premiumId = "01960001-0001-7001-8001-000000000021";
     const basicId = "01960001-0001-7001-8001-000000000022";
@@ -11348,6 +11390,56 @@ describe("Content Studio image tools", () => {
       );
       expect(result).toMatchObject({ jobId: "job-s1", status: "QUEUED" });
       expect(result).not.toHaveProperty("studioUrl");
+    });
+
+    it("sets the brand's own picture inside the style, and refuses more than two or a model", async () => {
+      const shot = "11111111-1111-4111-8111-111111111111";
+      const file = (id: string) => ({
+        id,
+        displayName: "home.jpg",
+        mimeType: "image/jpeg",
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: `drive/${id}.jpg`,
+      });
+      files.loadLive.mockResolvedValueOnce([file(shot)]);
+      images.create.mockResolvedValue({ id: "job-s1", status: "QUEUED" });
+      await generate(
+        cusoChat,
+        {
+          ...request,
+          prompt: "The pricing page on a counter",
+          styleReferenceId: STYLE,
+          referenceFileIds: [shot],
+        },
+        "call-s1",
+      );
+      expect(images.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: "styled: The pricing page on a counter / no words / 1 brand",
+          referenceLibraryIds: [STYLE],
+          referenceFileIds: [shot],
+        }),
+      );
+      const three = [
+        shot,
+        "22222222-2222-4222-8222-222222222222",
+        "33333333-3333-4333-8333-333333333333",
+      ];
+      files.loadLive.mockResolvedValueOnce(three.map(file));
+      await expect(
+        generate(
+          cusoChat,
+          { ...request, styleReferenceId: STYLE, referenceFileIds: three },
+          "call-s2",
+        ),
+      ).rejects.toThrow("at most 2 of the brand's own pictures");
+      await expect(
+        generate(
+          cusoChat,
+          { ...request, styleReferenceId: STYLE, model: "gemini-pro" },
+          "call-s3",
+        ),
+      ).rejects.toThrow("A styled picture takes no model");
     });
 
     it("refuses an allowance that would not cover the dearest remake", async () => {

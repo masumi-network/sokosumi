@@ -8,7 +8,10 @@ import {
   type ProjectSocialProvider,
 } from "@/config/social-providers";
 import { linkedInPersonId } from "@/helpers/linkedin-person";
-import { pickSocialAccount } from "@/helpers/social-account-choice";
+import {
+  pickSocialAccount,
+  type SocialAccountPick,
+} from "@/helpers/social-account-choice";
 import {
   createCoreLogger,
   recordCoreWarning,
@@ -91,12 +94,6 @@ export type ComposioConnectionStatus =
   | "EXPIRED"
   | "INACTIVE"
   | "REVOKED";
-
-/** The owner's pick among a sign-in's accounts, or whether to ask for one. */
-export interface SocialAccountPick {
-  externalAccountId?: string;
-  offerChoice?: boolean;
-}
 
 export interface ConnectedSocialIdentity {
   id: string;
@@ -905,14 +902,14 @@ export function facebookPages(
  */
 function facebookPage(
   payload: Record<string, unknown>,
+  connectedAccountId: string,
   pick: SocialAccountPick,
 ): ConnectedSocialIdentity | null {
   const pages = facebookPages(payload).map((page) => ({
     ...page,
     externalAccountId: page.id,
   }));
-  const page = pickSocialAccount(pages, pick, (entry) => ({
-    externalAccountId: entry.id,
+  const page = pickSocialAccount(connectedAccountId, pages, pick, (entry) => ({
     name: entry.displayName ?? entry.id,
     handle: null,
     kind: "page",
@@ -1068,7 +1065,7 @@ export async function getConnectedSocialIdentity(input: {
     const identity = !payload
       ? null
       : input.provider === "facebook"
-        ? facebookPage(payload, input.pick ?? {})
+        ? facebookPage(payload, input.connectedAccountId, input.pick ?? {})
         : socialIdentity(input.provider, payload);
     if (!identity) {
       if (payload && input.provider === "facebook") {

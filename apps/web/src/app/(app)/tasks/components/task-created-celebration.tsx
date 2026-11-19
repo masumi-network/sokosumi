@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { cn } from "@/lib/utils";
 
-type CelebrationTaskStatus = "DRAFT" | "QUEUED" | "READY";
+export type CelebrationTaskStatus = "DRAFT" | "QUEUED" | "READY";
 
 type CelebrationColumnId = "backlog" | "todo" | "celebration-scheduled";
 
@@ -21,7 +21,8 @@ interface TaskCreatedCelebrationProps {
   scheduleLabel?: string;
   labels: {
     taskCreated: string;
-    taskCreatedHint?: string;
+    /** What happens next, per status: a Draft does not start on its own. */
+    taskCreatedHint?: Record<CelebrationTaskStatus, string>;
     goToTask: string;
     createAnother?: string;
   };
@@ -207,7 +208,7 @@ export function TaskCreatedCelebration({
         </h3>
         {labels.taskCreatedHint ? (
           <p className="text-muted-foreground text-sm">
-            {labels.taskCreatedHint}
+            {labels.taskCreatedHint[status]}
           </p>
         ) : null}
       </motion.div>
