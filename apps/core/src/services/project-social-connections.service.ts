@@ -11,7 +11,6 @@ import { getZernioAccountId } from "@/clients/zernio.client";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import {
   isProjectSocialProvider,
-  linkedInPagesEnabled,
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
   requireOwnTikTokAppAllowed,
@@ -375,7 +374,6 @@ export async function initiateProjectSocialConnection(
       ? ("tiktok" as const)
       : provider === "linkedin" &&
           input.accountChoice &&
-          linkedInPagesEnabled(project) &&
           getEnv().ZERNIO_API_KEY
         ? ("linkedin" as const)
         : null;

@@ -2866,7 +2866,7 @@
           "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections."
         },
         "errors": {
-          "facebookPage": "Connect a Facebook account that manages exactly one Page. Accounts with no Pages or multiple Pages are not supported yet.",
+          "facebookPage": "That Facebook login manages no Page. Connect again with the login that manages your Page.",
           "inFlight": "Another account action is already in progress.",
           "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
           "timeout": "Authorization took too long. Try again.",
@@ -2879,14 +2879,23 @@
           "finalize": "We could not finish connecting this account. Try again.",
           "disconnect": "We could not disconnect this account. Try again.",
           "notConfigured": "This integration is not configured yet. Contact support to enable it.",
-          "sync": "Couldn't start sync."
+          "sync": "Couldn't start sync.",
+          "youtubeChannel": "That Google sign-in has no YouTube channel. Connect again and choose the channel's account on Google's screen."
         },
         "comingSoon": "Coming soon",
-        "linkedinPersonalOnly": "Personal profile only. Company pages aren't supported yet.",
         "personalProfile": "Personal profile",
         "connectComingSoon": "{provider} (coming soon)",
         "empty": "No accounts yet.",
-        "emptyHint": "Connect one to post."
+        "emptyHint": "Connect one to post.",
+        "choose": {
+          "title": "Which account?",
+          "description": "Your {provider} sign-in reaches more than one account. Posts go out as the one you choose.",
+          "listLabel": "Accounts",
+          "page": "Company page",
+          "profile": "Your personal profile",
+          "cancel": "Cancel",
+          "confirm": "Connect"
+        }
       },
       "SocialPosts": {
         "loadError": {

@@ -34,6 +34,13 @@ export type ComposioConnectionOutcome<T> =
       error: ActionError | null;
     };
 
+/** What a Zernio return carries to finish its connection in Core. */
+export interface ZernioSignIn {
+  callbackProof?: string;
+  pendingDataToken?: string;
+  connectToken?: string;
+}
+
 interface ConnectOptions<T> {
   /** Runs once the popup is open, before anything else, for busy state. */
   onStart?: () => void;
@@ -42,7 +49,7 @@ interface ConnectOptions<T> {
   >;
   finalize: (
     connectionId: string,
-    callbackProof?: string,
+    signIn: ZernioSignIn,
   ) => Promise<ActionResultDto<T, ActionError>>;
 }
 
@@ -105,10 +112,11 @@ export function useComposioConnection() {
               if (!completion.ok) return failed("verify", completion.error);
             }
 
-            const finalization = await finalize(
-              connectionId,
-              payload.callbackProof,
-            );
+            const finalization = await finalize(connectionId, {
+              callbackProof: payload.callbackProof,
+              pendingDataToken: payload.pendingDataToken,
+              connectToken: payload.connectToken,
+            });
             if (!finalization.ok) return failed("finalize", finalization.error);
 
             return { kind: "connected", value: finalization.value };

@@ -366,3 +366,62 @@ describe("Zernio TikTok popup", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 });
+
+describe("Zernio LinkedIn popup", () => {
+  const waiting =
+    "profileId=p1&platform=linkedin&step=select_organization&pendingDataToken=pending&connect_token=connect&connection=zernio:p1&proof=secret";
+  const kept =
+    "connected=linkedin&profileId=p1&accountId=a1&connection=zernio:p1&proof=secret";
+
+  function run(search: string) {
+    const postMessage = vi.fn();
+    runInNewContext(buildZernioCallbackInlineScript(), {
+      URLSearchParams,
+      setTimeout: vi.fn(),
+      window: {
+        sessionStorage: { getItem: () => "nonce1", removeItem: vi.fn() },
+        opener: { postMessage },
+        location: { search, origin: "https://app.sokosumi.com" },
+        addEventListener: vi.fn(),
+        close: vi.fn(),
+      },
+    });
+    return postMessage.mock.calls[0]?.[0];
+  }
+
+  it("hands a sign-in that waits for its account to the page with Zernio's handles", () => {
+    expect(run(waiting)).toMatchObject({
+      status: "success",
+      connectionId: "zernio:p1",
+      callbackProof: "secret",
+      pendingDataToken: "pending",
+      connectToken: "connect",
+    });
+  });
+
+  it("finishes a sign-in Zernio kept at once, with no handles", () => {
+    expect(run(kept)).toMatchObject({
+      status: "success",
+      callbackProof: "secret",
+      pendingDataToken: undefined,
+      connectToken: undefined,
+    });
+  });
+
+  it.each([
+    [waiting + "&error=oauth_denied", "a denied sign-in"],
+    [waiting.replace("connect_token=connect&", ""), "no connect token"],
+    [
+      waiting.replace("platform=linkedin", "platform=twitter"),
+      "another network",
+    ],
+    [waiting.replace("profileId=p1", "profileId=p2"), "another profile"],
+  ])("refuses %s (%s)", (search) => {
+    expect(run(search)).toMatchObject({
+      status: "error",
+      callbackProof: undefined,
+      pendingDataToken: undefined,
+      connectToken: undefined,
+    });
+  });
+});
