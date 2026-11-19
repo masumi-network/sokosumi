@@ -4,12 +4,17 @@ import {
   type MarketingStrategyPlan,
   type ScenarioCheck,
 } from "@sokosumi/soko-bot";
+import { cmoMonthAtLevel } from "@sokosumi/utils";
 import { isProjectSocialProvider } from "@/config/social-providers";
 import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
 import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import {
+  cmoPlanLevel,
+  grantCmoTesterCredits,
+} from "@/services/cmo-billing.service";
 import {
   CMO_BRAND_MEDIA_FOLDER,
   captureCmoHomepage,
@@ -695,6 +700,11 @@ export async function startCmoCase(
     return { kind: "started", turnId, state: {} };
   }
   await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
+  if (evalCase.brand.testerCredits)
+    await grantCmoTesterCredits({
+      projectId: lane.cusoProjectId,
+      organizationId: lane.organizationId,
+    });
   const { turnId } = await requestCmoStrategy({
     userId: lane.userId,
     projectId: lane.cusoProjectId,
@@ -1111,6 +1121,18 @@ export async function pollCmoCase(
         ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
         : {},
     );
+    if (evalCase.brand.testerCredits && strategy) {
+      const level = await cmoPlanLevel(projectId, await databaseNow());
+      const made = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);
+      const live = strategy.calendar.filter(
+        (entry) => entry.status !== "skipped",
+      );
+      checks.push({
+        label: "Core makes the whole month on Tester credits",
+        pass: level === "all_in" && made.made.size === live.length,
+        actual: `${level}: ${made.made.size} of ${live.length} pieces`,
+      });
+    }
     outcome = {
       checks: [completed, ...checks],
       output: {

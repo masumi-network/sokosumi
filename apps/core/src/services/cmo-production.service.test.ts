@@ -80,7 +80,14 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   cmoRunnerUserId,
   listCmoChannels,
 }));
-vi.mock("@/services/cmo-billing.service", () => ({ isCmoSubscribed }));
+vi.mock("@/services/cmo-billing.service", async () => {
+  const { cmoVolumeLevelForTier } = await import("@sokosumi/utils");
+  return {
+    isCmoSubscribed,
+    cmoPlanLevel: async () =>
+      cmoVolumeLevelForTier((await subscriptionFindFirst())?.tier ?? null),
+  };
+});
 const keepCusoFirstCompetitorCheck = vi.hoisted(() => vi.fn());
 vi.mock("@/services/cmo-competitors.service", () => ({
   keepCusoFirstCompetitorCheck,
