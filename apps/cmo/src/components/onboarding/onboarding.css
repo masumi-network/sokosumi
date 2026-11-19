@@ -523,8 +523,11 @@ body:has(.ob) .site-header {
 
 .ob-foot {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 0 32px 32px;
+  text-align: center;
 }
 
 /* ── Type ── */
