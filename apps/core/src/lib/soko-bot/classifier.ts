@@ -6,6 +6,7 @@ import type {
   TurnClassification,
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -272,7 +273,7 @@ const evaluateWithJev: RouteEvaluator = async ({
     abortSignal,
     maxRetries: 0,
     providerOptions: JEV_PROVIDER_OPTIONS,
-  });
+  }).catch(rethrowAiGatewayFailure);
   return {
     answers: result.answers,
     usage: result.usage,

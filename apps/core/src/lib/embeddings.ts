@@ -5,6 +5,7 @@
  * month's posts and titles). Only the texts being compared are sent.
  */
 import { embedMany, gateway } from "ai";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
 export const EMBEDDING_MODEL = "google/text-multilingual-embedding-002";
@@ -25,7 +26,7 @@ export const embedTexts: EmbedTexts = async (values) => {
     providerOptions: {
       gateway: { zeroDataRetention: true, disallowPromptTraining: true },
     },
-  });
+  }).catch(rethrowAiGatewayFailure);
   return {
     embeddings: result.embeddings,
     costUsd: gatewayCostUsd(result.providerMetadata),

@@ -451,12 +451,17 @@ describe("what it reports back", () => {
   });
 
   it("reports status only, never a body that could echo the document", async () => {
-    const json = vi.fn();
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 503,
-      json,
-    } as unknown as Response);
+    fetchMock.mockResolvedValue(
+      Response.json(
+        {
+          error: {
+            type: "internal_server_error",
+            message: "Provider unavailable for private document text",
+          },
+        },
+        { status: 503 },
+      ),
+    );
 
     const outcome = await gatewayJevEvaluator.evaluate({
       request,
@@ -464,7 +469,7 @@ describe("what it reports back", () => {
     });
 
     expect(outcome.reason).toBe("status-503");
-    expect(json).not.toHaveBeenCalled();
+    expect(JSON.stringify(outcome)).not.toContain("private document text");
   });
 });
 

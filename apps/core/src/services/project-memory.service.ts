@@ -3,6 +3,11 @@ import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
 import { generateText } from "ai";
 import { getEnv } from "@/config/env";
+import {
+  AI_BUDGET_EXCEEDED,
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import { aiGateway } from "@/lib/ai-gateway-purpose";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreWarning } from "@/lib/evlog";
@@ -112,6 +117,7 @@ export interface ProjectMemoryRefreshResult {
     | "oversized_output"
     | "malformed_output"
     | "incomplete_output"
+    | typeof AI_BUDGET_EXCEEDED
     | "blob_upload_failed"
     | "lost_lock";
   version?: number;
@@ -383,7 +389,9 @@ async function refreshProjectMemoryIteration({
       system: PROJECT_MEMORY_SYSTEM_PROMPT,
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
-    });
+    }).catch((error: unknown) =>
+      rethrowAiGatewayFailure(error, "project-memory"),
+    );
     let candidate = validateProjectContextMd(
       generation.text,
       generation.finishReason,
@@ -403,7 +411,9 @@ The candidate exceeds the size budget. Compact it once using the original source
 ${formatPromptData(generation.text)}
 </candidate_context_md>`,
         maxOutputTokens: MAX_COMPACTION_OUTPUT_TOKENS,
-      });
+      }).catch((error: unknown) =>
+        rethrowAiGatewayFailure(error, "project-memory"),
+      );
       candidate = validateProjectContextMd(
         compaction.text,
         compaction.finishReason,
@@ -504,6 +514,12 @@ ${formatPromptData(generation.text)}
         version: nextVersion,
         lineCount,
       },
+    };
+  } catch (error) {
+    if (!(error instanceof AiGatewayBudgetError)) throw error;
+    return {
+      lockStartedAt,
+      result: { status: "skipped", reason: error.code },
     };
   } finally {
     await releaseProjectMemoryLock(projectId, lockStartedAt);

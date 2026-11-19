@@ -6,6 +6,7 @@ import type { ErrorHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import { tryUseLogger } from "@/lib/evlog";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -136,7 +137,8 @@ function recordRequestFailure(error: Error): void {
  * Logs parsing errors for debugging
  */
 export const errorHandler: ErrorHandler = (error, c) => {
-  if (shouldMarkWideEventError(error)) {
+  const budgetFailure = error instanceof AiGatewayBudgetError;
+  if (!budgetFailure && shouldMarkWideEventError(error)) {
     recordRequestFailure(error);
   }
   // evlog 2.28 captures `c.error` after `app.onError` and logs it whole, text
@@ -263,13 +265,15 @@ export const errorHandler: ErrorHandler = (error, c) => {
     );
   }
 
-  captureExternalServiceError(error, {
-    label: "unhandled_route_error",
-    sentry: {
-      level: "fatal",
-      tags: { error_type: "unexpected" },
-    },
-  });
+  if (!budgetFailure) {
+    captureExternalServiceError(error, {
+      label: "unhandled_route_error",
+      sentry: {
+        level: "fatal",
+        tags: { error_type: "unexpected" },
+      },
+    });
+  }
 
   return c.json(
     {

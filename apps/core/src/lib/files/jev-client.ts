@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { getEnv } from "@/config/env";
+import { reportAiGatewayBudgetResponse } from "@/lib/ai-gateway-budget";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import type { SerializedJevRequest } from "@/lib/files/jev-request";
 import {
@@ -294,6 +295,12 @@ async function postEvaluation(input: {
     const latencyMs = Date.now() - startedAt;
 
     if (!response.ok) {
+      const budgetFailure = await reportAiGatewayBudgetResponse(
+        response,
+        apiKey,
+      );
+      if (budgetFailure)
+        return { kind: "failed", reason: budgetFailure, latencyMs };
       /**
        * Status only, and the same answer for every status. A body can
        * carry back the document text we sent.

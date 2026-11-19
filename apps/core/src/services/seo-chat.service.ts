@@ -4,7 +4,6 @@ import type {
 } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { generateText } from "ai";
-
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
@@ -13,6 +12,7 @@ import {
   serviceUnavailable,
   tooManyRequests,
 } from "@/helpers/error";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { captureExternalServiceError } from "@/lib/external-service-errors";
@@ -91,7 +91,7 @@ const defaultDeps: SeoChatDeps = {
       maxOutputTokens: SEO_CHAT_MAX_OUTPUT_TOKENS,
       maxRetries: 0,
       abortSignal: AbortSignal.timeout(SEO_CHAT_TIMEOUT_MS),
-    });
+    }).catch(rethrowAiGatewayFailure);
     const usage = seoChatUsage(result);
     return {
       text: result.text,

@@ -1,6 +1,10 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import { generateText } from "ai";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import { aiGateway } from "@/lib/ai-gateway-purpose";
 
 import prisma from "@/lib/db/prisma";
@@ -213,7 +217,9 @@ export async function refreshProjectLatestUpdate({
           only: ["mistral"],
         },
       },
-    });
+    }).catch((error: unknown) =>
+      rethrowAiGatewayFailure(error, "project-memory"),
+    );
     const content = capLatestUpdateMd(generation.text);
     if (!content || !hasLeadingTldrHeading(content)) {
       // Runs in the project memory refresh, after the task event's response.
@@ -242,6 +248,7 @@ export async function refreshProjectLatestUpdate({
     }
     return "updated";
   } catch (error) {
+    if (error instanceof AiGatewayBudgetError) return "skipped";
     emitCoreWarning(
       { operation: "project_latest_update", project: { id: projectId } },
       {

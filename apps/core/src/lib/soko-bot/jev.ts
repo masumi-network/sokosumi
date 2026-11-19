@@ -1,5 +1,6 @@
 import { experimental_evaluate, gateway } from "ai";
 import { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
 
 import { gatewayCostUsd } from "./gateway-cost";
@@ -60,7 +61,7 @@ export async function evaluateWithJev(options: {
     abortSignal: AbortSignal.timeout(options.timeoutMs),
     maxRetries: 1,
     providerOptions: JEV_PROVIDER_OPTIONS,
-  });
+  }).catch(rethrowAiGatewayFailure);
   const answers = new Map<string, JevAnswer>();
   for (const [key, raw] of Object.entries(
     (result.answers ?? {}) as Record<string, unknown>,
