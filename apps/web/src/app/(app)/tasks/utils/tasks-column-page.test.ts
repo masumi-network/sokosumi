@@ -437,4 +437,32 @@ describe("getTasksColumnPage", () => {
       expect.objectContaining({ scope: "workspace", unansweredMention: true }),
     );
   });
+
+  it("asks Core for sub-tasks only when Show sub-tasks is on", async () => {
+    listTasksMock.mockResolvedValue({ tasks: [], pagination: null });
+    const params = {
+      columnId: "done" as const,
+      cursor: null,
+      limit: 10,
+      scope: "owned" as const,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: null,
+      projectId: null,
+      visibility: null,
+      coworkersById: new Map(),
+      personalAssistantFallback: "Personal assistant",
+    };
+
+    await getTasksColumnPage(params);
+    await getTasksColumnPage({ ...params, subtasks: true });
+
+    expect(listTasksMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "includeSubtasks",
+    );
+    expect(listTasksMock.mock.calls[1]?.[0]).toMatchObject({
+      includeSubtasks: true,
+    });
+  });
 });

@@ -51,6 +51,8 @@ export interface TasksFilters {
    * A view setting, not a filter: clearing filters keeps it.
    */
   sort?: TasksSort;
+  /** Sub-tasks listed too. A view setting like `sort`: clearing filters keeps it. */
+  subtasks?: boolean;
 }
 
 /** Days in one status after which a waiting Task counts as stuck. */
@@ -87,6 +89,7 @@ export interface TasksFiltersSearchParams {
   visibility?: TasksFilterQueryParam;
   stuck?: TasksFilterQueryParam;
   needsMe?: TasksFilterQueryParam;
+  subtasks?: TasksFilterQueryParam;
   mentions?: TasksFilterQueryParam;
   tag?: TasksFilterQueryParam;
   sort?: TasksFilterQueryParam;
@@ -104,6 +107,7 @@ export const TASKS_FILTER_PARAM_KEYS = {
   visibility: "visibility",
   stuck: "stuck",
   needsMe: "needsMe",
+  subtasks: "subtasks",
   mentions: "mentions",
   tag: "tag",
   sort: "sort",
@@ -264,6 +268,7 @@ export function getTasksFiltersFromSearchParams(
       tag: searchParams.get(TASKS_FILTER_PARAM_KEYS.tag) ?? undefined,
       stuck: searchParams.get(TASKS_FILTER_PARAM_KEYS.stuck) ?? undefined,
       needsMe: searchParams.get(TASKS_FILTER_PARAM_KEYS.needsMe) ?? undefined,
+      subtasks: searchParams.get(TASKS_FILTER_PARAM_KEYS.subtasks) ?? undefined,
       mentions: searchParams.get(TASKS_FILTER_PARAM_KEYS.mentions) ?? undefined,
       sort: searchParams.get(TASKS_FILTER_PARAM_KEYS.sort) ?? undefined,
     },
@@ -360,6 +365,9 @@ export function parseTasksFilters(
       ? { mentions: true }
       : {}),
     ...withTasksSort(parseTasksSort(firstQueryString(searchParams.sort))),
+    ...(sanitizeTasksStuckInput(firstQueryString(searchParams.subtasks))
+      ? { subtasks: true }
+      : {}),
   };
 }
 
@@ -456,6 +464,12 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.mentions);
   }
 
+  if (filters.subtasks) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.subtasks, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.subtasks);
+  }
+
   if (filters.sort) {
     nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.sort, filters.sort);
   } else {
@@ -484,7 +498,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}${filters.subtasks ? ":subtasks" : ""}`;
 }
 
 /**

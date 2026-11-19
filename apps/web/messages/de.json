@@ -1895,7 +1895,8 @@
           "createdAt": "Neueste",
           "priority": "Priorität",
           "dueOn": "Fälligkeit"
-        }
+        },
+        "showSubtasks": "Teilaufgaben anzeigen"
       },
       "List": {
         "placeholder": "Keine Tasks"

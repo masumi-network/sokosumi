@@ -37,6 +37,7 @@ interface GetTasksListPageParams {
   needsMe?: boolean;
   mentions?: boolean;
   sort?: TasksSort;
+  subtasks?: boolean;
   coworkersById: Map<string, Coworker>;
   personalAssistantFallback: string;
 }
@@ -61,6 +62,7 @@ export async function getTasksListPage({
   needsMe = false,
   mentions = false,
   sort,
+  subtasks = false,
   coworkersById,
   personalAssistantFallback,
 }: GetTasksListPageParams): Promise<GetTasksListPageResult> {
@@ -85,6 +87,7 @@ export async function getTasksListPage({
     scope: tasksQueryScope(scope, { needsMe, mentions }),
     ...(mentions ? { unansweredMention: true } : {}),
     ...(sort ? { sort } : {}),
+    ...(subtasks ? { includeSubtasks: true } : {}),
     assigneeId: assigneeId ?? undefined,
     assigneeSokoBotId: assigneeSokoBotId ?? undefined,
     assigneeUserId: assigneeUserId ?? undefined,

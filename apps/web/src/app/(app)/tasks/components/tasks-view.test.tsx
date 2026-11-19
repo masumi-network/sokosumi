@@ -259,6 +259,7 @@ const labels = {
       priority: "Priority",
       dueOn: "Due date",
     },
+    showSubtasks: "Show subtasks",
   },
   listPlaceholder: "No tasks",
   loadMore: "Load more",

@@ -49,6 +49,8 @@ interface ListTasksParams {
   parentTaskId?: string;
   /** Only Tasks with a mention of the caller that the caller has not answered. */
   unansweredMention?: boolean;
+  /** Sub-tasks listed too. Core hides them from people by default. */
+  includeSubtasks?: boolean;
 }
 
 interface CreateTaskInput {
@@ -182,6 +184,7 @@ export const taskService = (() => {
       ...(params.unansweredMention
         ? { unansweredMention: "true" as const }
         : {}),
+      ...(params.includeSubtasks ? { includeSubtasks: "true" as const } : {}),
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),

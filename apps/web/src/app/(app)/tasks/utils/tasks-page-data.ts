@@ -170,6 +170,7 @@ async function readTasksPageData(
     mentions: activeFilters.mentions,
     // The order the menu shows, so the first page holds what the board claims.
     sort: effectiveTasksSort(activeFilters.sort, viewMode),
+    subtasks: activeFilters.subtasks,
     coworkersById,
     personalAssistantFallback,
   };

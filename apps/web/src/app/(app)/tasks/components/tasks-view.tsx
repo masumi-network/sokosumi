@@ -117,6 +117,7 @@ export interface TasksViewProps {
       layout: string;
       sortBy: string;
       sortOptions: Record<TasksSort, string>;
+      showSubtasks: string;
       list: string;
       board: string;
       density: string;
@@ -245,10 +246,10 @@ export function TasksView(props: TasksViewProps) {
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
   const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
-  const handleSortChange = (sort: TasksSort) => {
+  const replaceRouteFilters = (patch: Partial<TasksFilters>) => {
     const nextQuery = buildTasksFiltersSearchParams(
       searchParams,
-      { ...routeFilters, sort },
+      { ...routeFilters, ...patch },
       activeOrganizationId,
     ).toString();
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
@@ -287,7 +288,10 @@ export function TasksView(props: TasksViewProps) {
             density,
             onDensityChange: handleDensityChange,
             sort: shownSort,
-            onSortChange: handleSortChange,
+            onSortChange: (sort) => replaceRouteFilters({ sort }),
+            showSubtasks: routeFilters.subtasks === true,
+            onShowSubtasksChange: (subtasks) =>
+              replaceRouteFilters({ subtasks }),
             labels: labels.display,
           }}
         />

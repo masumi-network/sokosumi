@@ -1895,7 +1895,8 @@
           "createdAt": "Newest",
           "priority": "Priority",
           "dueOn": "Due date"
-        }
+        },
+        "showSubtasks": "Show sub-tasks"
       },
       "List": {
         "placeholder": "No tasks"
