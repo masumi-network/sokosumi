@@ -30,6 +30,12 @@ vi.mock("@/clients/composio.client", async (original) => ({
   ...(await original<typeof import("@/clients/composio.client")>()),
   revokeComposioConnectedAccount: provider.revokeComposio,
 }));
+// Scheduling on X asks the provider for the account's tier; keep the stored one.
+vi.mock("@/services/x-subscription-tier.service", () => ({
+  resolveXSubscriptionType: async (connection: {
+    subscriptionType: string | null;
+  }) => connection.subscriptionType,
+}));
 vi.mock("./zernio-tiktok-connection.service", async (original) => ({
   ...(await original<typeof import("./zernio-tiktok-connection.service")>()),
   deleteZernioTikTokProfile: provider.deleteZernioProfile,
@@ -52,12 +58,20 @@ import {
   initiateProjectSocialConnection,
   projectExecutorUserId,
 } from "@/services/project-social-connections.service";
-import { madeTestCopy } from "@/services/project-test-copy";
+import {
+  madeTestCopy,
+  TEST_COPY_SCHEDULE_FLOOR_MESSAGE,
+} from "@/services/project-test-copy";
 import {
   publishDueSocialPosts,
   publishSocialPostNow,
   TEST_COPY_NEVER_PUBLISHES,
 } from "@/services/social-post-publisher.service";
+import {
+  createSocialPost,
+  scheduleSocialPost,
+  updateSocialPost,
+} from "@/services/social-posts.service";
 
 const enabled =
   process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
@@ -325,6 +339,66 @@ describe.skipIf(!enabled)("CMO test copy against PostgreSQL", () => {
         select: { status: true, attemptCount: true, publishedAt: true },
       }),
     ).toEqual({ status: "SCHEDULED", attemptCount: 0, publishedAt: null });
+  });
+
+  it("schedules a test copy's post 12 hours ahead or later, never sooner", async () => {
+    const { organization, source, copy } = await seedSourceAndCopy();
+    const onX = async (projectId: string) =>
+      (await connectionsOf(projectId)).find((row) => row.provider === "x");
+    const link = await onX(copy.projectId);
+    const own = await onX(source.projectId);
+    if (!link || !own) throw new Error("Missing connections");
+    const hours = (count: number) =>
+      new Date(Date.now() + count * 60 * 60 * 1_000);
+    const draft = (projectId: string, socialConnectionId: string) =>
+      createSocialPost({
+        projectId,
+        workspaceId: organization.workspaceId,
+        userId: organization.ownerId,
+        organizationId: organization.organizationId,
+        socialConnectionId,
+        text: "A post to schedule",
+      });
+    const schedule = (
+      projectId: string,
+      post: { id: string; revision: number },
+      scheduledAt: Date,
+    ) =>
+      scheduleSocialPost({
+        projectId,
+        workspaceId: organization.workspaceId,
+        userId: organization.ownerId,
+        organizationId: organization.organizationId,
+        postId: post.id,
+        revision: post.revision,
+        scheduledAt,
+        timezone: "UTC",
+      });
+
+    const copied = await draft(copy.projectId, link.id);
+    await expect(schedule(copy.projectId, copied, hours(11))).rejects.toThrow(
+      TEST_COPY_SCHEDULE_FLOOR_MESSAGE,
+    );
+    const scheduled = await schedule(copy.projectId, copied, hours(13));
+    expect(scheduled.status).toBe("SCHEDULED");
+    // Moving it closer is refused too.
+    await expect(
+      updateSocialPost({
+        projectId: copy.projectId,
+        workspaceId: organization.workspaceId,
+        userId: organization.ownerId,
+        organizationId: organization.organizationId,
+        postId: scheduled.id,
+        revision: scheduled.revision,
+        scheduledAt: hours(1),
+      }),
+    ).rejects.toThrow(TEST_COPY_SCHEDULE_FLOOR_MESSAGE);
+
+    // The source schedules as it always did.
+    const real = await draft(source.projectId, own.id);
+    expect((await schedule(source.projectId, real, hours(1))).status).toBe(
+      "SCHEDULED",
+    );
   });
 
   it("refuses a new sign-in on a test copy", async () => {
