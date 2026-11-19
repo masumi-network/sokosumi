@@ -163,6 +163,7 @@ function post(
   return {
     entry: { ...made, socialPostId: made.id },
     entryId: made.id,
+    revision: 1,
     media: media.map((pathname) => ({
       pathname,
       fileUrl: `https://blob.example/${pathname}`,

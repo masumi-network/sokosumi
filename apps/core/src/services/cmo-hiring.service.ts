@@ -52,11 +52,13 @@ import {
 import {
   linkTestCopyConnections,
   requireTestCopySource,
+  tearDownTestCopyFor,
 } from "@/services/cmo-test-copy.service";
 import {
   cmoChangeKind,
   STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
+import { isTestCopyProject } from "@/services/project-test-copy";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -551,6 +553,11 @@ export async function setCmoTimeZone(
  * Only an organization owner or admin may (the archive checks).
  */
 export async function startCmoOver(target: CusoTarget): Promise<void> {
+  // Start over on a test copy is its teardown, which whoever made it may do.
+  if (await isTestCopyProject(target.projectId)) {
+    await tearDownTestCopyFor(target);
+    return;
+  }
   const { userId } = target;
   const cuso = await requireCuso(target);
   const { sokoBotControlPlane } = await import(

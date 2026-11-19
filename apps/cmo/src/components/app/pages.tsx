@@ -5,7 +5,12 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
-import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
+import {
+  channelLabel,
+  connectedNetworks,
+  SOCIAL_PROVIDERS,
+  waitsForNetwork,
+} from "../../lib/calendar";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { strategyApproved } from "../../lib/strategy";
@@ -16,12 +21,13 @@ import {
   adsReturnError,
   ConnectAdsButton,
 } from "../ads";
+import { hostOf } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
 import { LocalDay } from "../local-day";
 import { BrandStep } from "../onboarding/brand-step";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
-import { StatusText } from "../status";
+import { StatusDisc, StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
 import { SubmitButton } from "../submit-button";
 import { type StartTopUp, TopUpButton } from "../top-up";
@@ -70,18 +76,50 @@ export function ResultsPage({
       entry.status !== "published" &&
       entry.status !== "skipped",
   ).length;
-  const connected = overview.channels.some(
-    (channel) => channel.status.toUpperCase() === "ACTIVE",
-  );
+  const networks = connectedNetworks(overview.channels);
+  const connected = networks.length > 0;
+  // A written post on a network that is not connected is not a draft Cuso
+  // still works on: it waits for the owner to connect that network.
+  const waits = (
+    (overview.approvedStrategy ?? overview.strategy)?.calendar ?? []
+  ).flatMap((entry) => waitsForNetwork(entry, networks) ?? []);
+  const drafts = Math.max(0, posts.draft + writtenInPlan - waits.length);
   const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
       <div className="grid4">
         <Kpi label="Published" value={posts.published} />
         <Kpi label="Scheduled" value={posts.scheduled} />
-        <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
+        {waits.length > 0 ? (
+          <Kpi
+            label="Waiting"
+            value={waits.length}
+            note={`for ${[...new Set(waits)].map(channelLabel).join(", ")}`}
+          />
+        ) : null}
+        {drafts > 0 || waits.length === 0 ? (
+          <Kpi label="Drafts" value={drafts} />
+        ) : null}
         <Kpi label="Failed" value={posts.failed} />
       </div>
+      {waits.length > 0 ? (
+        <p className="cal-waits">
+          <StatusDisc status="warn" decorative />
+          <span className="grow">
+            {waits.length === 1
+              ? "1 post is written and waits"
+              : `${waits.length} posts are written and wait`}{" "}
+            for {[...new Set(waits)].map(channelLabel).join(" and ")}.
+          </span>
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={() => openView("channels")}
+          >
+            Connect
+          </button>
+        </p>
+      ) : null}
       <section className="card">
         <h3>Your numbers</h3>
         <p className="muted">
@@ -114,7 +152,7 @@ export function ResultsPage({
             {review ? (
               <>
                 The first weekly report arrives on{" "}
-                <LocalDay at={review.at} serverZone={review.zone} />.
+                <LocalDay at={review.at} serverZone={review.zone} time />.
               </>
             ) : (
               "The first weekly report arrives in the week after you approve the strategy."
@@ -168,19 +206,27 @@ export function ResultsLead({ overview }: { overview: CmoOverview }) {
       {review ? (
         <>
           {" "}
-          Next check: <LocalDay at={review.at} serverZone={review.zone} />.
+          Next check: <LocalDay at={review.at} serverZone={review.zone} time />.
         </>
       ) : null}
     </>
   );
 }
 
-function Kpi({ label, value }: { label: string; value: number }) {
+function Kpi({
+  label,
+  value,
+  note = "posts",
+}: {
+  label: string;
+  value: number;
+  note?: string;
+}) {
   return (
     <div className="kpi">
       <span className="label">{label}</span>
       <span className="v num">{value}</span>
-      <span className="note">posts</span>
+      <span className="note">{note}</span>
     </div>
   );
 }
@@ -214,7 +260,7 @@ export function BrandBrainPage({
   );
 }
 
-type Provider = (typeof SOCIAL_PROVIDERS)[number];
+type Provider = (typeof SOCIAL_PROVIDERS)[number] | "tiktok";
 
 /** Starts a network's connection; the provider sends the founder back to CMO. */
 export type ConnectChannel = (
@@ -286,7 +332,13 @@ export function ChannelsPage({
       <section className="card">
         <h3>Social accounts</h3>
         <ul className="list">
-          {SOCIAL_PROVIDERS.map((provider) => {
+          {(
+            [
+              ...SOCIAL_PROVIDERS,
+              // Only where Core allows it; no TikTok posts are planned yet.
+              ...(overview.tiktokEnabled ? (["tiktok"] as const) : []),
+            ] satisfies Provider[]
+          ).map((provider) => {
             const account = overview.channels.find(
               (channel) => channel.provider.toLowerCase() === provider,
             );
@@ -510,6 +562,7 @@ export function SettingsPage({
   name,
   email,
   startOver,
+  mayHire = false,
   setTimeZone,
   signOut,
   topUp,
@@ -521,6 +574,8 @@ export function SettingsPage({
   name: string;
   email: string;
   startOver: () => Promise<string | null>;
+  /** The person may hire another Cuso; without it the offer is left out. */
+  mayHire?: boolean;
   setTimeZone: SetTimeZone;
   signOut: () => Promise<void>;
   /** The top-up checkout, or null when this Cuso may not top up. */
@@ -601,17 +656,18 @@ export function SettingsPage({
           ))}
         </ul>
       </section>
-      <section className="card">
-        <h3>Another website</h3>
-        <p className="muted">
-          Hire {AGENT_NAME} again for a different website.
-        </p>
-        <StartOver
-          className="button button-secondary button-small"
-          startOver={startOver}
-          subscribed={cusoSubscribed(overview)}
-        />
-      </section>
+      {mayHire ? (
+        <section className="card">
+          <h3>Another website</h3>
+          <p className="muted">
+            Hire another {AGENT_NAME} for a different website. This one keeps
+            working.
+          </p>
+          <a className="button button-secondary button-small" href="/?hire=1">
+            Hire {AGENT_NAME} for another website
+          </a>
+        </section>
+      ) : null}
       <section className="card">
         <h3>Account</h3>
         <div className="li">
@@ -629,6 +685,19 @@ export function SettingsPage({
             </button>
           </form>
         </div>
+      </section>
+      <section className="card">
+        <h3>Stop this {AGENT_NAME}</h3>
+        <p className="muted">
+          Starting over ends {AGENT_NAME}'s work for{" "}
+          {hostOf(overview.websiteUrl)} for good: he stops and his unsent posts
+          are canceled. You then hire him again from the start.
+        </p>
+        <StartOver
+          className="button button-secondary button-small"
+          startOver={startOver}
+          subscribed={cusoSubscribed(overview)}
+        />
       </section>
     </div>
   );

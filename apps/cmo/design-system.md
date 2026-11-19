@@ -110,6 +110,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Number.** A count to read (Results, SEO) is a small muted label over the value step, with no box: an outlined box reads as a field to type in.
 
+**Post (Calendar sheet).** A social post as it will look on its network: a hairline card with the business's mark, name, handle and time, the network's mark at the right, the words, then the picture or video (Instagram: picture first). Flat. Under it, where the post stands (`.state`) on the left and "Edit text" (a small secondary button) on the right; editing swaps the words for an input and Save / Cancel.
+
 **Tile.** A row in one outlined gray group, hairlines between: label (small 500, muted), value (16px 500, one line), one line of detail (small, muted), chevron right. Tap opens the row's sheet, which carries the source.
 
 **Side panel.** A sheet that rises from the bottom of the screen, as wide as the column: h2 title, 32px close button with the small line and the 4px shadow, short summary, hairline-separated list, source link, and a "Tell {agent} what's off" input.
