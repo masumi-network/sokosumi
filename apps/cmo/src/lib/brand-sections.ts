@@ -123,14 +123,6 @@ export function openQuestions(
   );
 }
 
-/** "2026-10" or "2026-10-14" → "Oct 2026". */
-export function formatAsOf(asOf: string): string {
-  const [year, month] = asOf.split("-");
-  const date = new Date(Number(year), Number(month) - 1, 1);
-  if (Number.isNaN(date.getTime())) return asOf;
-  return date.toLocaleDateString("en", { month: "short", year: "numeric" });
-}
-
 export function sourceHost(url: string): string {
   try {
     const parsed = new URL(url);
