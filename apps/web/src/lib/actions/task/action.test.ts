@@ -340,10 +340,7 @@ describe("task link actions", () => {
   });
 
   it("rethrows Core 404 Project not found from createTask (SOKOSUMI-QA)", async () => {
-    expectConsole(
-      "error",
-      "Failed to create task CoreApiRequestError: Project not found",
-    );
+    const errorCalls = expectConsole("error", "Failed to create task");
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     const { createTask } = await import("./action");
 
@@ -366,6 +363,7 @@ describe("task link actions", () => {
       message: "Project not found",
       status: 404,
     });
+    expect(errorCalls[0]?.[1]).toBe(projectMissing);
   });
 
   it("archives the created task when creating the link fails after task creation", async () => {

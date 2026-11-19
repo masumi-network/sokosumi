@@ -52,12 +52,18 @@ export default async function SeoPage({
   if (owner) await connection();
   try {
     if (!owner) {
-      const index = await loadSeoAuditIndex({ cursor, projectId });
+      const archived = view === "archived";
+      const index = await loadSeoAuditIndex({
+        cursor,
+        projectId,
+        ...(archived && { status: "archived" }),
+      });
       return (
         <WorkspacePageShell title={t("title")}>
           <RefreshPrefetchedPage />
           <SeoAuditIndex
-            key={JSON.stringify([projectId, cursor])}
+            key={JSON.stringify([projectId, cursor, archived])}
+            archived={archived}
             cursor={cursor ?? null}
             audits={index.audits}
             projectId={projectId ?? null}

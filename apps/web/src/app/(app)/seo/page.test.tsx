@@ -133,6 +133,30 @@ describe("native SEO audit entry", () => {
     expect(m.coworkers).not.toHaveBeenCalled();
   });
 
+  it("reads archived reports in the chosen project and keeps the cursor in the archive", async () => {
+    m.listAudits.mockResolvedValue({
+      audits: [],
+      pagination: { nextCursor: SEO_TEST_AUDIT },
+    });
+    await show({
+      view: "archived",
+      projectId: SEO_TEST_PROJECT,
+      cursor: SEO_TEST_PAGE,
+    });
+    expect(m.listAudits).toHaveBeenCalledWith({
+      projectId: SEO_TEST_PROJECT,
+      cursor: SEO_TEST_PAGE,
+      status: "archived",
+    });
+    expect(
+      screen.getByRole("link", { name: messages.App.Seo.more }),
+    ).toHaveAttribute(
+      "href",
+      `/seo?projectId=${SEO_TEST_PROJECT}&view=archived&cursor=${SEO_TEST_AUDIT}`,
+    );
+    expect(m.getWorkspace).not.toHaveBeenCalled();
+  });
+
   it("opens the form for a new Audit from the workspace switch prompt's link", async () => {
     m.listAudits.mockResolvedValue({
       audits: [

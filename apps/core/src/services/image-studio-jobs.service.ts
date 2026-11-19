@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-
 import {
   Prisma,
   ProjectImageJobKind,
@@ -16,9 +15,7 @@ import {
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
-
 import { HTTPException } from "hono/http-exception";
-
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import { DriveFileDownloadError } from "@/helpers/drive-file-download";
@@ -27,6 +24,7 @@ import {
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import {
   createTaskEventTransaction,
   isInsufficientBalanceError,
@@ -547,6 +545,12 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // A unique violation here aborts this transaction. It is caught by the
     // caller, on a fresh connection, because the aborted one cannot answer
     // another query.
+    const productId = input.product?.id ?? source?.job.productId;
+    const productName = input.product?.name ?? source?.job.productName;
+    const useProductCutout = inheritsCutout || input.useProductCutout;
+    const productCutoutChecksum = inheritsCutout
+      ? source?.job.productCutoutChecksum
+      : undefined;
     const job = await tx.projectImageJob.create({
       data: {
         projectId: input.projectId,
@@ -556,30 +560,42 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         kind: input.kind,
         model: input.model,
         prompt: input.prompt,
-        productId: input.product?.id ?? source?.job.productId,
-        productName: input.product?.name ?? source?.job.productName,
-        batchId: input.batchId,
-        templateId: input.templateId,
-        creativeDirection: input.creativeDirection,
-        variationIndex: input.variationIndex,
-        batchSlotId,
-        exportHeadline,
+        ...(productId !== undefined ? { productId } : {}),
+        ...(productName !== undefined ? { productName } : {}),
+        ...(input.batchId !== undefined ? { batchId: input.batchId } : {}),
+        ...(input.templateId !== undefined
+          ? { templateId: input.templateId }
+          : {}),
+        ...(input.creativeDirection !== undefined
+          ? { creativeDirection: input.creativeDirection }
+          : {}),
+        ...(input.variationIndex !== undefined
+          ? { variationIndex: input.variationIndex }
+          : {}),
+        ...(batchSlotId !== undefined ? { batchSlotId } : {}),
+        ...(exportHeadline !== undefined ? { exportHeadline } : {}),
         lettering: input.lettering ?? (exportHeadline ? "ideogram" : "overlay"),
-        letteringQuoteCents: input.letteringQuoteCents,
-        presenterConsentAt: input.presenterConsentAt,
-        useProductCutout: inheritsCutout || input.useProductCutout,
-        productCutoutChecksum: inheritsCutout
-          ? source?.job.productCutoutChecksum
-          : undefined,
-        settings: {
+        ...(input.letteringQuoteCents !== undefined
+          ? { letteringQuoteCents: input.letteringQuoteCents }
+          : {}),
+        ...(input.presenterConsentAt !== undefined
+          ? { presenterConsentAt: input.presenterConsentAt }
+          : {}),
+        ...(useProductCutout !== undefined ? { useProductCutout } : {}),
+        ...(productCutoutChecksum !== undefined
+          ? { productCutoutChecksum }
+          : {}),
+        settings: jsonInput({
           ...input.settings,
           ...(input.letteringSettings
             ? {
                 letteringSettings: { ...input.letteringSettings },
-                letteringModel: input.letteringModel,
+                ...(input.letteringModel !== undefined
+                  ? { letteringModel: input.letteringModel }
+                  : {}),
               }
             : {}),
-        },
+        }),
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
         referenceLibraryIds: input.referenceLibraryIds ?? [],
@@ -674,7 +690,7 @@ async function claimForSettlement(
   const claimed = await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
-      falRequestId,
+      ...(falRequestId !== undefined ? { falRequestId } : {}),
       status: { in: [...LIVE_STATUSES] },
       OR: [{ settleLeaseAt: null }, { settleLeaseAt: { lt: deadline } }],
     },
@@ -1435,7 +1451,7 @@ async function prepareTalkingVideo(
     where: { id: job.id },
     data: {
       voiceBlobPathname: stored.pathname,
-      settings: { ...made },
+      settings: jsonInput(made),
       // What could not be started is not charged for.
       ...((settings.siteShots && !made.siteShots) ||
       (settings.broll && !made.broll) ||
@@ -1734,7 +1750,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         .createHash("sha256")
         .update(studioBrandPromptBlock(promptBrand))
         .digest("hex"),
-      brandLook: brand.look ?? Prisma.DbNull,
+      brandLook: brand.look ? jsonInput(brand.look) : Prisma.DbNull,
       assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
       templateId: job.templateId ?? null,
       creativeDirection: job.creativeDirection ?? null,
@@ -2950,9 +2966,9 @@ async function insertAsset(input: {
     exportHeadline: string | null;
     lettering?: string;
     letteringQuoteCents?: bigint | null;
-    sessionId?: string | null;
-    productId?: string | null;
-    productName?: string | null;
+    sessionId: string | null;
+    productId: string | null;
+    productName: string | null;
     batchSlotId?: string | null;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
@@ -3075,8 +3091,12 @@ async function insertAsset(input: {
         prompt: input.job.prompt,
         settings: input.job.settings ?? {},
         blobPathname: input.blobPathname,
-        backdropBlobPathname: input.backdropBlobPathname,
-        backdropContentType: input.backdropContentType,
+        ...(input.backdropBlobPathname !== undefined
+          ? { backdropBlobPathname: input.backdropBlobPathname }
+          : {}),
+        ...(input.backdropContentType !== undefined
+          ? { backdropContentType: input.backdropContentType }
+          : {}),
         contentType: input.contentType,
         mediaType: input.mediaType,
         aiGenerated: input.aiGenerated,
@@ -3124,7 +3144,7 @@ async function insertAsset(input: {
           prompt: `Add the approved headline: ${input.job.exportHeadline}`,
           exportHeadline: input.job.exportHeadline,
           lettering: "ideogram",
-          settings: { ...readSettings(secondSettings ?? {}) },
+          settings: jsonInput(readSettings(secondSettings ?? {})),
           productId: input.job.productId,
           productName: input.job.productName,
           batchSlotId: input.job.batchSlotId ?? input.job.id,

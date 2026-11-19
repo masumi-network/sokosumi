@@ -1,4 +1,9 @@
-import type { NotificationItem, TaskListItem } from "@sokosumi/core-client";
+import {
+  type NotificationItem,
+  type TaskEvent,
+  type TaskListItem,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import { TASK_INPUT_REQUIRED_MESSAGE_KEY } from "@sokosumi/utils";
 import { queryOptions } from "@tanstack/react-query";
 import { COLUMN_TASK_STATUSES } from "@/app/tasks/utils/task-column";
@@ -84,5 +89,39 @@ export function isTaskAskListed(
     notification.messageKey === TASK_INPUT_REQUIRED_MESSAGE_KEY &&
     waiting !== undefined &&
     waiting.tasks.some((task) => task.id === notification.referenceId)
+  );
+}
+
+/**
+ * What the agent asked for the current wait: the comment it parked the Task
+ * with, else its newest comment since the Task last left Input required.
+ * People's comments (they carry a `userId`) are never the question. Null
+ * when this wait has no question of its own, rather than an older one.
+ */
+export function waitingQuestion(events: TaskEvent[]): string | null {
+  const lastOther = events.findLastIndex(
+    (event) => event.status && event.status !== TaskStatus.INPUT_REQUIRED,
+  );
+  const wait = events.slice(lastOther + 1);
+  const asked = wait.findLast(
+    (event) => event.status === TaskStatus.INPUT_REQUIRED && event.comment,
+  );
+  const fallback = wait.findLast((event) => !event.userId && event.comment);
+  return (asked ?? fallback)?.comment ?? null;
+}
+
+/**
+ * Whether the Task's history still ends in the wait the list shows: its
+ * newest status event asked for input at `statusSince`. False once it has
+ * resumed or asked again, so a stale row never offers an answer to it.
+ */
+export function isCurrentWait(
+  events: TaskEvent[],
+  statusSince: Date | string,
+): boolean {
+  const last = events.findLast((event) => event.status);
+  return (
+    last?.status === TaskStatus.INPUT_REQUIRED &&
+    new Date(last.createdAt).getTime() === new Date(statusSince).getTime()
   );
 }

@@ -10,7 +10,7 @@ export async function hasSeoTaskResult(
       where: {
         taskId,
         OR: [
-          { audit: { workspaceId, deletedAt: null } },
+          { audit: { workspaceId, deletedAt: null, archivedAt: null } },
           { project: { workspaceId } },
         ],
       },

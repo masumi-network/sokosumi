@@ -1,6 +1,7 @@
 import type { Task } from "@sokosumi/core-client";
 import {
   isTaskEditableStatus,
+  removeSeoTaskRequest,
   removeTaskContextAttachmentLinks,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
@@ -435,7 +436,7 @@ async function TaskDescriptionSection({
     getTranslations("App.Tasks.Detail"),
   ]);
   const descriptionBody = task.description
-    ? removeTaskContextAttachmentLinks(task.description)
+    ? removeSeoTaskRequest(removeTaskContextAttachmentLinks(task.description))
     : null;
 
   return (

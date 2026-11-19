@@ -37,6 +37,7 @@ import {
   appendUniqueTasks,
   buildInitialColumnCursorById,
 } from "@/app/tasks/utils/task-pages";
+import { effectiveTasksSort } from "@/app/tasks/utils/task-sort";
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
@@ -580,6 +581,8 @@ export function useTasksViewModel({
           columnId,
           cursor,
           ...routeFilters,
+          // Same order as the first page, or the cursor skips Tasks.
+          sort: effectiveTasksSort(routeFilters.sort, "board"),
         });
         if (pagingContextRef.current !== pagingContext) return;
         setItems((prev) => appendUniqueTasks(prev, result.tasks));

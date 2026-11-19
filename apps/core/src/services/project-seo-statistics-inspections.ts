@@ -126,9 +126,9 @@ export function applyStatisticsInspections(
   metrics: NativeSeoMetrics,
   inspections: Awaited<ReturnType<typeof collectStatisticsInspections>>,
 ) {
-  metrics.indexedPages = inspections.indexedPages.length
-    ? inspections.indexedPages
-    : undefined;
+  if (inspections.indexedPages.length)
+    metrics.indexedPages = inspections.indexedPages;
+  else delete metrics.indexedPages;
   metrics.inspectionCache = inspections.inspectionCache;
   metrics.notes = metrics.notes.filter(
     (note) => note !== SEO_STATISTICS_INDEX_STATUS_UNAVAILABLE_NOTE,

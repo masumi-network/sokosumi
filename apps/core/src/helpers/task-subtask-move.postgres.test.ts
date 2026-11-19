@@ -45,7 +45,7 @@ async function createTask(
 ): Promise<string> {
   const task = await prisma.task.create({
     data: {
-      id: input.id,
+      ...(input.id !== undefined ? { id: input.id } : {}),
       ownerId: userId,
       creatorUserId: userId,
       workspaceId,

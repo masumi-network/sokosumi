@@ -153,13 +153,14 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
   focusToolbarControl: (
     await importOriginal<typeof import("./tasks-view-filters")>()
   ).focusToolbarControl,
-  // The filter row places the Display control, so the stub does too.
+  // The filter row places the view options menu after Filters, so the stub
+  // does too.
   TasksViewFilters: ({ display }: { display?: React.ReactNode }) => (
     <>
-      {display}
       <span data-filters-menu>
         <button type="button">Filters</button>
       </span>
+      {display}
     </>
   ),
 }));
@@ -245,11 +246,19 @@ const labels = {
   } as Record<KanbanColumnId, string>,
   display: {
     button: "Display",
+    layout: "Layout",
     list: "List",
     board: "Board",
     density: "Density",
     normal: "Normal",
     compact: "Compact",
+    sortBy: "Sort by",
+    sortOptions: {
+      updatedAt: "Last updated",
+      createdAt: "Newest",
+      priority: "Priority",
+      dueOn: "Due date",
+    },
   },
   listPlaceholder: "No tasks",
   loadMore: "Load more",
@@ -315,7 +324,7 @@ function boardView(
   );
 }
 
-it("applies Display density to board and list and restores the saved preference", async () => {
+it("applies density from the view options menu to board and list and restores the saved preference", async () => {
   document.cookie = "tasks_density=; max-age=0; path=/";
   const user = userEvent.setup();
   const { unmount } = renderBoard();
@@ -355,8 +364,8 @@ it("applies Display density to board and list and restores the saved preference"
   document.cookie = "tasks_density=; max-age=0; path=/";
 });
 
-// The toolbar has no Archived button, so the Display popover is the way there.
-it("reaches archived Tasks from the Display popover", async () => {
+// The toolbar has no Archived button, so the view options menu is the way there.
+it("reaches archived Tasks from the view options menu", async () => {
   const user = userEvent.setup();
   render(boardView([TASK]));
   expect(screen.queryByRole("link", { name: "link" })).toBeNull();

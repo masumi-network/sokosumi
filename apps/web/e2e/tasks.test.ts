@@ -197,16 +197,16 @@ for (const { name: size, ...viewport } of PROJECTS) {
         "a board card shows an empty tags line",
       );
       // Keyboard order: the next Tab stop after the toolbar's last control,
-      // Filters, is the card's task link, with no extra stop on the card.
+      // View options, is the card's task link, with no extra stop on the card.
       await page
-        .getByRole("button", { name: "Filters" })
+        .getByRole("button", { name: "View options" })
         .filter({ visible: true })
         .focus();
       await page.keyboard.press("Tab");
       assert.equal(
         await page.evaluate(() => document.activeElement?.textContent),
         LONG_NAME,
-        "Tab after Filters does not land on the card's task link",
+        "Tab after View options does not land on the card's task link",
       );
       // Enter opens the task and moves focus to its heading, visibly, so a
       // screen reader reads the name even when the streamed tab title is late.
@@ -222,9 +222,9 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       await page.getByRole("button", { name: "Archive", exact: true }).click();
       await page.waitForURL(`${BASE_URL}/tasks`);
-      // Archived tasks live in the Display popover.
+      // Archived tasks live in the view options menu.
       await page
-        .getByRole("button", { name: "Display" })
+        .getByRole("button", { name: "View options" })
         .filter({ visible: true })
         .click();
       await page.getByRole("link", { name: "Archived", exact: true }).click();

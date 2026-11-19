@@ -1,7 +1,11 @@
 {
   "Components": {
     "SokoBotTurnFailure": {
-      "aiBudgetExceeded": "Tu asistente ha alcanzado su límite de uso. Podrá volver a responder cuando se aumente o se restablezca el límite."
+      "aiBudgetExceeded": "Tu asistente ha alcanzado su límite de uso. Podrá volver a responder cuando se aumente o se restablezca el límite.",
+      "generic": "Algo salió mal de nuestro lado. Inténtalo de nuevo. Si el problema persiste, contacta con el equipo de soporte.",
+      "messageSaved": "Tu mensaje se ha guardado.",
+      "backgroundFailed": "La ejecución en segundo plano «{title}» falló antes de poder informar.",
+      "backgroundDeadline": "La ejecución en segundo plano «{title}» se quedó sin tiempo para informar."
     },
     "AuthCaptcha": {
       "error": "No se pudo cargar la comprobación de seguridad. Desactiva los bloqueadores de contenido o vuelve a cargar la página.",
@@ -846,7 +850,16 @@
           "AUTHENTICATION_REQUIRED": "Iniciar sesión",
           "OUT_OF_CREDITS": "Abrir",
           "GRANT_PENDING": "Abrir"
-        }
+        },
+        "answerPlaceholder": "Responder a {name}…",
+        "answerPlaceholderNoName": "Escribe tu respuesta…",
+        "send": "Enviar",
+        "answerSent": "Respuesta enviada",
+        "answerError": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
+        "questionLoading": "Cargando la pregunta…",
+        "questionError": "No se pudo cargar la pregunta.",
+        "questionOnTask": "Léela en la tarea",
+        "waitEnded": "Esta tarea ya no espera esta respuesta."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",
@@ -1869,12 +1882,20 @@
         "date": "Fecha"
       },
       "Display": {
-        "button": "Vista",
+        "button": "Opciones de vista",
+        "layout": "Diseño",
         "list": "Lista",
         "board": "Tablero",
         "density": "Densidad",
         "normal": "Normal",
-        "compact": "Compacto"
+        "compact": "Compacto",
+        "sortBy": "Ordenar por",
+        "sortOptions": {
+          "updatedAt": "Última actualización",
+          "createdAt": "Más recientes",
+          "priority": "Prioridad",
+          "dueOn": "Fecha de vencimiento"
+        }
       },
       "List": {
         "placeholder": "Sin Tasks"
@@ -1915,11 +1936,12 @@
         "clear": "Borrar filtros",
         "noMatchesTitle": "Ninguna Task coincide con estos filtros",
         "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks.",
-        "stuck": "Atascadas {days}+ días",
+        "stuck": "Atascadas",
+        "stuckDays": "{days}+ días",
         "workspaceTags": "Etiquetas del espacio de trabajo",
         "archivedTags": "Etiquetas archivadas",
         "topicTags": "Temas predeterminados",
-        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más",
+        "viewLabel": "Vista de tareas",
         "needsMe": "Me necesita",
         "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
         "mentions": "Menciones",
@@ -2626,6 +2648,12 @@
         "label": "Tiempo en este estado:",
         "stuck": "Atascada",
         "since": "En este estado desde"
+      },
+      "SimilarTasks": {
+        "title": "Tareas abiertas con títulos parecidos",
+        "hint": "¿Ya se pidió? Abre la tarea en lugar de crear un duplicado.",
+        "opensInNewTab": "(se abre en una pestaña nueva)",
+        "announcement": "{count, plural, one {# tarea abierta con un título parecido} other {# tareas abiertas con títulos parecidos}}"
       }
     },
     "Projects": {
@@ -10834,7 +10862,6 @@
         "answeredIn": "{seconds}s",
         "copy": "Copiar",
         "copied": "Copiado",
-        "failed": "Este turno falló. Inténtalo de nuevo o reformula.",
         "cancelled": "Cancelado.",
         "noAnswer": "No se registró ninguna respuesta para este turno.",
         "stillWorking": "Sigue trabajando",
@@ -12476,9 +12503,10 @@
           "absent": "Fuera del top {top} de Google",
           "position": "Posición {position}",
           "featuredSnippet": "Fragmento destacado, posición {position}",
-          "forKeyword": "para «{keyword}»",
+          "forKeyword": "para «<k>{keyword}</k>»",
           "source": "Google · {country} · {language}",
           "aiCited": "La vista general de IA de Google cita esta página como fuente",
+          "otherKeywords": "Otras palabras clave",
           "othersAbsent": "Tampoco en el top {top} para {count, plural, one {# palabra clave más} other {# palabras clave más}}",
           "searchConsole": "Posición media en Search Console: {position}",
           "serpRead": "Resultado de búsqueda leído:",
@@ -13179,16 +13207,26 @@
       },
       "historyLimited": "Se muestran las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones de estas páginas. El historial anterior no se incluye.",
       "audits": {
-        "moreOptions": "Más opciones para {name}",
-        "delete": "Eliminar auditoría",
-        "deleteTitle": "¿Eliminar «{name}»?",
-        "deleteDescription": "La auditoría y sus resultados se eliminarán de este espacio de trabajo. El enlace a la auditoría dejará de funcionar.",
-        "deleteFailed": "No se pudo eliminar la auditoría. Inténtalo de nuevo.",
-        "deleteActiveCheck": "Espera a que termine la comprobación actual o cancela su tarea. Después, vuelve a intentarlo.",
-        "deleteActiveChat": "Se está generando una respuesta en el chat. Espera a que termine y vuelve a intentarlo.",
-        "deleteScheduled": "Finaliza las comprobaciones programadas de esta auditoría y vuelve a intentarlo.",
-        "deleteBlocked": "Esta auditoría ha cambiado. Vuelve a intentarlo.",
-        "deleteUnavailable": "Ya no puedes eliminar esta auditoría.",
+        "archive": "Archivar informe",
+        "archiveTitle": "¿Archivar «{name}»?",
+        "archiveDescription": "Se archivarán el informe, todas sus auditorías y resultados, y las tareas creadas para el informe. Este cambio afecta a todo el espacio de trabajo. Puedes restaurarlo desde «Informes archivados». Las tareas que estaban a la espera de ejecutarse se restauran como borradores sin programar.",
+        "archiveFailed": "No se pudo archivar este informe. Inténtalo de nuevo.",
+        "archiveTaskBlocked": "Una tarea relacionada no se puede archivar en su estado actual. Complétala o cancélala y vuelve a intentarlo.",
+        "archiveActiveCheck": "Espera a que termine la comprobación actual o cancela su tarea. Después, inténtalo de nuevo.",
+        "archiveActiveChat": "Hay una respuesta de chat en curso. Espera a que termine y vuelve a intentarlo.",
+        "archiveScheduled": "Finaliza las comprobaciones programadas de este informe y vuelve a intentarlo.",
+        "restoreTaskScopeConflict": "Una tarea relacionada también pertenece a otro informe SEO o proyecto. Revisa su tarea principal y sus subtareas en la lista de tareas archivadas antes de restaurar este informe.",
+        "taskScopeConflict": "Una tarea relacionada está vinculada a otro informe SEO o proyecto. Si hay tareas anidadas de distintos informes, abre la subtarea en Tareas y selecciona «Quitar de la tarea principal». Luego vuelve a intentarlo.",
+        "archiveBlocked": "Ahora no se puede archivar el informe o una de sus tareas. Comprueba si hay trabajo en curso y vuelve a intentarlo.",
+        "archiveUnavailable": "Ya no puedes archivar este informe.",
+        "listOptions": "Opciones de la lista de informes",
+        "showArchived": "Mostrar informes archivados",
+        "showActive": "Mostrar informes activos",
+        "archived": "Informes archivados",
+        "archivedEmpty": "No hay informes archivados.",
+        "restore": "Restaurar",
+        "restoreLabel": "Restaurar {name}",
+        "restoreFailed": "No se pudo restaurar el informe. Comprueba tu acceso a las tareas relacionadas y vuelve a intentarlo.",
         "continue": "Continuar",
         "create": "Crear auditoría",
         "saved": "Auditorías guardadas",

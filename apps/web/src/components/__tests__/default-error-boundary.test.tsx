@@ -34,7 +34,7 @@ describe("DefaultErrorBoundary", () => {
 
   it("reports the caught error, its component stack, and caller context to Sentry", () => {
     expectConsole("error", "[chat-error-boundary]");
-    expectConsole("error", "Error: render exploded");
+    const reactErrors = expectConsole("error", "");
     render(
       <DefaultErrorBoundary
         boundaryName="chat"
@@ -57,6 +57,7 @@ describe("DefaultErrorBoundary", () => {
     ];
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe("render exploded");
+    expect(reactErrors[0]?.[1]).toBe(error);
     expect(captureContext.tags?.errorBoundary).toBe("chat");
     expect(captureContext.extra?.roomId).toBe("room-1");
     expect(typeof captureContext.contexts?.react?.componentStack).toBe(
@@ -66,7 +67,7 @@ describe("DefaultErrorBoundary", () => {
 
   it("still reports when no context is given (default boundary name)", () => {
     expectConsole("error", "[default-error-boundary]");
-    expectConsole("error", "Error: no context");
+    const reactErrors = expectConsole("error", "");
     render(
       <DefaultErrorBoundary fallback={<div>fallback</div>}>
         <Boom message="no context" />
@@ -74,10 +75,12 @@ describe("DefaultErrorBoundary", () => {
     );
 
     expect(captureException).toHaveBeenCalledTimes(1);
-    const [, captureContext] = captureException.mock.calls[0] as [
+    const [error, captureContext] = captureException.mock.calls[0] as [
       Error,
       { tags?: Record<string, unknown>; extra?: unknown },
     ];
+    expect(reactErrors[0]?.[1]).toBe(error);
+    expect(error.message).toBe("no context");
     expect(captureContext.tags?.errorBoundary).toBe("default");
     expect(captureContext.extra).toBeUndefined();
   });

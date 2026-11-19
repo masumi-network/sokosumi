@@ -1,6 +1,7 @@
 import type { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
@@ -265,7 +266,6 @@ export async function recordNativeSeoMetrics(
     const body = JSON.stringify(payload),
       artifactHash = sha256(body),
       sourceKey = `native:${sha256(`${visibility === SEO_DATA_VISIBILITY.SHARED ? `${visibility}:` : ""}${actor.userId}:${payload.provider}:${payload.propertyId}:${artifactHash}`)}`;
-    const data: Prisma.InputJsonObject = payload;
     const result = await client.projectSeoObservation.upsert({
       where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
       create: {
@@ -278,7 +278,7 @@ export async function recordNativeSeoMetrics(
         pageIds: options.scope?.pageIds ?? pages.map((page) => page.id),
         scopeVersion: options.scope?.version ?? 0,
         artifactHash,
-        payload: data,
+        payload: jsonInput(payload),
         observedAt: new Date(payload.observedAt),
       },
       update: {},

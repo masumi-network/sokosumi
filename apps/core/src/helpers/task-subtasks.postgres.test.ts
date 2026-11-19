@@ -231,17 +231,20 @@ describe.skipIf(!enabled)("task sub-tasks against PostgreSQL", () => {
     const moved = await createTask({ projectId: null });
     const middle = await createTask({ projectId: null, parentTaskId: moved });
     await createTask({ projectId: null, parentTaskId: middle });
-    const moveUnder = (parentTaskId: string | undefined) =>
+    const deepest = chain.at(-1);
+    const secondDeepest = chain.at(-2);
+    if (!deepest || !secondDeepest) throw new Error("Missing sub-task chain");
+    const moveUnder = (parentTaskId: string) =>
       prisma.task.update({
         where: { id: moved },
         data: { parentTaskId, position: 1 },
       });
 
     // Level 4 + 2 levels below it = 6.
-    await expect(moveUnder(chain[3])).rejects.toThrow(/task_subtask_too_deep/);
+    await expect(moveUnder(deepest)).rejects.toThrow(/task_subtask_too_deep/);
     // Level 3 + 2 = 5.
-    await expect(moveUnder(chain[2])).resolves.toMatchObject({
-      parentTaskId: chain[2],
+    await expect(moveUnder(secondDeepest)).resolves.toMatchObject({
+      parentTaskId: secondDeepest,
     });
   });
 

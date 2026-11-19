@@ -174,6 +174,7 @@ import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
   previewedTaskIds,
+  readSokoBotBackgroundFailure,
   SokoBotFeedbackButtons,
   SokoBotMessageFooter,
   SokoBotSourceLabel,
@@ -2083,10 +2084,12 @@ function MessageTimeOrOutboundStatus({
 function FailedMentionCard({
   name,
   metadata,
+  isSokoBot,
   onRetryMention,
 }: {
   name: string;
   metadata: unknown;
+  isSokoBot: boolean;
   onRetryMention?: () => void;
 }) {
   const t = useTranslations("App.Channels");
@@ -2096,11 +2099,13 @@ function FailedMentionCard({
     metadata && typeof metadata === "object" && "mention_failure" in metadata
       ? metadata.mention_failure
       : null;
-  const budgetExceeded =
-    failure &&
-    typeof failure === "object" &&
-    "kind" in failure &&
-    failure.kind === "ai_budget_exceeded";
+  const failureKind =
+    failure && typeof failure === "object" && "kind" in failure
+      ? failure.kind
+      : null;
+  const budgetExceeded = failureKind === "ai_budget_exceeded";
+  const showGeneric =
+    isSokoBot && !budgetExceeded && failureKind !== "turn_cancelled";
   return (
     <div
       className="border-border flex w-fit max-w-full flex-col gap-1 rounded-lg border px-3 py-2"
@@ -2117,9 +2122,12 @@ function FailedMentionCard({
       <p className="text-muted-foreground text-sm">
         {budgetExceeded
           ? tFailure("aiBudgetExceeded")
-          : saved
-            ? t("MentionStatus.failedSaved")
-            : t("MentionStatus.failedBody")}
+          : showGeneric
+            ? tFailure("generic")
+            : saved
+              ? t("MentionStatus.failedSaved")
+              : t("MentionStatus.failedBody")}
+        {showGeneric && saved ? ` ${tFailure("messageSaved")}` : null}
       </p>
       {onRetryMention ? (
         <button
@@ -2529,6 +2537,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
+  const backgroundFailure =
+    message.sender.type === "sokoBot"
+      ? readSokoBotBackgroundFailure(message.metadata)
+      : null;
+  const noticeMention = backgroundFailure
+    ? /^@\S+(?= )/.exec(message.content)?.[0]
+    : null;
   const router = useRouter();
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
@@ -2950,6 +2966,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 <FailedMentionCard
                   name={sender.name}
                   metadata={message.metadata}
+                  isSokoBot={message.sender.type === "sokoBot"}
                   onRetryMention={
                     onRetryMention ? () => onRetryMention(message) : undefined
                   }
@@ -3016,6 +3033,35 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                         )}
                       />
                       {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                    </>
+                  ) : backgroundFailure ? (
+                    <>
+                      {noticeMention ? (
+                        <ChannelMessageText
+                          content={noticeMention}
+                          coworkersById={coworkersById}
+                          coworkersBySlug={coworkersBySlug}
+                          sokoBotsById={sokoBotsById}
+                          sokoBotsBySlug={sokoBotsBySlug}
+                          usersById={usersById}
+                          usersBySlug={usersBySlug}
+                          channelLinks={channelLinks}
+                          currentUserId={currentUserId}
+                          canOpenHumanDirect={canOpenHumanDirect}
+                          onOpenDirectMessage={onOpenDirectMessage}
+                          openingDirectParticipantKey={
+                            openingDirectParticipantKey
+                          }
+                        />
+                      ) : null}
+                      <p>
+                        {backgroundFailure.kind === "turn_deadline_exceeded"
+                          ? tFailure("backgroundDeadline", {
+                              title: backgroundFailure.title,
+                            })
+                          : `${tFailure("backgroundFailed", { title: backgroundFailure.title })} ${tFailure(backgroundFailure.kind === "ai_budget_exceeded" ? "aiBudgetExceeded" : "generic")}`}
+                        {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                      </p>
                     </>
                   ) : quote && !message.content.trim() ? (
                     bodyEndsTheRow ? (

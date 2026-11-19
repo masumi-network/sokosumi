@@ -40,7 +40,7 @@ export async function listAdminSeoAlerts(
       LEFT JOIN LATERAL (SELECT e."createdAt", e."coworkerId" FROM "taskEvent" e
         WHERE e."taskId" = t.id AND e.status = t.status AND t.status IN ('FAILED','COMPLETED')
         ORDER BY e."createdAt" DESC, e.id DESC LIMIT 1) terminal ON true
-      WHERE a.kind = 'audit_full' AND au."deletedAt" IS NULL
+      WHERE a.kind = 'audit_full' AND au."deletedAt" IS NULL AND au."archivedAt" IS NULL
     ), latest AS (
       SELECT DISTINCT ON (id) * FROM runs
       WHERE status IN ('completed','failed') OR task_status = 'FAILED' OR

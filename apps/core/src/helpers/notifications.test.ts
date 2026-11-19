@@ -184,7 +184,13 @@ describe("createNotification", () => {
     expect(where).toEqual({
       taskId: notificationInput.referenceId,
       OR: [
-        { audit: { workspaceId: "workspace_123", deletedAt: null } },
+        {
+          audit: {
+            workspaceId: "workspace_123",
+            deletedAt: null,
+            archivedAt: null,
+          },
+        },
         { project: { workspaceId: "workspace_123" } },
       ],
     });

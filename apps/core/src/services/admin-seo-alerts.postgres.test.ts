@@ -12,7 +12,7 @@ it.skipIf(!enabled)(
     await prisma.$transaction(async (tx) => {
       for (const ddl of [
         'project_seo_analysis(id uuid, "auditId" uuid, "projectId" uuid, "requestedBy" text, request jsonb, status text, "taskId" text, kind text, "createdAt" timestamp, "updatedAt" timestamp, "failureReason" text)',
-        'seo_audit(id uuid, "workspaceId" uuid, "deletedAt" timestamp)',
+        'seo_audit(id uuid, "workspaceId" uuid, "deletedAt" timestamp, "archivedAt" timestamp)',
         'project(id uuid, "workspaceId" uuid)',
         'task(id text, "assigneeId" text, status text, "updatedAt" timestamp)',
         '"taskEvent"("taskId" text, status text, "coworkerId" text, "createdAt" timestamp, id text)',
@@ -149,6 +149,13 @@ it.skipIf(!enabled)(
         "reportMissing",
       ]);
       expect(late.items.some((row) => row.id === id(12))).toBe(false);
+      await tx.$executeRaw`UPDATE seo_audit SET "archivedAt"=timezone('UTC',now()) WHERE id=${id(11)}::uuid`;
+      expect(
+        (await listAdminSeoAlerts({ period: "all", page: 1 }, tx)).items.some(
+          (row) => row.id === id(11),
+        ),
+      ).toBe(false);
+      await tx.$executeRaw`UPDATE seo_audit SET "archivedAt"=NULL WHERE id=${id(11)}::uuid`;
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(80)}::uuid,${id(11)}::uuid,NULL,'late11','seo_coworker','audit_full',NULL,'{}',ARRAY[${id(81)}::uuid],timezone('UTC',now()))`;
       await tx.$executeRaw`UPDATE project_seo_analysis SET status='completed' WHERE "taskId"='late11'`;
       expect(

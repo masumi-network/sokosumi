@@ -1,3 +1,4 @@
+import { RedirectType, redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
@@ -12,11 +13,12 @@ const { revalidatePathMock, runNowMock, changeStateMock, requestAnalysisMock } =
     requestAnalysisMock: vi.fn(),
     changeStateMock: vi.fn(),
   }));
-const deleteAuditMock = vi.hoisted(() => vi.fn());
+const setArchivedMock = vi.hoisted(() => vi.fn());
 const authenticatedSessionId = vi.hoisted(() =>
   vi.fn<() => string | undefined>(),
 );
 
+vi.mock("next/navigation", { spy: true });
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
 vi.mock("@/middleware/auth-middleware", () => ({
@@ -45,17 +47,18 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
 vi.mock("@/lib/services/seo.service", () => ({
   seoServiceNoRedirect: {
     requestAnalysis: requestAnalysisMock,
-    deleteAudit: deleteAuditMock,
+    setAuditArchived: setArchivedMock,
   },
 }));
 
 import { mutateSeo } from "./action";
-import { deleteSeoAuditAction } from "./delete-audit";
+import { setSeoAuditArchivedAction } from "./set-audit-archived";
 
 const OWNER = {
   kind: "audit",
   id: "01960001-0001-7001-8001-000000000001",
 } as const;
+const PROJECT_ID = "01960001-0001-7001-8001-000000000002";
 const MONITOR_ID = "01960001-0001-7001-8001-000000000042";
 const CURRENT_SESSION_ID = "current-session";
 
@@ -65,25 +68,65 @@ beforeEach(() => {
 });
 
 it("preserves the Core refusal so the confirmation can explain how to resolve it", async () => {
-  deleteAuditMock.mockRejectedValueOnce(
+  setArchivedMock.mockRejectedValueOnce(
     new CoreApiRequestError("End the schedule first", {
       status: 409,
       kind: "seo_audit_resumable_monitor",
     }),
   );
-  expect(await deleteSeoAuditAction({ auditId: OWNER.id })).toMatchObject({
+  expect(
+    await setSeoAuditArchivedAction({
+      auditId: OWNER.id,
+      projectId: null,
+      archived: true,
+    }),
+  ).toMatchObject({
     ok: false,
     error: { status: 409, kind: "seo_audit_resumable_monitor" },
   });
 });
 
-it("rejects invalid audit IDs before making a deletion request", async () => {
-  deleteAuditMock.mockClear();
+it("rejects invalid audit IDs before making an archive request", async () => {
+  setArchivedMock.mockClear();
   expect(
-    await deleteSeoAuditAction({ auditId: "../another-resource" }),
+    await setSeoAuditArchivedAction({
+      auditId: "../another-resource",
+      projectId: null,
+      archived: true,
+    }),
   ).toMatchObject({ ok: false });
-  expect(deleteAuditMock).not.toHaveBeenCalled();
+  expect(setArchivedMock).not.toHaveBeenCalled();
 });
+
+it.each([
+  { archived: true, projectId: null, href: "/seo" },
+  {
+    archived: true,
+    projectId: PROJECT_ID,
+    href: `/seo?projectId=${PROJECT_ID}`,
+  },
+  {
+    archived: false,
+    projectId: PROJECT_ID,
+    href: `/seo?projectId=${PROJECT_ID}&auditId=${OWNER.id}`,
+  },
+])(
+  "refreshes the report and task views and returns to $href",
+  async ({ archived, projectId, href }) => {
+    setArchivedMock.mockResolvedValueOnce(undefined);
+    await expect(
+      setSeoAuditArchivedAction({ auditId: OWNER.id, projectId, archived }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+    expect(setArchivedMock).toHaveBeenCalledExactlyOnceWith(OWNER.id, archived);
+    expect(revalidatePathMock).toHaveBeenCalledWith("/seo");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/tasks/[taskId]", "page");
+    expect(redirect).toHaveBeenCalledExactlyOnceWith(
+      href,
+      RedirectType.replace,
+    );
+  },
+);
 
 function mutate(command: unknown) {
   return mutateSeo({ owner: OWNER, command: command as SeoCommand });

@@ -14574,63 +14574,6 @@ export const ChatSavedMessageMutationSchema = {
     ]
 } as const;
 
-export const ChatSignalListItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'needsYou',
-                'question',
-                'decision',
-                'commitment'
-            ],
-            description: '`needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.'
-        },
-        room: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                name: {
-                    type: 'string'
-                },
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'channel',
-                        'direct'
-                    ]
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'kind'
-            ]
-        },
-        message: {
-            $ref: '#/components/schemas/ChatRoomMessage'
-        },
-        dueAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'kind',
-        'room',
-        'message',
-        'dueAt'
-    ]
-} as const;
-
 export const ChatCatchUpItemSchema = {
     type: 'object',
     properties: {
@@ -49093,9 +49036,6 @@ export const SeoAuditSummarySchema = {
             type: 'integer',
             minimum: 0
         },
-        canDelete: {
-            type: 'boolean'
-        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -49472,6 +49412,19 @@ export const SendSeoAuditChatRequestSchema = {
     required: [
         'question',
         'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SetSeoAuditArchivedRequestSchema = {
+    type: 'object',
+    properties: {
+        archived: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'archived'
     ],
     additionalProperties: false
 } as const;

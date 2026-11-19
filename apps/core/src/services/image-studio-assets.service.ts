@@ -700,7 +700,10 @@ export async function listAssetsOfJobs(
 export async function listJobs(
   options: ListScope & { limit: number; kind?: ProjectImageJobKind },
 ): Promise<JobView[]> {
-  const where = { ...(await scopeWhere(options)), kind: options.kind };
+  const where = {
+    ...(await scopeWhere(options)),
+    ...(options.kind !== undefined ? { kind: options.kind } : {}),
+  };
   const jobs = await prisma.projectImageJob.findMany({
     where,
     orderBy: { createdAt: "desc" },

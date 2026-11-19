@@ -304,7 +304,9 @@ export async function requireMutationAuthority(
     const intent = await tx.sokoBotIntent.findFirst({
       where: {
         id: intentTurn.intentId,
-        revision: intentTurn.intentRevision ?? undefined,
+        ...(intentTurn.intentRevision != null
+          ? { revision: intentTurn.intentRevision }
+          : {}),
         sokoBotId: authorized.turn.sokoBotId,
         workspaceId: authorized.turn.workspaceId,
         state: { notIn: ["CANCELLED", "SUPERSEDED", "EXPIRED"] },

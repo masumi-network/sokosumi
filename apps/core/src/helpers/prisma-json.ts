@@ -8,9 +8,9 @@ import { Prisma } from "@sokosumi/database";
  * and anything Prisma would reject at query time throws here instead. The
  * assertion afterwards describes a shape the round trip has already produced.
  *
- * Use this only where the source really is a loose `unknown` payload. When a
- * helper or DTO owns the shape, give that shape a Prisma-compatible type
- * instead — see ADR 0035.
+ * Use this where a loose payload or Zod output can carry undefined keys.
+ * When a helper or DTO guarantees an already serialized JSON shape, give
+ * that shape a Prisma-compatible type instead. See ADR 0035.
  */
 export function jsonInput(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;

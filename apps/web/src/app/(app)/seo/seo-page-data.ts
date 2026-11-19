@@ -6,10 +6,9 @@ import { connection } from "next/server";
 import { PREFETCHED_CONTENT_STALE_SECONDS } from "@/lib/navigation/prefetched-content-stale-time";
 import { seoService } from "@/lib/services/seo.service";
 
-export interface SeoAuditIndexInput {
-  cursor?: string;
-  projectId?: string;
-}
+type SeoAuditIndexInput = NonNullable<
+  Parameters<typeof seoService.listAudits>[0]
+>;
 
 type SeoAuditIndex = Awaited<ReturnType<typeof seoService.listAudits>>;
 

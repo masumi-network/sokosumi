@@ -1,7 +1,11 @@
 {
   "Components": {
     "SokoBotTurnFailure": {
-      "aiBudgetExceeded": "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird."
+      "aiBudgetExceeded": "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird.",
+      "generic": "Bei uns ist etwas schiefgelaufen. Versuch es erneut. Wenn das Problem weiterhin auftritt, wende dich an den Support.",
+      "messageSaved": "Deine Nachricht wurde gespeichert.",
+      "backgroundFailed": "Der Hintergrundlauf „{title}“ ist fehlgeschlagen, bevor er berichten konnte.",
+      "backgroundDeadline": "Die Zeit für den Hintergrundlauf „{title}“ ist abgelaufen, bevor er berichten konnte."
     },
     "AuthCaptcha": {
       "error": "Die Sicherheitsprüfung konnte nicht geladen werden. Deaktiviere Inhaltsblocker oder lade die Seite neu.",
@@ -846,7 +850,16 @@
           "AUTHENTICATION_REQUIRED": "Anmelden",
           "OUT_OF_CREDITS": "Öffnen",
           "GRANT_PENDING": "Öffnen"
-        }
+        },
+        "answerPlaceholder": "{name} antworten…",
+        "answerPlaceholderNoName": "Deine Antwort…",
+        "send": "Senden",
+        "answerSent": "Antwort gesendet",
+        "answerError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
+        "questionLoading": "Frage wird geladen…",
+        "questionError": "Die Frage konnte nicht geladen werden.",
+        "questionOnTask": "In der Aufgabe lesen",
+        "waitEnded": "Diese Aufgabe wartet nicht mehr auf diese Antwort."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# Frage im Datenraum wartet auf eine Antwort} other {# Fragen im Datenraum warten auf eine Antwort}}",
@@ -1869,12 +1882,20 @@
         "date": "Datum"
       },
       "Display": {
-        "button": "Ansicht",
+        "button": "Ansichtsoptionen",
+        "layout": "Layout",
         "list": "Liste",
         "board": "Board",
         "density": "Dichte",
         "normal": "Standard",
-        "compact": "Kompakt"
+        "compact": "Kompakt",
+        "sortBy": "Sortieren nach",
+        "sortOptions": {
+          "updatedAt": "Zuletzt aktualisiert",
+          "createdAt": "Neueste",
+          "priority": "Priorität",
+          "dueOn": "Fälligkeit"
+        }
       },
       "List": {
         "placeholder": "Keine Tasks"
@@ -1915,11 +1936,12 @@
         "clear": "Filter zurücksetzen",
         "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
         "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen.",
-        "stuck": "Hängt seit {days}+ Tagen",
+        "stuck": "Hängt",
+        "stuckDays": "seit {days}+ Tagen",
         "workspaceTags": "Workspace-Tags",
         "archivedTags": "Archivierte Tags",
         "topicTags": "Standardthemen",
-        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat",
+        "viewLabel": "Task-Ansicht",
         "needsMe": "Wartet auf mich",
         "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
         "mentions": "Erwähnungen",
@@ -2626,6 +2648,12 @@
         "label": "Zeit in diesem Status:",
         "stuck": "Hängt",
         "since": "In diesem Status seit"
+      },
+      "SimilarTasks": {
+        "title": "Offene Aufgaben mit ähnlichem Titel",
+        "hint": "Schon angefragt? Öffne die Aufgabe, statt ein Duplikat anzulegen.",
+        "opensInNewTab": "(öffnet in einem neuen Tab)",
+        "announcement": "{count, plural, one {# offene Aufgabe mit ähnlichem Titel} other {# offene Aufgaben mit ähnlichem Titel}}"
       }
     },
     "Projects": {
@@ -10834,7 +10862,6 @@
         "answeredIn": "{seconds}s",
         "copy": "Kopieren",
         "copied": "Kopiert",
-        "failed": "Dieser Durchlauf ist fehlgeschlagen. Versuch es erneut oder formuliere um.",
         "cancelled": "Abgebrochen.",
         "noAnswer": "Für diesen Durchlauf wurde keine Antwort gespeichert.",
         "stillWorking": "Arbeitet noch daran",
@@ -12476,9 +12503,10 @@
           "absent": "Nicht in Googles Top {top}",
           "position": "Position {position}",
           "featuredSnippet": "Featured Snippet, Position {position}",
-          "forKeyword": "für „{keyword}“",
+          "forKeyword": "für „<k>{keyword}</k>“",
           "source": "Google · {country} · {language}",
           "aiCited": "Googles KI-Übersicht nennt diese Seite als Quelle",
+          "otherKeywords": "Weitere Keywords",
           "othersAbsent": "Auch nicht in den Top {top} für {count, plural, one {# weiteres Keyword} other {# weitere Keywords}}",
           "searchConsole": "Durchschnittliche Position in der Search Console: {position}",
           "serpRead": "Gelesenes Suchergebnis:",
@@ -13179,16 +13207,26 @@
       },
       "historyLimited": "Es werden die neuesten {limit} Prüfungen und die neuesten {limit} Synchronisierungen für diese Seiten gezeigt. Ältere Einträge fehlen.",
       "audits": {
-        "moreOptions": "Weitere Optionen für {name}",
-        "delete": "Audit löschen",
-        "deleteTitle": "„{name}“ löschen?",
-        "deleteDescription": "Das Audit und seine Ergebnisse werden aus diesem Workspace entfernt. Der Link zum Audit funktioniert danach nicht mehr.",
-        "deleteFailed": "Das Audit konnte nicht gelöscht werden. Versuche es erneut.",
-        "deleteActiveCheck": "Warte, bis die laufende Prüfung abgeschlossen ist, oder brich die zugehörige Aufgabe ab. Versuche es dann erneut.",
-        "deleteActiveChat": "Eine Chatantwort wird erstellt. Warte, bis sie fertig ist, und versuche es erneut.",
-        "deleteScheduled": "Beende die geplanten Prüfungen für dieses Audit und versuche es erneut.",
-        "deleteBlocked": "Dieses Audit wurde geändert. Versuche es erneut.",
-        "deleteUnavailable": "Du kannst dieses Audit nicht mehr löschen.",
+        "archive": "Bericht archivieren",
+        "archiveTitle": "„{name}“ archivieren?",
+        "archiveDescription": "Der Bericht wird mit allen Prüfläufen, Ergebnissen und den dafür erstellten Aufgaben für alle in diesem Workspace archiviert. Unter „Archivierte Berichte“ kannst du ihn wiederherstellen. Aufgaben, die auf ihre Ausführung gewartet haben, werden als Entwürfe ohne Termin wiederhergestellt.",
+        "archiveFailed": "Der Bericht konnte nicht archiviert werden. Versuche es erneut.",
+        "archiveTaskBlocked": "Eine zugehörige Aufgabe kann in ihrem aktuellen Status nicht archiviert werden. Schließe sie ab oder brich sie ab und versuche es erneut.",
+        "archiveActiveCheck": "Warte, bis die aktuelle Prüfung abgeschlossen ist, oder brich ihre Aufgabe ab. Versuche es dann erneut.",
+        "archiveActiveChat": "Eine Chatantwort wird erstellt. Warte, bis sie fertig ist, und versuche es erneut.",
+        "archiveScheduled": "Beende die geplanten Prüfungen für diesen Bericht und versuche es erneut.",
+        "restoreTaskScopeConflict": "Eine zugehörige Aufgabe gehört auch zu einem anderen SEO-Bericht oder Projekt. Prüfe ihre übergeordnete Aufgabe und ihre Unteraufgaben in der Liste der archivierten Aufgaben, bevor du diesen Bericht wiederherstellst.",
+        "taskScopeConflict": "Eine zugehörige Aufgabe ist mit einem anderen SEO-Bericht oder Projekt verknüpft. Wenn Aufgaben aus verschiedenen Berichten verschachtelt sind, öffne die Unteraufgabe und wähle „Aus übergeordnetem Task entfernen“. Versuche es dann erneut.",
+        "archiveBlocked": "Der Bericht oder eine zugehörige Aufgabe kann gerade nicht archiviert werden. Prüfe, ob noch Arbeit läuft, und versuche es erneut.",
+        "archiveUnavailable": "Du kannst diesen Bericht nicht mehr archivieren.",
+        "listOptions": "Optionen für die Berichtsliste",
+        "showArchived": "Archivierte Berichte anzeigen",
+        "showActive": "Aktive Berichte anzeigen",
+        "archived": "Archivierte Berichte",
+        "archivedEmpty": "Keine archivierten Berichte.",
+        "restore": "Wiederherstellen",
+        "restoreLabel": "{name} wiederherstellen",
+        "restoreFailed": "Der Bericht konnte nicht wiederhergestellt werden. Prüfe deinen Zugriff auf die zugehörigen Aufgaben und versuche es erneut.",
         "continue": "Weiter",
         "create": "Audit erstellen",
         "saved": "Gespeicherte Audits",

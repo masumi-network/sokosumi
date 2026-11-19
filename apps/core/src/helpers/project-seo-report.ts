@@ -522,7 +522,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     if (!site.success)
       throw badRequest("The site report does not match its supported format");
     const pages = site.data.pages.map(parsePublicSeoArtifact),
-      first = pages[0],
+      { strategy: _firstPageStrategy, ...first } = pages[0],
       pageUrls = pages.flatMap((page) => page.pageUrls),
       { strategy, note } = publicSeoStrategy(raw, pageUrls),
       siteFindings = publicSiteFindings(raw, pageUrls, first.observedAt);
@@ -599,7 +599,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         ),
         ...(note ? [note] : []),
       ],
-      strategy,
+      ...(strategy !== undefined ? { strategy } : {}),
     });
   }
   if (object(raw)?.schema === "sokosumi.seo-result/1") {
@@ -607,7 +607,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     if (!parsed.success)
       throw badRequest("The SEO result does not match its supported format");
     const result = parsed.data,
-      serp = focusedSerpFields(result);
+      { notes: serpNotes, ...serpFields } = focusedSerpFields(result);
     assertValidPartialSeoActions(result);
     return publicSeoPayloadSchema.parse({
       version: 1,
@@ -632,9 +632,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         notRequestedNames: result.coverage.skipped,
         failedNames: result.coverage.failed,
       }),
-      notes: [...result.gaps.map((gap) => gap.reason), ...serp.notes],
-      serps: serp.serps,
-      alertRows: serp.alertRows,
+      notes: [...result.gaps.map((gap) => gap.reason), ...serpNotes],
+      ...serpFields,
     });
   }
   const parsed = legacy.safeParse(raw);

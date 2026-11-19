@@ -8,6 +8,7 @@ import {
 import {
   extractFileLikeLinks,
   extractHttpLinks,
+  removeSeoTaskRequest,
   removeTaskContextAttachmentLinks,
 } from "@sokosumi/utils";
 import { ArrowUpRight } from "lucide-react";
@@ -71,7 +72,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   const publicDescription = task.description
-    ? removeTaskContextAttachmentLinks(task.description)
+    ? removeSeoTaskRequest(removeTaskContextAttachmentLinks(task.description))
     : "";
 
   const propertiesPanel = (

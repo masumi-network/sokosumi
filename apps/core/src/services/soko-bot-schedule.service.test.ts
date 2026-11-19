@@ -677,6 +677,9 @@ describe("schedules of a shared bot", () => {
       { userId: "owner_1", ...meRef(PERSONAL), prompt: "New" },
       tx,
     );
+    expect(scheduleUpdate.mock.lastCall?.[0]?.data).toStrictEqual({
+      prompt: "New",
+    });
     // The runtime's own lookup: the shared bot, in its workspace.
     botFindFirst.mockResolvedValueOnce({
       id: SHARED_BOT_ID,

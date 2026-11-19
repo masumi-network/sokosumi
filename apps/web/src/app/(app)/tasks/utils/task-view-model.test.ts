@@ -391,4 +391,13 @@ describe("mapTaskToTaskWithCoworker", () => {
 
     expect(map(task).descriptionPlain).toBeNull();
   });
+
+  it("previews an SEO Task's summary without its machine request line", () => {
+    const task = buildTask(TaskStatus.DRAFT, {
+      description:
+        'Full SEO audit of 1 page:\n\nseo_audit: {"version":1,"pageUrls":["https://example.com/"]}',
+    });
+
+    expect(map(task).descriptionPlain).toBe("Full SEO audit of 1 page:");
+  });
 });

@@ -50,8 +50,10 @@ export function legacyReportKeywords(
           volume: row.volume,
           difficulty: difficultyOf(row.keyword),
           intent: row.intent,
-          conversion: row.conversion,
-          feature: row.feature,
+          ...(row.conversion !== undefined
+            ? { conversion: row.conversion }
+            : {}),
+          ...(row.feature !== undefined ? { feature: row.feature } : {}),
           source: "focus",
           sourceRef: result.snapshotId,
           observedAt: at,
@@ -100,8 +102,8 @@ export function legacyReportKeywords(
       volume: row.volume,
       difficulty: row.difficulty ?? null,
       intent: row.intent,
-      conversion: row.conversion,
-      feature: row.feature,
+      ...(row.conversion !== undefined ? { conversion: row.conversion } : {}),
+      ...(row.feature !== undefined ? { feature: row.feature } : {}),
       source: "opportunity",
       sourceRef: result.snapshotId,
       observedAt: at,

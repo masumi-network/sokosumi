@@ -504,20 +504,20 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
   });
 
   it("keeps other Stripe failures as server errors", async () => {
-    expectConsole("error", "StripeAPIError: Stripe is unavailable.");
+    const errorCalls = expectConsole("error", "");
     setMembership("owner");
-    updateSubscriptionItemQuantityMock.mockRejectedValue(
-      new Stripe.errors.StripeAPIError({
-        message: "Stripe is unavailable.",
-        statusCode: 500,
-        type: "api_error",
-      }),
-    );
+    const error = new Stripe.errors.StripeAPIError({
+      message: "Stripe is unavailable.",
+      statusCode: 500,
+      type: "api_error",
+    });
+    updateSubscriptionItemQuantityMock.mockRejectedValue(error);
 
     const response = await updateSeats("org_123", 6);
 
     expect(response.status).toBe(500);
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
+    expect(errorCalls[0]?.[0]).toBe(error);
   });
 
   it("returns 500 when the Stripe subscription has no items", async () => {

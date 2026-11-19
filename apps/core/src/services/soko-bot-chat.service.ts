@@ -553,10 +553,18 @@ export async function persistSokoBotChatTurn(
   const error =
     turn.status === "CANCELLED"
       ? "Soko Bot turn was cancelled"
-      : (turn.errorDetail ?? "Soko Bot could not answer");
+      : turn.errorKind === AI_BUDGET_EXCEEDED
+        ? AI_BUDGET_EXCEEDED_MESSAGE
+        : "Soko Bot could not answer";
+  const mentionFailure =
+    turn.status === "CANCELLED"
+      ? { kind: "turn_cancelled" }
+      : turn.errorKind === AI_BUDGET_EXCEEDED
+        ? { kind: AI_BUDGET_EXCEEDED, message: AI_BUDGET_EXCEEDED_MESSAGE }
+        : null;
   const claimed = await tx.chatRoomMention.updateMany({
     where: { id: mention.id, status: { in: ["pending", "sent"] } },
-    data: { status: "failed", error: error.slice(0, 500) },
+    data: { status: "failed", error },
   });
   if (claimed.count !== 1) return;
   await tx.chatRoomMessage.update({
@@ -567,12 +575,7 @@ export async function persistSokoBotChatTurn(
         in_reply_to_message_id: mention.messageId,
         mention_id: mention.id,
         mention_failed: true,
-        ...(turn.errorKind === AI_BUDGET_EXCEEDED && {
-          mention_failure: {
-            kind: AI_BUDGET_EXCEEDED,
-            message: AI_BUDGET_EXCEEDED_MESSAGE,
-          },
-        }),
+        ...(mentionFailure && { mention_failure: mentionFailure }),
         soko_bot: { turn_id: turn.id, ...attemptAt },
       },
     },

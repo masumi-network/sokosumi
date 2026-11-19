@@ -97,7 +97,7 @@ describe("public SEO report trust boundary", () => {
         })),
       },
     }).strategy;
-    expect(parsed?.groups[0].forumQuestions).toEqual([
+    expect(parsed?.groups[0].forumQuestions).toStrictEqual([
       questions[0],
       { title: "When is renewal?" },
     ]);
@@ -310,8 +310,8 @@ describe("public SEO report trust boundary", () => {
     expect(rows("unread estimate")).toEqual([
       expect.objectContaining({ source: "opportunity", volume: 10 }),
     ]);
-    expect(rows("unread estimate")[0].conversion).toBeUndefined();
-    expect(rows("unread estimate")[0].feature).toBeUndefined();
+    expect(rows("unread estimate")[0]).not.toHaveProperty("conversion");
+    expect(rows("unread estimate")[0]).not.toHaveProperty("feature");
     // A feature of spaces only is no feature: the level stays.
     expect(rows("blank feature")[0].conversion).toBe("low");
     expect(rows("blank feature")[0].feature).toBeUndefined();

@@ -335,6 +335,36 @@ describe("durable delivery", () => {
     );
   });
 
+  it("delivers safe copy when a background run fails with a provider error", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          status: "FAILED",
+          finalAnswer: null,
+          parentTurnId: "parent",
+          backgroundTitle: "Gmail CRM",
+          errorKind: "GatewayInternalServerError",
+          errorDetail: "Raw provider diagnostic",
+        }),
+      }),
+    );
+
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          content:
+            'Background run "Gmail CRM" failed before it could report. Something went wrong on our side. Try again. If it keeps happening, contact support.',
+          metadata: expect.objectContaining({
+            soko_bot: expect.objectContaining({
+              background_failure_kind: "unknown",
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
   it("keeps a stopped background run quiet: whoever stopped it already said so", async () => {
     mocks.turn.mockResolvedValue(
       turn({

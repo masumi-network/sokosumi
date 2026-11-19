@@ -9,6 +9,7 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { jsonInput } from "@/helpers/prisma-json";
 import {
   failedPageRuns,
   reportObject,
@@ -214,7 +215,7 @@ export async function importProjectSeoAudit(
       });
       pageIds.push(page.id);
     }
-    const data: Prisma.InputJsonObject =
+    const reportPayload =
       analysis && reportObject(raw)?.kind === "site"
         ? { ...payload, pageRunFailures: failedPageRuns(skippedPages(raw)) }
         : payload;
@@ -229,7 +230,7 @@ export async function importProjectSeoAudit(
         pageIds,
         scopeVersion: analysis?.scopeVersion ?? 0,
         artifactHash,
-        payload: data,
+        payload: jsonInput(reportPayload),
         observedAt: new Date(payload.observedAt),
       },
     });
@@ -259,7 +260,7 @@ export async function reconcileProjectSeoTaskFile(
         kind: "audit" as const,
         id: analysis.auditId,
         root: await prisma.seoAudit.findUnique({
-          where: { id: analysis.auditId, deletedAt: null },
+          where: { id: analysis.auditId, deletedAt: null, archivedAt: null },
           select: { workspaceId: true },
         }),
       }
@@ -313,7 +314,9 @@ export async function reconcileProjectSeoTaskFile(
       where: {
         id: analysis.id,
         status: { not: "completed" },
-        ...(analysis.auditId && { audit: { deletedAt: null } }),
+        ...(analysis.auditId && {
+          audit: { deletedAt: null, archivedAt: null },
+        }),
       },
       data: {
         status: "failed",
