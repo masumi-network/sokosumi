@@ -45,6 +45,39 @@ describe("cusoFeedProblems", () => {
     ]);
   });
 
+  // CMO.XYZ's own Cuso, 18 Nov 2026: the owner's X account became "Cuso's".
+  it("refuses a meaning or a move that says Cuso instead of speaking to the owner", () => {
+    expect(
+      cusoFeedProblems(
+        feed({
+          competitorId: CROSSMINT,
+          meaning:
+            "Crossmint's sale puts a low price beside Cuso's free month preview.",
+          move: "Post on Cuso's connected X account this week: show the preview.",
+        }),
+        NAMES,
+        new Set(["x"]),
+      ),
+    ).toEqual([
+      expect.stringMatching(/^The meaning for Crossmint's move says "Cuso"/),
+      expect.stringMatching(
+        /^The move for Crossmint's move says "Cuso".*"your X account"/,
+      ),
+    ]);
+    expect(
+      cusoFeedProblems(
+        feed({
+          competitorId: CROSSMINT,
+          meaning:
+            "Crossmint's sale puts a low price beside your free month preview.",
+          move: "Post on your X account this week: show the preview.",
+        }),
+        NAMES,
+        new Set(["x"]),
+      ),
+    ).toEqual([]);
+  });
+
   it("keeps a meaning about that competitor's move and a move on a connected network", () => {
     const problems = cusoFeedProblems(
       feed(
