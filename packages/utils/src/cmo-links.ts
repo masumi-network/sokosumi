@@ -1,8 +1,12 @@
 // Each pattern can only fail at the next bracket, so a run of brackets or
 // spaces is read once, not once per character (CodeQL: polynomial regex).
 
-/** `[label](url)`, and the brackets Core's receipts wrap an "Open …" link in. */
-const MARKDOWN_LINK = /(\()?\[((?:[^[\]\\\n]|\\.)+)\]\(([^()[\]\s]+)\)(\))?/g;
+/**
+ * `[label](url)`, and the brackets Core's receipts wrap an "Open …" link in.
+ * Cuso sometimes writes spaces around the address: `[label]( /drive/… )`.
+ */
+const MARKDOWN_LINK =
+  /(\()?\[((?:[^[\]\\\n]|\\.)+)\]\([ \t]*([^()[\]\s]+)[ \t]*\)(\))?/g;
 
 /** An address written out in the text, without the punctuation after it. */
 const BARE_ADDRESS = /(?<![(\[])https?:\/\/[^\s)\]]*[^\s)\].,;:!?]/g;
