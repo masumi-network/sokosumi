@@ -28,10 +28,10 @@ import {
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
 import {
-  cleanupVendorLogoBestEffort,
-  getVendorLogoUploadErrorMessage,
-  uploadVendorLogoDirect,
-} from "@/lib/utils/vendor-logo-upload.client";
+  cleanupOwnedLogoBestEffort,
+  getUserFileUploadErrorMessage,
+  uploadOwnedLogoDirect,
+} from "@/lib/utils/user-file-upload.client";
 
 const vendorProfileSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -116,9 +116,14 @@ export function VendorProfileForm({
       setUploading(true);
       try {
         const uploadedFile = await raceWithTimeout(
-          uploadVendorLogoDirect(vendor.id, logoFile, {
-            allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
-            maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+          uploadOwnedLogoDirect({
+            kind: "vendor",
+            ownerId: vendor.id,
+            file: logoFile,
+            options: {
+              allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+              maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+            },
           }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
@@ -129,7 +134,7 @@ export function VendorProfileForm({
         toast.error(
           error instanceof ClientTimeoutError
             ? logoLabels.uploadError
-            : getVendorLogoUploadErrorMessage(error, logoLabels.uploadError),
+            : getUserFileUploadErrorMessage(error, logoLabels.uploadError),
         );
       } finally {
         setPendingFiles([]);
@@ -153,10 +158,10 @@ export function VendorProfileForm({
 
       const previous = logosAtOpenRef.current;
       if (previous.light && previous.light !== values.logos.light) {
-        void cleanupVendorLogoBestEffort(vendor.id, previous.light);
+        void cleanupOwnedLogoBestEffort("vendor", vendor.id, previous.light);
       }
       if (previous.dark && previous.dark !== values.logos.dark) {
-        void cleanupVendorLogoBestEffort(vendor.id, previous.dark);
+        void cleanupOwnedLogoBestEffort("vendor", vendor.id, previous.dark);
       }
       logosAtOpenRef.current = {
         light: values.logos.light,
