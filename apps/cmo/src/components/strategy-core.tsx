@@ -11,7 +11,7 @@ import {
   Search,
   ShoppingBag,
 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState, useTransition } from "react";
 
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
@@ -160,38 +160,76 @@ export function FunnelPlan({
         const { label, people } = STAGES[stage.stage];
         return (
           <li key={stage.stage} className="sc-stage">
-            <div className="sc-stage-head">
-              <span className="count" aria-hidden="true">
-                {index + 1}
-              </span>
+            <FunnelSegment index={index} of={stages.length}>
+              <span className="sc-stage-number num">{index + 1}</span>
               <h3 className="sc-stage-name">{label}</h3>
-              <span className="note">{people}</span>
+              <span className="sc-stage-people">{people}</span>
+            </FunnelSegment>
+            <div className="sc-stage-body">
+              <p className="sc-goal">{stage.goal}</p>
+              <dl className="sc-stage-parts">
+                <div>
+                  <dt>What {AGENT_NAME} does</dt>
+                  <dd>
+                    <CusoPart stage={stage} />
+                  </dd>
+                </div>
+                <div>
+                  <dt>What you do</dt>
+                  <dd>
+                    <OwnerPart stage={stage} improvements={improvements} />
+                  </dd>
+                </div>
+                <div>
+                  <dt>How we know it works</dt>
+                  <dd>
+                    <MeasurePart stage={stage} />
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <p className="sc-goal">{stage.goal}</p>
-            <dl className="sc-stage-parts">
-              <div>
-                <dt>What {AGENT_NAME} does</dt>
-                <dd>
-                  <CusoPart stage={stage} />
-                </dd>
-              </div>
-              <div>
-                <dt>What you do</dt>
-                <dd>
-                  <OwnerPart stage={stage} improvements={improvements} />
-                </dd>
-              </div>
-              <div>
-                <dt>How we know it works</dt>
-                <dd>
-                  <MeasurePart stage={stage} />
-                </dd>
-              </div>
-            </dl>
           </li>
         );
       })}
     </ol>
+  );
+}
+
+/** How wide the funnel still is, in percent, where its last stage ends. */
+const FUNNEL_END = 40;
+/** A stage's fill, top to bottom; the last one, the sale, is always green. */
+const SEGMENT_FILLS = ["paper", "iris", "yellow"] as const;
+
+/**
+ * One stage's slice of the funnel: as wide at its top as the stage above
+ * ends, narrower at its bottom, so the stages stack into one funnel.
+ */
+function FunnelSegment({
+  index,
+  of,
+  children,
+}: {
+  index: number;
+  of: number;
+  children: ReactNode;
+}) {
+  const edge = (at: number) =>
+    ((100 - FUNNEL_END) / 2) * (at / Math.max(of, 1));
+  const [top, bottom] = [edge(index), edge(index + 1)];
+  const fill = index === of - 1 ? "green" : (SEGMENT_FILLS[index] ?? "yellow");
+  return (
+    <div
+      className={`sc-segment ${fill}`}
+      style={{ ["--sc-inset" as string]: `${bottom}%` }}
+    >
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polygon
+          points={`${top},0 ${100 - top},0 ${100 - bottom},100 ${bottom},100`}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <div className="sc-segment-text">{children}</div>
+    </div>
   );
 }
 
@@ -284,7 +322,10 @@ function OwnerPart({
   );
 }
 
-/** A value short enough to stand as a big number: "About 400 a month". */
+/**
+ * A value short enough to stand as a big number: "About 400 a month". A
+ * sentence ("X has 33.4K followers; visits are not reported.") reads as words.
+ */
 function isFigure(value: string): boolean {
   return value.trim().split(/\s+/).length <= 5;
 }

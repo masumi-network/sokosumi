@@ -31949,6 +31949,25 @@ export const MarketingStrategySchema = {
                                 setByOwner: {
                                     type: 'boolean',
                                     default: false
+                                },
+                                suggest: {
+                                    type: 'object',
+                                    properties: {
+                                        channel: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        monthly: {
+                                            type: 'number',
+                                            minimum: 0,
+                                            maximum: 10000000
+                                        }
+                                    },
+                                    required: [
+                                        'channel',
+                                        'monthly'
+                                    ]
                                 }
                             },
                             required: [
@@ -33800,6 +33819,25 @@ export const MarketingStrategyRequestSchema = {
                         setByOwner: {
                             type: 'boolean',
                             default: false
+                        },
+                        suggest: {
+                            type: 'object',
+                            properties: {
+                                channel: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                monthly: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 10000000
+                                }
+                            },
+                            required: [
+                                'channel',
+                                'monthly'
+                            ]
                         }
                     },
                     required: [
@@ -54257,6 +54295,25 @@ export const CmoPlanSchema = {
                 setByOwner: {
                     type: 'boolean',
                     default: false
+                },
+                suggest: {
+                    type: 'object',
+                    properties: {
+                        channel: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        monthly: {
+                            type: 'number',
+                            minimum: 0,
+                            maximum: 10000000
+                        }
+                    },
+                    required: [
+                        'channel',
+                        'monthly'
+                    ]
                 }
             },
             required: [

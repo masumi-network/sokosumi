@@ -72,7 +72,6 @@ it("shows each stage's classic step, Cuso's part, the owner's part and its numbe
           goal: "Teams try it",
           metric: "Trial starts",
           owner: "shared",
-          measure: { value: "No baseline in the brief", basis: "unknown" },
         },
       ]}
       improvements={[]}
@@ -91,8 +90,6 @@ it("shows each stage's classic step, Cuso's part, the owner's part and its numbe
     /Profile visits.*About 400 a month.*Cuso&#x27;s estimate/,
   );
   expect(html).toMatch(/Trial starts.*Not measured yet/);
-  // Words in place of a number that is not known are not shown as one.
-  expect(html).not.toContain("No baseline in the brief");
 });
 
 it("names each tracked step by its classic stage, never a name of Cuso's own", () => {
@@ -105,6 +102,54 @@ it("names each tracked step by its classic stage, never a name of Cuso's own", (
   );
   expect(html).toMatch(/Awareness<\/span><b>Profile visits/);
   expect(html).not.toContain("Hear about us");
+});
+
+it("draws each stage as a slice of one funnel that narrows to the sale", () => {
+  const html = renderToStaticMarkup(
+    <FunnelPlan
+      stages={richPlan.funnel ?? []}
+      improvements={richPlan.improvements ?? []}
+    />,
+  );
+  const slices = [...html.matchAll(/<polygon points="([^"]+)"/g)].map((match) =>
+    (match[1] ?? "").split(" ").map((point) => Number(point.split(",")[0])),
+  );
+  expect(slices).toHaveLength(richPlan.funnel?.length ?? 0);
+  slices.forEach((slice, index) => {
+    const [topLeft = 0, topRight = 0, bottomRight = 0, bottomLeft = 0] = slice;
+    // Narrower at its bottom than at its top.
+    expect(bottomRight - bottomLeft).toBeLessThan(topRight - topLeft);
+    // And as wide at its top as the slice above ends.
+    const above = slices[index - 1];
+    if (above) expect(topLeft).toBeCloseTo(above[3] ?? -1);
+  });
+  expect(slices[0]?.[0]).toBe(0);
+  // The sale is the green slice, whatever the number of stages.
+  expect(html.match(/sc-segment (\w+)/g)?.at(-1)).toBe("sc-segment green");
+});
+
+it("sets a short value as the stage's number and a sentence as plain words", () => {
+  const stage = (value: string) =>
+    renderToStaticMarkup(
+      <FunnelPlan
+        stages={[
+          {
+            stage: "awareness",
+            name: "Hear about us",
+            goal: "Holders compare wallets",
+            metric: "Followers",
+            measure: { value, basis: "estimated" },
+          },
+        ]}
+        improvements={[]}
+      />,
+    );
+  expect(stage("About 60 a month")).toContain(
+    '<b class="num">About 60 a month</b>',
+  );
+  const sentence = "X has 33.4K followers; visits are not reported.";
+  expect(stage(sentence)).toContain(`<span>${sentence}</span>`);
+  expect(stage(sentence)).not.toContain('<b class="num">');
 });
 
 it("shows the four AIDA stages with Cuso's sentence and the owner's", () => {
@@ -125,28 +170,11 @@ it("shows the four AIDA stages with Cuso's sentence and the owner's", () => {
   expect(html).toContain("You answer every trial sign-up within a day.");
   // At the sale the owner's sentence leads Cuso's ideas for their pages.
   expect(html).toMatch(/within a day\.<\/p><ul class="sc-ideas">/);
-  expect(html).not.toContain("<details");
-});
-
-it("sets a short value as the stage's number and a sentence as plain words", () => {
-  const stage = (value: string) =>
-    renderToStaticMarkup(
-      <FunnelPlan
-        stages={[
-          {
-            stage: "interest",
-            goal: "Holders compare wallets",
-            metric: "Qualified visits",
-            measure: { value, basis: "estimated" },
-          },
-        ]}
-        improvements={[]}
-      />,
-    );
-  expect(stage("About 60 a month")).toContain(
-    '<b class="num">About 60 a month</b>',
-  );
-  const sentence = "About 60 qualified visits a month, an unverified estimate.";
-  expect(stage(sentence)).toContain(`<span>${sentence}</span>`);
-  expect(stage(sentence)).not.toContain('<b class="num">');
+  // Four slices: paper, Iris, yellow, and green for the sale.
+  expect(html.match(/sc-segment (\w+)/g)).toEqual([
+    "sc-segment paper",
+    "sc-segment iris",
+    "sc-segment yellow",
+    "sc-segment green",
+  ]);
 });

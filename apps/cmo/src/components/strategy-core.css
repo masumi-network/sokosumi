@@ -43,48 +43,79 @@
   border-color: var(--line);
 }
 
-/* The funnel: one card a stage, each a little narrower toward the sale. */
+/*
+ * The funnel: each stage is a slice of one shape that narrows toward the
+ * sale, with what happens at the stage beside it (under it on a phone).
+ */
 .sc-funnel {
   display: grid;
-  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* The app holds a list item to reading width; a stage is a card, not a line. */
+/* The app holds a list item to reading width; a stage spans the panel. */
 .sc-funnel > .sc-stage {
   max-width: none;
 }
 
 .sc-stage {
   display: grid;
-  gap: 16px;
-  padding: 20px;
-  border: var(--line-width) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--card);
+  grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
+  gap: 0 32px;
 }
 
-@media (min-width: 900px) {
-  .sc-stage:nth-child(2) {
-    margin-inline: 3%;
-  }
-
-  .sc-stage:nth-child(3) {
-    margin-inline: 6%;
-  }
-
-  .sc-stage:nth-child(4) {
-    margin-inline: 9%;
-  }
+.sc-segment {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 148px;
+  padding: 16px calc(var(--sc-inset) + 12px);
+  color: var(--primary-foreground);
+  text-align: center;
 }
 
-.sc-stage-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 10px;
+.sc-segment svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.sc-segment polygon {
+  fill: var(--primary);
+  stroke: var(--line);
+  stroke-width: var(--line-width);
+  stroke-linejoin: round;
+}
+
+.sc-segment.paper {
+  color: var(--foreground);
+}
+
+.sc-segment.paper polygon {
+  fill: var(--card);
+}
+
+.sc-segment.yellow polygon {
+  fill: var(--warn);
+}
+
+.sc-segment.green polygon {
+  fill: var(--ok);
+}
+
+.sc-segment-text {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.sc-stage-number {
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .sc-stage-name {
@@ -92,6 +123,42 @@
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.25rem;
+}
+
+.sc-stage-people {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-wrap: balance;
+}
+
+.sc-stage-body {
+  display: grid;
+  align-content: center;
+  gap: 16px;
+  padding: 24px 0;
+}
+
+.sc-stage + .sc-stage .sc-stage-body {
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 760px) {
+  .sc-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sc-segment {
+    min-height: 76px;
+    padding-block: 10px;
+  }
+
+  .sc-stage-body {
+    padding: 16px 0 24px;
+  }
+
+  .sc-stage + .sc-stage .sc-stage-body {
+    border-top: 0;
+  }
 }
 
 .sc-goal {
@@ -109,8 +176,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px 24px;
   margin: 0;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
 }
 
 .sc-stage-parts dt {
@@ -166,10 +231,6 @@
 }
 
 @media (max-width: 640px) {
-  .sc-stage {
-    padding: 16px;
-  }
-
   .sc-stage-parts {
     grid-template-columns: minmax(0, 1fr);
   }

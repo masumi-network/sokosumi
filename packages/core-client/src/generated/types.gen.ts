@@ -8808,6 +8808,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             expect: string;
             without: string;
             setByOwner?: boolean;
+            suggest?: {
+                channel: string;
+                monthly: number;
+            };
         };
         beforeAfter?: Array<{
             channel: string;
@@ -9126,6 +9130,10 @@ export type MarketingStrategyRequest = {
             expect: string;
             without: string;
             setByOwner?: boolean;
+            suggest?: {
+                channel: string;
+                monthly: number;
+            };
         };
         beforeAfter?: Array<{
             channel: string;
@@ -13733,6 +13741,10 @@ export type CmoPlan = {
         expect: string;
         without: string;
         setByOwner?: boolean;
+        suggest?: {
+            channel: string;
+            monthly: number;
+        };
     };
     beforeAfter?: Array<{
         channel: string;
