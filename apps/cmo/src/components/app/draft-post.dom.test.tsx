@@ -50,6 +50,7 @@ function actions(patch: Partial<DraftActions> = {}): DraftActions {
     approve: vi.fn(async () => null),
     decline: vi.fn(async () => null),
     edit: vi.fn(async () => null),
+    tikTokCreator: async () => ({ creator: null, error: null }),
     ...patch,
   };
 }
@@ -92,6 +93,82 @@ describe("DraftPost", () => {
     await press("Approve");
 
     expect(drafts.approve).toHaveBeenCalledWith("post-1", 3);
+  });
+
+  it("posts a TikTok video only after the owner confirms it, with nothing ticked for them", async () => {
+    const drafts = actions({
+      tikTokCreator: async () => ({
+        creator: {
+          creator_nickname: "acme",
+          privacy_level_options: ["PUBLIC_TO_EVERYONE"],
+          comment_disabled: false,
+          duet_disabled: true,
+          stitch_disabled: false,
+          max_video_post_duration_sec: 600,
+        },
+        error: null,
+      }),
+    });
+    await act(async () =>
+      root.render(
+        <DraftPost draft={draft({ provider: "tiktok" })} actions={drafts} />,
+      ),
+    );
+
+    expect(host.textContent).toContain("Posts as acme");
+    expect(host.textContent).toContain("Everyone on TikTok can see it");
+    expect(host.textContent).toContain("made with AI");
+    expect(host.textContent).toContain("Music Usage Confirmation");
+    // No plain Approve, and no promise of a time.
+    expect(host.textContent).not.toContain("two minutes after you approve");
+    const boxes = [...host.querySelectorAll<HTMLInputElement>("input")];
+    expect(boxes.map((box) => box.checked)).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
+    // Duet is off in the creator's own TikTok settings.
+    expect(boxes[1]?.disabled).toBe(true);
+    const post = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Post to TikTok",
+    );
+    expect(post?.disabled).toBe(true);
+
+    await act(async () => boxes[0]?.click());
+    await act(async () => boxes[3]?.click());
+    expect(post?.disabled).toBe(false);
+    await press("Post to TikTok");
+
+    expect(drafts.approve).toHaveBeenCalledWith("post-1", 3, {
+      privacyLevel: "PUBLIC_TO_EVERYONE",
+      allowComment: true,
+      allowDuet: false,
+      allowStitch: false,
+      promotesOwnBrand: true,
+      acceptedMusicUsage: true,
+      previewConsent: true,
+    });
+  });
+
+  it("offers no TikTok post when TikTok cannot be read or takes no more videos", async () => {
+    await act(async () =>
+      root.render(
+        <DraftPost
+          draft={draft({ provider: "tiktok" })}
+          actions={actions({
+            tikTokCreator: async () => ({
+              creator: null,
+              error: "Connect TikTok again to post this video.",
+            }),
+          })}
+        />,
+      ),
+    );
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe(
+      "Connect TikTok again to post this video.",
+    );
+    expect(host.textContent).not.toContain("Post to TikTok");
   });
 
   it("says why an approval was refused and keeps the draft", async () => {
