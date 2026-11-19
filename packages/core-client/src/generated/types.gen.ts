@@ -6384,6 +6384,7 @@ export type ProjectImageStudioTalkingVideoCatalog = {
         name: string;
         description: string;
         imageUrl: string;
+        voice: string;
     }>;
     defaultVoice: string;
     voices: Array<string>;

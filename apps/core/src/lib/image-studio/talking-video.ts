@@ -99,7 +99,11 @@ export interface TalkingVideoPresenter {
   description: string;
   /** A public 9:16 portrait. Generated: no presenter is a real person. */
   imageUrl: string;
+  /** The stock voice that sounds like this presenter, picked with them. */
+  voice: TalkingVideoVoice;
 }
+
+type TalkingVideoVoice = (typeof SOKO_BOT_VOICEOVER_VOICES)[number];
 
 const PRESENTER_BASE_URL =
   "https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/vendor/talking-video/presenters";
@@ -108,19 +112,61 @@ function presenter(
   id: string,
   name: string,
   description: string,
+  voice: TalkingVideoVoice,
 ): TalkingVideoPresenter {
-  return { id, name, description, imageUrl: `${PRESENTER_BASE_URL}/${id}.jpg` };
+  return {
+    id,
+    name,
+    description,
+    imageUrl: `${PRESENTER_BASE_URL}/${id}.jpg`,
+    voice,
+  };
 }
 
 export const TALKING_VIDEO_PRESENTERS: TalkingVideoPresenter[] = [
-  presenter("maya", "Maya", "Woman in her late twenties, casual, at home."),
-  presenter("jonas", "Jonas", "Man in his thirties, casual, in a home office."),
-  presenter("aisha", "Aisha", "Woman in her thirties, smart, in an office."),
-  presenter("leo", "Leo", "Man in his early twenties, relaxed, in a studio."),
-  presenter("elena", "Elena", "Woman in her forties, warm, in a kitchen."),
-  presenter("david", "David", "Man in his fifties, calm, in a workshop."),
-  presenter("mei", "Mei", "Woman in her twenties, bright, in a café."),
-  presenter("omar", "Omar", "Man in his forties, friendly, in a shop."),
+  presenter(
+    "maya",
+    "Maya",
+    "Woman in her late twenties, casual, at home.",
+    "Sarah",
+  ),
+  presenter(
+    "jonas",
+    "Jonas",
+    "Man in his thirties, casual, in a home office.",
+    "Chris",
+  ),
+  presenter(
+    "aisha",
+    "Aisha",
+    "Woman in her thirties, smart, in an office.",
+    "Alice",
+  ),
+  presenter(
+    "leo",
+    "Leo",
+    "Man in his early twenties, relaxed, in a studio.",
+    "Liam",
+  ),
+  presenter(
+    "elena",
+    "Elena",
+    "Woman in her forties, warm, in a kitchen.",
+    "Matilda",
+  ),
+  presenter(
+    "david",
+    "David",
+    "Man in his fifties, calm, in a workshop.",
+    "Brian",
+  ),
+  presenter(
+    "mei",
+    "Mei",
+    "Woman in her twenties, bright, in a café.",
+    "Jessica",
+  ),
+  presenter("omar", "Omar", "Man in his forties, friendly, in a shop.", "Eric"),
 ];
 
 export const DEFAULT_TALKING_VIDEO_VOICE =
