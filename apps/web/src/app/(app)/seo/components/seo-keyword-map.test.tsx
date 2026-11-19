@@ -513,7 +513,9 @@ describe("SEO keyword map", () => {
     const popover = await screen.findByTestId("seo-keyword-popover");
     // Between its own buttons the Tab stays in the popover.
     await user.tab();
-    expect(within(popover).getAllByRole("button")[0]).toHaveFocus();
+    expect(
+      within(popover).getByRole("button", { name: /content task/i }),
+    ).toHaveFocus();
     within(popover).getAllByRole("button").at(-1)?.focus();
     await user.tab();
     expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
@@ -644,4 +646,31 @@ describe("SEO keyword map", () => {
     ]);
     expect(container.textContent).toBe("");
   });
+});
+
+it("marks recommended ideas in the graph and explains the same marker from the keyboard", async () => {
+  const user = userEvent.setup();
+  renderMap([
+    row({
+      keyword: "low competition",
+      volume: 50,
+      difficulty: 12,
+      conversion: "medium",
+      source: "opportunity",
+    }),
+    row({ keyword: "unrated", volume: 100, difficulty: 65, source: "gap" }),
+  ]);
+  expect(
+    screen
+      .getAllByTestId("seo-keyword-dot")
+      .filter((dot) => dot.dataset.recommended),
+  ).toHaveLength(1);
+  const graph = screen.getByRole("group", { name: "Keyword opportunities" });
+  graph.focus();
+  await user.keyboard("{ArrowRight}{Enter}");
+  const details = within(await screen.findByTestId("seo-keyword-popover"));
+  expect(details.getByText("Recommended for lower competition")).toBeVisible();
+  expect(
+    details.getByRole("button", { name: /Draft in Content Studio/ }),
+  ).toBeDisabled();
 });

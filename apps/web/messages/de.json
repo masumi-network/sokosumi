@@ -12525,9 +12525,20 @@
           "medium": "Mittel",
           "low": "Niedrig"
         },
+        "recommendation": {
+          "mix": "Zuerst kommen Ideen mit geringem Wettbewerb und hoher Übereinstimmung mit dem Seitenziel. Danach wechseln sich die beiden Gruppen ab, solange beide Ideen enthalten.",
+          "both": "Empfohlen: geringer Wettbewerb und passendes Seitenziel",
+          "competition": "Empfohlen: geringer Wettbewerb",
+          "goal": "Empfohlen für das Seitenziel",
+          "easeEvidence": "Die geschätzte Schwierigkeit beträgt {value} von 100. Werte unter {limit} stehen für geringen Wettbewerb.",
+          "goalEvidence": "Die Prüfung schätzt die Chance als hoch ein, dass die suchende Person die gewünschte Aktion auf der Seite ausführt.",
+          "legend": "Empfohlene Idee",
+          "page": "Geprüfte Seite",
+          "action": "Seitenziel: {action}",
+          "studio": "Entwurf im Content Studio erstellen (demnächst)"
+        },
         "ideas": {
           "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
-          "why": "Warum es gelistet ist",
           "source": {
             "gap": "Von Wettbewerbern",
             "opportunity": "Verwandte Suche"

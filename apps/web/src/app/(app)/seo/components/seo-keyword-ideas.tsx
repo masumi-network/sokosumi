@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import {
   SEO_DIFFICULTY_COLUMN_CLASS,
   SeoDifficultyCell,
 } from "./seo-keyword-difficulty";
+import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
+import { recommendation } from "./seo-keyword-recommendations";
 import {
   SEO_IDEA_SOURCES,
   type SeoKeywordGroup,
@@ -61,7 +63,6 @@ export function SeoKeywordIdeas({
     // Only a check that estimates conversion fills the column.
     conversion: ideas.some((group) => group.conversion !== null),
     // One reason on every row in view tells no idea from another: "Related search" stood on ten of ten rows.
-    why: new Set(rows.map(({ sources }) => reasonsOf(sources).join())).size > 1,
   };
   // A row names its page only when it is not the primary page: the header says "and its page" only when a row in
   // view names one.
@@ -95,10 +96,13 @@ export function SeoKeywordIdeas({
       // The one Track sentence: it names the next position check, so it has no place where none can run.
       // The Keywords list has none, because a check tracks its keywords from the start.
       description={
-        model.data.availableActions.canEdit &&
-        model.data.availableActions.canUsePaidSearchData === true
-          ? t("keywords.help")
-          : undefined
+        <>
+          {t("keywords.recommendation.mix")}{" "}
+          {model.data.availableActions.canEdit &&
+          model.data.availableActions.canUsePaidSearchData === true
+            ? t("keywords.help")
+            : null}
+        </>
       }
     >
       <div className={HOLDER_ITEM_CLASS}>
@@ -127,20 +131,17 @@ export function SeoKeywordIdeas({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(
-              ({ lead, volume, sources, conversion, feature, difficulty }) => (
+            {rows.map((group) => {
+              const { lead, volume, sources, conversion, feature, difficulty } =
+                group;
+              return (
                 <TableRow key={lead.id}>
                   <TableCell className="min-w-48 whitespace-normal">
-                    {shown.why ? (
-                      <SeoIdeaReason
-                        keyword={lead.keyword}
-                        reasons={reasonsOf(sources)}
-                      />
-                    ) : (
-                      <p className="font-medium break-words">
-                        <bdi>{lead.keyword}</bdi>
-                      </p>
-                    )}
+                    <SeoIdeaReason
+                      group={group}
+                      model={model}
+                      reasons={reasonsOf(sources)}
+                    />
                     {manyMarkets ? (
                       <p className="text-muted-foreground text-xs">
                         {seoMarketName(
@@ -206,8 +207,8 @@ export function SeoKeywordIdeas({
                     ) : null}
                   </TableCell>
                 </TableRow>
-              ),
-            )}
+              );
+            })}
           </TableBody>
         </Table>
         {shown.conversion ? <SeoConversionNote /> : null}
@@ -230,40 +231,55 @@ export function SeoKeywordIdeas({
  * A line on every row made the list busy (owner, 2026-11-13).
  */
 function SeoIdeaReason({
-  keyword,
+  group,
+  model,
   reasons,
 }: {
-  keyword: string;
+  group: SeoKeywordGroup;
+  model: SeoWorkspaceModel;
   reasons: (typeof SEO_IDEA_SOURCES)[number][];
 }) {
   const t = useTranslations("App.Seo");
   const [open, setOpen] = useState(false);
   const id = useId();
+  const reason = recommendation(group);
   return (
     <>
       <p className="flex items-center gap-1 font-medium break-words">
-        <bdi>{keyword}</bdi>
         <button
           type="button"
           aria-expanded={open}
-          aria-controls={id}
-          aria-label={t("keywords.ideas.why")}
+          aria-controls={open ? id : undefined}
           onClick={() => setOpen((value) => !value)}
           // 32 px to hit around a 14 px icon, pulled back so the row keeps its height.
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring -my-2 inline-flex size-8 shrink-0 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:outline-none"
+          className="focus-visible:ring-ring inline-flex min-h-8 items-center gap-1 rounded-sm text-start hover:underline focus-visible:ring-2"
         >
-          <Info className="size-3.5" aria-hidden />
+          <bdi>{group.lead.keyword}</bdi>
+          <ChevronDown
+            className={
+              open ? "size-3.5 shrink-0 rotate-180" : "size-3.5 shrink-0"
+            }
+            aria-hidden
+          />
         </button>
       </p>
-      {open ? (
-        <p id={id} className="text-muted-foreground text-xs">
-          {reasons.map((source, index) => (
-            <span key={source}>
-              {index ? " · " : null}
-              <span>{t(`keywords.ideas.source.${source}`)}</span>
-            </span>
-          ))}
+      {reason && (
+        <p className="text-xs font-medium">
+          {t(`keywords.recommendation.${reason}`)}
         </p>
+      )}
+      {open ? (
+        <div id={id} className="space-y-2 py-2">
+          <SeoKeywordDraftDetails group={group} model={model} />
+          <p className="text-muted-foreground text-xs">
+            {reasons.map((source, index) => (
+              <span key={source}>
+                {index ? " · " : null}
+                <span>{t(`keywords.ideas.source.${source}`)}</span>
+              </span>
+            ))}
+          </p>
+        </div>
       ) : null}
     </>
   );

@@ -469,3 +469,32 @@ describe("seoDifficultyBand", () => {
     expect(seoDifficultyBand(100)).toBe("hard");
   });
 });
+
+it("mixes recommendations after grouping ideas, including ideas from older audits", () => {
+  const ideas = [
+    row({
+      keyword: "goal one",
+      conversion: "high",
+      volume: 50,
+      difficulty: 41,
+    }),
+    row({
+      keyword: "goal two",
+      conversion: "high",
+      volume: 90,
+      difficulty: null,
+    }),
+    row({ keyword: "both", conversion: "high", volume: 10, difficulty: 29 }),
+    row({
+      keyword: "easy one",
+      conversion: "medium",
+      volume: 60,
+      difficulty: 18,
+    }),
+    row({ keyword: "easy two", conversion: "low", volume: 50, difficulty: 0 }),
+    row({ keyword: "unknown fit", volume: 900, difficulty: 5 }),
+  ].map((item) => ({ ...item, source: "opportunity" }));
+  expect(keywordGroups(ideas).ideas.map((group) => group.lead.keyword)).toEqual(
+    ["both", "easy one", "goal one", "easy two", "goal two", "unknown fit"],
+  );
+});

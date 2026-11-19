@@ -26,6 +26,7 @@ import {
   SEO_MAP_PRESS_SLOP,
   useSeoMapZoom,
 } from "./seo-keyword-map-zoom";
+import { recommendation } from "./seo-keyword-recommendations";
 import {
   SEO_DIFFICULTY_HARD_FROM,
   SEO_DIFFICULTY_MEDIUM_FROM,
@@ -163,9 +164,15 @@ export function SeoKeywordMap({
       : point.checked && point.group.reads.length
         ? t("notFound")
         : null;
+  const reasonOf = (point: SeoKeywordPoint) =>
+    point.checked ? null : recommendation(point.group);
+  const reasonText = (point: SeoKeywordPoint) => {
+    const reason = reasonOf(point);
+    return reason ? t(`recommendation.${reason}`) : null;
+  };
   const details = (point: SeoKeywordPoint) => [
     // Said in words too: the ring of an idea is not the only sign.
-    ...(point.checked ? [] : [t("map.idea")]),
+    ...(point.checked ? [] : [reasonText(point) ?? t("map.idea")]),
     `${format.number(point.volume)} ${t("volumeUnit", { count: point.volume })}`,
     t("map.difficulty", { value: Math.round(point.difficulty) }),
     ...(position(point) ? [position(point) ?? ""] : []),
@@ -307,6 +314,15 @@ export function SeoKeywordMap({
             </span>
           </p>
         ) : null}
+        {points.some(reasonOf) && (
+          <p className="flex items-center gap-2 text-xs">
+            <span
+              aria-hidden
+              className="size-2.5 rotate-45 rounded-[2px] border-2 border-chart-5"
+            />
+            {t("recommendation.legend")}
+          </p>
+        )}
         <div
           ref={group}
           role="group"
@@ -444,10 +460,12 @@ export function SeoKeywordMap({
                     key={point.group.lead.id}
                     aria-hidden
                     data-testid="seo-keyword-dot"
+                    data-recommended={reasonOf(point) ? true : undefined}
                     className={cn(
                       "ring-background pop-in stagger-delay pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-colors duration-150 motion-reduce:transition-none",
                       // The picked dot sits over a neighbour it touches.
                       (index === active || point === opened) && "z-[1]",
+                      reasonOf(point) && "rotate-45 rounded-[2px]",
                       point.checked
                         ? index === active || point === opened
                           ? "bg-foreground"
@@ -605,7 +623,7 @@ export function SeoKeywordMap({
                         {point.checked ? null : (
                           <span className="text-muted-foreground">
                             {" "}
-                            · {t("map.idea")}
+                            · {reasonText(point) ?? t("map.idea")}
                           </span>
                         )}
                       </td>

@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { PopoverContent } from "@/components/ui/popover";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
 import {
   type SeoKeywordPoint,
   seoKeywordBriefSite,
 } from "./seo-keyword-map-model";
+import { recommendation } from "./seo-keyword-recommendations";
 import { seoDifficultyBand } from "./seo-keyword-rows-model";
 import { seoMarketName } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -51,6 +53,7 @@ export function SeoKeywordMapPopover({
   const wizard = useOptionalNewTaskWizard();
   const { lead } = point.group;
   const band = seoDifficultyBand(point.difficulty) ?? "hard";
+  const reason = point.checked ? null : recommendation(point.group);
   const facts = {
     keyword: lead.keyword,
     volume: point.volume,
@@ -119,6 +122,14 @@ export function SeoKeywordMapPopover({
             : t("map.noGain")}
         </Figure>
       </dl>
+      {reason && (
+        <p className="text-sm font-medium">{t(`recommendation.${reason}`)}</p>
+      )}
+      <SeoKeywordDraftDetails
+        group={point.group}
+        model={model}
+        idea={!point.checked}
+      />
       {point.group.feature ? (
         <p className="text-muted-foreground text-xs break-words">
           {t.rich("conversion.feature", {

@@ -12525,9 +12525,20 @@
           "medium": "Media",
           "low": "Baja"
         },
+        "recommendation": {
+          "mix": "Primero aparecen las ideas con menor competencia que mejor encajan con el objetivo de la página. Después se alternan los dos grupos mientras ambos tengan ideas.",
+          "both": "Recomendada por su baja competencia y su ajuste al objetivo",
+          "competition": "Recomendada por su baja competencia",
+          "goal": "Recomendada por su ajuste al objetivo",
+          "easeEvidence": "La dificultad estimada es de {value} sobre 100. Un valor inferior a {limit} indica menor competencia.",
+          "goalEvidence": "La auditoría estima que es muy probable que quien haga esta búsqueda realice la acción prevista en la página.",
+          "legend": "Idea recomendada",
+          "page": "Página auditada",
+          "action": "Objetivo de la página: {action}",
+          "studio": "Redactar en Content Studio (próximamente)"
+        },
         "ideas": {
           "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
-          "why": "Por qué aparece",
           "source": {
             "gap": "De la competencia",
             "opportunity": "Búsqueda relacionada"
