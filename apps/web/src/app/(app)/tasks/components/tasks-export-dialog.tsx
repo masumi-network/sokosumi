@@ -122,8 +122,8 @@ function TasksExportSummary({
 }) {
   const t = useTranslations("App.Tasks.Export");
   const labels = useCsvLabels();
-  // Mounted while the dialog shows and dropped after, so each open counts
-  // again.
+  // Mounted while the dialog shows and dropped once it has animated out,
+  // so each later open counts again.
   const preview = useQuery({
     queryKey: ["tasks-export-preview", filters],
     queryFn: () => previewTasksExport(filters),
@@ -131,8 +131,8 @@ function TasksExportSummary({
     gcTime: 0,
   });
   const [isExporting, startExport] = useTransition();
-  // Cancel closes the dialog but cannot stop the action. Closing, opening
-  // again, or unmounting starts a new run, and an export from an earlier
+  // Cancel closes the dialog but cannot stop the action. Closing, or
+  // unmounting while open, starts a new run, and an export from an earlier
   // run saves nothing. The content stays mounted while it animates out.
   const run = useRef(0);
   useEffect(() => {
