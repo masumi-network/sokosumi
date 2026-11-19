@@ -7,6 +7,7 @@ import {
   brandFontName,
   brandFonts,
   designMdBrandLook,
+  designMdPalette,
   distinctColors,
   isNeutral,
   normalizeHex,
@@ -175,5 +176,60 @@ Primary #5850ec drives every call to action.
   it("states no tone rather than guess one", () => {
     expect(designMdBrandLook("The voice is a mix of styles.").tone).toBeNull();
     expect(designMdBrandLook("# Brand").tone).toBeNull();
+  });
+});
+
+describe("designMdPalette", () => {
+  // The colour roles of CMO.XYZ's DESIGN.md, generated 2026-11: a black and
+  // white brand with one magenta. Its pictures leaned maroon while the error
+  // red and its container text counted as brand colours.
+  const cmo = [
+    "---",
+    "name: CMO.XYZ",
+    "colors:",
+    "  surface: '#ffffff'",
+    "  on-surface: '#000000'",
+    "  primary: '#ff51ff'",
+    "  on-primary: '#000000'",
+    "  secondary: '#000000'",
+    "  tertiary: '#333333'",
+    "  error: '#ba1a1a'",
+    "  on-error: '#ffffff'",
+    "  error-container: '#ffdad6'",
+    "  on-error-container: '#410002'",
+    "  background: '#ffffff'",
+    "  on-background: '#000000'",
+    "typography:",
+    "  display:",
+    "    fontFamily: PP Mori",
+    "---",
+    "Errors use #ba1a1a on #ffdad6. Errors use #ba1a1a.",
+  ].join("\n");
+
+  it("gives the brand's palette with its black and white, and never a status colour", () => {
+    expect(brandColors(cmo, 5)).toContain("#ba1a1a");
+    expect(designMdPalette(cmo)).toEqual(["#ff51ff", "#000000", "#ffffff"]);
+  });
+
+  it("keeps a coloured tertiary and reads accent, surface and text by their other names", () => {
+    expect(
+      designMdPalette(
+        "colors:\n  primary: '#6400ff'\n  accent: '#ff6a00'\n  tertiary: '#0a7d4f'\n  surface: '#fafafa'\n  text: '#111111'\n  warning: '#ffcc00'\n  success: '#00aa55'",
+      ),
+    ).toEqual(["#6400ff", "#ff6a00", "#0a7d4f", "#fafafa", "#111111"]);
+  });
+
+  it("gives a block without roles in its order, status entries left out", () => {
+    expect(
+      designMdPalette(
+        "colors:\n  brand-1: '#11f250'\n  danger: '#ff0000'\n  brand-2: '#021205'",
+      ),
+    ).toEqual(["#11f250", "#021205"]);
+  });
+
+  it("falls back to the most used colours of a file without a colours block", () => {
+    expect(
+      designMdPalette("a { color: #6400ff } b { color: #6400ff }"),
+    ).toEqual(["#6400ff"]);
   });
 });
