@@ -7,7 +7,12 @@ import {
   SOKO_BOT_CMO_RHYTHMS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
-import { isCmoOwnerConfirmedChannel } from "@sokosumi/utils";
+import {
+  type CmoVolumeLevel,
+  cmoMonthAtLevel,
+  cmoVolumeLevelForTier,
+  isCmoOwnerConfirmedChannel,
+} from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -229,6 +234,10 @@ export interface CmoProductionStatus {
    * share its pieces really have, and whether Cuso is rewriting pieces.
    */
   pillars: { shares: CmoPillarShare[]; rewriting: boolean } | null;
+  /** How much of the month the plan bought makes. */
+  level: CmoVolumeLevel;
+  /** Entries of the month the plan bought does not make; a bigger plan does. */
+  beyondPlan: string[];
 }
 
 async function connectedChannels(projectId: string): Promise<Set<string>> {
@@ -566,6 +575,18 @@ interface ProductionRead {
 }
 
 /** Where the month's production stands; reads only, never starts a run. */
+/**
+ * How much of the month this Cuso's plan makes: its tier's level, or all of
+ * it on Tester credits or before a plan is bought.
+ */
+export async function cmoPlanLevel(projectId: string): Promise<CmoVolumeLevel> {
+  const subscription = await prisma.polarSubscription.findFirst({
+    where: { projectId, endedAt: null },
+    select: { tier: true },
+  });
+  return cmoVolumeLevelForTier(subscription?.tier ?? null);
+}
+
 export async function readCmoProduction(
   cuso: Cuso,
   context: { connected: ReadonlySet<string>; subscribed: boolean; now: Date },
@@ -586,6 +607,8 @@ export async function readCmoProduction(
         needPictures: 0,
         finishedAt: null,
         pillars: null,
+        level: "all_in",
+        beyondPlan: [],
       },
       version: null,
       strategy: plan,
@@ -604,7 +627,21 @@ export async function readCmoProduction(
     withSocialPostCalendar(plan, posts),
     files,
   );
-  const pieces = cmoProductionPieces(posts, now, strategy.calendar);
+  // The month is written at the top volume; the plan bought decides how much
+  // of it is made, and a bigger plan makes more of the same month.
+  const level = await cmoPlanLevel(cuso.projectId);
+  const inPlan = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);
+  const beyondPlan = strategy.calendar
+    .filter(
+      (entry) =>
+        !inPlan.made.has(entry.id) &&
+        entry.status !== "skipped" &&
+        entry.status !== "published",
+    )
+    .map((entry) => entry.id);
+  const pieces = cmoProductionPieces(posts, now, strategy.calendar).filter(
+    (piece) => inPlan.made.has(piece.id),
+  );
   const ready = cmoReadyPieceIds(pieces, connected);
   const unready = pieces.filter((piece) => !ready.has(piece.id));
   const jobs: CmoMediaJob[] = await listCmoMediaJobs(
@@ -658,6 +695,8 @@ export async function readCmoProduction(
               ?.completedAt?.toISOString() ?? null)
           : null,
       pillars: pillarsOf(runs),
+      level,
+      beyondPlan,
     },
     version: approved,
     strategy,

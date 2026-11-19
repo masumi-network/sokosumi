@@ -11,6 +11,8 @@ const production = {
   needPictures: 6,
   finishedAt: null,
   pillars: null,
+  level: "all_in" as const,
+  beyondPlan: [],
 };
 
 describe("production progress", () => {
