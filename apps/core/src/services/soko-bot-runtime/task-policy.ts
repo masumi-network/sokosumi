@@ -1,5 +1,9 @@
 import { type Prisma } from "@sokosumi/database";
-import { SokoBotRuntimeValidationError } from "../soko-bot-runtime.service";
+import { getSokoBotVersion } from "@sokosumi/soko-bot";
+import {
+  SokoBotRefusedUnsentError,
+  SokoBotRuntimeValidationError,
+} from "../soko-bot-runtime.service";
 
 export function toolAssigneeFields(
   coworkerId: string | null | undefined,
@@ -26,6 +30,28 @@ export function toolAssigneeFields(
     return { assigneeId: null, assigneeSokoBotId: sokoBotId };
   }
   return { assigneeId: coworkerId, assigneeSokoBotId: null };
+}
+
+/**
+ * Cuso's owner works in CMO, which has no Task board: a Task there is work
+ * for a Coworker, and CMO's chat shows it. What a person has to do, Cuso
+ * says in chat, where they will read it.
+ */
+export function refuseCusoPersonTask(
+  versionId: string | null | undefined,
+  input: {
+    coworkerId?: string | null;
+    assignToOwner?: true;
+    memberId?: string;
+  },
+  /** Creating: a Task with nobody on it is a to-do for a person as well. */
+  creating: boolean,
+): void {
+  if (getSokoBotVersion(versionId).profile !== "cmo") return;
+  if (input.assignToOwner || input.memberId || (creating && !input.coworkerId))
+    throw new SokoBotRefusedUnsentError(
+      "Here a Task is work for a Coworker; a person never sees one. Tell the owner in your answer what you need them to do, or give the work to a Coworker with coworkerId.",
+    );
 }
 
 export const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;

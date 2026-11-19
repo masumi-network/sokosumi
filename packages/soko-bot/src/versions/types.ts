@@ -12,6 +12,12 @@ export interface SokoBotVersion {
    * Cuso on cmo.xyz, with its own tools and rhythms.
    */
   profile?: "cmo";
+  /**
+   * Whose words the bot reads about itself and its tools. Omitted means Soko
+   * Bot in Sokosumi; `cmo` is Cuso, whose owner never opens Sokosumi
+   * (`cmo-texts.ts`).
+   */
+  texts?: "cmo";
   name: string;
   createdAt: string;
   summary: string;

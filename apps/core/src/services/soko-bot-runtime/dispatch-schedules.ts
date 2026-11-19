@@ -1,5 +1,6 @@
 import {
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
+  getSokoBotVersion,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotScheduleIdInputSchema as scheduleIdInputSchema,
   sokoBotManageReminderInputSchema,
@@ -130,6 +131,11 @@ export async function dispatchSchedulesTools(
                     {
                       ...scope,
                       ...updateScheduleInputSchema.parse(input.input),
+                      // Cuso's rhythms are the work he was hired for: what
+                      // the owner asks for becomes a schedule of its own.
+                      keepBuiltInRhythms:
+                        getSokoBotVersion(authorized.turn.versionId).profile ===
+                        "cmo",
                     },
                     tx,
                   )
