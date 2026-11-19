@@ -9,6 +9,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
@@ -354,7 +355,7 @@ async function addTurnOverheadUsage(
 async function storeTurnVerdict(turnId: string, call: JudgeCall) {
   await addTurnOverheadUsage(turnId, call.usage, {
     qualityScore: overallScore(call.verdict),
-    qualityVerdict: call.verdict,
+    qualityVerdict: jsonInput(call.verdict),
     qualityModel: sokoBotJudgeModel(),
     judgedAt: new Date(),
   });
@@ -433,8 +434,8 @@ export async function judgeSokoBotLabTurn(input: {
       versionId: turn.versionId ?? "unknown",
       passed: input.evaluation.passed,
       total: input.evaluation.total,
-      checks: input.evaluation.checks,
-      ...(judge ? { judge, judgeModel: model } : {}),
+      checks: jsonInput(input.evaluation.checks),
+      ...(judge ? { judge: jsonInput(judge), judgeModel: model } : {}),
     };
     await prisma.sokoBotLabRun.upsert({
       where: { turnId: input.turnId },
