@@ -45,7 +45,8 @@ vi.mock("use-debounce", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key} ${JSON.stringify(values)}` : key,
 }));
 
 vi.mock("@/app/projects/actions", () => ({
@@ -127,6 +128,17 @@ const labels = {
   },
   filter: { placeholder: "Filter projects", clear: "Clear filter" },
   noMatches: "No projects match",
+  noMatchesIn: {
+    open: "No open projects match",
+    hidden: "No hidden projects match",
+    closed: "No closed projects match",
+  },
+  elsewhere: "Matching projects are in another view.",
+  showIn: {
+    open: "Show open projects",
+    hidden: "Show hidden projects",
+    closed: "Show closed projects",
+  },
 };
 
 const project = {
@@ -376,6 +388,128 @@ describe("ProjectsView empty states", () => {
       expect(panel.firstElementChild).toHaveClass("flex-1");
       unmount();
     }
+  });
+});
+
+describe("ProjectsView closing cards", () => {
+  const closing = {
+    ...project,
+    closingAt: new Date("2026-09-18T10:00:00.000Z"),
+    closedAt: null,
+  };
+
+  // A refresh can change only what the close still owes, or fail it, while
+  // the project itself (id, updatedAt, Pin) stays the same.
+  it("follows a refreshed close status when nothing else changed", () => {
+    const { rerender } = renderView({
+      projects: [
+        {
+          ...closing,
+          closeStatus: { state: "CLOSING", owedOccurrenceCount: 2 },
+        },
+      ],
+    });
+    expect(screen.getByText('remaining {"count":2}')).toBeInTheDocument();
+
+    const props = {
+      nextCursor: null,
+      query: "",
+      state: "open" as const,
+      initialCreateProjectOpen: false,
+      createProjectModalResetKey: "false",
+      labels,
+    };
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSING", owedOccurrenceCount: 1 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('remaining {"count":1}')).toBeInTheDocument();
+
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSE_FAILED", owedOccurrenceCount: 1 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText("failedBadge")).toBeInTheDocument();
+    expect(screen.queryByText("badge")).not.toBeInTheDocument();
+
+    // A failed read shows the badge alone; the next good read brings the
+    // line back.
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[{ ...closing, closeStatus: null }]}
+      />,
+    );
+    expect(screen.getByText("badge")).toBeInTheDocument();
+    expect(screen.queryByText("failed")).not.toBeInTheDocument();
+    rerender(
+      <ProjectsView
+        {...props}
+        projects={[
+          {
+            ...closing,
+            closeStatus: { state: "CLOSING", owedOccurrenceCount: 0 },
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByText('remaining {"count":0}')).toBeInTheDocument();
+  });
+});
+
+describe("ProjectsView filter with no matches", () => {
+  it("says which view holds the matches and links there with the filter kept", () => {
+    renderView({ projects: [], query: "SPR", otherMatches: ["hidden"] });
+
+    expect(screen.getByText("No open projects match")).toBeInTheDocument();
+    expect(screen.queryByText("No projects match")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Matching projects are in another view."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show hidden projects" }),
+    ).toHaveAttribute("href", "/projects?state=hidden&q=SPR");
+    expect(
+      screen.queryByRole("link", { name: "Show closed projects" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links to Open without a state, its default view", () => {
+    renderView({
+      projects: [],
+      query: "a b",
+      state: "closed",
+      otherMatches: ["open", "hidden"],
+    });
+
+    expect(screen.getByText("No closed projects match")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Show open projects" }),
+    ).toHaveAttribute("href", "/projects?q=a+b");
+    expect(
+      screen.getByRole("link", { name: "Show hidden projects" }),
+    ).toHaveAttribute("href", "/projects?state=hidden&q=a+b");
+  });
+
+  it("keeps the plain no-match message when nothing matches anywhere", () => {
+    renderView({ projects: [], query: "zzz", otherMatches: [] });
+
+    expect(screen.getByText("No projects match")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });
 

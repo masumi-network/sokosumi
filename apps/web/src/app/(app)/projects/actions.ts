@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { withCloseStatus } from "@/app/projects/projects-page-data";
 import { projectService } from "@/lib/services/project.service";
 import {
   type AuthenticatedRequest,
@@ -9,6 +10,7 @@ import {
 
 import {
   PROJECTS_PAGE_LIMIT,
+  type ProjectsListProject,
   type ProjectsListState,
   projectsListStateQuery,
 } from "./constants";
@@ -24,9 +26,7 @@ interface LoadMoreProjectsParams extends AuthenticatedRequest {
 export const loadMoreProjects = withSession<
   LoadMoreProjectsParams,
   {
-    projects: Awaited<
-      ReturnType<typeof projectService.listProjects>
-    >["projects"];
+    projects: ProjectsListProject[];
     nextCursor: string | null;
   }
 >(async ({ cursor, query, state }) => {
@@ -38,7 +38,7 @@ export const loadMoreProjects = withSession<
   });
 
   return {
-    projects: page.projects,
+    projects: await withCloseStatus(page.projects),
     nextCursor: page.pagination?.nextCursor ?? null,
   };
 });
