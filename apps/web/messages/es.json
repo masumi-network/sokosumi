@@ -1925,6 +1925,7 @@
         "workspaceTags": "Etiquetas del espacio de trabajo",
         "archivedTags": "Etiquetas archivadas",
         "topicTags": "Temas predeterminados",
+        "viewLabel": "Vista de tareas",
         "needsMe": "Me necesita",
         "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
         "mentions": "Menciones",

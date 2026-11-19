@@ -1,0 +1,114 @@
+"use client";
+
+import { AtSign, Hand } from "lucide-react";
+import { useTranslations } from "next-intl";
+import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+export type TasksView = "all" | "mine" | "needs-me" | "mentions";
+
+/**
+ * The view a filter set shows. Needs me reads the reader's own Tasks and
+ * Mentions reads the whole workspace, so neither combines with My tasks:
+ * one view at a time, Needs me first when an old link sets both.
+ */
+export function getTasksView(
+  filters: TasksFilters,
+  userId: string | null | undefined,
+): TasksView {
+  if (filters.needsMe) return "needs-me";
+  if (filters.mentions) return "mentions";
+  if (userId && filters.assigneeUserId === userId) return "mine";
+  return "all";
+}
+
+/**
+ * The filter change that switches to a view. It clears the other views and
+ * keeps every other filter, so a coworker or status the reader picked stays.
+ */
+export function getTasksViewPatch(
+  view: TasksView,
+  filters: TasksFilters,
+  userId: string,
+): Partial<TasksFilters> {
+  const patch: Partial<TasksFilters> = {
+    needsMe: view === "needs-me" ? true : undefined,
+    mentions: view === "mentions" ? true : undefined,
+  };
+  if (view === "mine") {
+    return {
+      ...patch,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: userId,
+    };
+  }
+  return filters.assigneeUserId === userId
+    ? { ...patch, assigneeUserId: null }
+    : patch;
+}
+
+interface TasksViewSwitcherProps {
+  value: TasksView;
+  onChange: (view: TasksView) => void;
+  /** Off when the viewer is not an assignee option, so My tasks would list nothing. */
+  showMine: boolean;
+  labels: { all: string; assignedToMe: string };
+}
+
+function isTasksView(value: string): value is TasksView {
+  return (
+    value === "all" ||
+    value === "mine" ||
+    value === "needs-me" ||
+    value === "mentions"
+  );
+}
+
+/**
+ * All, My tasks, Needs me and Mentions as one single-choice control, because
+ * the views do not combine. Needs me and Mentions keep their names on wide
+ * screens and drop to an icon below lg, so the toolbar stays one row beside
+ * an open sidebar.
+ */
+export function TasksViewSwitcher({
+  value,
+  onChange,
+  showMine,
+  labels,
+}: TasksViewSwitcherProps) {
+  const t = useTranslations("App.Tasks.Filters");
+
+  return (
+    <ToggleGroup
+      type="single"
+      value={value}
+      aria-label={t("viewLabel")}
+      // A pressed view stays pressed: there is always one view.
+      onValueChange={(next) => {
+        if (isTasksView(next)) onChange(next);
+      }}
+    >
+      <ToggleGroupItem value="all">{labels.all}</ToggleGroupItem>
+      {showMine ? (
+        <ToggleGroupItem value="mine">{labels.assignedToMe}</ToggleGroupItem>
+      ) : null}
+      <ToggleGroupItem
+        value="needs-me"
+        aria-label={t("needsMe")}
+        title={t("needsMeHint")}
+      >
+        <Hand aria-hidden />
+        <span className="max-lg:sr-only">{t("needsMe")}</span>
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="mentions"
+        aria-label={t("mentions")}
+        title={t("mentionsHint")}
+      >
+        <AtSign aria-hidden />
+        <span className="max-lg:sr-only">{t("mentions")}</span>
+      </ToggleGroupItem>
+    </ToggleGroup>
+  );
+}
