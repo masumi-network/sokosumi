@@ -341,7 +341,7 @@ export function PacePicker({
             <button
               key={option.level}
               type="button"
-              className={current ? "sc-pace-option current" : "sc-pace-option"}
+              className="sc-pace-option"
               aria-pressed={current}
               disabled={!onAsk || current || changing}
               onClick={async () => {
