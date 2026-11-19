@@ -34,7 +34,10 @@ import {
   gscInspectionArguments,
   normalizeGscInspection,
 } from "@/lib/seo/native-gsc-inspection";
-import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
+import {
+  gscPropertyCovers,
+  readableGscProperties,
+} from "@/lib/seo/native-gsc-property";
 import {
   gscKeywordSeriesArguments,
   gscQueryArguments,
@@ -115,8 +118,10 @@ async function integrationFor(
 async function toolFor(
   integration: ComposioIntegrationAccount,
   slug: string,
+  knownTools?: SeoNativeTool[],
 ): Promise<SeoNativeTool> {
-  const tools = await listIntegrationTools(integration, { limit: 100 });
+  const tools =
+    knownTools ?? (await listIntegrationTools(integration, { limit: 100 }));
   const tool = tools.find((candidate) => candidate.slug === slug);
   if (!tool?.readOnly || !tool.inputSchema)
     throw unprocessableEntity(
@@ -139,18 +144,21 @@ export async function readNativeSeoTool(
   integration: ComposioIntegrationAccount,
   slug: string,
   logical: Record<string, unknown>,
+  tools?: SeoNativeTool[],
 ) {
-  return read(integration, await toolFor(integration, slug), logical);
+  return read(integration, await toolFor(integration, slug, tools), logical);
 }
 
 export async function propertyChoices(
   integration: ComposioIntegrationAccount,
   provider: SyncProjectSeoStatistics["provider"],
+  tools?: SeoNativeTool[],
 ): Promise<ProjectSeoStatisticsProperties> {
   const properties: Array<{ id: string; name: string }> = [];
   const tool = await toolFor(
     integration,
     provider === "ga4" ? GA4_PROPERTIES_TOOL : GSC_PROPERTIES_TOOL,
+    tools,
   );
   let token: string | undefined;
   const seen = new Set<string>();
@@ -194,18 +202,8 @@ export async function propertyChoices(
           });
       token = body.nextPageToken;
     } else {
-      const body = z
-        .object({
-          siteEntry: z
-            .array(
-              z.object({ siteUrl: z.string(), permissionLevel: z.string() }),
-            )
-            .default([]),
-        })
-        .parse(payload);
-      for (const property of body.siteEntry)
-        if (property.permissionLevel !== "siteUnverifiedUser")
-          properties.push({ id: property.siteUrl, name: property.siteUrl });
+      for (const id of readableGscProperties(payload))
+        properties.push({ id, name: id });
       token = undefined;
     }
     if (!token)

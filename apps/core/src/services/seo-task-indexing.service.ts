@@ -1,4 +1,3 @@
-import { z } from "@hono/zod-openapi";
 import { getEnv } from "@/config/env";
 import {
   conflict,
@@ -12,7 +11,10 @@ import {
   GSC_INSPECT_TOOL,
   gscInspectionArguments,
 } from "@/lib/seo/native-gsc-inspection";
-import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
+import {
+  gscPropertyCovers,
+  readableGscProperties,
+} from "@/lib/seo/native-gsc-property";
 import {
   normalizeGscTaskInspection,
   unavailableGscTaskInspection,
@@ -170,10 +172,15 @@ async function collect(
   const integration = context.integration;
   const previous = await savedReceipt(context);
   const saved = previous && currentReceipt(previous) ? previous : null;
-  if (!integration)
-    return (
-      saved ?? makeReceipt(context, { ...base, status: "not_connected" }, null)
-    );
+  if (!integration) {
+    const status =
+      context.searchConsoleAccess === undefined
+        ? "not_connected"
+        : "unavailable";
+    return saved?.receipt.status === status
+      ? saved
+      : makeReceipt(context, { ...base, status }, null);
+  }
   try {
     const tools = await listIntegrationTools(integration, { limit: 100 });
     const toolFor = (slug: string): SeoNativeTool => {
@@ -194,39 +201,15 @@ async function collect(
         bindSeoToolArguments(tool, logical),
       );
     // Verify current property permission before serving even a cached inspection.
-    const sites = z
-      .object({
-        siteEntry: z
-          .array(
-            z.object({
-              siteUrl: z.string().max(500),
-              permissionLevel: z.string(),
-            }),
-          )
-          .max(1000)
-          .default([]),
-      })
-      .parse(
-        unwrapNativeStatistics(await read(toolFor(GSC_PROPERTIES_TOOL), {}), [
-          "siteEntry",
-        ]),
-      );
-    const properties = [
-      ...new Set(
-        sites.siteEntry
-          .filter(
-            (site) =>
-              ["siteOwner", "siteFullUser", "siteRestrictedUser"].includes(
-                site.permissionLevel,
-              ) && gscPropertyCovers(site.siteUrl, context.pageUrls),
-          )
-          .map((site) => site.siteUrl),
-      ),
-    ];
+    const properties = readableGscProperties(
+      unwrapNativeStatistics(await read(toolFor(GSC_PROPERTIES_TOOL), {}), [
+        "siteEntry",
+      ]),
+    ).filter((property) => gscPropertyCovers(property, context.pageUrls));
     const property =
       context.selectedProperty && properties.includes(context.selectedProperty)
         ? context.selectedProperty
-        : properties.length === 1
+        : context.searchConsoleAccess === undefined && properties.length === 1
           ? properties[0]
           : null;
     if (!property)
@@ -442,7 +425,10 @@ export async function readSeoTaskIndexing(
       );
       return {
         receipt: saved ? { ...receipt, assessmentSaved: true } : receipt,
-        retryable: shouldRetryInspection(payload),
+        retryable:
+          (context.searchConsoleAccess === undefined ||
+            context.integration !== null) &&
+          shouldRetryInspection(payload),
       };
     }, "The audit changed before its indexing evidence could be saved. Please retry.");
   } finally {

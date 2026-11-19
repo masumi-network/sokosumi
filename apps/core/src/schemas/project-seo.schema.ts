@@ -173,6 +173,8 @@ export const requestSeoAnalysisSchema = z
       .max(SEO_MAX_PROVIDER_CALLS)
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
+    searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
+    allowLimitedAudit: z.literal(true).optional(),
     setupGoal: z
       .strictObject({
         pageId: seoIdSchema,
@@ -656,6 +658,7 @@ export const seoJobSchema = z
   .openapi("ProjectSeoAnalysis");
 export const projectSeoWorkspaceSchema = z
   .object({
+    searchConsolePropertyId: z.string().nullable().optional(),
     sharing: z.enum(SEO_SHARING_SCOPES).optional(),
     projectId: seoIdSchema.nullable(),
     auditId: seoIdSchema.nullable(),

@@ -12771,6 +12771,23 @@
         "viewEachResult": "{count, plural, one {Mostrar # comprobación} other {Mostrar # comprobaciones}}"
       },
       "analysis": {
+        "unconfirmed": "Sokosumi no ha podido confirmar si la solicitud de auditoría anterior se completó. Reintenta esa solicitud antes de iniciar otra.",
+        "retryPrevious": "Reintentar la solicitud anterior",
+        "coverage": {
+          "title": "Cobertura de Search Console",
+          "audit": "La auditoría aún no ha comenzado. Los datos de Search Console solo aparecen en tu espacio de trabajo de SEO. Una auditoría limitada puede ejecutarse sin ellos.",
+          "monitor": "Aún no se ha creado la programación. Los datos de Search Console solo aparecen en tu espacio de trabajo de SEO. Las auditorías limitadas pueden ejecutarse sin ellos.",
+          "manualRun": "Esta auditoría adicional aún no ha comenzado. Los datos de Search Console solo aparecen en tu espacio de trabajo de SEO. El precio aprobado se aplica solo a esta ejecución limitada.",
+          "notConnected": "Conecta Search Console para comprobar la indexación y consultar las estadísticas de búsqueda de estas páginas.",
+          "reconnect": "Elige una cuenta de Google o vuelve a conectarla para usar Search Console con estas páginas.",
+          "property": "Elige una propiedad de Search Console autorizada que incluya todas las páginas seleccionadas.",
+          "unavailable": "Sokosumi no ha podido verificar el acceso a Search Console. Inténtalo de nuevo.",
+          "retry": "Volver a comprobar e iniciar la auditoría",
+          "retryMonitor": "Volver a comprobar y crear la programación",
+          "reviewMonitor": "Revisar en SEO",
+          "limited": "Iniciar auditoría limitada",
+          "limitedMonitor": "Programar auditorías limitadas"
+        },
         "title": "Iniciar comprobación",
         "description": "El agente empieza con estos ajustes. Los resultados existentes siguen disponibles mientras se ejecuta.",
         "options": "Cambiar opciones",

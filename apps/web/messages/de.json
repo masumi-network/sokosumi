@@ -12771,6 +12771,23 @@
         "viewEachResult": "{count, plural, one {# Prüfung anzeigen} other {# Prüfungen anzeigen}}"
       },
       "analysis": {
+        "unconfirmed": "Sokosumi konnte den Erfolg der vorherigen Audit-Anfrage nicht bestätigen. Wiederhole diese Anfrage, bevor du eine neue startest.",
+        "retryPrevious": "Vorherige Anfrage wiederholen",
+        "coverage": {
+          "title": "Abdeckung durch die Search Console",
+          "audit": "Das Audit wurde noch nicht gestartet. Daten aus der Search Console siehst du nur in deinem SEO-Arbeitsbereich. Ein eingeschränktes Audit kann ohne diese Daten laufen.",
+          "monitor": "Der Zeitplan wurde noch nicht erstellt. Daten aus der Search Console siehst du nur in deinem SEO-Arbeitsbereich. Eingeschränkte Audits können ohne diese Daten laufen.",
+          "manualRun": "Dieses zusätzliche Audit wurde noch nicht gestartet. Daten aus der Search Console siehst du nur in deinem SEO-Arbeitsbereich. Für dieses einzelne eingeschränkte Audit gilt der genehmigte Preis.",
+          "notConnected": "Verbinde die Search Console, um die Indexierung zu prüfen und die Suchstatistiken für diese Seiten zu lesen.",
+          "reconnect": "Wähle ein Google-Konto oder verbinde es erneut, um die Search Console für diese Seiten zu verwenden.",
+          "property": "Wähle eine Search Console-Property, für die du berechtigt bist und die alle ausgewählten Seiten abdeckt.",
+          "unavailable": "Sokosumi konnte den Zugriff auf die Search Console nicht prüfen. Versuche es erneut.",
+          "retry": "Erneut prüfen und Audit starten",
+          "retryMonitor": "Erneut prüfen und Zeitplan erstellen",
+          "reviewMonitor": "Im SEO-Bereich prüfen",
+          "limited": "Eingeschränktes Audit starten",
+          "limitedMonitor": "Eingeschränkte Audits planen"
+        },
         "title": "Prüfung starten",
         "description": "Der Agent startet mit diesen Einstellungen. Vorhandene Ergebnisse bleiben währenddessen verfügbar.",
         "options": "Optionen ändern",

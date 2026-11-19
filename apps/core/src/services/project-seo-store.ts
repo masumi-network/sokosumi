@@ -131,7 +131,7 @@ export async function requireLockedSeoOwner(
   client: Prisma.TransactionClient,
   actor: SeoActor,
   requireOpen = true,
-): Promise<void> {
+) {
   const projectIds = actor.owner.kind === "project" ? [actor.owner.id] : [];
   if (
     !(await lockCalendarScope(
@@ -164,7 +164,7 @@ export async function requireLockedSeoOwner(
     `;
     if (!rows.length) throw notFound("SEO audit not found");
   }
-  await requireSeoOwner(actor, client, requireOpen);
+  return requireSeoOwner(actor, client, requireOpen);
 }
 export async function canReadPrivateSeoMetrics(
   actor: SeoActor,
