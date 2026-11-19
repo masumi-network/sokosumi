@@ -656,6 +656,16 @@ const strategyPlanShape = {
       without: shortText,
       /** The owner set the amount; Cuso keeps it. */
       setByOwner: z.boolean().default(false),
+      /**
+       * What Cuso would start with if the owner says yes to ads (cmo-v5):
+       * ads are planned only after that yes.
+       */
+      suggest: z
+        .object({
+          channel: channelKey,
+          monthly: z.number().min(0).max(10_000_000),
+        })
+        .optional(),
     })
     .optional(),
   /** Each channel before Cuso and in this plan, from the Brand Brain's marketing today. */

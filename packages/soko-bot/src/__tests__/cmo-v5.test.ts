@@ -96,6 +96,49 @@ describe("cmo-v5", () => {
       expect(skill).toContain(kept);
   });
 
+  it("plans no ads until the owner said yes, and asks no question about them", () => {
+    const ads = skill.split("\n").find((line) => line.startsWith("- ads: "));
+    expect(ads).toContain(
+      "the owner decides, with a Yes or No on the strategy",
+    );
+    expect(ads).toContain(
+      "monthly is 0: there is no ads channel, no ad in the calendar and nothing about ads in the funnel",
+    );
+    expect(ads).toContain("suggest");
+    expect(skill).toContain("Never ask about ads or an ad budget");
+    // What it replaces: an amount recommended in every strategy, and a question about it.
+    expect(skill).not.toContain("so always recommend an amount");
+    expect(skill).not.toContain("Do you want to try Google Ads with about");
+    expect(before).toContain("so always recommend an amount");
+    const saved = plan([]);
+    expect(
+      marketingStrategyPlanSchema.parse({
+        ...saved,
+        ads: {
+          monthly: 0,
+          currency: "CHF",
+          expect: "20 to 40 clicks a month",
+          without: "Posts and search bring the calls",
+          suggest: { channel: "Google_Ads", monthly: 600 },
+        },
+      }).ads?.suggest,
+    ).toEqual({ channel: "google_ads", monthly: 600 });
+  });
+
+  it("never asks whether the owner can count or share something", () => {
+    expect(skill).toContain(
+      'never "Can you count new account starts each week?"',
+    );
+  });
+
+  it("shows everything Cuso does in the funnel, the weekly SEO work included", () => {
+    expect(skill).toContain(
+      "The funnel shows everything you do and nothing you do not",
+    );
+    expect(skill).toContain("one play with channel seo");
+    expect(skill).toContain("ads only once the owner said yes");
+  });
+
   it("leaves a network out with its reason, on the saved strategy", () => {
     const saved = plan([]);
     expect(saved.leftOut).toEqual([]);

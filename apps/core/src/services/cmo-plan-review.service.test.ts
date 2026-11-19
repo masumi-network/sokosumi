@@ -1260,3 +1260,136 @@ describe("a network the Brand Brain shows no profile on", () => {
     ]);
   });
 });
+
+describe("ads and questions, for a Cuso on cmo-v5's strategy skill", () => {
+  const live = ["linkedin", "x", "facebook", "instagram", "youtube"].map(
+    (channel) =>
+      ({
+        channel,
+        cadence: "3 a week",
+        role: "side",
+        buyer: "Operations leads",
+      }) as MarketingStrategyPlan["channels"][number],
+  );
+  const ask = (question: string, id = "q") => ({
+    id,
+    question,
+    statement: "It holds.",
+  });
+  const found = (strategy: MarketingStrategyPlan, about: RegExp) =>
+    cmoPlanProblems(strategy, { everyNetwork: true }).filter((problem) =>
+      about.test(problem),
+    );
+
+  it("refuses ads in channels or the funnel before the owner said yes", () => {
+    const base = plan({ channels: live });
+    const [awareness, ...rest] = base.funnel;
+    if (!awareness) throw new Error("funnel");
+    const planned = plan({
+      channels: [
+        ...live,
+        { channel: "google_ads", cadence: "4 ads this month" },
+      ] as MarketingStrategyPlan["channels"],
+      funnel: [
+        {
+          ...awareness,
+          plays: [{ channel: "google_ads", what: "Search ads" }],
+        },
+        ...rest,
+      ],
+      ads: {
+        monthly: 0,
+        currency: "CHF",
+        expect: "20 to 40 clicks",
+        without: "Posts and search",
+        setByOwner: false,
+        suggest: { channel: "google_ads", monthly: 600 },
+      },
+    });
+    expect(found(planned, /said yes to ads/)).toEqual([
+      "the owner has not said yes to ads, but channels holds google_ads and the funnel names ads at awareness; take ads out of channels, the calendar and the funnel, keep monthly 0, and say what you would start with in ads.suggest.",
+    ]);
+    expect(
+      found(
+        {
+          ...planned,
+          ads: {
+            ...planned.ads,
+            monthly: 600,
+            setByOwner: true,
+          } as NonNullable<MarketingStrategyPlan["ads"]>,
+        },
+        /said yes to ads/,
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses a question about ads or a budget", () => {
+    const asked = plan({
+      channels: live,
+      questions: [
+        ask("Is CHF 600 a suitable monthly test budget for Google search ads?"),
+        ask("Do you get about 30 orders a week?", "q2"),
+      ],
+    });
+    expect(found(asked, /asks about ads/)).toHaveLength(1);
+    expect(
+      found(
+        plan({
+          channels: live,
+          questions: [
+            ask("Do you get about 30 orders a week?"),
+            ask("Do most buyers add a second seat in month one?", "q2"),
+          ],
+        }),
+        /asks about ads|can do or knows/,
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses a question whether the owner can count or share something", () => {
+    for (const question of [
+      "Can you count new NMKR Studio account starts each week?",
+      "Can you share your monthly sign-ups?",
+      "Do you track trial starts in your CRM?",
+      "Could you tell me how many demos you run?",
+    ])
+      expect(
+        found(
+          plan({
+            channels: live,
+            questions: [ask(question), ask("Do buyers pay yearly?", "q2")],
+          }),
+          /can do or knows/,
+        ),
+      ).toEqual([
+        `questions asks whether the owner can do or knows something ("${question}"); a yes or no to that changes nothing. State your estimate and ask if it holds ("Do about 30 new accounts start each week?").`,
+      ]);
+    // An offer the owner can make is a real assumption, not a request.
+    expect(
+      found(
+        plan({
+          channels: live,
+          questions: [
+            ask("Can you offer 10% off a first order?"),
+            ask("Do buyers pay yearly?", "q2"),
+          ],
+        }),
+        /can do or knows/,
+      ),
+    ).toEqual([]);
+  });
+
+  it("asks neither of a Cuso on an earlier skill", () => {
+    expect(
+      cmoPlanProblems(
+        plan({
+          questions: [
+            ask("Can you share your monthly sign-ups?"),
+            ask("Is CHF 600 a suitable budget for ads?", "q2"),
+          ],
+        }),
+      ).filter((problem) => /asks about ads|can do or knows/.test(problem)),
+    ).toEqual([]);
+  });
+});

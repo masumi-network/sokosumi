@@ -155,7 +155,12 @@ export function cmoPlanProblems(
     problems.push("mix is empty; give two to four approaches.");
   problems.push(...pillarListProblems(strategy.pillars));
   problems.push(...funnelProblems(strategy.funnel, options));
-  if (options.everyNetwork) problems.push(...networkProblems(strategy));
+  if (options.everyNetwork)
+    problems.push(
+      ...networkProblems(strategy),
+      ...unaskedAdProblems(strategy),
+      ...askedForNothingProblems(strategy),
+    );
   if (!strategy.idea)
     problems.push(
       "idea is missing: who you target, how the business is positioned, how people are attracted, the offer, and the sentence that joins them.",
@@ -317,6 +322,65 @@ export const CMO_LIVE_NETWORKS: readonly string[] = Object.entries(
     ([, channel]) => channel.owner === "connect" && channel.status === "live",
   )
   .map(([key]) => key);
+
+const AD_CHANNELS = ["google_ads", "meta_ads"];
+
+/**
+ * Ads cost the owner money on top of their plan, so they are the owner's Yes
+ * or No on the strategy (cmo-v5): until a yes with an amount, nothing of the
+ * strategy holds them and no question asks about them.
+ */
+function unaskedAdProblems(strategy: MarketingStrategyPlan): string[] {
+  const problems: string[] = [];
+  const asked = strategy.questions.filter((question) =>
+    /\b(ads?|advertis\w*|ad budget|paid reach)\b/i.test(question.question),
+  );
+  if (asked.length > 0)
+    problems.push(
+      `questions asks about ads ("${asked[0]?.question}"); never ask about ads or a budget, the owner answers that with a Yes or No of its own on the strategy. Remove it and say what you would start with in ads.suggest.`,
+    );
+  if ((strategy.ads?.monthly ?? 0) > 0) return problems;
+  const planned = strategy.channels
+    .map((channel) => channel.channel.toLowerCase())
+    .filter((channel) => AD_CHANNELS.includes(channel));
+  const inFunnel = strategy.funnel.filter(
+    (stage) =>
+      stage.channels.some((channel) => AD_CHANNELS.includes(channel)) ||
+      stage.plays.some((play) => AD_CHANNELS.includes(play.channel)),
+  );
+  if (planned.length > 0 || inFunnel.length > 0)
+    problems.push(
+      `the owner has not said yes to ads, but ${[
+        planned.length > 0 ? `channels holds ${planned.join(", ")}` : "",
+        inFunnel.length > 0
+          ? `the funnel names ads at ${inFunnel.map((stage) => stage.stage).join(", ")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(
+          " and ",
+        )}; take ads out of channels, the calendar and the funnel, keep monthly 0, and say what you would start with in ads.suggest.`,
+    );
+  return problems;
+}
+
+/**
+ * A question whether the owner can count, share or tell something: a yes or
+ * no to it changes nothing in the strategy. "Can you count new account
+ * starts each week?" once sat among the assumptions.
+ */
+function askedForNothingProblems(strategy: MarketingStrategyPlan): string[] {
+  const empty = strategy.questions.filter((question) =>
+    /^(can|could|are you able to|will|would) you (please )?(count|share|tell|provide|send|give|track|measure|report|confirm how|say|show|look up|check)\b|^do you (know|track|measure|have (the )?(numbers?|data|figures?))\b/i.test(
+      question.question.trim(),
+    ),
+  );
+  return empty.length > 0
+    ? [
+        `questions asks whether the owner can do or knows something ("${empty[0]?.question}"); a yes or no to that changes nothing. State your estimate and ask if it holds ("Do about 30 new accounts start each week?").`,
+      ]
+    : [];
+}
 
 /**
  * The planned networks the Brand Brain shows no profile on, without the
