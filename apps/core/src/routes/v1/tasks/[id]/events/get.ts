@@ -140,9 +140,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const commentWhere = { taskId: id, comment: { not: null } };
     const paginate =
       queryParams.cursor !== undefined || queryParams.limit !== undefined;
-    const { cursor, take, skip } = paginate
+    const { cursor, take } = paginate
       ? parseCursorPagination(queryParams)
-      : { cursor: undefined, take: 0, skip: undefined };
+      : { cursor: undefined, take: 0 };
 
     if (cursor) {
       const cursorEvent = await prisma.taskEvent.findFirst({
@@ -160,9 +160,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await prisma.$transaction([
         prisma.taskEvent.findMany({
           where,
-          take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
+          ...(takePlusOne !== undefined && { take: takePlusOne }),
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           include: taskEventApiInclude,
         }),

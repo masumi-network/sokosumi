@@ -99,13 +99,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
     const selfDirectId = selfDirect.room.id;
 
+    const metadata = mergeChatRoomMessageMetadata(null, quote);
     const message = await prisma.$transaction(async (tx) => {
       const createdMessage = await tx.chatRoomMessage.create({
         data: {
           roomId: selfDirectId,
           senderUserId: userContext.userId,
           content: "",
-          metadata: mergeChatRoomMessageMetadata(null, quote) ?? undefined,
+          ...(metadata === null ? {} : { metadata }),
         },
         include: chatRoomMessageInclude,
       });

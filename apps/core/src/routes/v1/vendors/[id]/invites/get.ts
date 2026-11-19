@@ -80,7 +80,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const userAuth = requireUserAuthContext(c.var.authContext);
 
     await requireVendorAdminMembership(userAuth.userId, id);
@@ -105,8 +105,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.vendorMemberInvite.findMany({
         where,
         take: takePlusOne,
-        skip: cursorInvite ? 1 : skip,
-        cursor: cursorInvite ? { id: cursorInvite.id } : undefined,
+        ...(cursorInvite ? { cursor: { id: cursorInvite.id }, skip: 1 } : {}),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       prisma.vendorMemberInvite.count({ where }),

@@ -214,7 +214,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { scope, organizationId, projectId, taskId, assigneeId, q } =
       queryParams;
     const searchQuery = q?.trim();
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const sort = resolveDriveListSort(queryParams, "date");
 
     if (isCoworkerAuthContext(authContext)) {
@@ -412,8 +412,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           where: taskFileWhere,
           orderBy: taskFileOrderBy(sort),
           take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
           include: {
             task: {
               select: {
@@ -576,8 +575,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         prisma.taskFile.findMany({
           where: taskFileWhere,
           take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
           orderBy: taskFileOrderBy(sort),
         }),
         prisma.taskFile.count({

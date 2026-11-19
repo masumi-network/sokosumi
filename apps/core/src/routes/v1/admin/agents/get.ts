@@ -46,22 +46,23 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
-    const listWhere = buildAdminAgentListWhere({
-      q: queryParams.q,
-      status: queryParams.status,
-    });
+    const { cursor, take } = parseCursorPagination(queryParams);
+    const filters = {
+      ...(queryParams.q !== undefined && { q: queryParams.q }),
+      ...(queryParams.status !== undefined && { status: queryParams.status }),
+    };
+    const listWhere = buildAdminAgentListWhere(filters);
+    const whereArg = { ...(listWhere !== undefined && { where: listWhere }) };
 
     if (queryParams.sortBy === "displayName") {
       const [orderedIds, total] = await Promise.all([
         findAdminAgentIdsOrderedByDisplayName(prisma, {
           sortOrder: queryParams.sortOrder,
           take: take + 1,
-          cursor,
-          q: queryParams.q,
-          status: queryParams.status,
+          ...(cursor !== undefined && { cursor }),
+          ...filters,
         }),
-        prisma.agent.count({ where: listWhere }),
+        prisma.agent.count(whereArg),
       ]);
 
       const agents =
@@ -98,14 +99,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const [agents, total] = await prisma.$transaction([
       prisma.agent.findMany({
-        where: listWhere,
+        ...whereArg,
         include: adminAgentListInclude,
         take: take + 1,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         orderBy,
       }),
-      prisma.agent.count({ where: listWhere }),
+      prisma.agent.count(whereArg),
     ]);
 
     const hasMore = agents.length === take + 1;

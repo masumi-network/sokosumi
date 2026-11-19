@@ -182,7 +182,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
     const searchQuery = queryParams.q;
     const aroundId = queryParams.around;
@@ -280,8 +280,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.chatRoomMessage.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         // Newest-first, so an uncursored request (what a room does when it
         // opens) returns the most recent page rather than the first page ever
         // written. Paging with `nextCursor` then walks backwards through

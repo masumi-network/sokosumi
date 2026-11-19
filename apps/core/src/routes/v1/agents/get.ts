@@ -324,7 +324,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const { category: categorySlugs } = queryParams;
     const kinds: AgentListKind[] = queryParams.kind ?? [...AGENT_LIST_KINDS];
     const includeCardano = kinds.includes("cardano");
@@ -361,8 +361,7 @@ export default function mount(app: OpenAPIHono) {
         prisma.agent.findMany({
           where,
           take: takePlusOne,
-          skip,
-          cursor: cursor ? { id: cursor } : undefined,
+          ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
           orderBy: [...agentOrderBy, { id: "desc" }],
           include: {
             ...agentPricingInclude,

@@ -58,7 +58,7 @@ async function savedIds(
       options.after ? decodeSavedMessageCursor(options.after) : null,
     ),
     orderBy: SAVED_MESSAGE_ORDER,
-    take: options.take,
+    ...(options.take !== undefined && { take: options.take }),
     select: { id: true, savedAt: true, messageId: true },
   });
   return rows;
