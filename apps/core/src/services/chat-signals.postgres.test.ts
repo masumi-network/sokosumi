@@ -134,8 +134,10 @@ async function taggedMessage(input: {
       senderUserId: carla,
       content: input.content,
       createdAt: input.createdAt,
-      parentMessageId: input.parentMessageId,
-      deletedAt: input.deletedAt,
+      ...(input.parentMessageId !== undefined
+        ? { parentMessageId: input.parentMessageId }
+        : {}),
+      ...(input.deletedAt !== undefined ? { deletedAt: input.deletedAt } : {}),
     },
   });
   await prisma.chatMessageSignal.create({

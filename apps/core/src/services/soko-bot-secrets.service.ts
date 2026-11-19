@@ -100,7 +100,12 @@ export async function saveSokoBotSecret(input: {
     if (existing) {
       return tx.sokoBotSecret.update({
         where: { id: existing.id },
-        data: { ...sealed, shellAccess: input.shellAccess },
+        data: {
+          ...sealed,
+          ...(input.shellAccess !== undefined
+            ? { shellAccess: input.shellAccess }
+            : {}),
+        },
         select: secretSelect,
       });
     }

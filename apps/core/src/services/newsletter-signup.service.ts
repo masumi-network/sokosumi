@@ -110,7 +110,7 @@ export async function subscribeToNewsletter(
         data: {
           newsletterId: newsletter.id,
           email: input.email,
-          name: input.name,
+          ...(input.name !== undefined ? { name: input.name } : {}),
           status: "PENDING",
           source: "SIGNUP_FORM",
           consentAt: now,
@@ -162,7 +162,7 @@ export async function subscribeToNewsletter(
                 status: "PENDING",
                 consentAt: now,
                 source: "SIGNUP_FORM",
-                name: input.name,
+                ...(input.name !== undefined ? { name: input.name } : {}),
               },
         });
         if (!count) return null;

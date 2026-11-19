@@ -205,7 +205,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
         eveSessionId: turn.eveSessionId,
         leaseToken: LEASE,
         leaseExpiresAt: at(turn.leaseInMs),
-        errorKind: turn.errorKind,
+        ...(turn.errorKind !== undefined ? { errorKind: turn.errorKind } : {}),
         reconcilerHeartbeatAt:
           turn.heartbeatAgoMs === undefined ? null : at(-turn.heartbeatAgoMs),
         deadlineAt: at(turn.deadlineInMs ?? 60 * MINUTE),
