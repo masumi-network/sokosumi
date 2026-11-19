@@ -1,6 +1,7 @@
 import type { CmoOverview, CmoSeo } from "@sokosumi/core-client";
 import { AGENT_NAME } from "../../../lib/agent";
 import type { CusoMessage } from "../../../lib/chat-messages";
+import type { ChatWork } from "../../../lib/chat-work";
 import { VIEW_PATHS, type View } from "../../../lib/views";
 import {
   cmoBilling,
@@ -385,7 +386,41 @@ export const chat = {
       "Bitte schreibe die LinkedIn-Beiträge für die Produkteinführung auf Deutsch, mit einem klaren Nutzenversprechen für Produktverantwortliche und einem Hinweis auf die vierzehntägige Testphase. Die Geschwindigkeitsbegrenzung im Wettbewerbsvergleich darf nicht fehlen.",
       "04T10:05:00",
     ),
+    message(
+      "m7",
+      false,
+      "Make a picture, a short video and a voice-over for the launch.",
+      "04T10:20:00",
+    ),
+    message("m8", true, "Started image.\n\nStarted video.", "04T10:20:01"),
   ],
+  // What Cuso makes in the chat, in each state it can be in.
+  work: [
+    {
+      id: "w1",
+      kind: "image",
+      state: "ready",
+      at: new Date("2026-11-04T10:20:10Z"),
+      title: "The launch on a phone",
+      url: "/cuso/walking.png",
+    },
+    {
+      id: "w2",
+      kind: "video",
+      state: "making",
+      at: new Date("2026-11-04T10:20:20Z"),
+      title: "A walk through the launch",
+      url: null,
+    },
+    {
+      id: "w3",
+      kind: "audio",
+      state: "failed",
+      at: new Date("2026-11-04T10:20:30Z"),
+      title: "Launch day is here.",
+      url: null,
+    },
+  ] satisfies ChatWork[],
 };
 
 const seoAt = (iso: string) => new Date(iso);
