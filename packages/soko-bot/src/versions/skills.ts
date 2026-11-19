@@ -1,4 +1,5 @@
 import { CMO_SKILLS } from "./cmo-skills.js";
+import { cmoV4Skills } from "./cmo-v4-skills.js";
 import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
 
 /**
@@ -14,7 +15,7 @@ export interface SokoBotSkill {
   content: string;
 }
 
-export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
+const GENERAL_SKILLS: readonly SokoBotSkill[] = [
   {
     id: "chained-work",
     name: "Chained work",
@@ -384,6 +385,11 @@ Server monitoring and deployment alerts (DigitalOcean, Vercel, CI) are never urg
 - It reads only what you pass in and changes nothing: it never marks mail read, labels, moves or sends anything.
 `,
   },
+];
+
+export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
+  ...GENERAL_SKILLS,
+  ...cmoV4Skills(GENERAL_SKILLS),
 ];
 
 export function getSokoBotSkill(id: string): SokoBotSkill {

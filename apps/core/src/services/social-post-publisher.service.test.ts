@@ -1945,6 +1945,35 @@ describe("social post publisher service", () => {
     },
   );
 
+  it("fails a due post on our own TikTok app outside utxo's workspace, unsent", async () => {
+    vi.stubEnv("ZERNIO_API_KEY", "configured");
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        provider: "tiktok",
+        socialConnection: {
+          ...activeConnection,
+          provider: "tiktok",
+          composioConnectedAccountId: "ca_own_app",
+        },
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      published: 0,
+    });
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      lastError:
+        "This TikTok connection is no longer supported. Connect the account again.",
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
   it.each(DISABLED_PROVIDERS)(
     "keeps a due %s post and fails it with the coming-soon reason",
     async (provider, label) => {

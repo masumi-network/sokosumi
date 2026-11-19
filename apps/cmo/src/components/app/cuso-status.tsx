@@ -2,7 +2,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 
 import { AGENT_NAME } from "../../lib/agent";
 import { type CusoPose, cusoPose, cusoStatus } from "../../lib/thread";
-import { CusoScene, type Scene } from "../onboarding/cuso-scene";
+import { type CusoArt, cusoArt } from "../cuso";
 
 /** One line: how far the month is while it is made, else Cuso's state. */
 function cusoLine(overview: CmoOverview): string {
@@ -13,12 +13,13 @@ function cusoLine(overview: CmoOverview): string {
 }
 
 /** The scene each state shows: he points at the owner when needed. */
-const SCENES: Record<CusoPose, Scene> = {
-  reading: "research",
-  thinking: "planning",
-  reporting: "launch",
-  done: "subscribe",
-  "needs-you": "hero",
+/** The drawing each state shows: he points at the owner when needed. */
+const ART: Record<CusoPose, CusoArt> = {
+  reading: "searching",
+  thinking: "thinking",
+  reporting: "walking",
+  done: "thumbs-up",
+  "needs-you": "pointing",
 };
 
 interface CusoStatusProps {
@@ -30,9 +31,9 @@ interface CusoStatusProps {
 }
 
 /**
- * Cuso at the bottom of the sidebar, always in view: his pose stands on the
- * Iris stage, with what he is doing now. When he needs the owner it is a
- * button that opens what he is waiting on.
+ * Cuso at the bottom of the sidebar, always in view and small: his pose on a
+ * little Iris stage beside one line that says what he is doing now. When he
+ * needs the owner it is a button that opens what he is waiting on.
  */
 export function CusoStatus({
   overview,
@@ -43,12 +44,30 @@ export function CusoStatus({
   const needsYou = pose === "needs-you";
   const working = pose === "reading" || pose === "thinking";
   const line = cusoLine(overview);
-  // What he waits on, or what he is doing, is the label on his stage.
-  const onStage = needsYou || working ? line : null;
-  // The stage's label is decoration; this says the state to a screen reader.
+  // The words say the state; the drawing only shows it.
   const label = `${AGENT_NAME}: ${line}`;
   const content = (
-    <CusoScene scene={SCENES[pose]} now={onStage} calling={needsYou} compact />
+    <>
+      <img
+        className="cuso-status-art"
+        src={cusoArt(ART[pose])}
+        alt=""
+        width={640}
+        height={640}
+      />
+      <span className="cuso-status-text">
+        <b>{AGENT_NAME}</b>
+        <span
+          className={
+            needsYou ? "cuso-status-line cuso-status-call" : "cuso-status-line"
+          }
+        >
+          {working ? <span className="ob-box-dot" aria-hidden="true" /> : null}
+          {line}
+        </span>
+        {working ? <span className="ob-scene-bar" aria-hidden="true" /> : null}
+      </span>
+    </>
   );
   if (needsYou && onOpen) {
     return (

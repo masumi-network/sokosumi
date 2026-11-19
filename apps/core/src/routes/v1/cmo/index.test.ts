@@ -54,6 +54,12 @@ vi.mock("@/services/cmo-hiring.service", async (importOriginal) => {
   };
 });
 
+const testCopy = vi.hoisted(() => ({ check: vi.fn(), tearDown: vi.fn() }));
+vi.mock("@/services/cmo-test-copy.service", () => ({
+  checkTestCopyFor: testCopy.check,
+  tearDownTestCopyFor: testCopy.tearDown,
+}));
+
 vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-cuso.service")>();
@@ -146,6 +152,7 @@ function overview() {
     ],
     hiredAt: NOW,
     media: [],
+    postRevisions: { "post-1": 3 },
     botStatus: "IDLE",
     learning: "done",
     work: null,
@@ -177,8 +184,8 @@ function overview() {
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
+    tiktokEnabled: false,
     adProviders: [],
-    connectAdsUrl: "http://web/ads?projectId=project-1",
     measurement: [],
     production: {
       state: "waiting",
@@ -418,6 +425,8 @@ describe("CMO routes", () => {
     expect(body.data.updates[0]).toMatchObject({ revertible: true });
     expect(body.data.updates[0].previousVersionId).toBeUndefined();
     expect(body.data.updates[0].versionId).toBeUndefined();
+    // Each month post's revision, so the owner's edit of its words names it.
+    expect(body.data.postRevisions).toEqual({ "post-1": 3 });
     expect(body.data.posts).toEqual({
       draft: 3,
       scheduled: 2,
@@ -575,6 +584,63 @@ describe("CMO routes", () => {
       projectId: PROJECT_ID,
     });
     expect((await response.json()).data).toEqual({ startedOver: true });
+  });
+
+  it("tears a test copy down and reports what it removed and what is left", async () => {
+    const check = {
+      projectId: PROJECT_ID,
+      sourceProjectId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      tornDownAt: new Date("2026-11-19T10:00:00.000Z"),
+      clean: true,
+      left: {
+        unsentPosts: 0,
+        linkedAccounts: 0,
+        activeTurns: 0,
+        liveCuso: false,
+      },
+      publishedPosts: 0,
+      providerRevocations: 0,
+    };
+    const removed = {
+      canceledPosts: 31,
+      unlinkedAccounts: 4,
+      stoppedTurns: 1,
+      archivedCuso: true,
+    };
+    testCopy.tearDown.mockResolvedValue({ removed, check });
+    testCopy.check.mockResolvedValue(check);
+    const target = { userId: "user-1", projectId: PROJECT_ID };
+
+    const tornDown = await createApp().request(
+      `/projects/${PROJECT_ID}/test-copy/teardown`,
+      { method: "POST" },
+    );
+    expect(tornDown.status).toBe(200);
+    expect(testCopy.tearDown).toHaveBeenCalledWith(target);
+    expect((await tornDown.json()).data).toMatchObject({
+      removed,
+      check: { clean: true, publishedPosts: 0 },
+    });
+
+    const checked = await createApp().request(
+      `/projects/${PROJECT_ID}/test-copy`,
+    );
+    expect(checked.status).toBe(200);
+    expect(testCopy.check).toHaveBeenCalledWith(target);
+    expect((await checked.json()).data).toMatchObject({
+      clean: true,
+      tornDownAt: "2026-11-19T10:00:00.000Z",
+    });
+  });
+
+  it("answers 403 when a member may not tear the test copy down", async () => {
+    const { CmoForbiddenError } = await import("@/services/cmo-cuso.service");
+    testCopy.tearDown.mockRejectedValue(new CmoForbiddenError("Not yours"));
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/test-copy/teardown`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(403);
   });
 
   it("tells the person when the subscription could not be ended on starting over", async () => {

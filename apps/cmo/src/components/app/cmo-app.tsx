@@ -135,6 +135,8 @@ interface CmoAppProps {
   plans?: CmoSubscriptionPlan[];
   /** The person has another Cuso, for the sidebar's "Your Cusos". */
   manyCusos?: boolean;
+  /** The person may hire another Cuso (CMO is invite-only for now). */
+  mayHire?: boolean;
   actions: CmoAppActions;
 }
 
@@ -221,6 +223,7 @@ export function CmoApp({
   connectFailed = false,
   plans = [],
   manyCusos = false,
+  mayHire = false,
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
@@ -496,12 +499,9 @@ export function CmoApp({
             </div>
           </>
         ) : (
-          <div className="scroll">
-            <div
-              className={
-                view === "strategy" || view === "brain" ? undefined : "page"
-              }
-            >
+          // A new element per page, so each page opens at its top.
+          <div className="scroll" key={view}>
+            <div className={view === "strategy" ? undefined : "page"}>
               {PAGE_LEADS[view] ? (
                 <PageLead
                   title={PAGE_LEADS[view].title}
@@ -518,6 +518,7 @@ export function CmoApp({
                 <CalendarPage
                   overview={overview}
                   drafts={draftActions}
+                  onConnect={() => go("channels")}
                   loadText={actions.loadPieceText}
                   pieceExtra={(entry) => (
                     <>
@@ -554,6 +555,7 @@ export function CmoApp({
                 />
               ) : view === "seo" ? (
                 <SeoPage
+                  timeZone={overview.timeZone}
                   actions={{
                     ...actions,
                     connectSearchConsole: () =>
@@ -614,6 +616,7 @@ export function CmoApp({
                   name={name}
                   email={email}
                   startOver={actions.startOver}
+                  mayHire={mayHire}
                   setTimeZone={actions.setTimeZone}
                   signOut={actions.signOut}
                   topUp={topUp}
