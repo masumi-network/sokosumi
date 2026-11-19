@@ -12411,7 +12411,7 @@
         "failedCheck": "<prefix>Problem:</prefix> {name}",
         "checkedOn": "Geprüft am",
         "diagnostics": "Seitendetails",
-        "diagnosticsHelp": "Was die Prüfung auf deinen Seiten gemessen hat. Hinweise und Vorschläge sind keine Fehler.",
+        "diagnosticsHelp": "Was wir auf deinen Seiten gefunden haben.",
         "rank": {
           "absent": "Nicht in den Top {top}",
           "position": "Position {position}",
@@ -12688,6 +12688,8 @@
       },
       "actions": {
         "title": "Aktionen",
+        "listTitle": "Empfohlene Aktionen",
+        "listHint": "Änderungen, die unser Agent empfiehlt.",
         "empty": "Keine empfohlenen Aktionen",
         "emptyBody": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Starte eine Prüfung oder frag den SEO-Agenten, was als Nächstes zu tun ist.",
         "emptyBodyOff": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes zu tun ist.",

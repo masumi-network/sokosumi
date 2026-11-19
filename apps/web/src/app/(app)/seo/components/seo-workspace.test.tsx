@@ -1090,7 +1090,7 @@ describe("SEO workspace integration", () => {
     expect(
       within(actionsSection as HTMLElement).getByRole("heading", {
         level: 2,
-        name: "Actions",
+        name: "Recommended actions",
       }),
     ).toBeInTheDocument();
     expect(detailsHeading.closest("details")).toHaveAttribute("open");
@@ -1127,7 +1127,7 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // The fold counts suggestions apart from notes, as the Agent tab does.
     expect(details.querySelector("summary")).toHaveTextContent(
-      /^Page details1 suggestion,\s*2 notesWhat the check measured/,
+      /^Page details1 suggestion,\s*2 notesWhat we found on your pages\./,
     );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/Checked on/)).toBeNull();
@@ -6337,7 +6337,7 @@ describe("SEO workspace integration", () => {
     expect(asked).toEqual([]);
   });
 
-  it("names the fixes on the Actions tab when the strategy actions follow them", async () => {
+  it("names the fixes on the Actions tab, with or without the strategy actions", async () => {
     const workspace = seoTestWorkspace();
     workspace.actions.push({
       id: "action-row",
@@ -6359,13 +6359,23 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     const first = renderWorkspace(workspace, "?tab=actions");
-    // Alone on the tab, the fixes need no title: the tab says it.
+    // Alone on the tab, the fixes keep their title and its line: the export menu stands beside them.
     expect(
       await screen.findByRole("button", { name: /^Fix the page title/ }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Actions" }).closest(".sr-only"),
-    ).not.toBeNull();
+      screen
+        .getByRole("heading", { name: "Recommended actions" })
+        .closest(".sr-only"),
+    ).toBeNull();
+    expect(screen.getByText("Changes our agent recommends.")).toBeVisible();
+    // The export menu stands on the title line, inside the header of the section.
+    expect(
+      screen
+        .getByRole("button", { name: "Export: Actions" })
+        .closest("section")
+        ?.querySelector("h2")?.parentElement,
+    ).toContainElement(screen.getByRole("button", { name: "Export: Actions" }));
     first.unmount();
     const strategy = seoTestStrategy();
     strategy.actions = Array.from({ length: 5 }, (_, index) => ({
@@ -6375,9 +6385,9 @@ describe("SEO workspace integration", () => {
     workspace.strategy = strategy;
     const second = renderWorkspace(workspace, "?tab=actions");
     expect(
-      (await screen.findByRole("heading", { name: "Actions" })).closest(
-        ".sr-only",
-      ),
+      (
+        await screen.findByRole("heading", { name: "Recommended actions" })
+      ).closest(".sr-only"),
     ).toBeNull();
     expect(
       screen.getByRole("heading", {

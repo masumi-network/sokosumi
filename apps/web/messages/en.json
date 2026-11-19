@@ -12411,7 +12411,7 @@
         "failedCheck": "<prefix>Issue:</prefix> {name}",
         "checkedOn": "Checked",
         "diagnostics": "Page details",
-        "diagnosticsHelp": "What the check measured on your pages. Notes and suggestions are not errors.",
+        "diagnosticsHelp": "What we found on your pages.",
         "rank": {
           "absent": "Not in the top {top}",
           "position": "Position {position}",
@@ -12688,6 +12688,8 @@
       },
       "actions": {
         "title": "Actions",
+        "listTitle": "Recommended actions",
+        "listHint": "Changes our agent recommends.",
         "empty": "No recommended actions",
         "emptyBody": "Actions come from issues a check finds and from your Search Console searches. Run a check, or ask the SEO agent what to do next.",
         "emptyBodyOff": "Actions come from issues a check finds and from your Search Console searches. Ask the SEO agent what to do next.",
