@@ -9,6 +9,7 @@ import {
   pageDetailItemHref,
   pageDetailItemName,
   pageDetailItems,
+  pageDetailLinkName,
   pageDetailReferences,
   seoActionBucket,
   seoActionWorklist,
@@ -581,15 +582,20 @@ describe("page detail items", () => {
       {
         label: "cameraFileName",
         values: [
-          "https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1",
-          "DSC01234.JPG",
+          {
+            value:
+              "https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1",
+          },
+          { value: "DSC01234.JPG" },
         ],
         // The bot's count of the files past its first ten stays with them, not with the rule's guidance.
         more: 3,
       },
     ]);
     expect(guidance).toEqual(["vendor tools: Ahrefs under 70 (N1-246)"]);
-    expect(pageDetailItemName(groups[0].values[0])).toBe("img_2696-1.jpg");
+    expect(pageDetailItemName(groups[0].values[0].value)).toBe(
+      "img_2696-1.jpg",
+    );
     expect(pageDetailItemName("/u/caf%C3%A9%20au%20lait.jpg?w=5")).toBe(
       "café au lait.jpg",
     );
@@ -604,6 +610,43 @@ describe("page detail items", () => {
     ]);
     expect(groups[0].more).toBe(0);
     expect(guidance).toEqual(["Google: describe the image", "+4 more"]);
+  });
+
+  it("reads a broken link line as the link and the site's answer", () => {
+    const { groups } = pageDetailItems([
+      "https://example.com/a/ → 404",
+      "https://example.com/b → 301 after 1 redirect to https://example.com/c",
+      "+2 more",
+    ]);
+    expect(groups).toEqual([
+      {
+        label: "linkStatus",
+        values: [
+          { value: "https://example.com/a/", status: "404" },
+          {
+            value: "https://example.com/b",
+            status: "301 after 1 redirect to https://example.com/c",
+          },
+        ],
+        more: 2,
+      },
+    ]);
+    expect(
+      pageDetailLinkName(
+        "https://example.com/r%C3%BCgen/",
+        "https://example.com/",
+      ),
+    ).toBe("/rügen/");
+    expect(
+      pageDetailLinkName("https://other.example/x", "https://example.com/"),
+    ).toBe("other.example/x");
+    // Two searches on one path are two links.
+    expect(
+      pageDetailLinkName(
+        "https://example.com/search?q=a",
+        "https://example.com/",
+      ),
+    ).toBe("/search?q=a");
   });
 
   it("keeps other rows' label lines as they are: they are page facts, not lists", () => {

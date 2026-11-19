@@ -12434,7 +12434,7 @@
         "pageMeasurements": "Measurements",
         "pageNotes": "Notes ({count})",
         "references": "{count, plural, one {# source} other {# sources}}",
-        "noteRule": "Rule not met: “{name}”",
+        "noteRule": "The check flagged this on the page",
         "askAgent": "Ask the agent",
         "askAboutNote": "A check flagged “{name}” on my page. What does it mean, and should I change anything?",
         "showAll": "Show all",
@@ -12444,12 +12444,11 @@
         "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "positionHint": "1 is the top result",
-        "noteFound": "Found: {found}",
         "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}",
-        "noteRuleName": "Rule: “{name}”",
         "flaggedItems": {
           "cameraFileName": "{count, plural, one {# camera file name} other {# camera file names}}",
-          "imgWithoutAlt": "{count, plural, one {# image without alt text} other {# images without alt text}}"
+          "imgWithoutAlt": "{count, plural, one {# image without alt text} other {# images without alt text}}",
+          "linkStatus": "{count, plural, one {# link} other {# links}}"
         },
         "moreItems": "+{count} more",
         "inlineImage": "image inside the page",
@@ -12457,6 +12456,10 @@
           "cameraFileNames": {
             "found": "{found, plural, one {# of {total} images has} other {# of {total} images have}} a camera file name",
             "why": "Names like IMG_1234.jpg say nothing about the picture. Google reads a file name as a small hint for image search. When you upload an image again, name it after what it shows, for example harbor-at-sunset.jpg."
+          },
+          "brokenLinks": {
+            "found": "{found, plural, one {# of {total} links leads} other {# of {total} links lead}} to an error",
+            "why": "A link that answers with an error number leads visitors and Google to a dead end. Fix each link or remove it. The number after a link is the site's answer: 404 means the page does not exist. 429 is different: the site turned our check away for a moment, so check that link again before you change it."
           }
         },
         "suggestion": "Suggestion:",

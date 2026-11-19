@@ -322,11 +322,17 @@ export function pageDetailGuidance(evidence: readonly string[]) {
  * Only these labels: other rows write "label: value" lines that are page facts, not lists.
  */
 const ITEM_LINE = /^(camera file name|img without alt): (.+)$/;
+/** A link the check read and the site's answer, e.g. "https://example.com/a/ → 404" (seo-bot IL-04). */
+const LINK_STATUS_LINE = /^(https?:\/\/\S+) → (.+)$/;
 /** The message key of each item label, so the list's caption is in the reader's language. */
 export const ITEM_LABEL_KEYS = {
   "camera file name": "cameraFileName",
   "img without alt": "imgWithoutAlt",
+  "link status": "linkStatus",
 } as const;
+
+/** One flagged item: a file or link, and the site's answer when the check read one. */
+export type PageDetailItem = { value: string; status?: string };
 /** The bot's count of the items it left out after its first ten, e.g. "+2 more". */
 const MORE_LINE = /^\+(\d+) more$/;
 
@@ -335,17 +341,22 @@ const MORE_LINE = /^\+(\d+) more$/;
  * Items belong to their page, so they show on every row; guidance shows once per rule.
  */
 export function pageDetailItems(lines: readonly string[]) {
-  const groups = new Map<string, { values: string[]; more: number }>();
+  type Group = { values: PageDetailItem[]; more: number };
+  const groups = new Map<string, Group>();
   const guidance: string[] = [];
-  let last: { values: string[]; more: number } | undefined;
+  let last: Group | undefined;
+  const add = (label: string, item: PageDetailItem) => {
+    last = groups.get(label) ?? { values: [], more: 0 };
+    last.values.push(item);
+    groups.set(label, last);
+  };
   for (const line of lines) {
     const item = ITEM_LINE.exec(line);
+    const link = LINK_STATUS_LINE.exec(line);
     const more = MORE_LINE.exec(line);
-    if (item) {
-      last = groups.get(item[1]) ?? { values: [], more: 0 };
-      last.values.push(item[2]);
-      groups.set(item[1], last);
-    } else if (more && last) last.more += Number(more[1]);
+    if (item) add(item[1], { value: item[2] });
+    else if (link) add("link status", { value: link[1], status: link[2] });
+    else if (more && last) last.more += Number(more[1]);
     else {
       // A "+N more" after guidance is not the list's.
       last = undefined;
@@ -383,6 +394,19 @@ export function pageDetailItemName(value: string) {
 }
 
 /**
+ * A link as people scan it: its path on the page's own site ("/haefen/"), else its host and path.
+ * The bot already cut a long line ("…"), so the name keeps that mark.
+ */
+export function pageDetailLinkName(value: string, pageUrl: string) {
+  if (!URL.canParse(value)) return value;
+  const url = new URL(value);
+  const sameSite = URL.canParse(pageUrl) && new URL(pageUrl).host === url.host;
+  // The query stays: "/search?q=a" and "/search?q=b" are different links.
+  const path = `${url.pathname}${url.search}`;
+  return decoded(sameSite ? path : `${url.host}${path}`);
+}
+
+/**
  * An item's link: only a web address, never another scheme such as javascript:.
  * None for a value the bot cut at its line length ("…"): that address is not the file's.
  */
@@ -404,8 +428,11 @@ export function noteShare(line: string) {
  * The rule IDs whose note gets its own plain words: their share line alone ("6 of 23 image file names")
  * does not say what is wrong or why it matters.
  */
-export const PLAIN_NOTE_COPY: Readonly<Record<string, "cameraFileNames">> = {
+export const PLAIN_NOTE_COPY: Readonly<
+  Record<string, "cameraFileNames" | "brokenLinks">
+> = {
   "O-21": "cameraFileNames",
+  "IL-04": "brokenLinks",
 };
 
 /**

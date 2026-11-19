@@ -12434,7 +12434,7 @@
         "pageMeasurements": "Messwerte",
         "pageNotes": "Hinweise ({count})",
         "references": "{count, plural, one {# Quelle} other {# Quellen}}",
-        "noteRule": "Regel nicht erfüllt: „{name}“",
+        "noteRule": "Die Prüfung hat das auf der Seite markiert",
         "askAgent": "Agent fragen",
         "askAboutNote": "Eine Prüfung hat „{name}“ auf meiner Seite markiert. Was bedeutet das, und sollte ich etwas ändern?",
         "showAll": "Alles zeigen",
@@ -12444,12 +12444,11 @@
         "outsideToolRanges": "{total, plural, one {außerhalb des Tool-Bereichs ({tools})} other {außerhalb von {outside} der # Tool-Bereiche ({tools})}}",
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
         "positionHint": "1 ist das oberste Ergebnis",
-        "noteFound": "Gefunden: {found}",
         "suggestionCount": "{count, plural, one {# Vorschlag} other {# Vorschläge}}",
-        "noteRuleName": "Regel: „{name}“",
         "flaggedItems": {
           "cameraFileName": "{count, plural, one {# Kamera-Dateiname} other {# Kamera-Dateinamen}}",
-          "imgWithoutAlt": "{count, plural, one {# Bild ohne Alt-Text} other {# Bilder ohne Alt-Text}}"
+          "imgWithoutAlt": "{count, plural, one {# Bild ohne Alt-Text} other {# Bilder ohne Alt-Text}}",
+          "linkStatus": "{count, plural, one {# Link} other {# Links}}"
         },
         "moreItems": "+{count} weitere",
         "inlineImage": "Bild in der Seite",
@@ -12457,6 +12456,10 @@
           "cameraFileNames": {
             "found": "{found, plural, one {# von {total} Bildern hat} other {# von {total} Bildern haben}} einen Kamera-Dateinamen",
             "why": "Namen wie IMG_1234.jpg sagen nichts über das Bild. Google liest einen Dateinamen als kleinen Hinweis für die Bildersuche. Wenn du ein Bild neu hochlädst, benenne es nach seinem Inhalt, zum Beispiel hafen-bei-sonnenuntergang.jpg."
+          },
+          "brokenLinks": {
+            "found": "{found, plural, one {# von {total} Links führt} other {# von {total} Links führen}} zu einem Fehler",
+            "why": "Ein Link, der mit einer Fehlernummer antwortet, führt Besucher und Google in eine Sackgasse. Korrigiere oder entferne jeden Link. Die Zahl nach einem Link ist die Antwort der Website: 404 heißt, die Seite gibt es nicht. 429 ist etwas anderes: Die Website hat unsere Prüfung kurz abgewiesen, prüfe diesen Link also erneut, bevor du ihn änderst."
           }
         },
         "suggestion": "Vorschlag:",

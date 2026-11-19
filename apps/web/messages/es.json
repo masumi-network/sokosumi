@@ -12434,7 +12434,7 @@
         "pageMeasurements": "Mediciones",
         "pageNotes": "Notas ({count})",
         "references": "{count, plural, one {# fuente} other {# fuentes}}",
-        "noteRule": "Regla no cumplida: «{name}»",
+        "noteRule": "La comprobación marcó esto en la página",
         "askAgent": "Preguntar al agente",
         "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
         "showAll": "Mostrar todo",
@@ -12444,12 +12444,11 @@
         "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
         "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
         "positionHint": "1 es el primer resultado",
-        "noteFound": "Encontrado: {found}",
         "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
-        "noteRuleName": "Regla: «{name}»",
         "flaggedItems": {
           "cameraFileName": "{count, plural, one {# nombre de archivo de cámara} other {# nombres de archivo de cámara}}",
-          "imgWithoutAlt": "{count, plural, one {# imagen sin texto alternativo} other {# imágenes sin texto alternativo}}"
+          "imgWithoutAlt": "{count, plural, one {# imagen sin texto alternativo} other {# imágenes sin texto alternativo}}",
+          "linkStatus": "{count, plural, one {# enlace} other {# enlaces}}"
         },
         "moreItems": "+{count} más",
         "inlineImage": "imagen dentro de la página",
@@ -12457,6 +12456,10 @@
           "cameraFileNames": {
             "found": "{found, plural, one {# de {total} imágenes tiene} other {# de {total} imágenes tienen}} un nombre de archivo de cámara",
             "why": "Nombres como IMG_1234.jpg no dicen nada de la imagen. Google lee el nombre del archivo como una pequeña pista para la búsqueda de imágenes. Cuando vuelvas a subir una imagen, nómbrala según lo que muestra, por ejemplo puerto-al-atardecer.jpg."
+          },
+          "brokenLinks": {
+            "found": "{found, plural, one {# de {total} enlaces lleva} other {# de {total} enlaces llevan}} a un error",
+            "why": "Un enlace que responde con un número de error lleva a los visitantes y a Google a un callejón sin salida. Corrige o elimina cada enlace. El número después de un enlace es la respuesta del sitio: 404 significa que la página no existe. 429 es distinto: el sitio rechazó nuestra comprobación un momento, así que revisa ese enlace de nuevo antes de cambiarlo."
           }
         },
         "suggestion": "Sugerencia:",

@@ -21,6 +21,7 @@ import {
   pageDetailItemHref,
   pageDetailItemName,
   pageDetailItems,
+  pageDetailLinkName,
   pageDetailReferences,
   seoCheckedAt,
   seoOverviewModel,
@@ -143,7 +144,14 @@ function PageDetail({
   // A note can always be asked about; a measurement only when some tool range leaves it out.
   const ask = measure ? (offersFix ? onAsk : undefined) : onAsk;
   return (
-    <li className="space-y-1 py-3 first:pt-0 last:pb-0">
+    <li
+      className={cn(
+        // Measures are one line each; a note has a heading, words and a list, so each sits in its own box.
+        measure
+          ? "space-y-1 py-3 first:pt-0 last:pb-0"
+          : "border-border space-y-1.5 rounded-md border p-3",
+      )}
+    >
       {rank ? (
         <SeoRankDetailRow
           headingId={headingId}
@@ -190,22 +198,24 @@ function PageDetail({
         </p>
       ) : (
         <>
-          {/* The heading is the check's own finding; the rule name, e.g. "No meta keywords", follows it. */}
+          {/* The heading is what the check found on the page. The rule's own name ("No meta keywords") is
+              an internal label and can read as the opposite, so it shows only when no finding fits a heading. */}
           <NoteHeading
             id={headingId}
             className="text-sm font-medium break-words"
           >
-            {plain
-              ? t(`overview.plainNote.${plain.key}.found`, plain)
-              : note
-                ? t("overview.noteFound", { found: note.found })
-                : t("overview.noteRule", { name })}
+            {plain ? (
+              t(`overview.plainNote.${plain.key}.found`, plain)
+            ) : note ? (
+              note.found
+            ) : (
+              <>
+                {t("overview.noteRule")}
+                {/* Several such notes would read alike; a screen reader hears which rule each is. */}
+                <span className="sr-only">{`: ${name}`}</span>
+              </>
+            )}
           </NoteHeading>
-          {note || plain ? (
-            <p className="text-muted-foreground text-xs">
-              {t("overview.noteRuleName", { name })}
-            </p>
-          ) : null}
           {detail ? (
             <p
               id={valueId}
@@ -235,24 +245,37 @@ function PageDetail({
               })}
             </p>
           )}
-          <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
-            {group.values.map((value, index) => (
-              <li key={`${index}:${value}`} className="min-w-0 break-all">
-                {pageDetailItemHref(value) ? (
-                  <a
-                    href={pageDetailItemHref(value)}
-                    title={value}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline underline-offset-4"
-                  >
-                    {pageDetailItemName(value)}
-                  </a>
-                ) : (
-                  (pageDetailItemName(value) ?? t("overview.inlineImage"))
-                )}
-              </li>
-            ))}
+          <ul className="space-y-0.5">
+            {group.values.map(({ value, status }, index) => {
+              const label =
+                status === undefined
+                  ? (pageDetailItemName(value) ?? t("overview.inlineImage"))
+                  : pageDetailLinkName(value, finding.pageUrl);
+              const href = pageDetailItemHref(value);
+              return (
+                <li key={`${index}:${value}`} className="min-w-0 break-all">
+                  {href ? (
+                    <a
+                      href={href}
+                      title={value}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-4"
+                    >
+                      {label}
+                    </a>
+                  ) : (
+                    label
+                  )}
+                  {status === undefined ? null : (
+                    <span className="text-muted-foreground tabular-nums">
+                      {" → "}
+                      {status}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
             {group.more ? (
               <li className="text-muted-foreground">
                 {t("overview.moreItems", { count: group.more })}
@@ -542,7 +565,7 @@ export function SeoPageDetails({
             <SectionHeading className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               {t("overview.pageNotes", { count: notes.length })}
             </SectionHeading>
-            <ul className="divide-border divide-y">
+            <ul className="space-y-2">
               {notes.map((finding) => (
                 <PageDetail
                   key={finding.id}

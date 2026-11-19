@@ -947,7 +947,8 @@ describe("SEO workspace integration", () => {
     });
     const row = heading.closest("li");
     if (!row) throw new Error("no note row");
-    expect(row).toHaveTextContent("Rule: “Image file names”");
+    // The rule's own name is an internal label: the row does not show it.
+    expect(row).not.toHaveTextContent("Image file names");
     expect(row).toHaveTextContent("for example harbor-at-sunset.jpg");
     // Each file shows by its name and opens the full address; a non-web value is text, not a link.
     expect(
@@ -959,6 +960,55 @@ describe("SEO workspace integration", () => {
     // Another rule's list says in words what its items are, counting the ones the bot left out.
     expect(screen.getByText("3 images without alt text")).toBeVisible();
     expect(screen.getByText("+2 more")).toBeVisible();
+  });
+
+  it("lists a broken links note's links by path with the site's answer", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const site = new URL(workspace.pages[0].url).origin;
+    workspace.findings.push({
+      id: "broken-links",
+      observationId: "check-links",
+      pageUrl: workspace.pages[0].url,
+      device: "mobile",
+      rowId: "IL-04",
+      title: "Links reach live pages",
+      severity: "note",
+      evidence: [
+        "13 of 43 link targets answer 400 or more (12 on the page's host)",
+        `${site}/segeln-mit-kindern/ → 429`,
+        "https://other.example/gone → 404",
+        "+11 more",
+      ],
+      sourceRef: "links",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Title, description and other page details",
+      }),
+    );
+    const row = screen
+      .getByRole("heading", { name: "13 of 43 links lead to an error" })
+      .closest("li");
+    if (!row) throw new Error("no note row");
+    expect(row).toHaveTextContent("404 means the page does not exist");
+    expect(row).toHaveTextContent("check that link again before you change it");
+    // A link on the page's own site shows its path; another site's shows its host too.
+    expect(
+      within(row).getByRole("link", { name: "/segeln-mit-kindern/" }),
+    ).toHaveAttribute("href", `${site}/segeln-mit-kindern/`);
+    expect(
+      within(row).getByRole("link", { name: "other.example/gone" }),
+    ).toBeVisible();
+    expect(row).toHaveTextContent("/segeln-mit-kindern/ → 429");
+    expect(row).toHaveTextContent("+11 more");
+    expect(row).not.toHaveTextContent("Links reach live pages");
   });
 
   it("keeps the found line of a camera file name note without a share line", async () => {
@@ -988,7 +1038,7 @@ describe("SEO workspace integration", () => {
     );
     // No count to put in plain words: the row keeps what the check wrote.
     expect(
-      screen.getByRole("heading", { name: "Found: camera file name" }),
+      screen.getByRole("heading", { name: "camera file name" }),
     ).toBeVisible();
     expect(screen.getByText("https://example.com/IMG_0001.jpg")).toBeVisible();
   });
@@ -1129,9 +1179,9 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     // A note leads with what the check found; the rule name follows, so it does not read as a claim.
     expect(
-      screen.getByRole("heading", { name: "Found: meta keywords in head" }),
+      screen.getByRole("heading", { name: "meta keywords in head" }),
     ).toBeVisible();
-    expect(screen.getByText("Rule: “No meta keywords”")).toBeVisible();
+    expect(screen.queryByText(/No meta keywords/)).toBeNull();
     expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
     // A 1-page Audit does not repeat its URL on every row.
     const details = screen.getAllByText("Title length:")[0].closest("details");
@@ -1158,7 +1208,7 @@ describe("SEO workspace integration", () => {
     expect(details.querySelectorAll("time")).toHaveLength(5);
     expect(
       screen.getByRole("heading", {
-        name: "Found: robots.txt blocks GPTBot",
+        name: "robots.txt blocks GPTBot",
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
@@ -1208,7 +1258,7 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getByRole("button", {
         name: "Ask the agent",
-        description: "Found: robots.txt blocks GPTBot https://example.com/old",
+        description: "robots.txt blocks GPTBot https://example.com/old",
       }),
     );
     const sheet = await screen.findByRole("dialog");
@@ -1405,7 +1455,7 @@ describe("SEO workspace integration", () => {
     // A long line without a label is the value under its rule, not a heading.
     expect(
       within(details).getByRole("heading", {
-        name: "Rule not met: “Descriptive link text”",
+        name: /^The check flagged this on the page\s*: Descriptive link text$/,
       }),
     ).toBeVisible();
     // A long note the clamp does not cut needs no toggle.
