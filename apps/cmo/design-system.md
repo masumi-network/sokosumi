@@ -106,6 +106,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Card.** Card fill, 3px ink line, 20px radius, flat. Only a card that is a button casts a shadow: the open Calendar post takes the 6px one (`button.card-focus`), and a tile to pick in a grid casts the 4px shadow, filled with Iris once picked. A panel (a section of an app page, a fold, a tab panel, a group of tiles) is the same line and radius.
 
+**Funnel (Strategy).** One card a stage, top to bottom, each a little narrower on a wide screen so the stack reads as a funnel: an ink count, the stage's classic name (h2) with what people do there, the stage's goal (value step), then the same three answers at every stage under a hairline, so they line up down the page: What Cuso does (one line a channel), What you do, and How we know it works (the number, today's value, and a green disc when it is measured or "Cuso's estimate" when it is not). The cards are flat and nothing folds: there is nothing to press. On a phone the three answers stack.
+
 **Tile.** A row in one outlined gray group, hairlines between: label (small 500, muted), value (16px 500, one line), one line of detail (small, muted), chevron right. Tap opens the row's sheet, which carries the source.
 
 **Side panel.** A sheet that rises from the bottom of the screen, as wide as the column: h2 title, 32px close button with the small line and the 4px shadow, short summary, hairline-separated list, source link, and a "Tell {agent} what's off" input.
