@@ -12672,7 +12672,7 @@
       "actions": {
         "title": "Actions",
         "listTitle": "Recommended actions",
-        "listHint": "Changes the checks and Search Console suggest for these pages.",
+        "listHint": "Changes our agent recommends.",
         "empty": "No recommended actions",
         "emptyBody": "Actions come from issues a check finds and from your Search Console searches. Run a check, or ask the SEO agent what to do next.",
         "emptyBodyOff": "Actions come from issues a check finds and from your Search Console searches. Ask the SEO agent what to do next.",

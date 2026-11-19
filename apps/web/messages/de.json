@@ -12672,7 +12672,7 @@
       "actions": {
         "title": "Aktionen",
         "listTitle": "Empfohlene Aktionen",
-        "listHint": "Änderungen, die die Prüfungen und die Search Console für diese Seiten vorschlagen.",
+        "listHint": "Änderungen, die unser Agent empfiehlt.",
         "empty": "Keine empfohlenen Aktionen",
         "emptyBody": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Starte eine Prüfung oder frag den SEO-Agenten, was als Nächstes zu tun ist.",
         "emptyBodyOff": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes zu tun ist.",

@@ -6251,11 +6251,7 @@ describe("SEO workspace integration", () => {
         .getByRole("heading", { name: "Recommended actions" })
         .closest(".sr-only"),
     ).toBeNull();
-    expect(
-      screen.getByText(
-        "Changes the checks and Search Console suggest for these pages.",
-      ),
-    ).toBeVisible();
+    expect(screen.getByText("Changes our agent recommends.")).toBeVisible();
     // The export menu stands on the title line, inside the header of the section.
     expect(
       screen
