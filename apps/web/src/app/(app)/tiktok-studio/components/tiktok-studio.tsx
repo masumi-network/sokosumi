@@ -23,6 +23,7 @@ import { type ReactNode, useId, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
+import { APP_MAIN_MOBILE_SCROLL_MT_CLASS } from "@/app/components/app-shell-safe-area";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -717,7 +718,8 @@ export function TikTokStudio({
         aria-label={stageJob ? t("stageVideo") : t("preview")}
         className={cn(
           HOLDER_CLASS,
-          "flex min-w-0 scroll-mt-2 flex-col gap-2 max-lg:scroll-mt-20 lg:sticky lg:top-0 lg:row-span-2",
+          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:row-span-2",
+          APP_MAIN_MOBILE_SCROLL_MT_CLASS,
           // On a phone a started video leads the page; the preview follows the steps.
           stageJob && "max-lg:order-first",
         )}
