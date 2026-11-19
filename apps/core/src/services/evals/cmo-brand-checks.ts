@@ -7,6 +7,7 @@ import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   cmoPlanProblems,
   cmoPlanRuleProblems,
+  type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import { parseMarketingPlan } from "@/services/marketing-strategy.service";
 import type { CmoEvalBrand } from "./eval-cmo-cases";
@@ -70,6 +71,7 @@ const PIECE_LANGUAGE_SHARE = 0.4;
 export function strategyChecks(
   brand: CmoEvalBrand,
   saved: unknown,
+  options: PlanReviewOptions = {},
 ): { strategy: MarketingStrategyPlan | null; checks: ScenarioCheck[] } {
   const strategy = parseMarketingPlan(saved) as MarketingStrategyPlan | null;
   if (!strategy)
@@ -136,7 +138,7 @@ export function strategyChecks(
   }
   const problems = [
     ...cmoPlanRuleProblems(strategy),
-    ...cmoPlanProblems(strategy),
+    ...cmoPlanProblems(strategy, options),
   ];
   checks.push({
     label: "Keeps the strategy skill's rules",

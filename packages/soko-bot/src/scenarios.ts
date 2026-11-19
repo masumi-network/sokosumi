@@ -1270,6 +1270,22 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-funnel-aida",
+    title: "Puts the funnel in the four classic stages",
+    intent:
+      "Asked for the funnel a marketer knows, Cuso saves it as Awareness, Interest, Desire and Action, each with what he does and what the owner does.",
+    prompt:
+      "I know a marketing funnel as awareness, interest, desire, action. Redo the funnel in the strategy that way, and tell me for each stage what you do and what I have to do.",
+    rubric:
+      "Cuso saves the strategy's funnel with save_strategy as exactly four stages in this order: awareness, interest, desire, action, each with one plain sentence on what he does there, and what the owner does where the stage needs them. His answer names Awareness, Interest, Desire and Action and says his part and the owner's part at each, in plain words. The rest of the strategy stays as it was. A stage name of his own, three or five stages, another order, calling the strategy the plan, or describing the funnel without a successful save_strategy, fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
     id: "cmo-talking-video",
     title: "Makes a TikTok with a presenter",
     intent:

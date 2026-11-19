@@ -123,9 +123,15 @@ export function OfferLadder({
   );
 }
 
-/** The classic funnel step each stage is, and what people do there. */
+/**
+ * The classic funnel step each stage is, and what people do there. Cuso
+ * writes AIDA's four; the last three are stages of strategies saved before.
+ */
 const STAGES: Record<Stage["stage"], { label: string; people: string }> = {
   awareness: { label: "Awareness", people: "People who could buy hear of you" },
+  interest: { label: "Interest", people: "They look closer" },
+  desire: { label: "Desire", people: "They want it" },
+  action: { label: "Action", people: "They buy, book or sign up" },
   consideration: { label: "Consideration", people: "They weigh you up" },
   conversion: { label: "Conversion", people: "They buy or sign up" },
   loyalty: { label: "Loyalty", people: "They come back" },
@@ -189,27 +195,31 @@ export function FunnelPlan({
   );
 }
 
-/** Cuso's work at a stage, one line a channel. */
+/** Cuso's work at a stage: his own sentence, then one line a channel. */
 function CusoPart({ stage }: { stage: Stage }) {
   const plays = stage.plays ?? [];
   if (plays.length > 0) {
     return (
-      <ul className="sc-plays">
-        {plays.map((play) => (
-          <li key={`${play.channel}:${play.what}`}>
-            <span className="sc-play-channel">
-              <ChannelIcon
-                channel={channelKey(play.channel) ?? play.channel}
-                size={16}
-              />
-              {channelLabel(play.channel)}
-            </span>
-            <span>{play.what}</span>
-          </li>
-        ))}
-      </ul>
+      <>
+        {stage.cusoDoes ? <p className="sc-says">{stage.cusoDoes}</p> : null}
+        <ul className="sc-plays">
+          {plays.map((play) => (
+            <li key={`${play.channel}:${play.what}`}>
+              <span className="sc-play-channel">
+                <ChannelIcon
+                  channel={channelKey(play.channel) ?? play.channel}
+                  size={16}
+                />
+                {channelLabel(play.channel)}
+              </span>
+              <span>{play.what}</span>
+            </li>
+          ))}
+        </ul>
+      </>
     );
   }
+  if (stage.cusoDoes) return <p>{stage.cusoDoes}</p>;
   const channels = stage.channels ?? [];
   if (stage.owner === "you" || channels.length === 0) {
     return <p>Nothing here. This step is yours.</p>;
@@ -228,7 +238,10 @@ function CusoPart({ stage }: { stage: Stage }) {
   );
 }
 
-/** The owner's part: their own pages at the sale, with Cuso's ideas for them. */
+/** The stages where the sale happens, on the owner's own pages. */
+const SALE_STAGES: readonly Stage["stage"][] = ["action", "conversion"];
+
+/** The owner's part: their own sentence, and at the sale Cuso's ideas for their pages. */
 function OwnerPart({
   stage,
   improvements,
@@ -237,31 +250,37 @@ function OwnerPart({
   improvements: NonNullable<Strategy["improvements"]>;
 }) {
   const owner = stage.owner ?? "cuso";
-  if (owner === "cuso") return <p>Nothing. {AGENT_NAME} runs this step.</p>;
+  if (owner === "cuso" && !stage.youDo)
+    return <p>Nothing. {AGENT_NAME} runs this step.</p>;
   const ideas =
-    stage.stage === "conversion"
+    owner !== "cuso" && SALE_STAGES.includes(stage.stage)
       ? improvements.filter((item) =>
           ["landing", "pricing", "checkout"].includes(item.area),
         )
       : [];
-  if (ideas.length === 0) {
-    return (
-      <p>
-        {owner === "you"
-          ? "This step happens on your own pages, product or sales."
-          : `Your pages and offer do the rest. ${AGENT_NAME} suggests changes, you decide.`}
-      </p>
-    );
-  }
+  const says =
+    stage.youDo ??
+    (ideas.length > 0
+      ? null
+      : owner === "you"
+        ? "This step happens on your own pages, product or sales."
+        : `Your pages and offer do the rest. ${AGENT_NAME} suggests changes, you decide.`);
   return (
-    <ul className="sc-ideas">
-      {ideas.map((item) => (
-        <li key={item.idea}>
-          <span>{item.idea}</span>
-          <span className="note">{item.why}</span>
-        </li>
-      ))}
-    </ul>
+    <>
+      {says ? (
+        <p className={ideas.length > 0 ? "sc-says" : undefined}>{says}</p>
+      ) : null}
+      {ideas.length > 0 ? (
+        <ul className="sc-ideas">
+          {ideas.map((item) => (
+            <li key={item.idea}>
+              <span>{item.idea}</span>
+              <span className="note">{item.why}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
   );
 }
 

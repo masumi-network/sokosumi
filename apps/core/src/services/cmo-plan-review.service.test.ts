@@ -977,3 +977,107 @@ describe("cmoCalendarRepeats", () => {
     ]);
   });
 });
+
+describe("the funnel of a Cuso on the AIDA strategy skill", () => {
+  const aidaStage = (
+    stage: MarketingStrategyPlan["funnel"][number]["stage"],
+    patch: Partial<MarketingStrategyPlan["funnel"][number]> = {},
+  ): MarketingStrategyPlan["funnel"][number] => ({
+    stage,
+    goal: "g",
+    channels: [],
+    metric: stage === "action" ? "Intro calls" : "Visits",
+    plays: [{ channel: "linkedin", what: "Posts" }],
+    cusoDoes: "I post a customer story a day on LinkedIn.",
+    ...patch,
+  });
+  const aida = plan({
+    funnel: [
+      aidaStage("awareness"),
+      aidaStage("interest"),
+      aidaStage("desire"),
+      aidaStage("action"),
+    ],
+  });
+  const funnelProblems = (strategy: MarketingStrategyPlan) =>
+    cmoPlanProblems(strategy, { aida: true }).filter((problem) =>
+      /funnel|stage/.test(problem),
+    );
+
+  it("passes Awareness, Interest, Desire, Action, each with what Cuso does", () => {
+    expect(funnelProblems(aida)).toEqual([]);
+  });
+
+  it("refuses the stages Cuso chose before, and says which four to give", () => {
+    expect(funnelProblems(plan())).toEqual(
+      expect.arrayContaining([
+        "funnel has the stages awareness, consideration, conversion; give exactly these four in this order: awareness, interest, desire, action.",
+      ]),
+    );
+  });
+
+  it("refuses three stages, a fifth one and another order", () => {
+    const [awareness, interest, desire, action] = aida.funnel;
+    if (!awareness || !interest || !desire || !action) throw new Error("four");
+    for (const funnel of [
+      [awareness, interest, action],
+      [awareness, desire, interest, action],
+      [awareness, interest, desire, aidaStage("conversion")],
+    ]) {
+      expect(funnelProblems({ ...aida, funnel }).join("\n")).toMatch(
+        /give exactly these four in this order/,
+      );
+    }
+  });
+
+  it("asks for Cuso's part, the owner's part on a shared stage, and no own name", () => {
+    const problems = funnelProblems({
+      ...aida,
+      funnel: [
+        aidaStage("awareness", { cusoDoes: undefined }),
+        aidaStage("interest", { name: "Judge the preview" }),
+        aidaStage("desire"),
+        aidaStage("action", { owner: "shared" }),
+      ],
+    });
+    expect(problems).toEqual([
+      "the awareness stage has no cusoDoes; say in one sentence what you do there.",
+      'the interest stage has a name of its own ("Judge the preview"); leave name out, the owner reads the stage\'s classic name.',
+      "the action stage is shared but has no youDo; say in one sentence what the owner does there.",
+    ]);
+  });
+
+  it("holds the action stage to the objective's metric", () => {
+    const [awareness, interest, desire] = aida.funnel;
+    if (!awareness || !interest || !desire) throw new Error("three");
+    expect(
+      funnelProblems({
+        ...aida,
+        funnel: [
+          awareness,
+          interest,
+          desire,
+          aidaStage("action", { metric: "Demos" }),
+        ],
+      }),
+    ).toEqual([
+      'the action stage measures "Demos"; make it the objective\'s metric, "Intro calls".',
+    ]);
+  });
+
+  it("leaves a Cuso on an earlier skill to three or four stages of his own", () => {
+    expect(
+      cmoPlanProblems(plan()).filter((problem) => /funnel/.test(problem)),
+    ).toEqual([]);
+  });
+
+  it("asks nothing of a funnel saved before, when a change leaves it alone", () => {
+    const calendar = [entry("a", "linkedin", "post")];
+    const before = plan({ calendar });
+    expect(
+      cmoPlanProblemsSince(plan({ calendar, summary: "Changed" }), before, {
+        aida: true,
+      }).filter((problem) => /funnel|stage/.test(problem)),
+    ).toEqual([]);
+  });
+});

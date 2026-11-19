@@ -125,6 +125,12 @@
   margin: 0;
 }
 
+/* Cuso's or the owner's sentence, above the lines that detail it. */
+.sc-stage-parts .sc-says {
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
 .sc-plays,
 .sc-ideas {
   display: grid;

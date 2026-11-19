@@ -103,3 +103,24 @@ it("names each tracked step by its classic stage, never a name of Cuso's own", (
   expect(html).toMatch(/Awareness<\/span><b>Profile visits/);
   expect(html).not.toContain("Hear about us");
 });
+
+it("shows the four AIDA stages with Cuso's sentence and the owner's", () => {
+  const html = renderToStaticMarkup(
+    <FunnelPlan
+      stages={richPlan.funnel ?? []}
+      improvements={richPlan.improvements ?? []}
+    />,
+  );
+  const labels = [...html.matchAll(/<h3 class="sc-stage-name">([^<]+)</g)].map(
+    (match) => match[1],
+  );
+  expect(labels).toEqual(["Awareness", "Interest", "Desire", "Action"]);
+  expect(html).toContain(
+    "I post launch stories on LinkedIn and a launch lesson a day on X.",
+  );
+  expect(html).toContain("You send me one customer result a month.");
+  expect(html).toContain("You answer every trial sign-up within a day.");
+  // At the sale the owner's sentence leads Cuso's ideas for their pages.
+  expect(html).toMatch(/within a day\.<\/p><ul class="sc-ideas">/);
+  expect(html).not.toContain("<details");
+});

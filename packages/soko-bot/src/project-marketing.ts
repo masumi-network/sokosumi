@@ -553,9 +553,20 @@ export const REFERENCE_PURPOSES = [
   "brand",
 ] as const;
 
-/** The funnel's stages, top to bottom. */
-export const CMO_FUNNEL_STAGES = [
+/** The funnel's four stages, top to bottom: the classic AIDA funnel. */
+export const CMO_AIDA_STAGES = [
   "awareness",
+  "interest",
+  "desire",
+  "action",
+] as const;
+
+/**
+ * Every stage a saved funnel may hold: AIDA's four, and the three a Cuso
+ * before cmo-v5 wrote, which older strategies still carry.
+ */
+export const CMO_FUNNEL_STAGES = [
+  ...CMO_AIDA_STAGES,
   "consideration",
   "conversion",
   "loyalty",
@@ -756,9 +767,13 @@ const strategyPlanShape = {
     .array(
       z.object({
         stage: z.enum(CMO_FUNNEL_STAGES),
-        /** What people do here, in their words: "Hear about us". */
-        name: shortText,
+        /** A name of Cuso's own for the stage; only older strategies have one. */
+        name: shortText.optional(),
         goal: shortText,
+        /** What Cuso does at this stage, in one plain sentence. */
+        cusoDoes: shortText.optional(),
+        /** What the owner does at this stage, when it needs them. */
+        youDo: shortText.optional(),
         channels: z.array(channelKey).max(6).default([]),
         metric: shortText,
         target: shortText.optional(),

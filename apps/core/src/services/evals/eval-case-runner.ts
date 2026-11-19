@@ -36,6 +36,7 @@ import {
   SOKO_BOT_COMPETITOR_CASE_ID,
   sokoBotCompetitorChecks,
 } from "./eval-cmo-competitors";
+import { CMO_FUNNEL_CASE_ID, funnelChecks } from "./eval-cmo-funnel";
 import {
   commentChecks,
   pollCmoCase,
@@ -308,6 +309,12 @@ async function pollScenario(
   }
   if (scenario.id === COMPETITOR_ADS_CASE_ID) {
     const extra = await competitorAdChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === CMO_FUNNEL_CASE_ID) {
+    const extra = await funnelChecks(lane);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

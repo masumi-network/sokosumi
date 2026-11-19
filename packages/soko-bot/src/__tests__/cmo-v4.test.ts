@@ -10,7 +10,6 @@ import {
 } from "../policy.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import {
-  CMO_SOKO_BOT_VERSION_ID,
   composeSystemPrompt,
   getSokoBotVersion,
   sokoBotIdentity,
@@ -44,8 +43,7 @@ const read = [
 ].join("\n");
 
 describe("cmo-v4", () => {
-  it("is the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v4");
+  it("is a Cuso on cmo-v2's model", () => {
     expect(v4.profile).toBe("cmo");
     expect(v4.model).toBe(v2.model);
   });

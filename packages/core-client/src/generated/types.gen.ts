@@ -8861,9 +8861,11 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             metric: string;
         }>;
         funnel?: Array<{
-            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-            name: string;
+            stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+            name?: string;
             goal: string;
+            cusoDoes?: string;
+            youDo?: string;
             channels?: Array<string>;
             metric: string;
             target?: string;
@@ -9173,9 +9175,11 @@ export type MarketingStrategyRequest = {
             metric: string;
         }>;
         funnel?: Array<{
-            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-            name: string;
+            stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+            name?: string;
             goal: string;
+            cusoDoes?: string;
+            youDo?: string;
             channels?: Array<string>;
             metric: string;
             target?: string;
@@ -13764,9 +13768,11 @@ export type CmoPlan = {
         metric: string;
     }>;
     funnel?: Array<{
-        stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-        name: string;
+        stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+        name?: string;
         goal: string;
+        cusoDoes?: string;
+        youDo?: string;
         channels?: Array<string>;
         metric: string;
         target?: string;

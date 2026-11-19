@@ -1,4 +1,8 @@
-import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
+import {
+  type BrandBrain,
+  CMO_AIDA_STAGES,
+  type MarketingStrategyPlan,
+} from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
 import type { EmbedTexts } from "@/lib/embeddings";
@@ -150,10 +154,7 @@ export function cmoPlanProblems(
   if (strategy.mix.length === 0)
     problems.push("mix is empty; give two to four approaches.");
   problems.push(...pillarListProblems(strategy.pillars));
-  if (strategy.funnel.length < 3)
-    problems.push(
-      `funnel has ${strategy.funnel.length} stages; give three or four.`,
-    );
+  problems.push(...funnelProblems(strategy.funnel, options));
   if (!strategy.idea)
     problems.push(
       "idea is missing: who you target, how the business is positioned, how people are attracted, the offer, and the sentence that joins them.",
@@ -165,7 +166,7 @@ export function cmoPlanProblems(
   for (const stage of strategy.funnel) {
     if (stage.owner !== "you" && stage.plays.length === 0)
       problems.push(
-        `the ${stage.name} stage has no plays; say what each channel does there and how often.`,
+        `the ${stage.name ?? stage.stage} stage has no plays; say what each channel does there and how often.`,
       );
   }
   if (strategy.questions.length < 2)
@@ -185,7 +186,7 @@ export function cmoPlanProblems(
       "measurement.experiment is missing: the month's one test, with change, expect and judge.",
     );
   const conversion = strategy.funnel.find(
-    (stage) => stage.stage === "conversion",
+    (stage) => stage.stage === "conversion" || stage.stage === "action",
   );
   const metric = strategy.objective?.metric;
   if (
@@ -194,7 +195,7 @@ export function cmoPlanProblems(
     conversion.metric.trim().toLowerCase() !== metric.trim().toLowerCase()
   )
     problems.push(
-      `the conversion stage measures "${conversion.metric}"; make it the objective's metric, "${metric}".`,
+      `the ${conversion.stage} stage measures "${conversion.metric}"; make it the objective's metric, "${metric}".`,
     );
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
@@ -285,6 +286,47 @@ export function cmoPlanProblemsSince(
 export interface PlanReviewOptions {
   /** The Cuso saves a long month week by week (cmo-v3's strategy skill). */
   weekly?: boolean;
+  /** The Cuso writes the funnel in AIDA's four stages (cmo-v5's strategy skill). */
+  aida?: boolean;
+}
+
+/** The strategy skill whose Cuso writes the funnel as Awareness, Interest, Desire, Action. */
+export const AIDA_STRATEGY_SKILL = "cmo-strategy-aida";
+
+/**
+ * What a funnel breaks. A Cuso on the AIDA skill gives exactly the four
+ * classic stages in order, each with what he does there; one before it gave
+ * three or four of his own choosing, and strategies saved then still pass.
+ */
+function funnelProblems(
+  funnel: MarketingStrategyPlan["funnel"],
+  { aida }: PlanReviewOptions,
+): string[] {
+  if (!aida)
+    return funnel.length < 3
+      ? [`funnel has ${funnel.length} stages; give three or four.`]
+      : [];
+  const stages = funnel.map((stage) => stage.stage);
+  const problems: string[] = [];
+  if (stages.join() !== CMO_AIDA_STAGES.join())
+    problems.push(
+      `funnel has the stages ${stages.join(", ") || "none"}; give exactly these four in this order: ${CMO_AIDA_STAGES.join(", ")}.`,
+    );
+  for (const stage of funnel) {
+    if (!stage.cusoDoes)
+      problems.push(
+        `the ${stage.stage} stage has no cusoDoes; say in one sentence what you do there.`,
+      );
+    if (stage.name)
+      problems.push(
+        `the ${stage.stage} stage has a name of its own ("${stage.name}"); leave name out, the owner reads the stage's classic name.`,
+      );
+    if (stage.owner && stage.owner !== "cuso" && !stage.youDo)
+      problems.push(
+        `the ${stage.stage} stage is ${stage.owner === "you" ? "the owner's" : "shared"} but has no youDo; say in one sentence what the owner does there.`,
+      );
+  }
+  return problems;
 }
 
 /** The strategy skill whose Cuso saves a long month week by week. */

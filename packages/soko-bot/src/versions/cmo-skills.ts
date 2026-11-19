@@ -8,6 +8,7 @@ import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import { productionWithStyles } from "./cmo-production-styles.js";
+import { aidaStrategy } from "./cmo-strategy-aida.js";
 import { weeklyStrategy } from "./cmo-strategy-weekly.js";
 import type { SokoBotSkill } from "./skills.js";
 
@@ -337,6 +338,9 @@ const SKILLS: readonly SokoBotSkill[] = [
   strategySkill("cmo-strategy", CALENDAR_WHOLE, SAVING_REVIEWED),
   strategySkill("cmo-strategy-patches", CALENDAR_IN_PIECES, SAVING_PATCHES),
   weeklyStrategy(
+    strategySkill("cmo-strategy-patches", CALENDAR_IN_PIECES, SAVING_PATCHES),
+  ),
+  aidaStrategy(
     strategySkill("cmo-strategy-patches", CALENDAR_IN_PIECES, SAVING_PATCHES),
   ),
   {

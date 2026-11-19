@@ -37,6 +37,7 @@ import {
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import {
+  AIDA_STRATEGY_SKILL,
   CMO_CALENDAR_REVIEWS_PER_TURN,
   CMO_PLAN_REVIEWS_PER_TURN,
   CMO_WEEKLY_EXTRA_REVIEWS,
@@ -246,7 +247,10 @@ export async function reviewCmoPlan(
       select: { plan: true },
     }));
   const earlier = parseMarketingPlan(before?.plan);
-  const problems = cmoPlanProblemsSince(strategy, earlier, { weekly });
+  const aida = getSokoBotVersion(authorized.turn.versionId).skills.includes(
+    AIDA_STRATEGY_SKILL,
+  );
+  const problems = cmoPlanProblemsSince(strategy, earlier, { weekly, aida });
   if (reviewed >= budget) {
     return {
       save: saves,

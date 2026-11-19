@@ -305,10 +305,11 @@ export const richPlan: Strategy = {
   funnel: [
     {
       stage: "awareness",
-      name: "Hear about us",
       goal: "Product teams see a real launch story",
       channels: ["linkedin", "x"],
       owner: "cuso",
+      cusoDoes:
+        "I post launch stories on LinkedIn and a launch lesson a day on X.",
       plays: [
         {
           channel: "linkedin",
@@ -325,11 +326,12 @@ export const richPlan: Strategy = {
       measure: { value: "About 400 a month", basis: "estimated" },
     },
     {
-      stage: "consideration",
-      name: "Look closer",
+      stage: "interest",
       goal: "They read how a brief becomes a launch",
       channels: ["linkedin", "newsletter"],
       owner: "cuso",
+      cusoDoes:
+        "I walk through one real launch a week and send the month's launches by email.",
       plays: [
         {
           channel: "linkedin",
@@ -350,11 +352,30 @@ export const richPlan: Strategy = {
       },
     },
     {
-      stage: "conversion",
-      name: "Start a trial",
+      stage: "desire",
+      goal: "They see a team like theirs ship faster",
+      channels: ["linkedin"],
+      owner: "shared",
+      cusoDoes:
+        "I turn each customer result into a short story with its numbers.",
+      youDo: "You send me one customer result a month.",
+      plays: [
+        {
+          channel: "linkedin",
+          what: "Customer stories with the weeks they saved",
+          cadence: "Weekly",
+        },
+      ],
+      metric: "Pricing page visits",
+      measure: { value: "About 90 a month", basis: "estimated" },
+    },
+    {
+      stage: "action",
       goal: "They start the 14-day trial",
       channels: ["meta_ads"],
       owner: "shared",
+      cusoDoes: "I run trial ads to people who read a launch story.",
+      youDo: "You answer every trial sign-up within a day.",
       plays: [
         {
           channel: "meta_ads",
