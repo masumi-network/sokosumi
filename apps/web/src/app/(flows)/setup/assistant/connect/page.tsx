@@ -70,7 +70,6 @@ export default async function SetupAssistantConnectPage({
   return (
     <ClientMessageBoundary paths={SETUP_ASSISTANT_MESSAGE_PATHS}>
       <AssistantConnectStep
-        botId={bot.id}
         botName={bot.name ?? "Soko Bot"}
         botImageUrl={bot.avatarImageUrl ?? null}
         botOrbSeed={botFaceSeed(bot, bot.userId)}

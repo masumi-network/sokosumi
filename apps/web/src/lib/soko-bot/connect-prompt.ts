@@ -57,23 +57,3 @@ export function contactsSyncState(
     ? { kind: "connect", offers }
     : { kind: "syncing", botName: bot.name ?? "Soko Bot" };
 }
-
-const DISMISSED_KEY = "soko-bot-connect-prompt-dismissed";
-
-/**
- * The owner closed the chat's connect card, or skipped the setup step that
- * offers the same connections. Kept per browser and per bot.
- */
-export function isConnectPromptDismissed(botId: string): boolean {
-  try {
-    return window.localStorage.getItem(`${DISMISSED_KEY}:${botId}`) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function dismissConnectPrompt(botId: string): void {
-  try {
-    window.localStorage.setItem(`${DISMISSED_KEY}:${botId}`, "1");
-  } catch {}
-}

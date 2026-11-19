@@ -193,24 +193,10 @@ for (const { name, ...viewport } of PROJECTS) {
         /\/setup\/assistant\/connect$/,
         `Give ${BOT} your inbox and calendar`,
       );
-      const promptRead = page.waitForResponse((response) =>
-        response.url().includes("/api/personal-assistant/connect-prompt"),
-      );
       await page.getByRole("link", { name: "Skip" }).click();
 
       await page.waitForURL(/\/chat\/rooms\//);
       await page.getByRole("textbox", { name: `Message ${BOT}` }).waitFor();
-      // Skip answered the offer, so the chat does not ask again right away.
-      await promptRead;
-      // Give the card one render after its read, as it would have had.
-      await page.waitForTimeout(1_000);
-      assert.equal(
-        await page
-          .getByRole("region", { name: "Connect inbox and calendar" })
-          .count(),
-        0,
-        "no connect card right after Skip",
-      );
       await shot("4-chat");
       await context.close();
       assert.deepEqual(errors, []);
