@@ -59993,6 +59993,202 @@ export const SokoBotSandboxSetupSchema = {
     ]
 } as const;
 
+export const SokoBotMcpServerSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            example: 'Linear'
+        },
+        url: {
+            type: 'string',
+            example: 'https://mcp.linear.app/mcp'
+        },
+        authKind: {
+            type: 'string',
+            example: 'header'
+        },
+        tools: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotMcpTool'
+            }
+        },
+        toolsRefreshedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'url',
+        'authKind',
+        'tools',
+        'toolsRefreshedAt',
+        'lastError',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotMcpToolSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'search_issues'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        inputSchema: {},
+        readOnly: {
+            type: 'boolean',
+            description: 'Reads when true; changes things when false'
+        },
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'name',
+        'description',
+        'readOnly',
+        'enabled'
+    ]
+} as const;
+
+export const AddSokoBotMcpServerRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            pattern: '^[A-Za-z0-9][A-Za-z0-9 ._-]{0,39}$',
+            example: 'Linear'
+        },
+        url: {
+            type: 'string',
+            maxLength: 2000,
+            example: 'https://mcp.linear.app/mcp'
+        },
+        auth: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'none'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'bearer'
+                            ]
+                        },
+                        token: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 8000
+                        }
+                    },
+                    required: [
+                        'type',
+                        'token'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'header'
+                            ]
+                        },
+                        name: {
+                            type: 'string',
+                            pattern: '^[A-Za-z0-9-]{1,64}$'
+                        },
+                        value: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 8000
+                        }
+                    },
+                    required: [
+                        'type',
+                        'name',
+                        'value'
+                    ]
+                }
+            ]
+        }
+    },
+    required: [
+        'name',
+        'url',
+        'auth'
+    ]
+} as const;
+
+export const UpdateSokoBotMcpToolRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        enabled: {
+            type: 'boolean'
+        },
+        readOnly: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'name'
+    ]
+} as const;
+
 export const CoworkerSchema = {
     type: 'object',
     properties: {

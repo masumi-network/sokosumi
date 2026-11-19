@@ -41,6 +41,7 @@
     "reference-library": "tsx --env-file=.env scripts/reference-library.mts"
   },
   "dependencies": {
+    "@ai-sdk/mcp": "2.0.101",
     "@better-auth/api-key": "1.7.25",
     "@better-auth/core": "1.7.25",
     "@better-auth/i18n": "1.7.25",
