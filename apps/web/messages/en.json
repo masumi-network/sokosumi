@@ -1944,6 +1944,8 @@
         "context": "Context",
         "subtasks": "Sub-tasks",
         "subtaskOf": "Sub-task of",
+        "openSeoAudit": "Open SEO audit",
+        "openSeoProjectWorkspace": "Open project SEO workspace",
         "copyIdentifier": "Copy task ID",
         "identifierCopied": "Copied {identifier}",
         "identifierCopyError": "Could not copy the task ID",

@@ -1943,6 +1943,8 @@
         "context": "Kontext",
         "subtasks": "Teilaufgaben",
         "subtaskOf": "Teilaufgabe von",
+        "openSeoAudit": "SEO-Audit öffnen",
+        "openSeoProjectWorkspace": "SEO-Arbeitsbereich des Projekts öffnen",
         "copyIdentifier": "Task-ID kopieren",
         "identifierCopied": "{identifier} kopiert",
         "identifierCopyError": "Task-ID konnte nicht kopiert werden",

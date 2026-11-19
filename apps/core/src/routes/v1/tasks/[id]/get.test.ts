@@ -52,6 +52,7 @@ vi.mock("@/lib/db/prisma", () => ({
     project: { findUnique: projectFindUniqueMock },
     projectIdentifierAlias: { findUnique: prefixAliasFindUniqueMock },
     taskIdentifierAlias: { findUnique: aliasFindUniqueMock },
+    projectSeoAnalysis: { findUnique: vi.fn(async () => null) },
   },
 }));
 
