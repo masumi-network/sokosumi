@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
 import {
+  actionablePageDetails,
   checkName,
   measuresOutsideToolRanges,
   measureValue,
@@ -150,7 +151,7 @@ function PageDetail({
             {name}:
           </span>{" "}
           <span className="tabular-nums">{value ?? t("none")}</span>
-          {fit ? (
+          {fit?.outside.length ? (
             // Google sets no limit for these; the tools' ranges say whether a value stands out.
             <span
               className={cn(
@@ -170,13 +171,11 @@ function PageDetail({
                 )}
               />
               {suggested ? `${t("overview.suggestion")} ` : null}
-              {fit.outside.length
-                ? t("overview.outsideToolRanges", {
-                    outside: fit.outside.length,
-                    total: fit.total,
-                    tools: format.list(fit.outside),
-                  })
-                : t("overview.insideToolRanges", { total: fit.total })}
+              {t("overview.outsideToolRanges", {
+                outside: fit.outside.length,
+                total: fit.total,
+                tools: format.list(fit.outside),
+              })}
             </span>
           ) : null}
         </p>
@@ -320,24 +319,23 @@ export function SeoPageDetails({
   const offTimeline = data.observations.filter(
     (observation) => !onTimeline.has(observation.id),
   );
-  if (!overview.diagnostics.length && !offTimeline.length) return null;
+  // A value inside every tool range asks nothing, so it is left out.
+  const diagnostics = actionablePageDetails(overview.diagnostics);
+  if (!diagnostics.length && !offTimeline.length) return null;
   if (startOpen === null)
     setStartOpen(overview.actions.length <= OPEN_DETAILS_MAX_ACTIONS);
   // Rows from one check share its date and record; say them once above the rows.
   const oneCheck =
     !offTimeline.length &&
-    new Set(overview.diagnostics.map((finding) => finding.observationId))
-      .size === 1
-      ? overview.diagnostics[0]
+    new Set(diagnostics.map((finding) => finding.observationId)).size === 1
+      ? diagnostics[0]
       : undefined;
   const oneCheckAt = oneCheck ? seoCheckedAt(data, oneCheck) : null;
   // Measurements report a value; notes are rules the check flagged that do not count as issues.
-  const measures = overview.diagnostics.filter(
+  const measures = diagnostics.filter(
     (finding) => finding.severity === "measure",
   );
-  const notes = overview.diagnostics.filter(
-    (finding) => finding.severity !== "measure",
-  );
+  const notes = diagnostics.filter((finding) => finding.severity !== "measure");
   const flagged = notes.length;
   // The Agent tab's suggestions: the newest check's values outside a tool range.
   const suggestionList = measuresOutsideToolRanges(overview.diagnostics);
@@ -350,14 +348,14 @@ export function SeoPageDetails({
     suggestionList.map((suggestion) => suggestion.findingIds[0]),
   );
   const references = pageDetailReferences(
-    overview.diagnostics.map((finding) => ({
+    diagnostics.map((finding) => ({
       name: checkName(finding.title),
       evidence: finding.evidence,
     })),
   );
   // A position row shows its lines in its own fold, so it shows no guidance of its own.
   const guidanceRows = pageDetailGuidanceRows(
-    overview.diagnostics
+    diagnostics
       .filter((finding) => !seoRankDetail(finding.evidence))
       .map((finding) => ({
         id: finding.id,

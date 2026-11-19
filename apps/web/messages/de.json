@@ -12450,7 +12450,6 @@
         "showAll": "Alles zeigen",
         "showLess": "Weniger zeigen",
         "askAboutNoteOnPage": "Was bedeutet „{name}“ für {url}? Sollte ich etwas ändern?",
-        "insideToolRanges": "{total, plural, one {im Tool-Bereich} other {in allen # Tool-Bereichen}}",
         "outsideToolRanges": "{total, plural, one {außerhalb des Tool-Bereichs ({tools})} other {außerhalb von {outside} der # Tool-Bereiche ({tools})}}",
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
         "positionHint": "1 ist das oberste Ergebnis",
