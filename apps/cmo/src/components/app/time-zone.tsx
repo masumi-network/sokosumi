@@ -53,6 +53,9 @@ export function TimeZoneSetting({
         <br />
         <span className="note">
           {AGENT_NAME} works on {timeZoneLabel(timeZone)} time.
+          {here && here !== timeZone
+            ? ` Your browser is on ${timeZoneLabel(here)}.`
+            : null}
         </span>
       </span>
       <span className="time-zone-actions">
@@ -80,7 +83,7 @@ export function TimeZoneSetting({
                 disabled={saving}
                 onClick={() => save(here)}
               >
-                Use {timeZoneLabel(here)}
+                Switch to {timeZoneLabel(here)}
               </button>
             ) : null}
             <button

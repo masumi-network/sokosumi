@@ -351,17 +351,18 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   // "Your Cusos" leads somewhere only when there is another Cuso to open.
-  const [messages, work, manyCusos] = await Promise.all([
+  const [messages, work, { manyCusos, mayHire }] = await Promise.all([
     loadMessages(projectId).catch(() => []),
     loadChatWork(projectId).catch(() => []),
     loadCusos()
-      .then(({ cusos }) => cusos.length > 1)
-      .catch(() => false),
+      .then(({ cusos, mayHire }) => ({ manyCusos: cusos.length > 1, mayHire }))
+      .catch(() => ({ manyCusos: false, mayHire: false })),
   ]);
   return (
     <CmoApp
       overview={overview}
       manyCusos={manyCusos}
+      mayHire={mayHire}
       plans={
         overview.billing.viewerCanManage && overview.billing.tier
           ? await loadPlans().catch(() => [])

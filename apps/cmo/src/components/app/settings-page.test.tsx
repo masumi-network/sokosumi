@@ -15,8 +15,19 @@ const SUBSCRIBED = {
 } as const;
 
 /** The Settings page's text for a Cuso with this billing block. */
-function settings(billing: Partial<CmoOverview["billing"]> = {}) {
+function settings(
+  billing: Partial<CmoOverview["billing"]> = {},
+  mayHire = false,
+) {
   const overview = cmoOverview();
+  return markup(billing, mayHire, overview).replace(/<[^>]+>/g, " ");
+}
+
+function markup(
+  billing: Partial<CmoOverview["billing"]>,
+  mayHire: boolean,
+  overview = cmoOverview(),
+) {
   return renderToStaticMarkup(
     <SettingsPage
       overview={{
@@ -34,9 +45,34 @@ function settings(billing: Partial<CmoOverview["billing"]> = {}) {
       changePlan={async () => ({ change: null, error: null })}
       openPortal={async () => ({ url: null, error: null })}
       subscribe={async () => ({ url: null, error: null })}
+      mayHire={mayHire}
     />,
-  ).replace(/<[^>]+>/g, " ");
+  );
 }
+
+describe("Settings: another website and starting over", () => {
+  it("offers a second Cuso as a link to the hire form, apart from Start over", () => {
+    const html = markup({}, true);
+    const hire = html.indexOf('href="/?hire=1"');
+    const stop = html.indexOf(`Stop this ${AGENT_NAME}`);
+    expect(hire).toBeGreaterThan(-1);
+    expect(html).toContain(`Hire ${AGENT_NAME} for another website`);
+    expect(html).toContain("This one keeps working.");
+    // Start over archives this Cuso: its own section, after the hire offer.
+    expect(stop).toBeGreaterThan(hire);
+    const another = html.slice(html.indexOf("Another website"), stop);
+    expect(another).not.toContain("Start over");
+    expect(html.slice(stop)).toContain("Start over");
+    expect(html.slice(stop)).toContain("his unsent posts are canceled");
+  });
+
+  it("leaves the hire offer out for a person who may not hire", () => {
+    const text = settings();
+    expect(text).not.toContain("Another website");
+    expect(text).not.toContain("/?hire=1");
+    expect(text).toContain("Start over");
+  });
+});
 
 describe("Settings: the time zone", () => {
   it("says which time zone Cuso's routines run in, and offers to change it", () => {

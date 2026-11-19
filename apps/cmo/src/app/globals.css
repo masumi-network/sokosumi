@@ -831,6 +831,8 @@ textarea {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* A short window still reaches Cuso and the account at the bottom. */
+  overflow-y: auto;
   border-right: var(--line-width) solid var(--line);
   background: var(--surface);
 }

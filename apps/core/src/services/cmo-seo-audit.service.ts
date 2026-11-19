@@ -53,6 +53,7 @@ const FIRST_AUDIT_GAP_MS = 2 * 24 * 60 * 60 * 1000;
 const MONITORS_READ = 20;
 const ISSUE_SEVERITIES = ["critical", "major", "minor"] as const;
 const TOP_ISSUES = 6;
+const TOP_READINGS = 12;
 const TOP_FIXES = 5;
 const PAGE_BYTES = 2 * 1024 * 1024;
 
@@ -314,21 +315,34 @@ export function cmoAuditSummary(
   observedAt: Date,
   payload: PublicSeoPayload,
 ): NonNullable<CmoSeoAudit["latest"]> {
-  const seen = new Set<string>();
-  const issues = payload.findings
+  const findingKey = (finding: { rowId: string; pageUrl: string }) =>
+    `${finding.rowId}|${normalizeSeoUrl(finding.pageUrl)}`;
+  const isIssue = (severity: string) =>
+    ISSUE_SEVERITIES.some((known) => known === severity);
+  // One rule on a phone and on a desktop is one thing to read.
+  const once = (findings: PublicSeoPayload["findings"]) => {
+    const seen = new Set<string>();
+    return findings.filter((finding) => {
+      const key = findingKey(finding);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const found = payload.findings.filter((finding) => isIssue(finding.severity));
+  const issues = once(found)
     .flatMap((finding) => {
       const severity = ISSUE_SEVERITIES.find((s) => s === finding.severity);
-      const key = `${finding.rowId}|${normalizeSeoUrl(finding.pageUrl)}`;
-      if (!severity || seen.has(key)) return [];
-      seen.add(key);
-      return [
-        {
-          title: finding.title,
-          pageUrl: finding.pageUrl,
-          severity,
-          detail: finding.evidence[0] ?? null,
-        },
-      ];
+      return severity
+        ? [
+            {
+              title: finding.title,
+              pageUrl: finding.pageUrl,
+              severity,
+              detail: finding.evidence[0] ?? null,
+            },
+          ]
+        : [];
     })
     .sort(
       (a, b) =>
@@ -339,11 +353,29 @@ export function cmoAuditSummary(
   const ran = payload.checks.filter(
     (check) => check.result === "pass" || check.result === "fired",
   );
+  // A check that did not pass either found something to fix or only recorded
+  // a value (a title's length, a position): the second kind is no problem.
+  const issueKeys = new Set(found.map(findingKey));
+  const fired = ran.filter((check) => check.result === "fired");
+  const failedChecks = fired.filter((check) =>
+    issueKeys.has(findingKey(check)),
+  ).length;
   return {
     observedAt: observedAt.toISOString(),
     checked: ran.length,
-    passed: ran.filter((check) => check.result === "pass").length,
+    passed: ran.length - fired.length,
+    failedChecks,
+    readingChecks: fired.length - failedChecks,
     issues,
+    readings: once(
+      payload.findings.filter((finding) => !isIssue(finding.severity)),
+    )
+      .slice(0, TOP_READINGS)
+      .map((finding) => ({
+        title: finding.title,
+        pageUrl: finding.pageUrl,
+        detail: finding.evidence[0] ?? null,
+      })),
     fixes: payload.actions.slice(0, TOP_FIXES).map((action) => ({
       title: action.title,
       why: action.why,
