@@ -40,7 +40,10 @@ async function bringCusoToLife() {
   try {
     const res = await fetch("/site/assets/cuso/poses.svg");
     if (!res.ok) throw new Error(`poses.svg: ${res.status}`);
-    cuso.insertAdjacentHTML("beforeend", await res.text());
+    const svg = await res.text();
+    // The page's fallback already showed the still: he arrived too late, so he stays still.
+    if (!document.documentElement.classList.contains("cuso-anim")) return;
+    cuso.insertAdjacentHTML("beforeend", svg);
   } catch (error) {
     document.documentElement.classList.remove("cuso-anim"); // show the still instead
     console.error(error);
