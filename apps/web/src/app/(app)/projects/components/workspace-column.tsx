@@ -6,7 +6,6 @@ import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { projectService } from "@/lib/services/project.service";
-import { getNotificationHref } from "@/lib/utils/notification-href";
 import { formatNotificationTimeLabel } from "@/lib/utils/notification-time-label";
 
 import {
@@ -14,11 +13,8 @@ import {
   type NeedsYouLead,
   NeedsYouPanelList,
 } from "./needs-you-panel-list";
+import { ProjectActivityRow } from "./project-activity-row";
 import { WorkspaceColumnPanel } from "./workspace-column-panel";
-import {
-  WorkspaceColumnProjectAvatar,
-  WorkspaceColumnRow,
-} from "./workspace-column-row";
 import { WorkspaceColumnPanelSkeleton } from "./workspace-column-skeleton";
 
 /** Null when the feed failed: the panel says so instead of failing the page. */
@@ -190,29 +186,6 @@ export async function NeedsYouPanel({
   );
 }
 
-function activityHref(item: ProjectActivityItem): string {
-  switch (item.kind) {
-    case "task":
-      return getNotificationHref({
-        kind: "TASK",
-        referenceId: item.taskId,
-        metadata: null,
-      });
-    case "job":
-      return getNotificationHref({
-        kind: "JOB",
-        referenceId: item.jobId,
-        metadata: { agentId: item.agentId },
-      });
-    case "project":
-      return getNotificationHref({
-        kind: "PROJECT",
-        referenceId: item.project.id,
-        metadata: null,
-      });
-  }
-}
-
 export async function RecentActivityPanel({
   feed,
   projectScoped = false,
@@ -228,56 +201,18 @@ export async function RecentActivityPanel({
     loadTimeLabel(),
   ]);
 
-  function describe(item: ProjectActivityItem) {
-    switch (item.kind) {
-      case "task":
-        return {
-          title: item.title,
-          event: t("task", { status: item.status ?? "COMMENT" }),
-        };
-      case "job":
-        return {
-          title: item.title ?? t("untitledJob"),
-          event: t("job", { status: item.status }),
-        };
-      case "project":
-        return {
-          title: item.project.name,
-          event: t("project", { event: item.event }),
-        };
-    }
-  }
-
   return (
     <WorkspaceColumnPanel
       testId="workspace-activity"
       title={t("title")}
       empty={items ? t(projectScoped ? "emptyProject" : "empty") : t("error")}
       action={{ kind: "expand", label: t("showAll") }}
-      rows={(items ?? []).map((item) => {
-        const { title, event } = describe(item);
-        return {
-          key: item.id,
-          node: (
-            <WorkspaceColumnRow
-              leading={
-                <WorkspaceColumnProjectAvatar
-                  name={item.project.name}
-                  logo={item.project.logo}
-                />
-              }
-              title={title}
-              detail={
-                item.kind === "project"
-                  ? event
-                  : t("detail", { project: item.project.name, event })
-              }
-              time={timeLabel(item.createdAt)}
-              target={{ href: activityHref(item) }}
-            />
-          ),
-        };
-      })}
+      rows={(items ?? []).map((item) => ({
+        key: item.id,
+        node: (
+          <ProjectActivityRow item={item} time={timeLabel(item.createdAt)} />
+        ),
+      }))}
     />
   );
 }

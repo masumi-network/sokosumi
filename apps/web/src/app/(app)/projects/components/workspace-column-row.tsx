@@ -43,7 +43,7 @@ interface WorkspaceColumnRowProps {
   detail?: string | null;
   time: string;
   /** A link for a plain destination; a handler where opening needs more. */
-  target: { href: string } | { onClick: () => void };
+  target: { href: string; onNavigate?: () => void } | { onClick: () => void };
 }
 
 /** One compact row of the Workspace column: avatar, two lines, time. */
@@ -78,7 +78,11 @@ export function WorkspaceColumnRow({
   );
 
   return "href" in target ? (
-    <Link href={target.href} className={ROW_CLASS}>
+    <Link
+      href={target.href}
+      onNavigate={target.onNavigate}
+      className={ROW_CLASS}
+    >
       {body}
     </Link>
   ) : (

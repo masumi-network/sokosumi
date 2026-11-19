@@ -203,6 +203,7 @@ describe("ProjectScopeMenu", () => {
     expect(screen.getByTestId("project-scope-create")).toBeInTheDocument();
     expect(screen.queryByTestId("project-scope-manage")).toBeNull();
     expect(screen.queryByText("manage")).toBeNull();
+    expect(screen.queryByRole("link", { name: "openProjectsPage" })).toBeNull();
   });
 
   it("hands back the chosen project and offers no All projects row without onSelectAll", async () => {
@@ -232,6 +233,26 @@ describe("ProjectScopeMenu", () => {
     expect(onSelectAll).toHaveBeenCalledOnce();
     expect(onSelect).not.toHaveBeenCalled();
     expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("offers the full Projects page as a keyboard link outside the project options", async () => {
+    const user = userEvent.setup();
+    const onSelectAll = vi.fn();
+    const { onSelect } = setup({ onSelectAll });
+    await screen.findByText("Active One");
+
+    const link = screen.getByRole("link", { name: "openProjectsPage" });
+    expect(link).toHaveAttribute("href", "/projects");
+    expect(screen.getByRole("listbox")).not.toContainElement(link);
+    await user.tab();
+    expect(link).toHaveFocus();
+
+    const activate = vi.fn((event: Event) => event.preventDefault());
+    link.addEventListener("click", activate);
+    await user.keyboard("{Enter}");
+    expect(activate).toHaveBeenCalledOnce();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onSelectAll).not.toHaveBeenCalled();
   });
 
   it("drops All projects while searching", async () => {
