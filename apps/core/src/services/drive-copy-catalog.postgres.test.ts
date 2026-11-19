@@ -203,17 +203,8 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
     }
   });
 
-  it("does not hand an abandoned copy's pins to a later ordinary upload", async () => {
-    // The copy's bytes never land; an ordinary upload takes the name.
-    const { resourceId } = await reserve("draft (copy).md");
-    await reserve("draft (copy).md", false);
-    await activateDriveUploadResource({
-      key: key("draft (copy).md"),
-      sizeBytes: 9,
-      mimeType: "text/plain",
-    });
-
-    expect(await pins(resourceId)).toEqual([]);
+  /** Fake evaluator calls for one document's queued suggestion work. */
+  async function suggestionsAsked(resourceId: string) {
     await prisma.fileVersion.updateMany({
       where: { resourceId },
       data: { extractionState: "UNSUPPORTED" },
@@ -246,8 +237,69 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
       if (leased.job.resourceId === resourceId)
         asked += evaluator.calls - before;
     }
-    // The ordinary upload is labelled like any other.
-    expect(asked).toBe(1);
+    return asked;
+  }
+
+  function finalize(name: string, sizeBytes = 42) {
+    return activateDriveUploadResource({
+      key: key(name),
+      sizeBytes,
+      mimeType: "text/markdown",
+    });
+  }
+
+  describe("a copy grant that may still land keeps its name", () => {
+    it("refuses an ordinary upload, so a late copy PUT finalizes as the copy, pinned", async () => {
+      const { resourceId } = await reserve("late (copy).md");
+
+      // The ordinary upload sees no bytes yet and asks for the name.
+      await expect(reserve("late (copy).md", false)).rejects.toMatchObject({
+        status: 409,
+      });
+      // Then the copy's PUT lands and its own success callback finalizes.
+      expect(await finalize("late (copy).md")).toEqual({
+        resourceId,
+        labelsPinnedEmpty: true,
+      });
+      expect(await pins(resourceId)).toEqual(EMPTY_PINS);
+      expect(await suggestionsAsked(resourceId)).toBe(0);
+    });
+
+    it("keeps the pins when the backfill adopts a copy whose finalize was lost", async () => {
+      const { resourceId } = await reserve("lost (copy).md");
+      await expect(reserve("lost (copy).md", false)).rejects.toMatchObject({
+        status: 409,
+      });
+
+      await adoptDriveUploadResource({
+        key: key("lost (copy).md"),
+        displayName: "lost (copy).md",
+        mimeType: null,
+        sizeBytes: 42,
+        uploadedAt: new Date(),
+      });
+
+      expect(await pins(resourceId)).toEqual(EMPTY_PINS);
+      expect(await suggestionsAsked(resourceId)).toBe(0);
+    });
+
+    it("lets an ordinary upload take the name once the copy grant has expired", async () => {
+      const { resourceId } = await reserve("draft (copy).md");
+      await prisma.fileResource.update({
+        where: { id: resourceId },
+        data: { createdAt: new Date(Date.now() - 21 * 60_000) },
+      });
+
+      await reserve("draft (copy).md", false);
+      expect(await finalize("draft (copy).md", 9)).toEqual({
+        resourceId,
+        labelsPinnedEmpty: false,
+      });
+
+      expect(await pins(resourceId)).toEqual([]);
+      // The ordinary upload is labelled like any other.
+      expect(await suggestionsAsked(resourceId)).toBe(1);
+    });
   });
 
   it("finalizing a copy runs extraction only, leaving other files' paid work queued", async () => {

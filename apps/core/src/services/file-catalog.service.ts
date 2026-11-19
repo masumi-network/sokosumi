@@ -11,6 +11,7 @@ import { normalizeFileResourceName } from "@sokosumi/utils";
 
 import { conflict } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { DEFAULT_TOKEN_VALID_MS } from "@/lib/blob-upload-grant";
 import prisma from "@/lib/db/prisma";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import { enqueueFileIndexJob } from "@/lib/files/index-jobs";
@@ -47,6 +48,13 @@ function toSourceScope(scope: "user" | "organization"): FileSourceScope {
  * lift the pins like any other. Only on a new document: a name any row
  * holds answers 409 rather than pinning someone else's document.
  */
+/**
+ * After this, a copy's upload grant (minted before its reservation) has
+ * expired and any PUT it started, which the browser abandons after two
+ * minutes, has settled.
+ */
+const COPY_GRANT_SETTLED_MS = DEFAULT_TOKEN_VALID_MS + 5 * 60_000;
+
 export async function reserveDriveUploadResource(input: {
   key: DriveResourceKey;
   displayName: string;
@@ -77,17 +85,33 @@ export async function reserveDriveUploadResource(input: {
           sourceId: key.pathname,
         },
       },
-      select: { id: true, contentRevision: true, lifecycle: true },
+      select: {
+        id: true,
+        contentRevision: true,
+        lifecycle: true,
+        createdAt: true,
+        overrides: { select: { id: true }, take: 1 },
+      },
     });
 
     const pin = input.pinLabelsEmpty;
     if (existing && pin) {
       throw conflict("A file already holds that name");
     }
-    if (existing?.lifecycle === FileResourceLifecycle.PENDING) {
-      // A reservation whose upload never finished: its settings, such as a
-      // copy's empty label pins, were for that upload, not this one. No
-      // person can set one on a pending document.
+    if (
+      existing?.lifecycle === FileResourceLifecycle.PENDING &&
+      existing.overrides.length > 0
+    ) {
+      // A copy's reservation (no person can set an override on a pending
+      // document). Its grant may still write here, and those bytes and their
+      // finalize must stay the copy's, pinned free. Only once the grant can
+      // no longer land is the name given to this upload, and the copy's
+      // settings go with its upload, not this one.
+      // ponytail: time-fenced by the grant's lifetime; a per-attempt object
+      // key would remove the wait if it ever matters.
+      if (Date.now() - existing.createdAt.getTime() < COPY_GRANT_SETTLED_MS) {
+        throw conflict("A copy is still being saved at this name");
+      }
       await tx.fileFieldOverride.deleteMany({
         where: { resourceId: existing.id },
       });
