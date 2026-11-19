@@ -108,18 +108,15 @@ export async function startBackgroundRun(
   });
   // Drain it now like a chat turn; the turns sync takes over once this
   // request's function ends.
+  const { reconciliationLeaseToken } = started;
   if (
-    started.reconciliationLeaseToken &&
+    reconciliationLeaseToken &&
     (started.status === "STARTING" || started.status === "RUNNING")
   )
     waitUntil(
       runAsBackgroundWork(() =>
         sokoBotControlPlane
-          .reconcileTurn(
-            started.turnId,
-            undefined,
-            started.reconciliationLeaseToken,
-          )
+          .reconcileTurn(started.turnId, undefined, reconciliationLeaseToken)
           .catch((error: unknown) => {
             if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
               return;

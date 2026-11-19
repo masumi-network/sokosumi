@@ -834,30 +834,27 @@ describe.skipIf(!enabled)("reconciling beside another writer", () => {
     expect(turn.errorDetail).toBe("Gateway refused");
   });
 
-  it("leaves a turn an admin reset fenced to the reset, even under its token", async () => {
-    // Reset installed its token and asked for cancellation after the dead
-    // drain persisted a completion; a tokenless drain adopts that token.
-    const resetToken = randomUUID();
+  it("G9: settles a cancellation from its consumed trigger without opening the stream", async () => {
     await persistedByDeadDrain(
-      [{ type: "turn.completed" }, { type: "session.waiting" }],
+      [{ type: "turn.cancelled" }, { type: "session.waiting" }],
       {
         status: "CANCEL_REQUESTED",
-        cancellationRequestedAt: new Date(Date.now() + 1_000),
-        leaseToken: resetToken,
+        cancellationRequestedAt: new Date(),
       },
     );
     const signal = new AbortController().signal;
+    const stream = vi.fn(nothingAfterCursor);
     const control = new SokoBotControlPlane(
-      scriptedRuntime(new Map([[signal, nothingAfterCursor]])),
+      scriptedRuntime(new Map([[signal, stream]])),
     );
 
-    await control.reconcileTurn(turnId, signal);
+    await control.reconcileTurn(turnId, signal, LEASE);
 
     const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
       where: { id: turnId },
     });
-    expect(turn.status).toBe("CANCEL_REQUESTED");
-    expect(turn.leaseToken).toBe(resetToken);
+    expect(turn).toMatchObject({ status: "CANCELLED", leaseToken: null });
+    expect(stream).not.toHaveBeenCalled();
   });
 
   it("still settles a cancelled turn from what it streams after a persisted trigger", async () => {

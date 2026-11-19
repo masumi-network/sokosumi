@@ -26,7 +26,10 @@ import {
   pauseCmoSeoAuditsWithoutCuso,
   verifyCmoSeoChanges,
 } from "./cmo-seo-audit.service";
-import { seoCheckOutcome } from "./cmo-seo-rankings.service";
+import {
+  checkCmoSearchRankings,
+  seoCheckOutcome,
+} from "./cmo-seo-rankings.service";
 
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ads/dataforseo")>()),
@@ -507,6 +510,139 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     expect(await seoCheckOutcome(analysis.id)).toMatch(
       /failed: The worker timed out\. Nothing was charged/,
     );
+  });
+
+  it("runs a failed position check again the same day", async () => {
+    const keywords = ["macbook battery widget"];
+    const failedRow = await prisma.projectSeoAnalysis.create({
+      data: {
+        projectId,
+        idempotencyKey: randomUUID(),
+        requestHash: "x",
+        kind: "rankings",
+        status: "failed",
+        request: { keywords },
+        requestedBy: userId,
+      },
+    });
+    // Still "requested", but its Task was canceled: failed all the same.
+    const canceled = await prisma.task.create({
+      data: {
+        name: "SEO rankings",
+        workspaceId,
+        projectId,
+        status: "CANCELED",
+        ownerId: userId,
+      },
+    });
+    const stuckRow = await prisma.projectSeoAnalysis.create({
+      data: {
+        projectId,
+        idempotencyKey: randomUUID(),
+        requestHash: "x",
+        kind: "rankings",
+        taskId: canceled.id,
+        request: { keywords },
+        requestedBy: userId,
+      },
+    });
+
+    // The weekly audit of the tests above is still running: one check at a time.
+    const running = await prisma.task.findMany({
+      where: {
+        projectId,
+        archivedAt: null,
+        status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] },
+      },
+      select: { id: true },
+    });
+    const runningIds = running.map((task) => task.id);
+    await prisma.task.updateMany({
+      where: { id: { in: runningIds } },
+      data: { archivedAt: new Date() },
+    });
+
+    const again = await checkCmoSearchRankings(cuso, keywords);
+    expect(again.status).toBe("started");
+    const started = "analysisId" in again ? again.analysisId : "";
+    expect([failedRow.id, stuckRow.id]).not.toContain(started);
+    // The new check is the one a second ask follows.
+    expect(await checkCmoSearchRankings(cuso, keywords)).toEqual({
+      status: "running",
+      analysisId: started,
+    });
+    const { taskId } = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { id: started },
+      select: { taskId: true },
+    });
+    await prisma.task.updateMany({
+      where: { id: taskId ?? "" },
+      data: { status: "CANCELED" },
+    });
+    await prisma.task.updateMany({
+      where: { id: { in: runningIds } },
+      data: { archivedAt: null },
+    });
+  });
+
+  it("refuses a suggestion the owner skipped, and caps page changes like articles", async () => {
+    const article = {
+      title: "Set a charge limit on your MacBook",
+      keyword: "macbook charge limit",
+      why: "Buyers search this before they buy.",
+      outline: "## Why a limit\n## How to set it",
+    };
+    const first = await saveCmoSeoSuggestions(cuso, { articles: [article] });
+    expect(first.saved).toHaveLength(1);
+    await setCmoSeoSuggestionStatus(
+      { userId, projectId },
+      first.saved[0].id,
+      "dismissed",
+    );
+
+    const again = await saveCmoSeoSuggestions(cuso, {
+      articles: [{ ...article, title: "Charge limits, explained" }],
+    });
+    expect(again.saved).toEqual([]);
+    expect(again.refused.join(" ")).toMatch(/owner skipped this one/);
+    const row = await prisma.projectSeoSuggestion.findUniqueOrThrow({
+      where: { id: first.saved[0].id },
+    });
+    expect(row).toMatchObject({ status: "dismissed", title: article.title });
+
+    // Thirty open suggestions: a new page change is refused, as an article is.
+    const open = await prisma.projectSeoSuggestion.count({
+      where: { projectId, status: "open" },
+    });
+    await prisma.projectSeoSuggestion.createMany({
+      data: Array.from({ length: 30 - open }, (_, at) => ({
+        projectId,
+        kind: "article",
+        key: `article:filler-${at}`,
+        source: "cuso",
+        title: `Filler ${at}`,
+        body: "x",
+        why: "x",
+        evidence: [],
+      })),
+    });
+    const page = (await readCmoSeo(cuso)).pageChanges[0];
+    const capped = await saveCmoSeoSuggestions(cuso, {
+      pageChanges: [
+        {
+          pageUrl: page.pageUrl ?? "",
+          title: "A change nobody suggested before",
+          change: "Rewrite the first paragraph.",
+          newText: "New words",
+          why: "The audit flagged this page.",
+        },
+      ],
+    });
+    expect(capped.saved).toEqual([]);
+    expect(capped.refused.join(" ")).toMatch(/already holds 30 open/);
+    await prisma.projectSeoSuggestion.deleteMany({
+      where: { projectId, key: { startsWith: "article:filler-" } },
+    });
   });
 
   it("reads the fixes of a report of several pages, whose finding ids carry the page's index", async () => {

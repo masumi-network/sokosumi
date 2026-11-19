@@ -155,7 +155,9 @@ export const EVAL_CASES: readonly EvalCase[] = [
             ? "cmo-new-client"
             : scenario.id === "cmo-change-request"
               ? "cmo-plan"
-              : "cmo-brand",
+              : scenario.id === "cmo-seo-skipped-idea"
+                ? "cmo-seo-skipped"
+                : "cmo-brand",
         ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
