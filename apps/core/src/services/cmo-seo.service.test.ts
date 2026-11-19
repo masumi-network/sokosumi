@@ -26,6 +26,15 @@ describe("cmoAuditSummary", () => {
         .length,
     );
     expect(summary.passed).toBeLessThan(summary.checked);
+    // Every check that ran is passed, something to fix, or only a reading.
+    expect(summary.passed + summary.failedChecks + summary.readingChecks).toBe(
+      summary.checked,
+    );
+    expect(summary.readingChecks).toBeGreaterThan(0);
+    expect(summary.readings.length).toBeGreaterThan(0);
+    expect(new Set(summary.readings.map((r) => r.title)).size).toBe(
+      summary.readings.length,
+    );
     expect(summary.issues.length).toBeGreaterThan(0);
     expect(summary.issues.length).toBeLessThanOrEqual(6);
     // Measurements and notes are not issues; one rule on two devices is one issue.

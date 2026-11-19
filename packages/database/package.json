@@ -58,6 +58,7 @@
     "data-migration:delete-member-period-tombstones": "tsx scripts/delete-covered-member-period-tombstones.ts",
     "data-migration:credit-bucket-owner-xor": "tsx scripts/reconcile-credit-bucket-owner-xor.ts",
     "data-migration:task-work-type-presets": "tsx scripts/backfill-task-work-type-presets.ts",
+    "data-migration:cmo-clear-first-competitor-week": "tsx scripts/cmo-clear-first-competitor-week.ts",
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest"

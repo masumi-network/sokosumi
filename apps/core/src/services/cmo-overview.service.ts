@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
+import { socialProviderWorkspace } from "@/config/social-providers";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
@@ -122,6 +123,8 @@ export interface CmoOverview {
   onboardingStep: CmoOnboardingStep;
   /** The image or video attached to each calendar piece, viewable by URL. */
   media: CmoCalendarMedia[];
+  /** Each month post's revision by post id, for an owner's edit of its words. */
+  postRevisions: Record<string, number>;
   /** Cuso's Workspace's organization, when it is not a personal one. */
   organizationSlug: string | null;
   projectName: string;
@@ -174,10 +177,10 @@ export interface CmoOverview {
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
   upNext: CmoUpNextItem[];
   connectChannelUrl: string;
+  /** TikTok may be connected to this Cuso's Project (`socialProviderWorkspace`). */
+  tiktokEnabled: boolean;
   /** Ad providers with an active connection on Cuso's Project. */
   adProviders: string[];
-  /** Sokosumi's Ads page for Cuso's Project, where ad accounts connect. */
-  connectAdsUrl: string;
   /** Google Analytics, Search Console and Shopify, as connected to Cuso. */
   measurement: CmoMeasurementStatus[];
   /** The month's production after approval: how many pieces are made. */
@@ -458,6 +461,9 @@ export async function getCmoOverview(
       hasTesterCredits: billing.hasTesterCredits,
     }),
     media,
+    postRevisions: Object.fromEntries(
+      posts.map((post) => [post.entry.id, post.revision]),
+    ),
     learning,
     work,
     activity,
@@ -496,8 +502,10 @@ export async function getCmoOverview(
     ),
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
     connectChannelUrl: `${web}/social?projectId=${cuso.projectId}`,
+    tiktokEnabled:
+      socialProviderWorkspace(organization?.slug ?? null, cuso.workspaceId)
+        .tiktokEnabled === true,
     adProviders: [...new Set(adConnections.map((row) => row.provider))],
-    connectAdsUrl: `${web}/ads?projectId=${cuso.projectId}`,
     measurement,
     production: production.status,
     mailingListSize,

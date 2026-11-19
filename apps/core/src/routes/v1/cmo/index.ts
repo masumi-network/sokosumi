@@ -30,6 +30,7 @@ import mountAddCmoCompetitorForProject from "./projects/[projectId]/competitors/
 import mountApproveCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/approve/post.js";
 import mountDeclineCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/decline/post.js";
 import mountEditCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/patch.js";
+import mountReadCmoTikTokCreatorForDraft from "./projects/[projectId]/drafts/[postId]/tiktok/get.js";
 import mountGetCmoOverviewForProject from "./projects/[projectId]/get.js";
 import mountAnswerCmoMarketingStrategyQuestionForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/answers/post.js";
 import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/approve/post.js";
@@ -53,6 +54,8 @@ import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.
 import mountSetCmoAdBudgetForProject from "./projects/[projectId]/strategy/ads/post.js";
 import mountApplyCmoPlanAnswersForProject from "./projects/[projectId]/strategy/answers/apply/post.js";
 import mountRequestCmoStrategyForProject from "./projects/[projectId]/strategy/post.js";
+import mountCheckCmoTestCopyForProject from "./projects/[projectId]/test-copy/get.js";
+import mountTearDownCmoTestCopyForProject from "./projects/[projectId]/test-copy/teardown/post.js";
 import mountSetCmoTimeZoneForProject from "./projects/[projectId]/time-zone/put.js";
 import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
@@ -96,6 +99,8 @@ mountRetryCmoOnboardingForProject(app);
 mountChangeCmoPlanForProject(app);
 mountOpenCmoCustomerPortalForProject(app);
 mountStartCmoOverForProject(app);
+mountCheckCmoTestCopyForProject(app);
+mountTearDownCmoTestCopyForProject(app);
 mountSetCmoTimeZoneForProject(app);
 mountGetCmoSeoForProject(app);
 mountSearchCmoKeywordsForProject(app);
@@ -112,6 +117,7 @@ mountRequestCmoStrategyForProject(app);
 mountStartCmoTopUpForProject(app);
 mountRevertCmoUpdateForProject(app);
 mountApproveCmoDraftForProject(app);
+mountReadCmoTikTokCreatorForDraft(app);
 mountDeclineCmoDraftForProject(app);
 mountEditCmoDraftForProject(app);
 

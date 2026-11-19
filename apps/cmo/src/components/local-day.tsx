@@ -1,30 +1,24 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { runDay } from "../lib/run-day";
 
 const never = () => () => {};
-
-function day(at: Date | string, timeZone?: string): string {
-  return new Date(at).toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    ...(timeZone ? { timeZone } : {}),
-  });
-}
 
 interface LocalDayProps {
   at: Date | string;
   /** The zone the server writes the day in; it cannot know the reader's. */
   serverZone: string | null;
+  /** A run's start: the day with its time, "Monday 23 November at 09:00". */
+  time?: boolean;
 }
 
 /** A day as the reader's own clock has it: "Monday 23 November". */
-export function LocalDay({ at, serverZone }: LocalDayProps) {
+export function LocalDay({ at, serverZone, time = false }: LocalDayProps) {
   const text = useSyncExternalStore(
     never,
-    () => day(at),
-    () => day(at, serverZone ?? "UTC"),
+    () => runDay(at, undefined, { time }),
+    () => runDay(at, serverZone ?? "UTC", { time }),
   );
   return <time dateTime={new Date(at).toISOString()}>{text}</time>;
 }

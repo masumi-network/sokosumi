@@ -601,7 +601,8 @@ describe("pages", () => {
     const html = results(approved);
     expect(html).toContain("checked every week");
     expect(html).toContain("Next check: <time");
-    expect(html).toContain("Sunday 22 November");
+    // The day with its time: the site audit runs on another day.
+    expect(html).toContain("Sunday 22 November at 21:00");
     expect(html).toContain("The first weekly report arrives on");
     expect(html).not.toContain("Monday");
     // Before approval no review is due, so no day is promised.
@@ -707,6 +708,30 @@ describe("pages", () => {
     );
     expect(html).toContain("@acme");
     expect(html).toContain("Connected");
+  });
+
+  it("offers TikTok only where Core allows connecting it", () => {
+    const page = (tiktokEnabled: boolean) =>
+      renderToStaticMarkup(
+        <ChannelsPage
+          overview={overview({ tiktokEnabled })}
+          compose={() => {}}
+          connect={async () => ({ url: null, error: null })}
+          connectAds={async () => ({ url: null, error: null })}
+          addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
+          onChange={() => {}}
+        />,
+      );
+    const row = (html: string) => {
+      const from = html.slice(html.indexOf("<b>TikTok</b>"));
+      return from.slice(0, from.indexOf("</li>"));
+    };
+    expect(row(page(true))).toContain("<button");
+    // Everywhere else TikTok is listed as soon, with nothing to press.
+    expect(row(page(false))).toContain('<span class="tag">Soon</span>');
+    expect(row(page(false))).not.toContain("<button");
   });
 
   it("offers ad accounts to everyone", () => {

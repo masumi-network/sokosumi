@@ -126,6 +126,17 @@ export const cmoSeoAuditSchema = z
         observedAt: at,
         checked: z.number().int(),
         passed: z.number().int(),
+        /** Checks that found something to fix; one issue can come from several. */
+        failedChecks: z.number().int(),
+        /** Checks that only recorded a value or a note: nothing to fix. */
+        readingChecks: z.number().int(),
+        readings: z.array(
+          z.object({
+            title: z.string(),
+            pageUrl: z.string(),
+            detail: z.string().nullable(),
+          }),
+        ),
         issues: z.array(
           z.object({
             title: z.string(),

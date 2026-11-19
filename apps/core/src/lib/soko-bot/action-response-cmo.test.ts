@@ -202,6 +202,48 @@ describe("Cuso's replies stay inside CMO.xyz", () => {
     expect(response.answerText).toBe(expected);
   });
 
+  it.each([
+    [
+      "a follow-up of Cuso's that changed nothing ends silent",
+      "cmo-v1",
+      "turn-parent",
+      "Nothing to add.",
+    ],
+    [
+      "a chat turn of Cuso's that changed nothing still says so",
+      "cmo-v1",
+      null,
+      "Nothing was changed in this turn.",
+    ],
+    [
+      "another bot's follow-up that changed nothing still says so",
+      "v33",
+      "turn-parent",
+      "Nothing was changed in this turn.",
+    ],
+  ])("%s", async (_name, versionId, parentTurnId, expected) => {
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      versionId,
+      workspaceId: "workspace-one",
+      parentTurnId,
+    });
+    // The finished picture was fetched; nothing was written or reported.
+    db.sokoBotToolCall.findMany.mockResolvedValue([]);
+    db.sokoBotToolCall.count.mockResolvedValue(0);
+    db.task.findMany.mockResolvedValue([]);
+    db.job.findMany.mockResolvedValue([]);
+
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Here is your picture.",
+      true,
+    );
+
+    expect(response.answerText).toBe(expected);
+  });
+
   it("names no Sokosumi product in a receipt's label", () => {
     expect(sokosumiIn(Object.values(ACTION_LABELS).join("\n"))).toEqual([]);
   });

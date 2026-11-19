@@ -436,7 +436,58 @@ describe("Brand", () => {
     );
     expect(html).not.toContain(">Your voice<");
     expect(html).not.toContain("Unknown.");
-    expect(html).toContain("Font: Auto Pro");
+    expect(html.replace(/<[^>]+>/g, "")).toContain("Font: Auto Pro");
+    // The name stands in its own face where the device has it.
+    expect(html).toContain(
+      "font-family:&quot;Auto Pro&quot;, var(--font-sans)",
+    );
+  });
+
+  it("shows the brand's colours as swatches in the look row, never as hex codes", () => {
+    const html = render(
+      draft({
+        brandVisual: {
+          logoUrl: null,
+          colors: ["#ff51ff", "#0c0c0c"],
+          fonts: [],
+          siteName: "Acme",
+          designMdUrl: null,
+          images: [],
+        },
+      }),
+    );
+    const row = html.slice(html.indexOf(">Your look<"));
+    const detail = row.slice(0, row.indexOf("</button>"));
+    expect(detail).toContain('class="ob-look-dots"');
+    expect(detail).toContain("background:#ff51ff");
+    expect(detail.replace(/<[^>]+>/g, "")).not.toContain("#ff51ff");
+  });
+
+  it("counts an account the owner connected as a profile, and says when the site links to none", () => {
+    const onlySite = {
+      ...brain,
+      channels: [{ name: "Website", url: "https://acme.io" }],
+    };
+    const none = render(draft({ brandBrain: onlySite, channels: [] }));
+    expect(none).toContain("1 profile");
+    expect(none).toContain("No social profile is linked on your site.");
+    const connected = render(
+      draft({
+        brandBrain: onlySite,
+        channels: [
+          {
+            id: "c1",
+            provider: "x",
+            handle: "@acme",
+            displayName: "Acme",
+            status: "ACTIVE",
+          },
+        ],
+      }),
+    );
+    expect(connected).toContain("2 profiles");
+    expect(connected).toContain("Website, X");
+    expect(connected).not.toContain("No social profile is linked");
   });
 
   it("counts unanswered questions", () => {
@@ -742,7 +793,7 @@ describe("Launch", () => {
     expect(strategySocialChannels(draft())).toEqual(["linkedin", "x"]);
   });
 
-  it("shows the plan's own ads as optional too", () => {
+  it("shows the month's own ads as planned, never as an optional extra", () => {
     const ad = {
       id: "ad-1",
       date: "2026-10-05",
@@ -752,19 +803,58 @@ describe("Launch", () => {
       status: "idea" as const,
     };
     const ads = feedScreens([ad]).find((screen) => screen.key === "ads");
-    expect(ads).toMatchObject({
-      optional: true,
-      perMonth: 1,
-      name: "Meta ads",
-    });
+    expect(ads).toMatchObject({ name: "Meta ads", ads: "meta_ads" });
+    expect(ads?.optional).toBeUndefined();
   });
 
-  it("makes ads and proposed channels optional, and leaves the newsletter out", () => {
+  it("offers every channel CMO can connect beyond the plan's networks, and leaves the newsletter out", () => {
+    // The plan's ads and Cuso's proposals first, then every other network.
     expect(optionalChannels(approved()).map((channel) => channel.key)).toEqual([
       "meta_ads",
       "google_ads",
       "instagram",
+      "facebook",
+      "youtube",
     ]);
+    const html = render(approved());
+    for (const name of ["Facebook", "YouTube", "Google Ads"])
+      expect(html).toMatch(new RegExp(`button-small[^>]*>${name}[,<]`));
+    expect(html).not.toContain("TikTok");
+  });
+
+  it("offers TikTok where Core lets this Project connect it", () => {
+    expect(
+      optionalChannels(approved({ tiktokEnabled: true })).map(
+        (channel) => channel.key,
+      ),
+    ).toContain("tiktok");
+  });
+
+  it("offers the places Cuso reads the numbers from, until each is connected", () => {
+    const source = (
+      provider: CmoOverview["measurement"][number]["provider"],
+      name: string,
+      status: CmoOverview["measurement"][number]["status"],
+    ) => ({ provider, name, measures: "Visits", status });
+    const overview = approved({
+      measurement: [
+        source("google_analytics", "Google Analytics", "none"),
+        source("google_search_console", "Search Console", "connected"),
+      ] as CmoOverview["measurement"],
+    });
+    const html = renderToStaticMarkup(
+      <LaunchStep
+        overview={overview}
+        onConnect={async () => ({ url: null, error: null })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
+        onGoToday={() => {}}
+      />,
+    );
+    expect(html).toContain(">Google Analytics</button>");
+    expect(html).not.toContain(">Search Console</button>");
   });
 
   it("lists only the plan's networks, with their pieces, and no newsletter", () => {

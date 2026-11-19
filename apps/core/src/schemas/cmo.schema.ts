@@ -9,6 +9,7 @@ import {
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
+import { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
 /** An IANA time zone this server knows, such as "America/New_York". */
@@ -220,6 +221,48 @@ export const cmoBrandFixStartedSchema = z
   .openapi("CmoBrandFixStarted");
 
 /** A version of the plan of the Cuso a CMO route acts on. */
+export const cmoTestCopyCheckSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    sourceProjectId: z
+      .string()
+      .uuid()
+      .describe("The Project whose connected accounts the copy uses."),
+    tornDownAt: z.date().nullable(),
+    clean: z
+      .boolean()
+      .describe(
+        "Nothing is left: no unsent post, linked account, run or Cuso.",
+      ),
+    left: z.object({
+      unsentPosts: z.number().int(),
+      linkedAccounts: z.number().int(),
+      activeTurns: z.number().int(),
+      liveCuso: z.boolean(),
+    }),
+    publishedPosts: z
+      .number()
+      .int()
+      .describe("Posts of the copy that went out. Always 0."),
+    providerRevocations: z
+      .number()
+      .int()
+      .describe("Accounts ended at the provider through the copy. Always 0."),
+  })
+  .openapi("CmoTestCopyCheck");
+
+export const cmoTestCopyTeardownSchema = z
+  .object({
+    removed: z.object({
+      canceledPosts: z.number().int(),
+      unlinkedAccounts: z.number().int(),
+      stoppedTurns: z.number().int(),
+      archivedCuso: z.boolean(),
+    }),
+    check: cmoTestCopyCheckSchema,
+  })
+  .openapi("CmoTestCopyTeardown");
+
 export const cmoStrategyParamsSchema = cmoProjectParamsSchema.extend({
   strategyId: z
     .string()
@@ -383,6 +426,31 @@ export const cmoDraftRevisionSchema = z
       .describe("The draft's revision as shown; a changed draft is refused."),
   })
   .openapi("CmoDraftRevision");
+
+export const cmoDraftApproveSchema = cmoDraftRevisionSchema
+  .extend({
+    tikTokSettings: tikTokPostSettingsSchema
+      .optional()
+      .describe(
+        "A TikTok video only: who sees it, what viewers may do, and the owner's confirmation of this video (`previewConsent`) and of TikTok's Music Usage Confirmation. Required for TikTok, which posts the video at once.",
+      ),
+  })
+  .openapi("CmoDraftApprove");
+
+export const cmoTikTokCreatorSchema = z
+  .object({
+    creator_nickname: z.string(),
+    privacy_level_options: z
+      .array(z.string())
+      .describe(
+        "The audiences TikTok allows now. Empty: no post is possible right now.",
+      ),
+    comment_disabled: z.boolean(),
+    duet_disabled: z.boolean(),
+    stitch_disabled: z.boolean(),
+    max_video_post_duration_sec: z.number().int(),
+  })
+  .openapi("CmoTikTokCreator");
 
 export const cmoDraftEditSchema = cmoDraftRevisionSchema
   .extend({ text: z.string().trim().min(1).max(25_000) })
@@ -613,6 +681,11 @@ export const cmoOverviewSchema = z
       .describe(
         "The image or video Cuso attached to each calendar piece, by entry id.",
       ),
+    postRevisions: z
+      .record(z.string(), z.number().int())
+      .describe(
+        "The revision of each Social post of the month, by post id: what an owner's edit of its words names (PATCH drafts/{postId}).",
+      ),
     strategyVersion: z
       .union([marketingStrategyVersionSchema, z.null()])
       .describe(
@@ -637,8 +710,12 @@ export const cmoOverviewSchema = z
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),
     connectChannelUrl: z.string(),
+    tiktokEnabled: z
+      .boolean()
+      .describe(
+        "TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.",
+      ),
     adProviders: z.array(z.string()),
-    connectAdsUrl: z.string(),
     measurement: z
       .array(cmoMeasurementSchema)
       .describe(

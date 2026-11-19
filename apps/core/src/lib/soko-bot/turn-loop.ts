@@ -9,6 +9,8 @@ import {
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_OUTWARD_CAPABILITIES,
   type SokoBotCapability,
+  sokoBotIdentity,
+  sokoBotToolDescription,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import prisma from "@/lib/db/prisma";
@@ -242,6 +244,11 @@ export interface PreparedTurn {
     ReturnType<typeof resolveRunnableSokoBotVersion>
   >["inferenceRegion"];
   capabilities: readonly SokoBotCapability[];
+  /**
+   * Each tool's description as this version's bot reads it, where it differs
+   * from the general one (Cuso's, from cmo-v4 on).
+   */
+  toolDescriptions: Partial<Record<SokoBotCapability, string>>;
   requiresActionProof: boolean;
   /** Briefs the runtime runs side by side before the message (turn-parts). */
   parts: readonly TurnPart[];
@@ -370,7 +377,7 @@ export async function prepareTurn(
   const system = [
     "# Identity",
     "",
-    "You are Soko Bot, the owner's autonomous Sokosumi project manager. Your operating instructions arrive each turn as the versioned OPERATING INSTRUCTIONS block; follow them exactly.",
+    sokoBotIdentity(version),
     "",
     `OPERATING INSTRUCTIONS (version ${context.version.id}, ${context.version.name}):`,
     "",
@@ -400,6 +407,14 @@ export async function prepareTurn(
     model: version.model,
     inferenceRegion: version.inferenceRegion,
     capabilities,
+    toolDescriptions: version.texts
+      ? Object.fromEntries(
+          capabilities.map((capability) => [
+            capability,
+            sokoBotToolDescription(capability, version),
+          ]),
+        )
+      : {},
     requiresActionProof,
     parts,
   };
