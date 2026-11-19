@@ -20,7 +20,6 @@ import {
   type SocialPostMediaRef,
   type SocialPostProvider,
 } from "@sokosumi/utils";
-
 import {
   conflict,
   forbidden,
@@ -28,6 +27,7 @@ import {
   notFound,
 } from "@/helpers/error";
 import { isOrganizationOwnerOrAdmin } from "@/helpers/organization-role";
+import { jsonInput } from "@/helpers/prisma-json";
 import { answerNote, changesAfterPlanAnswer } from "@/helpers/question-answers";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import { organizationRoleInWorkspace } from "@/helpers/soko-bot-management";
@@ -144,7 +144,7 @@ export function createMarketingStrategy(input: {
     data: {
       projectId: input.projectId,
       authorUserId: input.userId,
-      plan: input.plan,
+      plan: jsonInput(input.plan),
     },
   });
 }
@@ -928,7 +928,7 @@ export async function answerMarketingStrategyQuestion(input: {
     return tx.marketingStrategy.update({
       where: { id: version.id },
       data: {
-        plan: {
+        plan: jsonInput({
           ...plan,
           changes: changesAfterPlanAnswer({
             changes: plan.changes,
@@ -945,7 +945,7 @@ export async function answerMarketingStrategyQuestion(input: {
               ...(note !== undefined ? { note } : {}),
             };
           }),
-        },
+        }),
       },
     });
   });

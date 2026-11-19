@@ -1203,7 +1203,10 @@ describe("Search Console query rows", () => {
       indexedPages?: unknown;
       metrics: Array<{ value: number | null }>;
     };
-    expect(payload.indexedPages).toBeUndefined();
+    expect(
+      state.reads.filter((read) => read.slug.endsWith("INSPECT_URL")),
+    ).toHaveLength(1);
+    expect(payload).not.toHaveProperty("indexedPages");
     expect(workspace.indexStatus).toBeNull();
     expect(payload.metrics[0].value).toBe(1);
     expect(payload.notes).toContain(

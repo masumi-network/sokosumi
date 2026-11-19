@@ -12,7 +12,7 @@ const prisma = vi.hoisted(() => {
         .fn()
         .mockResolvedValue({ status: "COMPLETED", finalAnswer: "Ready" }),
     },
-    brandBrain: { deleteMany: ok(), create: ok() },
+    brandBrain: { deleteMany: ok(), create: ok(), findUnique: vi.fn() },
     chatRoomMessage: { deleteMany: ok() },
     dataTable: { deleteMany: ok() },
     contactList: { deleteMany: ok() },
@@ -171,6 +171,27 @@ describe("strategy eval cases", () => {
       });
     },
   );
+
+  it.each([
+    { kind: "cmo-research", output: { offers: null } },
+    { kind: "cmo-strategy", output: { pillars: null, calendar: null } },
+  ])("reports missing content for $kind", async ({ kind, output }) => {
+    const scenario = CMO_EVAL_CASES.find((item) => item.kind === kind);
+    if (!scenario) throw new Error(`Missing eval case: ${kind}`);
+    if (kind === "cmo-research")
+      prisma.brandBrain.findUnique.mockResolvedValueOnce(null);
+    else vi.mocked(newestMarketingStrategy).mockResolvedValueOnce(null);
+    const result = await pollCmoCase(
+      scenario,
+      lane,
+      { turnId: "turn-1", state: {} },
+      context,
+    );
+    expect(result).toMatchObject({
+      kind: "done",
+      outcome: { status: "FAILED", output },
+    });
+  });
 
   it.each(["Email and SMS marketing plans", null])(
     "exports the core offer separately from the trial: %s",

@@ -16,6 +16,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { isCmoChannelFormat, isCmoTalkingFormat } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import { keepAnswers, sameQuestion } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
@@ -156,20 +157,22 @@ export async function setCmoAdBudget(
       projectId: cuso.projectId,
       authorUserId: input.userId,
       authorTurnId: started.turnId,
-      plan: withoutUnpaidAds({
-        ...strategy,
-        // This version is the budget's patch: nothing struck through yet.
-        changes: [],
-        patched: [],
-        ads: {
-          expect: "Cuso is updating what this brings.",
-          without: "The strategy runs on posts, search and email alone.",
-          ...strategy.ads,
-          monthly: input.monthly,
-          currency,
-          setByOwner: true,
-        },
-      }),
+      plan: jsonInput(
+        withoutUnpaidAds({
+          ...strategy,
+          // This version is the budget's patch: nothing struck through yet.
+          changes: [],
+          patched: [],
+          ads: {
+            expect: "Cuso is updating what this brings.",
+            without: "The strategy runs on posts, search and email alone.",
+            ...strategy.ads,
+            monthly: input.monthly,
+            currency,
+            setByOwner: true,
+          },
+        }),
+      ),
     },
   });
   return started;
@@ -928,7 +931,7 @@ async function keepFilePieces(
   ];
   return db.marketingStrategy.update({
     where: { id: approved.id },
-    data: { plan: { ...plan, calendar } },
+    data: { plan: jsonInput({ ...plan, calendar }) },
   });
 }
 
@@ -1243,16 +1246,17 @@ export async function saveCmoStrategy(
   // On cmo-v5 ads wait for the owner's Yes, whatever Cuso saved.
   if (await asksBeforeAds(cuso.sokoBotId, db))
     stored = withoutUnaskedAds(stored);
+  const planJson = jsonInput(stored);
   if (own) {
     return db.marketingStrategy.update({
       where: { id: own.id },
-      data: { plan: stored },
+      data: { plan: planJson },
     });
   }
   return db.marketingStrategy.create({
     data: {
       projectId: cuso.projectId,
-      plan: stored,
+      plan: planJson,
       authorTurnId: options.turnId ?? null,
       ...("sokoBotId" in where
         ? { authorSokoBotId: cuso.sokoBotId }

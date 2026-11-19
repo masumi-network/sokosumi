@@ -4,6 +4,7 @@ import { CMO_SOKO_BOT_VERSION_ID } from "@sokosumi/soko-bot";
 import { del } from "@vercel/blob";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
+import { jsonInput } from "@/helpers/prisma-json";
 import { getCredits } from "@/helpers/user";
 import prisma from "@/lib/db/prisma";
 import {
@@ -70,7 +71,7 @@ async function ensureUser(lane: number, who: string, name: string) {
     data: {
       name,
       firstName,
-      lastName,
+      lastName: lastName ?? null,
       email,
       emailVerified: true,
       termsAccepted: true,
@@ -294,7 +295,7 @@ async function createLane(lane: number): Promise<EvalLaneRecord> {
       sokoBotId: bot.id,
       cusoBotId: cuso.id,
       cusoProjectId: cusoProject.id,
-      world,
+      world: jsonInput(world),
     },
   });
   return toRecord(row);
