@@ -1259,7 +1259,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Let's post on LinkedIn only once a week this month. Change the plan.",
     rubric:
-      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.",
+      'Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. When he files a report card (report_update kind request), its title is one short plain sentence to the owner ("LinkedIn is down to one post a week"); a title in internal terms or with two clauses joined by a semicolon fails. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.',
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
