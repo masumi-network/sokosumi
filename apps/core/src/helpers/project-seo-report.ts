@@ -1,5 +1,4 @@
 import { z } from "@hono/zod-openapi";
-
 import { badRequest } from "@/helpers/error";
 import {
   seoConversionSchema,
@@ -8,9 +7,18 @@ import {
   seoSeveritySchema,
   seoUrlSchema,
 } from "@/schemas/project-seo.schema";
+import {
+  MAX_STRATEGY_DECISIONS,
+  publicSeoDecisionSchema,
+} from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
+import { readPublicSeoDecisions } from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
+import {
+  reportObject as object,
+  refusePrivateReport,
+} from "./project-seo-public-report";
 import { legacyReportKeywords } from "./project-seo-report-keywords";
 import {
   focusedSerpFields,
@@ -113,6 +121,10 @@ export const publicSeoPayloadSchema = z.object({
   notes: z.array(text).max(500),
   /** A site audit's strategy results. Older rows and focused checks have none. */
   strategy: seoStrategyPayloadSchema.optional(),
+  strategyDecisions: z
+    .array(publicSeoDecisionSchema)
+    .max(MAX_STRATEGY_DECISIONS)
+    .optional(),
   seasonalIdeas: z.array(seoSeasonalIdeaSchema).max(100).optional(),
   /** A focused result's SERP reads per keyword and device. Older results and audits have none. */
   serps: seoSerpReadsSchema.optional(),
@@ -210,6 +222,9 @@ export function assertSeoArtifactMatchesRequest(
     payload.findings.some(
       (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
     ) ||
+    payload.strategyDecisions?.some(
+      (row) => !reported.includes(auditedSeoPageKey(row.targetUrl)),
+    ) ||
     payload.actions.some(
       (row) => !pageUrls.includes(auditedSeoPageKey(row.pageUrl)),
     ) ||
@@ -258,53 +273,6 @@ export function assertSeoArtifactMatchesRequest(
     )
   )
     throw badRequest("The result contains an unapproved link target");
-}
-
-const object = (value: unknown): Record<string, unknown> | null =>
-  value !== null && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-const PRIVATE_FIELDS = [
-  "searchConsole",
-  "searchConsoleNear",
-  "outcomes",
-  "outcomeEvidence",
-  "outcomeReading",
-  "searchOutcomes",
-  "businessOutcome",
-  "pageComparison",
-];
-function refusePrivateReport(raw: unknown): void {
-  const input = object(raw);
-  const request = object(input?.request);
-  if (
-    !input ||
-    PRIVATE_FIELDS.some((key) => input[key] !== undefined) ||
-    (request &&
-      (["outcomeSnapshot", "outcomeImport", "outcomes", "outcome"].some(
-        (key) => request[key] !== undefined,
-      ) ||
-        (Array.isArray(request.connections) && request.connections.length > 0)))
-  )
-    throw badRequest("Only public SEO evidence can be imported");
-  const header = object(input.header);
-  if (
-    Array.isArray(header?.focusKeywords) &&
-    header.focusKeywords.some((row) => {
-      const item = object(row);
-      return (
-        item &&
-        ["searchConsole", "searchConsoleNote", "primary"].some(
-          (key) => item[key] !== undefined,
-        )
-      );
-    })
-  )
-    throw badRequest("Private search evidence cannot be imported");
-  if (Array.isArray(input.pages))
-    input.pages.forEach((page) =>
-      refusePrivateReport(object(page)?.report ?? page),
-    );
 }
 
 const partial = z
@@ -541,6 +509,17 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       ...first,
       kind: "audit_full",
       pageUrls,
+      strategyDecisions: readPublicSeoDecisions(
+        object(raw)?.strategyDecisions,
+        pages
+          .filter(
+            (p) =>
+              p.kind === "audit_full" &&
+              p.countryCode === first.countryCode &&
+              p.languageCode === first.languageCode,
+          )
+          .flatMap((p) => p.pageUrls),
+      ),
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),
@@ -691,6 +670,9 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     countryCode: result.header.market?.country ?? "",
     languageCode: result.header.market?.language ?? "",
     rulebookVersion: result.rulebookVersion,
+    strategyDecisions: readPublicSeoDecisions(object(raw)?.strategyDecisions, [
+      pageUrl,
+    ]),
     ...(seasonalIdeas && { seasonalIdeas }),
     checks: result.checklist.map((row) => ({
       rowId: row.row,

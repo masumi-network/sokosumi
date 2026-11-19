@@ -12354,6 +12354,17 @@
           "review_exclusion": "Check why this page appears in search. You want it excluded.",
           "review_indexing": "Check why this page is excluded. You want it to appear in search.",
           "matches_intent": "Google’s index status matches your visibility setting."
+        },
+        "goalControl": {
+          "title": "Sessions with {event}",
+          "afterTask": "Task completed on {date}",
+          "rates": "Organic search {organic} of {organicSessions, number} sessions. Direct {direct} of {directSessions, number} sessions.",
+          "both_declined": "Both channels had a lower goal rate. Check the completion step and compare tracking with confirmed submissions before changing search content.",
+          "organic_declined": "The organic goal rate fell by at least 20%. The direct rate rose, stayed level or fell by less than 20%. Check device and query mix before testing page copy.",
+          "goal_held": "The organic goal rate rose, stayed level or fell by less than 20%. Check which other key events changed.",
+          "events": "{count, number} occurrences of {event} in organic landing sessions.",
+          "attribution": "Other changes can affect this count. Compare the same page and goal across comparable periods.",
+          "weekdayMix": "These periods include different numbers of some weekdays. Check the pattern by weekday before acting."
         }
       },
       "manageStatistics": "Google connections",
@@ -12845,7 +12856,11 @@
           "label": "Filter actions",
           "all": "All",
           "suggestions": "Suggestions"
-        }
+        },
+        "alternative": "Alternative",
+        "nextCheck": "Next check",
+        "canceled": "Task canceled",
+        "failed": "Task failed"
       },
       "pages": {
         "title": "Pages",
@@ -13022,7 +13037,8 @@
       "priority": {
         "low": "Low",
         "medium": "Medium",
-        "high": "High"
+        "high": "High",
+        "unknown": "Not estimated"
       },
       "coverageStatus": {
         "complete": "Complete",
@@ -13622,6 +13638,12 @@
         "testsAll": "Every test gave a result"
       },
       "traffic": {
+        "periodInsight": {
+          "title": "Clicks fell while impressions held up",
+          "scope": "Google web search for {count, plural, one {# selected page} other {# selected pages}} on {property}.",
+          "values": "{clicks} clicks, {impressions} impressions, average position {position}",
+          "nextCheck": "Average position changed by half a place or less. Compare the queries, devices and countries in both weeks before testing a new title. A change in their mix can affect clicks."
+        },
         "landingEngagement": {
           "title": "What changed in organic visits",
           "scope": "Google Analytics compared the same {count, plural, one {landing page} other {# landing pages}} in both periods ({zone}).",

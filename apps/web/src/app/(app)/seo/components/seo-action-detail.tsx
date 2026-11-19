@@ -80,9 +80,11 @@ export function SeoActionDetail({
               {t(`actions.${action.status}`)}
             </Chip>
           ) : null}
-          <Chip className="bg-muted text-muted-foreground" title={effort}>
-            {effort}
-          </Chip>
+          {action.effort !== "unknown" && (
+            <Chip className="bg-muted text-muted-foreground" title={effort}>
+              {effort}
+            </Chip>
+          )}
         </div>
         <DialogTitle className="text-lg leading-snug font-semibold break-words">
           {action.title}
@@ -162,14 +164,25 @@ export function SeoActionDetail({
         ) : null}
         {/* The impact chip already names the kind of rule; the part keeps to the reason of this action. A
             suggestion says what it is not: no error, and no promise of traffic. */}
-        <DetailPart title={t("actions.why")}>
-          {action.kind === "opportunity" && !severity ? (
-            <p className="text-muted-foreground">
-              {t("actions.opportunitiesHelp")}
-            </p>
-          ) : null}
-          <p className="whitespace-pre-wrap break-words">{action.why}</p>
-        </DetailPart>
+        {action.decision ? (
+          <>
+            <DetailPart title={t("actions.alternative")}>
+              <p>{action.decision.alternative}</p>
+            </DetailPart>
+            <DetailPart title={t("actions.nextCheck")}>
+              <p>{action.decision.nextCheck}</p>
+            </DetailPart>
+          </>
+        ) : (
+          <DetailPart title={t("actions.why")}>
+            {action.kind === "opportunity" && !severity ? (
+              <p className="text-muted-foreground">
+                {t("actions.opportunitiesHelp")}
+              </p>
+            ) : null}
+            <p className="whitespace-pre-wrap break-words">{action.why}</p>
+          </DetailPart>
+        )}
         {problem ? (
           <DetailPart title={t("actions.effect")}>
             <p className="whitespace-pre-wrap break-words">
@@ -192,7 +205,18 @@ export function SeoActionDetail({
           </DetailPart>
         ) : null}
         {page && <SeoBriefPagePriority model={model} pageId={page.id} />}
-        {followUp ? <SeoBriefFollowUp followUp={followUp} /> : null}
+        {followUp ? (
+          <SeoBriefFollowUp
+            followUp={followUp}
+            strategyCompletedAt={
+              action.decision &&
+              action.status === "implemented" &&
+              action.taskId
+                ? action.completedAt
+                : undefined
+            }
+          />
+        ) : null}
       </div>
       {/* On a phone the buttons fill the width, the main one on top; from sm they sit at the end of one line, the
           main one last. The order in the DOM is the order on a phone, so the focus order matches what shows. */}

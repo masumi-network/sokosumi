@@ -11895,15 +11895,20 @@ export type ProjectSeoAction = {
     findingIds: Array<string>;
     title: string;
     why: string;
-    effort: 'low' | 'medium' | 'high';
+    effort: 'low' | 'medium' | 'high' | 'unknown';
     expectedEffect: string;
     edit: {
         target: string;
         before: string | null;
         after: string;
     } | null;
+    decision?: {
+        kind: 'content_opportunity' | 'internal_link_opportunity' | 'offer_availability';
+        alternative: string;
+        nextCheck: string;
+    };
     taskId: string | null;
-    status: 'recommended' | 'task_created' | 'implemented' | 'verified';
+    status: 'recommended' | 'task_created' | 'implemented' | 'verified' | 'canceled' | 'failed';
     completedAt?: Date;
     verifiedAt?: Date;
     kind: 'fix' | 'opportunity';
@@ -12443,6 +12448,44 @@ export type SeoAuditBrief = {
         pageId: string;
         changedAt: Date | null;
         lastCrawlAt: Date | null;
+        latestClosedGoal?: {
+            from: string;
+            to: string;
+            count: number;
+            event: 'purchase' | 'sign_up';
+            timeZone: string;
+        };
+        goalInvestigation?: {
+            pageUrl: string;
+            timeZone: string;
+            event: 'purchase' | 'sign_up';
+            before: {
+                from: string;
+                to: string;
+                organic: {
+                    sessions: number;
+                    rate: number;
+                };
+                direct: {
+                    sessions: number;
+                    rate: number;
+                };
+            };
+            after: {
+                from: string;
+                to: string;
+                organic: {
+                    sessions: number;
+                    rate: number;
+                };
+                direct: {
+                    sessions: number;
+                    rate: number;
+                };
+            };
+            weekdayMix?: 'uneven';
+            assessment: 'both_declined' | 'organic_declined' | 'goal_held';
+        };
         outcomes?: Array<{
             event: 'purchase' | 'sign_up';
             latest: {

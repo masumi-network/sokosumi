@@ -49,6 +49,7 @@ import {
   normalizeSeoUrl,
   SEO_RESULT_LIMIT,
 } from "./project-seo-store";
+import { SeoAuditDecisions } from "./seo-audit-decisions";
 import { landingEngagementChange } from "./seo-landing-engagement";
 
 interface ProjectionInput {
@@ -138,10 +139,17 @@ export function projectSeoProjection(
   const taskStatuses = new Map(
     input.tasks.map((task) => [task.id, task.status]),
   );
+  const actionTasks = input.actionTasks.filter((link) =>
+    taskStatuses.has(link.taskId),
+  );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
   let strategy: ProjectSeoWorkspace["strategy"] = null;
-  const seasonalIdeas: NonNullable<ProjectSeoWorkspace["seasonalIdeas"]> = [];
-  const seasonalPages = new Set<string>();
+  const decisions = new SeoAuditDecisions(
+    selectedUrls,
+    actionTasks,
+    taskStatuses,
+  );
+  const seasonalIdeas = decisions.seasonal;
   const searchSources: SearchEvidenceSource[] = [];
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   const metricRows: SeoMetricsProjection = {
@@ -233,22 +241,8 @@ export function projectSeoProjection(
           : ""),
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
-    if (row.kind === "audit_full") {
-      for (const url of data.pageUrls) {
-        const page = normalizeSeoUrl(url);
-        const identity = key(page, data.countryCode, data.languageCode);
-        if (!selectedUrls.has(page) || seasonalPages.has(identity)) continue;
-        seasonalPages.add(identity);
-        seasonalIdeas.push(
-          ...(data.seasonalIdeas ?? []).filter(
-            (idea) =>
-              normalizeSeoUrl(idea.url) === page &&
-              idea.country === data.countryCode &&
-              idea.language === data.languageCode,
-          ),
-        );
-      }
-    }
+    if (row.kind === "audit_full" && data.kind === "audit_full")
+      decisions.append(row.id, data);
     // Rows come newest first, so the first strategy is the newest site audit's.
     if (data.strategy && !strategy) {
       const {
@@ -600,17 +594,21 @@ export function projectSeoProjection(
       });
   const search = projectSearchEvidence(
     searchSources,
-    input.actionTasks,
+    actionTasks,
     taskStatuses,
   );
-  actions.push(...search.actions);
+  actions.push(...decisions.actions, ...search.actions);
   // The day each Task behind an action completed, so a chart can mark it. A reopened Task is not done.
   for (const action of actions) {
     const task = input.tasks.find((item) => item.id === action.taskId);
+    if (action.taskId && !task) {
+      action.taskId = null;
+      action.status = "recommended";
+    }
     if (task?.status === "COMPLETED" && task.completedAt)
       action.completedAt = task.completedAt.toISOString();
   }
-  for (const link of input.actionTasks) {
+  for (const link of actionTasks) {
     const observation =
       scopedPublicSources.get(link.observationId) ??
       searchSources.find((source) => source.row.id === link.observationId)?.row;

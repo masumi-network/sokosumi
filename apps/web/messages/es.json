@@ -12354,6 +12354,17 @@
           "review_exclusion": "Comprueba por qué aparece esta página en la búsqueda. Quieres excluirla.",
           "review_indexing": "Comprueba por qué se excluye esta página. Quieres que aparezca en la búsqueda.",
           "matches_intent": "El estado de indexación en Google coincide con el ajuste de visibilidad."
+        },
+        "goalControl": {
+          "title": "Sesiones con {event}",
+          "afterTask": "Tarea completada el {date}",
+          "rates": "Búsqueda orgánica: {organic} de {organicSessions, number} sesiones. Directo: {direct} de {directSessions, number} sesiones.",
+          "both_declined": "La tasa del objetivo bajó en ambos canales. Revisa el paso final y compara los datos con los registros confirmados antes de cambiar el contenido.",
+          "organic_declined": "La tasa orgánica bajó. La directa se mantuvo, subió o cayó menos del 20 %. Revisa los dispositivos y las consultas antes de probar otro texto.",
+          "goal_held": "La tasa orgánica se mantuvo, subió o cayó menos del 20 %. Revisa qué otros eventos clave cambiaron.",
+          "events": "{count, number} eventos de {event} en sesiones de entrada orgánica.",
+          "attribution": "Otros cambios pueden influir en el recuento. Compara la misma página y el mismo objetivo en periodos comparables.",
+          "weekdayMix": "Algunos días de la semana aparecen con distinta frecuencia en estos periodos. Revisa el patrón por día antes de actuar."
         }
       },
       "manageStatistics": "Conexiones de Google",
@@ -12845,7 +12856,11 @@
           "label": "Filtrar acciones",
           "all": "Todas",
           "suggestions": "Sugerencias"
-        }
+        },
+        "alternative": "Alternativa",
+        "nextCheck": "Próxima comprobación",
+        "canceled": "Tarea cancelada",
+        "failed": "Tarea fallida"
       },
       "pages": {
         "title": "Páginas",
@@ -13022,7 +13037,8 @@
       "priority": {
         "low": "Baja",
         "medium": "Media",
-        "high": "Alta"
+        "high": "Alta",
+        "unknown": "Sin estimar"
       },
       "coverageStatus": {
         "complete": "Completa",
@@ -13622,6 +13638,12 @@
         "testsAll": "Todas las pruebas tienen resultado"
       },
       "traffic": {
+        "periodInsight": {
+          "title": "Bajaron los clics y se mantuvieron las impresiones",
+          "scope": "Búsqueda web de Google para {count, plural, one {# página seleccionada} other {# páginas seleccionadas}} en {property}.",
+          "values": "{clicks} clics, {impressions} impresiones, posición media {position}",
+          "nextCheck": "La posición media cambió medio puesto o menos. Compara las consultas, los dispositivos y los países de ambas semanas antes de probar otro título. Un cambio en su distribución puede influir en los clics."
+        },
         "landingEngagement": {
           "title": "Qué cambió en las visitas orgánicas",
           "scope": "Google Analytics comparó {count, plural, one {la misma página de destino} other {las mismas # páginas de destino}} en ambos períodos ({zone}).",

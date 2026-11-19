@@ -5,7 +5,10 @@ export { seoBriefAction } from "./seo-page.schema";
 
 import {
   seoBriefOutcome,
+  seoGoalInvestigation,
+  seoLandingEventSchema,
   seoLandingEvents,
+  seoOutcomeWindow,
 } from "./seo-landing-outcomes.schema";
 
 export const seoBriefObjective = z.enum(["sales", "traffic", "support"]);
@@ -59,6 +62,13 @@ const followUp = z.strictObject({
   pageId: seoIdSchema,
   changedAt: z.iso.datetime().nullable(),
   lastCrawlAt: z.iso.datetime().nullable(),
+  latestClosedGoal: seoOutcomeWindow
+    .extend({
+      event: seoLandingEventSchema,
+      timeZone: z.string().min(1).max(100),
+    })
+    .optional(),
+  goalInvestigation: seoGoalInvestigation.optional(),
   outcomes: z.array(seoBriefOutcome).max(seoLandingEvents.length).optional(),
   status: z.enum(["awaiting_recrawl", "recrawled", "unknown"]),
   indexReview: z.enum([

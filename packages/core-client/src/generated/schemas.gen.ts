@@ -45306,7 +45306,8 @@ export const ProjectSeoActionSchema = {
             enum: [
                 'low',
                 'medium',
-                'high'
+                'high',
+                'unknown'
             ]
         },
         expectedEffect: {
@@ -45341,6 +45342,34 @@ export const ProjectSeoActionSchema = {
                 }
             ]
         },
+        decision: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'content_opportunity',
+                        'internal_link_opportunity',
+                        'offer_availability'
+                    ]
+                },
+                alternative: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 600
+                },
+                nextCheck: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 600
+                }
+            },
+            required: [
+                'kind',
+                'alternative',
+                'nextCheck'
+            ]
+        },
         taskId: {
             type: [
                 'string',
@@ -45353,7 +45382,9 @@ export const ProjectSeoActionSchema = {
                 'recommended',
                 'task_created',
                 'implemented',
-                'verified'
+                'verified',
+                'canceled',
+                'failed'
             ]
         },
         completedAt: {
@@ -48285,6 +48316,204 @@ export const SeoAuditBriefSchema = {
                             'null'
                         ],
                         format: 'date-time'
+                    },
+                    latestClosedGoal: {
+                        type: 'object',
+                        properties: {
+                            from: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            to: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            count: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            event: {
+                                type: 'string',
+                                enum: [
+                                    'purchase',
+                                    'sign_up'
+                                ]
+                            },
+                            timeZone: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 100
+                            }
+                        },
+                        required: [
+                            'from',
+                            'to',
+                            'count',
+                            'event',
+                            'timeZone'
+                        ],
+                        additionalProperties: false
+                    },
+                    goalInvestigation: {
+                        type: 'object',
+                        properties: {
+                            pageUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            timeZone: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 100
+                            },
+                            event: {
+                                type: 'string',
+                                enum: [
+                                    'purchase',
+                                    'sign_up'
+                                ]
+                            },
+                            before: {
+                                type: 'object',
+                                properties: {
+                                    from: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    to: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    organic: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    },
+                                    direct: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    }
+                                },
+                                required: [
+                                    'from',
+                                    'to',
+                                    'organic',
+                                    'direct'
+                                ],
+                                additionalProperties: false
+                            },
+                            after: {
+                                type: 'object',
+                                properties: {
+                                    from: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    to: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    organic: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    },
+                                    direct: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    }
+                                },
+                                required: [
+                                    'from',
+                                    'to',
+                                    'organic',
+                                    'direct'
+                                ],
+                                additionalProperties: false
+                            },
+                            weekdayMix: {
+                                type: 'string',
+                                enum: [
+                                    'uneven'
+                                ]
+                            },
+                            assessment: {
+                                type: 'string',
+                                enum: [
+                                    'both_declined',
+                                    'organic_declined',
+                                    'goal_held'
+                                ]
+                            }
+                        },
+                        required: [
+                            'pageUrl',
+                            'timeZone',
+                            'event',
+                            'before',
+                            'after',
+                            'assessment'
+                        ],
+                        additionalProperties: false
                     },
                     outcomes: {
                         type: 'array',

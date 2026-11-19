@@ -51,10 +51,16 @@ export function useSeoActionInstructions(
     `${t("actions.copyPage")}: ${action.pageUrl}`,
     finding,
     // Without an issue behind it the finding line is the effect: it is not said twice.
-    finding === action.expectedEffect
+    action.decision || finding === action.expectedEffect
       ? null
       : `${t("actions.effect")}: ${action.expectedEffect}`,
-    action.why,
+    finding === action.why ? null : action.why,
+    action.decision
+      ? `${t("actions.alternative")}: ${action.decision.alternative}`
+      : null,
+    action.decision
+      ? `${t("actions.nextCheck")}: ${action.decision.nextCheck}`
+      : null,
     action.evidence.length
       ? action.evidence.map((line) => `- ${line}`).join("\n")
       : null,

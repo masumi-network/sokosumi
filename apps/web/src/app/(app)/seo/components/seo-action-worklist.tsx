@@ -252,7 +252,7 @@ function SeoWorklistRow({
             )}
             {/* Once a Task exists its state counts more than the effort. */}
             <SeoState>
-              {action.status === "recommended"
+              {action.status === "recommended" && action.effort !== "unknown"
                 ? `${t("actions.effort")}: ${t(`priority.${action.effort}`)}`
                 : t(`actions.${action.status}`)}
             </SeoState>

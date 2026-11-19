@@ -20,6 +20,7 @@ const state = vi.hoisted(() => {
     closing: false,
     integrationActive: true,
     accountRevision: 0,
+    briefGoal: null as string | null,
     locks: new Map<
       string,
       {
@@ -130,12 +131,44 @@ vi.mock("@/lib/db/prisma", () => {
         where,
       }: {
         where: {
+          kind?: string;
+          pageIds?: { hasSome: string[] };
           AND?: [
             { payload: { equals: string } },
             { payload: { array_contains: string[] } },
           ];
         };
       }) => {
+        if (where.kind === "audit_brief" && state.briefGoal)
+          return {
+            createdAt: state.at,
+            scopeVersion: 1,
+            payload: {
+              objective: "sales",
+              audience: null,
+              outcome: null,
+              constraints: null,
+              pages: [
+                {
+                  pageId: state.pageId,
+                  role: "product",
+                  job: null,
+                  action: state.briefGoal,
+                  indexIntent: "index",
+                },
+              ],
+            },
+          };
+        if (where.kind === "landing_outcomes")
+          return (
+            state.observations.find(
+              (row) =>
+                row.kind === where.kind &&
+                where.pageIds?.hasSome.some((id) =>
+                  (row.pageIds as string[]).includes(id),
+                ),
+            ) ?? null
+          );
         if (!where.AND) return null; // No brand terms saved.
         const key = where.AND[0].payload.equals;
         const [url] = where.AND[1].payload.array_contains;
@@ -292,6 +325,7 @@ import { runSeoTool } from "@/lib/soko-bot/seo-tools";
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 import { getProjectSeoWorkspace } from "./project-seo.service";
 import { syncProjectSeoStatistics } from "./project-seo-statistics.service";
+import { getSeoBrief } from "./seo-audit-brief.service";
 
 const actor = {
   owner: { kind: "project" as const, id: state.projectId },
@@ -375,6 +409,7 @@ beforeEach(() => {
   state.pageUrl = "https://example.test/a";
   state.integrationActive = true;
   state.accountRevision = 0;
+  state.briefGoal = null;
   state.locks.clear();
   state.extraPages.length = 0;
   state.observations.length = 0;
@@ -786,10 +821,12 @@ describe("native statistics collection boundary", () => {
             }),
           }
         : answer(slug, args);
-    const workspace = await syncProjectSeoStatistics(
-      { ...actor, sokoBotId: undefined },
-      input,
-    );
+    state.briefGoal = "buy";
+    const owner = { ...actor, sokoBotId: undefined };
+    const workspace = await syncProjectSeoStatistics(owner, input);
+    expect(
+      (await getSeoBrief(owner)).followUps[0]?.latestClosedGoal,
+    ).toMatchObject({ event: "purchase", count: 12, timeZone: "Europe/Oslo" });
     const evidence = state.observations.find(
       (r) => r.kind === "landing_outcomes",
     );
@@ -1599,4 +1636,187 @@ describe("Search Console query rows", () => {
     ).rejects.toThrow();
     expect(state.reads).toHaveLength(0);
   });
+});
+
+it("uses two channel-control reads for an owner purchase goal, keeps them private and skips an unrelated goal", async () => {
+  state.briefGoal = "buy";
+  const period = { ...input, from: "2025-10-10", to: "2026-01-07" }; // The Traffic screen requests 90 days.
+  let sampled = false;
+  let allowPropertyB = false;
+  let namedZone: string | null = null;
+  state.answer = (slug, args) => {
+    if (allowPropertyB && slug.endsWith("SUMMARIES"))
+      return {
+        successful: true,
+        data: {
+          accountSummaries: [
+            {
+              propertySummaries: [
+                { property: "properties/123" },
+                { property: "properties/456" },
+              ],
+            },
+          ],
+        },
+      };
+    const dimensions = args.dimensions as { name: string }[] | undefined;
+    if (dimensions?.[0]?.name !== "landingPagePlusQueryString")
+      return answer(slug, args);
+    const prior = !JSON.stringify(args.dateRanges).includes(period.to);
+    const control = dimensions[1]?.name === "sessionDefaultChannelGroup";
+    if (dimensions[1]?.name === "eventName")
+      return namedZone
+        ? {
+            successful: true,
+            data: {
+              dimensionHeaders: dimensions,
+              metricHeaders: args.metrics,
+              rowCount: 1,
+              metadata: { timeZone: namedZone },
+              rows: [
+                {
+                  dimensionValues: [{ value: "/a" }, { value: "purchase" }],
+                  metricValues: [{ value: 3 }],
+                },
+              ],
+            },
+          }
+        : { successful: false };
+    const rows = control
+      ? ["Direct", "Organic Search"].map((channel) => ({
+          dimensionValues: [{ value: "/a" }, { value: channel }],
+          metricValues: [{ value: 100 }, { value: prior ? 0.2 : 0.1 }],
+        }))
+      : [
+          {
+            dimensionValues: [{ value: "/a" }],
+            metricValues: [100, prior ? 30 : 12, 500, 160].map((value) => ({
+              value,
+            })),
+          },
+        ];
+    return {
+      successful: true,
+      data: {
+        dimensionHeaders: dimensions,
+        metricHeaders: args.metrics,
+        metadata: {
+          timeZone: "Europe/Oslo",
+          ...(control && sampled && { samplingMetadatas: [{}] }),
+        },
+        rowCount: rows.length,
+        rows,
+      },
+    };
+  };
+  namedZone = "Europe/Oslo";
+  const user = { ...actor, sokoBotId: undefined };
+  const workspace = await syncProjectSeoStatistics(user, {
+    ...period,
+    automatic: true,
+  });
+  const controls = () =>
+    state.reads.filter((r) =>
+      JSON.stringify(r.args.metrics ?? []).includes(
+        "sessionKeyEventRate:purchase",
+      ),
+    );
+  expect(controls()).toHaveLength(2);
+  const args = controls().map((c) => c.args);
+  expect(args.map((a) => a.dateRanges)).toEqual([
+    [{ startDate: "2025-07-12", endDate: "2025-10-09" }],
+    [{ startDate: "2025-10-10", endDate: "2026-01-07" }],
+  ]);
+  expect(
+    state.observations.find((r) => r.kind === "landing_outcomes"),
+  ).toMatchObject({
+    ownerId: "owner",
+    visibility: "PRIVATE",
+    payload: {
+      rows: [{ event: "purchase", count: 3 }],
+      goalInvestigation: {
+        event: "purchase",
+        pageUrl: state.pageUrl,
+        assessment: "both_declined",
+        weekdayMix: "uneven",
+        before: { organic: { sessions: 100, rate: 0.2 } },
+        after: { direct: { sessions: 100, rate: 0.1 } },
+      },
+    },
+  });
+  expect(JSON.stringify(workspace)).not.toContain("goalInvestigation");
+  expect(
+    JSON.stringify(state.observations.find((r) => r.kind === "metrics")),
+  ).not.toContain("goalInvestigation");
+  expect(
+    (await getSeoBrief(user)).followUps[0]?.goalInvestigation?.assessment,
+  ).toBe("both_declined");
+  await expect(getSeoBrief(actor)).rejects.toMatchObject({ status: 403 });
+  expect((await getSeoBrief(user)).followUps[0]?.latestClosedGoal?.count).toBe(
+    3,
+  );
+  // A later selection can succeed at the property level even when its landing rows cannot be used.
+  namedZone = null;
+  allowPropertyB = true;
+  sampled = true;
+  vi.setSystemTime(new Date("2026-01-20T13:00:00Z"));
+  await syncProjectSeoStatistics(user, {
+    ...period,
+    propertyId: "properties/456",
+  });
+  const other = (await getSeoBrief(user)).followUps[0];
+  expect(other?.goalInvestigation).toBeUndefined();
+  expect(other?.latestClosedGoal).toBeUndefined();
+  expect(other?.outcomes).toEqual([]);
+  expect(controls()).toHaveLength(4);
+  // Return to A with the same goal, then switch the connected account on that same property.
+  vi.setSystemTime(new Date("2026-01-20T14:00:00Z"));
+  sampled = false;
+  namedZone = "Europe/Oslo";
+  const callsBeforeReactivation = state.reads.length;
+  await syncProjectSeoStatistics(user, { ...period, automatic: true });
+  expect(state.reads).toHaveLength(callsBeforeReactivation);
+
+  expect((await getSeoBrief(user)).followUps[0]?.latestClosedGoal?.count).toBe(
+    3,
+  );
+  state.accountRevision++;
+  sampled = true;
+  namedZone = null;
+  vi.setSystemTime(new Date("2026-01-20T15:00:00Z"));
+  await syncProjectSeoStatistics(user, period);
+  expect(
+    (await getSeoBrief(user)).followUps[0]?.latestClosedGoal,
+  ).toBeUndefined();
+  expect(
+    (await getSeoBrief(user)).followUps[0]?.goalInvestigation,
+  ).toBeUndefined();
+  state.reads.length = 0;
+  sampled = true;
+  state.observations.length = 0;
+  await syncProjectSeoStatistics(user, period);
+  expect(controls()).toHaveLength(2);
+  expect(
+    state.observations.some((row) => row.kind === "landing_outcomes"),
+  ).toBe(false);
+  expect(state.observations.some((row) => row.kind === "metrics")).toBe(true);
+  namedZone = "America/Chicago";
+  sampled = false;
+  await syncProjectSeoStatistics(user, period);
+  const mismatch = state.observations.find(
+    (row) => row.kind === "landing_outcomes",
+  )?.payload;
+  expect(mismatch).toMatchObject({
+    timeZone: namedZone,
+    rows: [{ event: "purchase", count: 3 }],
+  });
+  expect(mismatch).not.toHaveProperty("goalInvestigation");
+  expect(controls()).toHaveLength(2);
+  state.briefGoal = "contact sales";
+  await syncProjectSeoStatistics(user, period);
+  expect(controls()).toHaveLength(2);
+  state.briefGoal = "buy";
+  namedZone = "Europe/Oslo";
+  await syncProjectSeoStatistics(user, { ...period, from: "2025-12-31" });
+  expect(controls()).toHaveLength(2);
 });

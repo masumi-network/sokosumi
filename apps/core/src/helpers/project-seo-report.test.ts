@@ -812,3 +812,13 @@ describe("SERP reads of a focused result", () => {
     }
   });
 });
+
+it("rejects owner-only Bing evidence in a full page or a nested site result before importing decisions", () => {
+  const bing = { property: "owner.test", queries: [{ key: "private term" }] };
+  const page = { ...legacyReport(), bing };
+  for (const raw of [page, { ...siteStrategyReport(), pages: [page] }]) {
+    expect(() => parsePublicSeoArtifact(raw)).toThrow(
+      "Only public SEO evidence",
+    );
+  }
+});

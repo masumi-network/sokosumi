@@ -11,6 +11,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { SeoBriefOutcomes } from "./seo-brief-outcomes";
+import {
+  SeoActionOutcome,
+  SeoGoalInvestigation,
+} from "./seo-goal-investigation";
 import { SeoPageLink, seoSiteUrl } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -191,8 +195,10 @@ export function SeoBriefPagePriority({
 
 export function SeoBriefFollowUp({
   followUp,
+  strategyCompletedAt,
 }: {
   followUp: SeoAuditBrief["followUps"][number];
+  strategyCompletedAt?: Date;
 }) {
   const t = useTranslations("App.Seo.brief");
   const format = useFormatter();
@@ -220,6 +226,15 @@ export function SeoBriefFollowUp({
       )}
       {followUp.indexReview && followUp.indexReview !== "unknown" && (
         <p>{t(`indexReview.${followUp.indexReview}`)}</p>
+      )}
+      {followUp.goalInvestigation && (
+        <SeoGoalInvestigation control={followUp.goalInvestigation} />
+      )}
+      {strategyCompletedAt && (
+        <SeoActionOutcome
+          completedAt={strategyCompletedAt}
+          followUp={followUp}
+        />
       )}
       <SeoBriefOutcomes followUp={followUp} />
     </section>

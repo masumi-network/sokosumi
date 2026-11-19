@@ -1,4 +1,5 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE } from "@sokosumi/utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -97,6 +98,71 @@ afterEach(() => {
 });
 
 describe("SEO Traffic search type", () => {
+  it("shows a scoped Search Console investigation only for complete matched weeks from the personal workspace", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.sharing = "personal";
+    workspace.metrics = (["clicks", "impressions", "position"] as const).map(
+      (key) => ({
+        ...seoTestMetric(),
+        id: "verified-read:" + key,
+        coverage: "partial",
+        notes: [SEO_STATISTICS_SEARCH_CONSOLE_FINAL_DATA_NOTE],
+        key,
+        unit: key === "position" ? "position" : "count",
+        source: "search_console",
+        from: "2026-01-01",
+        to: "2026-01-14",
+        timeZone: "America/Los_Angeles",
+        observedAt: new Date("2026-01-18T12:00:00Z"),
+        propertyId: "sc-domain:example.com",
+        points: Array.from({ length: 14 }, (_, i) => ({
+          date: "2026-01-" + String(i + 1).padStart(2, "0"),
+          value:
+            key === "clicks"
+              ? i < 7
+                ? 10
+                : 6
+              : key === "impressions"
+                ? 100
+                : 5,
+        })),
+      }),
+    );
+    const headline = "Clicks fell while impressions held up";
+    const ui = renderTraffic(workspace);
+    expect(
+      await screen.findByRole("heading", { name: headline }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/1 selected page on sc-domain:example.com/),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/70 clicks, 700 impressions, average position 5/),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/42 clicks, 700 impressions, average position 5/),
+    ).toBeVisible();
+    ui.unmount();
+    workspace.sharing = "organization";
+    const shared = renderTraffic(workspace);
+    expect(
+      screen.queryByRole("heading", { name: headline }),
+    ).not.toBeInTheDocument();
+    shared.unmount();
+    workspace.sharing = "personal";
+    workspace.metrics[2].points[10].value = null;
+    const missing = renderTraffic(workspace);
+    expect(
+      screen.queryByRole("heading", { name: headline }),
+    ).not.toBeInTheDocument();
+    missing.unmount();
+    workspace.metrics[2].points[10].value = 5;
+    workspace.metrics[2].id = "different-read:position";
+    renderTraffic(workspace);
+    expect(
+      screen.queryByRole("heading", { name: headline }),
+    ).not.toBeInTheDocument();
+  });
   it("explains a shift in organic landing mix without reporting better engagement on individual pages", async () => {
     const workspace = seoTestWorkspace();
     workspace.landingEngagementChange = {

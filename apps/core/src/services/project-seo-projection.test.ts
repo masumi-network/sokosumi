@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { describe, expect, it } from "vitest";
-
+import { describe, expect, it, vi } from "vitest";
 import {
   type PublicSeoPayload,
   parsePublicSeoArtifact,
 } from "@/helpers/project-seo-report";
+import { normalizeGscStatistics } from "@/lib/seo/native-statistics";
 import {
   focusedReport,
   legacyReport,
@@ -1126,6 +1126,82 @@ describe("stored SEO workspace projections", () => {
     }
   });
 
+  it("populates the personal Traffic card from a real normalized 90-day Search Console read and rejects a failed retained period", async () => {
+    // Exercise the Web consumer across the two apps' runtime boundary. Neither app imports the other's source in its build.
+    const { seoSearchPeriodInsight } = await vi.importActual<{
+      seoSearchPeriodInsight: (...input: unknown[]) => unknown;
+    }>(
+      "../../../web/src/app/(app)/seo/components/seo-search-period-insight-model.ts",
+    );
+    const input = fixture();
+    input.sharing = "personal";
+    const observedAt = "2026-04-05T12:00:00Z";
+    const query = {
+      provider: "search_console" as const,
+      propertyId: "sc-domain:example.com",
+      pageUrls: [SEO_TEST_PAGE],
+      from: "2026-01-01",
+      to: "2026-03-31",
+      channel: "organic" as const,
+    };
+    const day = (i: number) =>
+      new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10);
+    const daily = {
+      rows: Array.from({ length: 90 }, (_, i) => {
+        const clicks = i < 83 ? 10 : 6;
+        return {
+          keys: [day(i)],
+          clicks,
+          impressions: 100,
+          ctr: clicks / 100,
+          position: 5,
+        };
+      }),
+    };
+    const aggregate = {
+      rows: [{ clicks: 872, impressions: 9000, ctr: 872 / 9000, position: 5 }],
+    };
+    const project = (
+      aggregateRead: typeof aggregate | null,
+      dailyRead = daily,
+    ) => {
+      const payload = normalizeGscStatistics(
+        query,
+        aggregateRead,
+        dailyRead,
+        observedAt,
+      );
+      expect(payload.coverage).toBe("partial");
+      input.observations = [
+        {
+          ...metricObservation(input, observedAt, 0),
+          source: "search_console",
+          payload,
+        },
+      ];
+      const workspace = projectSeoProjection(input);
+      const rows = workspace.metrics.map((row) => ({
+        ...row,
+        observedAt: new Date(row.observedAt),
+        selectedAt: row.selectedAt ? new Date(row.selectedAt) : undefined,
+      }));
+      return seoSearchPeriodInsight(workspace.sharing, rows, workspace.scope);
+    };
+    expect(project(aggregate)).toMatchObject({
+      property: query.propertyId,
+      previous: { from: "2026-03-18", to: "2026-03-24" },
+      current: { from: "2026-03-25", to: "2026-03-31" },
+      beforeClicks: 70,
+      afterClicks: 42,
+      beforeImpressions: 700,
+      afterImpressions: 700,
+    });
+    expect(project(null)).toBeNull();
+    expect(
+      project(aggregate, { rows: daily.rows.filter((_row, i) => i !== 86) }),
+    ).toBeNull();
+  });
+
   it("projects Search Console query rows and keeps one opportunity per Task across syncs", () => {
     const input = fixture();
     const older = searchObservation(input, "2026-11-02T12:00:00Z"),
@@ -2000,4 +2076,108 @@ it("distinguishes changing organic landing rates from a changing session mix onl
   input.privateMetricsAllowed = false;
   expect(change()).toBeUndefined();
   expect(projectSeoProjection(input).landingPages).toBeNull();
+});
+
+it("imports only bound public strategy decisions and links stable work to its Task across audits", () => {
+  const input = fixture();
+  const decision = {
+    id: "task-gap",
+    kind: "content_opportunity",
+    targetUrl: SEO_TEST_PAGE,
+    action: "Move the proven reset steps above the overview",
+    reason: "The introduction delays the first step.",
+    alternative: "Keep the overview if the readers need those prerequisites.",
+    nextCheck:
+      "Verify that the reset succeeds with the displayed instructions.",
+    evidence: ["The steps start below three introductory sections."],
+  };
+  const raw = {
+    ...legacyReport(),
+    strategyDecisions: [
+      decision,
+      { ...decision, id: "off-scope", targetUrl: SEO_TEST_PAGE + "?other=2" },
+      { ...decision, id: "secret", kind: "query_transfer" },
+    ],
+  };
+  const payload = parsePublicSeoArtifact(raw);
+  expect(payload.strategyDecisions).toEqual([decision]);
+  expect(() =>
+    parsePublicSeoArtifact({
+      ...raw,
+      privateStrategyDecisions: [{ ...decision, reason: "private terms" }],
+    }),
+  ).toThrow("Only public SEO evidence");
+  const earlier = observation(input, payload, "2026-10-10T12:00:00Z");
+  const site = parsePublicSeoArtifact({
+    ...siteStrategyReport(),
+    strategyDecisions: [
+      { ...decision, reason: "Updated cross-page observation." },
+    ],
+    pages: [{ ...raw, strategyDecisions: [decision] }],
+  });
+  const later = observation(input, site, "2026-10-17T12:00:00Z");
+  input.observations = [earlier];
+  const action = projectSeoProjection(input).actions.find(
+    (a) => a.title === decision.action,
+  )!;
+  expect(action).toMatchObject({
+    kind: "opportunity",
+    effort: "unknown",
+    evidence: decision.evidence,
+    decision: {
+      kind: decision.kind,
+      alternative: decision.alternative,
+      nextCheck: decision.nextCheck,
+    },
+  });
+  const taskId = randomUUID();
+  input.tasks = [{ id: taskId, status: "COMPLETED", completedAt: now }];
+  input.actionTasks = [
+    {
+      id: randomUUID(),
+      taskId,
+      actionId: action.id,
+      observationId: earlier.id,
+      createdAt: now,
+      projectId: input.project.id,
+      auditId: null,
+      idempotencyKey: randomUUID(),
+    },
+  ];
+  input.observations = [later, earlier];
+  expect(
+    projectSeoProjection(input).actions.filter((a) => a.id === action.id),
+  ).toMatchObject([
+    {
+      taskId,
+      status: "implemented",
+      observationId: earlier.id,
+      why: decision.reason,
+    },
+  ]);
+  input.tasks[0]!.status = "CANCELED";
+  expect(
+    projectSeoProjection(input).actions.find((a) => a.id === action.id)?.status,
+  ).toBe("canceled");
+  input.tasks[0]!.status = "FAILED";
+  expect(
+    projectSeoProjection(input).actions.find((a) => a.id === action.id)?.status,
+  ).toBe("failed");
+  input.tasks = [];
+  const hidden = projectSeoProjection(input);
+  expect(hidden.actions.find((a) => a.id === action.id)?.taskId).toBeNull();
+  expect(hidden.timeline.some((event) => event.taskId === taskId)).toBe(false);
+  input.actionTasks = [];
+  input.observations = [
+    observation(
+      input,
+      parsePublicSeoArtifact(legacyReport()),
+      "2026-10-25T12:00:00Z",
+    ),
+    later,
+    earlier,
+  ];
+  expect(projectSeoProjection(input).actions.filter((a) => a.decision)).toEqual(
+    [],
+  );
 });

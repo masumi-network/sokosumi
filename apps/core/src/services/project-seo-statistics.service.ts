@@ -15,15 +15,7 @@ import {
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import {
-  assertGa4LandingHost,
-  ga4LandingHostArguments,
-  ga4LandingOutcomeArguments,
-  ga4LandingPageArguments,
-  ga4LandingPlan,
-  normalizeGa4LandingOutcomes,
-  normalizeGa4LandingPages,
-} from "@/lib/seo/native-ga4-landing";
+import { ga4LandingPlan } from "@/lib/seo/native-ga4-landing";
 import {
   type GscBreakdownDimension,
   gscBreakdownArguments,
@@ -82,7 +74,6 @@ import {
   readIntegrationTool,
 } from "@/services/composio-integration-tools.service";
 import {
-  connectionVersion,
   recordSeoConnectionFailure,
   resolveSeoStatisticsIntegration,
   type SeoStatisticsIntegration,
@@ -97,11 +88,11 @@ import {
   collectStatisticsInspections,
   inspectionCacheKey,
 } from "./project-seo-statistics-inspections";
+import { requireSeoOwner, type SeoMutationHooks } from "./project-seo-store";
 import {
-  requireSeoOwner,
-  type SeoMutationHooks,
-  sha256,
-} from "./project-seo-store";
+  collectLandingPages,
+  landingOutcomeAccountKey,
+} from "./seo-statistics-landing";
 
 const MAX_PROPERTY_PAGES = 5;
 const PROPERTY_PAGE_SIZE = 100;
@@ -324,6 +315,9 @@ export async function syncProjectSeoStatistics(
     await recordNativeSeoMetrics(actor, snapshot, {
       ...mutationHooks,
       outcomes,
+      ...(input.provider === "ga4" && {
+        outcomeAccountKey: landingOutcomeAccountKey(integration),
+      }),
       scope: {
         id: input.scopeId ?? null,
         version: workspace.scope.version,
@@ -492,100 +486,6 @@ export async function syncProjectSeoStatistics(
       // Organic key events per landing page. Google Analytics only.
       const landingPlan =
         input.provider === "ga4" ? ga4LandingPlan(query) : null;
-      const collectLandingPages = async () => {
-        if (!landingPlan?.query.pageUrls.length) return null;
-        const verifiedLanding = async ({
-          from,
-          to,
-        }: {
-          from: string;
-          to: string;
-        }) => {
-          const selected = { ...landingPlan.query, from, to };
-          const hosts = unwrapNativeStatistics(
-            await read(integration, tool, ga4LandingHostArguments(selected)),
-            ["metricHeaders"],
-          );
-          assertGa4LandingHost(query, hosts);
-          const raw = unwrapNativeStatistics(
-            await read(integration, tool, ga4LandingPageArguments(selected)),
-            ["metricHeaders"],
-          );
-          return {
-            ...normalizeGa4LandingPages(selected, raw, landingPlan.skippedUrls),
-            verifiedHost: new URL(query.pageUrls[0]!).hostname,
-          };
-        };
-        const landingPages = await verifiedLanding(query);
-        const priorWindow = previousSeoPeriod(query.from, query.to);
-        // The prior aggregate uses pageLocation. Compare reading depth only with a separate, exact landing read.
-        // At most one host inventory and one landing read. Their failure preserves the current observation.
-        const canCompare =
-          landingPages.channel === "organic" &&
-          landingPages.timeZone &&
-          !landingPlan.skippedUrls.length &&
-          landingPages.rows.length === query.pageUrls.length &&
-          landingPages.rows.every(
-            (row) => Number.isSafeInteger(row.sessions) && row.sessions > 0,
-          );
-        const previousLanding = canCompare
-          ? await verifiedLanding(priorWindow).catch(() => undefined)
-          : undefined;
-        const evidence = landingPages.timeZone
-          ? {
-              landingEngagementEvidence: {
-                connectionVersion: connectionVersion(integration),
-                ...(previousLanding?.timeZone
-                  ? {
-                      previous: {
-                        ...priorWindow,
-                        landingPages: previousLanding,
-                      },
-                    }
-                  : canCompare
-                    ? { previousUnavailable: true as const }
-                    : {}),
-              },
-            }
-          : {};
-        // A property without these events (or a failed event read) still has measured sessions and generic key events.
-        if (actor.sokoBotId || landingPages.channel !== "organic")
-          return { landingPages, ...evidence, outcomes: undefined };
-        const named = await read(
-          integration,
-          tool,
-          ga4LandingOutcomeArguments(landingPlan.query),
-        )
-          .then((raw) =>
-            normalizeGa4LandingOutcomes(
-              landingPlan.query,
-              unwrapNativeStatistics(raw, ["metricHeaders"]),
-            ),
-          )
-          .catch(() => null);
-        if (!named?.rows.length)
-          return { landingPages, ...evidence, outcomes: undefined };
-        return {
-          landingPages,
-          ...evidence,
-          outcomes: {
-            version: 1 as const,
-            channel: "organic" as const,
-            accountKey: sha256(
-              JSON.stringify([
-                integration.entityId,
-                integration.composioAccountId,
-                integration.connectionRevision,
-              ]),
-            ),
-            propertyId: query.propertyId,
-            verifiedHost: landingPages.verifiedHost,
-            from: query.from,
-            to: query.to,
-            ...named,
-          },
-        };
-      };
       const tracked = readsQueries
         ? selectTrackedKeywords(workspace.keywords)
         : { groups: [], leftOut: [] };
@@ -635,7 +535,14 @@ export async function syncProjectSeoStatistics(
         collectBreakdown("country"),
         collectBreakdown("device"),
         input.provider === "search_console" ? collectIndexedPages() : null,
-        collectLandingPages(),
+        collectLandingPages(
+          query,
+          landingPlan,
+          actor,
+          workspace.pages,
+          integration,
+          (args) => read(integration, tool, args),
+        ),
       ]);
       if (period.status === "rejected" && daily.status === "rejected") {
         await recordSeoConnectionFailure(actor, input.provider, integration);

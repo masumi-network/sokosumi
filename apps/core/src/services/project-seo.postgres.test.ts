@@ -2049,6 +2049,18 @@ describe.skipIf(!enabled)(
         const report = legacyReport();
         const body = JSON.stringify({
           ...report,
+          strategyDecisions: [
+            {
+              id: "local-gap",
+              kind: "content_opportunity",
+              targetUrl: report.request.url,
+              action: "Check the missing setup step",
+              reason: "Three audited result pages describe setup.",
+              alternative: "Link the existing getting started guide.",
+              nextCheck: "Review the rendered steps after publishing.",
+              evidence: ["public-heading-record"],
+            },
+          ],
           actions: report.actions.map((action) => ({ ...action, edit })),
         });
         const file = await prisma.taskFile.create({
@@ -2094,6 +2106,37 @@ describe.skipIf(!enabled)(
         ownerId: userId,
       });
       expect(createdTask.description).toContain(JSON.stringify(edit, null, 2));
+      const workspace = await getProjectSeoWorkspace(actor, {});
+      const decision = workspace.actions.find((a) => a.decision)!;
+      const strategyTask = await createProjectSeoActionTask(actor, {
+        observationId: decision.observationId,
+        actionId: decision.id,
+        idempotencyKey: "strategy-accept",
+      });
+      const strategyRow = await prisma.task.findUniqueOrThrow({
+        where: { id: strategyTask.taskId },
+      });
+      for (const text of [
+        decision.why,
+        decision.decision!.nextCheck,
+        decision.decision!.alternative,
+        ...decision.evidence,
+      ])
+        expect(strategyRow.description).toContain(text);
+      await prisma.task.update({
+        where: { id: strategyTask.taskId },
+        data: { visibility: "PRIVATE", ownerId: otherId },
+      });
+      expect(
+        JSON.stringify(await getProjectSeoWorkspace(actor, {})),
+      ).not.toContain(strategyTask.taskId);
+      await expect(
+        createProjectSeoActionTask(actor, {
+          observationId: decision.observationId,
+          actionId: decision.id,
+          idempotencyKey: "strategy-accept",
+        }),
+      ).rejects.toMatchObject({ status: 404 });
       const changed = await source();
       await expect(
         importProjectSeoAudit(actor, changed, {

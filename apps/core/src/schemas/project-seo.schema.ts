@@ -7,6 +7,7 @@ import {
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
+import { seoActionSchema } from "./project-seo-action.schema";
 import {
   seoMonitorChangeSchema,
   seoMonitorLastRunSchema,
@@ -398,35 +399,6 @@ export const seoCompetitorSchema = z
     exclusionReason: z.string().nullable(),
   })
   .openapi("ProjectSeoCompetitor");
-export const seoActionSchema = z
-  .object({
-    id: z.string(),
-    observationId: seoIdSchema,
-    pageUrl: seoUrlSchema,
-    findingIds: z.array(z.string()),
-    title: z.string(),
-    why: z.string(),
-    effort: z.enum(["low", "medium", "high"]),
-    expectedEffect: z.string(),
-    edit: z.union([
-      z.object({
-        target: z.string(),
-        before: z.string().nullable(),
-        after: z.string(),
-      }),
-      z.null(),
-    ]),
-    taskId: z.string().nullable(),
-    status: z.enum(["recommended", "task_created", "implemented", "verified"]),
-    /** When the linked Task last completed. Set on an implemented or verified action. */
-    completedAt: dateTimeSchema.optional(),
-    /** When the last check that shows every finding of the fix gone ran; it can come before completedAt. Set on a verified fix. */
-    verifiedAt: dateTimeSchema.optional(),
-    /** A fix comes from a confirmed check. An opportunity is a named heuristic over measured search data. */
-    kind: z.enum(["fix", "opportunity"]),
-    evidence: z.array(z.string()),
-  })
-  .openapi("ProjectSeoAction");
 /** The same read over the equal-length window just before the period. Absent when it failed or on older observations. */
 export const seoPreviousPeriodSchema = z
   .object({

@@ -5,6 +5,7 @@ import type { Prisma } from "@sokosumi/database";
 import { lockCalendarScope } from "@/helpers/calendar-locks";
 import { badRequest, notFound } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import type { SeoActor, SeoWorkspaceQuery } from "@/schemas/project-seo.schema";
 import { requireScopedProject } from "@/services/project-social-connections.service";
@@ -183,6 +184,18 @@ export async function canReadPrivateSeoMetrics(
     },
     select: { id: true },
   }));
+}
+/** Use the same human-private or public-only scope for a stored Task link as for its Task. */
+export function seoLinkedTaskWhere(
+  actor: SeoActor,
+  ownerPrivateAccess: boolean,
+): Prisma.TaskWhereInput {
+  return {
+    workspaceId: actor.workspaceId,
+    ...(ownerPrivateAccess
+      ? buildHumanTaskVisibilityWhere(actor.userId)
+      : { visibility: "PUBLIC" as const }),
+  };
 }
 export interface SeoMutationHooks {
   authorize?: (tx: Prisma.TransactionClient) => Promise<void>;

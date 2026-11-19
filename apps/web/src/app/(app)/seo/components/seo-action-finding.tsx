@@ -25,6 +25,7 @@ export function useSeoActionFinding(
 ): string {
   const t = useTranslations("App.Seo");
   const problem = seoOverviewModel(model.data).actionProblem(action);
+  if (action.decision) return action.why;
   return problem
     ? t("actions.problem", {
         check: t.markup("overview.failedCheck", {
