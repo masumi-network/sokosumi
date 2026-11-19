@@ -158,10 +158,18 @@ describe("mutateSeo monitor commands", () => {
   it("sends a valid monitor command to Core", async () => {
     runNowMock.mockResolvedValue({});
 
-    const result = await mutate({
-      kind: "monitor_run_now",
-      monitorId: MONITOR_ID,
-      expectedRevision: 3,
+    const result = await mutateSeo({
+      owner: OWNER,
+      command: {
+        kind: "monitor_run_now",
+        monitorId: MONITOR_ID,
+        expectedRevision: 3,
+      },
+      briefViewer: {
+        userId: "reader",
+        organizationId: "team",
+        sessionId: CURRENT_SESSION_ID,
+      },
     });
 
     expect(result).toEqual({ ok: true, value: null });
@@ -251,3 +259,85 @@ it.each([
     expect(requestAnalysisMock).not.toHaveBeenCalled();
   },
 );
+
+it.each(["request_analysis", "create_monitor"] as const)(
+  "rejects a limited %s confirmation from a replaced session",
+  async (kind) => {
+    const analysis = { kind: "audit_full", allowLimitedAudit: true };
+    const body = kind === "create_monitor" ? { analysis } : analysis;
+    const result = await mutateSeo({
+      owner: OWNER,
+      command: { kind, body } as SeoCommand,
+      briefViewer: {
+        userId: "reader",
+        organizationId: "team",
+        sessionId: "previous",
+      },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { status: 409, kind: "seo_viewer_changed" },
+    });
+    expect(requestAnalysisMock).not.toHaveBeenCalled();
+  },
+);
+
+it("returns only the safe refusal kind when Search Console access fails during launch", async () => {
+  requestAnalysisMock.mockRejectedValueOnce(
+    new CoreApiRequestError("private Google access details", {
+      status: 409,
+      kind: "seo_gsc_unavailable",
+    }),
+  );
+  const result = await mutateSeo({
+    owner: OWNER,
+    command: {
+      kind: "request_analysis",
+      body: { kind: "audit_full" },
+    } as SeoCommand,
+    briefViewer: {
+      userId: "reader",
+      organizationId: "team",
+      sessionId: CURRENT_SESSION_ID,
+    },
+  });
+  expect(result).toMatchObject({
+    ok: false,
+    error: { status: 409, kind: "seo_gsc_unavailable" },
+  });
+  expect(result).not.toHaveProperty("error.message");
+});
+
+it("binds a per-run coverage decision to the viewer's session and forwards only that Run's approval", async () => {
+  const command = {
+    kind: "monitor_run_now",
+    monitorId: MONITOR_ID,
+    expectedRevision: 3,
+    allowLimitedAudit: true,
+  } as const;
+  const viewer = {
+    userId: "reader",
+    organizationId: "team",
+    sessionId: CURRENT_SESSION_ID,
+  };
+  const stale = await mutateSeo({
+    owner: OWNER,
+    command,
+    briefViewer: { ...viewer, sessionId: "previous" },
+  });
+  expect(stale).toMatchObject({
+    ok: false,
+    error: { kind: "seo_viewer_changed" },
+  });
+  expect(runNowMock).not.toHaveBeenCalled();
+  const result = await mutateSeo({
+    owner: OWNER,
+    command,
+    briefViewer: viewer,
+  });
+  expect(result.ok).toBe(true);
+  expect(runNowMock).toHaveBeenCalledWith(MONITOR_ID, {
+    expectedRevision: 3,
+    allowLimitedAudit: true,
+  });
+});

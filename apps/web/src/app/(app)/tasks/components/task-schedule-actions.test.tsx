@@ -194,6 +194,49 @@ describe("TaskScheduleActions", () => {
     },
   );
 
+  it.each([
+    { auditId: "saved-audit", projectId: null, query: "auditId=saved-audit" },
+    {
+      projectId: "saved-project",
+      query: "projectId=saved-project&view=project",
+    },
+  ])(
+    "opens the specific monitor in SEO after an uncharged Run now refusal ($query)",
+    async ({ auditId, projectId, query }) => {
+      const user = userEvent.setup();
+      runTaskScheduleNowMock.mockResolvedValueOnce({
+        ok: false,
+        error: { kind: "failed", coverage: "property" },
+      });
+      render(
+        <TaskScheduleActions
+          schedule={{
+            ...schedule("ACTIVE"),
+            projectId,
+            seoMonitor: { kind: "audit_full", pageCount: 1, auditId },
+          }}
+          coworkerOptions={[]}
+          projectOptions={[]}
+          canCreatePrivate={false}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "runNow" }));
+      await waitFor(() =>
+        expect(toastMock.error).toHaveBeenCalledWith(
+          "property",
+          expect.objectContaining({
+            action: { label: "reviewMonitor", onClick: expect.any(Function) },
+          }),
+        ),
+      );
+      toastMock.error.mock.calls[0][1].action.onClick();
+      expect(pushMock).toHaveBeenCalledWith(
+        `/seo?${query}&tab=agent#seo-monitor-${SCHEDULE_ID}`,
+      );
+      expect(runTaskScheduleNowMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("hides manual runs, plan edits and copies for a bounded SEO monitor, keeping state controls", async () => {
     const user = userEvent.setup();
     render(

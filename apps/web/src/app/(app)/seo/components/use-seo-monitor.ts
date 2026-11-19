@@ -5,6 +5,10 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { ScheduleWhen } from "@/lib/schedules/schedule-when";
 import {
+  type SearchConsoleWarning,
+  seoSearchConsoleWarning,
+} from "@/lib/seo/search-console-warning";
+import {
   seoMonitorRuleBelowReleased,
   seoMonitorRuleOf,
   seoMonitorTooOften,
@@ -21,6 +25,7 @@ export function useSeoMonitor(
 ) {
   const t = useTranslations("App.Seo.monitor");
   const [when, setWhen] = useState<ScheduleWhen | null>(null);
+  const [warning, setWarning] = useState<SearchConsoleWarning>();
   const rule = when ? seoMonitorRuleOf(when) : null;
   const belowReleased = rule
     ? seoMonitorRuleBelowReleased(rule, monitor.releasedCount)
@@ -55,14 +60,32 @@ export function useSeoMonitor(
         { kind: "monitor_state", monitorId: monitor.id, action },
         t(`done.${action}`),
       ),
-    runNow: () =>
-      model.execute(
+    warning,
+    cancelRun: () => setWarning(undefined),
+    runNow: async (
+      decision?:
+        | { allowLimitedAudit: true }
+        | { searchConsolePropertyId: string },
+    ) => {
+      if (model.pending || (decision && !warning)) return;
+      let coverageRefused = false;
+      await model.execute(
         {
           kind: "monitor_run_now",
           monitorId: monitor.id,
           expectedRevision: monitor.revision,
+          ...decision,
         },
         t("done.runNow"),
-      ),
+        (kind) => {
+          const reason = seoSearchConsoleWarning(kind);
+          if (!reason || monitor.kind !== "audit_full") return false;
+          coverageRefused = true;
+          setWarning(reason);
+          return true;
+        },
+      );
+      if (!coverageRefused) setWarning(undefined);
+    },
   };
 }

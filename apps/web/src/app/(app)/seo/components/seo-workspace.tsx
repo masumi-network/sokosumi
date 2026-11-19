@@ -574,7 +574,7 @@ export function SeoWorkspace({
           {editDialog ? <SeoEditDialog key={dialogKey} model={model} /> : null}
           {model.dialog === "analysis" || model.dialog === "monitor" ? (
             <SeoAnalysisDialog
-              key={dialogKey}
+              key={`${dialogKey}:${model.setupScopeKey}`}
               model={model}
               monitor={model.dialog === "monitor"}
             />

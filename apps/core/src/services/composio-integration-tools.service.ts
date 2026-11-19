@@ -336,7 +336,7 @@ async function executeViaRest(
  * were never recorded. Keys drop time-window arguments so a recording made
  * today still matches tomorrow's request.
  */
-function fixtureMode(): "record" | "replay" | null {
+export function integrationFixtureMode(): "record" | "replay" | null {
   const mode = process.env.SOKO_BOT_INTEGRATION_FIXTURES;
   return mode === "record" || mode === "replay" ? mode : null;
 }
@@ -378,7 +378,7 @@ export async function executeIntegrationTool(
   slug: string,
   args: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  const mode = fixtureMode();
+  const mode = integrationFixtureMode();
   const key = fixtureKey(slug, args);
   const file = path.join(fixtureDir(), `${key}.json`);
   if (mode === "replay") {

@@ -98,34 +98,63 @@ const storedSeoPriceSchema = z.object({
   limits: z.object({ usd: z.number().nonnegative() }).optional(),
 });
 
+export function readSeoTaskStartAnalysis(
+  tx: Prisma.TransactionClient,
+  taskId: string,
+) {
+  return tx.projectSeoAnalysis.findUnique({
+    where: { taskId },
+    select: {
+      kind: true,
+      request: true,
+      requestedBy: true,
+      projectId: true,
+      auditId: true,
+      pageIds: true,
+      requestHash: true,
+    },
+  });
+}
+
 /** A successful RUNNING response authorizes provider work, so fail before any event is committed. */
 export async function requireSeoTaskStartBalance(
   tx: Prisma.TransactionClient,
   task: Pick<
     Task,
     | "id"
+    | "workspaceId"
     | "ownerId"
     | "organizationId"
     | "projectId"
     | "assigneeId"
     | "description"
   >,
+  found?: Awaited<ReturnType<typeof readSeoTaskStartAnalysis>>,
 ): Promise<void> {
-  const analysis = await tx.projectSeoAnalysis.findUnique({
-    where: { taskId: task.id },
-    select: { kind: true, request: true },
-  });
+  const analysis =
+    found === undefined ? await readSeoTaskStartAnalysis(tx, task.id) : found;
   if (!analysis) {
     const { executor } = getSeoAnalysisExecution();
-    if (
-      executor &&
-      "mode" in executor &&
-      executor.coworkerId === task.assigneeId
-    )
-      throw unprocessableEntity(
-        "Start this check from an SEO audit so its scope and price can be approved",
-      );
-    return;
+    if (!executor || executor.coworkerId !== task.assigneeId) return;
+    if (!("mode" in executor)) {
+      if (
+        !executor.canUsePaidSearchData ||
+        executor.workspaceId !== task.workspaceId ||
+        executor.ownerId !== task.ownerId ||
+        executor.organizationId !== task.organizationId
+      )
+        return;
+      // The worker reads a seo_job line as a focused check or rejects it. Plain Tasks can start full audits.
+      if (
+        task.description
+          ?.split(/\r?\n/)
+          .some((line) => /^\s*seo_job\s*:/i.test(line))
+      )
+        return;
+    }
+    throw unprocessableEntity(
+      "Start this check from an SEO audit so its scope and price can be approved",
+    );
   }
   const marker = analysis.kind === "audit_full" ? "seo_audit:" : "seo_job:";
   let currentPacket: unknown;

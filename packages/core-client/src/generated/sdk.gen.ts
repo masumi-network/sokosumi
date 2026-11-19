@@ -7905,7 +7905,7 @@ export const getTasksSchedulesByIdRuns = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Run now: create one extra Run of an Active or Paused Task Schedule, which creates its Task at once. The rule and its planned Runs stay as they are, and the Run does not count toward an end-after-N rule. Revision-checked.
+ * Run now: create one extra Run of an Active or Paused Task Schedule, which creates its Task at once. The rule and its planned Runs stay as they are, and the Run does not count toward an end-after-N rule. Revision-checked. Full SEO audits verify Search Console before release. An owner can select a property or explicitly approve a limited audit for this Run.
  */
 export const postTasksSchedulesByIdRuns = <ThrowOnError extends boolean = false>(options: Options<PostTasksSchedulesByIdRunsData, ThrowOnError>): RequestResult<PostTasksSchedulesByIdRunsResponses, PostTasksSchedulesByIdRunsErrors, ThrowOnError> => (options.client ?? client).post<PostTasksSchedulesByIdRunsResponses, PostTasksSchedulesByIdRunsErrors, ThrowOnError>({
     responseTransformer: postTasksSchedulesByIdRunsResponseTransformer,

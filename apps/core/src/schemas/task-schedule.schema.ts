@@ -249,6 +249,10 @@ export const taskScheduleSchema = z
           .object({
             kind: seoAnalysisKindSchema,
             pageCount: z.number().int().nonnegative(),
+            auditId: z.uuid().optional().openapi({
+              description:
+                "The saved audit the monitor owner can open to review a full audit Run.",
+            }),
           })
           .openapi("TaskScheduleSeoMonitor"),
         z.null(),
@@ -376,7 +380,15 @@ export const updateTaskScheduleRunRequestSchema = z
   .openapi("UpdateTaskScheduleRunRequest");
 
 export const createTaskScheduleRunRequestSchema = z
-  .object(runChangePrecondition)
+  .object({
+    ...runChangePrecondition,
+    searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
+    allowLimitedAudit: z.literal(true).optional(),
+  })
+  .refine(
+    (input) => !(input.searchConsolePropertyId && input.allowLimitedAudit),
+    "Choose a property or approve a limited audit for this Run",
+  )
   .openapi("CreateTaskScheduleRunRequest");
 
 export const taskScheduleRunUpdateSchema = z

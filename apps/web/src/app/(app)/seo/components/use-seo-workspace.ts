@@ -24,14 +24,16 @@ import {
   shouldRetrySeoLoad,
 } from "@/app/seo/seo-load-error-model";
 import { type SeoTab, seoTab } from "@/app/seo/seo-query";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { mutateSeo } from "@/lib/actions/seo/action";
-import type { SeoCommand } from "@/lib/actions/seo/types";
+import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
 import { useSession } from "@/lib/auth/auth.client";
 import {
   seoOwnerApiPath,
   seoViewerHeaders,
   seoWorkspaceOwner,
 } from "@/lib/seo/owner";
+import { seoSearchConsoleWarning } from "@/lib/seo/search-console-warning";
 import { canSetBriefPage, type SeoSetupGoalChoice } from "./seo-brief-model";
 import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
@@ -343,17 +345,80 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     }
     return value;
   }
-  async function execute(command: SeoCommand, success = t("saved")) {
-    if (pendingRef.current) return false;
+  const sessionKey = JSON.stringify([setupIdentity, session?.session.id]);
+  const activeSessionKey = useRef<string | null>(sessionKey);
+  const unconfirmed = useRef<{
+    toastId: string;
+    key: string;
+    command: SeoCommand;
+    success: string;
+  } | null>(null);
+  useEffect(() => {
+    activeSessionKey.current = sessionKey;
+    return () => {
+      activeSessionKey.current = null;
+      if (unconfirmed.current) toast.dismiss?.(unconfirmed.current.toastId);
+      unconfirmed.current = null;
+    };
+  }, [sessionKey]);
+  async function execute(
+    command: SeoCommand,
+    success = t("saved"),
+    handleRefusal?: (kind: string | undefined) => boolean,
+  ) {
+    if (pendingRef.current || activeSessionKey.current !== sessionKey)
+      return false;
+    const key = seoLaunchKey(command);
+    const previous = unconfirmed.current;
+    function offerReplay(attempt: NonNullable<typeof unconfirmed.current>) {
+      toast.error(t("analysis.unconfirmed"), {
+        id: attempt.toastId,
+        closeButton: true,
+        duration: Infinity,
+        action: {
+          label: t("analysis.retryPrevious"),
+          onClick: () => {
+            // The toast can outlive the form. Its refusal must never offer consent on another form.
+            if (unconfirmed.current === attempt)
+              void execute(attempt.command, attempt.success);
+          },
+        },
+      });
+    }
+    if (key && previous) {
+      if (previous.key !== key) {
+        offerReplay(previous);
+        return false;
+      }
+      command = previous.command;
+      success = previous.success;
+    }
+    const checkedLaunch =
+      command.kind === "monitor_run_now" ||
+      (command.kind === "request_analysis" &&
+        command.body.kind === "audit_full") ||
+      (command.kind === "create_monitor" &&
+        command.body.analysis.kind === "audit_full");
+    function rememberLaunch() {
+      if (!key || !checkedLaunch) return false;
+      const attempt = {
+        toastId: previous?.toastId ?? crypto.randomUUID(),
+        key,
+        command,
+        success,
+      };
+      unconfirmed.current = attempt;
+      offerReplay(attempt);
+      return true;
+    }
+    let received = false;
     pendingRef.current = true;
     setPending(true);
     try {
       const response = await mutateSeo({
         owner,
         command,
-        ...(command.kind === "request_analysis" &&
-        (command.body.sharedBrief || command.body.setupGoal) &&
-        session?.user.id
+        ...(seoReviewIdentity(command) && session?.user.id
           ? {
               briefViewer: {
                 userId: session.user.id,
@@ -363,7 +428,27 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
             }
           : {}),
       });
+      received = true;
+      if (activeSessionKey.current !== sessionKey) return false;
+      if (
+        !response.ok &&
+        ((response.error.status ?? 0) >= 500 ||
+          (!response.error.status &&
+            response.error.code === CommonErrorCode.INTERNAL_SERVER_ERROR)) &&
+        rememberLaunch()
+      )
+        return false;
+      if (key && unconfirmed.current?.key === key) {
+        toast.dismiss?.(unconfirmed.current.toastId);
+        unconfirmed.current = null;
+      }
       if (!response.ok) {
+        if (handleRefusal?.(response.error.kind)) return false;
+        const reason = seoSearchConsoleWarning(response.error.kind);
+        if (reason) {
+          toast.error(t(`analysis.coverage.${reason}`));
+          return false;
+        }
         toast.error(
           response.error.kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE
             ? t("notEnoughCredits")
@@ -407,6 +492,8 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       await refetchForViewer();
       return true;
     } catch {
+      if (activeSessionKey.current !== sessionKey) return false;
+      if (!received && rememberLaunch()) return false;
       toast.error(t("saveFailed"));
       return false;
     } finally {
@@ -613,4 +700,13 @@ export type SeoWorkspaceModel = ReturnType<typeof useSeoWorkspace>;
 /** One action of one check; action ids repeat across checks. */
 export function seoActionKey(action: { observationId: string; id: string }) {
   return `${action.observationId}:${action.id}`;
+}
+
+/** A manual Run uses the frozen schedule revision. Other launches use their Core idempotency key. */
+function seoLaunchKey(command: SeoCommand) {
+  if (command.kind === "request_analysis") return command.body.idempotencyKey;
+  if (command.kind === "create_monitor") return command.body.operationId;
+  if (command.kind === "monitor_run_now")
+    return `run:${command.monitorId}:${command.expectedRevision}`;
+  return null;
 }

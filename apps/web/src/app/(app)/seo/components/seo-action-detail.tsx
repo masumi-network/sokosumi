@@ -11,9 +11,9 @@ import { SeoBriefFollowUp, SeoBriefPagePriority } from "./seo-brief-summary";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
   SEO_SEVERITY_MARK_CLASS,
+  SeoMetaLine,
   SeoPageLink,
   SeoSource,
-  SeoState,
   seoPageLabel,
   seoSiteUrl,
 } from "./seo-shared";
@@ -52,67 +52,118 @@ export function SeoActionDetail({
   const followUp = model.brief?.data?.followUps?.find(
     (item) => item.pageId === page?.id,
   );
+  const hasSource = model.data.observations.some(
+    (item) => item.id === action.observationId && item.sourceTaskId,
+  );
+  const tint = TINT[severity ?? "none"];
+  const effort = `${t("actions.effort")}: ${t(`priority.${action.effort}`)}`;
   return (
     <>
       {/* The top padding keeps the close button clear of the title. */}
-      <div className="space-y-3 border-b px-6 pt-6 pb-4">
-        <div className="flex flex-wrap items-center gap-2 pe-8 text-xs">
+      <div className="space-y-2 border-b px-6 pt-6 pb-4">
+        <div className="flex flex-wrap items-center gap-1.5 pe-8">
           {severity ? (
-            <span
+            <Chip
               title={t(`severityHint.${severity}`)}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium whitespace-nowrap",
-                TINT[severity].fill,
-              )}
+              className={tint.fill}
+              mark={SEO_SEVERITY_MARK_CLASS[severity]}
             >
-              <span
-                aria-hidden
-                className={cn(
-                  "size-1.5 rounded-full",
-                  SEO_SEVERITY_MARK_CLASS[severity],
-                )}
-              />
               {t(`severity.${severity}`)}
-            </span>
+            </Chip>
           ) : (
-            <SeoState>{t(`actions.kind.${action.kind}`)}</SeoState>
+            <Chip className="text-muted-foreground border">
+              {t(`actions.kind.${action.kind}`)}
+            </Chip>
           )}
           {action.status !== "recommended" ? (
-            <SeoState>{t(`actions.${action.status}`)}</SeoState>
+            <Chip className="text-muted-foreground border">
+              {t(`actions.${action.status}`)}
+            </Chip>
           ) : null}
-          <span className="bg-muted text-muted-foreground rounded-full px-2.5 py-1 whitespace-nowrap">
-            {t("actions.effort")}: {t(`priority.${action.effort}`)}
-          </span>
+          <Chip className="bg-muted text-muted-foreground" title={effort}>
+            {effort}
+          </Chip>
         </div>
         <DialogTitle className="text-lg leading-snug font-semibold break-words">
           {action.title}
         </DialogTitle>
-        <SeoPageLink
-          url={action.pageUrl}
-          site={seoSiteUrl(model.data)}
-          label={seoPageLabel(model.data, action.pageUrl)}
+        {/* Where the action applies and where it comes from: one quiet line under the title. */}
+        <SeoMetaLine
+          className="text-xs"
+          items={[
+            [
+              "page",
+              <SeoPageLink
+                key="page"
+                quiet
+                url={action.pageUrl}
+                site={seoSiteUrl(model.data)}
+                label={seoPageLabel(model.data, action.pageUrl)}
+              />,
+            ],
+            [
+              "source",
+              // Without a result to open, the part leaves the line: no dot before nothing.
+              hasSource ? (
+                // With its words as children the hit area grows only down, so it never covers the page link on the
+                // line above when the line wraps.
+                <SeoSource
+                  key="source"
+                  named
+                  observationId={action.observationId}
+                  workspace={model.data}
+                >
+                  {t("timeline.viewResults")}
+                </SeoSource>
+              ) : null,
+            ],
+          ]}
         />
       </div>
       {/* The body gives up its room first, down to a floor: on a very short screen the whole dialog scrolls, so
           the buttons at the foot stay in reach. */}
-      <div className="min-h-32 space-y-5 overflow-y-auto px-6 py-5 text-sm">
+      <div className="min-h-32 space-y-6 overflow-y-auto px-6 py-5 text-sm">
         <p
           className={cn(
             "rounded-md border-s-4 px-4 py-3 whitespace-pre-wrap break-words",
-            TINT[severity ?? "none"].fill,
-            TINT[severity ?? "none"].edge,
+            tint.fill,
+            tint.edge,
           )}
         >
           {finding}
           {problem?.footnote ? ` ${problem.footnote}` : null}
         </p>
+        {/* The change comes first after the finding: it is what the owner acts on. Before and after stack, so a
+            long title reads on whole lines and the two boxes start at the same edge. */}
+        {action.edit ? (
+          <DetailPart title={t("actions.change")}>
+            <div className="space-y-3">
+              <ChangeBox label={t("actions.before")}>
+                <pre className="bg-muted text-muted-foreground rounded-md p-3 text-xs whitespace-pre-wrap break-words">
+                  {action.edit.before ?? t("actions.noBefore")}
+                </pre>
+              </ChangeBox>
+              <ChangeBox
+                label={t("actions.after")}
+                copy={
+                  <SeoCopyButton
+                    text={action.edit.after}
+                    label={t("actions.copyFix")}
+                    className="h-7"
+                  />
+                }
+              >
+                <pre className="bg-chart-3-quinary border-chart-3 rounded-md border p-3 text-xs whitespace-pre-wrap break-words">
+                  {action.edit.after}
+                </pre>
+              </ChangeBox>
+            </div>
+          </DetailPart>
+        ) : null}
+        {/* The impact chip already names the kind of rule; the part keeps to the reason of this action. A
+            suggestion says what it is not: no error, and no promise of traffic. */}
         <DetailPart title={t("actions.why")}>
-          {severity ? (
-            <p className="text-muted-foreground">
-              {t(`severityHint.${severity}`)}
-            </p>
-          ) : action.kind === "opportunity" ? (
-            // A suggestion says what it is not: no error, and no promise of traffic.
+          {action.kind === "opportunity" && !severity ? (
             <p className="text-muted-foreground">
               {t("actions.opportunitiesHelp")}
             </p>
@@ -126,8 +177,6 @@ export function SeoActionDetail({
             </p>
           </DetailPart>
         ) : null}
-        {page && <SeoBriefPagePriority model={model} pageId={page.id} />}
-        {followUp ? <SeoBriefFollowUp followUp={followUp} /> : null}
         {action.evidence.length ? (
           <DetailPart title={t("actions.evidence")}>
             <ul className="divide-y rounded-md border">
@@ -142,46 +191,73 @@ export function SeoActionDetail({
             </ul>
           </DetailPart>
         ) : null}
-        {action.edit ? (
-          <DetailPart title={t("actions.change")}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">
-                  {t("actions.before")}
-                </p>
-                <pre className="bg-muted text-muted-foreground overflow-x-auto rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                  {action.edit.before ?? t("actions.noBefore")}
-                </pre>
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium">{t("actions.after")}</p>
-                  <SeoCopyButton
-                    text={action.edit.after}
-                    label={t("actions.copyFix")}
-                    className="-my-1 h-7"
-                  />
-                </div>
-                <pre className="bg-chart-3-quinary border-chart-3 overflow-x-auto rounded-md border p-3 text-xs whitespace-pre-wrap break-words">
-                  {action.edit.after}
-                </pre>
-              </div>
-            </div>
-          </DetailPart>
-        ) : null}
-        <SeoSource
-          observationId={action.observationId}
-          workspace={model.data}
-        />
+        {page && <SeoBriefPagePriority model={model} pageId={page.id} />}
+        {followUp ? <SeoBriefFollowUp followUp={followUp} /> : null}
       </div>
-      <div className="bg-senary flex flex-wrap justify-end gap-2 border-t px-6 py-4">
+      {/* On a phone the buttons fill the width, the main one on top; from sm they sit at the end of one line, the
+          main one last. The order in the DOM is the order on a phone, so the focus order matches what shows. */}
+      <div className="bg-senary flex flex-col gap-2 border-t px-6 py-4 sm:flex-row-reverse sm:justify-start">
+        <SeoActionTaskButton action={action} model={model} />
         <SeoCopyButton
           text={instructions}
           label={t("actions.copyInstructions")}
         />
-        <SeoActionTaskButton action={action} model={model} />
       </div>
     </>
+  );
+}
+
+/** A fact over the action's title. All chips share one height, so the line does not step. */
+function Chip({
+  title,
+  className,
+  mark,
+  children,
+}: {
+  title?: string;
+  className?: string;
+  /** The colour class of a dot before the words, as the impact label has. */
+  mark?: string;
+  children: ReactNode;
+}) {
+  return (
+    <span
+      title={title}
+      className={cn(
+        "inline-flex h-6 max-w-full items-center gap-1.5 rounded-full px-2.5 text-xs font-medium",
+        className,
+      )}
+    >
+      {mark ? (
+        <span
+          aria-hidden
+          className={cn("size-1.5 shrink-0 rounded-full", mark)}
+        />
+      ) : null}
+      {/* The ellipsis needs a block of text: a flex box cuts its text with none. */}
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
+
+/** One side of the change: its label row has the height of the copy button, with or without one. */
+function ChangeBox({
+  label,
+  copy,
+  children,
+}: {
+  label: string;
+  copy?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <p className="text-muted-foreground text-xs font-medium">{label}</p>
+        {copy}
+      </div>
+      {children}
+    </div>
   );
 }
 
@@ -194,9 +270,7 @@ function DetailPart({
 }) {
   return (
     <section className="space-y-1.5">
-      <h3 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-        {title}
-      </h3>
+      <h3 className="font-semibold">{title}</h3>
       {children}
     </section>
   );

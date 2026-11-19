@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { seoAuditHref, seoProjectHref } from "@/app/seo/seo-href";
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -95,6 +96,7 @@ export function TaskScheduleActions({
 }: TaskScheduleActionsProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const tActions = useTranslations("App.Tasks.Schedules.Actions");
+  const tCoverage = useTranslations("App.Seo.analysis.coverage");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -146,6 +148,25 @@ export function TaskScheduleActions({
         expectedRevision: schedule.revision,
       });
       if (!result.ok) {
+        if (result.error.coverage) {
+          const workspace = schedule.seoMonitor?.auditId
+            ? seoAuditHref(schedule.seoMonitor.auditId, schedule.projectId)
+            : schedule.projectId && seoProjectHref(schedule.projectId);
+          toast.error(tCoverage(result.error.coverage), {
+            duration: Infinity,
+            closeButton: true,
+            action: {
+              label: tCoverage("reviewMonitor"),
+              onClick: () =>
+                router.push(
+                  workspace
+                    ? `${workspace}&tab=agent#seo-monitor-${schedule.id}`
+                    : "/seo",
+                ),
+            },
+          });
+          return;
+        }
         reportError(result.error);
         return;
       }

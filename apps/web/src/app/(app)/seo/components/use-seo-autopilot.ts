@@ -163,6 +163,18 @@ function useAutomaticProvider(
   return {
     /** A collection finished for the property in use: an empty result is then a fact, not a guess. */
     collected: enabled && collection.isSuccess,
+    selectingProperty:
+      enabled &&
+      !choice.selectedPropertyId &&
+      data.searchConsolePropertyId === null &&
+      (connection.isLoading || (connected && choice.properties.isLoading)),
+    auditPropertyId:
+      choice.selectedPropertyId ||
+      (data.searchConsolePropertyId === null ? choice.propertyId : undefined),
+    refreshAccess: async () => {
+      if ((await connection.refetch()).data?.status === "connected")
+        await choice.properties.refetch();
+    },
     loading:
       enabled &&
       (connection.isFetching ||
@@ -202,6 +214,9 @@ export function useSeoAutopilot(context: StatisticsContext) {
           : "idle";
   return {
     state,
+    searchConsolePropertyId: search.auditPropertyId,
+    selectingSearchProperty: search.selectingProperty,
+    refreshSearchConsoleAccess: search.refreshAccess,
     sitesWithoutProperty: search.sitesWithoutProperty,
     /** Google Analytics alone: the Agent tab names why its statistics are missing. */
     analytics: {

@@ -11659,6 +11659,7 @@ export type ProjectImageStudioCaption = {
 };
 
 export type ProjectSeoWorkspace = {
+    searchConsolePropertyId?: string | null;
     sharing?: 'organization' | 'personal';
     projectId: string | null;
     auditId: string | null;
@@ -12274,6 +12275,8 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    searchConsolePropertyId?: string;
+    allowLimitedAudit?: true;
     setupGoal?: {
         pageId: string;
         expectedRevision: number;
@@ -15719,6 +15722,10 @@ export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof Task
 export type TaskScheduleSeoMonitor = {
     kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
     pageCount: number;
+    /**
+     * The saved audit the monitor owner can open to review a full audit Run.
+     */
+    auditId?: string;
 };
 
 export type TaskScheduleAssignees = {
@@ -15883,6 +15890,8 @@ export type CreateTaskScheduleRunRequest = {
      * Task Schedule revision observed by the caller
      */
     expectedRevision: number;
+    searchConsolePropertyId?: string;
+    allowLimitedAudit?: true;
 };
 
 export type UpdateTaskScheduleRunRequest = {
