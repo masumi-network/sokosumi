@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { canonicalJsonKey } from "@sokosumi/masumi/schemas";
+import { seoTaskRequestPacket } from "@sokosumi/utils";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
 import { originalSeoAuditPacket } from "@/lib/seo/related-page-selection";
@@ -78,9 +79,7 @@ export async function requireSeoTaskAuditContext(
   ) {
     let currentPacket: unknown;
     try {
-      if (!task.description?.startsWith("seo_audit:"))
-        throw new Error("Missing packet");
-      currentPacket = JSON.parse(task.description.slice("seo_audit:".length));
+      currentPacket = seoTaskRequestPacket(task.description ?? "", "seo_audit");
     } catch {
       throw conflict("The approved audit Task request changed");
     }

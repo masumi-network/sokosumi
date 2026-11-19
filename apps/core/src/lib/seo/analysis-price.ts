@@ -10,6 +10,7 @@ import {
   SEO_PAGE_CEILING_CENTS,
   seoCreditsForCents,
   seoMaxCredits,
+  seoTaskRequestPacket,
 } from "@sokosumi/utils";
 import { z } from "zod";
 
@@ -127,12 +128,12 @@ export async function requireSeoTaskStartBalance(
       );
     return;
   }
-  const marker = analysis.kind === "audit_full" ? "seo_audit:" : "seo_job:";
   let currentPacket: unknown;
   try {
-    if (!task.description?.startsWith(marker))
-      throw new Error("Missing SEO packet");
-    currentPacket = JSON.parse(task.description.slice(marker.length));
+    currentPacket = seoTaskRequestPacket(
+      task.description ?? "",
+      analysis.kind === "audit_full" ? "seo_audit" : "seo_job",
+    );
   } catch {
     throw unprocessableEntity(
       "The SEO Task no longer contains its approved request",

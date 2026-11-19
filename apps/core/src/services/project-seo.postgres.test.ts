@@ -783,7 +783,7 @@ describe.skipIf(!enabled)(
             where: { id: fullTask?.id ?? "missing" },
           })
         ).description,
-      ).toMatch(/^seo_audit: /);
+      ).toMatch(/^Full SEO audit of \d+ pages?:\n[\s\S]*\nseo_audit: \{.*\}$/);
       // The step and the end date are part of the approved rule too.
       for (const tampered of [
         { intervalDays: 2 },

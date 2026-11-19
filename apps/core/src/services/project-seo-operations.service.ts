@@ -1,5 +1,8 @@
 import type { Prisma, ProjectSeoObservation } from "@sokosumi/database";
-import { SEO_FULL_AUDIT_MAX_PROVIDER_USD } from "@sokosumi/utils";
+import {
+  SEO_FULL_AUDIT_MAX_PROVIDER_USD,
+  seoTaskDescription,
+} from "@sokosumi/utils";
 
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
@@ -16,6 +19,7 @@ import {
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
 import { seoPageComparisonKey } from "@/lib/seo/related-page-selection";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
+import { seoTaskSummary } from "@/lib/seo/seo-task-summary";
 import type {
   RequestSeoAnalysis,
   SeoActor,
@@ -328,7 +332,11 @@ export async function requestProjectSeoAnalysisInTransaction(
       workspaceId: actor.workspaceId,
       projectId,
       name: `SEO ${input.kind.replaceAll("_", " ")}`,
-      description: `${input.kind === "audit_full" ? "seo_audit" : "seo_job"}: ${JSON.stringify(packet)}`,
+      description: seoTaskDescription(
+        seoTaskSummary(input, pageUrls),
+        input.kind === "audit_full" ? "seo_audit" : "seo_job",
+        packet,
+      ),
       assigneeId: coworkerId,
       status: "READY",
       visibility: "PUBLIC",
