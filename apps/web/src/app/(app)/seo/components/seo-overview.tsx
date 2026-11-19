@@ -26,7 +26,7 @@ import {
 import { useSeoTileDay } from "./seo-summary-tiles";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
-/** The words that start every row of a list ("Not passed:"): quiet, so the part that differs leads. */
+/** The words that start every row of a list ("Issue:"): quiet, so the part that differs leads. */
 const quietPrefix = (chunks: ReactNode) => (
   <span className="text-muted-foreground font-normal">{chunks}</span>
 );
@@ -53,7 +53,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
           >
             {overview.unplanned.map((finding) => {
               const affectedUrl = finding.relatedPageUrl ?? finding.pageUrl;
-              // A test name alone reads like a pass, so the row says it did not pass.
+              // A test name alone reads like a pass, so the row says it is an issue.
               return (
                 <li key={finding.id}>
                   <details className="group text-sm">
