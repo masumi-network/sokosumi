@@ -284,6 +284,11 @@ function OwnerPart({
   );
 }
 
+/** A value short enough to stand as a big number: "About 400 a month". */
+function isFigure(value: string): boolean {
+  return value.trim().split(/\s+/).length <= 5;
+}
+
 /** The stage's number, today's value and whether it is measured or estimated. */
 function MeasurePart({ stage }: { stage: Stage }) {
   const { measure } = stage;
@@ -291,7 +296,11 @@ function MeasurePart({ stage }: { stage: Stage }) {
     <div className="sc-measure">
       <span>{stage.metric}</span>
       {measure?.value && measure.basis !== "unknown" ? (
-        <b className="num">{measure.value}</b>
+        isFigure(measure.value) ? (
+          <b className="num">{measure.value}</b>
+        ) : (
+          <span>{measure.value}</span>
+        )
       ) : null}
       {measure?.basis === "measured" ? (
         <StatusText>

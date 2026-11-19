@@ -127,3 +127,26 @@ it("shows the four AIDA stages with Cuso's sentence and the owner's", () => {
   expect(html).toMatch(/within a day\.<\/p><ul class="sc-ideas">/);
   expect(html).not.toContain("<details");
 });
+
+it("sets a short value as the stage's number and a sentence as plain words", () => {
+  const stage = (value: string) =>
+    renderToStaticMarkup(
+      <FunnelPlan
+        stages={[
+          {
+            stage: "interest",
+            goal: "Holders compare wallets",
+            metric: "Qualified visits",
+            measure: { value, basis: "estimated" },
+          },
+        ]}
+        improvements={[]}
+      />,
+    );
+  expect(stage("About 60 a month")).toContain(
+    '<b class="num">About 60 a month</b>',
+  );
+  const sentence = "About 60 qualified visits a month, an unverified estimate.";
+  expect(stage(sentence)).toContain(`<span>${sentence}</span>`);
+  expect(stage(sentence)).not.toContain('<b class="num">');
+});
