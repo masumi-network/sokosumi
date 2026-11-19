@@ -140,6 +140,7 @@ export async function executeAuthorizedTool(
       return dispatchOtherTools(runtime, input, authorized);
     case "read_seo":
     case "research_keywords":
+    case "research_competitor_keywords":
     case "check_search_rankings":
     case "save_seo_suggestions":
       return executeCmoSeoTool(input, authorized);

@@ -14,7 +14,7 @@ import {
   marketingStrategyPlanSchema,
   networkAudiences,
 } from "@sokosumi/soko-bot";
-import { isCmoTalkingFormat } from "@sokosumi/utils";
+import { isCmoChannelFormat, isCmoTalkingFormat } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
 import { keepAnswers, sameQuestion } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
@@ -799,36 +799,59 @@ export function withoutDashes<T>(value: T): T {
 }
 
 /**
- * A piece that is a Project file (an image ad) keeps its visual on the
- * approved plan's entry, where Core's media maker reads it; a Social post
- * keeps it on the post.
+ * The pieces a save sends that are Project files (an ad, a newsletter
+ * issue), kept on the approved plan: a piece Cuso adds in chat joins the
+ * calendar, where the owner reads and launches it, the way a new social
+ * entry becomes a draft post; a piece already there keeps its visual on its
+ * entry, where Core's media maker reads it. The words and a search ad's
+ * parts stay with the piece's file.
  */
-async function keepFileVisuals(
+async function keepFilePieces(
   db: Prisma.TransactionClient,
   approved: MarketingStrategy,
   sent: CmoCalendarEntry[],
 ): Promise<MarketingStrategy> {
-  const visuals = new Map(
-    sent
-      .filter((entry) => isMarketingFilePiece(entry) && entry.visual)
-      .map((entry) => [entry.id, entry]),
-  );
   const plan = parseMarketingPlan(approved.plan);
-  if (visuals.size === 0 || !plan) return approved;
-  const calendar = plan.calendar.map((entry) => {
-    const sentEntry = visuals.get(entry.id);
-    return sentEntry
-      ? {
-          ...entry,
-          visual: sentEntry.visual,
-          visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
-          styleReferenceId:
-            sentEntry.styleReferenceId ?? entry.styleReferenceId,
-          headline: sentEntry.headline ?? entry.headline,
-          slides: sentEntry.slides ?? entry.slides,
-        }
-      : entry;
-  });
+  const pieces = sent.filter(isMarketingFilePiece);
+  if (!plan || pieces.length === 0) return approved;
+  const planned = new Set(plan.calendar.map((entry) => entry.id));
+  const added = pieces.filter(
+    (entry) =>
+      !planned.has(entry.id) &&
+      entry.status !== "skipped" &&
+      Boolean(entry.draft?.trim()),
+  );
+  const unknown = added.find(
+    (entry) => !isCmoChannelFormat(entry.channel, entry.format),
+  );
+  if (unknown)
+    throw new CmoConflictError(
+      `"${unknown.title}" was not added: ${unknown.channel} has no format "${unknown.format}". Use a channel and format from the strategy's channel menu.`,
+    );
+  const visuals = new Map(
+    pieces.filter((entry) => entry.visual).map((entry) => [entry.id, entry]),
+  );
+  if (visuals.size === 0 && added.length === 0) return approved;
+  const calendar = [
+    ...plan.calendar.map((entry) => {
+      const sentEntry = visuals.get(entry.id);
+      return sentEntry
+        ? {
+            ...entry,
+            visual: sentEntry.visual,
+            visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
+            styleReferenceId:
+              sentEntry.styleReferenceId ?? entry.styleReferenceId,
+            headline: sentEntry.headline ?? entry.headline,
+            slides: sentEntry.slides ?? entry.slides,
+          }
+        : entry;
+    }),
+    ...added.map(
+      ({ draft: _draft, searchAd: _searchAd, adCampaign: _ad, ...entry }) =>
+        entry,
+    ),
+  ];
   return db.marketingStrategy.update({
     where: { id: approved.id },
     data: { plan: { ...plan, calendar } },
@@ -883,7 +906,7 @@ export async function saveCmoStrategy(
           ? { sokoBotId: cuso.sokoBotId }
           : { userId: where.userId },
     });
-    return keepFileVisuals(
+    return keepFilePieces(
       db,
       approved,
       (strategy.calendar ?? []) as CmoCalendarEntry[],

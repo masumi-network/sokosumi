@@ -1493,6 +1493,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   research_keywords: z.object({
     topic: z.string().trim().min(2).max(80),
   }),
+  research_competitor_keywords: z.object({}),
   check_search_rankings: z.object({
     keywords: z.array(z.string().trim().min(2).max(80)).min(1).max(5),
     then: z.string().trim().min(10).max(2_000),
@@ -1766,6 +1767,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "The brand's SEO as the SEO tab shows it: the latest weekly site audit (date, checks passed, the issues and fixes it found, the next run and its 750 credits), Search Console for the last 28 settled days when it is connected (clicks, impressions, average position, searches ranked 8 to 20, searches seen near the top but rarely clicked), the open article suggestions and page changes, and recent keyword searches. Read it before you answer any SEO question; never answer one from memory.",
   research_keywords:
     'Keyword research for one topic in the brand\'s market, from a real search data provider: up to 50 searches with monthly volume, difficulty (0 to 100, higher is harder), intent and where the site ranks today. Topics are short ("battery health app", "zurich wedding photographer"); try two or three to cover a question. Takes seconds, and the owner\'s SEO tab shows the same search. Quote only numbers it returned, with the date.',
+  research_competitor_keywords:
+    'The searches people make when they weigh a competitor on the watch list against others, for search ads on them: per competitor, searches such as "x alternative", "x vs y" and "x pricing", each with its kind (alternative, versus, pricing), monthly searches, the usual price of a click and the top-of-page bid range (USD), other wordings of the same search (alsoSearchedAs), and fitsBudget: whether the ad budget pays for clicks on it. In the brand\'s market, from a real search data provider; a competitor is read once a week. adBudget is what the approved strategy lets search ads spend a day, how many search ads are written and how many of the fitting searches can each get an ad (roomFor); null means the strategy has no ad budget. Quote only numbers it returned, with the date.',
   check_search_rankings:
     "Ask the SEO specialist where the site ranks on Google today for up to five searches, and who ranks above it. It is a paid check of a few credits and takes a few minutes: Core wakes you with the result and your `then`, and the follow-up's reply appears in this chat by itself. Put in `then` only what the answer must contain and in which language (the positions, who ranks above, the next steps), never where to post it or a chat's name. After calling it, end your turn and tell the owner in one sentence that you asked the SEO specialist and will answer here once the result is in. The same searches checked in the last day are not checked again: you get that result at once. A check that failed runs again when you call this again with the same searches. If it says the check is unavailable, busy or out of credits, answer with the data you have and say what is missing.",
   save_seo_suggestions:

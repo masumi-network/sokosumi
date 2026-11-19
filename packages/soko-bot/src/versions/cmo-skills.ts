@@ -419,6 +419,46 @@ Call it the SEO specialist or the SEO check. Never name the tools, Tasks, Cowork
 `,
   },
   {
+    id: "cmo-competitor-ads",
+    name: "Search ads on competitor searches",
+    description:
+      "Turns the competitors on the watch list into search ads on the searches of people comparing them: alternatives, comparisons and prices.",
+    content: `# Search ads on competitor searches
+
+Someone who searches "<competitor> alternative", "<competitor> vs <product>" or "<competitor> pricing" is choosing right now. When the owner asks for ads on competitor keywords, a competitor keyword campaign, or to reach people comparing the business with a competitor, build it from real search data. Never from memory.
+
+## 1. Read the searches
+research_competitor_keywords returns, for each competitor on the watch list, the searches that name it with their kind (alternative, versus, pricing), monthly searches, the usual price of a click, the top-of-page bid range, other wordings of the same search (alsoSearchedAs) and fitsBudget.
+- No competitor on the list: say so and that the owner adds them on the Competitors page. Stop there.
+- adBudget null: the strategy has no ad budget. Give the five best searches with their numbers, say what a click costs, ask what the owner wants to spend a month, and write no ad.
+- adBudget.roomFor 0: the budget pays for no further search ad at these prices. Say so with the numbers and what a click costs; write no ad.
+
+## 2. Choose
+- Write an ad only for a search with fitsBudget true: Core marked the ones the daily budget still pays clicks for, most searched first. Each search ad gets an equal share of the day and one click may cost a third of that share at most, so one ad more would starve them all. Never more than adBudget.roomFor ads.
+- Leave out a comparison of two plans or features of one product ("free vs paid"), even when it fits.
+- One ad per search: its keywords are the search and its alsoSearchedAs.
+
+## 3. Write each one as a search ad
+Read the google-ads writing skill first (read_writing_skill). Then save all of them with one save_strategy call, part pieces, each a new calendar entry:
+- id "kw-" plus the search in lower case with hyphens; date today; channel google_ads; format search_ad; status draft; campaignId "competitor-searches"; title: the search in Title Case plus " search ad".
+- draft: the ad as the owner reads it (Headlines and Descriptions lists).
+- searchAd.keywords: the search and its alsoSearchedAs, exactly as returned. Core runs every one as a phrase match.
+- searchAd.headlines: eight or more, each at most 30 characters. The first is the search itself in Title Case when it fits in 30 characters ("Calendly Alternative"); at least two more carry its words. The rest say what the business offers, from the Brand Brain.
+- searchAd.descriptions: two to four, what the business offers and one action.
+- searchAd.finalUrl: the landing page for that search once the owner has told you its address, the homepage until then.
+- searchAd.location and language: the market the searches were read for (US is "United States").
+- searchAd.maxCpc: leave it out. Core caps a click at a third of the ad's daily share.
+- searchAd.negativeKeywords: "login", "support", and "free" when nothing is free.
+- An ad says what the business offers. It may name the competitor only as the search does; it never says anything about the competitor: no price, no flaw, no "better than".
+
+## 4. Tell the owner, in this order
+1. A short table of the ads: the search, its monthly searches, the usual click price, and the date the numbers were read.
+2. "They are in your Calendar. Nothing spends until you press Launch on each one." Then that each ad gets an equal share of the daily ad budget, with the amount.
+3. Which searches you left out because the budget does not pay for them, and which competitors had no searches worth an ad.
+4. Google can refuse an ad that names a competitor's trademark; then you rewrite it without the name.
+`,
+  },
+  {
     id: "cmo-measurement",
     name: "Measure and improve",
     description:

@@ -229,6 +229,24 @@ async function dailyAdBudget(cuso: Cuso) {
   };
 }
 
+/**
+ * What the approved strategy lets search ads spend a day, and how many are
+ * written: each gets an equal share at launch. Null without an ad budget.
+ */
+export async function cmoSearchAdBudget(
+  cuso: Cuso,
+): Promise<{ currency: string; perDay: number; searchAds: number } | null> {
+  const approved = await approvedMarketingStrategy(cuso.projectId);
+  const ads = parseMarketingPlan(approved?.plan)?.ads;
+  if (!approved || !ads || ads.monthly <= 0) return null;
+  const files = await listMarketingStrategyFiles(approved);
+  return {
+    currency: ads.currency.toUpperCase(),
+    perDay: roundBudget(ads.monthly / 30),
+    searchAds: [...files.values()].filter((file) => file.searchAd).length,
+  };
+}
+
 /** Money as the owner reads it: "EUR 12.50". */
 function money(amount: number, currency: string): string {
   return `${currency} ${amount.toFixed(2)}`;

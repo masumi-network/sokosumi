@@ -160,6 +160,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "handle_social_comment",
   "read_seo",
   "research_keywords",
+  "research_competitor_keywords",
   "check_search_rankings",
   "save_seo_suggestions",
   "check_competitors",
@@ -216,9 +217,11 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "list_social_comments",
   "handle_social_comment",
   // The SEO tab: the weekly audit, Search Console, keyword research, the
-  // SEO specialist's position checks, and the articles and page changes.
+  // searches that name a competitor, the SEO specialist's position checks,
+  // and the articles and page changes.
   "read_seo",
   "research_keywords",
+  "research_competitor_keywords",
   "check_search_rankings",
   "save_seo_suggestions",
 ] as const satisfies readonly SokoBotCapability[];

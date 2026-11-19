@@ -38,6 +38,7 @@ import {
   type CmoChatSetup,
   type CmoEvalCase,
 } from "./eval-cmo-cases";
+import { prepareCompetitorAdsCase } from "./eval-cmo-competitor-ads";
 import {
   isCompetitorSetup,
   prepareCompetitorCase,
@@ -418,6 +419,11 @@ export async function prepareCmoChatCase(
     return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
+  if (setup === "cmo-competitor-ads") {
+    await prepareCompetitorCase(lane, "cmo-competitors-quiet");
+    await prepareCompetitorAdsCase(lane);
+    return {};
+  }
   if (setup === "cmo-seo-skipped") {
     const skipped = {
       status: "dismissed",
