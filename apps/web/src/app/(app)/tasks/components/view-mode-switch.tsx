@@ -171,7 +171,9 @@ export function ViewModeSwitch({
             <p id={sortLabelId} className="text-sm font-medium">
               {labels.sortBy}
             </p>
-            {/* Every order in view: one click, no second dropdown. */}
+            {/* Every order in view: one click, no second dropdown. The Radix
+                primitive, not ui/radio-group, because each option is a
+                full-width row with a check, not a circle beside a label. */}
             <RadioGroup.Root
               value={sort}
               onValueChange={(next) => {
