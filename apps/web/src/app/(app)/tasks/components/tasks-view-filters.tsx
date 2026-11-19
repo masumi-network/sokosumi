@@ -9,7 +9,7 @@ import {
   Tag,
   Users,
 } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 import {
@@ -22,6 +22,7 @@ import {
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   hasActiveTasksFilters,
+  hasTasksViewParams,
   type ProjectFilterOption,
   STUCK_AFTER_DAYS,
   type TasksFilters,
@@ -34,6 +35,7 @@ import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
 import { TaskTagDot } from "./task-tag-colors";
+import { replaceTasksQuery, useTasksSearchParams } from "./tasks-search-params";
 import {
   getTasksView,
   getTasksViewPatch,
@@ -123,7 +125,7 @@ export function TasksViewFilters({
   );
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const searchParams = useTasksSearchParams();
 
   const filters = useMemo(
     () =>
@@ -143,11 +145,14 @@ export function TasksViewFilters({
 
   const handleFilterChange = useCallback(
     (patch: Partial<TasksFilters>) => {
-      const paramsForMerge = new URLSearchParams(
-        typeof window !== "undefined"
-          ? window.location.search
-          : searchParams.toString(),
+      const windowParams = new URLSearchParams(
+        typeof window !== "undefined" ? window.location.search : "",
       );
+      // The address bar can lag behind a restored saved view; then the view
+      // lives only in the restored search params.
+      const paramsForMerge = hasTasksViewParams(windowParams)
+        ? windowParams
+        : new URLSearchParams(searchParams.toString());
       const current = getTasksFiltersFromSearchParams(
         paramsForMerge,
         activeOrganizationId,
@@ -155,14 +160,12 @@ export function TasksViewFilters({
         projectOptions,
       );
       const nextFilters: TasksFilters = { ...current, ...patch };
-      const nextSearchParams = buildTasksFiltersSearchParams(
-        paramsForMerge,
-        nextFilters,
+      replaceTasksQuery(
+        router,
+        pathname,
+        buildTasksFiltersSearchParams(paramsForMerge, nextFilters),
         activeOrganizationId,
       );
-      const nextQuery = nextSearchParams.toString();
-
-      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     },
     [
       activeOrganizationId,

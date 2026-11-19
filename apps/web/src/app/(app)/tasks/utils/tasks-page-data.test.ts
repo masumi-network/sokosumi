@@ -1,3 +1,4 @@
+import { expectConsole } from "@sokosumi/utils/test-console";
 import { err, ok } from "neverthrow";
 import { redirect } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +11,9 @@ const getTasksColumnPageMock = vi.fn(async (_params: { sort?: string }) => ({
   nextCursor: null,
   total: 0,
 }));
+
+const URL_PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+const SAVED_PROJECT_ID = "44444444-4444-4444-8444-444444444444";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
@@ -24,14 +28,23 @@ vi.mock("@/lib/services/coworker.service", () => ({
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
     listProjects: async () => ({ projects: [] }),
-    getProjectById: async () => null,
+    getProjectById: async (id: string) =>
+      id === URL_PROJECT_ID || id === SAVED_PROJECT_ID
+        ? { id, name: "Project", logo: null, designMd: null }
+        : null,
   },
 }));
 vi.mock("@/lib/services/soko-bot.service", () => ({
   sokoBotService: { getMine: async () => null },
 }));
+const getSavedTasksViewQueryMock = vi.fn(
+  async (): Promise<string | null> => null,
+);
 vi.mock("@/lib/services/task.service", () => ({
-  taskService: { listTasks: async () => ({ tasks: [], pagination: null }) },
+  taskService: {
+    listTasks: async () => ({ tasks: [], pagination: null }),
+    getSavedTasksViewQuery: () => getSavedTasksViewQueryMock(),
+  },
 }));
 vi.mock("@/lib/services/organization-seat.service", () => ({
   organizationSeatService: { hasAssignedSeat: async () => true },
@@ -57,12 +70,22 @@ const SESSION = {
   session: { activeOrganizationId: "org-1" },
 };
 
-function load(viewMode: "list" | "board" = "list") {
+function load(
+  viewMode: "list" | "board" = "list",
+  {
+    filterParams = {},
+    restoreSavedView = false,
+  }: {
+    filterParams?: Record<string, string>;
+    restoreSavedView?: boolean;
+  } = {},
+) {
   return loadTasksPageData({
-    filterParams: {},
+    filterParams,
     viewMode,
     personalAssistantFallback: "Personal assistant",
     createAssigneeSlug: null,
+    restoreSavedView,
   });
 }
 
@@ -115,5 +138,56 @@ describe("loadTasksPageData", () => {
     for (const [params] of getTasksColumnPageMock.mock.calls) {
       expect(params.sort).toBe("updatedAt");
     }
+  });
+
+  it("opens the saved view when the URL names none, and keeps the URL's project", async () => {
+    getSessionResultMock.mockResolvedValue(ok(SESSION));
+    getSavedTasksViewQueryMock.mockResolvedValue(
+      `status=READY&sort=priority&projectId=${SAVED_PROJECT_ID}`,
+    );
+
+    const data = await load("list", {
+      filterParams: { projectId: URL_PROJECT_ID },
+      restoreSavedView: true,
+    });
+
+    expect(data.activeFilters).toMatchObject({
+      status: "READY",
+      sort: "priority",
+      projectId: URL_PROJECT_ID,
+    });
+    expect(data.restoredQuery).toBe(
+      "scope=workspace&sort=priority&status=READY",
+    );
+  });
+
+  it("drops a saved assignee who is no longer a member", async () => {
+    getSessionResultMock.mockResolvedValue(ok(SESSION));
+    getSavedTasksViewQueryMock.mockResolvedValue("assigneeUserId=gone-user");
+
+    const data = await load("list", { restoreSavedView: true });
+
+    expect(data.activeFilters.assigneeUserId).toBeNull();
+    expect(data.restoredQuery).toBe("scope=workspace");
+  });
+
+  it("never reads the saved view when the page says the URL names one", async () => {
+    getSessionResultMock.mockResolvedValue(ok(SESSION));
+
+    const data = await load("list", { filterParams: { status: "READY" } });
+
+    expect(getSavedTasksViewQueryMock).not.toHaveBeenCalled();
+    expect(data.restoredQuery).toBeNull();
+  });
+
+  it("opens the defaults when the saved view cannot be read", async () => {
+    getSessionResultMock.mockResolvedValue(ok(SESSION));
+    getSavedTasksViewQueryMock.mockRejectedValue(new Error("Core down"));
+    expectConsole("error", "Failed to load the saved Tasks view");
+
+    const data = await load("list", { restoreSavedView: true });
+
+    expect(data.activeFilters.status).toBeNull();
+    expect(data.restoredQuery).toBe("");
   });
 });

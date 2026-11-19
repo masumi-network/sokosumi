@@ -14,9 +14,11 @@ import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-m
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import { getTasksColumnPage } from "@/app/tasks/utils/tasks-column-page";
 import {
+  buildTasksFiltersSearchParams,
   getTaskTagQuery,
   type ProjectFilterOption,
   parseTasksFilters,
+  pickTasksViewQuery,
   type TasksFiltersSearchParams,
   tasksQueryScope,
 } from "@/app/tasks/utils/tasks-filters";
@@ -39,6 +41,18 @@ export interface TasksPageDataInput {
   personalAssistantFallback: string;
   /** Resolves `?assignee=` to an id only when the create dialog opens. */
   createAssigneeSlug: string | null;
+  /** The URL names no view, so the reader's saved view opens. */
+  restoreSavedView: boolean;
+}
+
+/** The saved view, or null when none is saved or Core cannot say. */
+function readSavedTasksView(): Promise<string | null> {
+  return taskService.getSavedTasksViewQuery().catch((error: unknown) => {
+    unstable_rethrow(error);
+    // The defaults beat no page.
+    console.error("Failed to load the saved Tasks view", error);
+    return null;
+  });
 }
 
 const PROJECT_FILTER_OPTIONS_LIMIT = 100;
@@ -69,14 +83,16 @@ async function readTasksPageData(
     viewMode,
     personalAssistantFallback,
     createAssigneeSlug,
+    restoreSavedView,
   }: TasksPageDataInput,
   session: Session | null,
 ) {
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const [[taskCoworkers, projectsPage, ownerBot], memberOptions] =
+  const [[taskCoworkers, projectsPage, ownerBot], memberOptions, savedView] =
     await Promise.all([
       loadTasksPageOptions(),
       listTaskAssigneeMemberOptions(activeOrganizationId),
+      restoreSavedView ? readSavedTasksView() : null,
     ]);
   // Runs beside the board reads, not after them.
   const canCreateTaskPromise =
@@ -86,7 +102,22 @@ async function readTasksPageData(
     activeOrganizationId,
     memberOptions,
   );
-  const filters = parseTasksFilters(filterParams, activeOrganizationId);
+  // The saved view fills the view keys the URL left out; the project stays
+  // the URL's. The checks below drop assignees and coworkers that went stale
+  // since it was saved. A deleted tag stays and shows as a removable chip.
+  const filters = parseTasksFilters(
+    savedView
+      ? {
+          ...filterParams,
+          ...Object.fromEntries(
+            new URLSearchParams(
+              pickTasksViewQuery(new URLSearchParams(savedView)),
+            ),
+          ),
+        }
+      : filterParams,
+    activeOrganizationId,
+  );
   let projectOptions: ProjectFilterOption[] = projectsPage.projects.map(
     (project) => ({
       id: project.id,
@@ -256,6 +287,14 @@ async function readTasksPageData(
       ? findCoworkerIdBySlug(coworkerOptions, createAssigneeSlug)
       : null,
     parkedTaskCount: parkedTasksPage.pagination?.total ?? 0,
+    // Rebuilt from the checked filters, so a stale value never reaches the URL.
+    restoredQuery: restoreSavedView
+      ? savedView
+        ? pickTasksViewQuery(
+            buildTasksFiltersSearchParams(new URLSearchParams(), activeFilters),
+          )
+        : ""
+      : null,
   };
 }
 

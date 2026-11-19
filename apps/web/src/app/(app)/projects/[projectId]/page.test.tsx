@@ -485,7 +485,10 @@ describe("ProjectDetailPage", () => {
     expect(done).toHaveTextContent("App.Projects.Detail.stats.done14");
     // Each opens the project's board, where its column shows that number.
     for (const link of [running, waiting, done]) {
-      expect(link).toHaveAttribute("href", "/tasks?projectId=project-1");
+      expect(link).toHaveAttribute(
+        "href",
+        "/tasks?projectId=project-1&scope=workspace",
+      );
     }
     expect(screen.queryByTestId("project-status-open")).toBeNull();
   });

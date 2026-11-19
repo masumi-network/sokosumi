@@ -169,7 +169,8 @@ export async function SokoBotHome({
             <Link
               // The count is the board's Input required column; land on it,
               // on the board even where the list is the saved or phone default.
-              href="/tasks?view=board#input-required"
+              // The default scope names a view, so a saved one does not hide the count.
+              href="/tasks?view=board&scope=workspace#input-required"
               className={pillClassName}
             >
               <span
