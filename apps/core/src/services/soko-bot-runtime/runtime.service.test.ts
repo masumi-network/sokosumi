@@ -5872,22 +5872,66 @@ describe("SokoBotRuntimeService table actor", () => {
     ).toMatchObject({ scope: "personal", userId: SCOPE.userId });
   });
 
-  it("acts as the shared bot itself, never as the member", async () => {
-    expect(
-      await tableActorAuth({
-        userId: null,
-        projectId: "project_1",
-        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
-      }),
-    ).toEqual({
-      actor: "sokoBot",
-      scope: "project",
-      sokoBotId: SCOPE.sokoBotId,
+  it("lets a Project's shared bot work in its Project, for the member who asked", async () => {
+    const { resolveTableActor } = await import("@/helpers/data-table");
+    vi.mocked(resolveTableActor).mockReset();
+    botFindUniqueMock.mockResolvedValueOnce({
       userId: null,
-      workspaceId: SCOPE.workspaceId,
-      organizationId: "org_1",
       projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
     });
+    workspaceFindFirstMock.mockResolvedValueOnce({
+      id: SCOPE.workspaceId,
+      organizationId: "org_1",
+    });
+    const service = new SokoBotRuntimeService();
+
+    await expect(
+      service["tableActor"](authorized as never, {}),
+    ).resolves.toEqual({
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+      actorId: SCOPE.sokoBotId,
+      actorKind: "sokoBot",
+      projectScope: "project_1",
+      taskId: undefined,
+      ownerChat: true,
+    });
+    // The member's own membership is what lets the bot in.
+    expect(workspaceFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: SCOPE.workspaceId }),
+      }),
+    );
+    expect(resolveTableActor).not.toHaveBeenCalled();
+  });
+
+  it("refuses a shared bot's table work when the member left, or nobody asked", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({
+      userId: null,
+      projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+    });
+    const service = new SokoBotRuntimeService();
+    workspaceFindFirstMock.mockResolvedValueOnce(null);
+    await expect(
+      service["tableActor"](authorized as never, {}),
+    ).rejects.toThrow("Workspace access is no longer available");
+
+    botFindUniqueMock.mockResolvedValueOnce({
+      userId: null,
+      projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+    });
+    await expect(
+      service["tableActor"](
+        {
+          ...authorized,
+          turn: { ...authorized.turn, actingUserId: null },
+        } as never,
+        {},
+      ),
+    ).rejects.toThrow("nobody asked for this turn");
   });
 
   it("refuses a bot that does not fit the turn", async () => {
@@ -6532,7 +6576,17 @@ describe("post_chat chain depth", () => {
       roomId: "room_1",
       content: "@jarvis can you check the upload?",
     });
-    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledTimes(1);
+
+    // So is the link Core posts for a table the turn created: refusing it
+    // failed create_table on every chat turn.
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_3:table-link:chat",
+      roomId: "room_1",
+      content: "[Content tracker](/drive/tables/t-1)",
+      publicationId: "11111111-1111-5111-8111-111111111111",
+    });
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledTimes(2);
 
     // So is a post into another room.
     transactionChatMessageCreateMock.mockClear();
