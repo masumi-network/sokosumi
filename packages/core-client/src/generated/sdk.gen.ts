@@ -4097,7 +4097,7 @@ export const updateProjectCompetitor = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * A member turns the Project's weekly competitor check on or off. On, each tracked competitor is checked once a week (its website and pricing page, news, ads and Instagram) for 3 credits a competitor, charged to the Project's organization, or to the person in a personal workspace. Off keeps what the checks found.
+ * A member turns the Project's weekly competitor check on or off. On, the first check starts at once and each tracked competitor is checked once a week (its website and pricing page, news, ads and Instagram) for 3 credits a competitor, charged to the Project's organization, or to the person in a personal workspace. Off keeps what the checks found.
  */
 export const setProjectCompetitorChecks = <ThrowOnError extends boolean = false>(options: Options<SetProjectCompetitorChecksData, ThrowOnError>): RequestResult<SetProjectCompetitorChecksResponses, SetProjectCompetitorChecksErrors, ThrowOnError> => (options.client ?? client).put<SetProjectCompetitorChecksResponses, SetProjectCompetitorChecksErrors, ThrowOnError>({
     responseTransformer: setProjectCompetitorChecksResponseTransformer,

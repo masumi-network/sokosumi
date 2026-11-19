@@ -263,8 +263,40 @@ export async function runCusoCompetitorCheck(
   );
 }
 
+/** How long the production sync keeps trying to start the first watch run. */
+const FIRST_WATCH_RETRY_MS = 3_600_000;
+
+/**
+ * A newly paid Cuso's first check, and his watch run after it, start at
+ * once: on the CMO production sync, every 10 minutes, as his first SEO
+ * audit does. From the second check on, and for a watch run that still has
+ * not started after an hour, the weekly sync (`/sync/competitors`) has him.
+ */
+export async function keepCusoFirstCompetitorCheck(
+  cuso: WatchingCuso,
+  now: Date = new Date(),
+): Promise<void> {
+  const checks = await prisma.competitorCheck.findMany({
+    where: { projectId: cuso.projectId },
+    select: { createdAt: true },
+    take: 2,
+  });
+  const [first] = checks;
+  if (first) {
+    const age = now.getTime() - first.createdAt.getTime();
+    if (checks.length > 1 || age > FIRST_WATCH_RETRY_MS) return;
+  } else if ((await runCusoCompetitorCheck(cuso, now)) !== "checked") return;
+  // Again on each sync until it starts: the month's first run may be busy.
+  await startCusoWatchRun(cuso, now);
+}
+
+type WatchingCuso = Pick<Cuso, "sokoBotId" | "projectId" | "workspaceId">;
+
 /** Cuso writes the week's feed from the check that just finished. */
-export async function startCusoWatchRun(cuso: Cuso, now: Date): Promise<void> {
+export async function startCusoWatchRun(
+  cuso: WatchingCuso,
+  now: Date,
+): Promise<void> {
   const check = await prisma.competitorCheck.findFirst({
     where: {
       projectId: cuso.projectId,
@@ -409,7 +441,7 @@ const BIG_MOVE_MESSAGE_PREFIX = "cmo:competitor-move:";
  * already started, here or by another caller, is left alone.
  */
 export async function startCompetitorWatchRun(
-  cuso: Pick<Cuso, "sokoBotId" | "projectId" | "workspaceId">,
+  cuso: WatchingCuso,
   checkId: string,
 ): Promise<void> {
   const competitors = await listTrackedCompetitors(cuso.projectId);
