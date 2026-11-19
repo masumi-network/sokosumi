@@ -805,7 +805,7 @@ describe("SEO workspace integration", () => {
       "an AI Overview shows and does not cite the page",
       "position rule: rank_group counts the items of one type (organic, featured_snippet), rank_absolute counts every result item (DataForSEO, N2-508)",
       '"mac battery health checker" (goal): the page is not in the top 18 organic results',
-      '"macbook battery health" (goal): the page is not in the top 15 organic results',
+      '"macbook battery health" (goal): the page is not in the top 16 organic results',
     ];
     workspace.findings.push({
       id: "organic-position",
