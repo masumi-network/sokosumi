@@ -4,7 +4,7 @@ Required when the matching trigger in [AGENTS.md](../../AGENTS.md) applies. Seve
 
 ## Where a lesson goes
 
-- **True for anyone on Sokosumi** (code, CI, deploys, tests, auth, tooling in this repo): the repo. Add it to the doc that owns the topic, as a short neutral rule with its reason, reached by a pointer from an `AGENTS.md` file (the `writing-for-agents` skill, `mattpocock-skills` plugin, has the style). Open a docs PR for it.
+- **True for anyone on Sokosumi** (code, CI, deploys, tests, auth, tooling in this repo): the repo. Add it to the doc that owns the topic, as a short neutral rule with its reason, reached by a pointer from an `AGENTS.md` file (the `writing-for-agents` skill, `.agents/skills/writing-for-agents/`, has the style). Open a docs PR for it.
 - **A decision and its reason**: an ADR in `docs/adr/`.
 - **One person's machine, tools or preferences**: their agent memory.
 
