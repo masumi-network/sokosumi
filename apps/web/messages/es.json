@@ -2866,7 +2866,7 @@
           "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca la app en Conexiones."
         },
         "errors": {
-          "facebookPage": "Conecta una cuenta de Facebook que gestione exactamente una página. Las cuentas sin páginas o con varias páginas aún no son compatibles.",
+          "facebookPage": "Ese inicio de sesión de Facebook no gestiona ninguna página. Vuelve a conectar con el inicio de sesión que gestiona tu página.",
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
@@ -2879,14 +2879,23 @@
           "finalize": "No pudimos terminar de conectar esta cuenta. Inténtalo de nuevo.",
           "disconnect": "No pudimos desconectar esta cuenta. Inténtalo de nuevo.",
           "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla.",
-          "sync": "No se pudo iniciar la sincronización."
+          "sync": "No se pudo iniciar la sincronización.",
+          "youtubeChannel": "Ese inicio de sesión de Google no tiene canal de YouTube. Vuelve a conectar y elige la cuenta del canal en la pantalla de Google."
         },
         "comingSoon": "Próximamente",
-        "linkedinPersonalOnly": "Solo perfil personal. Las páginas de empresa aún no son compatibles.",
         "personalProfile": "Perfil personal",
         "connectComingSoon": "{provider} (próximamente)",
         "empty": "Aún no hay cuentas.",
-        "emptyHint": "Conecta una para publicar."
+        "emptyHint": "Conecta una para publicar.",
+        "choose": {
+          "title": "¿Qué cuenta?",
+          "description": "Tu inicio de sesión de {provider} da acceso a más de una cuenta. Las publicaciones salen con la que elijas.",
+          "listLabel": "Cuentas",
+          "page": "Página de empresa",
+          "profile": "Tu perfil personal",
+          "cancel": "Cancelar",
+          "confirm": "Conectar"
+        }
       },
       "SocialPosts": {
         "loadError": {
@@ -11147,7 +11156,11 @@
         "changes": "Cambia cosas",
         "kindLabel": "Qué hace {name}",
         "enabledLabel": "Permitir que el bot use {name}",
-        "toolError": "No se pudo cambiar la herramienta"
+        "toolError": "No se pudo cambiar la herramienta",
+        "authOauth": "Iniciar sesión en la página del servidor",
+        "signIn": "Iniciar sesión",
+        "signInNeeded": "Inicia sesión en este servidor para que tu bot pueda usarlo.",
+        "signInError": "No se pudo iniciar la sesión"
       },
       "Shell": {
         "title": "Herramientas de línea de comandos",

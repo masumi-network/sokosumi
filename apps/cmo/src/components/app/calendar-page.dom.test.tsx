@@ -126,3 +126,35 @@ it("offers no edit on a post that is already out", async () => {
     "Edit text",
   );
 });
+
+it("marks this week and what goes out today, and tints a post's words with its network", async () => {
+  Element.prototype.scrollIntoView = vi.fn();
+  await act(async () =>
+    root.render(
+      <CalendarPage
+        overview={overview}
+        drafts={drafts()}
+        onAsk={async () => {}}
+        // Wednesday 11 November, mid-morning in Berlin.
+        now={new Date("2026-11-11T09:00:00Z")}
+      />,
+    ),
+  );
+  const weeks = [...container.querySelectorAll(".cal-week-head")].map(
+    (head) => head.textContent,
+  );
+  expect(weeks.filter((head) => head?.startsWith("This week"))).toEqual([
+    "This weekWeek 29 Nov",
+  ]);
+  // The page opens on this week, not on the weeks already gone out.
+  expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({
+    block: "start",
+  });
+  const slipped = [...container.querySelectorAll("button.cal-card")].find(
+    (card) => card.textContent?.includes("What a slipped launch costs"),
+  );
+  expect(slipped?.querySelector(".cal-when-today")?.textContent).toBe(
+    "Today 09:00",
+  );
+  expect(slipped?.querySelector(".cal-words")?.classList).toContain("net-x");
+});

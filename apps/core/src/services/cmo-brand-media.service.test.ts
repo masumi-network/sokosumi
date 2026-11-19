@@ -55,6 +55,8 @@ vi.mock("@sokosumi/net", () => ({
 const site = vi.hoisted(() => ({
   robots: vi.fn(),
   sitemap: vi.fn(),
+  /** A host whose capture throws, as a browser that died does. */
+  dies: { host: "" },
 }));
 vi.mock("@/lib/site-pages", () => ({
   readRobots: site.robots,
@@ -70,6 +72,9 @@ vi.mock("@/lib/site-capture", () => ({
     viewport?: { sections?: number; fullScreens?: number },
   ) => {
     const own = new URL(url).hostname === "acme.io";
+    if (new URL(url).hostname === site.dies.host) {
+      throw new Error("Protocol error: Target closed");
+    }
     return {
       url: url.endsWith("/moved-home") ? "https://acme.io/" : url,
       title: "Acme",
@@ -323,6 +328,52 @@ describe("captureCmoBrandMedia", () => {
       }),
     );
     expect(linked).toHaveLength(files.put.mock.calls.length);
+  });
+
+  it("leaves out a file that cannot be saved twice and keeps the rest", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Some of the brand's research files could not be saved",
+      ["Saving a capture file to the Project's Files failed twice"],
+    );
+    const put = files.put.getMockImplementation();
+    files.put.mockImplementation(
+      async (pathname: string, ...rest: unknown[]) => {
+        if (pathname.endsWith("/Full pages/pricing.jpg")) {
+          throw new Error("Vercel Blob: request failed");
+        }
+        return put?.(pathname, ...rest);
+      },
+    );
+    await captureCmoBrandMedia("bot-1");
+    const saved = files.put.mock.calls.map(([pathname]) => pathname);
+    // Tried twice, then left out; the pages after it and the index are kept.
+    expect(
+      saved.filter((path) => path.endsWith("/Full pages/pricing.jpg")),
+    ).toHaveLength(2);
+    expect(saved).toContain(`${ORG}/Full pages/about.jpg`);
+    expect(saved).toContain(`${ORG}/about-mobile.jpg`);
+    expect(saved).toContain(`${ORG}/index.json`);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media_save",
+      brandMedia: { failed: 1, folder: "/Full pages", bytes: 4 },
+    });
+  });
+
+  it("still writes the index when the capture throws partway", async () => {
+    site.dies.host = "rival.example";
+    try {
+      await expect(captureCmoBrandMedia("bot-1")).rejects.toThrow(
+        "Target closed",
+      );
+    } finally {
+      site.dies.host = "";
+    }
+    const index = files.put.mock.calls.find(([pathname]) =>
+      pathname.endsWith("/index.json"),
+    );
+    // The pages read before the browser died are kept and named.
+    expect(JSON.parse(String(index?.[1])).pages).toHaveLength(3);
   });
 
   it("reads only what robots.txt allows", async () => {

@@ -2,6 +2,7 @@ import {
   type CallToolResult,
   createMCPClient,
   type ListToolsResult,
+  type OAuthClientProvider,
 } from "@ai-sdk/mcp";
 import { ssrfSafeFetch } from "@sokosumi/net";
 
@@ -9,6 +10,8 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 export interface McpServerTarget {
   url: string;
   headers?: Record<string, string>;
+  /** A server the owner signed in to: tokens come from, and go back to, Core. */
+  authProvider?: OAuthClientProvider;
 }
 
 /** One tool as a server lists it, cut to what a turn can afford. */
@@ -30,7 +33,7 @@ export const MCP_TOOL_DESCRIPTION_MAX_CHARS = 1_000;
 export const MCP_TOOL_SCHEMA_MAX_CHARS = 8_000;
 export const MCP_RESULT_MAX_CHARS = 30_000;
 /** A call the model is waiting on, as for Composio. */
-const MCP_TIMEOUT_MS = 45_000;
+export const MCP_TIMEOUT_MS = 45_000;
 const MCP_RESPONSE_MAX_BYTES = 1_000_000;
 
 type Fetch = typeof globalThis.fetch;
@@ -49,7 +52,10 @@ function headerRecord(
  * asks for a stream that stays open, and `ssrfSafeFetch` reads a whole body;
  * the spec lets a server refuse it, and the client then works without.
  */
-function guardedFetch(target: McpServerTarget, signal: AbortSignal): Fetch {
+export function guardedFetch(
+  target: { url: string },
+  signal: AbortSignal,
+): Fetch {
   return async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     const method = (init?.method ?? "GET").toUpperCase();
@@ -59,7 +65,13 @@ function guardedFetch(target: McpServerTarget, signal: AbortSignal): Fetch {
     return ssrfSafeFetch(url, {
       method,
       headers: headerRecord(init?.headers),
-      body: typeof body === "string" ? body : undefined,
+      // OAuth token and registration requests send a form or JSON.
+      body:
+        typeof body === "string"
+          ? body
+          : body instanceof URLSearchParams
+            ? body.toString()
+            : undefined,
       signal: init?.signal ? AbortSignal.any([init.signal, signal]) : signal,
       maxResponseBytes: MCP_RESPONSE_MAX_BYTES,
     });
@@ -78,6 +90,7 @@ async function withMcpClient<T>(
       type: "http",
       url: target.url,
       headers: target.headers,
+      authProvider: target.authProvider,
       fetch: fetch ?? guardedFetch(target, signal),
     },
   });

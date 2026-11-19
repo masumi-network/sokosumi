@@ -18,7 +18,7 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 
 | Flow                                                      | Channel                             | State (2026-11-18)                               |
 | --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------ |
-| [LinkedIn posts](linkedin-founder-posts.md)               | LinkedIn                            | Works; company Pages in utxo AG only for now     |
+| [LinkedIn posts](linkedin-founder-posts.md)               | LinkedIn                            | Works; posts as a company Page or the profile    |
 | [X every day](x-daily-posts.md)                           | X                                   | Works                                            |
 | [Instagram posts and Reels](instagram-posts-and-reels.md) | Instagram, Facebook, YouTube Shorts | Works; a login with several Facebook Pages picks |
 | [TikTok videos](tiktok-videos.md)                         | TikTok                              | Works; the owner confirms each video             |

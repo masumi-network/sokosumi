@@ -563,7 +563,9 @@ async function asJpeg(
   picture: { body: Buffer; contentType: string },
 ): Promise<Buffer | null> {
   if (picture.contentType === "image/jpeg") return picture.body;
-  const page = await browser.newPage();
+  // A browser that died mid-capture costs this picture, never the capture.
+  const page = await browser.newPage().catch(() => null);
+  if (!page) return null;
   try {
     const jpeg = await page.evaluate(
       async (source: string) => {
@@ -586,7 +588,7 @@ async function asJpeg(
   } catch {
     return null;
   } finally {
-    await page.close();
+    await page.close().catch(() => undefined);
   }
 }
 
@@ -602,17 +604,53 @@ const PAGE_SECTIONS = 6;
 const HOMEPAGE_FILES = ["home.jpg", "home-mobile.jpg"];
 const capturing = new Set<string>();
 
+/** A file a capture could not save, twice: what it was and why. */
+interface SaveFailure {
+  folder: string;
+  bytes: number;
+  failure: ReturnType<typeof messageSafeErrorFields>;
+}
+
+/**
+ * Saves one file of a capture, trying once more when it fails. A file that
+ * cannot be saved is left out and noted in `failures`: it never ends the
+ * capture, which is best effort file by file.
+ */
+async function saveFile(
+  drive: CusoDrive,
+  target: { folder: string; filename: string },
+  body: Buffer,
+  contentType: string,
+  failures?: SaveFailure[],
+): Promise<string | null> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await saveCusoProjectFile(drive, target, body, contentType);
+    } catch (error) {
+      if (attempt < 2) continue;
+      failures?.push({
+        folder: target.folder,
+        bytes: body.byteLength,
+        failure: messageSafeErrorFields(error),
+      });
+      return null;
+    }
+  }
+}
+
 function saveShot(
   drive: CusoDrive,
   folder: string,
   name: string,
   screenshot: Buffer,
+  failures?: SaveFailure[],
 ): Promise<string | null> {
-  return saveCusoProjectFile(
+  return saveFile(
     drive,
     { folder, filename: `${slug(name)}.jpg` },
     screenshot,
     "image/jpeg",
+    failures,
   );
 }
 
@@ -764,6 +802,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   const deadline = Date.now() + CAPTURE_BUDGET_MS;
   const inTime = () => Date.now() < deadline;
   const index: BrandIndex = { pages: [], sections: [] };
+  const failures: SaveFailure[] = [];
 
   /**
    * Saves what one page of the brand gave, each file as it is ready. False
@@ -774,13 +813,20 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     if (index.pages.some((page) => page.url === capture.url)) return false;
     const name = slug(label);
     index.pages.push({ name, url: capture.url, title: capture.title });
-    await saveShot(drive, CMO_BRAND_MEDIA_FOLDER, name, capture.screenshot);
+    await saveShot(
+      drive,
+      CMO_BRAND_MEDIA_FOLDER,
+      name,
+      capture.screenshot,
+      failures,
+    );
     if (capture.fullPage) {
       await saveShot(
         drive,
         `${CMO_BRAND_MEDIA_FOLDER}/Full pages`,
         name,
         capture.fullPage,
+        failures,
       );
     }
     for (const [position, section] of capture.sections.entries()) {
@@ -803,106 +849,134 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
         `${CMO_BRAND_MEDIA_FOLDER}/Sections`,
         file,
         section.screenshot,
+        failures,
       );
     }
     return true;
   };
 
-  const media = await withBrowser(async (browser: Browser) => {
-    const home = robots.allows("/")
-      ? await capturePage(browser, site.href, {
+  try {
+    const media = await withBrowser(async (browser: Browser) => {
+      const home = robots.allows("/")
+        ? await capturePage(browser, site.href, {
+            ...DESKTOP,
+            fullScreens: FULL_PAGE_SCREENS,
+            sections: HOME_SECTIONS,
+          })
+        : null;
+      if (home) await saveOwnPage("Home", home);
+      // The site's own header and footer say which pages matter; its sitemap
+      // fills in what they leave out.
+      const found = home
+        ? [
+            ...home.links.map((link) => link.url),
+            ...(await readSitemapPages(site.origin, robots)),
+          ]
+        : [];
+      const ownPages = cmoOwnPages(cuso.websiteUrl, brain.data, found)
+        .slice(1)
+        .filter((page) => robots.allows(new URL(page.url).pathname));
+      const rest = await inBatches(ownPages, async (page) => {
+        if (!inTime()) return null;
+        const capture = await capturePage(browser, page.url, {
           ...DESKTOP,
           fullScreens: FULL_PAGE_SCREENS,
-          sections: HOME_SECTIONS,
-        })
-      : null;
-    if (home) await saveOwnPage("Home", home);
-    // The site's own header and footer say which pages matter; its sitemap
-    // fills in what they leave out.
-    const found = home
-      ? [
-          ...home.links.map((link) => link.url),
-          ...(await readSitemapPages(site.origin, robots)),
-        ]
-      : [];
-    const ownPages = cmoOwnPages(cuso.websiteUrl, brain.data, found)
-      .slice(1)
-      .filter((page) => robots.allows(new URL(page.url).pathname));
-    const rest = await inBatches(ownPages, async (page) => {
-      if (!inTime()) return null;
-      const capture = await capturePage(browser, page.url, {
-        ...DESKTOP,
-        fullScreens: FULL_PAGE_SCREENS,
-        sections: PAGE_SECTIONS,
+          sections: PAGE_SECTIONS,
+        });
+        return capture && (await saveOwnPage(page.label, capture))
+          ? capture
+          : null;
       });
-      return capture && (await saveOwnPage(page.label, capture))
-        ? capture
-        : null;
-    });
-    const own = [home, ...rest];
-    await inBatches(index.pages, async (page) => {
-      if (!inTime()) return;
-      const phone = await capturePage(browser, page.url, MOBILE);
-      if (phone) {
-        await saveShot(
-          drive,
-          CMO_BRAND_MEDIA_FOLDER,
-          `${page.name}${MOBILE_SUFFIX}`,
-          phone.screenshot,
-        );
+      const own = [home, ...rest];
+      await inBatches(index.pages, async (page) => {
+        if (!inTime()) return;
+        const phone = await capturePage(browser, page.url, MOBILE);
+        if (phone) {
+          await saveShot(
+            drive,
+            CMO_BRAND_MEDIA_FOLDER,
+            `${page.name}${MOBILE_SUFFIX}`,
+            phone.screenshot,
+            failures,
+          );
+        }
+      });
+      await inBatches(competitorPages, async (page) => {
+        if (!inTime() || !(await readRobots(page.url)).allows("/")) return;
+        const capture = await capturePage(browser, page.url);
+        if (capture) {
+          await saveShot(
+            drive,
+            `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
+            page.name,
+            capture.screenshot,
+            failures,
+          );
+        }
+      });
+      const seen = new Set<string>();
+      const candidates = own
+        .flatMap((capture) => capture?.images ?? [])
+        .filter((image) => {
+          const key = image.url.split("?")[0] ?? image.url;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, MAX_PICTURES);
+      const pictures: { image: SiteImage; body: Buffer }[] = [];
+      for (const image of candidates) {
+        const picture = await downloadPicture(image);
+        const body = picture ? await asJpeg(browser, picture) : null;
+        if (body) pictures.push({ image, body });
       }
+      return { pictures };
     });
-    await inBatches(competitorPages, async (page) => {
-      if (!inTime() || !(await readRobots(page.url)).allows("/")) return;
-      const capture = await capturePage(browser, page.url);
-      if (capture) {
-        await saveShot(
-          drive,
-          `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
-          page.name,
-          capture.screenshot,
-        );
-      }
-    });
-    const seen = new Set<string>();
-    const candidates = own
-      .flatMap((capture) => capture?.images ?? [])
-      .filter((image) => {
-        const key = image.url.split("?")[0] ?? image.url;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, MAX_PICTURES);
-    const pictures: { image: SiteImage; body: Buffer }[] = [];
-    for (const image of candidates) {
-      const picture = await downloadPicture(image);
-      const body = picture ? await asJpeg(browser, picture) : null;
-      if (body) pictures.push({ image, body });
+    for (const [index, { image, body }] of media.pictures.entries()) {
+      const slot = String(index + 1).padStart(2, "0");
+      // The alt text names the picture, so Cuso finds a product's photo.
+      const filename = image.alt.trim()
+        ? `${slot}-${slug(image.alt)}.jpg`
+        : `picture-${slot}.jpg`;
+      await saveFile(
+        drive,
+        { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
+        body,
+        "image/jpeg",
+        failures,
+      );
     }
-    return { pictures };
-  });
-
-  await logo;
-  // Written last and always: it marks the Project as indexed.
-  await saveCusoProjectFile(
-    drive,
-    { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
-    Buffer.from(JSON.stringify(index, null, 2)),
-    "application/json",
-  );
-  for (const [index, { image, body }] of media.pictures.entries()) {
-    const slot = String(index + 1).padStart(2, "0");
-    // The alt text names the picture, so Cuso finds a product's photo.
-    const filename = image.alt.trim()
-      ? `${slot}-${slug(image.alt)}.jpg`
-      : `picture-${slot}.jpg`;
-    await saveCusoProjectFile(
+  } finally {
+    await logo;
+    // Written last and always, also after a capture that threw: it marks
+    // the Project as indexed, so the backfill moves on to the next Cuso.
+    await saveFile(
       drive,
-      { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
-      body,
-      "image/jpeg",
+      { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
+      Buffer.from(JSON.stringify(index, null, 2)),
+      "application/json",
+      failures,
     );
+    if (failures.length > 0) {
+      const first = failures[0] as SaveFailure;
+      emitCoreWarning(
+        {
+          operation: "cmo_brand_media_save",
+          sokoBot: { id: sokoBotId },
+          brandMedia: {
+            failed: failures.length,
+            folder: first.folder.replace(CMO_BRAND_MEDIA_FOLDER, "") || "/",
+            bytes: first.bytes,
+          },
+          failure: first.failure,
+        },
+        {
+          message: "Some of the brand's research files could not be saved",
+          why: "Saving a capture file to the Project's Files failed twice",
+          fix: "The capture kept every other file. If it repeats, look up the error name and code under failure and the file size under brandMedia.",
+        },
+      );
+    }
   }
   nudgeFileIndexing();
 }

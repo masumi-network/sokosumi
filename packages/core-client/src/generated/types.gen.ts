@@ -15201,11 +15201,20 @@ export type SokoBotMcpTool = {
     enabled: boolean;
 };
 
+export type AddedSokoBotMcpServer = SokoBotMcpServer & {
+    /**
+     * The server's sign-in page to send the owner to; null when no sign-in is needed
+     */
+    authorizationUrl: string | null;
+};
+
 export type AddSokoBotMcpServerRequest = {
     name: string;
     url: string;
     auth: {
         type: 'none';
+    } | {
+        type: 'oauth';
     } | {
         type: 'bearer';
         token: string;
@@ -15214,6 +15223,10 @@ export type AddSokoBotMcpServerRequest = {
         name: string;
         value: string;
     };
+};
+
+export type SokoBotMcpSignIn = {
+    authorizationUrl: string | null;
 };
 
 export type UpdateSokoBotMcpToolRequest = {
@@ -98886,10 +98899,10 @@ export type AddSokoBotMcpServerError = AddSokoBotMcpServerErrors[keyof AddSokoBo
 
 export type AddSokoBotMcpServerResponses = {
     /**
-     * The server, connected, with its tools
+     * The server, connected with its tools, or waiting for the owner to sign in
      */
     200: {
-        data: SokoBotMcpServer;
+        data: AddedSokoBotMcpServer;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -98899,6 +98912,129 @@ export type AddSokoBotMcpServerResponses = {
 };
 
 export type AddSokoBotMcpServerResponse = AddSokoBotMcpServerResponses[keyof AddSokoBotMcpServerResponses];
+
+export type SignInToSokoBotMcpServerData = {
+    body?: never;
+    path: {
+        id: string;
+        serverId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers/{serverId}/sign-in';
+};
+
+export type SignInToSokoBotMcpServerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SignInToSokoBotMcpServerError = SignInToSokoBotMcpServerErrors[keyof SignInToSokoBotMcpServerErrors];
+
+export type SignInToSokoBotMcpServerResponses = {
+    /**
+     * The server's sign-in page to send the owner to
+     */
+    200: {
+        data: SokoBotMcpSignIn;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SignInToSokoBotMcpServerResponse = SignInToSokoBotMcpServerResponses[keyof SignInToSokoBotMcpServerResponses];
+
+export type CompleteSokoBotMcpSignInData = {
+    body?: never;
+    path?: never;
+    query: {
+        code?: string;
+        state: string;
+        iss?: string;
+        error?: string;
+    };
+    url: '/soko-bots/mcp-oauth/callback';
+};
+
+export type CompleteSokoBotMcpSignInErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CompleteSokoBotMcpSignInError = CompleteSokoBotMcpSignInErrors[keyof CompleteSokoBotMcpSignInErrors];
 
 export type RefreshSokoBotMcpServerData = {
     body?: never;

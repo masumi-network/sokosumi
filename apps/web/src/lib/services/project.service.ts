@@ -31,6 +31,7 @@ import type {
   ReplaceSocialQueueSlotsRequest,
   ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
+  SocialAccountChoices,
   SocialPost,
   SocialPostStatus,
   SocialQueueSlots,
@@ -333,15 +334,11 @@ export const projectService = (() => {
   async function finalizeSocialConnection(
     projectId: string,
     input: FinalizeProjectSocialConnectionRequest,
-  ): Promise<ProjectSocialConnection> {
+  ): Promise<ProjectSocialConnection | SocialAccountChoices> {
     const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
       projectId,
       input,
     );
-    // Core answers with choices only to a caller that sent `offerChoice`.
-    if ("choices" in result.data) {
-      throw new Error("Core asked for an account pick nobody offered");
-    }
     return result.data;
   }
 

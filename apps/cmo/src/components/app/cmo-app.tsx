@@ -21,6 +21,7 @@ import type { ChatTable, ChatWork } from "../../lib/chat-work";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
+import { needsYou } from "../../lib/today";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
@@ -55,6 +56,8 @@ import { cmoPause, PausedBanner } from "./paused";
 import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
+import { TabBar } from "./tab-bar";
+import { TodayPage } from "./today-page";
 
 const POLL_MS = 4_000;
 
@@ -226,7 +229,7 @@ export function CmoApp({
   work: initialWork = [],
   name,
   email,
-  initialView = "chat",
+  initialView = "today",
   connectError = null,
   plans = [],
   manyCusos = false,
@@ -246,11 +249,13 @@ export function CmoApp({
   }, []);
   useEffect(() => {
     const onPop = () =>
-      setView(viewFromPath(window.location.pathname) ?? "chat");
+      setView(viewFromPath(window.location.pathname) ?? "today");
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   const [draft, setDraft] = useState("");
+  // A post opened from Today opens on the Calendar.
+  const [focusEntry, setFocusEntry] = useState<string | null>(null);
   const [sending, startSending] = useTransition();
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
@@ -400,36 +405,41 @@ export function CmoApp({
       />
 
       <main className="main">
-        <div className="vhead">
-          <h2>{VIEWS.find(([id]) => id === view)?.[1]}</h2>
-          {view === "chat" ? (
-            <span className="status">
-              <span
-                className={
-                  overview.botStatus === "RUNNING" ? "dot live" : "dot"
+        {/* A page's lead names it; only the chat and Strategy keep a bar for their status. */}
+        {view === "chat" || view === "strategy" ? (
+          <div className="vhead">
+            <h2>{VIEWS.find(([id]) => id === view)?.[1]}</h2>
+            {view === "chat" ? (
+              <span className="status">
+                <span
+                  className={
+                    overview.botStatus === "RUNNING" ? "dot live" : "dot"
+                  }
+                  aria-hidden="true"
+                />
+                {status}
+              </span>
+            ) : null}
+            {view === "strategy" && overview.strategy ? (
+              strategyApproved(overview) ? (
+                <StatusText>Approved</StatusText>
+              ) : (
+                <span className="muted">Draft</span>
+              )
+            ) : null}
+            <span className="sp" />
+            {view === "strategy" &&
+            overview.strategy &&
+            !strategyApproved(overview) &&
+            overview.viewerCanApprove ? (
+              <ApproveDraft
+                approve={async () =>
+                  setOverview(await actions.approveStrategy())
                 }
-                aria-hidden="true"
               />
-              {status}
-            </span>
-          ) : null}
-          {view === "strategy" && overview.strategy ? (
-            strategyApproved(overview) ? (
-              <StatusText>Approved</StatusText>
-            ) : (
-              <span className="muted">Draft</span>
-            )
-          ) : null}
-          <span className="sp" />
-          {view === "strategy" &&
-          overview.strategy &&
-          !strategyApproved(overview) &&
-          overview.viewerCanApprove ? (
-            <ApproveDraft
-              approve={async () => setOverview(await actions.approveStrategy())}
-            />
-          ) : null}
-        </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {pause ? (
           <PausedBanner
@@ -522,9 +532,21 @@ export function CmoApp({
                   }
                 />
               ) : null}
-              {view === "calendar" ? (
+              {view === "today" ? (
+                <TodayPage
+                  overview={overview}
+                  firstName={name.trim().split(/\s+/)[0] ?? ""}
+                  open={go}
+                  openEntry={(id) => {
+                    setFocusEntry(id);
+                    go("calendar");
+                  }}
+                  ask={() => compose("")}
+                />
+              ) : view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
+                  initialOpenId={focusEntry}
                   drafts={draftActions}
                   onConnect={() => go("channels")}
                   loadText={actions.loadPieceText}
@@ -639,6 +661,13 @@ export function CmoApp({
           </div>
         )}
       </main>
+      <TabBar
+        view={view}
+        onSelect={go}
+        needs={needsYou(overview).length}
+        manyCusos={manyCusos}
+        signOut={actions.signOut}
+      />
     </div>
   );
 }
