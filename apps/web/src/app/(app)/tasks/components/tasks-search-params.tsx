@@ -114,15 +114,21 @@ export function replaceTasksQuery(
   nextSearchParams: URLSearchParams,
   activeOrganizationId: string | null,
 ) {
-  const nextQuery = nextSearchParams.toString();
-  router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
-
   const viewQuery = pickTasksViewQuery(nextSearchParams);
   const key = workspaceKey(activeOrganizationId);
-  if (lastSavedViewByWorkspace.get(key) === viewQuery) return;
-  lastSavedViewByWorkspace.set(key, viewQuery);
-  // Server actions run one at a time, so the last change is the last save.
-  saveTasksView(viewQuery).catch((error: unknown) => {
-    console.error("Failed to save the Tasks view", error);
-  });
+  if (lastSavedViewByWorkspace.get(key) !== viewQuery) {
+    lastSavedViewByWorkspace.set(key, viewQuery);
+    // Sent before the navigation: a navigation lets an action already sent
+    // finish, but holds a later one back until the new board has loaded.
+    // Server actions run one at a time, so the last change is the last save.
+    saveTasksView(viewQuery).catch((error: unknown) => {
+      if (lastSavedViewByWorkspace.get(key) === viewQuery) {
+        lastSavedViewByWorkspace.delete(key);
+      }
+      console.error("Failed to save the Tasks view", error);
+    });
+  }
+
+  const nextQuery = nextSearchParams.toString();
+  router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
 }

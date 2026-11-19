@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { expectConsole } from "@sokosumi/utils/test-console";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { saveTasksViewMock, routerReplaceMock, searchParamsRef } = vi.hoisted(
@@ -88,5 +89,34 @@ describe("replaceTasksQuery", () => {
     expect(saveTasksViewMock).toHaveBeenCalledExactlyOnceWith(
       "scope=owned&stuck=1",
     );
+  });
+
+  it("sends the save before the navigation, which would hold it back", () => {
+    const router = { replace: vi.fn() };
+
+    replaceTasksQuery(
+      router,
+      "/tasks",
+      new URLSearchParams("scope=owned&status=DONE"),
+      "org-d",
+    );
+
+    expect(saveTasksViewMock.mock.invocationCallOrder[0]).toBeLessThan(
+      router.replace.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("saves a view again after its save failed", async () => {
+    expectConsole("error", "Failed to save the Tasks view");
+    saveTasksViewMock.mockRejectedValueOnce(new Error("Core down"));
+    const router = { replace: vi.fn() };
+    const next = new URLSearchParams("scope=owned&status=READY");
+
+    replaceTasksQuery(router, "/tasks", next, "org-e");
+    await waitFor(() => expect(saveTasksViewMock).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    replaceTasksQuery(router, "/tasks", next, "org-e");
+
+    expect(saveTasksViewMock).toHaveBeenCalledTimes(2);
   });
 });

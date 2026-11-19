@@ -45,11 +45,6 @@ export interface TasksPageDataInput {
   restoreSavedView: boolean;
 }
 
-/** The saved view, or null when none is saved. Throws when Core cannot say. */
-function readSavedTasksViewStrict(): Promise<string | null> {
-  return taskService.getSavedTasksViewQuery();
-}
-
 /** The saved view, or null when none is saved or Core cannot say. */
 function readSavedTasksView(): Promise<string | null> {
   return taskService.getSavedTasksViewQuery().catch((error: unknown) => {
@@ -91,14 +86,13 @@ async function readTasksPageData(
     restoreSavedView,
   }: TasksPageDataInput,
   session: Session | null,
-  readSavedView: () => Promise<string | null>,
 ) {
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const [[taskCoworkers, projectsPage, ownerBot], memberOptions, savedView] =
     await Promise.all([
       loadTasksPageOptions(),
       listTaskAssigneeMemberOptions(activeOrganizationId),
-      restoreSavedView ? readSavedView() : null,
+      restoreSavedView ? readSavedTasksView() : null,
     ]);
   // Runs beside the board reads, not after them.
   const canCreateTaskPromise =
@@ -315,13 +309,7 @@ async function readPrivateCachedTasksPageData(
   if (sessionResult.isErr()) {
     throw new CoreAuthUnavailableError(sessionResult.error.reason);
   }
-  // A failed saved-view read throws here, so the defaults it falls back to
-  // are never cached; the uncached retry below tolerates it.
-  return readTasksPageData(
-    input,
-    sessionResult.value,
-    readSavedTasksViewStrict,
-  );
+  return readTasksPageData(input, sessionResult.value);
 }
 
 /**
@@ -335,6 +323,6 @@ export function loadTasksPageData(
   return readPrivateCachedTasksPageData(input).catch(async (error: unknown) => {
     unstable_rethrow(error);
     await connection();
-    return readTasksPageData(input, await getSession(), readSavedTasksView);
+    return readTasksPageData(input, await getSession());
   });
 }
