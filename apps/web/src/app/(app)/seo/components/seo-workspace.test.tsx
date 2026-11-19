@@ -837,9 +837,15 @@ describe("SEO workspace integration", () => {
     );
     // The Market reads as a country and a language, not as codes.
     expect(row).toHaveTextContent("Google · United States · English");
-    expect(row).toHaveTextContent(
-      "Google shows an AI Overview for this search. It does not list this page as a source.",
-    );
+    // An AI Overview that leaves the page out shows only in the fold.
+    expect(
+      within(row).queryByText(
+        "Google's AI Overview cites this page as a source",
+      ),
+    ).toBeNull();
+    expect(
+      within(row).getByText(/AI Overview shows and does not cite/),
+    ).not.toBeVisible();
     expect(row).toHaveTextContent(
       "Also not in the top 15 for 2 other keywords",
     );
@@ -853,6 +859,40 @@ describe("SEO workspace integration", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("says when Google's AI Overview cites the page", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "organic-position-cited",
+      observationId: "check-position",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "query.serp.position",
+      title: "Organic position per device",
+      severity: "measure",
+      evidence: [
+        '"häfen auf rügen", Market DE, de (location_code 2276), desktop, DataForSEO SERP of 2026-11-19 09:00:00 +00:00: 18 organic results read',
+        "the page is not in the top 18 organic results",
+        "the AI Overview cites the page",
+      ],
+      sourceRef: "serp:desktop",
+      observedAt: new Date("2026-11-19T09:01:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Title, description and other page details",
+      }),
+    );
+    expect(
+      screen.getByText("Google's AI Overview cites this page as a source"),
+    ).toBeVisible();
   });
 
   it("says in plain words what a camera file name note found and lists the files by name", async () => {

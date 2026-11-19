@@ -2,16 +2,12 @@
 
 import { ArrowRight } from "lucide-react";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
 import {
   type SeoRankDetail,
   type SeoRankResult,
   seoRankAbsentOthers,
 } from "./seo-rank-detail-model";
 import { SeoDate, SeoFoldSummary } from "./seo-shared";
-
-/** Orange marks an AI Overview that leaves the page out; grey one that cites it. */
-const AI_OVERVIEW_MARK = { cites: "bg-chart-5", leavesOut: "bg-chart-2" };
 
 /** A region or language code in the reader's words, e.g. "DE" as "Germany"; the code when the browser has no name. */
 function displayName(
@@ -100,24 +96,11 @@ export function SeoRankDetailRow({
           </>
         ) : null}
       </p>
-      {detail.aiOverviewCites === null ? null : (
-        <p className="inline-flex items-center gap-1.5 text-xs">
-          <span
-            aria-hidden
-            className={cn(
-              "size-1.5 shrink-0 rounded-full forced-colors:bg-[CanvasText]",
-              detail.aiOverviewCites
-                ? AI_OVERVIEW_MARK.cites
-                : AI_OVERVIEW_MARK.leavesOut,
-            )}
-          />
-          {t(
-            detail.aiOverviewCites
-              ? "overview.rank.aiCited"
-              : "overview.rank.aiNotCited",
-          )}
-        </p>
-      )}
+      {/* Only a citation is news to the owner: an AI Overview without the page gives nothing to act on here.
+          That line stays in the fold. */}
+      {detail.aiOverviewCites ? (
+        <p className="text-xs">{t("overview.rank.aiCited")}</p>
+      ) : null}
       {listedOthers.length || absentOthers ? (
         <ul className="text-muted-foreground space-y-0.5 text-xs">
           {listedOthers.map((other) => (
