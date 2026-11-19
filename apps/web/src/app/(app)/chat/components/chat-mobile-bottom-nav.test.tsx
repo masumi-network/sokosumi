@@ -251,6 +251,21 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
+  it("sets aria-current on You for Contacts opened from You", () => {
+    mockPathname = "/contacts";
+    mockSearchParams = new URLSearchParams("from=you");
+    render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
+
+    expect(screen.getByRole("link", { name: "you" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "home" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    mockSearchParams = new URLSearchParams();
+  });
+
   it("sets aria-current on Home for /history", () => {
     mockPathname = "/history";
     render(<ChatMobileBottomNav showUnreadDot={mockShowUnreadDot} />);
