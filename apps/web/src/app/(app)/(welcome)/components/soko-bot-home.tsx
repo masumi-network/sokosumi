@@ -158,7 +158,7 @@ export async function SokoBotHome({
             avatarSize={56}
             className="border-background size-14 rounded-full border-4 shadow-md"
           />
-          <h1 className="text-foreground text-3xl font-normal tracking-tight text-balance md:text-4xl">
+          <h1 className="text-foreground text-3xl font-light tracking-tight text-balance md:text-4xl">
             {userName ? t("headingWithName", { name: userName }) : t("heading")}
           </h1>
         </div>
