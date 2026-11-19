@@ -76,4 +76,22 @@ describe("TaskOpenSubtasks", () => {
 
     expect(screen.getAllByRole("link")).toHaveLength(3);
   });
+
+  it("names an untitled sub-task so its link is not empty", () => {
+    render(
+      <ShowOpenSubtasksContext value>
+        <TaskOpenSubtasks
+          task={{
+            id: "parent",
+            identifier: "WEB-1",
+            name: "Website relaunch",
+            subtaskProgress: { completed: 0, total: 1 },
+            openSubtasks: [{ ...open[0], name: " " }],
+          }}
+        />
+      </ShowOpenSubtasksContext>,
+    );
+
+    expect(screen.getByRole("link")).toHaveTextContent("noTitle");
+  });
 });

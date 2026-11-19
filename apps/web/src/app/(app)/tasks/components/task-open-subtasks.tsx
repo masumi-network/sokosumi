@@ -27,6 +27,7 @@ interface TaskOpenSubtasksProps {
 export function TaskOpenSubtasks({ task, className }: TaskOpenSubtasksProps) {
   const show = useContext(ShowOpenSubtasksContext);
   const t = useTranslations("App.Tasks.Subtasks");
+  const tTasks = useTranslations("App.Tasks");
   const open = task.openSubtasks ?? [];
   if (!show || open.length === 0) return null;
 
@@ -35,12 +36,13 @@ export function TaskOpenSubtasks({ task, className }: TaskOpenSubtasksProps) {
     ? Math.max(0, progress.total - progress.completed - open.length)
     : 0;
   // Above the card's full-size title link, so each row is its own link.
+  const nameOf = (name: string) => (name.trim() ? name : tTasks("noTitle"));
   const linkClassName =
     "relative z-10 flex min-w-0 items-center gap-1.5 rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring";
 
   return (
     <ul
-      aria-label={t("openListLabel", { name: task.name })}
+      aria-label={t("openListLabel", { name: nameOf(task.name) })}
       className={cn(
         "border-border ms-1 space-y-1 border-s-2 ps-2.5 text-xs",
         className,
@@ -50,7 +52,7 @@ export function TaskOpenSubtasks({ task, className }: TaskOpenSubtasksProps) {
         <li key={subtask.id}>
           <TaskDetailLink href={taskHref(subtask)} className={linkClassName}>
             <TaskStatusBadge status={subtask.status} showLabel={false} />
-            <span className="truncate">{subtask.name}</span>
+            <span className="truncate">{nameOf(subtask.name)}</span>
           </TaskDetailLink>
         </li>
       ))}
