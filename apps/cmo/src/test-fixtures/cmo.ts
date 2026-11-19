@@ -112,6 +112,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     projectLogo: null,
     presenterSet: false,
     onboardingStep: "done",
+    timeZone: "Europe/Berlin",
     routines: [
       {
         key: "cmo-daily-run",
