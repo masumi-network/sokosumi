@@ -65,11 +65,17 @@ export interface OnboardingConnectActions {
   /** Records that the founder launched, so the checkout or the chat opens next. */
   finishAccounts: () => Promise<never>;
   connectChannel: (
-    provider: "x" | "linkedin" | "instagram" | "facebook" | "youtube",
+    provider:
+      | "x"
+      | "linkedin"
+      | "instagram"
+      | "facebook"
+      | "youtube"
+      | "tiktok",
   ) => Promise<{ url: string | null; error: string | null }>;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
-    from: "onboarding" | "app",
+    from: "onboarding" | "launch" | "app",
   ) => Promise<{ url: string | null; error: string | null }>;
   connectAds: AdActions["connectAds"];
   /** The owner's photo for talking videos, base64 JPEG, with their consent. */

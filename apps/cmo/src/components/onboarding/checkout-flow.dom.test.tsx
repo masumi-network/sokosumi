@@ -67,6 +67,7 @@ const linkedin = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 
 /** Paid for: Core waits on the accounts. */

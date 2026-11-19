@@ -16,4 +16,4 @@
 - They never have to film or edit.
 - The AI label is set for them.
 
-**Today:** posting to TikTok works only for utxo until TikTok approves our app audit (#7443). The video is made and goes to Reels and Shorts.
+**Today:** only a Cuso in utxo's workspace can connect TikTok (Channels shows it there), until TikTok approves our app audit (#7443). Cuso plans no TikTok posts yet, connected or not: the video is made and goes to Reels and Shorts.

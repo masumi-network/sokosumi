@@ -146,6 +146,7 @@ export function screenOverview(screen: Screen): CmoOverview {
                   handle: "acme",
                   displayName: "Acme",
                   status: "ACTIVE",
+                  personalProfile: false,
                 },
               ]
             : [],

@@ -1259,7 +1259,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     prompt:
       "Let's post on LinkedIn only once a week this month. Change the plan.",
     rubric:
-      "Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.",
+      'Cuso changes the saved month with save_strategy so LinkedIn has at most one piece a week, keeps every other piece as it was, and lists what changed in plain words. When he files a report card (report_update kind request), its title is one short plain sentence to the owner ("LinkedIn is down to one post a week"); a title in internal terms or with two clauses joined by a semicolon fails. Rewriting the whole strategy, calling it the plan in the answer, or saying it changed without a successful save_strategy, fails. If no strategy exists yet, saying so is correct.',
     expect: {
       routes: ["MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
@@ -1359,6 +1359,119 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       // The lane's month is a draft: a pieces save is refused, a calendar save works.
       allowFailedTools: ["save_strategy"],
       noInventedIds: true,
+    },
+  },
+  {
+    id: "cmo-content-tracker",
+    title: "Keeps a content tracker as a table",
+    intent:
+      "Asked for a tracker, Cuso makes a real table in his own Project and names it, instead of typing rows into the chat or pointing somewhere else.",
+    prompt:
+      "Make a content tracker table with the columns Post, Channel and Status, and put this week's LinkedIn posts from the strategy in it.",
+    rubric:
+      "Cuso created a table with create_table whose columns are Post, Channel and Status (or very close), with rows for this week's LinkedIn posts from the strategy, and told the owner its name and what is in it in a sentence or two. The owner's chat shows the table itself, so writing a link to it, telling the owner to open it somewhere, or repeating every row as a typed table fails. Saying he cannot create tables fails. Changing the strategy fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["create_table"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: "\\]\\(|/drive/|sokosumi",
+    },
+  },
+  {
+    id: "cmo-contact-list",
+    title: "Keeps an audience as a contact list",
+    intent:
+      "The business's contacts are Cuso's audience map: he reads them and keeps a named list, in his own organization.",
+    prompt:
+      "How many contacts do we have? Then start a contact list called Press for the journalists we meet.",
+    rubric:
+      "Cuso read the contacts (count_contacts or search_contacts) and said how many there are, a real number from the tool, zero included. He created a contact list called Press with manage_contact_lists and said so. Saying he cannot reach the contacts, sending the owner to another assistant or another app, or inventing people fails. Writing a link fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["manage_contact_lists"],
+      anyTools: ["count_contacts", "search_contacts"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: "personal assistant|\\]\\(|sokosumi",
+    },
+  },
+  {
+    id: "cmo-background-run",
+    title: "Takes a long job as a background run",
+    intent:
+      "A job too long for a chat turn starts as a background run with a complete brief, and the owner is told it has started.",
+    prompt:
+      "This is a long job, so do it in the background: read the pricing pages of our three main competitors and put what each plan costs in a table called Competitor prices. Start now and report when it is done.",
+    rubric:
+      "Cuso started one background run with start_background_run whose brief names the goal (the three competitors' plan prices), where the result goes (a table called Competitor prices) and what done means, and told the owner in a sentence or two that it has started and that the report follows in this chat. Doing all the research in this turn instead, starting more than one run, creating a Task or hiring an Agent for it, or saying he cannot work in the background fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["start_background_run"],
+      forbiddenTools: ["create_task", "hire_agent", "save_strategy"],
+    },
+  },
+  {
+    id: "cmo-no-task-for-owner",
+    title: "Tells the owner what to do instead of making them a Task",
+    intent:
+      "CMO has no Task board: what the owner must do themselves, Cuso says in chat. A Task is work for a Coworker only.",
+    prompt:
+      "Create a task for me to sign the contract with our new design agency by Friday.",
+    rubric:
+      "Cuso created no Task and assigned none. He told the owner plainly that signing the agency contract by Friday is theirs to do, and may offer to remind them on a day they choose. Saying a Task was created, creating one for the owner or a teammate, or naming a Task board or another app fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      forbiddenTools: ["create_task", "assign_task", "hire_agent"],
+      noDelegations: true,
+      answerMatches: "contract|sign",
+    },
+  },
+  {
+    id: "cmo-reminder-own-schedule",
+    title: "Makes a reminder a schedule of its own",
+    intent:
+      "A reminder the owner asks for is a new schedule. Cuso's built-in rhythms (the weekly review, the daily run) stay as they are.",
+    prompt:
+      "Remind me every Monday at 9:00 to send you last week's sales numbers.",
+    rubric:
+      "Cuso created one new schedule with create_schedule for Mondays at 9:00 whose prompt reminds the owner to send last week's sales numbers, and confirmed the day and time in a sentence. Changing, pausing or deleting one of his built-in rhythms (Weekly review, Daily marketing run and the like), or folding the reminder into one of them, fails. Creating a Task for it fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["create_schedule"],
+      forbiddenTools: [
+        "update_schedule",
+        "delete_schedule",
+        "create_task",
+        "hire_agent",
+      ],
+    },
+  },
+  {
+    id: "cmo-quiet-follow-up",
+    title: "Stays brief when a finished picture already shows in the chat",
+    intent:
+      "A follow-up that only finds a picture ready changes nothing: the owner's chat shows it where Cuso started it, so he says so in a sentence or stays silent.",
+    prompt: "",
+    trigger: {
+      kind: "follow_up",
+      ask: "Remind me every Monday at 9:00 to send you last week's sales numbers.",
+      outcome:
+        "The image is ready. The owner's chat already shows it, where you started it; there is nothing to fetch or attach.",
+      then: "Show the picture here with one sentence.",
+    },
+    rubric:
+      "Cuso changes nothing: no new picture, no post, no report card, no Task. His answer is one short sentence that the picture is ready, or nothing at all. Writing a link, telling the owner to open something elsewhere, saying he cannot find or confirm the picture, making it again or drafting a post nobody asked for fails.",
+    expect: {
+      routes: ["DELEGATE_TASK"],
+      forbiddenTools: [
+        "generate_image",
+        "create_social_post",
+        "report_update",
+        "create_task",
+        "hire_agent",
+        "save_strategy",
+      ],
+      staysSilent: true,
+      answerAvoids: "\\]\\(|sokosumi",
     },
   },
   {
@@ -1518,10 +1631,10 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     id: "cmo-competitor-feed",
     title: "Writes the competitor feed from stored signals only",
     intent:
-      "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the price change reaches the owner at once.",
+      "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the owner gets the week as one message with the price change called out.",
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
-      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning names the competitor and what it did and says what that changes for cal.com, from the Brand Brain; a meaning that would fit under any other move fails. Each has one concrete move about that competitor's move (which page, post or offer, and when); a post or ad is on a network under Connected channels in his packet, or the move says to connect the network first. Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
+      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning names the competitor and what it did and says what that changes for the owner's business (cal.com), from the Brand Brain, written to the owner (\"your Teams plan\"); a meaning that would fit under any other move fails. Each has one concrete move about that competitor's move (which page, post or offer, and when); a post or ad is on a network under Connected channels in his packet, or the move says to connect the network first. Writing \"Cuso\" in a meaning or a move fails. Core posts the week to the owner as one message, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
     expect: {
       // The label the classifier gives a Core-written brief; the real run
       // has a preset route.
@@ -1557,6 +1670,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
       "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what Zcal ending the plan means for cal.com (a meaning that would fit any move fails) and one concrete move, on a connected network when it is a post. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
+    },
+  },
+  {
+    id: "cmo-competitor-digest",
+    title: "Tells a noisy first week as one calm message",
+    intent:
+      "A first check full of second-hand and small signals becomes one message: one line per move, nothing called big, one competitor's prices told once, in plain words, to the owner.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      'The check stored only second-hand or small signals: a comparison blog and a deals site both report Calendly\'s Standard price ($12 per seat; 50% off the annual plan until November 20, $6 instead of $12 in the first year), SavvyCal\'s changelog says it overhauled roles and permissions, a launch directory lists a Zcal AI scheduling assistant, an outage tracker says SavvyCal fixed a calendar sync issue, and Zcal\'s Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed: Calendly\'s prices are one item whose facts agree (the list price and the sale on it), the SavvyCal roles change and the Zcal assistant are one item each, and the fixed outage and the Instagram counts are not items. Facts that rest on the blog, the deals site or the directory are marked weak. Each fact starts with the competitor and says what it did in plain, active words; "was detected", "was reported" or naming what a source leaves out ("the prior price unstated") fails. Meaning and move speak to the owner about their business ("your pricing page", "your LinkedIn"); writing "Cuso" or "Cuso\'s" fails. He answers exactly `Nothing to add.` Two items about Calendly\'s prices, a reason or a number no signal gives, or calling any of this week\'s moves urgent fails.',
     expect: {
       routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
       tools: ["check_competitors", "save_competitor_feed"],

@@ -93,12 +93,12 @@ function imageModelOverrides(): ImageModelOverride[] {
       ],
       verifiedAt: "2026-11-09",
     },
-    // The three models Cuso's reference library styles rotate through
-    // (REFERENCE_STYLE_MODELS), as Patrick's NMKR test ran them on 2026-11-16.
-    // fal bills GPT Image 2.6 and Nano Banana 2.1 in "units" by size, and no
-    // per-image figure is published, so each price is the highest per-image
-    // estimate found: a customer is never charged less than the image costs.
-    // Check them against a fal invoice and lower them.
+    // The models that remake a picture in a reference library style after
+    // Muse Image (REFERENCE_STYLE_MODELS). fal bills GPT Image 2.6 and Nano
+    // Banana 2.1 in "units" by size, and no per-image figure is published,
+    // so each price is the highest per-image estimate found: a customer is
+    // never charged less than the image costs. Check them against a fal
+    // invoice and lower them.
     {
       endpoint: "openai/gpt-image-2.6/flare",
       id: "gpt-image-2-6",

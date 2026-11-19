@@ -147,9 +147,9 @@ describe("CMO version", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
-        "code-tools",
-        "agent-jobs",
-        "ask-coworker-first",
+        "cmo-code-tools",
+        "cmo-agent-jobs",
+        "cmo-ask-coworker",
       ]),
     );
     expect(cmo.capabilities).toEqual(
@@ -180,9 +180,9 @@ describe("CMO version", () => {
     );
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
-        "social-posting-instructions",
-        "long-and-chained-work-follow-ups",
-        "newsletter",
+        "cmo-social-posts",
+        "cmo-long-work",
+        "cmo-newsletter",
       ]),
     );
     expect(cmo.skills).not.toContain("long-work");

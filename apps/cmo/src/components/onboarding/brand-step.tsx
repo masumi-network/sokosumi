@@ -14,7 +14,7 @@ import {
   EVIDENCE_LABELS,
   sourceHost,
 } from "../../lib/brand-sections";
-import { channelLabel } from "../../lib/calendar";
+import { channelLabel, isSocialProvider } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { joinNames } from "../../lib/names";
@@ -36,7 +36,13 @@ import { BusinessMark } from "../business-mark";
 import { MarketingToday } from "../marketing-today";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
-import { BrandLook, type BrandVisual, hasLook } from "./brand-look";
+import {
+  BrandLook,
+  type BrandVisual,
+  FontNames,
+  hasLook,
+  Swatches,
+} from "./brand-look";
 import { CusoScene } from "./cuso-scene";
 import { MarketMap } from "./market-map";
 import { type Answer, QuestionCard, useAnswers } from "./questions";
@@ -57,8 +63,8 @@ const short = (text: string) => clip(text, CLIP);
 interface TileData {
   id: string;
   label: string;
-  value: string;
-  detail?: string;
+  value: ReactNode;
+  detail?: ReactNode;
   /** The profile section behind it, with its findings and sources. */
   section?: BrandSectionKey;
   /** What the panel shows first, from the Brand Brain's own fields. */
@@ -83,6 +89,8 @@ export function brandTiles(
   onSave: (brain: BrandBrain, section: BrandSectionKey) => Promise<void>,
   media: CmoBrandMedia | null = null,
   visual: BrandVisual | null = null,
+  /** The accounts the owner connected for posting: profiles too. */
+  connected: CmoOverview["channels"] = [],
 ): TileData[] {
   const tiles: TileData[] = [];
   const offers = brain.offers ?? [];
@@ -137,13 +145,19 @@ export function brandTiles(
     tiles.push({
       id: "look",
       label: "Your look",
-      value: short(
-        visual.fonts.length > 0
-          ? `${visual.fonts.length === 1 ? "Font" : "Fonts"}: ${joinNames(visual.fonts)}`
-          : `${visual.colors.length} brand colours`,
-      ),
+      value:
+        visual.fonts.length > 0 ? (
+          <>
+            {visual.fonts.length === 1 ? "Font" : "Fonts"}:{" "}
+            <FontNames fonts={visual.fonts} />
+          </>
+        ) : (
+          `${visual.colors.length} brand colours`
+        ),
       detail:
-        visual.colors.length > 0 ? short(visual.colors.join("  ")) : undefined,
+        visual.colors.length > 0 ? (
+          <Swatches colors={visual.colors} />
+        ) : undefined,
       body: <BrandLook visual={visual} />,
     });
   }
@@ -203,14 +217,58 @@ export function brandTiles(
       ),
     });
   }
-  if (brain.channels.length > 0) {
+  // Research only finds profiles the site links to; an account the owner
+  // connected is one too, even when the site never mentions it.
+  const found = new Set(
+    brain.channels.map(
+      (channel) =>
+        channelKey(channel.name.toLowerCase().replace(/\s+/g, "")) ??
+        channel.name.toLowerCase(),
+    ),
+  );
+  const posting = connected.filter(
+    (account) => !found.has(account.provider.toLowerCase()),
+  );
+  const social = [...found].some(isSocialProvider) || posting.length > 0;
+  if (brain.channels.length > 0 || posting.length > 0) {
+    const names = [
+      ...brain.channels.map((channel) => channel.name),
+      ...posting.map((account) => channelLabel(account.provider.toLowerCase())),
+    ];
     tiles.push({
       id: "profiles",
       label: "Profiles",
-      value: `${brain.channels.length} ${brain.channels.length === 1 ? "profile" : "profiles"}`,
-      detail: short(brain.channels.map((channel) => channel.name).join(", ")),
+      value: `${names.length} ${names.length === 1 ? "profile" : "profiles"}`,
+      detail: short(
+        social
+          ? names.join(", ")
+          : `${names.join(", ")}. No social profile is linked on your site.`,
+      ),
       body: (
-        <Accounts brain={brain} onSave={(next) => onSave(next, "marketing")} />
+        <>
+          {posting.length > 0 ? (
+            <p className="note">
+              Connected for posting:{" "}
+              {posting
+                .map(
+                  (account) =>
+                    `${channelLabel(account.provider.toLowerCase())}${account.handle ? ` (${account.handle})` : ""}`,
+                )
+                .join(", ")}
+              .
+            </p>
+          ) : null}
+          {social ? null : (
+            <p className="note">
+              Your site links to no social profile, so I found none. Add yours
+              below so I know where you already post.
+            </p>
+          )}
+          <Accounts
+            brain={brain}
+            onSave={(next) => onSave(next, "marketing")}
+          />
+        </>
       ),
     });
   }
@@ -339,6 +397,7 @@ export function BrandStep({
     edit,
     overview.brandMedia,
     overview.brandVisual,
+    overview.channels,
   );
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;

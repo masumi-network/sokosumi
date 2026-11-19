@@ -38,6 +38,8 @@ function createDatabaseProject(
     websiteUrl: null,
     presenterFileId: null,
     presenterConsentAt: null,
+    testCopyOfProjectId: null,
+    testCopyTornDownAt: null,
     competitorChecksSince: null,
     sitePlatform: null,
     logo: null,

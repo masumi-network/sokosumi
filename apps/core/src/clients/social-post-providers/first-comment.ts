@@ -10,7 +10,7 @@ import {
   createComposioToolSession,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
-import { linkedInPersonUrn } from "@/helpers/linkedin-person";
+import { linkedInAuthorUrn } from "@/helpers/linkedin-person";
 
 const FIRST_COMMENT_TOOLS = {
   x: {
@@ -72,7 +72,7 @@ function commentArguments(
       const urn = linkedInCommentUrn(input.externalId);
       if (!urn) return null;
       return {
-        actor: linkedInPersonUrn(input.externalAccountId),
+        actor: linkedInAuthorUrn(input.externalAccountId),
         object: urn,
         target_urn: urn,
         message: { text: input.text },

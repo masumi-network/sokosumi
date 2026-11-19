@@ -12,6 +12,7 @@ const channel = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 const report = (at: string) => ({
   id: "u1",
@@ -95,11 +96,13 @@ it.each(cases)("Cuso's status card: $name", ({ patch, pose, art, line }) => {
   );
   expect(html).toContain(`src="/cuso/${art}.png"`);
   expect(html).toContain("Cuso");
-  // The label on his stage: what he waits on or does; none when all is well.
+  // One line beside him always says the state, in words.
+  expect(html).toContain("cuso-status-line");
   if (line) expect(html).toContain(line);
-  expect(html.includes("ob-scene-now")).toBe(line !== null);
-  // Needs you calls out on Iris; working shows what he does over the bar.
-  expect(html.includes("ob-scene-call")).toBe(pose === "needs-you");
+  // The big stage is gone from the sidebar: the pages keep the room.
+  expect(html).not.toContain("ob-scene-compact");
+  // Needs you calls out on Iris; working runs the bar under his line.
+  expect(html.includes("cuso-status-call")).toBe(pose === "needs-you");
   expect(html.includes("ob-scene-bar")).toBe(
     pose === "reading" || pose === "thinking",
   );

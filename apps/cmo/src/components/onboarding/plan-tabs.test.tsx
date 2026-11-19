@@ -103,3 +103,51 @@ it("names each tracked step by its classic stage, never a name of Cuso's own", (
   expect(html).toMatch(/Awareness<\/span><b>Profile visits/);
   expect(html).not.toContain("Hear about us");
 });
+
+it("draws each stage as a slice of one funnel that narrows to the sale", () => {
+  const html = renderToStaticMarkup(
+    <FunnelPlan
+      stages={richPlan.funnel ?? []}
+      improvements={richPlan.improvements ?? []}
+    />,
+  );
+  const slices = [...html.matchAll(/<polygon points="([^"]+)"/g)].map((match) =>
+    (match[1] ?? "").split(" ").map((point) => Number(point.split(",")[0])),
+  );
+  expect(slices).toHaveLength(richPlan.funnel?.length ?? 0);
+  slices.forEach((slice, index) => {
+    const [topLeft = 0, topRight = 0, bottomRight = 0, bottomLeft = 0] = slice;
+    // Narrower at its bottom than at its top.
+    expect(bottomRight - bottomLeft).toBeLessThan(topRight - topLeft);
+    // And as wide at its top as the slice above ends.
+    const above = slices[index - 1];
+    if (above) expect(topLeft).toBeCloseTo(above[3] ?? -1);
+  });
+  expect(slices[0]?.[0]).toBe(0);
+  // The sale is the green slice, whatever the number of stages.
+  expect(html.match(/sc-segment (\w+)/g)?.at(-1)).toBe("sc-segment green");
+});
+
+it("sets a short value as the stage's number and a sentence as plain words", () => {
+  const stage = (value: string) =>
+    renderToStaticMarkup(
+      <FunnelPlan
+        stages={[
+          {
+            stage: "awareness",
+            name: "Hear about us",
+            goal: "Holders compare wallets",
+            metric: "Followers",
+            measure: { value, basis: "estimated" },
+          },
+        ]}
+        improvements={[]}
+      />,
+    );
+  expect(stage("About 60 a month")).toContain(
+    '<b class="num">About 60 a month</b>',
+  );
+  const sentence = "X has 33.4K followers; visits are not reported.";
+  expect(stage(sentence)).toContain(`<span>${sentence}</span>`);
+  expect(stage(sentence)).not.toContain('<b class="num">');
+});

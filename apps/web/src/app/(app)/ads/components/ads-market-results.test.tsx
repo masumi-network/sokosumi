@@ -56,8 +56,8 @@ vi.mock("./ads-market-keyword-list", () => ({
     <div data-testid="keywords">{keywords.length}</div>
   ),
 }));
-vi.mock("./ads-market-poller", () => ({
-  AdsMarketPoller: () => <div data-testid="poller" />,
+vi.mock("@/components/route-poller", () => ({
+  RoutePoller: () => <div data-testid="poller" />,
 }));
 vi.mock("./ads-market-ad-grid", () => ({
   AdsMarketAdGrid: ({ ads, notice }: { ads: unknown[]; notice?: string }) => (

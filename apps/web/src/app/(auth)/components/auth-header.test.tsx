@@ -60,7 +60,7 @@ describe("AuthHeader", () => {
       const { container } = renderHeader({ mode });
 
       expect(
-        screen.getByText("Hire agents on our platform"),
+        screen.getByText("Your AI coworker for marketing"),
       ).toBeInTheDocument();
       expect(container.querySelector("img")).toBeNull();
       expect(screen.queryByRole("link")).not.toBeInTheDocument();

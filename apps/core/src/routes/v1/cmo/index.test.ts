@@ -28,13 +28,13 @@ const {
   brainMock: vi.fn(),
 }));
 
-const { approveDraftMock, declineDraftMock, editDraftMock } = vi.hoisted(
-  () => ({
+const { approveDraftMock, declineDraftMock, editDraftMock, tikTokCreatorMock } =
+  vi.hoisted(() => ({
     approveDraftMock: vi.fn(),
+    tikTokCreatorMock: vi.fn(),
     declineDraftMock: vi.fn(),
     editDraftMock: vi.fn(),
-  }),
-);
+  }));
 
 const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
   archiveMock: vi.fn(),
@@ -53,6 +53,12 @@ vi.mock("@/services/cmo-hiring.service", async (importOriginal) => {
     mayHireCuso: mayHireMock,
   };
 });
+
+const testCopy = vi.hoisted(() => ({ check: vi.fn(), tearDown: vi.fn() }));
+vi.mock("@/services/cmo-test-copy.service", () => ({
+  checkTestCopyFor: testCopy.check,
+  tearDownTestCopyFor: testCopy.tearDown,
+}));
 
 vi.mock("@/services/cmo-cuso.service", async (importOriginal) => {
   const actual =
@@ -84,6 +90,7 @@ vi.mock("@/services/cmo-drafts.service", () => ({
   approveCmoDraft: approveDraftMock,
   declineCmoDraft: declineDraftMock,
   editCmoDraft: editDraftMock,
+  readCmoTikTokCreator: tikTokCreatorMock,
 }));
 vi.mock("@/services/cmo-overview.service", async (importOriginal) => {
   const actual =
@@ -146,6 +153,7 @@ function overview() {
     ],
     hiredAt: NOW,
     media: [],
+    postRevisions: { "post-1": 3 },
     botStatus: "IDLE",
     learning: "done",
     work: null,
@@ -177,8 +185,8 @@ function overview() {
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
+    tiktokEnabled: false,
     adProviders: [],
-    connectAdsUrl: "http://web/ads?projectId=project-1",
     measurement: [],
     production: {
       state: "waiting",
@@ -418,12 +426,43 @@ describe("CMO routes", () => {
     expect(body.data.updates[0]).toMatchObject({ revertible: true });
     expect(body.data.updates[0].previousVersionId).toBeUndefined();
     expect(body.data.updates[0].versionId).toBeUndefined();
+    // Each month post's revision, so the owner's edit of its words names it.
+    expect(body.data.postRevisions).toEqual({ "post-1": 3 });
     expect(body.data.posts).toEqual({
       draft: 3,
       scheduled: 2,
       published: 0,
       failed: 1,
     });
+  });
+
+  it("returns the overview of a Cuso with a connected network, saying whether it posts as a person", async () => {
+    overviewMock.mockResolvedValue({
+      ...overview(),
+      channels: [
+        {
+          id: "channel-1",
+          provider: "linkedin",
+          externalHandle: "patrick",
+          displayName: "Patrick",
+          status: "ACTIVE",
+          personalProfile: true,
+        },
+      ],
+    });
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.channels).toEqual([
+      {
+        id: "channel-1",
+        provider: "linkedin",
+        handle: "patrick",
+        displayName: "Patrick",
+        status: "ACTIVE",
+        personalProfile: true,
+      },
+    ]);
   });
 
   it("sends a Brand Brain answer to Cuso, who fixes the section for a no", async () => {
@@ -577,6 +616,63 @@ describe("CMO routes", () => {
     expect((await response.json()).data).toEqual({ startedOver: true });
   });
 
+  it("tears a test copy down and reports what it removed and what is left", async () => {
+    const check = {
+      projectId: PROJECT_ID,
+      sourceProjectId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      tornDownAt: new Date("2026-11-19T10:00:00.000Z"),
+      clean: true,
+      left: {
+        unsentPosts: 0,
+        linkedAccounts: 0,
+        activeTurns: 0,
+        liveCuso: false,
+      },
+      publishedPosts: 0,
+      providerRevocations: 0,
+    };
+    const removed = {
+      canceledPosts: 31,
+      unlinkedAccounts: 4,
+      stoppedTurns: 1,
+      archivedCuso: true,
+    };
+    testCopy.tearDown.mockResolvedValue({ removed, check });
+    testCopy.check.mockResolvedValue(check);
+    const target = { userId: "user-1", projectId: PROJECT_ID };
+
+    const tornDown = await createApp().request(
+      `/projects/${PROJECT_ID}/test-copy/teardown`,
+      { method: "POST" },
+    );
+    expect(tornDown.status).toBe(200);
+    expect(testCopy.tearDown).toHaveBeenCalledWith(target);
+    expect((await tornDown.json()).data).toMatchObject({
+      removed,
+      check: { clean: true, publishedPosts: 0 },
+    });
+
+    const checked = await createApp().request(
+      `/projects/${PROJECT_ID}/test-copy`,
+    );
+    expect(checked.status).toBe(200);
+    expect(testCopy.check).toHaveBeenCalledWith(target);
+    expect((await checked.json()).data).toMatchObject({
+      clean: true,
+      tornDownAt: "2026-11-19T10:00:00.000Z",
+    });
+  });
+
+  it("answers 403 when a member may not tear the test copy down", async () => {
+    const { CmoForbiddenError } = await import("@/services/cmo-cuso.service");
+    testCopy.tearDown.mockRejectedValue(new CmoForbiddenError("Not yours"));
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/test-copy/teardown`,
+      { method: "POST" },
+    );
+    expect(response.status).toBe(403);
+  });
+
   it("tells the person when the subscription could not be ended on starting over", async () => {
     archiveMock.mockRejectedValue(
       serviceUnavailable(
@@ -651,6 +747,68 @@ describe("CMO routes", () => {
       },
     );
     expect(response.status).toBe(409);
+  });
+
+  it("passes the owner's TikTok confirmation on with the approval, and reads what TikTok allows", async () => {
+    approveDraftMock.mockResolvedValue(undefined);
+    const tikTokSettings = {
+      privacyLevel: "PUBLIC_TO_EVERYONE",
+      allowComment: true,
+      allowDuet: false,
+      allowStitch: false,
+      promotesOwnBrand: true,
+      acceptedMusicUsage: true,
+      previewConsent: true,
+    };
+    const approved = await createApp().request(
+      `/projects/${PROJECT_ID}/drafts/${REPORT_ID}/approve`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ revision: 2, tikTokSettings }),
+      },
+    );
+    expect(approved.status).toBe(200);
+    expect(approveDraftMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      postId: REPORT_ID,
+      revision: 2,
+      tikTokSettings,
+    });
+    // Consent cannot be sent as "not given".
+    const unconfirmed = await createApp().request(
+      `/projects/${PROJECT_ID}/drafts/${REPORT_ID}/approve`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          revision: 2,
+          tikTokSettings: { ...tikTokSettings, acceptedMusicUsage: false },
+        }),
+      },
+    );
+    expect(unconfirmed.status).toBe(422);
+
+    const creator = {
+      creator_nickname: "acme",
+      privacy_level_options: ["PUBLIC_TO_EVERYONE"],
+      comment_disabled: false,
+      duet_disabled: true,
+      stitch_disabled: true,
+      max_video_post_duration_sec: 600,
+    };
+    tikTokCreatorMock.mockResolvedValue(creator);
+    const read = await createApp().request(
+      `/projects/${PROJECT_ID}/drafts/${REPORT_ID}/tiktok`,
+    );
+    expect(read.status).toBe(200);
+    expect((await read.json()).data).toEqual(creator);
+    expect(tikTokCreatorMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      postId: REPORT_ID,
+    });
   });
 
   it("answers the checkout step and no plan for a Cuso nobody paid for", async () => {

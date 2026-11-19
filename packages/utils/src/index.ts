@@ -60,6 +60,7 @@ export {
   brandFonts,
   type DesignMdBrandLook,
   designMdBrandLook,
+  designMdPalette,
   distinctColors,
   isNeutral,
   normalizeHex,
@@ -159,11 +160,20 @@ export {
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
 export {
   CMO_CHANNELS,
+  CMO_OWNER_CONFIRMED_CHANNELS,
   type CmoChannelKey,
   isCmoChannelFormat,
+  isCmoOwnerConfirmedChannel,
   isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
+export {
+  CMO_COMPETITOR_WEEK_KEY,
+  type CmoCompetitorWeek,
+  type CmoCompetitorWeekMove,
+  cmoCompetitorWeekText,
+  readCmoCompetitorWeek,
+} from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
   CONTACT_CHANNEL_SOURCES,

@@ -15,6 +15,7 @@ import {
   withoutAuditIds,
 } from "../../lib/seo-copy";
 import { DraftText } from "../draft-text";
+import { LocalDay } from "../local-day";
 import { StatusText } from "../status";
 import { SubmitButton } from "../submit-button";
 
@@ -53,13 +54,6 @@ const day = (iso: string | Date) =>
 const count = (value: number) => value.toLocaleString("en-US");
 
 const NOT_KNOWN = "Not known";
-
-const weekday = (iso: string | Date) =>
-  new Date(iso).toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-  });
 
 const SOURCE: Record<CmoSeoEvidence["source"], string> = {
   keyword_research: "Keyword research",
@@ -159,21 +153,28 @@ function pagePath(url: string | null): string {
   }
 }
 
-function AuditCard({ seo }: { seo: CmoSeo }) {
+function AuditCard({ seo, timeZone }: { seo: CmoSeo; timeZone: string }) {
   const { audit } = seo;
   const latest = audit.latest;
   const schedule =
-    audit.status === "active"
-      ? audit.running
-        ? "Running now. Results show here in a few minutes."
-        : audit.nextRunAt
-          ? `Next audit: ${weekday(audit.nextRunAt)}.`
-          : "Runs once a week."
-      : audit.status === "paused"
-        ? "Paused until your CMO plan is paid."
-        : audit.status === "not_started"
-          ? `Starts once your plan is active and its credits cover ${audit.creditsPerAudit}.`
-          : "The weekly audit is not available here yet.";
+    audit.status === "active" ? (
+      audit.running ? (
+        "Running now. Results show here in a few minutes."
+      ) : audit.nextRunAt ? (
+        <>
+          Next audit:{" "}
+          <LocalDay at={audit.nextRunAt} serverZone={timeZone} time />.
+        </>
+      ) : (
+        "Runs once a week."
+      )
+    ) : audit.status === "paused" ? (
+      "Paused until your CMO plan is paid."
+    ) : audit.status === "not_started" ? (
+      `Starts once your plan is active and its credits cover ${audit.creditsPerAudit}.`
+    ) : (
+      "The weekly audit is not available here yet."
+    );
   return (
     <section className="card">
       <h3>Weekly site audit</h3>
@@ -208,10 +209,11 @@ function AuditCard({ seo }: { seo: CmoSeo }) {
               </span>
             </div>
             <div className="kpi">
-              <span className="label">Issues</span>
+              <span className="label">To fix</span>
               <span className="v num">{latest.issues.length}</span>
             </div>
           </div>
+          <AuditReadings latest={latest} />
           {latest.issues.length > 0 ? (
             <div className="stack-sm">
               <span className="label">Checks that did not pass</span>
@@ -234,7 +236,7 @@ function AuditCard({ seo }: { seo: CmoSeo }) {
               </ul>
             </div>
           ) : (
-            <p>No issues found.</p>
+            <p>Nothing to fix.</p>
           )}
         </>
       ) : (
@@ -243,6 +245,55 @@ function AuditCard({ seo }: { seo: CmoSeo }) {
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * Why "passed" is not every check: some found something to fix, and the rest
+ * only record a value (a title's length, a position). Those are listed, so
+ * the numbers never contradict each other.
+ */
+function AuditReadings({
+  latest,
+}: {
+  latest: NonNullable<CmoSeo["audit"]["latest"]>;
+}) {
+  // Core and CMO deploy apart: an older Core sends none of the three.
+  const { failedChecks = 0, readingChecks = 0, readings = [] } = latest;
+  if (failedChecks + readingChecks === 0) return null;
+  const checks = (n: number) => `${n} ${n === 1 ? "check" : "checks"}`;
+  return (
+    <div className="stack-sm">
+      <p className="note">
+        {failedChecks > 0
+          ? `${checks(failedChecks)} found what is listed to fix (one thing can show on your phone and desktop page). `
+          : null}
+        {readingChecks > 0
+          ? `${checks(readingChecks)} only took a reading, such as how long your title is. A reading is not a problem.`
+          : null}
+      </p>
+      {readings.length > 0 ? (
+        <details>
+          <summary>See the readings</summary>
+          <ul className="list">
+            {readings.map((reading) => (
+              <li key={`${reading.title}-${reading.pageUrl}`} className="li">
+                <span className="grow">
+                  <b>{withoutAuditIds(reading.title)}</b>
+                  <br />
+                  <span className="note">
+                    {pagePath(reading.pageUrl)}
+                    {reading.detail
+                      ? ` · ${plainIssueDetail(reading.detail)}`
+                      : ""}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
   );
 }
 
@@ -728,7 +779,14 @@ function KeywordSearch({
   );
 }
 
-export function SeoPage({ actions }: { actions: SeoActions }) {
+export function SeoPage({
+  actions,
+  timeZone,
+}: {
+  actions: SeoActions;
+  /** The clock Cuso works on, for when the next audit runs. */
+  timeZone: string;
+}) {
   const [seo, setSeo] = useState<CmoSeo | null>(null);
   const [failed, setFailed] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -795,7 +853,7 @@ export function SeoPage({ actions }: { actions: SeoActions }) {
           {note}
         </p>
       ) : null}
-      <AuditCard seo={seo} />
+      <AuditCard seo={seo} timeZone={timeZone} />
       <section className={open.length > 0 ? "card card-focus" : "card"}>
         <h3>Page changes</h3>
         <p className="muted">

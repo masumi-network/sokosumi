@@ -38,8 +38,8 @@ import {
   socialPostMetricsSchema,
 } from "@/schemas/social-post-statistics.schema";
 import {
+  connectionExecutorUserId,
   listProjectSocialConnections,
-  projectExecutorUserId,
 } from "@/services/project-social-connections.service";
 import { recordSocialPerformanceSnapshot } from "@/services/social-performance-snapshots.service";
 import { socialSyncReadModel } from "@/services/social-sync-read";
@@ -495,7 +495,7 @@ export async function refreshSocialAccountStatistics(
       await fetchSocialAccountStatisticsPage({
         provider: record.provider,
         connectedAccountId: record.composioConnectedAccountId,
-        executorUserId: projectExecutorUserId(input.projectId),
+        executorUserId: connectionExecutorUserId(record),
         externalAccountId: record.externalAccountId,
         externalHandle: record.externalHandle,
         cursor: input.continueHistory ? previous.historyNextCursor : null,

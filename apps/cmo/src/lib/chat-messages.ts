@@ -1,4 +1,5 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
+import { type CmoCompetitorWeek, readCmoCompetitorWeek } from "@sokosumi/utils";
 import { type CusoTrace, traceOf } from "./trace";
 
 export interface CusoMessage {
@@ -11,6 +12,8 @@ export interface CusoMessage {
   trace?: CusoTrace | null;
   /** The turn that wrote it, when Core says: a background run's report. */
   turnId?: string | null;
+  /** The week's competitor moves, when this is Core's message about them. */
+  week?: CmoCompetitorWeek | null;
 }
 
 /** The turn a bot's message came from, as Core records it on the message. */
@@ -90,6 +93,7 @@ export function toCusoMessages(messages: ChatRoomMessage[]): CusoMessage[] {
         createdAt: new Date(message.createdAt).toISOString(),
         trace: fromCuso ? traceOf(message.metadata) : null,
         turnId: fromCuso ? turnOf(message.metadata) : null,
+        week: fromCuso ? readCmoCompetitorWeek(message.metadata) : null,
       };
     })
     .filter(
