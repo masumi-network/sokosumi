@@ -176,6 +176,13 @@ export {
 } from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
+  CMO_VOLUME_LEVELS,
+  type CmoMonthVolume,
+  type CmoVolumeLevel,
+  cmoMonthAtLevel,
+  cmoVolumeLevelForTier,
+} from "./cmo-plan-volume.js";
+export {
   CONTACT_CHANNEL_SOURCES,
   CONTACT_CHANNEL_TYPES,
   CONTACT_CONVERSATION_DAYS,

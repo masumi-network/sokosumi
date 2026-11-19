@@ -34,6 +34,17 @@ const actions: CmoAppActions = {
   retryLearning: async () => ({ overview, error: null }),
   pauseEntry: async () => overview,
   approveDraft: async () => ({ overview, error: null }),
+  readTikTokCreator: async () => ({
+    creator: {
+      creator_nickname: "acme",
+      privacy_level_options: ["PUBLIC_TO_EVERYONE"],
+      comment_disabled: false,
+      duet_disabled: false,
+      stitch_disabled: false,
+      max_video_post_duration_sec: 600,
+    },
+    error: null,
+  }),
   declineDraft: async () => ({ overview, error: null }),
   editDraft: async () => ({ overview, error: null }),
   competitors: {

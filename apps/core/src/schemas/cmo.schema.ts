@@ -148,6 +148,16 @@ export const cmoProductionSchema = z
       .describe(
         "Once the made month was read: each pillar's planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.",
       ),
+    level: z
+      .enum(["steady", "active", "all_in"])
+      .describe(
+        "How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.",
+      ),
+    beyondPlan: z
+      .array(z.string())
+      .describe(
+        "Calendar entries the plan bought does not make. A bigger plan makes them.",
+      ),
   })
   .openapi("CmoProduction");
 

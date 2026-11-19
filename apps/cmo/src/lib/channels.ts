@@ -85,5 +85,6 @@ export const OWNER_PART: Record<ChannelInfo["owner"], string> = {
 export const SOON_CHANNELS = (
   Object.entries(CMO_CHANNELS) as [CmoChannelKey, ChannelInfo][]
 )
-  .filter(([, channel]) => channel.status === "soon")
+  // None today; a channel listed as "soon" shows here without a button.
+  .filter(([, channel]) => (channel.status as string) === "soon")
   .map(([key, channel]) => ({ key, name: channel.name }));

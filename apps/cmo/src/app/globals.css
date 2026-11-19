@@ -1479,6 +1479,23 @@ button.card-focus {
   resize: vertical;
 }
 
+/* The owner's confirmation of one TikTok video: a plain column in the card's foot. */
+.tiktok-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.tiktok-confirm legend {
+  padding: 0;
+  font-weight: 600;
+}
+
 .draft-media {
   display: block;
   align-self: flex-start;

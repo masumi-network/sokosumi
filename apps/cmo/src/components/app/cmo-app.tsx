@@ -40,7 +40,7 @@ import {
 } from "./cards";
 import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
-import type { DraftActions, DraftResult } from "./draft-post";
+import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
 import { MessageText } from "./message-text";
 import {
   type AddMailingList,
@@ -90,7 +90,12 @@ export interface CmoAppActions
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
   /** Approve, decline or rewrite a post Cuso made outside the month. */
-  approveDraft: (postId: string, revision: number) => Promise<DraftResult>;
+  approveDraft: (
+    postId: string,
+    revision: number,
+    tikTokSettings?: TikTokSettings,
+  ) => Promise<DraftResult>;
+  readTikTokCreator: DraftActions["tikTokCreator"];
   declineDraft: (postId: string, revision: number) => Promise<DraftResult>;
   editDraft: (
     postId: string,
@@ -327,8 +332,9 @@ export function CmoApp({
     return error;
   };
   const draftActions: DraftActions = {
-    approve: (postId, revision) =>
-      settleDraft(actions.approveDraft(postId, revision)),
+    approve: (postId, revision, tikTokSettings) =>
+      settleDraft(actions.approveDraft(postId, revision, tikTokSettings)),
+    tikTokCreator: actions.readTikTokCreator,
     decline: (postId, revision) =>
       settleDraft(actions.declineDraft(postId, revision)),
     edit: (postId, revision, text) =>

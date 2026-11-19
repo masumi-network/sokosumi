@@ -1,6 +1,7 @@
 import {
   CMO_CHANNELS,
   creditsPerTalkingVideoCents,
+  isCmoOwnerConfirmedChannel,
   TALKING_VIDEO_PLANNED_SCRIPT,
   TALKING_VIDEO_PRICE,
 } from "@sokosumi/utils";
@@ -66,10 +67,13 @@ const CHANNEL_MENU = Object.entries(CMO_CHANNELS)
             ([format, about]) =>
               `${format} (${about.what}${about.image && !/image/i.test(about.what) ? ", with an image you make" : ""}${"video" in about && about.video ? ", a video you make" : ""})`,
           )
-          .join("; ")}.`
+          .join(
+            "; ",
+          )}.${isCmoOwnerConfirmedChannel(key) ? ` ${channel.name} asks the owner to confirm each video: you make it and it waits for their tap in CMO, so it has no fixed posting time. Never say it was posted or scheduled.` : ""}`
       : channel.status === "tab"
         ? `- ${key} (${channel.name}): not in the strategy or its calendar. Articles and page changes live in the owner's SEO tab, from real search data: read_seo, research_keywords and save_seo_suggestions. Never plan an seo piece.`
-        : `- ${channel.name}: coming soon. Never plan it; you may tell the owner it is coming.`,
+        : // No channel is "soon" today, so the type has nothing left here.
+          `- ${(channel as { name: string }).name}: coming soon. Never plan it; you may tell the owner it is coming.`,
   )
   .join("\n");
 
