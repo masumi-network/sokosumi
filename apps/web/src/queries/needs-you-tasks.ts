@@ -109,3 +109,19 @@ export function waitingQuestion(events: TaskEvent[]): string | null {
   const fallback = wait.findLast((event) => !event.userId && event.comment);
   return (asked ?? fallback)?.comment ?? null;
 }
+
+/**
+ * Whether the Task's history still ends in the wait the list shows: its
+ * newest status event asked for input at `statusSince`. False once it has
+ * resumed or asked again, so a stale row never offers an answer to it.
+ */
+export function isCurrentWait(
+  events: TaskEvent[],
+  statusSince: Date | string,
+): boolean {
+  const last = events.findLast((event) => event.status);
+  return (
+    last?.status === TaskStatus.INPUT_REQUIRED &&
+    new Date(last.createdAt).getTime() === new Date(statusSince).getTime()
+  );
+}

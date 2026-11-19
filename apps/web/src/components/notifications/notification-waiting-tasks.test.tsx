@@ -49,6 +49,13 @@ function event(
   return { id, comment, status: null, userId: null, ...extra };
 }
 
+const SINCE = "2026-11-19T10:00:00.000Z";
+
+/** The event that put the Task in its listed wait. */
+function parked(comment: string | null = null) {
+  return event("park", comment, { status: "INPUT_REQUIRED", createdAt: SINCE });
+}
+
 function renderRows(tasks: ReturnType<typeof task>[]) {
   core.getTasksSummary.mockResolvedValue({
     data: { awaitingInput: tasks.length },
@@ -78,7 +85,7 @@ beforeEach(() => {
 describe("NotificationWaitingTasks", () => {
   it("answers a Task waiting for input without leaving the list", async () => {
     core.getTaskEvents.mockResolvedValue({
-      data: [event("e1", "Which audience?", { status: "INPUT_REQUIRED" })],
+      data: [parked("Which audience?")],
     });
     createTaskComment.mockResolvedValue(undefined);
     renderRows([task("t1", "INPUT_REQUIRED")]);
@@ -113,7 +120,7 @@ describe("NotificationWaitingTasks", () => {
   });
 
   it("posts one answer when Enter is pressed again while sending", async () => {
-    core.getTaskEvents.mockResolvedValue({ data: [] });
+    core.getTaskEvents.mockResolvedValue({ data: [parked()] });
     const pending = Promise.withResolvers<undefined>();
     createTaskComment.mockReturnValue(pending.promise);
     renderRows([task("t1", "INPUT_REQUIRED")]);
@@ -128,7 +135,7 @@ describe("NotificationWaitingTasks", () => {
   });
 
   it("returns focus to the Task link after the answer is sent", async () => {
-    core.getTaskEvents.mockResolvedValue({ data: [] });
+    core.getTaskEvents.mockResolvedValue({ data: [parked()] });
     createTaskComment.mockResolvedValue(undefined);
     renderRows([task("t1", "INPUT_REQUIRED")]);
     await openAnswer();
@@ -142,7 +149,7 @@ describe("NotificationWaitingTasks", () => {
   });
 
   it("offers Answer again when the agent asks a second time", async () => {
-    core.getTaskEvents.mockResolvedValue({ data: [] });
+    core.getTaskEvents.mockResolvedValue({ data: [parked()] });
     createTaskComment.mockResolvedValue(undefined);
     const client = renderRows([task("t1", "INPUT_REQUIRED")]);
     await openAnswer();
@@ -172,7 +179,7 @@ describe("NotificationWaitingTasks", () => {
   });
 
   it("points to the Task when this wait has no question of its own", async () => {
-    core.getTaskEvents.mockResolvedValue({ data: [] });
+    core.getTaskEvents.mockResolvedValue({ data: [parked()] });
     renderRows([task("t1", "INPUT_REQUIRED")]);
     await openAnswer();
 
@@ -182,5 +189,59 @@ describe("NotificationWaitingTasks", () => {
     await waitFor(() =>
       expect(screen.queryByText("questionLoading")).toBeNull(),
     );
+  });
+
+  it("posts one answer when Answer is closed and reopened while sending", async () => {
+    core.getTaskEvents.mockResolvedValue({ data: [parked()] });
+    const pending = Promise.withResolvers<undefined>();
+    createTaskComment.mockReturnValue(pending.promise);
+    renderRows([task("t1", "INPUT_REQUIRED")]);
+    await openAnswer();
+    await userEvent.type(screen.getByRole("textbox"), "Bakeries{Enter}");
+
+    const toggle = screen.getByRole("button", {
+      name: "action.INPUT_REQUIRED",
+    });
+    await userEvent.click(toggle);
+    await userEvent.click(toggle);
+    await userEvent.type(screen.getByRole("textbox"), "Again{Enter}");
+    expect(createTaskComment).toHaveBeenCalledTimes(1);
+
+    await act(async () => pending.resolve(undefined));
+  });
+
+  it("offers no Send once the Task has moved on, and reads the list again", async () => {
+    core.getTaskEvents.mockResolvedValue({
+      data: [
+        parked("Which audience?"),
+        event("e2", "Here is a draft", {
+          status: "RUNNING",
+          createdAt: "2026-11-19T10:05:00.000Z",
+        }),
+      ],
+    });
+    renderRows([task("t1", "INPUT_REQUIRED")]);
+    await openAnswer();
+
+    expect(await screen.findByText("waitEnded")).toBeTruthy();
+    expect(screen.queryByText("Here is a draft")).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    await waitFor(() => expect(core.getTasks).toHaveBeenCalledTimes(2));
+  });
+
+  it("leaves focus alone when the reader moved on before the send finished", async () => {
+    core.getTaskEvents.mockResolvedValue({ data: [parked()] });
+    const pending = Promise.withResolvers<undefined>();
+    createTaskComment.mockReturnValue(pending.promise);
+    renderRows([task("t1", "INPUT_REQUIRED"), task("t2", "APPROVAL_REQUIRED")]);
+    await openAnswer();
+    await userEvent.type(screen.getByRole("textbox"), "Bakeries{Enter}");
+
+    const other = screen.getByRole("link", { name: /Task t2/ });
+    other.focus();
+    await act(async () => pending.resolve(undefined));
+
+    await screen.findByText(/^answerSent/);
+    expect(document.activeElement).toBe(other);
   });
 });

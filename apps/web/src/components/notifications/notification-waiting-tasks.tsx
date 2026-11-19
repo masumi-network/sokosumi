@@ -21,6 +21,7 @@ import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 import {
+  isCurrentWait,
   NEEDS_YOU_TASKS_QUERY_KEY,
   needsYouTasksQueryOptions,
   waitingQuestion,
@@ -104,25 +105,26 @@ function isWaitingStatus(status: TaskStatus): status is WaitingStatus {
 /**
  * Answers a Task waiting for input in place. The answer is the same comment
  * the Task page posts; the assigned agent wakes on it and resumes, and the
- * list's own refresh takes the row away once the Task moves on.
+ * list's own refresh takes the row away once the Task moves on. Sending is
+ * the row's, so closing and reopening this composer cannot send twice.
  */
 function WaitingTaskAnswer({
   task,
   name,
-  onSent,
+  isSending,
+  onSend,
   onNavigate,
 }: {
   task: TaskListItem;
   name: string | null;
-  onSent: () => void;
+  isSending: boolean;
+  onSend: (text: string) => void;
   onNavigate?: () => void;
 }) {
   const t = useTranslations("Components.NotificationCenter.WaitingTasks");
   const { data: session } = useSession();
+  const queryClient = useQueryClient();
   const [text, setText] = useState("");
-  const [isSending, startSending] = useTransition();
-  // Enter can fire again before the pending state renders; one answer only.
-  const sending = useRef(false);
   const question = useQuery({
     // Per reader, workspace and wait: the query client outlives a sign-out,
     // a workspace switch and the agent asking again.
@@ -133,25 +135,24 @@ function WaitingTaskAnswer({
       task.id,
       String(task.statusSince),
     ],
-    queryFn: async () =>
-      waitingQuestion((await coreClient.getTaskEvents(task.id)).data),
+    queryFn: async () => {
+      const events = (await coreClient.getTaskEvents(task.id)).data;
+      if (!isCurrentWait(events, task.statusSince)) {
+        // The row is older than the Task: read the list again, and offer
+        // no answer to a wait that has ended or been replaced.
+        void queryClient.invalidateQueries({
+          queryKey: NEEDS_YOU_TASKS_QUERY_KEY,
+        });
+        return { current: false, text: null };
+      }
+      return { current: true, text: waitingQuestion(events) };
+    },
   });
   const label = name
     ? t("answerPlaceholder", { name })
     : t("answerPlaceholderNoName");
   const send = () => {
-    if (sending.current || !text.trim()) return;
-    sending.current = true;
-    startSending(async () => {
-      try {
-        await createTaskComment({ taskId: task.id, comment: text });
-      } catch {
-        sending.current = false;
-        toast.error(t("answerError"));
-        return;
-      }
-      onSent();
-    });
+    if (text.trim()) onSend(text);
   };
   const onTask = (
     <Link
@@ -162,6 +163,17 @@ function WaitingTaskAnswer({
       {t("questionOnTask")}
     </Link>
   );
+
+  if (question.data && !question.data.current) {
+    return (
+      <p
+        role="status"
+        className="text-muted-foreground px-3 pb-3 text-sm sm:pl-14"
+      >
+        {t("waitEnded")} {onTask}
+      </p>
+    );
+  }
 
   return (
     <form
@@ -179,14 +191,14 @@ function WaitingTaskAnswer({
         <p className="text-muted-foreground text-sm">
           {t("questionError")} {onTask}
         </p>
-      ) : question.data ? (
+      ) : question.data?.text ? (
         // Scrolls rather than clips, so a long question stays readable;
         // tabIndex lets a keyboard reader scroll it.
         <p
           tabIndex={0}
           className="bg-muted focus-visible:ring-ring max-h-48 overflow-y-auto rounded-md p-2 text-sm whitespace-pre-line break-words outline-none focus-visible:ring-2"
         >
-          {question.data}
+          {question.data.text}
         </p>
       ) : (
         <p className="text-muted-foreground text-sm">{onTask}</p>
@@ -243,7 +255,32 @@ function WaitingTaskRow({
   const t = useTranslations("Components.NotificationCenter.WaitingTasks");
   const [answering, setAnswering] = useState(false);
   const [answered, setAnswered] = useState(false);
+  const [isSending, startSending] = useTransition();
+  // One answer per wait: Enter can fire again before the pending state
+  // renders, and the composer can be closed and reopened mid-send.
+  const sending = useRef(false);
   const link = useRef<HTMLAnchorElement>(null);
+  const composer = useRef<HTMLDivElement>(null);
+
+  const send = (text: string) => {
+    if (sending.current) return;
+    sending.current = true;
+    startSending(async () => {
+      try {
+        await createTaskComment({ taskId: task.id, comment: text });
+      } catch {
+        sending.current = false;
+        toast.error(t("answerError"));
+        return;
+      }
+      // The composer leaves with its focused control; keep the reader in
+      // the row, unless they already moved elsewhere.
+      const hadFocus =
+        composer.current?.contains(document.activeElement) ?? false;
+      setAnswered(true);
+      if (hadFocus) link.current?.focus();
+    });
+  };
 
   return (
     <li>
@@ -306,16 +343,15 @@ function WaitingTaskRow({
         ) : null}
       </div>
       {answering && !answered ? (
-        <WaitingTaskAnswer
-          task={task}
-          name={name}
-          onNavigate={onNavigate}
-          onSent={() => {
-            setAnswered(true);
-            // The form leaves with the focused control; keep the reader here.
-            link.current?.focus();
-          }}
-        />
+        <div ref={composer}>
+          <WaitingTaskAnswer
+            task={task}
+            name={name}
+            isSending={isSending}
+            onSend={send}
+            onNavigate={onNavigate}
+          />
+        </div>
       ) : null}
     </li>
   );

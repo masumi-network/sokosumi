@@ -854,7 +854,8 @@
         "answerError": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
         "questionLoading": "Cargando la pregunta…",
         "questionError": "No se pudo cargar la pregunta.",
-        "questionOnTask": "Léela en la tarea"
+        "questionOnTask": "Léela en la tarea",
+        "waitEnded": "Esta tarea ya no espera esta respuesta."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",

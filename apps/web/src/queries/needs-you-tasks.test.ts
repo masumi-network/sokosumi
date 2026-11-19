@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { waitingQuestion } from "./needs-you-tasks";
+import { isCurrentWait, waitingQuestion } from "./needs-you-tasks";
 
 function event(
   id: string,
@@ -57,5 +57,71 @@ describe("waitingQuestion", () => {
         event("e4", null, { status: "INPUT_REQUIRED" }),
       ] as never),
     ).toBe("Which city?");
+  });
+});
+
+describe("isCurrentWait", () => {
+  const since = "2026-11-19T10:00:00.000Z";
+
+  it("is true while the newest status event is the listed ask", () => {
+    expect(
+      isCurrentWait(
+        [
+          event("e1", null, {
+            status: "RUNNING",
+            createdAt: "2026-11-19T09:00:00.000Z",
+          }),
+          event("e2", "Which city?", {
+            status: "INPUT_REQUIRED",
+            createdAt: since,
+          }),
+          event("e3", "Note", {
+            userId: "u1",
+            createdAt: "2026-11-19T10:05:00.000Z",
+          }),
+        ] as never,
+        since,
+      ),
+    ).toBe(true);
+  });
+
+  it("is false once the Task has resumed", () => {
+    expect(
+      isCurrentWait(
+        [
+          event("e1", "Which city?", {
+            status: "INPUT_REQUIRED",
+            createdAt: since,
+          }),
+          event("e2", null, {
+            status: "RUNNING",
+            createdAt: "2026-11-19T10:05:00.000Z",
+          }),
+        ] as never,
+        since,
+      ),
+    ).toBe(false);
+  });
+
+  it("is false when a newer ask replaced the listed one", () => {
+    expect(
+      isCurrentWait(
+        [
+          event("e1", "Which city?", {
+            status: "INPUT_REQUIRED",
+            createdAt: since,
+          }),
+          event("e2", null, {
+            status: "RUNNING",
+            createdAt: "2026-11-19T10:05:00.000Z",
+          }),
+          event("e3", "Which date?", {
+            status: "INPUT_REQUIRED",
+            createdAt: "2026-11-19T10:10:00.000Z",
+          }),
+        ] as never,
+        since,
+      ),
+    ).toBe(false);
   });
 });

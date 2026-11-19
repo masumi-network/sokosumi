@@ -854,7 +854,8 @@
         "answerError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
         "questionLoading": "Frage wird geladen…",
         "questionError": "Die Frage konnte nicht geladen werden.",
-        "questionOnTask": "In der Aufgabe lesen"
+        "questionOnTask": "In der Aufgabe lesen",
+        "waitEnded": "Diese Aufgabe wartet nicht mehr auf diese Antwort."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# Frage im Datenraum wartet auf eine Antwort} other {# Fragen im Datenraum warten auf eine Antwort}}",
