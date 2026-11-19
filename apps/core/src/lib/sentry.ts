@@ -10,6 +10,10 @@ export function initSentry() {
   if (!env.SENTRY_DSN) {
     return;
   }
+  const composioAccountPath = new URL(
+    "/api/v3.1/connected_accounts/",
+    env.COMPOSIO_API_BASE_URL ?? "https://backend.composio.dev",
+  ).href;
 
   Sentry.init({
     dsn: env.SENTRY_DSN,
@@ -65,6 +69,10 @@ export function initSentry() {
       // spans and release sessions are unaffected; only the incoming
       // server span is dropped.
       Sentry.httpIntegration({ disableIncomingRequestSpans: true }),
+      // The native fetch URL includes the connected account ID in its path.
+      Sentry.nativeNodeFetchIntegration({
+        ignoreOutgoingRequests: (url) => url.startsWith(composioAccountPath),
+      }),
       // The default RequestData integration attaches the raw request URL to
       // every event. Paths carry capability tokens (share links, invite
       // links, password reset links) and the headers carry the

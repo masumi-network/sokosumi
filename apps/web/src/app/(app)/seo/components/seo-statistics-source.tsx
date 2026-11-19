@@ -17,15 +17,19 @@ export type SeoStatisticsForm = ReturnType<typeof useSeoStatistics>;
 export function SeoStatisticsSource({
   form,
   focused,
+  chooseProperty = false,
 }: {
   form: SeoStatisticsForm;
   /** The reader opened the dialog for this source. */
   focused: boolean;
+  chooseProperty?: boolean;
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
   const { provider, eligibleProperties } = form;
   const properties = form.properties.data;
+  const propertyId =
+    chooseProperty && !form.selectedPropertyId ? "" : form.propertyId;
   const id = `seo-statistics-property-${provider}`;
   // After an approval the saved answer still says "not connected" until the new read ends.
   const reading =
@@ -73,7 +77,7 @@ export function SeoStatisticsSource({
               sites: format.list(form.sitesWithoutProperty),
             })}
           </p>
-        ) : eligibleProperties.length === 1 ? (
+        ) : eligibleProperties.length === 1 && propertyId ? (
           // One property: nothing to choose, so it is a line and not a field.
           <p className="text-sm break-words">
             <span className="text-muted-foreground">
@@ -81,11 +85,11 @@ export function SeoStatisticsSource({
             </span>
             {eligibleProperties[0].name}
           </p>
-        ) : eligibleProperties.length > 1 ? (
+        ) : eligibleProperties.length > 0 ? (
           <SeoField id={id} label={t("statistics.property")}>
             <SeoSelect
               id={id}
-              value={form.propertyId}
+              value={propertyId}
               onValueChange={form.setPropertyId}
               placeholder={t("statistics.chooseProperty")}
               required
@@ -103,7 +107,7 @@ export function SeoStatisticsSource({
         {properties?.reason ? (
           <p className="text-muted-foreground text-sm">{properties.reason}</p>
         ) : null}
-        {form.propertyId ? (
+        {propertyId ? (
           // The period and the traffic are set: the reader has no range or channel to choose.
           <p
             className="text-muted-foreground text-sm"

@@ -103,7 +103,7 @@ function network(
   workspace: ProjectSeoWorkspace,
   routes: {
     connection?: (provider: string) => object;
-    properties?: { id: string; name: string }[];
+    properties?: { id: string; name: string }[] | (() => Reply);
     chat?: (init?: RequestInit) => Reply;
     unfiltered?: ProjectSeoWorkspace | (() => Reply);
   } = {},
@@ -122,13 +122,15 @@ function network(
             source: "personal_assistant",
           },
         );
-      if (pathname.endsWith("statistics/properties"))
+      if (pathname.endsWith("statistics/properties")) {
+        if (typeof routes.properties === "function") return routes.properties();
         return Response.json({
           provider: "search_console",
           status: "available",
           reason: null,
           properties: routes.properties ?? [],
         });
+      }
       if (pathname.endsWith("/chat"))
         return (
           routes.chat?.(init) ??
@@ -181,6 +183,117 @@ afterEach(() => {
 });
 
 describe("SEO audit first run", () => {
+  it("starts once with the displayed matching property when both a domain and URL prefix cover the page", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.searchConsolePropertyId = null;
+    const domain = "sc-domain:example.com";
+    let finishDiscovery!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      finishDiscovery = resolve;
+    });
+    network(workspace, {
+      properties: async () => {
+        await waiting;
+        return Response.json({
+          status: "available",
+          properties: [
+            { id: "https://example.com/", name: "Site prefix" },
+            { id: domain, name: "Whole domain" },
+          ],
+        });
+      },
+    });
+    const action = vi.mocked(mutateSeo);
+    action.mockReset().mockResolvedValue({ ok: true, value: null });
+    await renderWorkspace(workspace);
+    await user.click(
+      await screen.findByRole("button", { name: "Run full audit" }),
+    );
+    const start = await screen.findByRole("button", { name: "Start check" });
+    expect(start).toHaveAttribute("aria-busy", "true");
+    await user.click(start);
+    expect(action).not.toHaveBeenCalled();
+    finishDiscovery();
+    await waitFor(() => expect(start).not.toHaveAttribute("aria-busy"));
+    await user.click(start);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(action.mock.calls[0][0].command).toMatchObject({
+      kind: "request_analysis",
+      body: { searchConsolePropertyId: domain },
+    });
+  });
+
+  it("keeps shared property hints out of the request and retries the repaired choice once", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const previous = "https://example.com/old/";
+    const replacement = "sc-domain:example.com";
+    workspace.sharing = "organization";
+    workspace.metrics = [{ ...seoTestMetric(), propertyId: previous }];
+    network(workspace, {
+      properties: [{ id: replacement, name: "Authorized domain" }],
+    });
+    const action = vi.mocked(mutateSeo);
+    action.mockReset().mockResolvedValue({ ok: true, value: null });
+    const refused = {
+      ok: false,
+      error: { code: "BAD_INPUT", kind: "seo_gsc_property", status: 409 },
+    } as const;
+    action.mockResolvedValueOnce(refused).mockResolvedValueOnce(refused);
+    await renderWorkspace(workspace);
+    async function start() {
+      await user.click(
+        await screen.findByRole("button", { name: "Run full audit" }),
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Start check" }),
+      );
+      return screen.findByRole("dialog", { name: "Search Console coverage" });
+    }
+    const first = await start();
+    expect(within(first).getByRole("alert")).toHaveTextContent(
+      "every selected page",
+    );
+    await user.click(within(first).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(action).toHaveBeenCalledTimes(1);
+
+    const warning = await start();
+    await user.click(
+      within(warning).getByRole("button", { name: "Google connections" }),
+    );
+    const settings = await screen.findByRole("dialog", {
+      name: "Google connections",
+    });
+    const section = within(settings).getByRole("region", {
+      name: "Search Console",
+    });
+    await user.click(
+      within(section).getByRole("combobox", { name: "Property" }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: "Authorized domain" }),
+    );
+    await user.keyboard("{Escape}");
+    expect(action).toHaveBeenCalledTimes(2);
+    await user.click(
+      within(warning).getByRole("button", { name: "Retry and start audit" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    const bodies = action.mock.calls.map(([{ command }]) =>
+      command.kind === "request_analysis" ? command.body : undefined,
+    );
+    expect(bodies).toHaveLength(3);
+    expect(bodies[1]).not.toHaveProperty("searchConsolePropertyId");
+    expect(bodies[2]).toMatchObject({
+      searchConsolePropertyId: replacement,
+      idempotencyKey: bodies[1]?.idempotencyKey,
+    });
+    expect(bodies[2]).not.toHaveProperty("allowLimitedAudit");
+  });
+
   it("asks for Google before offering the first audit, then permits an explicit skip", async () => {
     const workspace = seoTestWorkspace();
     network(workspace, {

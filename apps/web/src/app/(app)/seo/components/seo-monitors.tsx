@@ -45,7 +45,15 @@ export function SeoAutomation({ model }: { model: SeoWorkspaceModel }) {
       ) : null}
       <ul className="divide-border divide-y">
         {monitors.map((monitor) => (
-          <SeoMonitorRow key={monitor.id} model={model} monitor={monitor} />
+          <SeoMonitorRow
+            key={JSON.stringify([
+              model.setupScopeKey,
+              monitor.id,
+              monitor.revision,
+            ])}
+            model={model}
+            monitor={monitor}
+          />
         ))}
       </ul>
     </div>

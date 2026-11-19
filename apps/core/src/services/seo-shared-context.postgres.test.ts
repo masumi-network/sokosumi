@@ -12,8 +12,10 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { createSeoWorkspaceRouter } from "@/routes/v1/projects/[id]/seo";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
+import { createTaskScheduleTestApp } from "@/test-fixtures/task-schedule-app";
 import {
   addProjectSeoPage,
   getProjectSeoWorkspace,
@@ -42,6 +44,11 @@ const boundary = vi.hoisted(() => ({
   read: vi.fn(async () => {
     throw new Error("Unexpected provider data request");
   }),
+}));
+vi.mock("@/middleware/auth", async (original) => ({
+  ...(await original<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
 }));
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
@@ -348,6 +355,38 @@ describe.skipIf(!enabled)(
       await expect(
         getSeoAuditWorkspaceMapping(other.userId, id),
       ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("returns the viewer's own Search Console selection when a colleague synced the same pages", async () => {
+      const { actor, other } = await audit("Shared Search Console pages");
+      const property = "sc-domain:example.test";
+      await recordNativeSeoMetrics(actor, {
+        ...metrics(0),
+        provider: "search_console",
+        propertyId: property,
+        channel: "organic",
+        metrics: [],
+      });
+      async function readSelection(viewer: SeoActor) {
+        const app = createTaskScheduleTestApp(
+          (root) =>
+            root.route("/audits/:id", createSeoWorkspaceRouter("audit")),
+          {
+            actor: "user",
+            userId: viewer.userId,
+            role: "user",
+            organizationId,
+          },
+          { userId: viewer.userId, workspaceId, organizationId },
+        );
+        const response = await app.request(
+          `http://localhost/audits/${viewer.owner.id}`,
+        );
+        expect(response.status).toBe(200);
+        return (await response.json()).data.searchConsolePropertyId;
+      }
+      expect(await readSelection(other)).toBeNull();
+      expect(await readSelection(actor)).toBe(property);
     });
 
     it("shares new organization measurements and authored chat across current members without transferring account access", async () => {
