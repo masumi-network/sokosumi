@@ -29,6 +29,10 @@ export interface CmoEvalBrand {
   why?: string;
   /** Research found a website and no profile on any network. */
   websiteOnly?: boolean;
+  /** One cmo-v5 promise the case checks on its own. */
+  focus?: "top-volume" | "funnel-plan" | "video-networks";
+  /** The Cuso works on Tester credits, with no plan bought. */
+  testerCredits?: boolean;
 }
 
 /** Real brands with what each sells: the CMO lab and the CMO eval cases share them. */
@@ -138,6 +142,39 @@ export function websiteOnlyBrain(brain: unknown): unknown {
 const frozenPlans = monthPlans as Record<string, unknown>;
 
 /**
+ * cmo-v5's promises NMKR's month of 2026-11-19 broke, each a case on a
+ * company-buyer brand: 20 posts on Tester credits, a funnel promising what
+ * the plan did not hold, YouTube left out as quiet and TikTok as too young.
+ */
+const CMO_V5_FOCUS_CASES = [
+  {
+    id: "cmo-strategy-tester-top-volume",
+    brand: "utxo.ag",
+    title: "Writes the whole month on Tester credits",
+    intent:
+      "A Cuso on Tester credits with no plan bought writes the month at the top volume, all_in on every network, and Core makes all of it.",
+    focus: "top-volume" as const,
+    testerCredits: true,
+  },
+  {
+    id: "cmo-strategy-funnel-matches-plan",
+    brand: "plausible.io",
+    title: "Writes a funnel in the plan's own numbers",
+    intent:
+      "Every channel, cadence and video the funnel names is in the plan's channels and calendar, and every planned network is in the funnel.",
+    focus: "funnel-plan" as const,
+  },
+  {
+    id: "cmo-strategy-video-networks-b2b",
+    brand: "HubSpot",
+    title: "Plans YouTube and TikTok for a company buyer",
+    intent:
+      "A brand that sells to companies still gets YouTube and TikTok, fed by the month's talking videos, and no network is left out for a quiet account.",
+    focus: "video-networks" as const,
+  },
+];
+
+/**
  * Making a month takes a production run, Core's pictures and Jev's review,
  * so a few brands with different channels and a non-English one.
  */
@@ -225,6 +262,18 @@ export const CMO_EVAL_CASES = [
         },
       ]
     : []),
+  ...CMO_V5_FOCUS_CASES.filter(({ brand: name }) => frozenBrains[name]).map(
+    ({ id, brand: name, title, intent, ...extra }) => ({
+      id,
+      suite: "cmo" as const,
+      area: "Strategy",
+      title,
+      intent,
+      kind: "cmo-strategy" as const,
+      brand: { ...brand(name), ...extra },
+      brandBrain: frozenBrains[name],
+    }),
+  ),
   ...MONTH_BRANDS.filter((name) => frozenBrains[name] && frozenPlans[name]).map(
     (name) => ({
       id: `cmo-month-${slug(name)}`,

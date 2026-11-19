@@ -91,11 +91,28 @@ describe("cmo-v5", () => {
   it("keeps cmo-v3's pace per network, its roles and its week by week saves", () => {
     for (const kept of [
       "all_in: three a day on X and two a day on LinkedIn, Facebook and Instagram",
-      "a side channel gets two or three a week whatever the pace",
+      "a side channel gets three a week",
       "save week one with part calendar, then each later week with part patch",
       "plan at most four a month",
     ])
       expect(skill).toContain(kept);
+  });
+
+  it("writes every month at the top volume, and finishes it in one turn", () => {
+    expect(skill).toContain("Every strategy is all_in");
+    expect(skill).toContain("never lower the pace or a cadence");
+    expect(skill).not.toContain("the owner lowers it with one tap");
+    expect(skill).toContain(
+      "never end the turn while the calendar misses a week",
+    );
+  });
+
+  it("plans YouTube and TikTok by default, and a funnel in the plan's own numbers", () => {
+    expect(skill).toContain("An account's state is never a reason");
+    expect(skill).toContain(
+      "YouTube (Shorts) and TikTok are planned by default",
+    );
+    expect(skill).toContain("with that channel's own cadence");
   });
 
   it("plans no ads until the owner said yes, and asks no question about them", () => {
