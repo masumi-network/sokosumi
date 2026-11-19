@@ -55939,6 +55939,10 @@ export const CmoChannelSchema = {
         },
         status: {
             type: 'string'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -55946,7 +55950,8 @@ export const CmoChannelSchema = {
         'provider',
         'handle',
         'displayName',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -57757,6 +57762,29 @@ export const CmoTopUpCheckoutSchema = {
     ]
 } as const;
 
+export const CmoDraftApproveSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CmoDraftRevision'
+        },
+        {
+            type: 'object',
+            properties: {
+                tikTokSettings: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/TikTokPostSettings'
+                        },
+                        {
+                            description: 'A TikTok video only: who sees it, what viewers may do, and the owner\'s confirmation of this video (`previewConsent`) and of TikTok\'s Music Usage Confirmation. Required for TikTok, which posts the video at once.'
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} as const;
+
 export const CmoDraftRevisionSchema = {
     type: 'object',
     properties: {
@@ -57767,6 +57795,42 @@ export const CmoDraftRevisionSchema = {
     },
     required: [
         'revision'
+    ]
+} as const;
+
+export const CmoTikTokCreatorSchema = {
+    type: 'object',
+    properties: {
+        creator_nickname: {
+            type: 'string'
+        },
+        privacy_level_options: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The audiences TikTok allows now. Empty: no post is possible right now.'
+        },
+        comment_disabled: {
+            type: 'boolean'
+        },
+        duet_disabled: {
+            type: 'boolean'
+        },
+        stitch_disabled: {
+            type: 'boolean'
+        },
+        max_video_post_duration_sec: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'creator_nickname',
+        'privacy_level_options',
+        'comment_disabled',
+        'duet_disabled',
+        'stitch_disabled',
+        'max_video_post_duration_sec'
     ]
 } as const;
 
@@ -57849,6 +57913,96 @@ export const CmoBrandFixRequestSchema = {
     required: [
         'section',
         'note'
+    ]
+} as const;
+
+export const CmoSocialConnectionFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'choose'
+            ],
+            description: '`choose`: the sign-in reaches several accounts; finalize again with the owner\'s pick.'
+        },
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSocialAccountChoice'
+            }
+        }
+    },
+    required: [
+        'state',
+        'choices'
+    ]
+} as const;
+
+export const CmoSocialAccountChoiceSchema = {
+    type: 'object',
+    properties: {
+        externalAccountId: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        handle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page',
+                'profile'
+            ]
+        }
+    },
+    required: [
+        'externalAccountId',
+        'name',
+        'handle',
+        'kind'
+    ]
+} as const;
+
+export const CmoFinalizeSocialConnectionRequestSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/FinalizeProjectSocialConnectionRequest'
+        },
+        {
+            type: 'object',
+            properties: {
+                pendingDataToken: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 512,
+                    description: 'Returned with a LinkedIn sign-in: names the Pages it reaches.'
+                },
+                connectToken: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 4096,
+                    description: 'Returned with a LinkedIn sign-in: lets Core finish it.'
+                },
+                externalAccountId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 256,
+                    description: 'The Page or profile the owner picked among the sign-in\'s accounts.'
+                }
+            }
+        }
     ]
 } as const;
 

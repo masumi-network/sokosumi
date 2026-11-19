@@ -214,6 +214,7 @@ export const overview: CmoOverview = cmoOverview({
       handle: "acme",
       displayName: "Acme",
       status: "ACTIVE",
+      personalProfile: false,
     },
     {
       id: "c2",
@@ -221,6 +222,7 @@ export const overview: CmoOverview = cmoOverview({
       handle: "acme_rockets",
       displayName: "Acme Rockets",
       status: "ACTIVE",
+      personalProfile: false,
     },
   ],
   adProviders: ["google_ads"],

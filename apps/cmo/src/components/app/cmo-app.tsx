@@ -99,6 +99,8 @@ export interface CmoAppActions
   ) => Promise<DraftResult>;
   competitors: CompetitorActions;
   connectChannel: ConnectChannel;
+  /** Signs in again to put another account in a connection's place. */
+  changeChannel?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
@@ -129,8 +131,8 @@ interface CmoAppProps {
   email: string;
   /** Where a redirect (a channel connection) returns to. */
   initialView?: View;
-  /** The channel connection that sent the founder back did not finish. */
-  connectFailed?: boolean;
+  /** Why the channel connection that sent the founder back did not finish. */
+  connectError?: string | null;
   /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
   plans?: CmoSubscriptionPlan[];
   /** The person has another Cuso, for the sidebar's "Your Cusos". */
@@ -220,7 +222,7 @@ export function CmoApp({
   name,
   email,
   initialView = "chat",
-  connectFailed = false,
+  connectError = null,
   plans = [],
   manyCusos = false,
   mayHire = false,
@@ -603,7 +605,8 @@ export function CmoApp({
                   connectAds={actions.connectAds}
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
-                  connectFailed={connectFailed}
+                  connectError={connectError}
+                  change={actions.changeChannel}
                   openSeo={() => go("seo")}
                   connectSearchConsole={() =>
                     actions.connectMeasurement("google_search_console", "seo")

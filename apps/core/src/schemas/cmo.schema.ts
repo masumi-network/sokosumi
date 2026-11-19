@@ -9,6 +9,8 @@ import {
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
+import { finalizeProjectSocialConnectionRequestSchema } from "@/schemas/project-social-connection.schema";
+import { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
 /** An IANA time zone this server knows, such as "America/New_York". */
@@ -426,6 +428,31 @@ export const cmoDraftRevisionSchema = z
   })
   .openapi("CmoDraftRevision");
 
+export const cmoDraftApproveSchema = cmoDraftRevisionSchema
+  .extend({
+    tikTokSettings: tikTokPostSettingsSchema
+      .optional()
+      .describe(
+        "A TikTok video only: who sees it, what viewers may do, and the owner's confirmation of this video (`previewConsent`) and of TikTok's Music Usage Confirmation. Required for TikTok, which posts the video at once.",
+      ),
+  })
+  .openapi("CmoDraftApprove");
+
+export const cmoTikTokCreatorSchema = z
+  .object({
+    creator_nickname: z.string(),
+    privacy_level_options: z
+      .array(z.string())
+      .describe(
+        "The audiences TikTok allows now. Empty: no post is possible right now.",
+      ),
+    comment_disabled: z.boolean(),
+    duet_disabled: z.boolean(),
+    stitch_disabled: z.boolean(),
+    max_video_post_duration_sec: z.number().int(),
+  })
+  .openapi("CmoTikTokCreator");
+
 export const cmoDraftEditSchema = cmoDraftRevisionSchema
   .extend({ text: z.string().trim().min(1).max(25_000) })
   .openapi("CmoDraftEdit");
@@ -454,8 +481,50 @@ export const cmoChannelSchema = z
     handle: z.union([z.string(), z.null()]),
     displayName: z.union([z.string(), z.null()]),
     status: z.string(),
+    personalProfile: z
+      .boolean()
+      .describe(
+        "A LinkedIn connection that posts as the person, not as a company Page.",
+      ),
   })
   .openapi("CmoChannel");
+
+export const cmoFinalizeSocialConnectionRequestSchema =
+  finalizeProjectSocialConnectionRequestSchema
+    .extend({
+      pendingDataToken: z.string().min(1).max(512).optional().openapi({
+        description:
+          "Returned with a LinkedIn sign-in: names the Pages it reaches.",
+      }),
+      connectToken: z.string().min(1).max(4096).optional().openapi({
+        description: "Returned with a LinkedIn sign-in: lets Core finish it.",
+      }),
+      externalAccountId: z.string().min(1).max(256).optional().openapi({
+        description:
+          "The Page or profile the owner picked among the sign-in's accounts.",
+      }),
+    })
+    .openapi("CmoFinalizeSocialConnectionRequest");
+
+export const cmoSocialAccountChoiceSchema = z
+  .object({
+    externalAccountId: z.string(),
+    name: z.string(),
+    handle: z.union([z.string(), z.null()]),
+    kind: z.enum(["page", "profile"]),
+  })
+  .openapi("CmoSocialAccountChoice");
+
+export const cmoSocialConnectionFinalizedSchema = z
+  .object({
+    state: z
+      .enum(["connected", "choose"])
+      .describe(
+        "`choose`: the sign-in reaches several accounts; finalize again with the owner's pick.",
+      ),
+    choices: z.array(cmoSocialAccountChoiceSchema),
+  })
+  .openapi("CmoSocialConnectionFinalized");
 
 export const cmoUpNextItemSchema = z
   .object({

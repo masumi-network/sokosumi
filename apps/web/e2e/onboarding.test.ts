@@ -77,7 +77,14 @@ for (const { name, ...viewport } of PROJECTS) {
         });
 
       await page.goto(`${BASE_URL}/`);
-      await page.getByRole("link", { name: "Register" }).click();
+      const register = page.getByRole("link", { name: "Register" });
+      // WCAG 2.5.8: the first tap a new visitor makes is at least 24px tall.
+      const registerBox = await register.boundingBox();
+      assert.ok(
+        registerBox && registerBox.height >= 24,
+        "Register is 24px tall",
+      );
+      await register.click();
       await expectStep(page, /\/signup/, "Create your account");
       const signupLogo = await logoBox(page);
       await page.getByRole("textbox", { name: "Email" }).fill(mailbox.address);

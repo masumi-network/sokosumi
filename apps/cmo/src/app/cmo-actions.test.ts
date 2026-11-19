@@ -347,10 +347,12 @@ describe("social accounts", () => {
 
   it("finishes the connection on Cuso's Project", async () => {
     forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
-      data: {},
+      data: { data: { state: "connected", choices: [] } },
     });
 
-    expect(await finalizeChannel("project-1", "ca_1")).toBe(true);
+    expect(
+      await finalizeChannel("project-1", { connectionId: "ca_1" }),
+    ).toEqual({ state: "connected" });
     expect(
       forProject.finalizeCmoSocialConnectionForProject,
     ).toHaveBeenCalledWith(
@@ -359,6 +361,53 @@ describe("social accounts", () => {
         body: { connectionId: "ca_1" },
       }),
     );
+  });
+
+  it("hands back the accounts to pick from, then sends the pick with the sign-in", async () => {
+    const choices = [
+      {
+        externalAccountId: "urn:li:organization:42",
+        name: "Acme",
+        handle: "acme",
+        kind: "page",
+      },
+    ];
+    forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
+      data: { data: { state: "choose", choices } },
+    });
+    const signIn = {
+      connectionId: "zernio:profile",
+      callbackProof: "proof",
+      pendingDataToken: "pending",
+      connectToken: "connect",
+    };
+    expect(await finalizeChannel("project-1", signIn)).toEqual({
+      state: "choose",
+      choices,
+    });
+    await finalizeChannel("project-1", signIn, "urn:li:organization:42");
+    expect(
+      forProject.finalizeCmoSocialConnectionForProject,
+    ).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: { ...signIn, externalAccountId: "urn:li:organization:42" },
+      }),
+    );
+  });
+
+  it("names why a connection kept no account", async () => {
+    forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
+      error: { kind: "social_facebook_page_required", message: "No Page" },
+    });
+    expect(
+      await finalizeChannel("project-1", { connectionId: "ca_1" }),
+    ).toEqual({ state: "failed", reason: "no_page" });
+    forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
+      error: { message: "Nope" },
+    });
+    expect(
+      await finalizeChannel("project-1", { connectionId: "ca_1" }),
+    ).toEqual({ state: "failed", reason: "failed" });
   });
 });
 
@@ -768,10 +817,15 @@ describe("the Cuso on screen", () => {
       data: { data: { redirectUrl: "https://connect.example/x" } },
     });
     forProject.finalizeCmoSocialConnectionForProject.mockResolvedValue({
-      data: {},
+      data: { data: { state: "connected", choices: [] } },
     });
     await connectChannel("project-2", "x");
-    expect(await finalizeChannel("project-2", "ca_1", "s_1")).toBe(true);
+    expect(
+      await finalizeChannel("project-2", {
+        connectionId: "ca_1",
+        sessionUri: "s_1",
+      }),
+    ).toEqual({ state: "connected" });
     expect(
       forProject.initiateCmoSocialConnectionForProject,
     ).toHaveBeenCalledWith(
