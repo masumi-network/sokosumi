@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, seoTaskRequestPacket } from "@sokosumi/utils";
 import {
   afterAll,
   beforeAll,
@@ -557,7 +557,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
       const task = await prisma.task.findUniqueOrThrow({
         where: { id: first.taskId! },
       });
-      const packet = JSON.parse(task.description!.slice("seo_audit:".length));
+      const packet = seoTaskRequestPacket(task.description ?? "", "seo_audit");
       expect(packet).not.toHaveProperty("searchConsoleAccess");
       expect(task.description).not.toContain(
         JSON.stringify(input.searchConsolePropertyId),
