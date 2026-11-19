@@ -160,7 +160,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await prisma.$transaction([
         prisma.taskEvent.findMany({
           where,
-          take: takePlusOne,
+          ...(takePlusOne !== undefined && { take: takePlusOne }),
           ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
           orderBy: [{ createdAt: "asc" }, { id: "asc" }],
           include: taskEventApiInclude,
