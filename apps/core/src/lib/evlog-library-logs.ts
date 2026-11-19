@@ -1,6 +1,7 @@
 import { stripVTControlCharacters } from "node:util";
 import { BetterAuthError } from "@better-auth/core/error";
 import type { ComposioLogger } from "@composio/core";
+import { getOAuthState } from "better-auth/api";
 import type { BetterAuthOptions } from "better-auth/minimal";
 import { createError, type RequestLogger } from "evlog";
 
@@ -107,19 +108,36 @@ function logLibraryMessage(
   if (!request) log.emit();
 }
 
+interface PendingBetterAuthLogs {
+  writes: ((clientRedirect: boolean) => void)[];
+  oauthErrorURL?: string;
+}
+
 const pendingBetterAuthLogs = new WeakMap<
   RequestLogger,
-  ((clientRedirect: boolean) => void)[]
+  PendingBetterAuthLogs
 >();
 
 /** Better Auth can log a diagnostic before choosing an OAuth redirect. */
 export function deferBetterAuthRequestLogs(log: RequestLogger) {
-  const pending: ((clientRedirect: boolean) => void)[] = [];
+  const pending: PendingBetterAuthLogs = { writes: [] };
   pendingBetterAuthLogs.set(log, pending);
-  return (clientRedirect: boolean) => {
+  return (isClientRedirect: (oauthErrorURL?: string) => boolean) => {
     pendingBetterAuthLogs.delete(log);
-    for (const write of pending) write(clientRedirect);
+    if (pending.writes.length === 0) return;
+    const clientRedirect = isClientRedirect(pending.oauthErrorURL);
+    for (const write of pending.writes) write(clientRedirect);
   };
+}
+
+export async function captureBetterAuthOAuthErrorURL(path: string | undefined) {
+  if (path !== "/callback/:id") return;
+  const request = tryUseLiveLogger();
+  const pending = request && pendingBetterAuthLogs.get(request);
+  if (pending) {
+    // Better Auth validates errorCallbackURL at sign-in and stores it in state.
+    pending.oauthErrorURL = (await getOAuthState())?.errorURL;
+  }
 }
 
 function isClientOAuthStateError(error: Error): boolean {
@@ -144,21 +162,17 @@ export const betterAuthLogger = {
     const request = tryUseLiveLogger();
     const pending = request ? pendingBetterAuthLogs.get(request) : undefined;
     const write = (clientRedirect = false) => {
-      const errors = args.filter(Error.isError);
-      const downgrade =
-        pending !== undefined &&
-        (level === "warn" || level === "error") &&
-        (errors.length === 0
-          ? clientRedirect
-          : errors.every(isClientOAuthStateError));
-      logLibraryMessage(
-        "better-auth",
-        downgrade ? "info" : level,
-        message,
-        args,
-      );
+      let eventLevel = level;
+      if (pending && (level === "warn" || level === "error")) {
+        const errors = args.filter(Error.isError);
+        if (errors.length === 0 && clientRedirect) eventLevel = "info";
+        if (errors.length > 0 && errors.every(isClientOAuthStateError)) {
+          eventLevel = "warn";
+        }
+      }
+      logLibraryMessage("better-auth", eventLevel, message, args);
     };
-    if (pending) pending.push(write);
+    if (pending) pending.writes.push(write);
     else write();
   },
 } satisfies NonNullable<BetterAuthOptions["logger"]>;

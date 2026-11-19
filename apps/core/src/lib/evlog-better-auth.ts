@@ -28,22 +28,23 @@ const CLIENT_AUTH_REDIRECT_ERRORS = new Set([
 function isClientCausedRedirect(
   response: Response,
   requestUrl: string,
+  oauthErrorURL?: string,
 ): boolean {
   if (response.status < 300 || response.status >= 400) return false;
   const location = response.headers.get("location");
-  const errorURL = auth.options.onAPIError?.errorURL;
-  if (!location || !errorURL) return false;
+  const redirect = location && URL.parse(location, requestUrl);
+  if (!redirect) return false;
 
-  const redirect = URL.parse(location, requestUrl);
-  const errorPage = URL.parse(errorURL, requestUrl);
-  if (
-    !redirect ||
-    !errorPage ||
-    redirect.origin !== errorPage.origin ||
-    redirect.pathname !== errorPage.pathname
-  ) {
-    return false;
-  }
+  const errorURLs = [auth.options.onAPIError?.errorURL, oauthErrorURL];
+  const matchesErrorPage = errorURLs.some((url) => {
+    const errorPage = url && URL.parse(url, requestUrl);
+    return (
+      errorPage &&
+      redirect.origin === errorPage.origin &&
+      redirect.pathname === errorPage.pathname
+    );
+  });
+  if (!matchesErrorPage) return false;
 
   const errors = redirect.searchParams.getAll("error");
   if (errors.length !== 1 || !CLIENT_AUTH_REDIRECT_ERRORS.has(errors[0])) {
@@ -65,7 +66,9 @@ export function betterAuthEvlogMiddleware(): MiddlewareHandler<EvlogVariables> {
       try {
         await next();
       } finally {
-        flush(isClientCausedRedirect(c.res, c.req.url));
+        flush((oauthErrorURL) =>
+          isClientCausedRedirect(c.res, c.req.url, oauthErrorURL),
+        );
       }
       return;
     }

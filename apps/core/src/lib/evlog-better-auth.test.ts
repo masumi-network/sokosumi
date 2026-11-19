@@ -1,4 +1,5 @@
 import { memoryAdapter } from "better-auth/adapters/memory";
+import { createAuthMiddleware } from "better-auth/api";
 import { signJWT } from "better-auth/crypto";
 import { type BetterAuthOptions, betterAuth } from "better-auth/minimal";
 import type { DrainContext } from "evlog";
@@ -11,7 +12,10 @@ import {
   coreEvlogMiddleware,
   initCoreLogger,
 } from "@/lib/evlog";
-import { betterAuthLogger } from "@/lib/evlog-library-logs";
+import {
+  betterAuthLogger,
+  captureBetterAuthOAuthErrorURL,
+} from "@/lib/evlog-library-logs";
 
 const getSessionMock = vi.hoisted(() => vi.fn());
 const authOptions = vi.hoisted(() => ({
@@ -61,6 +65,11 @@ async function createOAuthCallbackApp(
     },
     trustedOrigins: ["https://app.example.test"],
     rateLimit: { enabled: false },
+    hooks: {
+      after: createAuthMiddleware(async (ctx) => {
+        await captureBetterAuthOAuthErrorURL(ctx.path);
+      }),
+    },
     ...options,
   });
   const app = createApp(await loadMiddleware());
@@ -70,7 +79,10 @@ async function createOAuthCallbackApp(
 
 async function startGoogleSignIn(
   app: Awaited<ReturnType<typeof createOAuthCallbackApp>>,
-  callbackURL = "http://localhost/signed-in",
+  {
+    callbackURL = "http://localhost/signed-in",
+    errorCallbackURL,
+  }: { callbackURL?: string; errorCallbackURL?: string } = {},
 ) {
   const response = await app.request("/auth/sign-in/social", {
     method: "POST",
@@ -78,7 +90,7 @@ async function startGoogleSignIn(
       "content-type": "application/json",
       origin: "http://localhost",
     },
-    body: JSON.stringify({ provider: "google", callbackURL }),
+    body: JSON.stringify({ provider: "google", callbackURL, errorCallbackURL }),
   });
   expect(response.status).toBe(200);
   const { url } = await response.json();
@@ -171,17 +183,61 @@ describe("betterAuthEvlogMiddleware", () => {
     expect(captured[0]?.event).not.toHaveProperty("error");
   });
 
+  it("logs a missing OAuth code at info on the per-flow error page", async () => {
+    const app = await createOAuthCallbackApp();
+    const errorCallbackURL =
+      "https://app.example.test/signin?returnUrl=%2Fchat";
+    const { callback, cookie } = await startGoogleSignIn(app, {
+      errorCallbackURL,
+    });
+    const callbackWithoutCode = new URL(callback, authOptions.baseURL);
+    callbackWithoutCode.searchParams.delete("code");
+    captured.length = 0;
+
+    const response = await app.request(callbackWithoutCode.href, {
+      headers: { cookie },
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `${errorCallbackURL}&error=no_code`,
+    );
+    expect(captured.map(({ event }) => event)).toMatchObject([
+      {
+        status: 302,
+        level: "info",
+        libraryLogs: [
+          { source: "better-auth", level: "info", message: "Code not found" },
+        ],
+      },
+    ]);
+  });
+
   it.each([
-    { scenario: "missing signed cookie", useDatabase: true, expired: false },
+    {
+      scenario: "missing signed cookie",
+      useDatabase: true,
+      expired: false,
+      code: "state_security_mismatch",
+      message: "State mismatch: State not persisted correctly",
+    },
     {
       scenario: "missing encrypted cookie",
       useDatabase: false,
       expired: false,
+      code: "state_mismatch",
+      message: "State mismatch: auth state cookie not found",
     },
-    { scenario: "expired encrypted cookie", useDatabase: false, expired: true },
+    {
+      scenario: "expired encrypted cookie",
+      useDatabase: false,
+      expired: true,
+      code: "state_mismatch",
+      message: "Invalid state: request expired",
+    },
   ])(
-    "logs OAuth state at info for $scenario",
-    async ({ useDatabase, expired }) => {
+    "logs OAuth state at warn for $scenario",
+    async ({ useDatabase, expired, code, message }) => {
       const database = useDatabase
         ? memoryAdapter({ verification: [] })
         : undefined;
@@ -201,12 +257,13 @@ describe("betterAuthEvlogMiddleware", () => {
       expect(captured.map(({ event }) => event)).toMatchObject([
         {
           status: 302,
-          level: "info",
+          level: "warn",
           libraryLogs: [
             {
               source: "better-auth",
-              level: "info",
+              level: "warn",
               message: "Failed to parse state",
+              args: [{ code, message }],
             },
           ],
         },
@@ -266,7 +323,9 @@ describe("betterAuthEvlogMiddleware", () => {
         database,
         databaseHooks: { user: { update: { before: async () => false } } },
       });
-      const { callback, cookie } = await startGoogleSignIn(app, callbackURL);
+      const { callback, cookie } = await startGoogleSignIn(app, {
+        callbackURL,
+      });
       captured.length = 0;
 
       const response = await app.request(callback, { headers: { cookie } });
@@ -358,6 +417,11 @@ describe("betterAuthEvlogMiddleware", () => {
 
   it.each([
     ["/sign-in-error?error=no_code", undefined, "info"],
+    ["http://evil.localhost/sign-in-error?error=no_code", undefined, "error"],
+    ["https://localhost/sign-in-error?error=no_code", undefined, "error"],
+    ["/sign-in-error/?error=no_code", undefined, "error"],
+    ["/sign-in-error-x?error=no_code", undefined, "error"],
+    ["/sign-in-error/x?error=no_code", undefined, "error"],
     ["/sign-in-error?error=state_mismatch", undefined, "info"],
     ["/sign-in-error?error=access_denied", undefined, "info"],
     [
@@ -388,7 +452,8 @@ describe("betterAuthEvlogMiddleware", () => {
         });
       });
 
-      await app.request("/auth/check");
+      const response = await app.request("/auth/check");
+      expect(response.headers.has("set-cookie")).toBe(false);
 
       expect(captured.map(({ event }) => event)).toMatchObject([
         {
