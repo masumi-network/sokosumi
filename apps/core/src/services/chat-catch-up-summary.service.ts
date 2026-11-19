@@ -92,9 +92,7 @@ const writtenSchema = z.object({
     .max(30),
 });
 
-const SUMMARY_CONTENT_VERSION = 1;
 const cachedSchema = z.object({
-  version: z.literal(SUMMARY_CONTENT_VERSION),
   headline: z.string(),
   topics: z.array(
     z.object({
@@ -963,20 +961,19 @@ async function writtenSummary(input: {
       },
     });
     if (!text) return null;
-    const content = { ...text, version: SUMMARY_CONTENT_VERSION };
     const saved = await prisma.chatCatchUpSummary.upsert({
       where: { userId_scope: { userId: input.userId, scope: input.scope } },
       create: {
         userId: input.userId,
         scope: input.scope,
         messageIds,
-        content,
+        content: text,
         model: CHAT_SUMMARY_MODEL,
         costUsd: result.costUsd,
       },
       update: {
         messageIds,
-        content,
+        content: text,
         model: CHAT_SUMMARY_MODEL,
         costUsd: result.costUsd,
         generatedAt: new Date(),

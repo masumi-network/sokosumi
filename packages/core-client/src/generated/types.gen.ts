@@ -19555,6 +19555,81 @@ export type ListAdminSokoBotChatMessagesResponses = {
 
 export type ListAdminSokoBotChatMessagesResponse = ListAdminSokoBotChatMessagesResponses[keyof ListAdminSokoBotChatMessagesResponses];
 
+export type GetAdminSokoBotTurnData = {
+    body?: never;
+    path: {
+        turnId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/turns/{turnId}';
+};
+
+export type GetAdminSokoBotTurnErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotTurnError = GetAdminSokoBotTurnErrors[keyof GetAdminSokoBotTurnErrors];
+
+export type GetAdminSokoBotTurnResponses = {
+    /**
+     * Scenario lab turn diagnostics
+     */
+    200: {
+        data: SokoBotTurn;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotTurnResponse = GetAdminSokoBotTurnResponses[keyof GetAdminSokoBotTurnResponses];
+
 export type PerformAdminSokoBotActionData = {
     body?: AdminSokoBotActionRequest;
     path: {

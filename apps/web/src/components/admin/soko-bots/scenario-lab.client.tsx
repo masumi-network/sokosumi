@@ -88,7 +88,7 @@ interface LiveRun {
 
 async function fetchTurn(turnId: string): Promise<ChatTurnDetail | null> {
   const response = await fetch(
-    `/api/personal-assistant/turns/${encodeURIComponent(turnId)}`,
+    `/api/admin/soko-bots/turns/${encodeURIComponent(turnId)}`,
     { credentials: "same-origin", cache: "no-store" },
   );
   if (!response.ok) return null;

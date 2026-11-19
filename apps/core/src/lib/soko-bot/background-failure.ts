@@ -94,6 +94,7 @@ export function readBackgroundMessageContent(message: {
 export function readLegacyBackgroundFailureSnapshot(
   text: string,
 ): string | null {
+  // Snapshots carry no sender, so the legacy delivery heading identifies them.
   const match =
     /^(?:(@[^\n]*? ))?Background run "([\s\S]*?)" (failed|ran out of time) before it could report\.(?= \()/.exec(
       text,

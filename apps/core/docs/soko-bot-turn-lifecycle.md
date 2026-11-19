@@ -262,7 +262,7 @@ Runtime authorization can attach a session while the turn is still `STARTING`. A
 
 An exhausted AI Gateway key or team budget fails the turn with `ai_budget_exceeded`. Core uses shared Redis to alert once per exhausted scope per hour. When Redis cannot confirm a claim, Core allows one alert per scope per instance per hour. Repeats log at warn. Manage the limits with [`vercel ai-gateway budgets`](https://vercel.com/docs/cli/ai-gateway#budgets).
 
-Turn and tool-call error details stay available in admin diagnostics under the existing credential redaction. Owner turn responses expose the error kind and return null for the detail. The nightly dream packet includes turn failure kinds and counts tool failures by capability and kind. Chat excerpts and stored previews of legacy background failures use the same safe copy as new background failures.
+Turn and tool-call error details stay available in admin diagnostics under the existing credential redaction. The scenario lab polls a single admin turn read scoped to the admin's own bot. Owner turn responses expose the error kind and return null for the detail. The nightly dream packet includes turn failure kinds and counts tool failures by capability and kind. Chat excerpts, stored previews and Jev's earlier-message and reply context use the same safe copy as new background failures.
 
 ### Start fences
 

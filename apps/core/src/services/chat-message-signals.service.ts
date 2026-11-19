@@ -22,6 +22,7 @@ import {
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, emitCoreError } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
 import type { SyncExecutionContext } from "@/routes/sync/handler";
 import {
   captureExternalRoomContacts,
@@ -458,7 +459,14 @@ async function loadBatch(
             deletedAt: true,
             ...senderSelect,
             userMentionsAsSource: { select: { userId: true } },
-            parentMessage: { select: { content: true, deletedAt: true } },
+            parentMessage: {
+              select: {
+                content: true,
+                deletedAt: true,
+                metadata: true,
+                senderSokoBotId: true,
+              },
+            },
           },
         },
       },
@@ -487,7 +495,12 @@ async function loadBatch(
         },
         orderBy: { createdAt: "desc" },
         take: EARLIER_CONTEXT,
-        select: { content: true, ...senderSelect },
+        select: {
+          content: true,
+          metadata: true,
+          senderSokoBotId: true,
+          ...senderSelect,
+        },
       })
     : [];
 
@@ -504,7 +517,10 @@ async function loadBatch(
       people,
       earlier: earlier.reverse().map((message) => ({
         authorName: senderName(message),
-        text: readableChatSignalText(message.content, names),
+        text: readableChatSignalText(
+          readBackgroundMessageContent(message),
+          names,
+        ),
       })),
       messages: live.map(({ message }) => ({
         messageId: message.id,
@@ -513,7 +529,10 @@ async function loadBatch(
         text: readableChatSignalText(message.content, names),
         repliesTo:
           message.parentMessage && message.parentMessage.deletedAt === null
-            ? readableChatSignalText(message.parentMessage.content, names)
+            ? readableChatSignalText(
+                readBackgroundMessageContent(message.parentMessage),
+                names,
+              )
             : null,
         mentionedUserIds: message.userMentionsAsSource.map(
           (mention) => mention.userId,
