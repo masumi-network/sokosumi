@@ -233,23 +233,52 @@ export const cmoPieceTextSchema = z
 export const cmoChatWorkItemSchema = z
   .object({
     id: z.string().describe("The tool call that started it."),
-    kind: z.enum(["image", "video", "audio"]),
+    kind: z
+      .enum(["image", "video", "audio", "file", "task", "agent"])
+      .describe(
+        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).",
+      ),
     state: z
-      .enum(["making", "ready", "failed"])
-      .describe("making until the file exists; failed when it never will."),
+      .enum(["making", "waiting", "ready", "failed"])
+      .describe(
+        "making until it is done; waiting when handed work needs the owner; failed when it never will be done.",
+      ),
     at: dateTimeSchema.describe("When Cuso started it."),
     title: z
       .string()
-      .describe("What was asked for: the prompt, or the words spoken."),
+      .describe(
+        "What it is: the prompt, the words spoken, the file's or the work's name.",
+      ),
     url: z
       .union([z.string(), z.null()])
-      .describe("Where the finished file plays from; null until it is ready."),
+      .describe("Where the finished file plays or downloads from."),
+    by: z
+      .union([z.string(), z.null()])
+      .describe("Who does handed work: the Coworker or the Agent."),
+    text: z
+      .union([z.string(), z.null()])
+      .describe(
+        "Handed work: what is asked while it waits, the start of the result once done.",
+      ),
+    readable: z
+      .boolean()
+      .describe("Its full words are at /chat-work/{id}/text."),
+    files: z
+      .array(z.object({ name: z.string(), url: z.string() }))
+      .describe("Files handed work came back with."),
   })
   .openapi("CmoChatWorkItem");
 
 export const cmoChatWorkSchema = z
   .object({ items: z.array(cmoChatWorkItemSchema) })
   .openapi("CmoChatWork");
+
+export const cmoChatWorkIdParamsSchema = cmoProjectParamsSchema.extend({
+  id: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "id", in: "path" } }),
+});
 
 /** A report is its card's message in Cuso's shared room. */
 export const cmoReportIdParamsSchema = z.object({ id: z.string().uuid() });
