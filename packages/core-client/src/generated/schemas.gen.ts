@@ -14413,63 +14413,6 @@ export const ChatSavedMessageMutationSchema = {
     ]
 } as const;
 
-export const ChatSignalListItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'needsYou',
-                'question',
-                'decision',
-                'commitment'
-            ],
-            description: '`needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.'
-        },
-        room: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                name: {
-                    type: 'string'
-                },
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'channel',
-                        'direct'
-                    ]
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'kind'
-            ]
-        },
-        message: {
-            $ref: '#/components/schemas/ChatRoomMessage'
-        },
-        dueAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'kind',
-        'room',
-        'message',
-        'dueAt'
-    ]
-} as const;
-
 export const ChatCatchUpItemSchema = {
     type: 'object',
     properties: {

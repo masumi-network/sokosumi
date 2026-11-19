@@ -301,51 +301,6 @@ async function loadListedMessages(ids: readonly string[]) {
   );
 }
 
-/** Unread messages across the reader's rooms that ask something of them. */
-export async function listChatNeedsYou(
-  userId: string,
-  organizationId: string | null,
-): Promise<ChatSignalListItem[]> {
-  const rooms = await readerRooms(userId, organizationId);
-  if (rooms.length === 0) return [];
-  const user = `$${rooms.length + 1}`;
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
-    `SELECT m.id
-    FROM "chat_message_signal" s
-    INNER JOIN "chat_room_message" m ON m.id = s."messageId"
-    ${sqlReadJoins(user)}
-    WHERE s."roomId" IN (${placeholders(rooms.length)})
-      AND s.state = 'tagged'
-      AND m."deletedAt" IS NULL
-      AND (m."senderUserId" IS NULL OR m."senderUserId" <> ${user})
-      AND ${sqlNeedsViewer(user)}
-      AND ${sqlUnreadForViewer()}
-    ORDER BY m."createdAt" DESC
-    LIMIT ${MAX_LISTED}`,
-    ...rooms.map((room) => room.id),
-    userId,
-  );
-  const messages = await loadListedMessages(rows.map((row) => row.id));
-  const roomById = new Map(rooms.map((room) => [room.id, room]));
-  return rows.flatMap((row) => {
-    const message = messages.find((candidate) => candidate.id === row.id);
-    const room = message && roomById.get(message.roomId);
-    if (!message || !room) return [];
-    return [
-      {
-        kind: "needsYou" as const,
-        room: {
-          id: room.id,
-          name: room.groupName ?? room.name,
-          kind: room.kind,
-        },
-        message,
-        dueAt: null,
-      },
-    ];
-  });
-}
-
 /**
  * The reader's open loops across their rooms: questions and decisions asked
  * of them that they have not answered after a few hours, and their own

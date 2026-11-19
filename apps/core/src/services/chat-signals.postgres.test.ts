@@ -22,7 +22,6 @@ import {
   getChatRoomCatchUp,
   getChatRoomNeedsYouCounts,
   listChatDecisions,
-  listChatNeedsYou,
   listChatOpenLoops,
   listChatRoomMessagesWithTag,
   setChatMessageSignalLoop,
@@ -275,8 +274,6 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     expect(await getChatRoomNeedsYouCounts([channelId], carla)).toEqual(
       new Map(),
     );
-    const needsYou = await listChatNeedsYou(alice, organizationId);
-    expect(needsYou.map((item) => item.message.id)).toEqual([question]);
   });
 
   it("buckets the catch-up line, one bucket per unread message", async () => {
