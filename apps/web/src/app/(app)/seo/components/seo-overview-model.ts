@@ -310,6 +310,11 @@ type PageDetailRow = {
   evidence: readonly string[];
 };
 
+/** A row's lines without the provenance lines ("Source: …"), which fold once under page details. */
+export function pageDetailLines(evidence: readonly string[]) {
+  return evidence.filter((line) => !line.startsWith(SOURCE_LINE_PREFIX));
+}
+
 /** The check's guidance shown under a row's value: its later evidence lines, without provenance. */
 export function pageDetailGuidance(evidence: readonly string[]) {
   return evidence
@@ -425,15 +430,58 @@ export function noteShare(line: string) {
 }
 
 /**
- * The rule IDs whose note gets its own plain words: their share line alone ("6 of 23 image file names")
- * does not say what is wrong or why it matters.
+ * The rule IDs (seo-bot rows) whose note gets its own plain words: a title and why it matters. The check's
+ * lines alone ("6 of 23 image file names", "meta keywords in head: …") do not say what is wrong.
  */
-export const PLAIN_NOTE_COPY: Readonly<
-  Record<string, "cameraFileNames" | "brokenLinks">
-> = {
+const PLAIN_NOTES = {
   "O-21": "cameraFileNames",
   "IL-04": "brokenLinks",
-};
+  "IN-04": "xDefault",
+  "O-10": "metaKeywords",
+  "P-23": "twoWayFacts",
+  "SD-05": "retiredMarkup",
+  "SN-02": "titlePerDevice",
+  "EX-02": "noFieldData",
+  "RN-02": "rawRenderedDiff",
+  "AI-04": "googleExtended",
+  "AC-15": "canonicalTarget",
+  "SN-18": "siteName",
+  "O-13": "queryWords",
+  "MC-01": "shopping",
+  "C-09": "authorship",
+  "AC-19": "sitemap",
+  "IL-08": "moneyLinked",
+  "K-13": "twoForKeyword",
+  "O-15": "noH1",
+  "AC-22": "aiSearchBots",
+} as const;
+type PlainNoteKey = (typeof PLAIN_NOTES)[keyof typeof PLAIN_NOTES];
+/** Every plain-note message key, so a test can check each language has its words. */
+export const PLAIN_NOTE_KEYS: readonly PlainNoteKey[] =
+  Object.values(PLAIN_NOTES);
+/** Notes whose first line counts items ("6 of 23 …"): their heading says that count in words. */
+const SHARE_NOTES = ["cameraFileNames", "brokenLinks"] as const;
+type ShareNoteKey = (typeof SHARE_NOTES)[number];
+
+/**
+ * A note's plain words: with a share line, its count; else its title, with the check's lines in a fold.
+ * Null for a rule with no plain words yet: the row shows the check's own finding.
+ */
+export function plainNote(
+  rowId: string,
+  first: string | undefined,
+):
+  | { kind: "share"; key: ShareNoteKey; found: number; total: number }
+  | { kind: "title"; key: PlainNoteKey }
+  | null {
+  const key: PlainNoteKey | undefined =
+    PLAIN_NOTES[rowId as keyof typeof PLAIN_NOTES];
+  if (!key) return null;
+  const share = first === undefined ? null : noteShare(first);
+  return share && (SHARE_NOTES as readonly string[]).includes(key)
+    ? { kind: "share", key: key as ShareNoteKey, ...share }
+    : { kind: "title", key };
+}
 
 /**
  * The rows that show their guidance: the first row with each rule's lines.

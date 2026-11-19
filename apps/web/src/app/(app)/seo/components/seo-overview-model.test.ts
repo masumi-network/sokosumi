@@ -1,9 +1,13 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
+import de from "../../../../../messages/de.json";
+import en from "../../../../../messages/en.json";
+import es from "../../../../../messages/es.json";
 import {
   measuresOutsideToolRanges,
   measureValue,
   noteFinding,
+  PLAIN_NOTE_KEYS,
   pageDetailGuidance,
   pageDetailGuidanceRows,
   pageDetailItemHref,
@@ -11,6 +15,7 @@ import {
   pageDetailItems,
   pageDetailLinkName,
   pageDetailReferences,
+  plainNote,
   seoActionBucket,
   seoActionWorklist,
   seoOverviewModel,
@@ -669,6 +674,38 @@ describe("page detail items", () => {
     expect(
       pageDetailItemHref("https://example.com/very-long-na…"),
     ).toBeUndefined();
+  });
+});
+
+describe("plain notes", () => {
+  it("counts a share note in words and titles the rest", () => {
+    expect(plainNote("O-21", "6 of 23 image file names")).toEqual({
+      kind: "share",
+      key: "cameraFileNames",
+      found: 6,
+      total: 23,
+    });
+    // An older share note without its count line keeps the title.
+    expect(plainNote("O-21", "camera file name: a.jpg")).toEqual({
+      kind: "title",
+      key: "cameraFileNames",
+    });
+    // "N of the page's top M" is no share: O-13 has a title only.
+    expect(
+      plainNote("O-13", "3 of the page's top 10 Search Console queries …"),
+    ).toEqual({ kind: "title", key: "queryWords" });
+    expect(plainNote("XX-99", "1 of 2 things")).toBeNull();
+  });
+
+  it("has a title and a why in every language for each plain note", () => {
+    for (const messages of [en, de, es]) {
+      const notes: Record<string, { title?: string; why?: string }> =
+        messages.App.Seo.overview.plainNote;
+      for (const key of PLAIN_NOTE_KEYS) {
+        expect(notes[key]?.title, key).toBeTruthy();
+        expect(notes[key]?.why, key).toBeTruthy();
+      }
+    }
   });
 });
 

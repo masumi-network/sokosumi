@@ -1036,11 +1036,19 @@ describe("SEO workspace integration", () => {
         name: "Title, description and other page details",
       }),
     );
-    // No count to put in plain words: the row keeps what the check wrote.
-    expect(
-      screen.getByRole("heading", { name: "camera file name" }),
-    ).toBeVisible();
-    expect(screen.getByText("https://example.com/IMG_0001.jpg")).toBeVisible();
+    // No count to put in plain words: the rule's title leads, and the check's lines wait in a fold.
+    const heading = screen.getByRole("heading", {
+      name: "Images with a camera file name",
+    });
+    const row = heading.closest("li");
+    if (!row) throw new Error("no note row");
+    expect(row).toHaveTextContent("Names like IMG_1234.jpg");
+    const line = within(row).getByText(
+      "camera file name: https://example.com/IMG_0001.jpg",
+    );
+    expect(line).not.toBeVisible();
+    await user.click(within(row).getByText("What the check found"));
+    expect(line).toBeVisible();
   });
 
   it("splits page details into measurements and notes and folds their references", async () => {
@@ -1208,7 +1216,7 @@ describe("SEO workspace integration", () => {
     expect(details.querySelectorAll("time")).toHaveLength(5);
     expect(
       screen.getByRole("heading", {
-        name: "robots.txt blocks GPTBot",
+        name: "robots.txt blocks AI search bots",
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
@@ -1258,7 +1266,7 @@ describe("SEO workspace integration", () => {
     await user.click(
       screen.getByRole("button", {
         name: "Ask the agent",
-        description: "robots.txt blocks GPTBot https://example.com/old",
+        description: "robots.txt blocks AI search bots https://example.com/old",
       }),
     );
     const sheet = await screen.findByRole("dialog");

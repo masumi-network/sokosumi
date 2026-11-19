@@ -14,15 +14,15 @@ import {
   measuresOutsideToolRanges,
   measureValue,
   noteFinding,
-  noteShare,
-  PLAIN_NOTE_COPY,
   pageDetailGuidance,
   pageDetailGuidanceRows,
   pageDetailItemHref,
   pageDetailItemName,
   pageDetailItems,
+  pageDetailLines,
   pageDetailLinkName,
   pageDetailReferences,
+  plainNote,
   seoCheckedAt,
   seoOverviewModel,
   toolRangeFit,
@@ -99,11 +99,11 @@ function PageDetail({
   const later = rank
     ? { groups: [], guidance: [] }
     : pageDetailItems(pageDetailGuidance(finding.evidence));
-  const guidance = showGuidance ? later.guidance : [];
-  // A note whose share line alone does not say what is wrong gets its own words.
-  const plainKey = measure ? undefined : PLAIN_NOTE_COPY[finding.rowId];
-  const share = plainKey && first !== undefined ? noteShare(first) : null;
-  const plain = plainKey && share ? { key: plainKey, ...share } : null;
+  // A note with plain words of its own: a count heading (share), or a title with the check's lines folded.
+  const plain = measure ? null : plainNote(finding.rowId, first);
+  const titled = plain?.kind === "title";
+  const guidance = showGuidance && !titled ? later.guidance : [];
+  const groups = titled ? [] : later.groups;
   const value = measure && first ? measureValue(name, first) : undefined;
   // Each page's value gets its own fit, though only the first row shows the ranges.
   const fit = value
@@ -204,8 +204,10 @@ function PageDetail({
             id={headingId}
             className="text-sm font-medium break-words"
           >
-            {plain ? (
+            {plain?.kind === "share" ? (
               t(`overview.plainNote.${plain.key}.found`, plain)
+            ) : plain ? (
+              t(`overview.plainNote.${plain.key}.title`)
             ) : note ? (
               note.found
             ) : (
@@ -235,7 +237,22 @@ function PageDetail({
           ) : null}
         </>
       )}
-      {later.groups.map((group) => (
+      {titled ? (
+        // The check's own lines stay one click away; the title and why say what they mean.
+        <details className="text-muted-foreground text-xs">
+          <SeoFoldSummary className="py-1.5">
+            {t("overview.checkFound")}
+          </SeoFoldSummary>
+          <ul className="list-disc space-y-0.5 ps-4 pt-1">
+            {pageDetailLines(finding.evidence).map((line, index) => (
+              <li key={`${index}:${line}`} className="break-words">
+                {withoutRuleCodes(line)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      {groups.map((group) => (
         <div key={group.label} className="space-y-0.5 text-xs">
           {/* A plain note's heading already says what the items are. */}
           {plain ? null : (

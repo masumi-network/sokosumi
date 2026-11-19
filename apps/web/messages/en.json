@@ -12454,14 +12454,89 @@
         "inlineImage": "image inside the page",
         "plainNote": {
           "cameraFileNames": {
+            "title": "Images with a camera file name",
             "found": "{found, plural, one {# of {total} images has} other {# of {total} images have}} a camera file name",
             "why": "Names like IMG_1234.jpg say nothing about the picture. Google reads a file name as a small hint for image search. When you upload an image again, name it after what it shows, for example harbor-at-sunset.jpg."
           },
           "brokenLinks": {
+            "title": "Links that lead to an error",
             "found": "{found, plural, one {# of {total} links leads} other {# of {total} links lead}} to an error",
             "why": "A link that answers with an error number leads visitors and Google to a dead end. Fix each link or remove it. The number after a link is the site's answer: 404 means the page does not exist. 429 is different: the site turned our check away for a moment, so check that link again before you change it."
+          },
+          "xDefault": {
+            "title": "No x-default language version",
+            "why": "The page lists versions for other languages or regions, but none is marked x-default. x-default tells Google which version to show people whose language is not on the list, for example a language picker page. Google suggests it but does not require it."
+          },
+          "metaKeywords": {
+            "title": "The page has a meta keywords tag",
+            "why": "Google does not use the meta keywords tag. It has no effect in Google Search, so you can keep it or remove it."
+          },
+          "twoWayFacts": {
+            "title": "Dates or times that can be read two ways",
+            "why": "A date like 04/05/2026 means 5 April in some countries and 4 May in others. A number like 1:30 can be a time of day or a duration. Write the month as a word (5 May 2026) and write durations out (1 hour 30 minutes)."
+          },
+          "retiredMarkup": {
+            "title": "Markup for a search feature Google no longer shows",
+            "why": "The page has structured data, such as FAQ or How-to, for a rich result that Google retired. Google says this markup causes no problems, so removing it is optional."
+          },
+          "titlePerDevice": {
+            "title": "Google shows a different title on phones and computers",
+            "why": "Google can show a different title for the page by device. Compare both titles in the details. If both describe the page well, nothing needs to change. A title that is only cut shorter on one device is no real difference."
+          },
+          "noFieldData": {
+            "title": "No speed data from real visitors",
+            "why": "Chrome publishes speed data from real visitors only for pages with enough visits, and Google does not say how many. Until then, use the lab speed test of this audit."
+          },
+          "rawRenderedDiff": {
+            "title": "JavaScript changes the page after it loads",
+            "why": "The page's HTML and the page after JavaScript runs show different titles, headings, links or text. Google reads the page after JavaScript runs, but most AI crawlers read only the HTML. Put important text and links in the HTML itself."
+          },
+          "googleExtended": {
+            "title": "robots.txt blocks Google-Extended",
+            "why": "This stops Google from using your content to train and ground Gemini. It does not remove the page from Google Search, AI Overviews or AI Mode. If that is what you want, nothing needs to change."
+          },
+          "canonicalTarget": {
+            "title": "The canonical link points to a page with a problem",
+            "why": "The canonical link tells Google which address is the main one for this page. It must point to a live page that does not redirect and has no noindex. Change it to the final address of the page."
+          },
+          "siteName": {
+            "title": "The home page does not give Google the site name",
+            "why": "Without WebSite structured data with a name on the home page, Google takes the site name in results from other parts of the page, such as the title. Add WebSite structured data with your site's name to the home page."
+          },
+          "queryWords": {
+            "title": "Search words missing from the title and main heading",
+            "why": "People found this page with searches that use words its title and h1 do not have. Google also matches related words, so add a word only where it describes the page."
+          },
+          "shopping": {
+            "title": "Product not found in Google Shopping",
+            "why": "The check did not find this product from your site in Google Shopping. It can still be listed under another name. Google Merchant Center is the main way to show a product in the Shopping tab."
+          },
+          "authorship": {
+            "title": "No clear author or site owner",
+            "why": "Readers look for who wrote an article and who runs the site. Name the author with a link to a profile page, and link to an About, Impressum or Contact page."
+          },
+          "sitemap": {
+            "title": "Page missing from the sitemap",
+            "why": "Google can index this page, but it is not in your sitemap. Google finds linked pages without a sitemap, so this is a weak signal. Add the page to the sitemap to give Google one more way to find it."
+          },
+          "moneyLinked": {
+            "title": "Important page without a link from your other pages",
+            "why": "None of the other pages this audit read link to this page. Each page you care about needs a link from at least one other page. Add a link to it from a related page. The audit reads only some pages, so a link can exist on a page it did not read."
+          },
+          "twoForKeyword": {
+            "title": "Two of your pages rank for the same search",
+            "why": "Google usually shows at most two results from one site at the top. Check that both pages should rank for this search, or let one page cover it. This is a point to review, not a fault."
+          },
+          "noH1": {
+            "title": "No main heading (h1)",
+            "why": "The page has no h1 heading. In one SEO test, changing the first heading to an h1 raised search traffic by 4.5%. Give the page one h1 that says what it is about."
+          },
+          "aiSearchBots": {
+            "title": "robots.txt blocks AI search bots",
+            "why": "The page blocks bots that AI search tools such as ChatGPT, Claude or Perplexity use to find pages, so these tools may not show it in their answers. If you block them on purpose, nothing needs to change."
           }
         },
+        "checkFound": "What the check found",
         "suggestion": "Suggestion:",
         "periodCompare": "Previous {days, plural, one {day} other {# days}}: {previous} ({change})",
         "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
