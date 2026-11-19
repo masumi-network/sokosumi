@@ -436,6 +436,35 @@ describe("CMO routes", () => {
     });
   });
 
+  it("returns the overview of a Cuso with a connected network, saying whether it posts as a person", async () => {
+    overviewMock.mockResolvedValue({
+      ...overview(),
+      channels: [
+        {
+          id: "channel-1",
+          provider: "linkedin",
+          externalHandle: "patrick",
+          displayName: "Patrick",
+          status: "ACTIVE",
+          personalProfile: true,
+        },
+      ],
+    });
+    const response = await createApp().request(`/projects/${PROJECT_ID}`);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.channels).toEqual([
+      {
+        id: "channel-1",
+        provider: "linkedin",
+        handle: "patrick",
+        displayName: "Patrick",
+        status: "ACTIVE",
+        personalProfile: true,
+      },
+    ]);
+  });
+
   it("sends a Brand Brain answer to Cuso, who fixes the section for a no", async () => {
     answerMock.mockResolvedValue(undefined);
     brainMock.mockResolvedValue(null);

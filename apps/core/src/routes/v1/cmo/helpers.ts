@@ -71,6 +71,7 @@ function mapOverview(overview: CmoOverview) {
       handle: channel.externalHandle,
       displayName: channel.displayName,
       status: channel.status,
+      personalProfile: channel.personalProfile,
     })),
     upNext: overview.upNext,
     connectChannelUrl: overview.connectChannelUrl,

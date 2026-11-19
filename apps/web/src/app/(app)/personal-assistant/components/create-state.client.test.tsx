@@ -107,6 +107,19 @@ describe("CreateState", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("Atlas");
   });
 
+  it("keeps Back beside Create in the pinned bar on the picture step", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+
+    const back = screen.getByRole("button", { name: "Back" });
+    const create = screen.getByRole("button", { name: "Create Atlas" });
+    // One pinned row: Back stays on screen while the pictures scroll.
+    expect(back.parentElement).toBe(create.parentElement);
+    expect(back.parentElement?.className).toContain("sticky");
+  });
+
   it("says a name is needed when it holds only spaces", async () => {
     const user = userEvent.setup();
     renderCreate();
