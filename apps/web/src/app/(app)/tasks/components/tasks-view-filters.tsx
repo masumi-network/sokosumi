@@ -406,10 +406,14 @@ export function TasksViewFilters({
   const project = projectOptions.find(
     (option) => option.id === filters.projectId,
   );
+  const viewName = {
+    all: labels.all,
+    mine: labels.assignedToMe,
+    "needs-me": t("needsMe"),
+    mentions: t("mentions"),
+  }[currentView];
   const activeFilters = [
-    currentView === "mine" && labels.assignedToMe,
-    currentView === "needs-me" && t("needsMe"),
-    currentView === "mentions" && t("mentions"),
+    t("chip", { label: t("viewLabel"), value: viewName }),
     project && t("chip", { label: t("projectLabel"), value: project.name }),
     ...chips.map((chip) => t("chip", { label: chip.label, value: chip.value })),
   ].filter((name): name is string => !!name);

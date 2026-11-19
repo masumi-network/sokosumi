@@ -196,7 +196,7 @@ describe("TasksViewFilters", () => {
     renderTasksViewFilters("org-1", "user-1", display);
 
     expect(display.mock.calls.at(-1)?.[0]).toEqual([
-      "needsMe",
+      "chip(viewLabel, needsMe)",
       "chip(projectLabel, Research)",
       "chip(Coworker, Me)",
       "chip(Status, Ready)",

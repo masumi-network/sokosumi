@@ -56,6 +56,8 @@ export interface ViewModeSwitchProps {
   onShowSubtasksChange: (value: boolean) => void;
   /** Rows under the display options: view actions and where else the Tasks can be seen. */
   children?: React.ReactNode;
+  /** The menu button, for a dialog opened from the menu to return focus to. */
+  triggerRef?: React.Ref<HTMLButtonElement>;
 }
 
 export function ViewModeSwitch({
@@ -69,6 +71,7 @@ export function ViewModeSwitch({
   showSubtasks,
   onShowSubtasksChange,
   children,
+  triggerRef,
 }: ViewModeSwitchProps) {
   const isClient = useIsClient();
   const sortLabelId = useId();
@@ -95,6 +98,7 @@ export function ViewModeSwitch({
     <Popover>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           size="sm"
           className="shrink-0 hit-area"

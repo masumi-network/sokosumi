@@ -1826,6 +1826,7 @@
         "preview": "Vorschau",
         "cancel": "Abbrechen",
         "confirm": "Exportieren",
+        "countError": "Die Aufgaben konnten nicht gezählt werden. Schließe dies und versuche es erneut.",
         "error": "Die Aufgaben konnten nicht exportiert werden. Versuche es erneut.",
         "columns": {
           "identifier": "ID",

@@ -177,10 +177,9 @@ const TASKS_EXPORT_PAGE_LIMIT = 100;
  */
 export async function exportTasks(
   filters: TasksLoadMoreFilters,
-): Promise<{ rows: TaskCsvRow[]; truncated: boolean; matched: number }> {
+): Promise<{ rows: TaskCsvRow[]; truncated: boolean }> {
   const pageFilters = await loadSanitizedTasksPageFilters(filters);
   const rows: TaskCsvRow[] = [];
-  let coreTotal = 0;
   // Last updated moves a Task between pages when it changes mid-export.
   const seenIds = new Set<string>();
   let cursor: string | null = null;
@@ -200,16 +199,31 @@ export async function exportTasks(
       rows.push(toTaskCsvRow(task));
     }
     cursor = page.nextCursor;
-    coreTotal = page.total;
   } while (cursor && rows.length <= TASKS_EXPORT_LIMIT);
 
-  const truncated = rows.length > TASKS_EXPORT_LIMIT;
   return {
     rows: rows.slice(0, TASKS_EXPORT_LIMIT),
-    truncated,
-    // Counted rows are exact. Past the limit only Core's count knows.
-    matched: truncated ? coreTotal : rows.length,
+    truncated: rows.length > TASKS_EXPORT_LIMIT,
   };
+}
+
+/** Enough rows to show what the file looks like. */
+const TASKS_EXPORT_PREVIEW_ROWS = 3;
+
+/**
+ * What Export as CSV would save, read in one small request: how many Tasks
+ * match, and the first few rows. The confirm dialog shows it before the
+ * full export runs.
+ */
+export async function previewTasksExport(
+  filters: TasksLoadMoreFilters,
+): Promise<{ rows: TaskCsvRow[]; matched: number }> {
+  const page = await getTasksListPage({
+    ...(await loadSanitizedTasksPageFilters(filters)),
+    cursor: null,
+    limit: TASKS_EXPORT_PREVIEW_ROWS,
+  });
+  return { rows: page.tasks.map(toTaskCsvRow), matched: page.total };
 }
 
 async function loadCreateTaskData(userId: string | null) {

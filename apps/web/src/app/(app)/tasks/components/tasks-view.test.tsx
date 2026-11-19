@@ -1,5 +1,6 @@
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -135,6 +136,8 @@ vi.mock("@/lib/actions/task/action", () => ({
 vi.mock("@/app/tasks/actions", () => ({
   loadMoreTasksColumn: vi.fn(),
   loadMoreTasksList: vi.fn(),
+  exportTasks: vi.fn(),
+  previewTasksExport: vi.fn(async () => ({ rows: [], matched: 0 })),
 }));
 
 vi.mock("./create-task-modal", () => ({
@@ -381,6 +384,24 @@ it("reaches archived Tasks from the view options menu", async () => {
     "href",
     "/tasks/archived",
   );
+});
+
+// Export as CSV opens a dialog from a menu item that is gone once the menu
+// closes, so closing the dialog must hand focus back to the menu button.
+it("returns focus to the view options button when the export dialog closes", async () => {
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      {boardView([TASK])}
+    </QueryClientProvider>,
+  );
+  const menuButton = screen.getByRole("button", { name: "Display" });
+
+  await user.click(menuButton);
+  await user.click(await screen.findByRole("button", { name: "button" }));
+  await user.click(await screen.findByRole("button", { name: "cancel" }));
+
+  await waitFor(() => expect(menuButton).toHaveFocus());
 });
 
 // New task lives in the sidebar header, so the Tasks page shows it once; the

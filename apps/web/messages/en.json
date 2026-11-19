@@ -1826,6 +1826,7 @@
         "preview": "Preview",
         "cancel": "Cancel",
         "confirm": "Export",
+        "countError": "Could not count the tasks. Close this and try again.",
         "error": "Could not export the tasks. Try again.",
         "columns": {
           "identifier": "ID",

@@ -3,7 +3,7 @@
 import { Archive, Download } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type ComponentProps, useState } from "react";
+import { type ComponentProps, useRef, useState } from "react";
 import type { exportTasks } from "@/app/tasks/actions";
 import { Button } from "@/components/ui/button";
 import { PopoverClose } from "@/components/ui/popover";
@@ -34,13 +34,14 @@ export function TasksViewToolbarActions({
   const tExport = useTranslations("App.Tasks.Export");
   // Outside the menu: closing the menu must not close the dialog.
   const [exportOpen, setExportOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
 
   return (
     <TasksViewFilters
       {...filters}
       display={(activeFilters) => (
         <>
-          <ViewModeSwitch {...display}>
+          <ViewModeSwitch {...display} triggerRef={menuTriggerRef}>
             <PopoverClose asChild>
               <Button
                 variant="ghost"
@@ -70,6 +71,12 @@ export function TasksViewToolbarActions({
             filters={exportFilters}
             activeFilters={activeFilters}
             sortLabel={display.labels.sortOptions[display.sort]}
+            // The dialog opens from a menu item, which is gone by then;
+            // return to the menu button the reader opened it from.
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              menuTriggerRef.current?.focus();
+            }}
           />
         </>
       )}

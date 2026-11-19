@@ -75,6 +75,7 @@ import {
   loadMoreTasksList,
   loadNewTaskWizardOptions,
   loadTaskScheduleDialogOptions,
+  previewTasksExport,
 } from "./actions";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
@@ -602,13 +603,11 @@ describe("exportTasks", () => {
   it("stops at 1,000 Tasks and says more matched", async () => {
     serveTasks(1500);
 
-    const { rows, truncated, matched } = await exportTasks(filters);
+    const { rows, truncated } = await exportTasks(filters);
 
     expect(rows).toHaveLength(1000);
     expect(rows.at(-1)?.name).toBe("Task 999");
     expect(truncated).toBe(true);
-    // Past the limit, the count comes from Core, not the rows.
-    expect(matched).toBe(1500);
     // Ten full pages, then one row to learn whether more match.
     expect(
       getTasksListPageMock.mock.calls.map(([params]) => params.limit),
@@ -649,11 +648,20 @@ describe("exportTasks", () => {
   it("exports a short list in one request", async () => {
     serveTasks(30);
 
-    const { rows, truncated, matched } = await exportTasks(filters);
+    const { rows, truncated } = await exportTasks(filters);
 
     expect(rows).toHaveLength(30);
-    expect(matched).toBe(30);
     expect(truncated).toBe(false);
+    expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("previews from one small page and counts every match from Core", async () => {
+    serveTasks(1500);
+
+    const { rows, matched } = await previewTasksExport(filters);
+
+    expect(rows.map((row) => row.name)).toEqual(["Task 0", "Task 1", "Task 2"]);
+    expect(matched).toBe(1500);
     expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
   });
 });

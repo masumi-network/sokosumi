@@ -1826,6 +1826,7 @@
         "preview": "Vista previa",
         "cancel": "Cancelar",
         "confirm": "Exportar",
+        "countError": "No se pudieron contar las tareas. Cierra esto e inténtalo de nuevo.",
         "error": "No se pudieron exportar las tareas. Inténtalo de nuevo.",
         "columns": {
           "identifier": "ID",
