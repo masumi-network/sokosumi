@@ -80,3 +80,10 @@ export const OWNER_PART: Record<ChannelInfo["owner"], string> = {
   mailing_list: `${AGENT_NAME} writes every issue, ready to send. Add your mailing list so he writes for the people on it.`,
   publish: `${AGENT_NAME} finds what to improve and writes it ready to paste. You publish it on your site.`,
 };
+
+/** Channels coming soon, to show without offering them. */
+export const SOON_CHANNELS = (
+  Object.entries(CMO_CHANNELS) as [CmoChannelKey, ChannelInfo][]
+)
+  .filter(([, channel]) => channel.status === "soon")
+  .map(([key, channel]) => ({ key, name: channel.name }));
