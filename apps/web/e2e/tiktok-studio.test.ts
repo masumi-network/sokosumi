@@ -9,11 +9,22 @@ import { createMailbox } from "./mailbox.ts";
 
 // A new user's first visit to TikTok Studio: reach it through the app's own
 // navigation (the You page on a phone, the sidebar elsewhere), create a
-// project from its prompt, and pick a presenter: the voice follows them.
-// Making a video costs credits, so the spec stops before "Make video". Each
-// size signs up its own disposable mail.tm inbox.
+// project from its prompt, pick a presenter (the voice follows them), write a
+// script, read the cost, then switch to their own photo and confirm consent.
+// Making a video costs credits, so the spec stops before "Make video", and a
+// new user has no video yet to open on the stage. Each size signs up its own
+// disposable mail.tm inbox.
 const BASE_URL = resolveBaseUrl(process.env);
 const RESULTS_DIR = new URL("./results/", import.meta.url).pathname;
+
+// A 1x1 PNG: the photo is only uploaded to the person's Files here, never
+// turned into a video.
+const PHOTO = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+const SCRIPT =
+  "Stop scrolling. Most people grind their coffee too fine for a French press.";
 
 const SIZES = [
   { name: "phone", width: 375, height: 812 },
@@ -99,6 +110,41 @@ for (const { name: size, ...viewport } of SIZES) {
       assert.equal(await voice.textContent(), "Chris");
       await page.getByText("Voice: Chris").waitFor();
       await shot("2-jonas");
+
+      const make = form.getByRole("button", { name: "Make video" });
+      assert.equal(await make.isDisabled(), true, "no script, no video");
+      await form.getByRole("textbox", { name: "Script" }).fill(SCRIPT);
+      await form.getByText(/^\d+ credits$/).waitFor();
+      await form.getByText(/charged only when the video is ready/).waitFor();
+      assert.equal(await make.isEnabled(), true, "a script shows the cost");
+      // The preview shows the script as captions.
+      await page
+        .getByRole("region", { name: "Preview" })
+        .getByText(/^Stop scrolling\. Most people/)
+        .waitFor();
+      await shot("3-cost");
+
+      const chooser = page.waitForEvent("filechooser");
+      await form.getByRole("button", { name: "You" }).click();
+      await (await chooser).setFiles({
+        name: "me.png",
+        mimeType: "image/png",
+        buffer: PHOTO,
+      });
+      const consent = form.getByRole("checkbox", {
+        name: /I am the person in this photo/,
+      });
+      await consent.waitFor();
+      assert.equal(
+        await form.getByRole("radio", { name: "You" }).isChecked(),
+        true,
+      );
+      await form.getByText("Confirm that you may use this photo.").waitFor();
+      assert.equal(await make.isDisabled(), true, "no consent, no video");
+      await consent.click();
+      await form.getByText(/^\d+ credits$/).waitFor();
+      assert.equal(await make.isEnabled(), true, "consent unlocks the video");
+      await shot("4-own-photo");
 
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - window.innerWidth,
