@@ -690,7 +690,6 @@ export const cmoOverviewSchema = z
         "TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.",
       ),
     adProviders: z.array(z.string()),
-    connectAdsUrl: z.string(),
     measurement: z
       .array(cmoMeasurementSchema)
       .describe(
