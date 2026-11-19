@@ -8965,6 +8965,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            slideHeadlines?: Array<string>;
             script?: string;
             presenter?: string;
             voice?: string;
@@ -9024,6 +9025,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 styleReferenceId?: string;
                 headline?: string;
                 slides?: Array<string>;
+                slideHeadlines?: Array<string>;
                 script?: string;
                 presenter?: string;
                 voice?: string;
@@ -9277,6 +9279,7 @@ export type MarketingStrategyRequest = {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            slideHeadlines?: Array<string>;
             script?: string;
             presenter?: string;
             voice?: string;
@@ -9336,6 +9339,7 @@ export type MarketingStrategyRequest = {
                 styleReferenceId?: string;
                 headline?: string;
                 slides?: Array<string>;
+                slideHeadlines?: Array<string>;
                 script?: string;
                 presenter?: string;
                 voice?: string;
@@ -11023,6 +11027,7 @@ export type SocialPost = {
         styleReferenceId?: string;
         headline?: string;
         slides?: Array<string>;
+        slideHeadlines?: Array<string>;
         script?: string;
         presenter?: string;
         voice?: string;
@@ -13893,6 +13898,7 @@ export type CmoPlan = {
         styleReferenceId?: string;
         headline?: string;
         slides?: Array<string>;
+        slideHeadlines?: Array<string>;
         script?: string;
         presenter?: string;
         voice?: string;
@@ -13952,6 +13958,7 @@ export type CmoPlan = {
             styleReferenceId?: string;
             headline?: string;
             slides?: Array<string>;
+            slideHeadlines?: Array<string>;
             script?: string;
             presenter?: string;
             voice?: string;

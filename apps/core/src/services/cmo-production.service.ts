@@ -33,9 +33,9 @@ import {
   type CmoMediaJob,
   cmoMediaState,
   cmoPieceIsTalking,
-  cmoPieceIsVideo,
   cmoPieceNeedsMedia,
   cmoPieceSlides,
+  cmoPieceTakesStyle,
   listCmoMediaJobs,
 } from "@/services/cmo-media-maker.service";
 import {
@@ -257,15 +257,6 @@ export function cmoMixLedger(
     .join(", ");
 }
 
-/** A single picture: a styled picture carries one headline, a slide its own words. */
-function takesStyle(piece: CmoPiece): boolean {
-  return (
-    cmoPieceNeedsMedia(piece) &&
-    cmoPieceSlides(piece) === 0 &&
-    !cmoPieceIsVideo(piece)
-  );
-}
-
 function pieceLine(piece: CmoPiece, failed: boolean): string {
   const slides = cmoPieceSlides(piece);
   return [
@@ -295,7 +286,9 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
         : cmoPieceNeedsMedia(piece) && !piece.visual
           ? "(write its visual)"
           : failed
-            ? "(its picture failed twice: write a different visual)"
+            ? piece.styleReferenceId
+              ? "(its picture failed every try: write a different visual and pick another style reference)"
+              : "(its picture failed twice: write a different visual)"
             : "",
     isMarketingFilePiece(piece)
       ? piece.fileId
@@ -342,7 +335,7 @@ export function cmoProductionMessage(input: {
   proof?: readonly string[];
   /** Pieces whose picture failed twice for its visual. */
   failedMedia?: ReadonlySet<string>;
-  /** The reference library is set up here: pictures can take an old print's look. */
+  /** The reference library is set up here: every picture takes an old print's look. */
   styles?: boolean;
 }): string {
   const { strategy, pending } = input;
@@ -377,8 +370,15 @@ export function cmoProductionMessage(input: {
     ),
     "",
     "As your production skill says: first list each pillar's different messages and give every piece its own, then write every piece's words, then save the visuals of the pieces with a picture or video (visual and visualFileIds from brandPictures) in one save_strategy part pieces call. Core makes and attaches every picture and video; never call generate_image or generate_video.",
-    input.styles && batch.some(takesStyle)
-      ? "Picture styles: before you save the visuals, call find_style_references for the single-picture pieces whose picture should stop a reader rather than show the product or a screen (an announcement, an offer, a how-to, a number), and save each with its styleReferenceId and a headline of at most six words in that same call. When a reference fits, give at least one of them in this run a style, and never the same reference twice. A carousel or multi-image post takes no style: each slide carries its own words, and a styled picture may carry only its headline."
+    input.styles && batch.some(cmoPieceTakesStyle)
+      ? [
+          "Picture styles: every piece with a picture takes the look of an old print, whatever it shows; this replaces your skill's choice per piece. Before you save the visuals, call find_style_references for each such piece with what it is about and the look that suits it, and save each with its styleReferenceId in that same call; Core refuses a save that leaves one without a style.",
+          "- A different reference for every piece, never one twice in the month; vary kinds and eras.",
+          "- A single picture carries headline: at most six words from its hook.",
+          "- A carousel takes one reference for all its slides, and slideHeadlines: one entry per slide, in order, at most six words each, lettered on that slide.",
+          "- When the picture must show the brand's real page, screen or product, name that one picture in visualFileIds: Core sets it inside the style, unchanged and readable. For every other styled piece send visualFileIds as an empty list, or the screenshot lands in a picture that is not about it.",
+          "- Never ask a picture to show a price, number, plan or label the brand's picture does not show: the model invents one, and Core turns the picture down.",
+        ].join("\n")
       : "",
     "",
     writingSkillsBrief(batch.map((piece) => piece.channel)),
