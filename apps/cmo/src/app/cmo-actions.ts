@@ -17,7 +17,9 @@ import {
   type CmoMeasurement,
   type CmoOverview,
   type CmoSeo,
+  type CmoSocialAccountChoice,
   type CmoSubscriptionPlan,
+  type CmoTikTokCreator,
   changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
   clearCmoPresenterForProject,
@@ -54,6 +56,7 @@ import {
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
+  readCmoTikTokCreatorForDraft,
   removeCmoCompetitorForProject,
   requestCmoArticleDraftForProject,
   requestCmoArticleIdeasForProject,
@@ -71,6 +74,7 @@ import {
   startCmoOverForProject,
   startCmoPlanCheckoutForProject,
   startCmoTopUpForProject,
+  type TikTokPostSettings,
   updateCmoBrandBrainForProject,
   updateCmoCompetitorForProject,
 } from "@sokosumi/core-client";
@@ -87,6 +91,10 @@ import { AGENT_NAME } from "../lib/agent";
 import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
 import type { ChatTable, ChatWork } from "../lib/chat-work";
+import {
+  CONNECT_SIGN_IN_COOKIE,
+  type ConnectFailure,
+} from "../lib/connect-return";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
 import { lastCusoCookie } from "../lib/last-cuso";
@@ -441,20 +449,41 @@ async function draftResult(
     : { overview: null, error: errorText(result.error, fallback) };
 }
 
-/** Approves a post Cuso made outside the month; it then goes out. */
+/**
+ * Approves a post that waits for the owner; it then goes out. A TikTok video
+ * goes out at once, with the owner's choices and confirmation.
+ */
 export async function approveDraft(
   projectId: string,
   postId: string,
   revision: number,
+  tikTokSettings?: TikTokPostSettings,
 ): Promise<DraftResult> {
   return draftResult(
     await approveCmoDraftForProject({
       ...(await requireCore()),
       path: { projectId, postId },
-      body: { revision },
+      body: { revision, ...(tikTokSettings ? { tikTokSettings } : {}) },
     }),
     "Could not approve this post",
   );
+}
+
+/** What TikTok allows on the account a waiting video goes to, read now. */
+export async function readTikTokCreator(
+  projectId: string,
+  postId: string,
+): Promise<{ creator: CmoTikTokCreator | null; error: string | null }> {
+  const { data, error } = await readCmoTikTokCreatorForDraft({
+    ...(await requireCore()),
+    path: { projectId, postId },
+  });
+  return data
+    ? { creator: data.data, error: null }
+    : {
+        creator: null,
+        error: errorText(error, "TikTok could not be read. Try again."),
+      };
 }
 
 /** Declines a post Cuso made, or stops an approved one before it goes out. */
@@ -848,17 +877,29 @@ export async function connectSetupChannel(
   return startChannel(projectId, provider, "onboarding");
 }
 
+/**
+ * Signs in again to put another account in a connection's place, such as a
+ * company Page instead of a profile. Its waiting posts move to the new one.
+ */
+export async function changeChannel(
+  projectId: string,
+  socialConnectionId: string,
+): Promise<{ url: string | null; error: string | null }> {
+  return startChannel(projectId, { socialConnectionId }, "app");
+}
+
 async function startChannel(
   projectId: string,
-  provider: SocialProvider,
+  target: SocialProvider | { socialConnectionId: string },
   from: "onboarding" | "app",
 ): Promise<{ url: string | null; error: string | null }> {
   const { data, error } = await initiateCmoSocialConnectionForProject({
     ...(await requireCore()),
     path: { projectId },
     body: {
-      action: "connect",
-      provider,
+      ...(typeof target === "string"
+        ? { action: "connect" as const, provider: target }
+        : { action: "replace" as const, ...target }),
       callbackUrl: await callbackUrl("/connect/callback", {
         from,
         project: projectId,
@@ -888,23 +929,126 @@ async function redeemCallback(
   });
 }
 
+/** What a provider's return address carries about one sign-in. */
+export interface ChannelSignIn {
+  connectionId: string;
+  sessionUri?: string | null;
+  /** TikTok and LinkedIn come back with a one-use proof instead of a session. */
+  callbackProof?: string | null;
+  /** LinkedIn only: names the Pages the sign-in reaches, and lets Core finish it. */
+  pendingDataToken?: string | null;
+  connectToken?: string | null;
+}
+
+export type ChannelFinalized =
+  | { state: "connected" }
+  /** The sign-in reaches several accounts: the owner picks one. */
+  | { state: "choose"; choices: CmoSocialAccountChoice[] }
+  | { state: "failed"; reason: ConnectFailure };
+
+const CONNECT_FAILURES: Partial<Record<CoreApiErrorKind, ConnectFailure>> = {
+  [CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED]: "no_page",
+  [CORE_API_ERROR_KINDS.SOCIAL_YOUTUBE_CHANNEL_REQUIRED]: "no_channel",
+};
+
 /**
- * Finishes a connection after the provider sent the founder back. TikTok
- * comes back with a one-use proof instead of a session.
+ * Finishes a connection after the provider sent the founder back, as the
+ * account they picked when the sign-in reaches several.
  */
 export async function finalizeChannel(
   projectId: string,
-  connectionId: string,
-  sessionUri: string | null = null,
-  callbackProof: string | null = null,
-): Promise<boolean> {
-  await redeemCallback(projectId, connectionId, sessionUri);
-  const { error } = await finalizeCmoSocialConnectionForProject({
+  signIn: ChannelSignIn,
+  externalAccountId?: string,
+): Promise<ChannelFinalized> {
+  await redeemCallback(
+    projectId,
+    signIn.connectionId,
+    signIn.sessionUri ?? null,
+  );
+  const { data, error } = await finalizeCmoSocialConnectionForProject({
     ...(await requireCore()),
     path: { projectId },
-    body: { connectionId, ...(callbackProof ? { callbackProof } : {}) },
+    body: {
+      connectionId: signIn.connectionId,
+      ...(signIn.callbackProof ? { callbackProof: signIn.callbackProof } : {}),
+      ...(signIn.pendingDataToken
+        ? { pendingDataToken: signIn.pendingDataToken }
+        : {}),
+      ...(signIn.connectToken ? { connectToken: signIn.connectToken } : {}),
+      ...(externalAccountId ? { externalAccountId } : {}),
+    },
   });
-  return !error;
+  if (!data) {
+    const kind =
+      error && typeof error === "object" && "kind" in error
+        ? (String(error.kind) as CoreApiErrorKind)
+        : null;
+    return {
+      state: "failed",
+      reason: (kind && CONNECT_FAILURES[kind]) ?? "failed",
+    };
+  }
+  return data.data.state === "choose"
+    ? { state: "choose", choices: data.data.choices }
+    : { state: "connected" };
+}
+
+/** A sign-in that waits for the owner's pick, and where it started. */
+export interface WaitingChannelSignIn {
+  project: string;
+  from: string | null;
+  signIn: ChannelSignIn;
+}
+
+/**
+ * Keeps a sign-in for the account picker in a cookie this server alone reads,
+ * so its tokens stay out of the picker's address. The provider's own limit on
+ * the sign-in is fifteen minutes.
+ */
+export async function keepChannelSignIn(
+  waiting: WaitingChannelSignIn,
+): Promise<void> {
+  (await cookies()).set(CONNECT_SIGN_IN_COOKIE, JSON.stringify(waiting), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/connect",
+    maxAge: 15 * 60,
+  });
+}
+
+/** The sign-in waiting for a pick, or null once it was used or ran out. */
+export async function waitingChannelSignIn(): Promise<WaitingChannelSignIn | null> {
+  const raw = (await cookies()).get(CONNECT_SIGN_IN_COOKIE)?.value;
+  if (!raw) return null;
+  try {
+    const waiting = JSON.parse(raw) as Partial<WaitingChannelSignIn>;
+    return typeof waiting.project === "string" &&
+      typeof waiting.signIn?.connectionId === "string"
+      ? {
+          project: waiting.project,
+          from: typeof waiting.from === "string" ? waiting.from : null,
+          signIn: waiting.signIn,
+        }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Connects the account the owner picked and ends the waiting sign-in. */
+export async function chooseChannelAccount(
+  externalAccountId: string,
+): Promise<ChannelFinalized> {
+  const waiting = await waitingChannelSignIn();
+  if (!waiting) return { state: "failed", reason: "failed" };
+  const result = await finalizeChannel(
+    waiting.project,
+    waiting.signIn,
+    externalAccountId,
+  ).catch((): ChannelFinalized => ({ state: "failed", reason: "failed" }));
+  (await cookies()).delete({ name: CONNECT_SIGN_IN_COOKIE, path: "/connect" });
+  return result;
 }
 
 /** Starts connecting Google Ads or Meta Ads; the browser goes to the returned URL. */

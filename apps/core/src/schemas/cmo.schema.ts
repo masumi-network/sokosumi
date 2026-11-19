@@ -9,6 +9,7 @@ import {
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
+import { finalizeProjectSocialConnectionRequestSchema } from "@/schemas/project-social-connection.schema";
 import { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
@@ -146,6 +147,16 @@ export const cmoProductionSchema = z
       ])
       .describe(
         "Once the made month was read: each pillar's planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.",
+      ),
+    level: z
+      .enum(["steady", "active", "all_in"])
+      .describe(
+        "How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.",
+      ),
+    beyondPlan: z
+      .array(z.string())
+      .describe(
+        "Calendar entries the plan bought does not make. A bigger plan makes them.",
       ),
   })
   .openapi("CmoProduction");
@@ -480,8 +491,50 @@ export const cmoChannelSchema = z
     handle: z.union([z.string(), z.null()]),
     displayName: z.union([z.string(), z.null()]),
     status: z.string(),
+    personalProfile: z
+      .boolean()
+      .describe(
+        "A LinkedIn connection that posts as the person, not as a company Page.",
+      ),
   })
   .openapi("CmoChannel");
+
+export const cmoFinalizeSocialConnectionRequestSchema =
+  finalizeProjectSocialConnectionRequestSchema
+    .extend({
+      pendingDataToken: z.string().min(1).max(512).optional().openapi({
+        description:
+          "Returned with a LinkedIn sign-in: names the Pages it reaches.",
+      }),
+      connectToken: z.string().min(1).max(4096).optional().openapi({
+        description: "Returned with a LinkedIn sign-in: lets Core finish it.",
+      }),
+      externalAccountId: z.string().min(1).max(256).optional().openapi({
+        description:
+          "The Page or profile the owner picked among the sign-in's accounts.",
+      }),
+    })
+    .openapi("CmoFinalizeSocialConnectionRequest");
+
+export const cmoSocialAccountChoiceSchema = z
+  .object({
+    externalAccountId: z.string(),
+    name: z.string(),
+    handle: z.union([z.string(), z.null()]),
+    kind: z.enum(["page", "profile"]),
+  })
+  .openapi("CmoSocialAccountChoice");
+
+export const cmoSocialConnectionFinalizedSchema = z
+  .object({
+    state: z
+      .enum(["connected", "choose"])
+      .describe(
+        "`choose`: the sign-in reaches several accounts; finalize again with the owner's pick.",
+      ),
+    choices: z.array(cmoSocialAccountChoiceSchema),
+  })
+  .openapi("CmoSocialConnectionFinalized");
 
 export const cmoUpNextItemSchema = z
   .object({

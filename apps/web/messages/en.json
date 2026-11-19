@@ -1323,7 +1323,7 @@
         },
         "Header": {
           "title": "Log in",
-          "description": "Hire agents on our platform",
+          "description": "Your AI coworker for marketing",
           "descriptionFor": "Log in with your Sokosumi account to continue to {client}",
           "titleCmo": "Log in to CMO.xyz",
           "descriptionCmo": "Cuso runs your marketing."
@@ -1383,7 +1383,7 @@
         "Header": {
           "title": "Create your account",
           "viaInvitation": "(via invitation)",
-          "description": "Hire agents on our platform",
+          "description": "Your AI coworker for marketing",
           "descriptionFor": "Create your Sokosumi account to continue to {client}",
           "titleCmo": "Create your CMO.xyz account",
           "descriptionCmo": "Cuso runs your marketing."
@@ -11434,6 +11434,21 @@
       "descending": "descending",
       "noHistory": "No changes recorded.",
       "undoBatch": "Undo batch",
+      "findReplace": {
+        "title": "Find and replace",
+        "description": "Change every cell in one column that holds exactly the value you look for, ignoring capitals. It saves as one change you can undo from History and sources.",
+        "column": "Column",
+        "find": "Find",
+        "replace": "Replace with",
+        "replaceEmpty": "Leave empty to clear the cells",
+        "findMatches": "Find matches",
+        "matches": "{count, plural, one {# cell will change.} other {# cells will change.}}",
+        "unchanged": "Every matching cell already holds the new value. Nothing to change.",
+        "none": "No cell in this column holds exactly that value. Check spaces and spelling.",
+        "tooMany": "More than {limit} cells in this column contain that text, and Find and replace checks up to {limit}. Nothing was changed.",
+        "apply": "{count, plural, one {Replace # cell} other {Replace # cells}}",
+        "done": "{count, plural, one {Replaced # cell.} other {Replaced # cells.}} You can undo it from History and sources."
+      },
       "before": "Before",
       "after": "After",
       "openTask": "Open task",

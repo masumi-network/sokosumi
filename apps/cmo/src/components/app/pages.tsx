@@ -345,12 +345,15 @@ export function BrandBrainPage({
   );
 }
 
-type Provider = (typeof SOCIAL_PROVIDERS)[number] | "tiktok";
+type Provider = (typeof SOCIAL_PROVIDERS)[number];
 
 /** Starts a network's connection; the provider sends the founder back to CMO. */
 export type ConnectChannel = (
   provider: Provider,
 ) => Promise<{ url: string | null; error: string | null }>;
+
+/** Networks where one sign-in reaches several accounts, so the pick can change. */
+const PICKED_ACCOUNT: ReadonlySet<Provider> = new Set(["linkedin", "facebook"]);
 
 const AD_PROVIDERS = [
   ["google_ads", "Google Ads"],
@@ -363,7 +366,8 @@ export function ChannelsPage({
   connectAds,
   addMailingList,
   onChange,
-  connectFailed = false,
+  connectError = null,
+  change,
   openSeo,
   connectSearchConsole,
 }: PageProps & {
@@ -371,7 +375,10 @@ export function ChannelsPage({
   addMailingList: AddMailingList;
   onChange: (overview: CmoOverview) => void;
   connectAds: AdActions["connectAds"];
-  connectFailed?: boolean;
+  /** Why the connection that sent the founder back did not finish. */
+  connectError?: string | null;
+  /** Signs in again to put another account in a connection's place. */
+  change?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   /** Opens the SEO tab, where search work and Search Console live. */
   openSeo: () => void;
   connectSearchConsole: () => Promise<{
@@ -380,20 +387,19 @@ export function ChannelsPage({
   }>;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
-  const [error, setError] = useState<string | null>(
-    connectFailed ? "That connection didn't finish. Try again." : null,
-  );
+  const [error, setError] = useState<string | null>(connectError);
   useEffect(() => {
     const adsError = adsReturnError();
     if (adsError) setError(adsError);
   }, []);
   const [, startTransition] = useTransition();
 
-  function start(provider: Provider) {
+  function start(provider: Provider, replaceId?: string) {
     setPending(provider);
     setError(null);
     startTransition(async () => {
-      const result = await connect(provider);
+      const result =
+        replaceId && change ? await change(replaceId) : await connect(provider);
       if (result.url) {
         window.location.assign(result.url);
         return;
@@ -417,12 +423,9 @@ export function ChannelsPage({
       <section className="card">
         <h3>Social accounts</h3>
         <ul className="list">
-          {(
-            [
-              ...SOCIAL_PROVIDERS,
-              // Only where Core allows it; no TikTok posts are planned yet.
-              ...(overview.tiktokEnabled ? (["tiktok"] as const) : []),
-            ] satisfies Provider[]
+          {SOCIAL_PROVIDERS.filter(
+            // TikTok only where Core can connect it (it holds a Zernio key).
+            (provider) => provider !== "tiktok" || overview.tiktokEnabled,
           ).map((provider) => {
             const account = overview.channels.find(
               (channel) => channel.provider.toLowerCase() === provider,
@@ -436,12 +439,34 @@ export function ChannelsPage({
                   <br />
                   <span className="note">
                     {account
-                      ? (account.handle ?? account.displayName ?? "Connected")
+                      ? `${account.handle ?? account.displayName ?? "Connected"}${account.personalProfile ? " · your personal profile" : ""}`
                       : "Not connected"}
+                    {provider === "tiktok"
+                      ? ". You confirm each video before it goes out."
+                      : null}
                   </span>
                 </span>
                 {active ? (
-                  <StatusText>Connected</StatusText>
+                  <>
+                    <StatusText>Connected</StatusText>
+                    {account && change && PICKED_ACCOUNT.has(provider) ? (
+                      <button
+                        type="button"
+                        className="button button-secondary button-small"
+                        disabled={pending !== null}
+                        onClick={() => start(provider, account.id)}
+                      >
+                        {pending === provider ? (
+                          <Loader2
+                            size={14}
+                            className="spin"
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        Change
+                      </button>
+                    ) : null}
+                  </>
                 ) : (
                   <button
                     type="button"
@@ -459,21 +484,14 @@ export function ChannelsPage({
             );
           })}
           {SOON_CHANNELS.filter(
-            ({ key }) =>
-              channelInfo(key)?.group === "social" &&
-              // Where Core already lets TikTok connect, its row is above.
-              !(key === "tiktok" && overview.tiktokEnabled),
+            ({ key }) => channelInfo(key)?.group === "social",
           ).map(({ key, name }) => (
             <li key={key} className="crow">
               <ChannelIcon channel={key} size={20} />
               <span className="grow">
                 <b>{name}</b>
                 <br />
-                <span className="note">
-                  {key === "tiktok"
-                    ? `Posting opens once TikTok approves our app. Until then ${AGENT_NAME}'s short videos go out as Reels and Shorts.`
-                    : "Not open yet."}
-                </span>
+                <span className="note">Not open yet.</span>
               </span>
               <span className="tag">Soon</span>
             </li>

@@ -94,6 +94,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           retryLearning: result,
           pauseEntry: same,
           approveDraft: result,
+          readTikTokCreator: async () => ({ creator: null, error: null }),
           declineDraft: result,
           editDraft: result,
           competitors: {

@@ -40,7 +40,7 @@ import {
 } from "./cards";
 import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
-import type { DraftActions, DraftResult } from "./draft-post";
+import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
 import { MessageText } from "./message-text";
 import {
   type AddMailingList,
@@ -90,7 +90,12 @@ export interface CmoAppActions
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
   /** Approve, decline or rewrite a post Cuso made outside the month. */
-  approveDraft: (postId: string, revision: number) => Promise<DraftResult>;
+  approveDraft: (
+    postId: string,
+    revision: number,
+    tikTokSettings?: TikTokSettings,
+  ) => Promise<DraftResult>;
+  readTikTokCreator: DraftActions["tikTokCreator"];
   declineDraft: (postId: string, revision: number) => Promise<DraftResult>;
   editDraft: (
     postId: string,
@@ -99,6 +104,8 @@ export interface CmoAppActions
   ) => Promise<DraftResult>;
   competitors: CompetitorActions;
   connectChannel: ConnectChannel;
+  /** Signs in again to put another account in a connection's place. */
+  changeChannel?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
@@ -129,8 +136,8 @@ interface CmoAppProps {
   email: string;
   /** Where a redirect (a channel connection) returns to. */
   initialView?: View;
-  /** The channel connection that sent the founder back did not finish. */
-  connectFailed?: boolean;
+  /** Why the channel connection that sent the founder back did not finish. */
+  connectError?: string | null;
   /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
   plans?: CmoSubscriptionPlan[];
   /** The person has another Cuso, for the sidebar's "Your Cusos". */
@@ -220,7 +227,7 @@ export function CmoApp({
   name,
   email,
   initialView = "chat",
-  connectFailed = false,
+  connectError = null,
   plans = [],
   manyCusos = false,
   mayHire = false,
@@ -325,8 +332,9 @@ export function CmoApp({
     return error;
   };
   const draftActions: DraftActions = {
-    approve: (postId, revision) =>
-      settleDraft(actions.approveDraft(postId, revision)),
+    approve: (postId, revision, tikTokSettings) =>
+      settleDraft(actions.approveDraft(postId, revision, tikTokSettings)),
+    tikTokCreator: actions.readTikTokCreator,
     decline: (postId, revision) =>
       settleDraft(actions.declineDraft(postId, revision)),
     edit: (postId, revision, text) =>
@@ -603,7 +611,8 @@ export function CmoApp({
                   connectAds={actions.connectAds}
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
-                  connectFailed={connectFailed}
+                  connectError={connectError}
+                  change={actions.changeChannel}
                   openSeo={() => go("seo")}
                   connectSearchConsole={() =>
                     actions.connectMeasurement("google_search_console", "seo")

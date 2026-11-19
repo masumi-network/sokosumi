@@ -12,6 +12,7 @@ const channel = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 const report = (at: string) => ({
   id: "u1",
@@ -34,6 +35,8 @@ const production = (
   needPictures: 0,
   finishedAt: null,
   pillars: null,
+  level: "all_in" as const,
+  beyondPlan: [],
   ...patch,
 });
 

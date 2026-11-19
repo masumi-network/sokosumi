@@ -7,7 +7,6 @@ import {
 } from "@sokosumi/core-client";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
 import { NameSetup } from "../components/name-setup";
@@ -15,6 +14,7 @@ import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
+import { connectReturnError } from "../lib/connect-return";
 import { asSignedInPersonInPage } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
@@ -32,6 +32,7 @@ import {
   approveDraft,
   approveStrategy,
   askCusoForArticles,
+  changeChannel,
   changePlan,
   clearPresenter,
   connectAds,
@@ -59,6 +60,7 @@ import {
   onboard,
   openPortal,
   pauseEntry,
+  readTikTokCreator,
   removeCompetitor,
   requestStrategy,
   retryLearning,
@@ -373,7 +375,11 @@ export async function Home({ searchParams, view }: HomeProps) {
       name={session.user.name}
       email={session.user.email}
       initialView={step === "connect" ? "channels" : view}
-      connectFailed={step === "connect" && first(params.connect) === "failed"}
+      connectError={
+        step === "connect"
+          ? connectReturnError(first(params.connect) ?? null)
+          : null
+      }
       actions={{
         loadState: loadState.bind(null, projectId),
         loadChatWork: loadChatWork.bind(null, projectId),
@@ -393,6 +399,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         saveBrandBrain: saveBrandBrain.bind(null, projectId),
         pauseEntry: pauseEntry.bind(null, projectId),
         approveDraft: approveDraft.bind(null, projectId),
+        readTikTokCreator: readTikTokCreator.bind(null, projectId),
         declineDraft: declineDraft.bind(null, projectId),
         editDraft: editDraft.bind(null, projectId),
         competitors: {
@@ -403,6 +410,7 @@ export async function Home({ searchParams, view }: HomeProps) {
           addMoveToStrategy: addCompetitorMoveToStrategy.bind(null, projectId),
         },
         connectChannel: connectChannel.bind(null, projectId),
+        changeChannel: changeChannel.bind(null, projectId),
         addMailingList: addMailingList.bind(null, projectId),
         connectMeasurement: connectMeasurement.bind(null, projectId),
         connectAds: connectAds.bind(null, projectId),

@@ -342,7 +342,7 @@ export default function AuthFlow({
             href="/signup"
             target="_blank"
             rel="noopener"
-            className="text-foreground text-sm font-medium underline underline-offset-4"
+            className="text-foreground inline-flex min-h-6 items-center text-sm font-medium underline underline-offset-4"
           >
             {signInT("RegisterOnWebsite.link")}
           </Link>
@@ -354,7 +354,7 @@ export default function AuthFlow({
           </span>
           <Link
             href={signUpHref}
-            className="text-foreground text-sm font-medium underline underline-offset-4"
+            className="text-foreground inline-flex min-h-6 items-center text-sm font-medium underline underline-offset-4"
             onAuxClick={() => takeAuthEmailHint()}
             // A typed email travels as an editable hint. Register looks up an
             // invitation's address itself.

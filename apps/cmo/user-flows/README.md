@@ -16,15 +16,15 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 
 ## After setup
 
-| Flow                                                      | Channel                             | State (2026-11-18)                                |
-| --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------- |
-| [LinkedIn founder posts](linkedin-founder-posts.md)       | LinkedIn                            | Works                                             |
-| [X every day](x-daily-posts.md)                           | X                                   | Works                                             |
-| [Instagram posts and Reels](instagram-posts-and-reels.md) | Instagram, Facebook, YouTube Shorts | Works                                             |
-| [TikTok videos](tiktok-videos.md)                         | TikTok                              | Blocked: posting needs TikTok's app audit (#7443) |
-| [Comment replies](comment-replies.md)                     | Instagram, Facebook, YouTube        | Works; no LinkedIn or X                           |
-| [Reacting to news](news-reactions.md)                     | Any connected network               | Works                                             |
-| [Search ads](search-ads.md)                               | Google Ads                          | Works up to Launch; no Meta ads from CMO          |
-| [SEO pages](seo-pages.md)                                 | The owner's website                 | Text only; the owner publishes it                 |
-| [Newsletter](newsletter.md)                               | Email                               | Not finished: no sending from CMO                 |
-| [Month review](month-review.md)                           | All                                 | Works                                             |
+| Flow                                                      | Channel                             | State (2026-11-18)                               |
+| --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------ |
+| [LinkedIn posts](linkedin-founder-posts.md)               | LinkedIn                            | Works; company Pages in utxo AG only for now     |
+| [X every day](x-daily-posts.md)                           | X                                   | Works                                            |
+| [Instagram posts and Reels](instagram-posts-and-reels.md) | Instagram, Facebook, YouTube Shorts | Works; a login with several Facebook Pages picks |
+| [TikTok videos](tiktok-videos.md)                         | TikTok                              | Works; the owner confirms each video             |
+| [Comment replies](comment-replies.md)                     | Instagram, Facebook, YouTube        | Works; no LinkedIn or X                          |
+| [Reacting to news](news-reactions.md)                     | Any connected network               | Works                                            |
+| [Search ads](search-ads.md)                               | Google Ads                          | Works up to Launch; no Meta ads from CMO         |
+| [SEO pages](seo-pages.md)                                 | The owner's website                 | Text only; the owner publishes it                |
+| [Newsletter](newsletter.md)                               | Email                               | Not finished: no sending from CMO                |
+| [Month review](month-review.md)                           | All                                 | Works                                            |

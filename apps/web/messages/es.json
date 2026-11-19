@@ -1323,7 +1323,7 @@
         },
         "Header": {
           "title": "Iniciar sesión",
-          "description": "Contrata Agents en nuestra plataforma",
+          "description": "Tu AI Coworker para marketing",
           "descriptionFor": "Inicia sesión con tu cuenta de Sokosumi para continuar a {client}",
           "titleCmo": "Inicia sesión en CMO.xyz",
           "descriptionCmo": "Cuso lleva tu marketing."
@@ -1383,7 +1383,7 @@
         "Header": {
           "title": "Crea tu cuenta",
           "viaInvitation": "(por invitación)",
-          "description": "Contrata Agents en nuestra plataforma",
+          "description": "Tu AI Coworker para marketing",
           "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}",
           "titleCmo": "Crea tu cuenta de CMO.xyz",
           "descriptionCmo": "Cuso lleva tu marketing."
@@ -11434,6 +11434,21 @@
       "descending": "descendente",
       "noHistory": "No hay cambios registrados.",
       "undoBatch": "Deshacer lote",
+      "findReplace": {
+        "title": "Buscar y reemplazar",
+        "description": "Cambia cada celda de una columna que contenga exactamente el valor que buscas, sin distinguir mayúsculas. Se guarda como un solo cambio que puedes deshacer desde Historial y fuentes.",
+        "column": "Columna",
+        "find": "Buscar",
+        "replace": "Reemplazar por",
+        "replaceEmpty": "Déjalo vacío para vaciar las celdas",
+        "findMatches": "Buscar coincidencias",
+        "matches": "{count, plural, one {Cambiará # celda.} other {Cambiarán # celdas.}}",
+        "unchanged": "Todas las celdas que coinciden ya tienen el nuevo valor. No hay nada que cambiar.",
+        "none": "Ninguna celda de esta columna contiene exactamente ese valor. Revisa espacios y ortografía.",
+        "tooMany": "Más de {limit} celdas de esta columna contienen ese texto y Buscar y reemplazar revisa como máximo {limit}. No se cambió nada.",
+        "apply": "{count, plural, one {Reemplazar # celda} other {Reemplazar # celdas}}",
+        "done": "{count, plural, one {Se reemplazó # celda.} other {Se reemplazaron # celdas.}} Puedes deshacerlo desde Historial y fuentes."
+      },
       "before": "Antes",
       "after": "Después",
       "openTask": "Abrir tarea",
