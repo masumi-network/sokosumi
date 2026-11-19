@@ -16,6 +16,10 @@ import {
   SOKO_BOT_OWNER_NAME_SELECT,
   sokoBotPersonaOf,
 } from "@/helpers/soko-bot-owner";
+import {
+  AI_BUDGET_EXCEEDED,
+  AI_BUDGET_EXCEEDED_MESSAGE,
+} from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { cmoCapabilityLabel } from "@/lib/soko-bot/cmo-step-labels";
@@ -77,6 +81,7 @@ interface ChatLinkedTurn {
   id: string;
   status: string;
   finalAnswer: string | null;
+  errorKind: string | null;
   errorDetail: string | null;
   startedAt: Date | null;
   createdAt: Date;
@@ -159,6 +164,7 @@ async function loadChatLinkedTurn(
       status: true,
       finalAnswer: true,
       chainDepth: true,
+      errorKind: true,
       errorDetail: true,
       startedAt: true,
       createdAt: true,
@@ -561,6 +567,12 @@ export async function persistSokoBotChatTurn(
         in_reply_to_message_id: mention.messageId,
         mention_id: mention.id,
         mention_failed: true,
+        ...(turn.errorKind === AI_BUDGET_EXCEEDED && {
+          mention_failure: {
+            kind: AI_BUDGET_EXCEEDED,
+            message: AI_BUDGET_EXCEEDED_MESSAGE,
+          },
+        }),
         soko_bot: { turn_id: turn.id, ...attemptAt },
       },
     },

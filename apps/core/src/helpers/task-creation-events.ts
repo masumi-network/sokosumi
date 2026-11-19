@@ -24,7 +24,7 @@ export function taskCreationEvents(input: {
     { ...common, status: TaskStatus.CREATED, createdAt },
     {
       ...common,
-      id: input.statusEventId,
+      ...(input.statusEventId !== undefined && { id: input.statusEventId }),
       status: input.status,
       createdAt: new Date(createdAt.getTime() + 1),
     },

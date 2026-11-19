@@ -7,4 +7,6 @@
 
 **The owner should see:** a short ask in chat with the one action that unblocks it.
 
+If Cuso cannot answer because his usage limit is reached, Core shows the usage-limit message in chat. He can respond again after the limit is raised or resets.
+
 **Missing today:** one "waiting for you" list across chat, Calendar and tabs.

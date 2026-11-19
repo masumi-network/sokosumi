@@ -47,6 +47,9 @@ const PAGE_DETAIL_MARK = {
 /** A note value longer than this (a whole keywords tag) starts folded to three lines. */
 const NOTE_VALUE_FOLD_CHARS = 120;
 
+/** With this many action rows or fewer the tab has room, so the page details start open. */
+const OPEN_DETAILS_MAX_ACTIONS = 3;
+
 /** One measured value or note: its name, the page when that tells rows apart, its value and the check's guidance. */
 function PageDetail({
   finding,
@@ -309,12 +312,17 @@ export function SeoPageDetails({
   const t = useTranslations("App.Seo");
   const { data } = model;
   const overview = seoOverviewModel(data);
+  // Set on the first render with rows, then kept: a new check that adds actions does not close a fold the reader
+  // has open. A workspace without a check yet has no rows, so its first check still decides.
+  const [startOpen, setStartOpen] = useState<boolean | null>(null);
   // The details of a day of the runs row carry each check's coverage; only checks without a row there are listed here.
   const onTimeline = new Set(data.timeline.map((event) => event.observationId));
   const offTimeline = data.observations.filter(
     (observation) => !onTimeline.has(observation.id),
   );
   if (!overview.diagnostics.length && !offTimeline.length) return null;
+  if (startOpen === null)
+    setStartOpen(overview.actions.length <= OPEN_DETAILS_MAX_ACTIONS);
   // Rows from one check share its date and record; say them once above the rows.
   const oneCheck =
     !offTimeline.length &&
@@ -367,30 +375,34 @@ export function SeoPageDetails({
   const SectionHeading = standalone ? "h3" : "h4";
   const noteHeading = standalone ? "h4" : "h5";
   const fold = (
-    <details className={cn(HOLDER_ITEM_CLASS, "group/details text-sm")}>
+    <details
+      open={startOpen ?? false}
+      className={cn(HOLDER_ITEM_CLASS, "group/details text-sm")}
+    >
       {/* The same shape as an action row: the rail, the name, its counts as marks, and the arrow at the end. */}
       {/* A grid, not wrappers: a summary holds phrasing content and a heading, so the heading is its own child. */}
-      {/* Without counts the grid has no counts column and no second row on a phone. */}
+      {/* Without counts the grid has no counts column and no second row of counts on a phone. */}
+      {/* The line under the name says what the fold holds: on a phone it is the last row, under the counts. */}
       <summary
         className={cn(
-          "focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-[calc(var(--radius-lg)-1px)] px-3 py-2.5 hover:bg-accent focus-visible:ring-2 group-open/details:rounded-b-none focus-visible:outline-none [&::-webkit-details-marker]:hidden",
+          "focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-[calc(var(--radius-lg)-1px)] px-3 py-2.5 hover:bg-accent focus-visible:ring-2 group-open/details:rounded-b-none focus-visible:outline-none [&::-webkit-details-marker]:hidden",
           counted && "sm:grid-cols-[auto_minmax(0,1fr)_auto_auto]",
         )}
       >
         <span
           aria-hidden
           className={cn(
-            "w-1 self-stretch rounded-full forced-colors:bg-[CanvasText]",
-            counted && "max-sm:row-span-2",
+            "row-span-2 row-start-1 w-1 self-stretch rounded-full forced-colors:bg-[CanvasText]",
+            counted && "max-sm:row-span-3",
             suggestions ? PAGE_DETAIL_MARK.suggestion : "bg-border",
           )}
         />
-        <Heading className="min-w-0 text-sm font-medium break-words">
+        <Heading className="col-start-2 row-start-1 min-w-0 text-sm font-semibold break-words">
           {t("overview.diagnostics")}
         </Heading>
         {counted ? (
           // On a phone the counts are a line of their own under the name.
-          <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs max-sm:col-start-2 max-sm:row-start-2">
+          <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs max-sm:col-start-2 max-sm:row-start-2 sm:col-start-3 sm:row-start-1">
             {suggestions ? (
               <span className="inline-flex items-center gap-1.5">
                 <span
@@ -421,9 +433,23 @@ export function SeoPageDetails({
             ) : null}
           </span>
         ) : null}
+        {/* After the counts, as on a phone, where it is the last row. */}
+        <span
+          className={cn(
+            "text-muted-foreground col-start-2 min-w-0 text-xs break-words",
+            counted
+              ? "max-sm:row-start-3 sm:col-[2/4] sm:row-start-2"
+              : "row-start-2",
+          )}
+        >
+          {t("overview.diagnosticsHelp")}
+        </span>
         <ChevronDown
           aria-hidden
-          className="text-muted-foreground size-4 shrink-0 max-sm:col-start-3 max-sm:row-start-1 transition-transform duration-150 ease-out group-open/details:rotate-180 motion-reduce:transition-none"
+          className={cn(
+            "text-muted-foreground col-start-3 row-start-1 size-4 shrink-0 transition-transform duration-150 ease-out group-open/details:rotate-180 motion-reduce:transition-none",
+            counted && "sm:col-start-4",
+          )}
         />
       </summary>
       <div className="border-border space-y-5 border-t p-4">

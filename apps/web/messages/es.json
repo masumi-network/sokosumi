@@ -1,5 +1,8 @@
 {
   "Components": {
+    "SokoBotTurnFailure": {
+      "aiBudgetExceeded": "Tu asistente ha alcanzado su límite de uso. Podrá volver a responder cuando se aumente o se restablezca el límite."
+    },
     "AuthCaptcha": {
       "error": "No se pudo cargar la comprobación de seguridad. Desactiva los bloqueadores de contenido o vuelve a cargar la página.",
       "verificationFailed": "La verificación de seguridad falló. Vuelve a intentarlo.",
@@ -4491,7 +4494,13 @@
       "newVideo": "Nuevo vídeo",
       "videoMaking": "Creando",
       "videoFailed": "No creado",
-      "you": "Tú"
+      "you": "Tú",
+      "videoReady": "Listo",
+      "videoUnavailable": "No disponible",
+      "loadFailed": "No se pudo cargar el vídeo",
+      "loadFailedBody": "El archivo no llegó. Inténtalo de nuevo en un momento.",
+      "tryAgain": "Intentar de nuevo",
+      "checking": "Comprobando el vídeo. Si no empieza, pulsa reproducir."
     },
     "Studio": {
       "back": "Volver al proyecto",
@@ -12399,9 +12408,10 @@
         "clearActivityDates": "Borrar fechas de actividad",
         "noFixes": "Estas comprobaciones no recomiendan correcciones",
         "noFixesBody": "Estas comprobaciones no propusieron una corrección. Solo cubren las páginas y comprobaciones seleccionadas, no todo el sitio ni su rendimiento en búsquedas.",
-        "failedCheck": "<prefix>No superada:</prefix> {name}",
+        "failedCheck": "<prefix>Problema:</prefix> {name}",
         "checkedOn": "Comprobado el",
-        "diagnostics": "Título, descripción y otros detalles de la página",
+        "diagnostics": "Detalles de la página",
+        "diagnosticsHelp": "Lo que la comprobación midió en tus páginas. Las notas y sugerencias no son errores.",
         "rank": {
           "absent": "Fuera del top {top}",
           "position": "Posición {position}",
@@ -12430,23 +12440,23 @@
         "pickTile": "Elige un número de arriba para verlo en el gráfico.",
         "tooFewToCompare": "{period}: {current, plural, one {# impresión} other {# impresiones}}. Semana anterior: {previous}. Muy pocas para comparar semanas.",
         "noteCount": "{count, plural, one {# nota} other {# notas}}",
-        "fromCheck": "De la comprobación del <date></date>",
+        "fromCheck": "Comprobado el <date></date>",
         "pageMeasurements": "Mediciones",
         "pageNotes": "Notas ({count})",
         "references": "{count, plural, one {# fuente} other {# fuentes}}",
-        "noteRule": "Regla no cumplida: «{name}»",
-        "askAgent": "Preguntar al agente",
-        "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
+        "noteRule": "La comprobación marcó «{name}»",
+        "askAgent": "Preguntar por esta nota",
+        "askAboutNote": "¿Qué significa «{name}» para mi página? ¿Debería cambiar algo?",
         "showAll": "Mostrar todo",
         "showLess": "Mostrar menos",
-        "askAboutNoteOnPage": "Una comprobación marcó «{name}» en {url}. ¿Qué significa y debería cambiar algo?",
+        "askAboutNoteOnPage": "¿Qué significa «{name}» para {url}? ¿Debería cambiar algo?",
         "insideToolRanges": "{total, plural, one {dentro del rango de la herramienta} other {dentro de los # rangos de herramientas}}",
         "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
         "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
         "positionHint": "1 es el primer resultado",
         "noteFound": "Encontrado: {found}",
         "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
-        "noteRuleName": "Regla: «{name}»",
+        "noteRuleName": "Comprobación: {name}",
         "suggestion": "Sugerencia:",
         "periodCompare": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous} ({change})",
         "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
@@ -12497,7 +12507,7 @@
         "otherCode": "Otro código",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "Las mejores ideas primero. Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
+        "help": "Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
         "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
@@ -12525,9 +12535,20 @@
           "medium": "Media",
           "low": "Baja"
         },
+        "recommendation": {
+          "mix": "Primero aparecen las ideas con poca competencia que encajan bien con el objetivo de la página. Después se alternan los dos grupos mientras ambos tengan ideas. Abre una fila para ver el motivo.",
+          "both": "Recomendada por su baja competencia y su ajuste al objetivo",
+          "competition": "Recomendada por su baja competencia",
+          "goal": "Recomendada por su ajuste al objetivo",
+          "easeEvidence": "Dificultad {value, number}/100 (inferior a {limit}).",
+          "goalEvidence": "La auditoría estima una probabilidad alta de alcanzar el objetivo de la página.",
+          "legend": "Idea recomendada",
+          "page": "Página auditada",
+          "action": "Objetivo de la página: {action}",
+          "studio": "Redactar en Content Studio (próximamente)"
+        },
         "ideas": {
           "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
-          "why": "Por qué aparece",
           "source": {
             "gap": "De la competencia",
             "opportunity": "Búsqueda relacionada"
@@ -12559,11 +12580,14 @@
           "zoomOut": "Alejar",
           "zoomReset": "Mostrar todo el mapa",
           "yours": "Su palabra clave",
+          "preview": "{volume, number} búsquedas/mes · Dificultad {value, number}/100",
+          "estimatedGain": "Clics adicionales estimados al mes",
+          "rankGain": "Top {rank} {gain}",
           "gainShort": "Clics extra en el top 3",
           "contentTask": "Crear tarea de contenido",
           "ask": "Preguntar al agente SEO",
-          "brief": "Escribe contenido web{site, select, none {} other { para {site}}} que pueda posicionarse en Google para la búsqueda «{keyword}». La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { Destaca esta función del producto: {feature}.}}",
-          "question": "¿Cómo puede {site, select, none {mi sitio} other {{site}}} posicionarse en Google para la búsqueda «{keyword}»? La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { La función del producto que encaja: {feature}.}}",
+          "brief": "Escribe contenido web{site, select, none {} other { para {site}}} que pueda posicionarse en Google para la búsqueda «{keyword}».{measured, select, yes { La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).} other { Mercado: {market}.}}{feature, select, none {} other { Destaca esta función del producto: {feature}.}}",
+          "question": "¿Cómo puede {site, select, none {mi sitio} other {{site}}} posicionarse en Google para la búsqueda «{keyword}»?{measured, select, yes { La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).} other { Mercado: {market}.}}{feature, select, none {} other { La función del producto que encaja: {feature}.}}",
           "noGain": "Desconocido"
         },
         "historyShow": "Historial",

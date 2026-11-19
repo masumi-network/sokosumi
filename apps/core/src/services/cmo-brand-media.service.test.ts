@@ -57,6 +57,8 @@ const site = vi.hoisted(() => ({
   sitemap: vi.fn(),
   /** A host whose capture throws, as a browser that died does. */
   dies: { host: "" },
+  /** Set when Chromium does not start. */
+  noBrowser: { on: false },
 }));
 vi.mock("@/lib/site-pages", () => ({
   readRobots: site.robots,
@@ -65,7 +67,10 @@ vi.mock("@/lib/site-pages", () => ({
 vi.mock("@/lib/site-capture", () => ({
   DESKTOP: { width: 1440, height: 900 },
   MOBILE: { width: 390, height: 844 },
-  withBrowser: (work: (browser: unknown) => unknown) => work({}),
+  withBrowser: async (work: (browser: unknown) => unknown) => {
+    if (site.noBrowser.on) throw new Error("Failed to launch the browser");
+    return work({});
+  },
   capturePage: async (
     _browser: unknown,
     url: string,
@@ -330,12 +335,45 @@ describe("captureCmoBrandMedia", () => {
     expect(linked).toHaveLength(files.put.mock.calls.length);
   });
 
-  it("still writes the index when the capture throws partway", async () => {
+  it("leaves out a file that cannot be saved twice and keeps the rest", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Some of the brand's research files could not be saved",
+      ["Saving a capture file to the Project's Files failed twice"],
+    );
+    const put = files.put.getMockImplementation();
+    files.put.mockImplementation(
+      async (pathname: string, ...rest: unknown[]) => {
+        if (pathname.endsWith("/Full pages/pricing.jpg")) {
+          throw new Error("Vercel Blob: request failed");
+        }
+        return put?.(pathname, ...rest);
+      },
+    );
+    await captureCmoBrandMedia("bot-1");
+    const saved = files.put.mock.calls.map(([pathname]) => pathname);
+    // Tried twice, then left out; the pages after it and the index are kept.
+    expect(
+      saved.filter((path) => path.endsWith("/Full pages/pricing.jpg")),
+    ).toHaveLength(2);
+    expect(saved).toContain(`${ORG}/Full pages/about.jpg`);
+    expect(saved).toContain(`${ORG}/about-mobile.jpg`);
+    expect(saved).toContain(`${ORG}/index.json`);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media_save",
+      brandMedia: { failed: 1, folder: "/Full pages", bytes: 4 },
+    });
+  });
+
+  it("still writes the index when the capture throws partway, and says where it stopped", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The brand capture stopped partway",
+      ["A step of the capture threw; what it saved before is kept"],
+    );
     site.dies.host = "rival.example";
     try {
-      await expect(captureCmoBrandMedia("bot-1")).rejects.toThrow(
-        "Target closed",
-      );
+      await captureCmoBrandMedia("bot-1");
     } finally {
       site.dies.host = "";
     }
@@ -344,6 +382,31 @@ describe("captureCmoBrandMedia", () => {
     );
     // The pages read before the browser died are kept and named.
     expect(JSON.parse(String(index?.[1])).pages).toHaveLength(3);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media",
+      brandMedia: { step: "competitors", pagesRead: 3, ownPagesMissed: 0 },
+      failure: { errorName: "Error" },
+    });
+  });
+
+  it("says the browser did not start when Chromium fails to launch", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The brand capture stopped partway",
+      ["A step of the capture threw; what it saved before is kept"],
+    );
+    site.noBrowser.on = true;
+    try {
+      await captureCmoBrandMedia("bot-1");
+    } finally {
+      site.noBrowser.on = false;
+    }
+    expect(warnings[0]?.event).toMatchObject({
+      brandMedia: { step: "browser", pagesRead: 0 },
+    });
+    expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual([
+      `${ORG}/index.json`,
+    ]);
   });
 
   it("reads only what robots.txt allows", async () => {
@@ -420,13 +483,35 @@ describe("captureCmoBrandMedia", () => {
     expect(logo.refresh).not.toHaveBeenCalled();
   });
 
-  it("starts the index for one Cuso a sync, the first without one", async () => {
+  it("starts the index for one Cuso a sync, the first without a page read", async () => {
     db.fileProjectLink.findMany.mockResolvedValue([{ projectId: "project-1" }]);
-    await scheduleMissingCmoBrandIndex([
-      { projectId: "project-1", sokoBotId: "bot-1" },
-      { projectId: "project-2", sokoBotId: "bot-2" },
-      { projectId: "project-3", sokoBotId: "bot-3" },
-    ]);
+    const now = new Date("2026-11-19T12:00:00Z");
+    await scheduleMissingCmoBrandIndex(
+      [
+        { projectId: "project-1", sokoBotId: "bot-1" },
+        { projectId: "project-2", sokoBotId: "bot-2" },
+        { projectId: "project-3", sokoBotId: "bot-3" },
+      ],
+      now,
+    );
+    // Indexed means a page from the top down; a recent try waits six hours.
+    expect(db.fileProjectLink.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            {
+              resource: {
+                sourceId: { contains: "/Brand research/Full pages/" },
+              },
+            },
+            {
+              updatedAt: { gte: new Date("2026-11-19T06:00:00Z") },
+              resource: { sourceId: { contains: "/Brand research/" } },
+            },
+          ],
+        }),
+      }),
+    );
     expect(vi.mocked(waitUntil)).toHaveBeenCalledTimes(1);
     await vi.mocked(waitUntil).mock.calls[0]?.[0];
     expect(cuso.findForBot).toHaveBeenCalledWith("bot-2");

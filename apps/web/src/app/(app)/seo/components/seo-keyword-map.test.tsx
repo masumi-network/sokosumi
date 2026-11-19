@@ -11,11 +11,14 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../../../messages/en.json";
+import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import { SeoKeywordMap } from "./seo-keyword-map";
 import { seoKeywordMap } from "./seo-keyword-map-model";
 import { keywordGroups } from "./seo-keyword-rows-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({}) }));
 
 const wizard = vi.hoisted(() => ({ openNewTaskWizard: vi.fn() }));
 // The New Task wizard is another feature's dialog: the map only hands it a prompt.
@@ -105,15 +108,17 @@ describe("SEO keyword map", () => {
     // The easiest keyword comes first.
     const card = screen.getByTestId("seo-keyword-card");
     expect(card.textContent).toContain("battery app");
-    expect(card.textContent).toContain("1,000 searches a month");
-    expect(card.textContent).toContain("Difficulty 12 of 100");
-    expect(card.textContent).toContain("Position 15");
-    expect(card.textContent).toContain("Top 10: +1 click a month");
-    expect(card.textContent).toContain("Top 3: +53 clicks a month");
-    expect(screen.getByRole("status").textContent).toContain("battery app");
-    await user.keyboard("{ArrowRight}");
-    expect(screen.getByTestId("seo-keyword-card").textContent).toContain(
-      "Top 3: +301 clicks a month",
+    expect(card).toHaveTextContent("1,000 searches/mo · Difficulty 12/100");
+    expect(card).not.toHaveTextContent(/Top 10|Top 3|Position/);
+    expect(screen.getByRole("status")).toHaveTextContent("Position 15");
+    await user.keyboard("{Enter}");
+    const panel = await screen.findByTestId("seo-keyword-popover");
+    expect(panel).toHaveTextContent("Top 10 +1");
+    expect(panel).toHaveTextContent("Top 3 +53");
+    expect(panel).toHaveTextContent("Position 15");
+    await user.keyboard("{Escape}{ArrowRight}");
+    expect(screen.getByTestId("seo-keyword-card")).toHaveTextContent(
+      "battery health",
     );
     await user.keyboard("{Escape}");
     expect(screen.queryByTestId("seo-keyword-card")).toBeNull();
@@ -513,8 +518,13 @@ describe("SEO keyword map", () => {
     const popover = await screen.findByTestId("seo-keyword-popover");
     // Between its own buttons the Tab stays in the popover.
     await user.tab();
-    expect(within(popover).getAllByRole("button")[0]).toHaveFocus();
-    within(popover).getAllByRole("button").at(-1)?.focus();
+    expect(
+      within(popover).getByRole("button", { name: /content task/i }),
+    ).toHaveFocus();
+    await user.tab();
+    expect(
+      within(popover).getByRole("button", { name: "Ask the SEO agent" }),
+    ).toHaveFocus();
     await user.tab();
     expect(screen.queryByTestId("seo-keyword-popover")).toBeNull();
     expect(map).toHaveFocus();
@@ -644,4 +654,65 @@ describe("SEO keyword map", () => {
     ]);
     expect(container.textContent).toBe("");
   });
+});
+
+it("marks recommended ideas in the graph and explains the same marker from the keyboard", async () => {
+  const user = userEvent.setup();
+  renderMap([
+    row({
+      keyword: "low competition",
+      volume: 50,
+      difficulty: 12,
+      conversion: "medium",
+      source: "opportunity",
+    }),
+    row({ keyword: "unrated", volume: 100, difficulty: 65, source: "gap" }),
+  ]);
+  expect(
+    screen
+      .getAllByTestId("seo-keyword-dot")
+      .filter((dot) => dot.dataset.recommended),
+  ).toHaveLength(1);
+  const graph = screen.getByRole("group", { name: "Keyword opportunities" });
+  graph.focus();
+  await user.keyboard("{ArrowRight}{Enter}");
+  const details = within(await screen.findByTestId("seo-keyword-popover"));
+  expect(details.getByText("Recommended for lower competition")).toBeVisible();
+  expect(
+    details.getByRole("button", { name: /Draft in Content Studio/ }),
+  ).toBeDisabled();
+});
+
+it("expands the whole idea row, keeps tracking independent, and gives the details a full row", async () => {
+  const user = userEvent.setup();
+  const idea = row({
+    keyword: "ostsee rügen",
+    volume: 14800,
+    difficulty: 13,
+    source: "opportunity",
+    conversion: "medium",
+    clicks: { now: 0, top10: 120, top3: 891, top1: 1500 },
+  });
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoKeywordIdeas ideas={keywordGroups([idea]).ideas} model={model} />
+    </NextIntlClientProvider>,
+  );
+  const toggle = screen.getByRole("button", { name: idea.keyword });
+  expect(screen.queryByText("Recommended for lower competition")).toBeNull();
+  const summary = toggle.closest("tr")!;
+  await user.click(within(summary).getByRole("button", { name: "Track" }));
+  expect(model.toggleKeyword).toHaveBeenCalledWith(idea);
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await user.click(within(summary).getByText("14,800"));
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const panel = screen
+    .getByText("Recommended for lower competition")
+    .closest("td")!;
+  expect(panel.colSpan).toBe(summary.cells.length);
+  expect(panel).toHaveTextContent("Top 10 +120");
+  expect(panel).toHaveTextContent("Top 3 +891");
+  toggle.focus();
+  await user.keyboard(" ");
+  expect(screen.queryByText("Recommended for lower competition")).toBeNull();
 });

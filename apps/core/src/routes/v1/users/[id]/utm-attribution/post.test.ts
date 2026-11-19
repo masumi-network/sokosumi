@@ -121,6 +121,19 @@ describe("POST /users/{id}/utm-attribution", () => {
         }),
       }),
     );
+    const { create, update } = createUTMAttributionMock.mock.lastCall?.[0];
+    const attribution = {
+      utmSource: "google",
+      utmMedium: "cpc",
+      utmCampaign: "spring_launch",
+      capturedAt: new Date(CAPTURED_AT),
+      convertedAt: expect.any(Date),
+    };
+    expect(update).toStrictEqual(attribution);
+    expect(create).toStrictEqual({
+      ...attribution,
+      user: { connect: { id: USER_ID } },
+    });
 
     const body = await response.json();
     expect(body.data).toEqual({

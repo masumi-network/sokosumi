@@ -43,8 +43,8 @@ const DATED_TABS: Partial<
 /**
  * Which filters offer a real choice. With one page, that page is the same as all pages,
  * so the picker shows only for a saved selection or a page the Audit no longer has.
- * Search Console is organic only; the traffic choice matters once Google Analytics data
- * exists, and a chosen channel always shows so it can be cleared.
+ * Search Console is organic only; the traffic choice matters on Traffic once Google Analytics
+ * data exists, and a chosen channel always shows so it can be cleared.
  */
 export function seoScopeControls({
   data,
@@ -59,8 +59,9 @@ export function seoScopeControls({
       Boolean(filters.scopeId) ||
       !knownPage,
     channel:
-      Boolean(filters.channel) ||
-      data.metrics.some((metric) => metric.source === "ga4"),
+      filters.tab === "traffic" &&
+      (Boolean(filters.channel) ||
+        data.metrics.some((metric) => metric.source === "ga4")),
     // Dates narrow measured traffic, rankings and checks (the issues and history on Actions); the agent's brief stays current.
     // A chosen date always shows, so it can be cleared.
     dates:
