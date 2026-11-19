@@ -46,8 +46,8 @@ export function GoalBlock({
 
 interface TileProps {
   label: string;
-  value: string;
-  detail?: string;
+  value: ReactNode;
+  detail?: ReactNode;
   source?: string;
   open?: boolean;
   onToggle?: () => void;
