@@ -116,11 +116,16 @@ function resolveCreditProjectId(input: {
 /** The Job's Creator (ADR 0057). */
 function creatorConnect(creator: WorkCreator) {
   const fields = creatorFields(creator);
-  const connect = (id: string | null) => (id ? { connect: { id } } : undefined);
   return {
-    creatorUser: connect(fields.creatorUserId),
-    creatorCoworker: connect(fields.creatorCoworkerId),
-    creatorSokoBot: connect(fields.creatorSokoBotId),
+    ...(fields.creatorUserId && {
+      creatorUser: { connect: { id: fields.creatorUserId } },
+    }),
+    ...(fields.creatorCoworkerId && {
+      creatorCoworker: { connect: { id: fields.creatorCoworkerId } },
+    }),
+    ...(fields.creatorSokoBotId && {
+      creatorSokoBot: { connect: { id: fields.creatorSokoBotId } },
+    }),
   };
 }
 
@@ -225,8 +230,13 @@ async function createPaidJob(
       blockchainIdentifier: agentJobResponse.blockchainIdentifier,
       agentBlockchainIdentifier: input.agentBlockchainIdentifier,
       agentApiBaseUrl: input.agentApiBaseUrl,
-      paymentSourceType: agentJobResponse.paymentSourceType,
-      supportedPaymentSourceIndex: agentJobResponse.supportedPaymentSourceIndex,
+      ...(agentJobResponse.paymentSourceType !== undefined && {
+        paymentSourceType: agentJobResponse.paymentSourceType,
+      }),
+      ...(agentJobResponse.supportedPaymentSourceIndex !== undefined && {
+        supportedPaymentSourceIndex:
+          agentJobResponse.supportedPaymentSourceIndex,
+      }),
       purchaseAmounts,
       purchaseAmountMatchRequired,
       sellerVkey: agentJobResponse.sellerVKey,
@@ -1144,8 +1154,8 @@ export async function getUserJobs(
     tx.job.findMany({
       where,
       take: takePlusOne,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
+      ...(skip !== undefined && { skip }),
+      ...(cursor && { cursor: { id: cursor } }),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       include: {
         ...jobListSummaryInclude,

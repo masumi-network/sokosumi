@@ -114,6 +114,7 @@ function renderTasksViewFilters(
   return filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
     buttonLabel: string;
     sections: FilterDropdownMenuSection[];
+    resetAction?: { label: string; onReset: () => void };
   };
 }
 
@@ -127,25 +128,92 @@ describe("TasksViewFilters", () => {
   it("filters to the tasks assigned to the viewer in one click", async () => {
     renderTasksViewFilters("org-1", "user-1");
 
-    await userEvent.click(screen.getByRole("button", { name: "My tasks" }));
+    await userEvent.click(screen.getByRole("radio", { name: "My tasks" }));
 
     expect(replaceMock).toHaveBeenCalledWith("/tasks?assigneeUserId=user-1");
   });
 
-  it("toggles the Stuck filter in one click", async () => {
-    renderTasksViewFilters(null);
+  it("shows one view at a time: switching leaves My tasks", async () => {
+    window.history.replaceState(null, "", "/tasks?assigneeUserId=user-1");
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1");
 
-    const stuck = screen.getByRole("button", { name: "stuck(3)" });
-    expect(stuck).toHaveAttribute("aria-pressed", "false");
-    await userEvent.click(stuck);
+    expect(screen.getByRole("radio", { name: "My tasks" })).toBeChecked();
+    // My tasks is the view, so no Coworker chip repeats it.
+    expect(screen.queryByRole("list", { name: "activeFilters" })).toBeNull();
+    await userEvent.click(screen.getByRole("radio", { name: "needsMe" }));
 
-    expect(replaceMock).toHaveBeenCalledWith("/tasks?stuck=1");
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?needsMe=1");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("goes back to All and keeps a coworker the reader picked", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?assigneeId=coworker-1&mentions=1",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1");
+
+    expect(screen.getByRole("radio", { name: "mentions" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "All" }));
+
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?assigneeId=coworker-1",
+    );
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("shows Needs me over My tasks from an old link, and keeps the assignee as a chip", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?needsMe=1&assigneeUserId=user-1",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1");
+
+    expect(screen.getByRole("radio", { name: "needsMe" })).toBeChecked();
+    expect(
+      within(screen.getByRole("list", { name: "activeFilters" }))
+        .getAllByRole("listitem")
+        .map((chip) => chip.textContent),
+    ).toEqual(["chip(Coworker, Me)"]);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("keeps the view when the reader presses it again", async () => {
+    renderTasksViewFilters("org-1", "user-1");
+
+    await userEvent.click(screen.getByRole("radio", { name: "All" }));
+
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("shows no view switcher without a viewer", () => {
+    renderTasksViewFilters("org-1");
+
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
+
+  it("sets and clears Stuck from the Filters menu", () => {
+    const props = renderTasksViewFilters(null);
+    const stuck = props.sections.find((section) => section.id === "stuck");
+
+    expect(screen.queryByRole("button", { name: /stuck/ })).toBeNull();
+    expect(stuck?.value).toBeNull();
+    stuck?.onChange(stuck.options[0]?.value ?? null);
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?stuck=1");
+    stuck?.onChange(null);
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks");
   });
 
   it("hides My tasks when the viewer is not an assignee option", () => {
     renderTasksViewFilters("org-1", "someone-else");
 
-    expect(screen.queryByRole("button", { name: "My tasks" })).toBeNull();
+    expect(screen.getByRole("radio", { name: "needsMe" })).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: "My tasks" })).toBeNull();
   });
 
   it("shows scope and coworker sections in workspace context", () => {
@@ -157,6 +225,7 @@ describe("TasksViewFilters", () => {
       "visibility",
       "coworker",
       "status",
+      "stuck",
       "tag",
     ]);
   });
@@ -179,6 +248,7 @@ describe("TasksViewFilters", () => {
     expect(props.sections.map((section) => section.id)).toEqual([
       "coworker",
       "status",
+      "stuck",
       "tag",
     ]);
   });
@@ -230,11 +300,41 @@ describe("TasksViewFilters", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
+  it("offers Reset in the Filters menu only while a filter is set, and it clears every chip", () => {
+    expect(renderTasksViewFilters("org-1").resetAction).toBeUndefined();
+
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?stuck=1&status=FAILED&scope=owned",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    const props = renderTasksViewFilters("org-1");
+    expect(props.resetAction?.label).toBe("clear");
+    props.resetAction?.onReset();
+
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks");
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("clears a scope hidden under Needs me with the other chips", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?needsMe=1&scope=owned&stuck=1&status=FAILED",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    renderTasksViewFilters("org-1", "user-1").resetAction?.onReset();
+
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?needsMe=1");
+    window.history.replaceState(null, "", "/");
+  });
+
   it("shows each active filter as a chip that removes only itself", async () => {
     window.history.replaceState(
       null,
       "",
-      "/tasks?status=COMPLETED&assigneeId=coworker-1&visibility=PRIVATE&scope=owned",
+      "/tasks?status=COMPLETED&assigneeId=coworker-1&visibility=PRIVATE&scope=owned&stuck=1",
     );
     searchParams = new URLSearchParams(window.location.search);
     renderTasksViewFilters("org-1");
@@ -247,6 +347,7 @@ describe("TasksViewFilters", () => {
       "chip(Visibility, Private)",
       "chip(Coworker, Elena)",
       "chip(Status, Completed)",
+      "chip(stuck, stuckDays(3))",
     ]);
 
     await userEvent.click(
@@ -255,7 +356,7 @@ describe("TasksViewFilters", () => {
       }),
     );
     expect(replaceMock).toHaveBeenCalledWith(
-      "/tasks?assigneeId=coworker-1&visibility=PRIVATE&scope=owned",
+      "/tasks?assigneeId=coworker-1&visibility=PRIVATE&scope=owned&stuck=1",
     );
     window.history.replaceState(null, "", "/");
   });

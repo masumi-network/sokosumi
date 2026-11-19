@@ -7739,6 +7739,18 @@ export const TaskSchema = {
             example: [],
             description: 'For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.'
         },
+        seoAudit: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskSeoAudit'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'The SEO page of an SEO analysis Task: its audit (auditId, with the audit\'s Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.'
+        },
         selectableStatuses: {
             type: 'array',
             items: {
@@ -9347,6 +9359,30 @@ export const TaskAncestorSchema = {
         'identifier',
         'name',
         'status'
+    ]
+} as const;
+
+export const TaskSeoAuditSchema = {
+    type: 'object',
+    properties: {
+        auditId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        }
+    },
+    required: [
+        'auditId',
+        'projectId'
     ]
 } as const;
 
@@ -14374,63 +14410,6 @@ export const ChatSavedMessageMutationSchema = {
     required: [
         'messageId',
         'saved'
-    ]
-} as const;
-
-export const ChatSignalListItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'needsYou',
-                'question',
-                'decision',
-                'commitment'
-            ],
-            description: '`needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.'
-        },
-        room: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                name: {
-                    type: 'string'
-                },
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'channel',
-                        'direct'
-                    ]
-                }
-            },
-            required: [
-                'id',
-                'name',
-                'kind'
-            ]
-        },
-        message: {
-            $ref: '#/components/schemas/ChatRoomMessage'
-        },
-        dueAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'kind',
-        'room',
-        'message',
-        'dueAt'
     ]
 } as const;
 
@@ -22304,13 +22283,17 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                     },
                     imageUrl: {
                         type: 'string'
+                    },
+                    voice: {
+                        type: 'string'
                     }
                 },
                 required: [
                     'id',
                     'name',
                     'description',
-                    'imageUrl'
+                    'imageUrl',
+                    'voice'
                 ]
             }
         },
@@ -31949,6 +31932,25 @@ export const MarketingStrategySchema = {
                                 setByOwner: {
                                     type: 'boolean',
                                     default: false
+                                },
+                                suggest: {
+                                    type: 'object',
+                                    properties: {
+                                        channel: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        monthly: {
+                                            type: 'number',
+                                            minimum: 0,
+                                            maximum: 10000000
+                                        }
+                                    },
+                                    required: [
+                                        'channel',
+                                        'monthly'
+                                    ]
                                 }
                             },
                             required: [
@@ -32386,6 +32388,9 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         enum: [
                                             'awareness',
+                                            'interest',
+                                            'desire',
+                                            'action',
                                             'consideration',
                                             'conversion',
                                             'loyalty'
@@ -32397,6 +32402,16 @@ export const MarketingStrategySchema = {
                                         maxLength: 400
                                     },
                                     goal: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    cusoDoes: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    youDo: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
@@ -32487,12 +32502,35 @@ export const MarketingStrategySchema = {
                                 },
                                 required: [
                                     'stage',
-                                    'name',
                                     'goal',
                                     'metric'
                                 ]
                             },
                             maxItems: 4,
+                            default: []
+                        },
+                        leftOut: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 6,
                             default: []
                         },
                         proposals: {
@@ -33782,6 +33820,25 @@ export const MarketingStrategyRequestSchema = {
                         setByOwner: {
                             type: 'boolean',
                             default: false
+                        },
+                        suggest: {
+                            type: 'object',
+                            properties: {
+                                channel: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                monthly: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 10000000
+                                }
+                            },
+                            required: [
+                                'channel',
+                                'monthly'
+                            ]
                         }
                     },
                     required: [
@@ -34219,6 +34276,9 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 enum: [
                                     'awareness',
+                                    'interest',
+                                    'desire',
+                                    'action',
                                     'consideration',
                                     'conversion',
                                     'loyalty'
@@ -34230,6 +34290,16 @@ export const MarketingStrategyRequestSchema = {
                                 maxLength: 400
                             },
                             goal: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            cusoDoes: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            youDo: {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
@@ -34320,12 +34390,35 @@ export const MarketingStrategyRequestSchema = {
                         },
                         required: [
                             'stage',
-                            'name',
                             'goal',
                             'metric'
                         ]
                     },
                     maxItems: 4,
+                    default: []
+                },
+                leftOut: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'channel',
+                            'why'
+                        ]
+                    },
+                    maxItems: 6,
                     default: []
                 },
                 proposals: {
@@ -38210,6 +38303,10 @@ export const ProjectSocialConnectionSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -38221,7 +38318,8 @@ export const ProjectSocialConnectionSchema = {
         'avatarUrl',
         'status',
         'connectedAt',
-        'disconnectedAt'
+        'disconnectedAt',
+        'personalProfile'
     ]
 } as const;
 
@@ -39027,6 +39125,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39053,6 +39155,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39079,6 +39185,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39086,6 +39196,54 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 'socialConnectionId'
             ]
         }
+    ]
+} as const;
+
+export const SocialAccountChoicesSchema = {
+    type: 'object',
+    properties: {
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountChoice'
+            },
+            minItems: 2
+        }
+    },
+    required: [
+        'choices'
+    ]
+} as const;
+
+export const SocialAccountChoiceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Names this account within this sign-in only; send it back as `accountChoiceId`.'
+        },
+        name: {
+            type: 'string'
+        },
+        handle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page',
+                'profile'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'handle',
+        'kind'
     ]
 } as const;
 
@@ -39102,6 +39260,28 @@ export const FinalizeProjectSocialConnectionRequestSchema = {
             type: 'string',
             minLength: 1,
             example: 'ca_123'
+        },
+        pendingDataToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: names the Pages it reaches.'
+        },
+        connectToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4096,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: lets Core finish it.'
+        },
+        accountChoiceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The `id` of the account the person picked among the sign-in\'s accounts (`SocialAccountChoices`).'
+        },
+        offerChoice: {
+            type: 'boolean',
+            description: 'Answer 200 with the accounts to pick from when the sign-in reaches several and none is picked. Without it such a sign-in is refused, or LinkedIn connects the person\'s profile.'
         }
     },
     required: [
@@ -41812,6 +41992,10 @@ export const SocialPostSocialConnectionSchema = {
                 'disconnected'
             ],
             example: 'active'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -41820,7 +42004,8 @@ export const SocialPostSocialConnectionSchema = {
         'displayName',
         'avatarUrl',
         'subscriptionType',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -43709,6 +43894,12 @@ export const ProjectImageStudioCaptionSchema = {
 export const ProjectSeoWorkspaceSchema = {
     type: 'object',
     properties: {
+        searchConsolePropertyId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         sharing: {
             type: 'string',
             enum: [
@@ -47118,6 +47309,17 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 750
             ]
         },
+        searchConsolePropertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        allowLimitedAudit: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
         setupGoal: {
             type: 'object',
             properties: {
@@ -48086,9 +48288,6 @@ export const SeoAuditSummarySchema = {
             type: 'integer',
             minimum: 0
         },
-        canDelete: {
-            type: 'boolean'
-        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -48465,6 +48664,19 @@ export const SendSeoAuditChatRequestSchema = {
     required: [
         'question',
         'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SetSeoAuditArchivedRequestSchema = {
+    type: 'object',
+    properties: {
+        archived: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'archived'
     ],
     additionalProperties: false
 } as const;
@@ -53858,6 +54070,17 @@ export const CmoBrandMediaSchema = {
                             'desktop',
                             'mobile'
                         ]
+                    },
+                    fullUrl: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The page from the top, several screens down.'
                     }
                 },
                 required: [
@@ -53865,10 +54088,64 @@ export const CmoBrandMediaSchema = {
                     'fileId',
                     'label',
                     'pageUrl',
-                    'device'
+                    'device',
+                    'fullUrl'
                 ]
             },
-            description: 'The brand\'s own pages, home first, then home on a phone.'
+            description: 'The brand\'s own pages Cuso read, home first, each on a desktop and then on a phone.'
+        },
+        sections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    fileId: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'hero',
+                            'pricing',
+                            'testimonials',
+                            'customers',
+                            'faq',
+                            'product',
+                            'features',
+                            'cta',
+                            'section'
+                        ]
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageLabel: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'url',
+                    'fileId',
+                    'kind',
+                    'title',
+                    'pageLabel',
+                    'pageUrl'
+                ]
+            },
+            description: 'Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.'
         },
         competitors: {
             type: 'array',
@@ -53933,13 +54210,113 @@ export const CmoBrandMediaSchema = {
                 ]
             },
             description: 'The large pictures on the brand\'s pages: products, screens, people.'
+        },
+        logos: {
+            type: 'object',
+            properties: {
+                logo: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                dark: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                mark: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                }
+            },
+            required: [
+                'logo',
+                'dark',
+                'mark'
+            ],
+            description: 'The brand\'s logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.'
         }
     },
     required: [
         'capturedAt',
         'pages',
+        'sections',
         'competitors',
-        'pictures'
+        'pictures',
+        'logos'
     ]
 } as const;
 
@@ -54230,6 +54607,25 @@ export const CmoPlanSchema = {
                 setByOwner: {
                     type: 'boolean',
                     default: false
+                },
+                suggest: {
+                    type: 'object',
+                    properties: {
+                        channel: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        monthly: {
+                            type: 'number',
+                            minimum: 0,
+                            maximum: 10000000
+                        }
+                    },
+                    required: [
+                        'channel',
+                        'monthly'
+                    ]
                 }
             },
             required: [
@@ -54667,6 +55063,9 @@ export const CmoPlanSchema = {
                         type: 'string',
                         enum: [
                             'awareness',
+                            'interest',
+                            'desire',
+                            'action',
                             'consideration',
                             'conversion',
                             'loyalty'
@@ -54678,6 +55077,16 @@ export const CmoPlanSchema = {
                         maxLength: 400
                     },
                     goal: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    cusoDoes: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    youDo: {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
@@ -54768,12 +55177,35 @@ export const CmoPlanSchema = {
                 },
                 required: [
                     'stage',
-                    'name',
                     'goal',
                     'metric'
                 ]
             },
             maxItems: 4,
+            default: []
+        },
+        leftOut: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    channel: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    why: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    }
+                },
+                required: [
+                    'channel',
+                    'why'
+                ]
+            },
+            maxItems: 6,
             default: []
         },
         proposals: {
@@ -58011,79 +58443,13 @@ export const CmoSocialConnectionFinalizedSchema = {
         choices: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/CmoSocialAccountChoice'
+                $ref: '#/components/schemas/SocialAccountChoice'
             }
         }
     },
     required: [
         'state',
         'choices'
-    ]
-} as const;
-
-export const CmoSocialAccountChoiceSchema = {
-    type: 'object',
-    properties: {
-        externalAccountId: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        handle: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'page',
-                'profile'
-            ]
-        }
-    },
-    required: [
-        'externalAccountId',
-        'name',
-        'handle',
-        'kind'
-    ]
-} as const;
-
-export const CmoFinalizeSocialConnectionRequestSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/FinalizeProjectSocialConnectionRequest'
-        },
-        {
-            type: 'object',
-            properties: {
-                pendingDataToken: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 512,
-                    description: 'Returned with a LinkedIn sign-in: names the Pages it reaches.'
-                },
-                connectToken: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 4096,
-                    description: 'Returned with a LinkedIn sign-in: lets Core finish it.'
-                },
-                externalAccountId: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 256,
-                    description: 'The Page or profile the owner picked among the sign-in\'s accounts.'
-                }
-            }
-        }
     ]
 } as const;
 
@@ -60262,6 +60628,29 @@ export const SokoBotMcpToolSchema = {
     ]
 } as const;
 
+export const AddedSokoBotMcpServerSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SokoBotMcpServer'
+        },
+        {
+            type: 'object',
+            properties: {
+                authorizationUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    description: 'The server\'s sign-in page to send the owner to; null when no sign-in is needed'
+                }
+            },
+            required: [
+                'authorizationUrl'
+            ]
+        }
+    ]
+} as const;
+
 export const AddSokoBotMcpServerRequestSchema = {
     type: 'object',
     properties: {
@@ -60284,6 +60673,20 @@ export const AddSokoBotMcpServerRequestSchema = {
                             type: 'string',
                             enum: [
                                 'none'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'oauth'
                             ]
                         }
                     },
@@ -60343,6 +60746,21 @@ export const AddSokoBotMcpServerRequestSchema = {
         'name',
         'url',
         'auth'
+    ]
+} as const;
+
+export const SokoBotMcpSignInSchema = {
+    type: 'object',
+    properties: {
+        authorizationUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'authorizationUrl'
     ]
 } as const;
 
@@ -61825,6 +62243,11 @@ export const TaskScheduleSeoMonitorSchema = {
         pageCount: {
             type: 'integer',
             minimum: 0
+        },
+        auditId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The saved audit the monitor owner can open to review a full audit Run.'
         }
     },
     required: [
@@ -62253,6 +62676,17 @@ export const CreateTaskScheduleRunRequestSchema = {
             minimum: 0,
             description: 'Task Schedule revision observed by the caller',
             example: 3
+        },
+        searchConsolePropertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        allowLimitedAudit: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
         }
     },
     required: [

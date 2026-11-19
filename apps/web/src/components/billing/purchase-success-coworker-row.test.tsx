@@ -166,13 +166,12 @@ describe("PurchaseSuccessCoworkerRow", () => {
 
   it("degrades to the 'go to tasks' fallback instead of crashing when the coworkers promise rejects", async () => {
     expectConsole("error", "[default-error-boundary]");
-    expectConsole("error", "Error: boom");
+    const reactErrors = expectConsole("error", "");
+    const error = new Error("boom");
 
     await act(async () => {
       render(
-        <PurchaseSuccessCoworkerRow
-          coworkersPromise={Promise.reject(new Error("boom"))}
-        />,
+        <PurchaseSuccessCoworkerRow coworkersPromise={Promise.reject(error)} />,
       );
     });
 
@@ -180,17 +179,19 @@ describe("PurchaseSuccessCoworkerRow", () => {
       "href",
       "/tasks",
     );
+    expect(reactErrors[0]?.[1]).toBe(error);
   });
 
   it("calls onNavigate from the error-boundary 'go to tasks' fallback", async () => {
     expectConsole("error", "[default-error-boundary]");
-    expectConsole("error", "Error: boom");
+    const reactErrors = expectConsole("error", "");
+    const error = new Error("boom");
     const onNavigate = vi.fn();
 
     await act(async () => {
       render(
         <PurchaseSuccessCoworkerRow
-          coworkersPromise={Promise.reject(new Error("boom"))}
+          coworkersPromise={Promise.reject(error)}
           onNavigate={onNavigate}
         />,
       );
@@ -199,5 +200,6 @@ describe("PurchaseSuccessCoworkerRow", () => {
     screen.getByText("goToTasks").closest("a")?.click();
 
     expect(onNavigate).toHaveBeenCalled();
+    expect(reactErrors[0]?.[1]).toBe(error);
   });
 });

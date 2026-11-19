@@ -41,7 +41,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireAdminAuthContext(c.var.authContext);
-    const { cursor, take, skip } = parseCursorPagination(c.req.valid("query"));
+    const { cursor, take } = parseCursorPagination(c.req.valid("query"));
     const where = {
       network: getEnv().NETWORK,
       status: TaskPaymentClaimStatus.PENDING,
@@ -52,8 +52,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.taskPaymentClaim.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         orderBy: [{ reviewRequiredAt: "asc" }, { id: "asc" }],
         select: {
           id: true,

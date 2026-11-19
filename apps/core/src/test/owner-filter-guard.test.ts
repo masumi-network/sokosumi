@@ -20,11 +20,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
  * undefined?
  *
  * Prisma reads `where: { ownerId: null }` as "has no Owner", which is all
- * work without an Owner (ADR 0057), and it drops
- * `where: { ownerId: undefined }` altogether, which matches every row. Either
- * turns "work this person owns" into "everyone's work" without an error. A
- * person's id that can be missing, such as the Requester of a Soko Bot turn,
- * must not reach an Owner filter.
+ * work without an Owner (ADR 0057). With strictUndefinedChecks, Prisma rejects
+ * `where: { ownerId: undefined }`, which previously dropped the filter and
+ * matched every row. A person's id that can be missing, such as the Requester
+ * of a Soko Bot turn, must not reach an Owner filter.
  *
  * The check asks the TypeScript checker for the type of every value given to
  * an `ownerId` filter in Core's source: the `ownerId` of an object inside a

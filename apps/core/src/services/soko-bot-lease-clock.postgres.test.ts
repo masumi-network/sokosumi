@@ -30,6 +30,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import { streamStoredEvents } from "@/lib/soko-bot/in-process-runtime";
 import { SokoBotReconciliationLeaseLostError } from "@/lib/soko-bot/reconciliation-lease";
@@ -204,7 +205,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
         eveSessionId: turn.eveSessionId,
         leaseToken: LEASE,
         leaseExpiresAt: at(turn.leaseInMs),
-        errorKind: turn.errorKind,
+        ...(turn.errorKind !== undefined ? { errorKind: turn.errorKind } : {}),
         reconcilerHeartbeatAt:
           turn.heartbeatAgoMs === undefined ? null : at(-turn.heartbeatAgoMs),
         deadlineAt: at(turn.deadlineInMs ?? 60 * MINUTE),
@@ -1415,6 +1416,70 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       });
 
       await expect(mutate(turnId)).resolves.toMatchObject({ id: workspaceId });
+    });
+
+    it("checks a recorded intent revision and supports legacy turns without one", async () => {
+      const now = await databaseNow();
+      const turnId = await createTurn(now, {
+        status: "RUNNING",
+        eveSessionId: "session_clock",
+        heartbeatAgoMs: 0,
+        leaseInMs: MINUTE,
+      });
+      const intent = await prisma.sokoBotIntent.create({
+        data: {
+          sokoBotId: botId,
+          workspaceId,
+          requesterId: userId,
+          originatingTurnId: turnId,
+          desiredOutcome: "Create a task",
+          targetIds: [],
+          allowedActions: ["create_task"],
+          acceptanceCriteria: [],
+          evidenceIds: [],
+          expiresAt: new Date(now.getTime() + MINUTE),
+        },
+      });
+      await prisma.sokoBotTurn.update({
+        where: { id: turnId },
+        data: { intentId: intent.id, intentRevision: intent.revision + 1 },
+      });
+      const call = await prisma.sokoBotToolCall.create({
+        data: {
+          turnId,
+          toolCallId: "create-task",
+          capability: "create_task",
+          inputHash: "hash",
+        },
+      });
+      const targetId = randomUUID();
+      const commit = () =>
+        prisma.$transaction((tx) =>
+          commitActionReceipt(tx, {
+            turnId,
+            toolCallId: call.toolCallId,
+            actorBotId: botId,
+            targetId,
+            result: { taskId: targetId },
+          }),
+        );
+
+      await expect(commit()).rejects.toMatchObject({ code: "P2025" });
+      await expect(
+        prisma.sokoBotToolCall.findUniqueOrThrow({ where: { id: call.id } }),
+      ).resolves.toMatchObject({ status: "PENDING" });
+
+      await prisma.sokoBotTurn.update({
+        where: { id: turnId },
+        data: { intentRevision: null },
+      });
+      await expect(commit()).resolves.toMatchObject({
+        status: "COMPLETED",
+        targetId,
+      });
+      await expect(
+        prisma.sokoBotIntent.findUniqueOrThrow({ where: { id: intent.id } }),
+      ).resolves.toMatchObject({ targetIds: [targetId] });
     });
 
     // A real lock wait needs a second connection, which PGlite (wasm32)

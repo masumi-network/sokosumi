@@ -1985,6 +1985,10 @@ export type Task = {
      */
     ancestors?: Array<TaskAncestor>;
     /**
+     * The SEO page of an SEO analysis Task: its audit (auditId, with the audit's Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.
+     */
+    seoAudit?: TaskSeoAudit | null;
+    /**
      * Statuses the requesting actor may move this task to right now, in display order and excluding the current one. Computed per actor: a user never sees coworker-set statuses such as INPUT_REQUIRED or APPROVAL_REQUIRED. POST /tasks/{id}/events rejects a user status outside this list.
      */
     selectableStatuses: Array<TaskStatus>;
@@ -2500,6 +2504,11 @@ export type TaskAncestor = {
     identifier: string | null;
     name: string;
     status: TaskStatus;
+};
+
+export type TaskSeoAudit = {
+    auditId: string | null;
+    projectId: string | null;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -3977,20 +3986,6 @@ export type ChatSavedMessageMutation = {
      * Whether the message is now on the reader's Saved list.
      */
     saved: boolean;
-};
-
-export type ChatSignalListItem = {
-    /**
-     * `needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.
-     */
-    kind: 'needsYou' | 'question' | 'decision' | 'commitment';
-    room: {
-        id: string;
-        name: string;
-        kind: 'channel' | 'direct';
-    };
-    message: ChatRoomMessage;
-    dueAt: Date | null;
 };
 
 export type ChatCatchUpItem = {
@@ -6384,6 +6379,7 @@ export type ProjectImageStudioTalkingVideoCatalog = {
         name: string;
         description: string;
         imageUrl: string;
+        voice: string;
     }>;
     defaultVoice: string;
     voices: Array<string>;
@@ -8808,6 +8804,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             expect: string;
             without: string;
             setByOwner?: boolean;
+            suggest?: {
+                channel: string;
+                monthly: number;
+            };
         };
         beforeAfter?: Array<{
             channel: string;
@@ -8879,9 +8879,11 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             metric: string;
         }>;
         funnel?: Array<{
-            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-            name: string;
+            stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+            name?: string;
             goal: string;
+            cusoDoes?: string;
+            youDo?: string;
             channels?: Array<string>;
             metric: string;
             target?: string;
@@ -8896,6 +8898,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 basis: 'measured' | 'estimated' | 'unknown';
                 source?: string;
             };
+        }>;
+        leftOut?: Array<{
+            channel: string;
+            why: string;
         }>;
         proposals?: Array<{
             channel: string;
@@ -9122,6 +9128,10 @@ export type MarketingStrategyRequest = {
             expect: string;
             without: string;
             setByOwner?: boolean;
+            suggest?: {
+                channel: string;
+                monthly: number;
+            };
         };
         beforeAfter?: Array<{
             channel: string;
@@ -9193,9 +9203,11 @@ export type MarketingStrategyRequest = {
             metric: string;
         }>;
         funnel?: Array<{
-            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-            name: string;
+            stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+            name?: string;
             goal: string;
+            cusoDoes?: string;
+            youDo?: string;
             channels?: Array<string>;
             metric: string;
             target?: string;
@@ -9210,6 +9222,10 @@ export type MarketingStrategyRequest = {
                 basis: 'measured' | 'estimated' | 'unknown';
                 source?: string;
             };
+        }>;
+        leftOut?: Array<{
+            channel: string;
+            why: string;
         }>;
         proposals?: Array<{
             channel: string;
@@ -10097,6 +10113,10 @@ export type ProjectSocialConnection = {
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
     connectedAt: Date | null;
     disconnectedAt: Date | null;
+    /**
+     * A LinkedIn connection that posts as the person, not as a company Page.
+     */
+    personalProfile: boolean;
 };
 
 export type ProjectSocialConnectionSubscription = {
@@ -10274,6 +10294,10 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
 } | {
     action: 'reconnect';
     socialConnectionId: string;
@@ -10281,6 +10305,10 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
 } | {
     action: 'replace';
     socialConnectionId: string;
@@ -10288,6 +10316,24 @@ export type InitiateProjectSocialConnectionRequest = {
      * Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi's popup callback.
      */
     callbackUrl?: string;
+    /**
+     * The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person's Pages.
+     */
+    accountChoice?: boolean;
+};
+
+export type SocialAccountChoices = {
+    choices: Array<SocialAccountChoice>;
+};
+
+export type SocialAccountChoice = {
+    /**
+     * Names this account within this sign-in only; send it back as `accountChoiceId`.
+     */
+    id: string;
+    name: string;
+    handle: string | null;
+    kind: 'page' | 'profile';
 };
 
 export type FinalizeProjectSocialConnectionRequest = {
@@ -10296,6 +10342,22 @@ export type FinalizeProjectSocialConnectionRequest = {
      */
     callbackProof?: string;
     connectionId: string;
+    /**
+     * Returned with a LinkedIn sign-in that waits for its account: names the Pages it reaches.
+     */
+    pendingDataToken?: string;
+    /**
+     * Returned with a LinkedIn sign-in that waits for its account: lets Core finish it.
+     */
+    connectToken?: string;
+    /**
+     * The `id` of the account the person picked among the sign-in's accounts (`SocialAccountChoices`).
+     */
+    accountChoiceId?: string;
+    /**
+     * Answer 200 with the accounts to pick from when the sign-in reaches several and none is picked. Without it such a sign-in is refused, or LinkedIn connects the person's profile.
+     */
+    offerChoice?: boolean;
 };
 
 export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection & {
@@ -11132,6 +11194,10 @@ export type SocialPostSocialConnection = {
      */
     subscriptionType: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
+    /**
+     * A LinkedIn connection that posts as the person, not as a company Page.
+     */
+    personalProfile: boolean;
 };
 
 export type SocialPostThreadPart = {
@@ -11579,6 +11645,7 @@ export type ProjectImageStudioCaption = {
 };
 
 export type ProjectSeoWorkspace = {
+    searchConsolePropertyId?: string | null;
     sharing?: 'organization' | 'personal';
     projectId: string | null;
     auditId: string | null;
@@ -12194,6 +12261,8 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    searchConsolePropertyId?: string;
+    allowLimitedAudit?: true;
     setupGoal?: {
         pageId: string;
         expectedRevision: number;
@@ -12368,7 +12437,6 @@ export type SeoAuditSummary = {
     name: string;
     projectId: string | null;
     pageCount: number;
-    canDelete?: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -12441,6 +12509,10 @@ export type SendSeoAuditChatRequest = {
         channel?: 'all' | 'organic' | 'ai_assistant';
         searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
+};
+
+export type SetSeoAuditArchivedRequest = {
+    archived: boolean;
 };
 
 export type SeoConnectionStatus = {
@@ -13642,7 +13714,7 @@ export type CmoRoutine = {
 export type CmoBrandMedia = {
     capturedAt: string;
     /**
-     * The brand's own pages, home first, then home on a phone.
+     * The brand's own pages Cuso read, home first, each on a desktop and then on a phone.
      */
     pages: Array<{
         url: string;
@@ -13650,6 +13722,21 @@ export type CmoBrandMedia = {
         label: string;
         pageUrl: string;
         device: 'desktop' | 'mobile';
+        /**
+         * The page from the top, several screens down.
+         */
+        fullUrl: string | null;
+    }>;
+    /**
+     * Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.
+     */
+    sections: Array<{
+        url: string;
+        fileId: string | null;
+        kind: 'hero' | 'pricing' | 'testimonials' | 'customers' | 'faq' | 'product' | 'features' | 'cta' | 'section';
+        title: string;
+        pageLabel: string;
+        pageUrl: string;
     }>;
     /**
      * Each competitor's homepage, in the Brand Brain's order.
@@ -13668,6 +13755,23 @@ export type CmoBrandMedia = {
         fileId: string | null;
         alt: string;
     }>;
+    /**
+     * The brand's logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.
+     */
+    logos: {
+        logo: {
+            url: string;
+            fileId: string | null;
+        } | null;
+        dark: {
+            url: string;
+            fileId: string | null;
+        } | null;
+        mark: {
+            url: string;
+            fileId: string | null;
+        } | null;
+    };
 };
 
 export type CmoPlan = {
@@ -13726,6 +13830,10 @@ export type CmoPlan = {
         expect: string;
         without: string;
         setByOwner?: boolean;
+        suggest?: {
+            channel: string;
+            monthly: number;
+        };
     };
     beforeAfter?: Array<{
         channel: string;
@@ -13797,9 +13905,11 @@ export type CmoPlan = {
         metric: string;
     }>;
     funnel?: Array<{
-        stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-        name: string;
+        stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+        name?: string;
         goal: string;
+        cusoDoes?: string;
+        youDo?: string;
         channels?: Array<string>;
         metric: string;
         target?: string;
@@ -13814,6 +13924,10 @@ export type CmoPlan = {
             basis: 'measured' | 'estimated' | 'unknown';
             source?: string;
         };
+    }>;
+    leftOut?: Array<{
+        channel: string;
+        why: string;
     }>;
     proposals?: Array<{
         channel: string;
@@ -14595,29 +14709,7 @@ export type CmoSocialConnectionFinalized = {
      * `choose`: the sign-in reaches several accounts; finalize again with the owner's pick.
      */
     state: 'connected' | 'choose';
-    choices: Array<CmoSocialAccountChoice>;
-};
-
-export type CmoSocialAccountChoice = {
-    externalAccountId: string;
-    name: string;
-    handle: string | null;
-    kind: 'page' | 'profile';
-};
-
-export type CmoFinalizeSocialConnectionRequest = FinalizeProjectSocialConnectionRequest & {
-    /**
-     * Returned with a LinkedIn sign-in: names the Pages it reaches.
-     */
-    pendingDataToken?: string;
-    /**
-     * Returned with a LinkedIn sign-in: lets Core finish it.
-     */
-    connectToken?: string;
-    /**
-     * The Page or profile the owner picked among the sign-in's accounts.
-     */
-    externalAccountId?: string;
+    choices: Array<SocialAccountChoice>;
 };
 
 export type SokoBotApiKey = {
@@ -15111,11 +15203,20 @@ export type SokoBotMcpTool = {
     enabled: boolean;
 };
 
+export type AddedSokoBotMcpServer = SokoBotMcpServer & {
+    /**
+     * The server's sign-in page to send the owner to; null when no sign-in is needed
+     */
+    authorizationUrl: string | null;
+};
+
 export type AddSokoBotMcpServerRequest = {
     name: string;
     url: string;
     auth: {
         type: 'none';
+    } | {
+        type: 'oauth';
     } | {
         type: 'bearer';
         token: string;
@@ -15124,6 +15225,10 @@ export type AddSokoBotMcpServerRequest = {
         name: string;
         value: string;
     };
+};
+
+export type SokoBotMcpSignIn = {
+    authorizationUrl: string | null;
 };
 
 export type UpdateSokoBotMcpToolRequest = {
@@ -15603,6 +15708,10 @@ export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof Task
 export type TaskScheduleSeoMonitor = {
     kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
     pageCount: number;
+    /**
+     * The saved audit the monitor owner can open to review a full audit Run.
+     */
+    auditId?: string;
 };
 
 export type TaskScheduleAssignees = {
@@ -15767,6 +15876,8 @@ export type CreateTaskScheduleRunRequest = {
      * Task Schedule revision observed by the caller
      */
     expectedRevision: number;
+    searchConsolePropertyId?: string;
+    allowLimitedAudit?: true;
 };
 
 export type UpdateTaskScheduleRunRequest = {
@@ -33793,70 +33904,6 @@ export type GetChatsSignalsDecisionsResponses = {
 
 export type GetChatsSignalsDecisionsResponse = GetChatsSignalsDecisionsResponses[keyof GetChatsSignalsDecisionsResponses];
 
-export type GetChatsSignalsNeedsYouData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/signals/needs-you';
-};
-
-export type GetChatsSignalsNeedsYouErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsSignalsNeedsYouError = GetChatsSignalsNeedsYouErrors[keyof GetChatsSignalsNeedsYouErrors];
-
-export type GetChatsSignalsNeedsYouResponses = {
-    /**
-     * Unread messages that need the viewer
-     */
-    200: {
-        data: Array<ChatSignalListItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsSignalsNeedsYouResponse = GetChatsSignalsNeedsYouResponses[keyof GetChatsSignalsNeedsYouResponses];
-
 export type GetChatsSignalsImportantData = {
     body?: never;
     headers?: {
@@ -33920,70 +33967,6 @@ export type GetChatsSignalsImportantResponses = {
 };
 
 export type GetChatsSignalsImportantResponse = GetChatsSignalsImportantResponses[keyof GetChatsSignalsImportantResponses];
-
-export type GetChatsSignalsOpenLoopsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/signals/open-loops';
-};
-
-export type GetChatsSignalsOpenLoopsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsSignalsOpenLoopsError = GetChatsSignalsOpenLoopsErrors[keyof GetChatsSignalsOpenLoopsErrors];
-
-export type GetChatsSignalsOpenLoopsResponses = {
-    /**
-     * The viewer's open loops
-     */
-    200: {
-        data: Array<ChatSignalListItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsSignalsOpenLoopsResponse = GetChatsSignalsOpenLoopsResponses[keyof GetChatsSignalsOpenLoopsResponses];
 
 export type GetChatsSignalsSummaryData = {
     body?: never;
@@ -68759,6 +68742,17 @@ export type PostProjectsByIdSocialConnectionsFinalizeError = PostProjectsByIdSoc
 
 export type PostProjectsByIdSocialConnectionsFinalizeResponses = {
     /**
+     * The sign-in reaches several accounts: pick one
+     */
+    200: {
+        data: SocialAccountChoices;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+    /**
      * Project social connection finalized
      */
     201: {
@@ -79623,6 +79617,7 @@ export type ListSeoAuditsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        status?: 'active' | 'archived';
         projectId?: string;
     };
     url: '/seo/audits';
@@ -80256,110 +80251,6 @@ export type SendSeoAuditChatResponses = {
 
 export type SendSeoAuditChatResponse = SendSeoAuditChatResponses[keyof SendSeoAuditChatResponses];
 
-export type DeleteSeoAuditData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/seo/audits/{id}';
-};
-
-export type DeleteSeoAuditErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Concurrent edit
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Invalid SEO audit request
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteSeoAuditError = DeleteSeoAuditErrors[keyof DeleteSeoAuditErrors];
-
-export type DeleteSeoAuditResponses = {
-    /**
-     * Audit removed
-     */
-    204: void;
-};
-
-export type DeleteSeoAuditResponse = DeleteSeoAuditResponses[keyof DeleteSeoAuditResponses];
-
 export type GetSeoAuditWorkspaceData = {
     body?: never;
     headers?: {
@@ -80493,6 +80384,110 @@ export type GetSeoAuditWorkspaceResponses = {
 };
 
 export type GetSeoAuditWorkspaceResponse = GetSeoAuditWorkspaceResponses[keyof GetSeoAuditWorkspaceResponses];
+
+export type SetSeoAuditArchivedData = {
+    body: SetSeoAuditArchivedRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}';
+};
+
+export type SetSeoAuditArchivedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid SEO audit request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetSeoAuditArchivedError = SetSeoAuditArchivedErrors[keyof SetSeoAuditArchivedErrors];
+
+export type SetSeoAuditArchivedResponses = {
+    /**
+     * Archive state saved
+     */
+    204: void;
+};
+
+export type SetSeoAuditArchivedResponse = SetSeoAuditArchivedResponses[keyof SetSeoAuditArchivedResponses];
 
 export type AddSeoAuditPageData = {
     body: AddProjectSeoPageRequest;
@@ -92268,7 +92263,7 @@ export type InitiateCmoSocialConnectionForProjectResponses = {
 export type InitiateCmoSocialConnectionForProjectResponse = InitiateCmoSocialConnectionForProjectResponses[keyof InitiateCmoSocialConnectionForProjectResponses];
 
 export type FinalizeCmoSocialConnectionForProjectData = {
-    body: CmoFinalizeSocialConnectionRequest;
+    body: FinalizeProjectSocialConnectionRequest;
     path: {
         projectId: string;
     };
@@ -98785,10 +98780,10 @@ export type AddSokoBotMcpServerError = AddSokoBotMcpServerErrors[keyof AddSokoBo
 
 export type AddSokoBotMcpServerResponses = {
     /**
-     * The server, connected, with its tools
+     * The server, connected with its tools, or waiting for the owner to sign in
      */
     200: {
-        data: SokoBotMcpServer;
+        data: AddedSokoBotMcpServer;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -98798,6 +98793,129 @@ export type AddSokoBotMcpServerResponses = {
 };
 
 export type AddSokoBotMcpServerResponse = AddSokoBotMcpServerResponses[keyof AddSokoBotMcpServerResponses];
+
+export type SignInToSokoBotMcpServerData = {
+    body?: never;
+    path: {
+        id: string;
+        serverId: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/mcp-servers/{serverId}/sign-in';
+};
+
+export type SignInToSokoBotMcpServerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SignInToSokoBotMcpServerError = SignInToSokoBotMcpServerErrors[keyof SignInToSokoBotMcpServerErrors];
+
+export type SignInToSokoBotMcpServerResponses = {
+    /**
+     * The server's sign-in page to send the owner to
+     */
+    200: {
+        data: SokoBotMcpSignIn;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SignInToSokoBotMcpServerResponse = SignInToSokoBotMcpServerResponses[keyof SignInToSokoBotMcpServerResponses];
+
+export type CompleteSokoBotMcpSignInData = {
+    body?: never;
+    path?: never;
+    query: {
+        code?: string;
+        state: string;
+        iss?: string;
+        error?: string;
+    };
+    url: '/soko-bots/mcp-oauth/callback';
+};
+
+export type CompleteSokoBotMcpSignInErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CompleteSokoBotMcpSignInError = CompleteSokoBotMcpSignInErrors[keyof CompleteSokoBotMcpSignInErrors];
 
 export type RefreshSokoBotMcpServerData = {
     body?: never;

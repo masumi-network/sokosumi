@@ -431,7 +431,11 @@ export function CreateTaskModal({
             cancel: t("cancel"),
             ctrl: t("ctrl"),
             taskCreated: t("taskCreated"),
-            taskCreatedHint: t("taskCreatedHint"),
+            taskCreatedHint: {
+              DRAFT: t("taskCreatedHint", { status: "DRAFT" }),
+              QUEUED: t("taskCreatedHint", { status: "QUEUED" }),
+              READY: t("taskCreatedHint", { status: "READY" }),
+            },
             goToTask: t("goToTask"),
             createAnother: t("createAnother"),
             privateLabel: t("privateLabel"),

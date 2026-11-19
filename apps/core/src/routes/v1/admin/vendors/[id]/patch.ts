@@ -65,8 +65,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const vendor = await prisma.vendor.update({
         where: { id },
         data: {
-          name: body.name,
-          slug: body.slug,
+          ...(body.name !== undefined && { name: body.name }),
+          ...(body.slug !== undefined && { slug: body.slug }),
           ...(body.listed !== undefined ? { listed: body.listed } : {}),
           ...vendorLogoPatchData(body.logos),
         },

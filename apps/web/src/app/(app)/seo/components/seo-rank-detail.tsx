@@ -1,22 +1,34 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { Badge } from "@/components/ui/badge";
 import {
   type SeoRankDetail,
   type SeoRankResult,
   seoRankAbsentOthers,
+  seoRankShownTop,
 } from "./seo-rank-detail-model";
 import { SeoDate, SeoFoldSummary } from "./seo-shared";
 
-/** Orange marks an AI Overview that leaves the page out; grey one that cites it. */
-const AI_OVERVIEW_MARK = { cites: "bg-chart-5", leavesOut: "bg-chart-2" };
+/** A region or language code in the reader's words, e.g. "DE" as "Germany"; the code when the browser has no name. */
+function displayName(
+  locale: string,
+  type: "region" | "language",
+  code: string,
+) {
+  try {
+    return new Intl.DisplayNames([locale], { type }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
 
 function RankResult({ result }: { result: SeoRankResult }) {
   const t = useTranslations("App.Seo.overview.rank");
   const format = useFormatter();
-  if (result.kind === "absent") return t("absent", { top: result.top });
+  if (result.kind === "absent")
+    return t("absent", { top: seoRankShownTop(result.top) });
   if (result.kind === "other") return result.text;
   if (result.kind === "searchConsole")
     return t("searchConsole", {
@@ -32,118 +44,141 @@ function RankResult({ result }: { result: SeoRankResult }) {
  * Overview and the other keywords in one line. Every line the check wrote stays in a fold under it.
  */
 export function SeoRankDetailRow({
-  name,
   headingId,
   detail,
   evidence,
   onShowRankings,
 }: {
-  name: string;
   headingId: string;
   detail: SeoRankDetail;
   evidence: readonly string[];
   onShowRankings?: () => void;
 }) {
   const t = useTranslations("App.Seo");
+  const locale = useLocale();
   const absentOthers = seoRankAbsentOthers(detail.others);
   // Each other keyword the page is not simply absent for gets its own line: a position, or what the read says.
   const listedOthers = detail.others.filter(
     (other) => other.result.kind !== "absent",
   );
   return (
-    <div className="space-y-1">
-      <p className="text-sm break-words">
-        <span id={headingId} className="font-medium">
-          {name}
-        </span>
-        <span className="text-muted-foreground">
-          {" · "}
-          {t(`analysis.${detail.device}`)}
-        </span>
-      </p>
-      <p className="text-sm break-words">
-        <span className="font-semibold">
-          <RankResult result={detail.searchConsole ?? detail.result} />
-        </span>{" "}
-        <span className="text-muted-foreground">
-          {t("overview.rank.forKeyword", { keyword: detail.keyword })}
-        </span>
-      </p>
-      {/* Search Console leads with its average; the search result read today follows it. */}
-      {detail.searchConsole ? (
-        <p className="text-muted-foreground text-xs">
-          {t("overview.rank.serpRead")} <RankResult result={detail.result} />
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          {/* The check's own name ("Organic position per device") stays in the fold's lines. */}
+          <span id={headingId} className="font-semibold">
+            {t("overview.rank.title")}
+          </span>
+          <span className="sr-only"> · </span>
+          <Badge
+            variant="outline"
+            className="text-muted-foreground font-normal"
+          >
+            {t(`analysis.${detail.device}`)}
+          </Badge>
         </p>
-      ) : null}
-      <p className="text-muted-foreground text-xs">
-        {t("overview.rank.source", {
-          country: detail.country,
-          language: detail.language,
-        })}
-        {detail.readAt ? (
-          <>
-            {" · "}
-            <SeoDate value={detail.readAt} day />
-          </>
+        {/* The result is the news, so it is the largest text; the keyword under it says what it is for. */}
+        <p className="text-sm break-words">
+          <span className="block text-lg leading-snug font-semibold tracking-tight">
+            <RankResult result={detail.searchConsole ?? detail.result} />
+          </span>{" "}
+          <span className="text-muted-foreground">
+            {t.rich("overview.rank.forKeyword", {
+              keyword: detail.keyword,
+              k: (chunks) => (
+                <span className="text-foreground font-medium">{chunks}</span>
+              ),
+            })}
+          </span>
+        </p>
+        {/* Search Console leads with its average; the search result read today follows it. */}
+        {detail.searchConsole ? (
+          <p className="text-muted-foreground text-xs">
+            {t("overview.rank.serpRead")}{" "}
+            <span className="text-foreground font-medium">
+              <RankResult result={detail.result} />
+            </span>
+          </p>
         ) : null}
-      </p>
-      {detail.aiOverviewCites === null ? null : (
-        <p className="inline-flex items-center gap-1.5 text-xs">
-          <span
-            aria-hidden
-            className={cn(
-              "size-1.5 shrink-0 rounded-full forced-colors:bg-[CanvasText]",
-              detail.aiOverviewCites
-                ? AI_OVERVIEW_MARK.cites
-                : AI_OVERVIEW_MARK.leavesOut,
-            )}
-          />
-          {t(
-            detail.aiOverviewCites
-              ? "overview.rank.aiCited"
-              : "overview.rank.aiNotCited",
-          )}
+        <p className="text-muted-foreground text-xs">
+          <span>
+            {t("overview.rank.source", {
+              country: displayName(locale, "region", detail.country),
+              language: displayName(locale, "language", detail.language),
+            })}
+            {detail.readAt ? (
+              <>
+                {" · "}
+                <SeoDate value={detail.readAt} day />
+              </>
+            ) : null}
+          </span>
         </p>
-      )}
+        {/* Only a citation is news to the owner: an AI Overview without the page gives nothing to act on here.
+            That line stays in the fold. */}
+        {detail.aiOverviewCites ? (
+          <p className="text-xs font-medium">{t("overview.rank.aiCited")}</p>
+        ) : null}
+      </div>
       {listedOthers.length || absentOthers ? (
-        <ul className="text-muted-foreground space-y-0.5 text-xs">
-          {listedOthers.map((other) => (
-            <li key={other.keyword} className="break-words">
-              <span className="text-foreground font-medium">
-                <RankResult result={other.result} />
-              </span>{" "}
-              {t("overview.rank.forKeyword", { keyword: other.keyword })}
-            </li>
-          ))}
-          {absentOthers ? (
-            <li>{t("overview.rank.othersAbsent", absentOthers)}</li>
+        <div className="bg-muted space-y-2 rounded-md px-3 py-2.5">
+          {/* Without a listed keyword the one line already says "other keywords". */}
+          {listedOthers.length ? (
+            <p className="text-muted-foreground text-xs font-medium">
+              {t("overview.rank.otherKeywords")}
+            </p>
           ) : null}
-        </ul>
+          <ul className="space-y-1.5 text-xs">
+            {listedOthers.map((other) => (
+              <li
+                key={other.keyword}
+                className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5"
+              >
+                {/* Under the "Other keywords" label the keyword stands alone; its result follows. */}
+                <span className="min-w-0 break-words">{other.keyword}</span>
+                <span className="sr-only">: </span>
+                <span className="text-foreground font-medium tabular-nums">
+                  <RankResult result={other.result} />
+                </span>
+              </li>
+            ))}
+            {absentOthers ? (
+              <li className="text-muted-foreground">
+                {t("overview.rank.othersAbsent", {
+                  count: absentOthers.count,
+                  top: seoRankShownTop(absentOthers.top),
+                })}
+              </li>
+            ) : null}
+          </ul>
+        </div>
       ) : null}
-      {/* Every line the check wrote, for the reader who wants the source of the short form. */}
-      <details className="text-muted-foreground text-xs">
-        <SeoFoldSummary className="py-1.5">
-          {t("overview.rank.allDetails")}
-        </SeoFoldSummary>
-        <ul className="list-disc space-y-0.5 ps-4 pt-1">
-          {evidence.map((line, index) => (
-            <li key={`${index}:${line}`} className="break-words">
-              {line}
-            </li>
-          ))}
-        </ul>
-      </details>
-      {onShowRankings ? (
-        <button
-          type="button"
-          aria-describedby={headingId}
-          onClick={onShowRankings}
-          className="focus-visible:ring-ring -my-2 inline-flex items-center gap-1 rounded-sm py-2 text-xs underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
-        >
-          {t("overview.rank.showRankings")}
-          <ArrowRight aria-hidden className="size-3" />
-        </button>
-      ) : null}
+      <div className="space-y-2">
+        {/* Every line the check wrote, for the reader who wants the source of the short form. */}
+        <details className="text-muted-foreground text-xs">
+          <SeoFoldSummary className="w-fit py-1.5 font-medium">
+            {t("overview.rank.allDetails")}
+          </SeoFoldSummary>
+          <ul className="border-border mt-2 divide-y divide-border rounded-md border text-xs leading-relaxed">
+            {evidence.map((line, index) => (
+              <li key={`${index}:${line}`} className="px-3 py-2 break-words">
+                {line}
+              </li>
+            ))}
+          </ul>
+        </details>
+        {onShowRankings ? (
+          <button
+            type="button"
+            aria-describedby={headingId}
+            onClick={onShowRankings}
+            className="focus-visible:ring-ring text-foreground inline-flex items-center gap-1 -my-2 rounded-sm py-2 text-xs font-medium underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+          >
+            {t("overview.rank.showRankings")}
+            <ArrowRight aria-hidden className="size-3" />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

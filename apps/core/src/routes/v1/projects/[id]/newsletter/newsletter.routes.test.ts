@@ -98,10 +98,15 @@ vi.mock("@/lib/db/prisma", () => {
     contactListMember: { createMany: m.memberCreateMany },
     newsletterSubscriber: {
       // The pre-send re-check of pending confirmations has its own mock.
-      findMany: (args: Prisma.NewsletterSubscriberFindManyArgs) =>
-        args.where?.status === "PENDING" && args.where.OR
+      findMany: (args: Prisma.NewsletterSubscriberFindManyArgs) => {
+        const { where } = args;
+        return where &&
+          "status" in where &&
+          where.status === "PENDING" &&
+          Array.isArray(where.OR)
           ? m.pendingFindMany(args)
-          : m.findMany(args),
+          : m.findMany(args);
+      },
       count: m.count,
       groupBy: m.groupBy,
       findUnique: m.findUnique,
@@ -815,6 +820,11 @@ describe("newsletter subscribers", () => {
     expect(await response.json()).toMatchObject({
       data: { subscribers: [{ contact: null }] },
     });
+    expect(m.findMany.mock.lastCall?.[0]).toStrictEqual({
+      where: { newsletterId: NEWSLETTER_ID },
+      take: 21,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
     expect(m.contactFindMany).not.toHaveBeenCalled();
   });
 
@@ -1113,10 +1123,11 @@ describe("newsletter subscribers", () => {
       m.findUnique.mockImplementation(() => current);
       m.deleteMany.mockImplementation(
         ({ where }: Prisma.NewsletterSubscriberDeleteManyArgs) => {
-          const allowed = where?.status;
+          const allowed = where && "status" in where ? where.status : undefined;
           if (
             current &&
             typeof allowed === "object" &&
+            "in" in allowed &&
             Array.isArray(allowed.in) &&
             !allowed.in.includes(current.status)
           )
@@ -1174,9 +1185,10 @@ describe("newsletter subscribers", () => {
           status: "UNSUBSCRIBED",
           unsubscribedAt: NOW,
         };
-        const allowed = where?.status;
+        const allowed = where && "status" in where ? where.status : undefined;
         if (
           typeof allowed === "object" &&
+          "in" in allowed &&
           Array.isArray(allowed.in) &&
           !allowed.in.includes(current.status)
         )
@@ -1299,7 +1311,10 @@ describe("newsletter subscriber CSV import", () => {
         const created = [];
         for (const row of data) {
           if (existing.has(row.email)) continue;
-          existing.set(row.email, row.status ?? "PENDING");
+          existing.set(
+            row.email,
+            typeof row.status === "string" ? row.status : "PENDING",
+          );
           created.push({ ...SUBSCRIBER, ...row, id: row.email });
         }
         return created;

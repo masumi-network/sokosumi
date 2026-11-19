@@ -1,5 +1,6 @@
 import CoreAPI
 import Foundation
+import OpenAPIRuntime
 
 /// One part of a row's body, in drawing order (web `MessageBody`). Payloads carry only what was parsed; the quote
 /// and the Markdown read the message itself.
@@ -7,7 +8,8 @@ public enum MessageBodyPart: Equatable, Sendable, Identifiable {
   /// Soko Bot's quiet line above a message it sent on its own.
   case sokoBotSource(SokoBotSourceLabel)
   /// A coworker's mention that failed to dispatch.
-  case failedMention
+  case failedMention(aiBudgetExceeded: Bool, isSokoBot: Bool = false, isCancelled: Bool = false)
+  case backgroundFailure(title: String, kind: SokoBotBackgroundFailureKind, noticeMention: String? = nil)
   /// A coworker's Thought; `shellWorking` while a persisted mention shell still waits for its answer.
   case thought(startedAt: Date, shellWorking: Bool)
   /// "This message was deleted": nothing follows it.
@@ -24,6 +26,7 @@ public enum MessageBodyPart: Equatable, Sendable, Identifiable {
     switch self {
     case .sokoBotSource: "sokoBotSource"
     case .failedMention: "failedMention"
+    case .backgroundFailure: "backgroundFailure"
     case .thought: "thought"
     case .deleted: "deleted"
     case .quote: "quote"
@@ -132,7 +135,14 @@ public struct MessageRow: Equatable, Sendable {
       parts.append(.sokoBotSource(label))
     }
     if case .failed? = shell {
-      parts.append(.failedMention)
+      let failure = message.metadata?.additionalProperties["mention_failure"]?.value as? [String: Any]
+      let kind = failure?["kind"] as? String
+      let isSokoBot = if case .case3 = message.sender {
+        true
+      } else {
+        false
+      }
+      parts.append(.failedMention(aiBudgetExceeded: kind == "ai_budget_exceeded", isSokoBot: isSokoBot, isCancelled: kind == "turn_cancelled"))
     } else if hasThoughtView(message) {
       // A persisted mention shell keeps the live Thought header until Core fills the answer; its clock starts at
       // `thought_timing_ms.start`.
@@ -150,6 +160,11 @@ public struct MessageRow: Equatable, Sendable {
     } else if shell == nil, let reply = ProjectSelectionReply(content: message.content) {
       // A project question's answer (row 38h1) is the chosen project, not its raw sentence and id.
       parts.append(.projectSelection(reply))
+    } else if shell == nil, case .case3 = message.sender,
+              let turn = SokoBotTurnMetadata(message: message),
+              let title = turn.backgroundTitle, let failure = turn.backgroundFailure {
+      let noticeMention = message.content.prefixMatch(of: #/@\S+(?= )/#).map { String($0.output) }
+      parts.append(.backgroundFailure(title: title, kind: failure, noticeMention: noticeMention))
     } else if shell == nil, message.quote == nil || !message.content.isEmpty {
       // Mention shells render their own state; Send to yourself posts only a quote, so there is no body to render.
       parts.append(.markdown)

@@ -13,7 +13,11 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
-import { seoTestMetric, seoTestWorkspace } from "./seo-test-fixture";
+import {
+  SEO_TEST_PROJECT,
+  seoTestMetric,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
 import { SeoWorkspace } from "./seo-workspace";
 
 const { mutate } = vi.hoisted(() => ({ mutate: vi.fn() }));
@@ -136,6 +140,30 @@ describe("SEO Traffic search type", () => {
     analytics.metrics = [{ ...seoTestMetric(), source: "ga4" }];
     renderTraffic(analytics);
     expect(screen.queryByRole("combobox", { name: "Search type" })).toBeNull();
+  });
+
+  it("keeps the channel on Traffic: another tab hides and clears it", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.metrics = [{ ...seoTestMetric(), source: "ga4", channel: "all" }];
+    renderTraffic(workspace, "&channel=all");
+    expect(screen.getByRole("combobox", { name: "Traffic" })).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Actions" }));
+    // The workspace read: the only call with a query right after the owner's SEO path.
+    const reads = () =>
+      vi
+        .mocked(fetch)
+        .mock.calls.map(([url]) => String(url))
+        .filter((url) =>
+          url.includes(`/api/projects/${SEO_TEST_PROJECT}/seo?`),
+        );
+    await waitFor(() => expect(reads().at(-1)).not.toContain("channel"));
+    expect(reads().some((url) => url.includes("channel=all"))).toBe(true);
+    expect(screen.queryByRole("combobox", { name: "Traffic" })).toBeNull();
+    await user.click(screen.getByRole("tab", { name: "Traffic" }));
+    expect(
+      await screen.findByRole("combobox", { name: "Traffic" }),
+    ).toHaveTextContent("All measured segments");
   });
 
   it("keeps the search type on Traffic: another tab reads web search and clears it", async () => {

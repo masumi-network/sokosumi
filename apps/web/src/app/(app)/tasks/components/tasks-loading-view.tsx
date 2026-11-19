@@ -1,4 +1,4 @@
-import { SlidersHorizontal } from "lucide-react";
+import { Ellipsis } from "lucide-react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { TASK_CARD_DENSITY_CLASS } from "@/app/tasks/constants";
 import {
@@ -41,7 +41,7 @@ export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
     done: "Done",
   },
   display: {
-    button: "Display",
+    button: "View options",
   },
 };
 
@@ -86,7 +86,7 @@ export function TasksLoadingView({
             aria-label={labels.display.button}
             disabled
           >
-            <SlidersHorizontal className="size-4" aria-hidden />
+            <Ellipsis className="size-4" aria-hidden />
           </Button>
         </div>
       </div>

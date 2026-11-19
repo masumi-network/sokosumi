@@ -62,13 +62,16 @@ import {
 } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
-import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
 import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { taskWorkerContextSchema } from "@/schemas/task-worker-context.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
+import {
+  requiredSeoAuditStartCheck,
+  verifySeoAuditStart,
+} from "@/services/seo-audit-worker-start";
 import { sourceImportService } from "@/services/source-import.service";
 import {
   createTaskPaymentClaim,
@@ -207,7 +210,10 @@ function mountTaskEventRoute(
             "expectedContext" in payload ? payload.expectedContext : undefined,
           );
 
-    const transactionResult = await serializableTransaction(async (tx) => {
+    const writeEvent = async (
+      tx: Prisma.TransactionClient,
+      checkedStart?: string,
+    ) => {
       if (admission)
         await requireFailedSeoAdmission(authContext, taskId, admission, tx);
       else if (expectedContext)
@@ -241,8 +247,6 @@ function mountTaskEventRoute(
         task =
           (await requireNativeSeoWorkerAccess(authContext, taskId, tx)) ?? task;
       const isAgent = isAgentAuthContext(authContext);
-      if (isAgent && status === TaskStatus.RUNNING)
-        await requireSeoTaskStartBalance(tx, task);
 
       if (!isCancelOnlyWrite) {
         if (isAgent) {
@@ -322,6 +326,15 @@ function mountTaskEventRoute(
         }
       }
 
+      if (status === TaskStatus.RUNNING) {
+        const auditStart = await requiredSeoAuditStartCheck(
+          tx,
+          task,
+          authContext,
+          checkedStart,
+        );
+        if (auditStart) return { auditStart };
+      }
       let cents: bigint | undefined;
       let transactionId: string | null = null;
       let eventStatus: TaskStatus | null = status ?? null;
@@ -354,10 +367,10 @@ function mountTaskEventRoute(
         data: {
           taskId,
           status: eventStatus,
-          comment,
-          authenticationUrl,
+          ...(comment !== undefined && { comment }),
+          ...(authenticationUrl !== undefined && { authenticationUrl }),
           channel,
-          cents,
+          ...(cents !== undefined && { cents }),
           transactionId,
           ...actorData,
         },
@@ -472,17 +485,28 @@ function mountTaskEventRoute(
         pausedForInsufficientBalance,
         charged: transactionId !== null,
       };
-    }, "Task changed by a concurrent request. Please retry.").catch((error) => {
-      if (
-        body.masumiPayment &&
-        isBlockchainIdentifierUniqueConstraintError(error)
-      ) {
-        throw conflict(
-          "A task payment with this blockchainIdentifier already exists",
-        );
-      }
-      throw error;
-    });
+    };
+    const commitEvent = (checkedStart?: string) =>
+      serializableTransaction(
+        (tx) => writeEvent(tx, checkedStart),
+        "Task changed by a concurrent request. Please retry.",
+      ).catch((error) => {
+        if (
+          body.masumiPayment &&
+          isBlockchainIdentifierUniqueConstraintError(error)
+        ) {
+          throw conflict(
+            "A task payment with this blockchainIdentifier already exists",
+          );
+        }
+        throw error;
+      });
+    const first = await commitEvent();
+    const transactionResult = first.auditStart
+      ? await commitEvent(await verifySeoAuditStart(first.auditStart))
+      : first;
+    if (transactionResult.auditStart)
+      throw conflict("The audit changed before start. Try again.");
     const {
       event,
       addedParticipantUserIds,

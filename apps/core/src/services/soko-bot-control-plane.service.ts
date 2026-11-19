@@ -68,6 +68,14 @@ import {
   sokoBotSharedScopeOf,
   sokoBotTurnReader,
 } from "@/helpers/task-visibility";
+import {
+  AI_BUDGET_EXCEEDED,
+  AI_BUDGET_EXCEEDED_MESSAGE,
+} from "@/lib/ai-gateway-budget";
+import {
+  aiGatewayBudgetScope,
+  GATEWAY_INTERNAL_SERVER_ERROR,
+} from "@/lib/ai-gateway-budget-error";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -394,12 +402,29 @@ export function safeMemoryRevision<
   return { ...revision, markdown, hash: memoryHash(markdown) };
 }
 
+function safeRuntimeDiagnostic(value: string, maxLength?: number): string;
+function safeRuntimeDiagnostic(
+  value: string | null | undefined,
+  maxLength?: number,
+): string | undefined;
 function safeRuntimeDiagnostic(
   value: string | null | undefined,
   maxLength = 1_000,
 ): string | undefined {
   if (value === null || value === undefined) return undefined;
   return redactSokoBotSensitiveText(value).slice(0, maxLength);
+}
+
+function runtimeFailureCode(data: Record<string, unknown>) {
+  if (
+    GATEWAY_INTERNAL_SERVER_ERROR === data.code &&
+    aiGatewayBudgetScope(data.message)
+  ) {
+    return AI_BUDGET_EXCEEDED;
+  }
+  return typeof data.code === "string"
+    ? safeRuntimeDiagnostic(data.code, 120)
+    : undefined;
 }
 
 interface SokoBotUsageBySource {
@@ -595,10 +620,7 @@ export function safeEventProjection(
     };
   }
   if (type.endsWith(".failed")) {
-    const code =
-      typeof data.code === "string"
-        ? safeRuntimeDiagnostic(data.code, 120)
-        : undefined;
+    const code = runtimeFailureCode(data);
     return {
       summary: code ?? "Runtime failure",
       payload: jsonInput({ code: code ?? "unknown" }),
@@ -818,7 +840,7 @@ export class SokoBotControlPlane {
   private async releaseStartLease(
     turnId: string,
     leaseToken: string,
-    errorDetail: string | undefined,
+    errorDetail: string,
   ): Promise<void> {
     await prisma.sokoBotTurn.updateMany({
       where: { id: turnId, status: "STARTING", leaseToken },
@@ -1073,9 +1095,10 @@ export class SokoBotControlPlane {
           status: "COMPLETED",
           disposition: receipt ? "ALREADY_SATISFIED" : "UNKNOWN",
           verification: "NONE",
-          replayedReceiptId: receipt?.id,
+          ...(receipt
+            ? { replayedReceiptId: receipt.id, targetId: receipt.targetId }
+            : {}),
           actorBotId: turn.sokoBotId,
-          targetId: receipt?.targetId,
           result: { confirmedDecisionId: decision.id },
         },
         update: {},
@@ -1379,6 +1402,21 @@ export class SokoBotControlPlane {
     // only, so this is read once at creation and then pinned.
     const defaultVersionId = await getDefaultSokoBotVersionId();
 
+    const profile = {
+      name,
+      ...(input.avatarSeed !== undefined
+        ? { avatarSeed: input.avatarSeed }
+        : {}),
+      ...(input.personalityTone !== undefined
+        ? { personalityTone: input.personalityTone }
+        : {}),
+      ...(input.personalityDetail !== undefined
+        ? { personalityDetail: input.personalityDetail }
+        : {}),
+      ...(input.personalityStyle !== undefined
+        ? { personalityStyle: input.personalityStyle }
+        : {}),
+    };
     const created = await prisma.$transaction(async (tx) => {
       // Only a live row: a deleted bot is a tombstone kept for provenance and
       // must never be reactivated into the owner's new assistant.
@@ -1395,19 +1433,15 @@ export class SokoBotControlPlane {
         const updated = await tx.sokoBot.update({
           where: { id: existing.id },
           data: {
-            archivedAt: isReactivation ? null : undefined,
-            name,
-            avatarSeed: input.avatarSeed,
-            personalityTone: input.personalityTone,
-            personalityDetail: input.personalityDetail,
-            personalityStyle: input.personalityStyle,
+            ...(isReactivation ? { archivedAt: null } : {}),
+            ...profile,
             // Owner reactivation must not clear a durable administrator pause.
-            status:
-              isReactivation && existing.adminPausedAt === null
-                ? "IDLE"
-                : undefined,
-            memoryVersion: needsInitialMemory ? 1 : undefined,
-            memoryHash: needsInitialMemory ? hash : undefined,
+            ...(isReactivation && existing.adminPausedAt === null
+              ? { status: "IDLE" }
+              : {}),
+            ...(needsInitialMemory
+              ? { memoryVersion: 1, memoryHash: hash }
+              : {}),
           },
         });
         if (needsInitialMemory) {
@@ -1429,17 +1463,15 @@ export class SokoBotControlPlane {
           userId: input.userId,
           createdByUserId: input.userId,
           workspaceId: input.workspaceId,
-          name,
+          ...profile,
           // Pin the version a bot was created on rather than leaving it null
           // and relying on the runtime fallback: the console can then show
           // what each bot actually runs, and an older bot keeps its version
           // when the default moves on.
           versionId: defaultVersionId,
-          ingestTimezone: input.timezone,
-          avatarSeed: input.avatarSeed,
-          personalityTone: input.personalityTone,
-          personalityDetail: input.personalityDetail,
-          personalityStyle: input.personalityStyle,
+          ...(input.timezone !== undefined
+            ? { ingestTimezone: input.timezone }
+            : {}),
           memoryVersion: 1,
           memoryHash: hash,
         },
@@ -1709,12 +1741,22 @@ export class SokoBotControlPlane {
           input.providerCompletedAt >= turn.cancellationRequestedAt);
       const settledStatus: TerminalSokoBotTurnStatus =
         completionLostToCancellation ? "CANCELLED" : input.status;
-      const errorKind = usageCharge.shortfall
-        ? "insufficient_credits"
-        : safeRuntimeDiagnostic(input.errorKind, 120);
-      const errorDetail = usageCharge.shortfall
-        ? "Available credits were exhausted while settling this Soko Bot turn"
-        : safeRuntimeDiagnostic(input.errorDetail);
+      const budgetExceeded =
+        settledStatus === "FAILED" &&
+        runtimeFailureCode({
+          code: input.errorKind,
+          message: input.errorDetail,
+        }) === AI_BUDGET_EXCEEDED;
+      const errorKind = budgetExceeded
+        ? AI_BUDGET_EXCEEDED
+        : usageCharge.shortfall
+          ? "insufficient_credits"
+          : safeRuntimeDiagnostic(input.errorKind, 120);
+      const errorDetail = budgetExceeded
+        ? AI_BUDGET_EXCEEDED_MESSAGE
+        : usageCharge.shortfall
+          ? "Available credits were exhausted while settling this Soko Bot turn"
+          : safeRuntimeDiagnostic(input.errorDetail);
 
       const responseContract =
         settledStatus === "COMPLETED"
@@ -1800,30 +1842,28 @@ export class SokoBotControlPlane {
               ? { eveSessionId: turn.eveSessionId }
               : {}),
           },
-          data:
-            settledStatus === "FAILED"
+          data: {
+            ...(input.clearSession ? { eveSessionId: null } : {}),
+            ...(settledStatus === "FAILED"
               ? {
                   status: "ERROR",
-                  eveSessionId: input.clearSession ? null : undefined,
                   lastFailedAt: now,
                   consecutiveTurnFailures: { increment: 1 },
                 }
               : settledStatus === "COMPLETED"
                 ? {
                     status: "IDLE",
-                    eveSessionId: input.clearSession ? null : undefined,
                     lastSucceededAt: now,
                     consecutiveTurnFailures: 0,
                   }
-                : {
-                    status: "IDLE",
-                    eveSessionId: input.clearSession ? null : undefined,
-                  },
+                : { status: "IDLE" }),
+          },
         });
 
       const scheduleRun = turn.scheduleRun;
       if (scheduleRun) {
         const completed = settledStatus === "COMPLETED";
+        const scheduleErrorDetail = completed ? null : errorDetail;
         const scheduleRunUpdate = await tx.sokoBotScheduleRun.updateMany({
           where: {
             id: scheduleRun.id,
@@ -1839,7 +1879,9 @@ export class SokoBotControlPlane {
             errorKind: completed
               ? null
               : (errorKind ?? settledStatus.toLowerCase()),
-            errorDetail: completed ? null : errorDetail,
+            ...(scheduleErrorDetail !== undefined
+              ? { errorDetail: scheduleErrorDetail }
+              : {}),
           },
         });
         if (scheduleRunUpdate.count === 1) {
@@ -2014,7 +2056,7 @@ export class SokoBotControlPlane {
       where: {
         id: turnId,
         status: { in: [...ACTIVE_TURN_STATUSES] },
-        leaseToken,
+        ...(leaseToken !== undefined ? { leaseToken } : {}),
       },
       select: {
         id: true,
@@ -2336,7 +2378,7 @@ export class SokoBotControlPlane {
                   (await databaseNow()).getTime() - PREVIOUS_REPLY_WINDOW_MS,
                 ),
               },
-              askedByUserId,
+              ...(askedByUserId !== undefined ? { askedByUserId } : {}),
               ...(conversationMention?.message.roomId
                 ? {
                     chatMention: {
@@ -2739,22 +2781,28 @@ export class SokoBotControlPlane {
             createdAt: reservedAt,
             userMessage: message,
             destinationRoomId: destinationRoom?.id ?? null,
-            destinationAudience: destinationAudience
+            ...(destinationAudience
               ? {
-                  userIds: destinationAudience.userMembers
-                    .map((m) => m.userId)
-                    .sort(),
-                  coworkerIds: destinationAudience.coworkerMembers
-                    .map((m) => m.coworkerId)
-                    .sort(),
-                  botIds: destinationAudience.sokoBotMembers
-                    .map((m) => m.sokoBotId)
-                    .sort(),
+                  destinationAudience: {
+                    userIds: destinationAudience.userMembers
+                      .map((m) => m.userId)
+                      .sort(),
+                    coworkerIds: destinationAudience.coworkerMembers
+                      .map((m) => m.coworkerId)
+                      .sort(),
+                    botIds: destinationAudience.sokoBotMembers
+                      .map((m) => m.sokoBotId)
+                      .sort(),
+                  },
                 }
-              : undefined,
-            chatMentionId: input.chat?.mentionId,
-            chatResponseMessageId: input.chat?.responseMessageId,
-            askedByUserId,
+              : {}),
+            ...(input.chat?.mentionId !== undefined
+              ? { chatMentionId: input.chat.mentionId }
+              : {}),
+            ...(input.chat?.responseMessageId !== undefined
+              ? { chatResponseMessageId: input.chat.responseMessageId }
+              : {}),
+            ...(askedByUserId !== undefined ? { askedByUserId } : {}),
             chainDepth: input.chat?.chainDepth ?? 0,
             parentTurnId: input.background?.parentTurnId ?? null,
             backgroundTitle: input.background?.title ?? null,
@@ -2830,7 +2878,9 @@ export class SokoBotControlPlane {
               data: {
                 lastSeenStatus: occurrence.status,
                 lastSeenEventId: occurrence.eventId,
-                lastSeenEventAt: occurrence.delegationEventAt,
+                ...(occurrence.delegationEventAt !== undefined
+                  ? { lastSeenEventAt: occurrence.delegationEventAt }
+                  : {}),
               },
             });
           }
@@ -3194,7 +3244,9 @@ export class SokoBotControlPlane {
               leaseToken,
             },
             data: {
-              eveSessionId: acceptedSessionId,
+              ...(acceptedSessionId !== undefined
+                ? { eveSessionId: acceptedSessionId }
+                : {}),
               errorKind: "start_aborted",
               errorDetail: safeRuntimeDiagnostic(error.message),
               reconcilerHeartbeatAt: null,
@@ -3479,10 +3531,8 @@ export class SokoBotControlPlane {
       data: Prisma.SokoBotTurnUpdateInput = {},
     ): Promise<boolean> => {
       return prisma.$transaction(async (tx) => {
-        const projection = safeEventProjection(
-          indexed.event.type,
-          indexed.event.data,
-        );
+        const { summary, payload, toolName, toolCallId, toolStatus } =
+          safeEventProjection(indexed.event.type, indexed.event.data);
         const persisted = await tx.sokoBotEvent.createMany({
           data: [
             {
@@ -3493,11 +3543,11 @@ export class SokoBotControlPlane {
               eveStartIndex: indexed.startIndex,
               sequence: indexed.startIndex,
               type: indexed.event.type,
-              summary: projection.summary,
-              payload: projection.payload,
-              toolName: projection.toolName,
-              toolCallId: projection.toolCallId,
-              toolStatus: projection.toolStatus,
+              summary,
+              ...(payload !== undefined ? { payload } : {}),
+              ...(toolName !== undefined ? { toolName } : {}),
+              ...(toolCallId !== undefined ? { toolCallId } : {}),
+              ...(toolStatus !== undefined ? { toolStatus } : {}),
               providerAt: new Date(indexed.event.meta.at),
             },
           ],
@@ -3713,15 +3763,16 @@ export class SokoBotControlPlane {
         ) {
           pendingStatus = "FAILED";
           pendingErrorKind =
-            typeof indexed.event.data.code === "string"
-              ? safeRuntimeDiagnostic(indexed.event.data.code, 120)
-              : "runtime_failed";
+            runtimeFailureCode(indexed.event.data) ?? "runtime_failed";
           pendingErrorDetail =
-            typeof indexed.event.data.message === "string"
-              ? safeRuntimeDiagnostic(indexed.event.data.message)
-              : undefined;
+            pendingErrorKind === AI_BUDGET_EXCEEDED
+              ? AI_BUDGET_EXCEEDED_MESSAGE
+              : typeof indexed.event.data.message === "string"
+                ? safeRuntimeDiagnostic(indexed.event.data.message)
+                : undefined;
           turnData.errorKind = pendingErrorKind;
-          turnData.errorDetail = pendingErrorDetail;
+          if (pendingErrorDetail !== undefined)
+            turnData.errorDetail = pendingErrorDetail;
         }
         const eventWasNew = await persistEvent(indexed, turnData);
         if (
@@ -4371,6 +4422,8 @@ export class SokoBotControlPlane {
       action: input.action,
       targetId: resolvedTargetId,
       reason,
+      ...(requestId !== undefined ? { requestId } : {}),
+      ...(traceId !== undefined ? { traceId } : {}),
     };
 
     if (!existing) {
@@ -4381,8 +4434,6 @@ export class SokoBotControlPlane {
             status: "ATTEMPTED",
             ...intent,
             before: jsonInput(before),
-            requestId,
-            traceId,
           },
         });
       } catch (error) {
@@ -4434,10 +4485,8 @@ export class SokoBotControlPlane {
             status: "FAILED",
             ...intent,
             before: jsonInput(before),
-            after: after ? jsonInput(after) : undefined,
+            ...(after ? { after: jsonInput(after) } : {}),
             ...failure,
-            requestId,
-            traceId,
           },
         });
       } catch (auditError) {
@@ -4529,8 +4578,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
           return activeTurn;
@@ -4618,8 +4665,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
         }, "Soko Bot resume collided with another control action");
@@ -4659,8 +4704,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
         }, "Soko Bot memory changed concurrently");
@@ -4694,8 +4737,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
         }, "Soko Bot version changed concurrently");
@@ -4749,8 +4790,9 @@ export class SokoBotControlPlane {
               where: activeTurn,
               data: {
                 status: "CANCEL_REQUESTED",
-                cancellationRequestedAt:
-                  activeTurn.status === "CANCEL_REQUESTED" ? undefined : now,
+                ...(activeTurn.status !== "CANCEL_REQUESTED"
+                  ? { cancellationRequestedAt: now }
+                  : {}),
                 leaseToken: resetLeaseToken,
                 leaseExpiresAt: new Date(now.getTime() + TURN_LEASE_MS),
                 reconcilerHeartbeatAt: now,
@@ -4874,8 +4916,6 @@ export class SokoBotControlPlane {
               ...intent,
               before: jsonInput(before),
               after: jsonInput(adminActionSnapshot(updated)),
-              requestId,
-              traceId,
             },
           });
         }, "Soko Bot session reset finalization collided");
@@ -4911,8 +4951,6 @@ export class SokoBotControlPlane {
                 ...before,
                 schedule: { id: schedule.id, enabled: false },
               }),
-              requestId,
-              traceId,
             },
           });
         });
@@ -5027,8 +5065,6 @@ export class SokoBotControlPlane {
                 : scheduleRun.turnId,
               retryTurnId: retry.turnId,
             }),
-            requestId,
-            traceId,
           },
         });
       } catch (error) {
@@ -5129,8 +5165,6 @@ export class SokoBotControlPlane {
             ...adminActionSnapshot(afterBot),
             retryTurnId: retry.turnId,
           }),
-          requestId,
-          traceId,
         },
       });
       return retry;

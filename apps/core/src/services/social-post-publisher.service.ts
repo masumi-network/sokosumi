@@ -275,7 +275,9 @@ async function settleRetry(
         {
           status: "FAILED",
           lastError: PROJECT_CLOSED_ERROR,
-          attemptCount: data.attemptCount,
+          ...(data.attemptCount !== undefined
+            ? { attemptCount: data.attemptCount }
+            : {}),
         },
         tx,
       );

@@ -1720,6 +1720,58 @@ describe("social post publisher service", () => {
     expect(settleCall().data.status).toBe("PUBLISHED");
   });
 
+  it("publishes a Sokosumi post on a LinkedIn Page connection through Zernio, as the Page", async () => {
+    const page = {
+      ...activeConnection,
+      provider: "linkedin",
+      composioConnectedAccountId: "zernio:abcdef0123456789abcdef01",
+      externalAccountId: "urn:li:organization:42",
+      externalHandle: "acme",
+      subscriptionType: null,
+    };
+    socialPostFindFirstMock.mockReset();
+    socialPostFindFirstMock
+      .mockResolvedValueOnce({
+        ...duePost,
+        provider: "linkedin",
+        firstComment: "https://acme.example/launch",
+        socialConnection: page,
+      })
+      .mockResolvedValue(null);
+    publishXPostMock.mockResolvedValue({
+      externalId: "zpost",
+      publishedUrl: "https://www.linkedin.com/feed/update/urn:li:share:7",
+      toolSlug: "ZERNIO_LINKEDIN_CREATE_POST",
+      firstCommentIncluded: true,
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(attemptCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        toolSlug: "ZERNIO_LINKEDIN_CREATE_POST",
+      }),
+      select: { id: true },
+    });
+    expect(publishXPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "linkedin",
+        // Zernio's idempotency key and the comment it posts with the post.
+        postId: POST_ID,
+        connectedAccountId: "zernio:abcdef0123456789abcdef01",
+        externalAccountId: "urn:li:organization:42",
+        firstComment: "https://acme.example/launch",
+      }),
+    );
+    // Zernio already posted the first comment: it is not posted twice.
+    expect(publishFirstCommentMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "PUBLISHED",
+      publishedExternalId: "zpost",
+    });
+  });
+
   it("keeps the post published when the first comment fails", async () => {
     expectCoreLog("warn", "Published a Social post without its first comment");
     socialPostFindFirstMock.mockReset();

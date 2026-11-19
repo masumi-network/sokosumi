@@ -17,9 +17,11 @@ export function keepAnswers<T extends AnswerableQuestion>(
 ): T[] {
   return incoming.map((question) => {
     const answered = stored.find((candidate) => candidate.id === question.id);
-    return answered?.answer && !question.answer
-      ? { ...question, answer: answered.answer, note: answered.note }
-      : question;
+    if (!answered?.answer || question.answer) return question;
+    const merged = { ...question, answer: answered.answer };
+    if (answered.note === undefined) delete merged.note;
+    else merged.note = answered.note;
+    return merged;
   });
 }
 

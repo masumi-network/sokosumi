@@ -10,7 +10,6 @@ export const seoAuditSummarySchema = z
     name: z.string(),
     projectId: seoIdSchema.nullable(),
     pageCount: z.number().int().nonnegative(),
-    canDelete: z.boolean().optional(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
@@ -40,7 +39,13 @@ export const createSeoAuditSchema = z
 export const seoAuditListQuerySchema = cursorPaginationQuerySchema
   .extend({
     cursor: seoIdSchema.optional(),
+    status: z.enum(["active", "archived"]).optional(),
     // The header's Project scope: only the Audits linked to this Project.
     projectId: seoIdSchema.optional(),
   })
   .openapi("SeoAuditListQuery");
+
+export const setSeoAuditArchivedSchema = z
+  .object({ archived: z.boolean() })
+  .strict()
+  .openapi("SetSeoAuditArchivedRequest");

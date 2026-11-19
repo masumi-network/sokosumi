@@ -5,6 +5,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { openSokoBotSecret } from "@/lib/soko-bot/secret-box";
+import { sandboxShellFor } from "@/services/soko-bot-secrets.service";
 
 import { mountSokoBotSecretRoutes } from "./secrets";
 
@@ -163,6 +164,24 @@ describe.skipIf(!enabled)("Soko Bot secrets against PostgreSQL", () => {
     expect(
       (await put(STRANGER, `${BOT}/sandbox-setup`, { commands: [] })).status,
     ).toBe(404);
+  });
+
+  it("gives a sandbox shell only the keys the owner allowed, and a shared bot none", async () => {
+    await put(OWNER, `${BOT}/secrets/VERCEL_TOKEN`, { shellAccess: true });
+    await put(OWNER, `${BOT}/secrets/HIDDEN_KEY`, {
+      value: "hidden-value-123",
+      shellAccess: false,
+    });
+    expect(await sandboxShellFor(BOT, ["bash", "web_fetch"])).toEqual({
+      setupCommands: ["npm install -g vercel", "pip install httpie"],
+      env: { VERCEL_TOKEN: KEY },
+    });
+    // A turn without a shell, and a shared bot, get nothing.
+    expect(await sandboxShellFor(BOT, ["web_fetch"])).toBeNull();
+    expect(await sandboxShellFor(SHARED_BOT, ["bash"])).toBeNull();
+    await app(OWNER).request(`http://localhost/${BOT}/secrets/HIDDEN_KEY`, {
+      method: "DELETE",
+    });
   });
 
   it("deletes a key, and a bot's keys go with the bot", async () => {

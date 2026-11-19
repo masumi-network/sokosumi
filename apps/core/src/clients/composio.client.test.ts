@@ -4,6 +4,10 @@ import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
+import {
+  type SocialAccountPick,
+  socialAccountChoiceId,
+} from "@/helpers/social-account-choice";
 import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
 const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
@@ -1055,10 +1059,9 @@ describe("getConnectedSocialIdentity", () => {
         { id: "page_two", name: "Two" },
       ],
     };
-    const lookUp = async (pick?: {
-      externalAccountId?: string;
-      offerChoice?: boolean;
-    }) => {
+    const choiceOf = (pageId: string) =>
+      socialAccountChoiceId("ca_selected", pageId);
+    const lookUp = async (pick: SocialAccountPick) => {
       stubIdentity({ data: { data: pages } });
       const { getConnectedSocialIdentity } = await import("./composio.client");
       return getConnectedSocialIdentity({
@@ -1069,35 +1072,31 @@ describe("getConnectedSocialIdentity", () => {
       });
     };
 
-    it("offers the Pages to pick from", async () => {
+    it("offers the Pages to pick from, named by ids of this sign-in", async () => {
       await expect(lookUp({ offerChoice: true })).rejects.toMatchObject({
         name: "SocialAccountChoiceRequiredError",
         choices: [
-          {
-            externalAccountId: "page_one",
-            name: "One",
-            handle: null,
-            kind: "page",
-          },
-          {
-            externalAccountId: "page_two",
-            name: "Two",
-            handle: null,
-            kind: "page",
-          },
+          { id: choiceOf("page_one"), name: "One", handle: null, kind: "page" },
+          { id: choiceOf("page_two"), name: "Two", handle: null, kind: "page" },
         ],
       });
     });
 
     it("connects the picked Page", async () => {
       await expect(
-        lookUp({ externalAccountId: "page_two", offerChoice: true }),
+        lookUp({ choiceId: choiceOf("page_two"), offerChoice: true }),
       ).resolves.toMatchObject({ id: "page_two", handle: "Two" });
+    });
+
+    it("keeps the Page a reconnect holds without asking", async () => {
+      await expect(
+        lookUp({ externalAccountId: "page_one", offerChoice: true }),
+      ).resolves.toMatchObject({ id: "page_one" });
     });
 
     it("refuses a pick the login does not manage", async () => {
       await expect(
-        lookUp({ externalAccountId: "page_three", offerChoice: true }),
+        lookUp({ choiceId: choiceOf("page_three"), offerChoice: true }),
       ).rejects.toMatchObject({ kind: "social_facebook_page_required" });
     });
   });

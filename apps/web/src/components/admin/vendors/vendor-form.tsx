@@ -34,10 +34,10 @@ import {
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
 import {
-  cleanupVendorLogoBestEffort,
-  getVendorLogoUploadErrorMessage,
-  uploadVendorLogoDirect,
-} from "@/lib/utils/vendor-logo-upload.client";
+  cleanupOwnedLogoBestEffort,
+  getUserFileUploadErrorMessage,
+  uploadOwnedLogoDirect,
+} from "@/lib/utils/user-file-upload.client";
 
 const createVendorSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -198,9 +198,14 @@ export function VendorForm(props: VendorFormProps) {
       setUploading(true);
       try {
         const uploadedFile = await raceWithTimeout(
-          uploadVendorLogoDirect(props.vendor.id, logoFile, {
-            allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
-            maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+          uploadOwnedLogoDirect({
+            kind: "vendor",
+            ownerId: props.vendor.id,
+            file: logoFile,
+            options: {
+              allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+              maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+            },
           }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
@@ -211,7 +216,7 @@ export function VendorForm(props: VendorFormProps) {
         toast.error(
           error instanceof ClientTimeoutError
             ? logoLabels.uploadError
-            : getVendorLogoUploadErrorMessage(error, logoLabels.uploadError),
+            : getUserFileUploadErrorMessage(error, logoLabels.uploadError),
         );
       } finally {
         setPendingFiles([]);
@@ -275,9 +280,16 @@ export function VendorForm(props: VendorFormProps) {
         try {
           if (pendingLight) {
             const uploaded = await raceWithTimeout(
-              uploadVendorLogoDirect(vendorId, pendingLight, {
-                allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
-                maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+              uploadOwnedLogoDirect({
+                kind: "vendor",
+                ownerId: vendorId,
+                file: pendingLight,
+                options: {
+                  allowedContentTypes: [
+                    ...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+                  ],
+                  maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+                },
               }),
               ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
             );
@@ -286,9 +298,16 @@ export function VendorForm(props: VendorFormProps) {
           }
           if (pendingDark) {
             const uploaded = await raceWithTimeout(
-              uploadVendorLogoDirect(vendorId, pendingDark, {
-                allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
-                maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+              uploadOwnedLogoDirect({
+                kind: "vendor",
+                ownerId: vendorId,
+                file: pendingDark,
+                options: {
+                  allowedContentTypes: [
+                    ...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+                  ],
+                  maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+                },
               }),
               ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
             );
@@ -317,7 +336,7 @@ export function VendorForm(props: VendorFormProps) {
           toast.error(
             error instanceof ClientTimeoutError
               ? logoLabels.uploadError
-              : getVendorLogoUploadErrorMessage(error, logoLabels.uploadError),
+              : getUserFileUploadErrorMessage(error, logoLabels.uploadError),
           );
           // Vendor was created; still navigate below.
         }
@@ -358,10 +377,10 @@ export function VendorForm(props: VendorFormProps) {
       }
 
       if (previous.light && previous.light !== values.logos.light) {
-        void cleanupVendorLogoBestEffort(baseline.id, previous.light);
+        void cleanupOwnedLogoBestEffort("vendor", baseline.id, previous.light);
       }
       if (previous.dark && previous.dark !== values.logos.dark) {
-        void cleanupVendorLogoBestEffort(baseline.id, previous.dark);
+        void cleanupOwnedLogoBestEffort("vendor", baseline.id, previous.dark);
       }
       logosAtOpenRef.current = {
         light: result.value.logos.light,

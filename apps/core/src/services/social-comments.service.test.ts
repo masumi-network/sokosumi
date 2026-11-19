@@ -200,6 +200,11 @@ describe("collectNewSocialComments", () => {
     const now = new Date("2026-10-28T12:00:00.000Z");
     const since = new Date("2026-10-25T12:00:00.000Z");
     await collectNewSocialComments({ projectId: "p-1", now });
+    expect(db.commentCount.mock.lastCall?.[0]?.where).toStrictEqual({
+      projectId: "p-1",
+      status: "REPLIED",
+      handledAt: { gte: new Date("2026-10-27T12:00:00.000Z") },
+    });
     expect(db.commentFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

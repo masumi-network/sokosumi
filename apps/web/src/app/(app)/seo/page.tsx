@@ -37,10 +37,10 @@ export default async function SeoPage({
       </WorkspacePageShell>
     );
   const { auditId, projectId, cursor, view, add, tab, ...query } = parsed.data;
-  // The search type is a Traffic control (useSeoWorkspace): every other tab reads web search, so a stale one
-  // leaves the URL before it can load Discover or News data as the workspace's first data.
-  if (query.searchType && seoTab(tab) !== "traffic")
-    redirect(seoHrefWithout(raw, "searchType"));
+  // The search type and the channel are Traffic controls (useSeoWorkspace): every other tab reads web search
+  // in every channel, so a stale one leaves the URL before it can narrow the workspace's first data.
+  if ((query.searchType || query.channel) && seoTab(tab) !== "traffic")
+    redirect(seoHrefWithout(raw, "searchType", "channel"));
   // `projectId` is the header's Project scope: it filters the Audit list. With `view=project` it opens the
   // Project's own SEO workspace, where its Soko Bot keeps pages outside any Audit.
   const owner: SeoOwner | undefined = auditId
@@ -52,12 +52,18 @@ export default async function SeoPage({
   if (owner) await connection();
   try {
     if (!owner) {
-      const index = await loadSeoAuditIndex({ cursor, projectId });
+      const archived = view === "archived";
+      const index = await loadSeoAuditIndex({
+        cursor,
+        projectId,
+        ...(archived && { status: "archived" }),
+      });
       return (
         <WorkspacePageShell title={t("title")}>
           <RefreshPrefetchedPage />
           <SeoAuditIndex
-            key={JSON.stringify([projectId, cursor])}
+            key={JSON.stringify([projectId, cursor, archived])}
+            archived={archived}
             cursor={cursor ?? null}
             audits={index.audits}
             projectId={projectId ?? null}

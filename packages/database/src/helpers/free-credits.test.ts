@@ -55,6 +55,13 @@ describe("grantFreeCredits", () => {
 
     assert.deepEqual(result, { bucketId: "bucket-1" });
     assert.equal(
+      Object.hasOwn(
+        createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create,
+        "projectId",
+      ),
+      false,
+    );
+    assert.equal(
       createMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.referenceId,
       "user:user-1:free:grant-1",
     );

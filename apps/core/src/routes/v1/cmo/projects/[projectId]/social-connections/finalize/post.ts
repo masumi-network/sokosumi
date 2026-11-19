@@ -7,10 +7,10 @@ import { requireFirstPartyUserAuthContext } from "@/middleware/auth";
 import { rethrow } from "@/routes/v1/cmo/helpers";
 import { mapProjectSocialConnectionServiceError } from "@/routes/v1/projects/[id]/social-connections/route-helpers";
 import {
-  cmoFinalizeSocialConnectionRequestSchema,
   cmoProjectParamsSchema,
   cmoSocialConnectionFinalizedSchema,
 } from "@/schemas/cmo.schema";
+import { finalizeProjectSocialConnectionRequestSchema } from "@/schemas/project-social-connection.schema";
 import { requireCuso } from "@/services/cmo-cuso.service";
 import { finalizeProjectSocialConnection } from "@/services/project-social-connections.service";
 import { scheduleSocialAccountRefresh } from "@/services/social-account-sync";
@@ -21,14 +21,14 @@ const route = createRoute({
   operationId: "finalizeCmoSocialConnectionForProject",
   tags: ["CMO"],
   description:
-    "Finalizes a redeemed social connection for the Cuso's Project, as `POST /v1/projects/{id}/social-connections/finalize` does. When the sign-in reaches several accounts (a person's LinkedIn Pages, a login's Facebook Pages) it answers `choose` with them and keeps nothing; finalize again with `externalAccountId`. An interactive session or a first-party app's token.",
+    "Finalizes a redeemed social connection for the Cuso's Project, as `POST /v1/projects/{id}/social-connections/finalize` does. When the sign-in reaches several accounts (a person's LinkedIn Pages, a login's Facebook Pages) it answers `choose` with them and keeps nothing; finalize again with the picked choice's `accountChoiceId`. An interactive session or a first-party app's token.",
   request: {
     params: cmoProjectParamsSchema,
     body: {
       required: true,
       content: {
         "application/json": {
-          schema: cmoFinalizeSocialConnectionRequestSchema,
+          schema: finalizeProjectSocialConnectionRequestSchema,
         },
       },
     },

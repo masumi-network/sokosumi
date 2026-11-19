@@ -1,10 +1,12 @@
 import {
   CMO_PRODUCTION_TURN_PREFIX,
+  getSokoBotVersion,
   type MarketingStrategyPlan,
   type ScenarioCheck,
 } from "@sokosumi/soko-bot";
 import { isProjectSocialProvider } from "@/config/social-providers";
 import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
+import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
@@ -15,9 +17,11 @@ import {
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
+import { cmoStrategyRules } from "@/services/cmo-plan-review.service";
 import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
+import { ADS_CASE_BUDGET } from "@/services/evals/eval-cmo-funnel";
 import {
   approveMarketingStrategy,
   isMarketingFilePiece,
@@ -200,7 +204,7 @@ async function pointCusoAt(
   });
   if (brandBrain)
     await prisma.brandBrain.create({
-      data: { projectId, body: brandBrain as object, updatedAt: new Date() },
+      data: { projectId, body: jsonInput(brandBrain), updatedAt: new Date() },
     });
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
@@ -382,13 +386,32 @@ function tellStories(
 }
 
 /** The lane's Cuso on cal.com with the change request's month, waiting for approval. */
-export async function prepareCmoPlan(lane: EvalLaneRecord): Promise<void> {
+export async function prepareCmoPlan(
+  lane: EvalLaneRecord,
+  adsOn = false,
+): Promise<void> {
   const brain = (brandBrains as Record<string, unknown>)[CMO_CHAT_BRAND];
   await pointCusoAt(lane, brand(CMO_CHAT_BRAND), brain ?? null);
+  const plan = changeRequestPlan(new Date());
   await prisma.marketingStrategy.create({
     data: {
       projectId: lane.cusoProjectId,
-      plan: changeRequestPlan(new Date()) as object,
+      // As Core leaves the strategy when the owner says yes to ads and sets
+      // the amount: the budget is theirs, the ads are still to be planned.
+      plan: jsonInput(
+        adsOn
+          ? {
+              ...plan,
+              ads: {
+                monthly: ADS_CASE_BUDGET,
+                currency: "USD",
+                expect: "Cuso is updating what this brings.",
+                without: "The strategy runs on posts, search and email alone.",
+                setByOwner: true,
+              },
+            }
+          : plan,
+      ),
       authorSokoBotId: lane.cusoBotId,
     },
   });
@@ -415,7 +438,7 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
   await prisma.marketingStrategy.create({
     data: {
       projectId: lane.cusoProjectId,
-      plan: monthPlanFromTomorrow(frozen, new Date()) as object,
+      plan: jsonInput(monthPlanFromTomorrow(frozen, new Date())),
       authorSokoBotId: lane.cusoBotId,
     },
   });
@@ -431,8 +454,8 @@ export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
 ): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
-  if (setup === "cmo-plan") {
-    await prepareCmoPlan(lane);
+  if (setup === "cmo-plan" || setup === "cmo-plan-ads") {
+    await prepareCmoPlan(lane, setup === "cmo-plan-ads");
     return {};
   }
   if (isCompetitorSetup(setup)) {
@@ -648,7 +671,7 @@ export async function startCmoCase(
     const strategy = await prisma.marketingStrategy.create({
       data: {
         projectId: lane.cusoProjectId,
-        plan: plan as object,
+        plan: jsonInput(plan),
         authorSokoBotId: lane.cusoBotId,
       },
       select: { id: true },
@@ -688,6 +711,7 @@ async function settledTurn(turnId: string) {
       errorKind: true,
       errorDetail: true,
       finalAnswer: true,
+      versionId: true,
     },
   });
 }
@@ -1068,12 +1092,20 @@ export async function pollCmoCase(
       output: {
         answer: turn.finalAnswer,
         summary: brain?.summary ?? null,
-        offers: brain?.offers.map((offer) => `${offer.name} (${offer.price})`),
+        offers:
+          brain?.offers.map((offer) => `${offer.name} (${offer.price})`) ??
+          null,
       },
     };
   } else {
     const saved = await newestMarketingStrategy(projectId);
-    const { strategy, checks } = strategyChecks(evalCase.brand, saved?.plan);
+    const { strategy, checks } = strategyChecks(
+      evalCase.brand,
+      saved?.plan,
+      turn.versionId
+        ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
+        : {},
+    );
     outcome = {
       checks: [completed, ...checks],
       output: {
@@ -1082,10 +1114,12 @@ export async function pollCmoCase(
         offer: strategy?.offer?.what ?? null,
         coreOffer: strategy?.ladder?.core.what ?? null,
         contentLanguage: strategy?.contentLanguage ?? null,
-        pillars: strategy?.pillars.map((pillar) => pillar.name),
-        calendar: strategy?.calendar
-          .filter((entry) => entry.status !== "skipped")
-          .map((entry) => `${entry.date} ${entry.channel}: ${entry.title}`),
+        pillars: strategy?.pillars.map((pillar) => pillar.name) ?? null,
+        calendar:
+          strategy?.calendar
+            .filter((entry) => entry.status !== "skipped")
+            .map((entry) => `${entry.date} ${entry.channel}: ${entry.title}`) ??
+          null,
       },
     };
   }

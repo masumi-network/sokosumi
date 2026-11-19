@@ -93,6 +93,15 @@ describe("DraftPost", () => {
     await press("Approve");
 
     expect(drafts.approve).toHaveBeenCalledWith("post-1", 3);
+    // The yes gets its moment: Cuso's thumbs-up and when it goes out.
+    const done = host.querySelector('[role="status"].draft-done');
+    expect(done?.textContent).toBe(
+      "Approved. It goes out on X in about two minutes.",
+    );
+    expect(done?.querySelector("img")?.getAttribute("src")).toBe(
+      "/cuso/thumbs-up.png",
+    );
+    expect(host.textContent).not.toContain("Decline");
   });
 
   it("posts a TikTok video only after the owner confirms it, with nothing ticked for them", async () => {
@@ -186,6 +195,7 @@ describe("DraftPost", () => {
     expect(host.querySelector('[role="alert"]')?.textContent).toBe(
       "X is not connected.",
     );
+    expect(host.querySelector(".draft-done")).toBeNull();
     expect(host.textContent).toContain("Waiting for you");
   });
 

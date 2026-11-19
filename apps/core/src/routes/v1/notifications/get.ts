@@ -162,7 +162,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     if (queryParams.projectId && !queryParams.needsAction) {
       throw badRequest("projectId requires needsAction=true");
     }
@@ -212,8 +212,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.notification.findMany({
         where,
         take: takePlusOne,
-        skip: cursorNotification ? 1 : skip,
-        cursor: cursorNotification ? { id: cursorNotification.id } : undefined,
+        ...(cursorNotification
+          ? { cursor: { id: cursorNotification.id }, skip: 1 }
+          : {}),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
       prisma.notification.count({ where }),

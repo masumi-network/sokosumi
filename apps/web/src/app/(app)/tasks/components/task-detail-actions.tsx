@@ -87,8 +87,8 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     setIsMoveOpen,
     isTaskPickerOpen,
     setIsTaskPickerOpen,
-    isMarkAsSectionOpen,
-    setIsMarkAsSectionOpen,
+    isLinkToTaskSectionOpen,
+    setIsLinkToTaskSectionOpen,
     isCreateRelatedSectionOpen,
     setIsCreateRelatedSectionOpen,
     isRemoveRelatedSectionOpen,
@@ -282,23 +282,23 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
                       disabled={actionsDisabled}
                       onSelect={(event) => {
                         event.preventDefault();
-                        setIsMarkAsSectionOpen((previous) => !previous);
+                        setIsLinkToTaskSectionOpen((previous) => !previous);
                       }}
                     >
                       <FlagTriangleRight
                         className="size-4 text-muted-foreground"
                         aria-hidden
                       />
-                      <span>{tDetailActions("markAs")}</span>
+                      <span>{tDetailActions("linkToTask")}</span>
                       <ChevronDown
                         className={cn(
                           "ml-auto size-4 text-muted-foreground transition-transform",
-                          isMarkAsSectionOpen ? "rotate-180" : "",
+                          isLinkToTaskSectionOpen ? "rotate-180" : "",
                         )}
                         aria-hidden
                       />
                     </DropdownMenuItem>
-                    {isMarkAsSectionOpen
+                    {isLinkToTaskSectionOpen
                       ? taskPickerOptions.map((option) => (
                           <DropdownMenuItem
                             key={option.id}
@@ -357,7 +357,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
                           className="size-4 text-muted-foreground"
                           aria-hidden
                         />
-                        {tDetailActions("markAs")}
+                        {tDetailActions("linkToTask")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-56">
                         {taskPickerOptions.map((option) => (

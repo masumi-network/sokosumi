@@ -7,8 +7,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 
-const HAPPY_DOM_SUBMITTER_ERROR =
-  "DOMException [NotFoundError]: The specified element is not owned by this form element";
+async function submitCommentWithHappyDomError() {
+  const errorCalls = expectConsole("error", "");
+  await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+  expect(errorCalls[0]?.[0]).toBeInstanceOf(DOMException);
+  expect(errorCalls[0]?.[0]).toMatchObject({
+    name: "NotFoundError",
+    message: "The specified element is not owned by this form element",
+  });
+}
 
 const {
   uploadTaskAttachmentMock,
@@ -651,6 +658,27 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("from Email")).toBeInTheDocument();
     expect(screen.getByLabelText("from Sokosumi")).toBeInTheDocument();
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
+  });
+
+  it("names no origin when the app is unknown", () => {
+    const events: TaskEvent[] = [
+      createEvent("created-unknown", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: TaskEventStatus.CREATED,
+        channel: Channel.UNKNOWN,
+      }),
+      createEvent("status-unknown", {
+        createdAt: "2026-01-01T10:00:00.001Z",
+        status: TaskStatus.READY,
+        channel: Channel.UNKNOWN,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("created the task")).toBeInTheDocument();
+    expect(screen.queryByText("from Unknown")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("from Unknown")).not.toBeInTheDocument();
   });
 
   it("uses created copy for CREATED events instead of a status update", () => {
@@ -1331,14 +1359,13 @@ describe("TaskActivitySection", () => {
       // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
       // so React's new FormData(form, submitter) throws.
       // https://github.com/capricorn86/happy-dom/issues/2438
-      expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
       createTaskCommentMock.mockResolvedValue(undefined);
       render(<TaskActivitySection {...baseProps} mentionableUsers={members} />);
 
       act(() => {
         editorProps.current?.onChange("joining @user-1:user");
       });
-      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      await submitCommentWithHappyDomError();
 
       await waitFor(() => {
         expect(createTaskCommentMock).toHaveBeenCalledWith({
@@ -1353,7 +1380,6 @@ describe("TaskActivitySection", () => {
       // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
       // so React's new FormData(form, submitter) throws.
       // https://github.com/capricorn86/happy-dom/issues/2438
-      expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
       createTaskCommentMock.mockResolvedValue(undefined);
       render(
         <TaskActivitySection
@@ -1368,7 +1394,7 @@ describe("TaskActivitySection", () => {
           "Thanks @user-2:ada and @agent-1:writer, again @user-2:ada",
         );
       });
-      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      await submitCommentWithHappyDomError();
 
       await waitFor(() => {
         expect(createTaskCommentMock).toHaveBeenCalledWith({
@@ -1383,7 +1409,6 @@ describe("TaskActivitySection", () => {
       // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
       // so React's new FormData(form, submitter) throws.
       // https://github.com/capricorn86/happy-dom/issues/2438
-      expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
       createTaskCommentMock.mockResolvedValue(undefined);
       render(
         <TaskActivitySection
@@ -1396,7 +1421,7 @@ describe("TaskActivitySection", () => {
       act(() => {
         editorProps.current?.onChange("Thanks @user-2:ada");
       });
-      await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+      await submitCommentWithHappyDomError();
 
       await waitFor(() => {
         expect(createTaskCommentMock).toHaveBeenCalledWith({
@@ -1735,7 +1760,6 @@ describe("TaskActivitySection", () => {
     // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
     // so React's new FormData(form, submitter) throws.
     // https://github.com/capricorn86/happy-dom/issues/2438
-    expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
     highlightListMessageMock.mockReturnValue(true);
     const sent = Promise.withResolvers<void>();
     createTaskCommentMock.mockReturnValue(sent.promise);
@@ -1745,7 +1769,7 @@ describe("TaskActivitySection", () => {
     act(() => {
       editorProps.current?.onChange("Brand new");
     });
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await submitCommentWithHappyDomError();
 
     await waitFor(() => {
       expect(screen.getByText("Brand new")).toBeInTheDocument();
@@ -1766,14 +1790,13 @@ describe("TaskActivitySection", () => {
     // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
     // so React's new FormData(form, submitter) throws.
     // https://github.com/capricorn86/happy-dom/issues/2438
-    expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
     createTaskCommentMock.mockRejectedValue(new Error("offline"));
     const { container } = render(<TaskActivitySection {...baseProps} />);
 
     act(() => {
       editorProps.current?.onChange("Keep me");
     });
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await submitCommentWithHappyDomError();
 
     await waitFor(() => {
       expect(createTaskCommentMock).toHaveBeenCalled();
@@ -1788,7 +1811,6 @@ describe("TaskActivitySection", () => {
     // happy-dom bug: requestSubmit() sets event.submitter to the form, not null,
     // so React's new FormData(form, submitter) throws.
     // https://github.com/capricorn86/happy-dom/issues/2438
-    expectConsole("error", HAPPY_DOM_SUBMITTER_ERROR);
     let rejectSend!: (error: Error) => void;
     createTaskCommentMock.mockImplementation(
       () =>
@@ -1801,7 +1823,7 @@ describe("TaskActivitySection", () => {
     act(() => {
       editorProps.current?.onChange("Original");
     });
-    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await submitCommentWithHappyDomError();
 
     await waitFor(() => {
       expect(createTaskCommentMock).toHaveBeenCalled();

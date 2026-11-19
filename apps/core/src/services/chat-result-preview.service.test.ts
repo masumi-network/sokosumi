@@ -213,6 +213,24 @@ describe("authorized chat results", () => {
       ],
     );
   });
+  it("summarizes an SEO Task without its machine request line", async () => {
+    readTask.mockResolvedValue({
+      id: "task-1",
+      name: "SEO audit full",
+      status: "READY",
+      description:
+        'Full SEO audit of 1 selected page:\n\nseo_audit: {"version":1}',
+      number: 12,
+      schedule: null,
+      events: [],
+    });
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "task", id: "task-1" },
+      actor,
+    });
+    expect(snapshot.data.summary).toBe("Full SEO audit of 1 selected page:");
+  });
+
   it("shows tags added after the turn while keeping the reported status", async () => {
     const snapshot = await resolveChatResultReference({
       reference: { kind: "task", id: "task-1" },

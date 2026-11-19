@@ -54,7 +54,7 @@ export async function listChats(
 export async function ownerDirectRooms(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
-  scope: Prisma.ChatRoomWhereInput,
+  scope: { organizationId: string | null },
 ) {
   const rooms = await prisma.chatRoom.findMany({
     where: ownerDirectWhere(authorized, scope),
@@ -77,7 +77,7 @@ export async function ownerDirectRooms(
 export async function ownerUnreadRooms(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
-  scope: Prisma.ChatRoomWhereInput,
+  scope: { organizationId: string | null },
 ) {
   const ownerId = authorized.turn.actingUserId;
   // A turn that acts for nobody has no owner whose unread chats to count.
@@ -142,7 +142,7 @@ export async function chatRoomScope(
   authorized: AuthorizedSokoBotRuntime,
   sokoBotId: string,
   client: Prisma.TransactionClient = prisma,
-): Promise<Prisma.ChatRoomWhereInput> {
+) {
   const workspace = await client.workspace.findUnique({
     where: { id: authorized.turn.workspaceId },
     select: { organizationId: true },

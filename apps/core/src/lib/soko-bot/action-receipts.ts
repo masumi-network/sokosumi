@@ -10,6 +10,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "hire_agent",
   "provide_job_input",
   "run_integration_tool",
+  "run_mcp_tool",
   "upload_file",
   "publish_social_post",
   // Creates a campaign at Google; never repeated after an unclear failure.
@@ -218,8 +219,12 @@ export async function commitActionReceipt(
       verification: "LOCAL_TRANSACTION",
       actorBotId: input.actorBotId,
       targetId: input.targetId,
-      effectEventId: input.effectEventId,
-      observedVersion: input.observedVersion,
+      ...(input.effectEventId !== undefined && {
+        effectEventId: input.effectEventId,
+      }),
+      ...(input.observedVersion !== undefined && {
+        observedVersion: input.observedVersion,
+      }),
       committedAt: new Date(),
       result: input.result,
     },
@@ -253,7 +258,9 @@ export async function commitActionReceipt(
       await tx.sokoBotIntent.update({
         where: {
           id: turn.intentId,
-          revision: turn.intentRevision ?? undefined,
+          ...(turn.intentRevision !== null && {
+            revision: turn.intentRevision,
+          }),
         },
         data: { targetIds: [...targets, input.targetId] },
       });

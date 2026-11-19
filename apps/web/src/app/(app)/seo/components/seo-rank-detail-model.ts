@@ -108,6 +108,17 @@ export function seoRankDetail(
   };
 }
 
+/** Results read are shown in steps of this many: "top 15", not "top 18". */
+const TOP_STEP = 5;
+
+/**
+ * The results read, rounded down to a step of five from ten up: a page not in the top 18 is not in the top 15
+ * either, so the rounded claim stays true. Rounding up would claim results nobody read.
+ */
+export function seoRankShownTop(top: number) {
+  return top < 2 * TOP_STEP ? top : Math.floor(top / TOP_STEP) * TOP_STEP;
+}
+
 /** The other keywords outside the results read, and the fewest results read among them: none is in that top. */
 export function seoRankAbsentOthers(others: readonly SeoRankKeyword[]) {
   const tops = others.flatMap((other) =>

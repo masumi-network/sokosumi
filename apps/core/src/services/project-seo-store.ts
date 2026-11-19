@@ -87,6 +87,7 @@ export async function requireSeoOwner(
         id: actor.owner.id,
         workspaceId: actor.workspaceId,
         deletedAt: null,
+        archivedAt: null,
       },
       select: { id: true, projectId: true, name: true },
     });
@@ -131,7 +132,7 @@ export async function requireLockedSeoOwner(
   client: Prisma.TransactionClient,
   actor: SeoActor,
   requireOpen = true,
-): Promise<void> {
+) {
   const projectIds = actor.owner.kind === "project" ? [actor.owner.id] : [];
   if (
     !(await lockCalendarScope(
@@ -148,6 +149,7 @@ export async function requireLockedSeoOwner(
         id: actor.owner.id,
         workspaceId: actor.workspaceId,
         deletedAt: null,
+        archivedAt: null,
       },
       select: { projectId: true },
     });
@@ -159,12 +161,12 @@ export async function requireLockedSeoOwner(
       throw notFound("Linked Project not found");
     const rows = await client.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM "seo_audit"
-      WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid AND "deletedAt" IS NULL
+      WHERE id = ${actor.owner.id}::uuid AND "workspaceId" = ${actor.workspaceId}::uuid AND "deletedAt" IS NULL AND "archivedAt" IS NULL
       FOR UPDATE
     `;
     if (!rows.length) throw notFound("SEO audit not found");
   }
-  await requireSeoOwner(actor, client, requireOpen);
+  return requireSeoOwner(actor, client, requireOpen);
 }
 export async function canReadPrivateSeoMetrics(
   actor: SeoActor,

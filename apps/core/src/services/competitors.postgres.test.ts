@@ -617,6 +617,7 @@ describe.skipIf(!enabled)("weekly competitor check (PostgreSQL)", () => {
           {
             n: 0,
             isNews: true,
+            event: "launch",
             story: "ai notetaker",
             summary: "Calendly launched an AI notetaker",
           },

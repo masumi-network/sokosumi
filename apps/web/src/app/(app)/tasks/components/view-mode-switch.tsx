@@ -1,13 +1,20 @@
 "use client";
 
 import {
+  Check,
   Columns3,
+  Ellipsis,
   LayoutGrid,
   List,
   Rows3,
-  SlidersHorizontal,
 } from "lucide-react";
-import { useCallback } from "react";
+import { RadioGroup } from "radix-ui";
+import { useCallback, useId } from "react";
+import {
+  parseTasksSort,
+  TASKS_SORT_VALUES,
+  type TasksSort,
+} from "@/app/tasks/utils/task-sort";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -19,20 +26,30 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import useIsClient from "@/hooks/use-is-client";
 import type { TasksDensity } from "@/lib/ui-preferences/tasks-density";
 
+/** One group of the menu: a rule above it and room around it. */
+const VIEW_MENU_SECTION_CLASS = "space-y-2.5 border-t pt-4";
+
 export interface ViewModeSwitchProps {
   value: "board" | "list";
   onChange: (value: "board" | "list") => void;
   density: TasksDensity;
   onDensityChange: (value: TasksDensity) => void;
   labels: {
+    /** The trigger's name: it opens layout, density and view actions. */
     button: string;
+    layout: string;
     list: string;
     board: string;
     density: string;
     normal: string;
     compact: string;
+    sortBy: string;
+    sortOptions: Record<TasksSort, string>;
   };
-  /** Rows under the display options, for where else the Tasks can be seen. */
+  /** The order in effect, the layout's default until the reader picks one. */
+  sort: TasksSort;
+  onSortChange: (value: TasksSort) => void;
+  /** Rows under the display options: view actions and where else the Tasks can be seen. */
   children?: React.ReactNode;
 }
 
@@ -42,9 +59,12 @@ export function ViewModeSwitch({
   density,
   onDensityChange,
   labels,
+  sort,
+  onSortChange,
   children,
 }: ViewModeSwitchProps) {
   const isClient = useIsClient();
+  const sortLabelId = useId();
   const handleChange = useCallback(
     (next: string) => {
       if (next === "board" || next === "list") {
@@ -73,13 +93,13 @@ export function ViewModeSwitch({
           aria-label={labels.button}
           title={labels.button}
         >
-          <SlidersHorizontal className="size-4" aria-hidden />
+          <Ellipsis className="size-4" aria-hidden />
         </Button>
       </PopoverTrigger>
       {isClient ? (
-        <PopoverContent align="end" className="w-56 space-y-3">
-          <div className="space-y-3">
-            <p className="text-sm font-medium">{labels.button}</p>
+        <PopoverContent align="end" className="w-60 space-y-4 p-4">
+          <div className="space-y-2.5">
+            <p className="text-sm font-medium">{labels.layout}</p>
             <ToggleGroup
               type="single"
               value={value}
@@ -113,7 +133,7 @@ export function ViewModeSwitch({
             </ToggleGroup>
           </div>
 
-          <div className="space-y-3 pt-3 border-t">
+          <div className={VIEW_MENU_SECTION_CLASS}>
             <p className="text-sm font-medium">{labels.density}</p>
             <ToggleGroup
               type="single"
@@ -147,7 +167,39 @@ export function ViewModeSwitch({
               </PopoverClose>
             </ToggleGroup>
           </div>
-          {children ? <div className="border-t pt-3">{children}</div> : null}
+          <div className={VIEW_MENU_SECTION_CLASS}>
+            <p id={sortLabelId} className="text-sm font-medium">
+              {labels.sortBy}
+            </p>
+            {/* Every order in view: one click, no second dropdown. The Radix
+                primitive, not ui/radio-group, because each option is a
+                full-width row with a check, not a circle beside a label. */}
+            <RadioGroup.Root
+              value={sort}
+              onValueChange={(next) => {
+                const parsed = parseTasksSort(next);
+                if (parsed) onSortChange(parsed);
+              }}
+              aria-labelledby={sortLabelId}
+              className="space-y-0.5"
+            >
+              {TASKS_SORT_VALUES.map((option) => (
+                <RadioGroup.Item
+                  key={option}
+                  value={option}
+                  className="hover:bg-accent focus-visible:ring-ring data-[state=checked]:bg-accent flex h-8 w-full items-center justify-between rounded-md px-2 text-sm outline-none focus-visible:ring-2"
+                >
+                  {labels.sortOptions[option]}
+                  <RadioGroup.Indicator>
+                    <Check className="size-4" aria-hidden />
+                  </RadioGroup.Indicator>
+                </RadioGroup.Item>
+              ))}
+            </RadioGroup.Root>
+          </div>
+          {children ? (
+            <div className="space-y-1 border-t pt-3">{children}</div>
+          ) : null}
         </PopoverContent>
       ) : null}
     </Popover>

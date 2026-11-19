@@ -17,6 +17,18 @@ private func decode(_ row: String) async throws -> Components.Schemas.ChatRoomMe
 }
 
 struct SokoBotTurnMetadataTests {
+  @Test(arguments: [
+    ("ai_budget_exceeded", SokoBotBackgroundFailureKind.budget),
+    ("turn_deadline_exceeded", .deadline),
+    ("different_provider_error", .unknown)
+  ])
+  func readsTheBackgroundRunTitleAndFailureKind(rawKind: String, kind: SokoBotBackgroundFailureKind) async throws {
+    let metadata = #"{"soko_bot":{"turn_id":"turn_1","background_run_title":"Review","background_failure_kind":"\#(rawKind)"}}"#
+    let turn = try await SokoBotTurnMetadata(message: decode(botRow(metadata: metadata)))
+    #expect(turn?.backgroundTitle == "Review")
+    #expect(turn?.backgroundFailure == kind)
+  }
+
   @Test func readsTheTurnApprovalsAndTasks() async throws {
     let metadata = #"{"soko_bot":{"turn_id":"turn_1","pending_decision_ids":["dec_1","dec_2",7,null],"task_ids":["task_1"],"source":"SCHEDULE"},"reasoning":[]}"#
     let turn = try await SokoBotTurnMetadata(message: decode(botRow(metadata: metadata)))

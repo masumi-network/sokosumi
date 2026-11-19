@@ -37,7 +37,7 @@ const STOP_BUTTON_CLASS =
 /**
  * The checks of the site over the tabs, in a card of their own: the run on its title line, and a timeline of one
  * stop per day with its result, oldest on the left and the newest on the right, then a check in flight and the next
- * scheduled check. A press on a day shows the page as it was on that day. "Other dates" beside the title opens a
+ * scheduled check. A press on a day shows the page as it was on that day. "Other dates" below the timeline opens a
  * calendar of the days with a check: both choose the time the page shows. It stands on every tab, so the days stand
  * at the same place on each.
  */
@@ -81,7 +81,7 @@ export function SeoRuns({
   );
   const stopOf = (day: string) =>
     stopsByDay.get(day) ?? { after: null, newest: false, nodes: [] };
-  // The button the details came from: the stop of the card, which is gone when the dialog closes, or the title line.
+  // The button the details came from: the stop of the card, which is gone when the dialog closes, or the footer button.
   const returnTo = useRef<HTMLElement | null>(null);
   const progress = seoRunProgress(model.data, now);
   // The way back unmounts with its line: focus moves to the newest entry.
@@ -123,10 +123,10 @@ export function SeoRuns({
   // A refetch can take the open stop off the row: the dialog closes with it.
   const details = detailsDay ? stopsByDay.get(detailsDay) : undefined;
   if (detailsOpen && !details) setDetailsOpen(false);
-  // The stop whose details the title line opens: the day in view, or every event of a range.
-  const titleStop =
+  // The stop whose details the footer opens: the day in view, or every event of a range.
+  const detailsStop =
     !shown || model.invalidDates ? undefined : ranged ? WHOLE : inView?.day;
-  const titleStopHas = titleStop ? stopOf(titleStop).nodes.length > 0 : false;
+  const hasDetails = detailsStop ? stopOf(detailsStop).nodes.length > 0 : false;
   // An invalid date in the address names no range: the line gives the way back alone.
   const rangeText =
     !ranged || model.invalidDates
@@ -154,82 +154,26 @@ export function SeoRuns({
   );
   return (
     // The run stays on the title line on a phone too, so the card is short and the first step of the tab shows on
-    // the first screen (owner, after pass 59). The date control is its icon alone there, so the run fits beside the
-    // title. The title keeps its own width: where a long run label leaves it no room (German, Spanish), the run wraps
+    // the first screen (owner, after pass 59). The footer has room for the full calendar label on phones.
+    // The title keeps its own width: where a long run label leaves it no room (German, Spanish), the run wraps
     // to a row of its own.
     <section className={cn(HOLDER_CLASS, "flex flex-wrap items-center gap-2")}>
+      {/* Under the audit name, the h2 of the page. */}
+      <h3 id={titleId} className="px-2 py-1.5 text-sm font-semibold">
+        {t("runs.label")}
+      </h3>
+      {runButton ? <div className="ms-auto">{runButton}</div> : null}
       {/* The date controls form one group, the run apart from it; the group adds no box of its own. */}
       <div
         role={shown ? "group" : undefined}
         aria-labelledby={shown ? titleId : undefined}
         className="contents"
       >
-        {/* Centred, not on the baseline: the date control is an icon and a word, so a baseline sets it low. */}
-        <div className="order-1 flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1.5 max-sm:min-w-fit sm:flex-initial">
-          {/* Under the audit name, the h2 of the page. */}
-          <h3 id={titleId} className="text-sm font-semibold">
-            {t("runs.label")}
-          </h3>
-          {shown ? (
-            // A quiet control beside the title, not a stop of the line: a stop in the line read as a third check.
-            <SeoRunCalendar
-              model={model}
-              checkDays={checkDays}
-              shownDay={model.invalidDates || from ? undefined : inView?.day}
-            >
-              <button
-                type="button"
-                data-active={ranged}
-                className="text-muted-foreground hover:text-foreground data-[state=open]:text-foreground data-[active=true]:text-foreground focus-visible:ring-ring hit-area inline-flex items-center gap-1 rounded-sm text-xs transition-colors outline-none focus-visible:ring-2"
-              >
-                <CalendarRange aria-hidden className="size-3.5" />
-                <span className="max-sm:sr-only">{t("runs.dates")}</span>
-              </button>
-            </SeoRunCalendar>
-          ) : null}
-          {/* The details of the day in view: the way to them for the keyboard and on a touch screen, where a stop
-              opens no card. */}
-          {titleStop && titleStopHas ? (
-            <button
-              type="button"
-              aria-label={
-                titleStop !== WHOLE && inView
-                  ? t("runs.detailsOf", { day: dayOf(inView.at) })
-                  : undefined
-              }
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area rounded-sm text-xs underline underline-offset-4 transition-colors outline-none focus-visible:ring-2"
-              onClick={(event) => {
-                returnTo.current = event.currentTarget;
-                openDetails(titleStop);
-              }}
-            >
-              {t("runs.details")}
-            </button>
-          ) : null}
-        </div>
-        {/* Beside the date controls: an earlier check or a range in view says so, with the way back, and fades in.
-            On a phone it is the last row of the card, so a picked stop does not move under the finger. */}
-        {shown ? (
-          <p className="text-muted-foreground order-1 min-w-0 flex-1 px-2 text-xs empty:hidden max-sm:order-5 max-sm:basis-full sm:-ms-1">
-            {model.invalidDates ? (
-              // The tab says why it is empty; the line gives the way back.
-              latest
-            ) : picked && inView ? (
-              <span className="content-in">
-                {t("runs.earlier", { day: dayOf(inView.at) })} {latest}
-              </span>
-            ) : ranged ? (
-              <span className="content-in">
-                {rangeText} {latest}
-              </span>
-            ) : null}
-          </p>
-        ) : null}
         {shown ? (
           <div
             // A fill without an outline: the checks card around it is the one frame. More room over the dots than
             // under the dates, so the line does not sit on the top edge.
-            className="bg-background order-3 basis-full rounded-lg px-2 pt-5 pb-3 max-sm:pt-2 max-sm:pb-1"
+            className="bg-background basis-full rounded-lg px-2 pt-5 pb-3 max-sm:pt-2 max-sm:pb-1"
           >
             <ol
               ref={line}
@@ -398,8 +342,64 @@ export function SeoRuns({
             </ol>
           </div>
         ) : null}
+        {/* An earlier check or a range in view says so, with the way back, and fades in.
+            It follows the timeline at every width, so a picked stop does not move under the finger. */}
+        {shown ? (
+          <p className="text-muted-foreground flex min-h-10 basis-full items-center px-2 text-xs empty:hidden md:min-h-8">
+            {model.invalidDates ? (
+              // The tab says why it is empty; the line gives the way back.
+              latest
+            ) : picked && inView ? (
+              <span className="content-in">
+                {t("runs.earlier", { day: dayOf(inView.at) })} {latest}
+              </span>
+            ) : ranged ? (
+              <span className="content-in">
+                {rangeText} {latest}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
+        {shown ? (
+          <footer className="flex min-h-8 basis-full flex-wrap items-center gap-2 px-2">
+            {/* A quiet control below the line: a stop in the line read as a third check. Centre the icon and label
+                together because baseline alignment sets the calendar low. */}
+            <SeoRunCalendar
+              model={model}
+              checkDays={checkDays}
+              shownDay={model.invalidDates || from ? undefined : inView?.day}
+            >
+              <button
+                type="button"
+                data-active={ranged}
+                className="text-muted-foreground hover:text-foreground data-[state=open]:text-foreground data-[active=true]:text-foreground focus-visible:ring-ring hit-area inline-flex items-center gap-1 rounded-sm text-xs transition-colors outline-none focus-visible:ring-2"
+              >
+                <CalendarRange aria-hidden className="size-3.5" />
+                {t("runs.dates")}
+              </button>
+            </SeoRunCalendar>
+            {/* The details of the day in view: the way to them for the keyboard and on a touch screen, where a stop
+              opens no card. */}
+            {detailsStop && hasDetails ? (
+              <button
+                type="button"
+                aria-label={
+                  detailsStop !== WHOLE && inView
+                    ? t("runs.detailsOf", { day: dayOf(inView.at) })
+                    : undefined
+                }
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area ms-auto rounded-sm text-xs underline underline-offset-4 transition-colors outline-none focus-visible:ring-2"
+                onClick={(event) => {
+                  returnTo.current = event.currentTarget;
+                  openDetails(detailsStop);
+                }}
+              >
+                {t("runs.details")}
+              </button>
+            ) : null}
+          </footer>
+        ) : null}
       </div>
-      {runButton ? <div className="order-2 ms-auto">{runButton}</div> : null}
       <SeoRunDayDialog
         workspace={model.data}
         open={detailsOpen}

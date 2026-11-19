@@ -1,13 +1,17 @@
-import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
 import type { TaskWorkerContext } from "@/schemas/task-worker-context.schema";
-import { seoOwnerWhere, sha256 } from "./project-seo-store";
+import { sha256 } from "./project-seo-store";
 import { seoAuditInspectionPages } from "./seo-audit-related-pages";
-import { resolveSeoStatisticsIntegration } from "./seo-connections.service";
+import {
+  connectionVersion,
+  latestSeoSearchConsoleProperty,
+  lockSeoSearchConsoleIntegration,
+} from "./seo-connections.service";
 import { requireSeoTaskAuditContext } from "./seo-task-audit-context";
 
 /** The worker may attach evidence only to an originally approved full-audit seed. */
@@ -47,47 +51,23 @@ export async function requireSeoTaskIndexingContext(
     pageUrls,
   );
 
-  // These no-op writes serialize disconnect/replacement and inherited account revocation with the final save.
-  await tx.$executeRaw`
-    UPDATE "seo_connection" SET "updatedAt" = "updatedAt"
-    WHERE "workspaceId" = ${actor.workspaceId}::uuid AND "userId" = ${actor.userId} AND provider = 'search_console'
-  `;
-  let integration = await resolveSeoStatisticsIntegration(
-    actor,
-    "search_console",
-    tx,
+  const { searchConsoleAccess } = storedSeoAuditSearchConsoleSchema.parse(
+    analysis.request,
   );
-  if (integration?.connectionRevision.startsWith("personal:")) {
-    await tx.$executeRaw`
-      UPDATE "soko_bot_integration" SET "updatedAt" = "updatedAt"
-      WHERE "composioAccountId" = ${integration.composioAccountId}
-    `;
-    await tx.$executeRaw`
-      UPDATE "soko_bot" SET "updatedAt" = "updatedAt" WHERE id IN (
-        SELECT "sokoBotId" FROM "soko_bot_integration" WHERE "composioAccountId" = ${integration.composioAccountId}
-      )
-    `;
-    integration = await resolveSeoStatisticsIntegration(
-      actor,
-      "search_console",
-      tx,
-    );
-  }
-  const latest = await tx.projectSeoObservation.findFirst({
-    where: {
-      ...seoOwnerWhere(actor),
-      ownerId: actor.userId,
-      kind: "metrics",
-      source: "search_console",
-      pageIds: { hasEvery: analysis.pageIds },
-    },
-    orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-    select: { payload: true },
-  });
-  const selection = z
-    .object({ propertyId: z.string().min(1).max(500) })
-    .safeParse(latest?.payload);
-  const selectedProperty = selection.success ? selection.data.propertyId : null;
+  const current =
+    searchConsoleAccess === null
+      ? null
+      : await lockSeoSearchConsoleIntegration(actor, tx);
+  const integration =
+    current &&
+    searchConsoleAccess &&
+    connectionVersion(current) !== searchConsoleAccess.connectionVersion
+      ? null
+      : current;
+  const selectedProperty =
+    searchConsoleAccess === undefined
+      ? await latestSeoSearchConsoleProperty(actor, analysis.pageIds, tx)
+      : (searchConsoleAccess?.propertyId ?? null);
   const contextFingerprint = sha256(
     JSON.stringify({
       taskId,
@@ -118,6 +98,7 @@ export async function requireSeoTaskIndexingContext(
     inspectionPageUrls,
     integration,
     selectedProperty,
+    searchConsoleAccess,
     contextFingerprint,
   };
 }

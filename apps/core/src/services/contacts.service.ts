@@ -367,8 +367,8 @@ interface ContactFieldData {
   nextStep?: string | null;
   followUpAt?: Date | null;
   avatarUrl?: string | null;
-  stage?: z.infer<typeof contactFieldsSchema>["stage"];
-  kind?: z.infer<typeof contactFieldsSchema>["kind"];
+  stage?: NonNullable<FieldsInput["stage"]>;
+  kind?: NonNullable<FieldsInput["kind"]>;
   customFields?: Prisma.InputJsonObject;
 }
 
@@ -979,7 +979,9 @@ async function refreshDerivedFields(tx: Tx, contactId: string) {
     where: { id: contactId },
     data: {
       // With no interaction left, the contact keeps the time it was added.
-      firstContactAt: aggregate._min.occurredAt ?? undefined,
+      ...(aggregate._min.occurredAt
+        ? { firstContactAt: aggregate._min.occurredAt }
+        : {}),
       lastContactAt: aggregate._max.occurredAt,
       interactionCount: aggregate._count._all,
       lastInboundAt,
@@ -2301,7 +2303,7 @@ export async function applyContactClassification(
   changes: {
     kind?: "PERSON" | "ORGANIZATION";
     name?: string;
-    stage?: z.infer<typeof contactFieldsSchema>["stage"];
+    stage?: NonNullable<ContactFieldData["stage"]>;
   },
   provenance: { method: string },
 ): Promise<string[]> {

@@ -5,8 +5,6 @@ import mountGetChatImportant from "./important/get.js";
 import mountPutChatSignalCorrection from "./messages/[messageId]/corrections/put.js";
 import mountPutChatSignalLoop from "./messages/[messageId]/loop/put.js";
 import mountGetChatSignalRouting from "./messages/[messageId]/routing/get.js";
-import mountGetChatNeedsYou from "./needs-you/get.js";
-import mountGetChatOpenLoops from "./open-loops/get.js";
 import mountGetChatRoomCatchUp from "./rooms/[id]/catch-up/get.js";
 import mountGetChatRoomDecisions from "./rooms/[id]/decisions/get.js";
 import mountGetChatCatchUpSummary from "./summary/get.js";
@@ -15,9 +13,7 @@ import mountGetChatCatchUpSummary from "./summary/get.js";
 const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
 
 mountGetChatDecisions(app);
-mountGetChatNeedsYou(app);
 mountGetChatImportant(app);
-mountGetChatOpenLoops(app);
 mountGetChatCatchUpSummary(app);
 mountGetChatRoomCatchUp(app);
 mountGetChatRoomDecisions(app);

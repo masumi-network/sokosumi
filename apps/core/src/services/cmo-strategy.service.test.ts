@@ -1,3 +1,4 @@
+import type { MarketingStrategyPlan } from "@sokosumi/soko-bot";
 import {
   afterEach,
   beforeEach,
@@ -117,6 +118,7 @@ import {
   startCmoPlanAfterResearch,
   startNextCmoChange,
   withoutDashes,
+  withoutUnaskedAds,
 } from "./cmo-strategy.service";
 
 beforeEach(resetCmoServiceMocks);
@@ -990,6 +992,9 @@ describe("saving versions", () => {
           }),
         }),
       });
+      const planning = postUpdate.mock.lastCall?.[0]?.data.planning;
+      expect(planning?.videoOf).toBe("tv");
+      expect(planning).not.toHaveProperty("alsoOn");
     });
 
     it.each([
@@ -1086,6 +1091,7 @@ describe("saving versions", () => {
       { turnId: "turn-1", now: new Date("2026-10-01T12:00:00Z") },
     );
     expect(plan(saved).summary).toBe("A sharper headline.");
+    expect(saved.plan).toStrictEqual(JSON.parse(JSON.stringify(saved.plan)));
     expect(plan(saved).goals).toEqual(strategy.goals);
     expect(plan(saved).calendar.map((entry) => entry.id)).toEqual(
       strategy.calendar.map((entry) => entry.id),
@@ -2328,5 +2334,77 @@ describe("changes after the plan", () => {
     expect(startTurn.mock.lastCall?.[0].clientTurnId).toMatch(
       new RegExp(`:fix:\\d+:${Date.parse(later)}$`),
     );
+  });
+});
+
+describe("withoutUnaskedAds", () => {
+  const plan = {
+    channels: [
+      { channel: "linkedin", cadence: "3 a week" },
+      { channel: "Google_Ads", cadence: "2 ads this month" },
+    ],
+    calendar: [
+      {
+        id: "p1",
+        date: "2026-11-20",
+        channel: "linkedin",
+        format: "post",
+        title: "A post",
+        status: "idea",
+      },
+      {
+        id: "ad1",
+        date: "2026-11-21",
+        channel: "google_ads",
+        format: "search_ad",
+        title: "An ad",
+        status: "idea",
+      },
+    ],
+    funnel: [
+      {
+        stage: "awareness",
+        goal: "g",
+        metric: "Visits",
+        channels: ["linkedin", "google_ads"],
+        plays: [
+          { channel: "linkedin", what: "Posts" },
+          { channel: "google_ads", what: "Search ads" },
+        ],
+      },
+    ],
+    ads: {
+      monthly: 600,
+      currency: "USD",
+      expect: "Clicks",
+      without: "Posts",
+      setByOwner: false,
+    },
+  } as unknown as MarketingStrategyPlan;
+
+  it("takes ads Cuso planned himself out, and keeps his amount as a suggestion", () => {
+    const kept = withoutUnaskedAds(plan);
+    expect(kept.channels.map((channel) => channel.channel)).toEqual([
+      "linkedin",
+    ]);
+    expect(kept.calendar.find((entry) => entry.id === "ad1")?.status).toBe(
+      "skipped",
+    );
+    expect(kept.funnel[0]?.plays.map((play) => play.channel)).toEqual([
+      "linkedin",
+    ]);
+    expect(kept.funnel[0]?.channels).toEqual(["linkedin"]);
+    expect(kept.ads).toMatchObject({
+      monthly: 0,
+      suggest: { channel: "google_ads", monthly: 600 },
+    });
+  });
+
+  it("keeps the ads once the owner said yes and set an amount", () => {
+    const yes = {
+      ...plan,
+      ads: { ...plan.ads, setByOwner: true },
+    } as MarketingStrategyPlan;
+    expect(withoutUnaskedAds(yes)).toBe(yes);
   });
 });

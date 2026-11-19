@@ -22,6 +22,26 @@ import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
+import { readLegacyBackgroundFailure } from "@/lib/soko-bot/background-failure";
+
+const previewMessageSelect = {
+  content: true,
+  deletedAt: true,
+  metadata: true,
+  senderSokoBotId: true,
+} satisfies Prisma.ChatRoomMessageSelect;
+
+function previewMessageContent(
+  message: Prisma.ChatRoomMessageGetPayload<{
+    select: typeof previewMessageSelect;
+  }> | null,
+): string {
+  if (message === null || message.deletedAt !== null) return "";
+  const legacyFailure = message.senderSokoBotId
+    ? readLegacyBackgroundFailure(message.content, message.metadata)
+    : null;
+  return legacyFailure?.content ?? message.content;
+}
 
 export interface FanOutChatNotificationsParams {
   throwOnError?: boolean;
@@ -352,10 +372,9 @@ export async function fanOutChatNotifications(
   // those rows, so it is the one that has to look again.
   const current = await prisma.chatRoomMessage.findUnique({
     where: { id: params.messageId },
-    select: { content: true, deletedAt: true },
+    select: previewMessageSelect,
   });
-  const saysNow =
-    current === null || current.deletedAt !== null ? "" : current.content;
+  const saysNow = previewMessageContent(current);
 
   if (saysNow === params.content) {
     return;
@@ -508,10 +527,9 @@ async function rewriteRowFromMessage(
         `;
         const message = await tx.chatRoomMessage.findUnique({
           where: { id: source.messageId, roomId: source.roomId },
-          select: { content: true, deletedAt: true },
+          select: previewMessageSelect,
         });
-        const content =
-          message === null || message.deletedAt !== null ? "" : message.content;
+        const content = previewMessageContent(message);
         // Remove ambiguous edited text. Once removed, this row stays without
         // a preview, following the same rule as every other rewrite.
         const preview = buildNamedChatMessagePreview(

@@ -1,6 +1,54 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Background run \"%@\" failed before it could report." : {
+      "comment" : "Heading for a failed background run. %@ is the name of the run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background run \"%@\" failed before it could report."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Hintergrundlauf „%@“ ist fehlgeschlagen, bevor er berichten konnte."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La ejecución en segundo plano «%@» falló antes de poder informar."
+          }
+        }
+      }
+    },
+    "Background run \"%@\" ran out of time before it could report." : {
+      "comment" : "Shown when a background run reached its deadline. %@ is the name of the run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background run \"%@\" ran out of time before it could report."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Zeit für den Hintergrundlauf „%@“ ist abgelaufen, bevor er berichten konnte."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La ejecución en segundo plano «%@» se quedó sin tiempo para informar."
+          }
+        }
+      }
+    },
     "Daily stand-up" : {
       "comment" : "Above a message the Soko Bot sent from its daily stand-up schedule.",
       "extractionState" : "manual",
@@ -93,6 +141,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Actualización de tarea"
+          }
+        }
+      }
+    },
+    "Something went wrong on our side. Try again. If it keeps happening, contact support." : {
+      "comment" : "Below a failed assistant reply or background run with an unclassified error.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something went wrong on our side. Try again. If it keeps happening, contact support."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bei uns ist etwas schiefgelaufen. Versuch es erneut. Wenn das Problem weiterhin auftritt, wende dich an den Support."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Algo salió mal de nuestro lado. Inténtalo de nuevo. Si el problema persiste, contacta con el equipo de soporte."
+          }
+        }
+      }
+    },
+    "The reply stopped before it finished." : {
+      "comment" : "Below a cancelled assistant reply.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The reply stopped before it finished."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Antwort brach ab, bevor sie fertig war."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La respuesta se detuvo antes de terminar."
+          }
+        }
+      }
+    },
+    "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets." : {
+      "comment" : "Below a failed assistant reply when the assistant has hit its usage limit.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu asistente ha alcanzado su límite de uso. Podrá volver a responder cuando se aumente o se restablezca el límite."
           }
         }
       }

@@ -9,6 +9,7 @@ import type {
   ProjectCloseStatus,
   ProjectContextMd,
   ProjectSocialConnection,
+  SocialAccountChoices,
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
@@ -97,6 +98,8 @@ interface InitiateProjectSocialConnectionParameters
   callbackUrl?: string;
   provider?: ProjectSocialConnection["provider"];
   socialConnectionId?: string;
+  /** The person picks the account a sign-in that reaches several connects. */
+  accountChoice?: boolean;
 }
 
 interface FinalizeProjectSocialConnectionParameters
@@ -104,6 +107,12 @@ interface FinalizeProjectSocialConnectionParameters
   projectId: string;
   connectionId: string;
   callbackProof?: string;
+  pendingDataToken?: string;
+  connectToken?: string;
+  /** The `SocialAccountChoice.id` the person picked. */
+  accountChoiceId?: string;
+  /** Answer with the accounts to pick from instead of refusing several. */
+  offerChoice?: boolean;
 }
 
 interface DisconnectProjectSocialConnectionParameters
@@ -564,53 +573,62 @@ export const cancelProjectCloseOwedWork = withSession<
 export const initiateProjectSocialConnection = withSession<
   InitiateProjectSocialConnectionParameters,
   ActionResultDto<InitiateProjectSocialConnectionResponse, ActionError>
->(async ({ projectId, action, socialConnectionId, provider, callbackUrl }) => {
-  const normalizedProjectId = projectId.trim();
-  if (!normalizedProjectId) {
-    return toActionResult(
-      err({ code: CommonErrorCode.BAD_INPUT, message: "Project required" }),
-    );
-  }
-
-  let input: InitiateProjectSocialConnectionRequest;
-  if (action === "connect") {
-    if (!provider) {
+>(
+  async ({
+    projectId,
+    action,
+    socialConnectionId,
+    provider,
+    callbackUrl,
+    accountChoice,
+  }) => {
+    const normalizedProjectId = projectId.trim();
+    if (!normalizedProjectId) {
       return toActionResult(
-        err({
-          code: CommonErrorCode.BAD_INPUT,
-          message: "Social provider required",
-        }),
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Project required" }),
       );
     }
-    input = { action, provider };
-  } else {
-    const normalizedSocialConnectionId = socialConnectionId?.trim();
-    if (!normalizedSocialConnectionId) {
-      return toActionResult(
-        err({
-          code: CommonErrorCode.BAD_INPUT,
-          message: "Social connection required",
-        }),
-      );
-    }
-    input = { action, socialConnectionId: normalizedSocialConnectionId };
-  }
 
-  try {
-    const connection = await projectService.initiateSocialConnection(
-      normalizedProjectId,
-      { ...input, callbackUrl },
-    );
-    return toActionResult(ok(connection));
-  } catch (error) {
-    return toActionResult(err(toCoreApiActionError(error)));
-  }
-});
+    let input: InitiateProjectSocialConnectionRequest;
+    if (action === "connect") {
+      if (!provider) {
+        return toActionResult(
+          err({
+            code: CommonErrorCode.BAD_INPUT,
+            message: "Social provider required",
+          }),
+        );
+      }
+      input = { action, provider };
+    } else {
+      const normalizedSocialConnectionId = socialConnectionId?.trim();
+      if (!normalizedSocialConnectionId) {
+        return toActionResult(
+          err({
+            code: CommonErrorCode.BAD_INPUT,
+            message: "Social connection required",
+          }),
+        );
+      }
+      input = { action, socialConnectionId: normalizedSocialConnectionId };
+    }
+
+    try {
+      const connection = await projectService.initiateSocialConnection(
+        normalizedProjectId,
+        { ...input, callbackUrl, accountChoice },
+      );
+      return toActionResult(ok(connection));
+    } catch (error) {
+      return toActionResult(err(toCoreApiActionError(error)));
+    }
+  },
+);
 
 export const finalizeProjectSocialConnection = withSession<
   FinalizeProjectSocialConnectionParameters,
-  ActionResultDto<ProjectSocialConnection, ActionError>
->(async ({ projectId, connectionId, callbackProof }) => {
+  ActionResultDto<ProjectSocialConnection | SocialAccountChoices, ActionError>
+>(async ({ projectId, connectionId, ...signIn }) => {
   const normalizedProjectId = projectId.trim();
   const normalizedConnectionId = connectionId.trim();
   if (!normalizedProjectId || !normalizedConnectionId) {
@@ -625,7 +643,7 @@ export const finalizeProjectSocialConnection = withSession<
   try {
     const connection = await projectService.finalizeSocialConnection(
       normalizedProjectId,
-      { connectionId: normalizedConnectionId, callbackProof },
+      { ...signIn, connectionId: normalizedConnectionId },
     );
     revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
     return toActionResult(ok(connection));

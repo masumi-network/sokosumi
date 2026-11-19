@@ -30,3 +30,11 @@ export function linkedInAuthorUrn(externalAccountId: string): string {
     ? externalAccountId
     : linkedInPersonUrn(externalAccountId);
 }
+
+/** A connection that posts as a person where a company Page could post: LinkedIn's profile. */
+export function postsAsPerson(
+  provider: string,
+  externalAccountId: string,
+): boolean {
+  return provider === "linkedin" && !isLinkedInPage(externalAccountId);
+}

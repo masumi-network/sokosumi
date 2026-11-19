@@ -1,5 +1,12 @@
 {
   "Components": {
+    "SokoBotTurnFailure": {
+      "aiBudgetExceeded": "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird.",
+      "generic": "Bei uns ist etwas schiefgelaufen. Versuch es erneut. Wenn das Problem weiterhin auftritt, wende dich an den Support.",
+      "messageSaved": "Deine Nachricht wurde gespeichert.",
+      "backgroundFailed": "Der Hintergrundlauf „{title}“ ist fehlgeschlagen, bevor er berichten konnte.",
+      "backgroundDeadline": "Die Zeit für den Hintergrundlauf „{title}“ ist abgelaufen, bevor er berichten konnte."
+    },
     "AuthCaptcha": {
       "error": "Die Sicherheitsprüfung konnte nicht geladen werden. Deaktiviere Inhaltsblocker oder lade die Seite neu.",
       "verificationFailed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuche es erneut.",
@@ -843,7 +850,16 @@
           "AUTHENTICATION_REQUIRED": "Anmelden",
           "OUT_OF_CREDITS": "Öffnen",
           "GRANT_PENDING": "Öffnen"
-        }
+        },
+        "answerPlaceholder": "{name} antworten…",
+        "answerPlaceholderNoName": "Deine Antwort…",
+        "send": "Senden",
+        "answerSent": "Antwort gesendet",
+        "answerError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
+        "questionLoading": "Frage wird geladen…",
+        "questionError": "Die Frage konnte nicht geladen werden.",
+        "questionOnTask": "In der Aufgabe lesen",
+        "waitEnded": "Diese Aufgabe wartet nicht mehr auf diese Antwort."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# Frage im Datenraum wartet auf eine Antwort} other {# Fragen im Datenraum warten auf eine Antwort}}",
@@ -1866,12 +1882,20 @@
         "date": "Datum"
       },
       "Display": {
-        "button": "Ansicht",
+        "button": "Ansichtsoptionen",
+        "layout": "Layout",
         "list": "Liste",
         "board": "Board",
         "density": "Dichte",
         "normal": "Standard",
-        "compact": "Kompakt"
+        "compact": "Kompakt",
+        "sortBy": "Sortieren nach",
+        "sortOptions": {
+          "updatedAt": "Zuletzt aktualisiert",
+          "createdAt": "Neueste",
+          "priority": "Priorität",
+          "dueOn": "Fälligkeit"
+        }
       },
       "List": {
         "placeholder": "Keine Tasks"
@@ -1912,11 +1936,12 @@
         "clear": "Filter zurücksetzen",
         "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
         "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen.",
-        "stuck": "Hängt seit {days}+ Tagen",
+        "stuck": "Hängt",
+        "stuckDays": "seit {days}+ Tagen",
         "workspaceTags": "Workspace-Tags",
         "archivedTags": "Archivierte Tags",
         "topicTags": "Standardthemen",
-        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat",
+        "viewLabel": "Task-Ansicht",
         "needsMe": "Wartet auf mich",
         "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
         "mentions": "Erwähnungen",
@@ -1940,6 +1965,8 @@
         "context": "Kontext",
         "subtasks": "Teilaufgaben",
         "subtaskOf": "Teilaufgabe von",
+        "openSeoAudit": "SEO-Audit öffnen",
+        "openSeoProjectWorkspace": "SEO-Arbeitsbereich des Projekts öffnen",
         "copyIdentifier": "Task-ID kopieren",
         "identifierCopied": "{identifier} kopiert",
         "identifierCopyError": "Task-ID konnte nicht kopiert werden",
@@ -2028,7 +2055,25 @@
           "moveToWorkspaceCancel": "Abbrechen",
           "moveToWorkspaceSuccess": "Task wurde verschoben",
           "moveToWorkspaceError": "Task konnte nicht verschoben werden",
-          "markAs": "Markieren als",
+          "linkToTask": "Mit Task verknüpfen",
+          "linkPicker": {
+            "related": {
+              "title": "Als zugehörig verknüpfen",
+              "description": "Wählen Sie einen Task. Jeder Task zeigt den anderen unter Zugehörig."
+            },
+            "blocks": {
+              "title": "Als blockierend verknüpfen",
+              "description": "Wählen Sie den Task, den dieser blockiert. Dieser Task zeigt ihn unter Blockiert, der andere zeigt diesen unter Blockiert durch."
+            },
+            "blockedBy": {
+              "title": "Als blockiert durch verknüpfen",
+              "description": "Wählen Sie den Task, auf den dieser wartet. Dieser Task zeigt ihn unter Blockiert durch, der andere zeigt diesen unter Blockiert."
+            },
+            "duplicate": {
+              "title": "Als Duplikat verknüpfen",
+              "description": "Wählen Sie den Task, den dieser wiederholt. Jeder Task zeigt den anderen unter Duplikat. Es wird nichts kopiert."
+            }
+          },
           "createRelated": "Verknüpften Task erstellen",
           "removeRelated": "Verknüpften Task entfernen",
           "removeRelatedSuccess": "Verknüpfter Task entfernt",
@@ -2036,8 +2081,6 @@
           "linkTaskSuccess": "Task verknüpft",
           "linkTaskError": "Task konnte nicht verknüpft werden",
           "createRelatedSuccess": "Verknüpfter Task erstellt",
-          "taskPickerTitle": "Markieren als {relation}",
-          "taskPickerDescription": "Wählen Sie einen Task aus, den Sie mit dem aktuellen Task verknüpfen möchten.",
           "taskPickerSearchPlaceholder": "Tasks suchen...",
           "taskPickerLoading": "Tasks werden geladen...",
           "taskPickerEmpty": "Keine Tasks gefunden.",
@@ -2060,7 +2103,7 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren",
+          "duplicate": "Als Entwurf kopieren",
           "sendToChat": {
             "menuItem": "In Chat senden",
             "title": "Aufgabe in Chat senden",
@@ -2255,7 +2298,7 @@
         "previewUse": "Diesen Task verwenden",
         "previewEmpty": "Noch kein Beispiel verfügbar.",
         "taskCreated": "Task erstellt",
-        "taskCreatedHint": "Alles ist eingerichtet und bereit.",
+        "taskCreatedHint": "{status, select, DRAFT {Er liegt als Entwurf im Backlog. Nichts startet, bis du ihn auf Bereit setzt.} QUEUED {Er wartet im Backlog und startet zur festgelegten Zeit.} other {Er steht unter Offen und kann starten.}}",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
@@ -2605,6 +2648,12 @@
         "label": "Zeit in diesem Status:",
         "stuck": "Hängt",
         "since": "In diesem Status seit"
+      },
+      "SimilarTasks": {
+        "title": "Offene Aufgaben mit ähnlichem Titel",
+        "hint": "Schon angefragt? Öffne die Aufgabe, statt ein Duplikat anzulegen.",
+        "opensInNewTab": "(öffnet in einem neuen Tab)",
+        "announcement": "{count, plural, one {# offene Aufgabe mit ähnlichem Titel} other {# offene Aufgaben mit ähnlichem Titel}}"
       }
     },
     "Projects": {
@@ -2850,7 +2899,7 @@
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
-          "facebookPage": "Verbinde ein Facebook-Konto, das genau eine Seite verwaltet. Konten ohne Seiten oder mit mehreren Seiten werden noch nicht unterstützt.",
+          "facebookPage": "Dieses Facebook-Login verwaltet keine Seite. Verbinde dich erneut mit dem Login, das deine Seite verwaltet.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
@@ -2863,14 +2912,23 @@
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
           "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren.",
-          "sync": "Synchronisierung konnte nicht gestartet werden."
+          "sync": "Synchronisierung konnte nicht gestartet werden.",
+          "youtubeChannel": "Diese Google-Anmeldung hat keinen YouTube-Kanal. Verbinde dich erneut und wähle auf dem Google-Bildschirm das Konto des Kanals."
         },
         "comingSoon": "Bald verfügbar",
-        "linkedinPersonalOnly": "Nur persönliches Profil. Unternehmensseiten werden noch nicht unterstützt.",
         "personalProfile": "Persönliches Profil",
         "connectComingSoon": "{provider} (bald verfügbar)",
         "empty": "Noch keine Konten.",
-        "emptyHint": "Verbinde eines, um zu posten."
+        "emptyHint": "Verbinde eines, um zu posten.",
+        "choose": {
+          "title": "Welches Konto?",
+          "description": "Deine {provider}-Anmeldung erreicht mehr als ein Konto. Beiträge erscheinen unter dem Konto, das du auswählst.",
+          "listLabel": "Konten",
+          "page": "Unternehmensseite",
+          "profile": "Dein persönliches Profil",
+          "cancel": "Abbrechen",
+          "confirm": "Verbinden"
+        }
       },
       "SocialPosts": {
         "loadError": {
@@ -4466,7 +4524,13 @@
       "newVideo": "Neues Video",
       "videoMaking": "In Arbeit",
       "videoFailed": "Nicht erstellt",
-      "you": "Du"
+      "you": "Du",
+      "videoReady": "Fertig",
+      "videoUnavailable": "Nicht verfügbar",
+      "loadFailed": "Video konnte nicht geladen werden",
+      "loadFailedBody": "Die Datei ist nicht angekommen. Versuche es gleich noch einmal.",
+      "tryAgain": "Erneut versuchen",
+      "checking": "Das Video wird geprüft. Wenn es nicht startet, drücke auf Abspielen."
     },
     "Studio": {
       "back": "Zurück zum Projekt",
@@ -10757,7 +10821,6 @@
         "answeredIn": "{seconds}s",
         "copy": "Kopieren",
         "copied": "Kopiert",
-        "failed": "Dieser Durchlauf ist fehlgeschlagen. Versuch es erneut oder formuliere um.",
         "cancelled": "Abgebrochen.",
         "noAnswer": "Für diesen Durchlauf wurde keine Antwort gespeichert.",
         "stillWorking": "Arbeitet noch daran",
@@ -11108,6 +11171,59 @@
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"
         }
+      },
+      "Mcp": {
+        "title": "MCP-Server",
+        "description": "Verbinde deinen Bot mit einem beliebigen entfernten MCP-Server. Sokosumi führt jeden Aufruf aus und verwahrt den Schlüssel; der Bot sieht ihn nie.",
+        "addTitle": "Server hinzufügen",
+        "nameLabel": "Name",
+        "namePlaceholder": "Linear",
+        "urlLabel": "Adresse",
+        "authLabel": "Anmeldung",
+        "authBearer": "API-Schlüssel",
+        "authHeader": "Schlüssel in eigenem Header",
+        "authNone": "Keine",
+        "keyLabel": "Schlüssel",
+        "headerNameLabel": "Header-Name",
+        "connect": "Verbinden",
+        "addHelp": "Sokosumi liest die Tools des Servers sofort.",
+        "added": "{name} ist verbunden",
+        "addError": "Der Server konnte nicht verbunden werden",
+        "toolCount": "{enabled} von {total} Tools an",
+        "refresh": "Tools von {name} neu lesen",
+        "refreshed": "Die Tools von {name} sind aktuell",
+        "refreshError": "Die Tools des Servers konnten nicht gelesen werden",
+        "remove": "{name} entfernen",
+        "removeError": "Der Server konnte nicht entfernt werden",
+        "reads": "Liest",
+        "changes": "Ändert etwas",
+        "kindLabel": "Was {name} tut",
+        "enabledLabel": "Bot darf {name} nutzen",
+        "toolError": "Das Tool konnte nicht geändert werden",
+        "authOauth": "Auf der Seite des Servers anmelden",
+        "signIn": "Anmelden",
+        "signInNeeded": "Melde dich bei diesem Server an, bevor dein Bot ihn nutzen kann.",
+        "signInError": "Die Anmeldung konnte nicht gestartet werden"
+      },
+      "Shell": {
+        "title": "Kommandozeilen-Tools",
+        "description": "Richte die Tools ein, die die Shell deines Bots braucht. Seine Sandbox startet in jedem Durchgang leer, deshalb laufen diese jedes Mal neu.",
+        "commandsTitle": "Einrichtungsbefehle",
+        "commandsHelp": "Ein Befehl pro Zeile, höchstens zehn. Sie laufen vor jedem Durchgang mit Shell.",
+        "saveCommands": "Befehle speichern",
+        "commandsSaved": "Einrichtungsbefehle gespeichert",
+        "commandsError": "Die Einrichtungsbefehle konnten nicht gespeichert werden",
+        "keysTitle": "Schlüssel",
+        "keysHelp": "Ein Schlüssel mit Shell-Zugriff erreicht jeden Befehl als Umgebungsvariable mit diesem Namen. Der Bot sieht den Namen, nicht den Wert, aber ein Befehl, den er ausführt, kann den Wert lesen. Füge also nur Schlüssel hinzu, die du auch einem Skript geben würdest.",
+        "keyNameLabel": "Name des Schlüssels",
+        "keyValueLabel": "Wert des Schlüssels",
+        "keyValuePlaceholder": "Schlüssel einfügen",
+        "addKey": "Schlüssel hinzufügen",
+        "keySaved": "{name} gespeichert",
+        "keyError": "Der Schlüssel konnte nicht gespeichert werden",
+        "shellAccess": "Shell-Zugriff",
+        "shellAccessLabel": "Shell-Befehle dürfen {name} nutzen",
+        "deleteKey": "{name} löschen"
       }
     },
     "SokoBots": {
@@ -12326,18 +12442,20 @@
         "clearActivityDates": "Aktivitätsdaten entfernen",
         "noFixes": "Keine Korrekturen aus diesen Prüfungen empfohlen",
         "noFixesBody": "Diese Prüfungen haben keine Korrektur vorgeschlagen. Sie decken nur die ausgewählten Seiten und Prüfungen ab, nicht die gesamte Website oder Suchleistung.",
-        "failedCheck": "<prefix>Nicht bestanden:</prefix> {name}",
+        "failedCheck": "<prefix>Problem:</prefix> {name}",
         "checkedOn": "Geprüft am",
-        "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
+        "diagnostics": "Seitendetails",
+        "diagnosticsHelp": "Was wir auf deinen Seiten gefunden haben.",
         "rank": {
-          "absent": "Nicht in den Top {top}",
+          "title": "Google-Ranking",
+          "absent": "Nicht in Googles Top {top}",
           "position": "Position {position}",
           "featuredSnippet": "Featured Snippet, Position {position}",
-          "forKeyword": "für „{keyword}“",
-          "source": "Markt {country}, {language} · DataForSEO",
-          "aiNotCited": "Eine KI-Übersicht erscheint und zitiert die Seite nicht",
-          "aiCited": "Die KI-Übersicht zitiert die Seite",
-          "othersAbsent": "{count, plural, one {# weiteres Keyword} other {# weitere Keywords}}: keines in den Top {top}",
+          "forKeyword": "für „<k>{keyword}</k>“",
+          "source": "Google · {country} · {language}",
+          "aiCited": "Googles KI-Übersicht nennt diese Seite als Quelle",
+          "otherKeywords": "Weitere Keywords",
+          "othersAbsent": "Auch nicht in den Top {top} für {count, plural, one {# weiteres Keyword} other {# weitere Keywords}}",
           "searchConsole": "Durchschnittliche Position in der Search Console: {position}",
           "serpRead": "Gelesenes Suchergebnis:",
           "allDetails": "Alle Details",
@@ -12357,23 +12475,113 @@
         "pickTile": "Wähle oben eine Zahl, um sie im Diagramm zu zeigen.",
         "tooFewToCompare": "{period}: {current, plural, one {# Impression} other {# Impressionen}}. Woche davor: {previous}. Zu wenige für einen Wochenvergleich.",
         "noteCount": "{count, plural, one {# Hinweis} other {# Hinweise}}",
-        "fromCheck": "Aus der Prüfung vom <date></date>",
+        "fromCheck": "Geprüft am <date></date>",
         "pageMeasurements": "Messwerte",
         "pageNotes": "Hinweise ({count})",
         "references": "{count, plural, one {# Quelle} other {# Quellen}}",
-        "noteRule": "Regel nicht erfüllt: „{name}“",
-        "askAgent": "Agent fragen",
-        "askAboutNote": "Eine Prüfung hat „{name}“ auf meiner Seite markiert. Was bedeutet das, und sollte ich etwas ändern?",
+        "noteRule": "Die Prüfung hat das auf der Seite markiert",
+        "askAgent": "Nach diesem Hinweis fragen",
+        "askAboutNote": "Was bedeutet „{name}“ für meine Seite? Sollte ich etwas ändern?",
         "showAll": "Alles zeigen",
         "showLess": "Weniger zeigen",
-        "askAboutNoteOnPage": "Eine Prüfung hat „{name}“ auf {url} markiert. Was bedeutet das, und sollte ich etwas ändern?",
-        "insideToolRanges": "{total, plural, one {im Tool-Bereich} other {in allen # Tool-Bereichen}}",
+        "askAboutNoteOnPage": "Was bedeutet „{name}“ für {url}? Sollte ich etwas ändern?",
         "outsideToolRanges": "{total, plural, one {außerhalb des Tool-Bereichs ({tools})} other {außerhalb von {outside} der # Tool-Bereiche ({tools})}}",
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
         "positionHint": "1 ist das oberste Ergebnis",
-        "noteFound": "Gefunden: {found}",
         "suggestionCount": "{count, plural, one {# Vorschlag} other {# Vorschläge}}",
-        "noteRuleName": "Regel: „{name}“",
+        "flaggedItems": {
+          "cameraFileName": "{count, plural, one {# Kamera-Dateiname} other {# Kamera-Dateinamen}}",
+          "imgWithoutAlt": "{count, plural, one {# Bild ohne Alt-Text} other {# Bilder ohne Alt-Text}}",
+          "linkStatus": "{count, plural, one {# Link} other {# Links}}"
+        },
+        "showMoreItems": "{count} weitere anzeigen",
+        "unlistedItems": "{count} weitere, die die Prüfung nicht aufgelistet hat",
+        "inlineImage": "Bild in der Seite",
+        "plainNote": {
+          "cameraFileNames": {
+            "title": "Bilder mit Kamera-Dateinamen",
+            "found": "{found, plural, one {# von {total} Bildern hat} other {# von {total} Bildern haben}} einen Kamera-Dateinamen",
+            "why": "Namen wie IMG_1234.jpg sagen nichts über das Bild. Google liest einen Dateinamen als kleinen Hinweis für die Bildersuche. Wenn du ein Bild neu hochlädst, benenne es nach seinem Inhalt, zum Beispiel hafen-bei-sonnenuntergang.jpg."
+          },
+          "brokenLinks": {
+            "title": "Links, die zu einem Fehler führen",
+            "found": "{found, plural, one {# von {total} Links führt} other {# von {total} Links führen}} zu einem Fehler",
+            "why": "Ein Link, der mit einer Fehlernummer antwortet, führt Besucher und Google in eine Sackgasse. Korrigiere oder entferne jeden Link. Die Zahl nach einem Link ist die Antwort der Website: 404 heißt, die Seite gibt es nicht. 429 ist etwas anderes: Die Website hat unsere Prüfung kurz abgewiesen, prüfe diesen Link also erneut, bevor du ihn änderst."
+          },
+          "xDefault": {
+            "title": "Keine x-default-Sprachversion",
+            "why": "Die Seite nennt Versionen für andere Sprachen oder Regionen, aber keine ist als x-default markiert. x-default sagt Google, welche Version Menschen sehen, deren Sprache nicht in der Liste steht, zum Beispiel eine Seite zur Sprachauswahl. Google empfiehlt es, verlangt es aber nicht."
+          },
+          "metaKeywords": {
+            "title": "Die Seite hat ein Meta-Keywords-Tag",
+            "why": "Google nutzt das Meta-Keywords-Tag nicht. Es wirkt sich in der Google-Suche nicht aus, du kannst es also behalten oder entfernen."
+          },
+          "twoWayFacts": {
+            "title": "Datums- oder Zeitangaben, die man zweifach lesen kann",
+            "why": "Ein Datum wie 04/05/2026 heißt in manchen Ländern 5. April und in anderen 4. Mai. Eine Zahl wie 1:30 kann 1 Minute 30 Sekunden, 1 Stunde 30 Minuten oder eine Uhrzeit heißen. Schreib den Monat als Wort (5. Mai 2026) und Dauern aus (1 Minute 30 Sekunden)."
+          },
+          "retiredMarkup": {
+            "title": "Markup für eine Suchfunktion, die Google nicht mehr zeigt",
+            "why": "Die Seite hat strukturierte Daten, etwa FAQ oder How-to, für ein Rich Result, das Google eingestellt hat. Laut Google schadet dieses Markup nicht, das Entfernen ist also freiwillig."
+          },
+          "titlePerDevice": {
+            "title": "Google zeigt auf Handy und Computer einen anderen Titel",
+            "why": "Google kann je nach Gerät einen anderen Titel für die Seite zeigen. Vergleiche beide Titel in den Details. Wenn beide die Seite gut beschreiben, musst du nichts ändern. Ein Titel, der nur auf einem Gerät kürzer abgeschnitten ist, ist kein echter Unterschied."
+          },
+          "noFieldData": {
+            "title": "Keine Geschwindigkeitsdaten von echten Besuchern",
+            "why": "Chrome veröffentlicht Geschwindigkeitsdaten echter Besucher nur für öffentliche Seiten (Status 200, kein noindex) mit genug Besuchen, und Google nennt keine Zahl. Bis dahin gilt der Labortest zur Geschwindigkeit aus diesem Audit."
+          },
+          "rawRenderedDiff": {
+            "title": "JavaScript ändert die Seite nach dem Laden",
+            "why": "Das HTML der Seite und die Seite nach JavaScript zeigen einen anderen Titel, eine andere Beschreibung, eine andere h1, andere Links oder Texte. Google liest die Seite nach JavaScript. Crawler, die kein JavaScript ausführen, sehen nur das HTML. Bring das HTML auf den Stand, den JavaScript zeigt."
+          },
+          "googleExtended": {
+            "title": "robots.txt sperrt Google-Extended",
+            "why": "Das hindert Google daran, deine Inhalte für Training und Grounding von Gemini zu nutzen. Es entfernt die Seite nicht aus der Google-Suche, den KI-Übersichten oder dem KI-Modus. Wenn du das so willst, musst du nichts ändern."
+          },
+          "canonicalTarget": {
+            "title": "Der Canonical-Link zeigt auf eine Seite mit einem Problem",
+            "why": "Der Canonical-Link sagt Google, welche Adresse die Hauptadresse dieser Seite ist. Er muss auf eine erreichbare Seite ohne Weiterleitung und ohne noindex zeigen. Setze ihn auf die erreichbare Adresse, die Google zeigen soll. Wenn das Ziel weiterleitet, ist das meist die Adresse, auf der die Weiterleitung endet."
+          },
+          "siteName": {
+            "title": "Die Startseite nennt Google den Namen der Website nicht",
+            "why": "Ohne strukturierte WebSite-Daten mit einem Namen auf der Startseite nimmt Google den Namen der Website aus anderen Teilen der Seite, etwa dem Titel. Füge der Startseite strukturierte WebSite-Daten mit dem Namen deiner Website hinzu."
+          },
+          "queryWords": {
+            "title": "Suchwörter fehlen in Titel und Hauptüberschrift",
+            "why": "Google hat diese Seite bei Suchen gezeigt, deren Wörter nicht in Titel und h1 stehen. Google erkennt auch verwandte Wörter, füge ein Wort also nur hinzu, wo es die Seite beschreibt."
+          },
+          "shopping": {
+            "title": "Produkt nicht in Google Shopping gefunden",
+            "why": "Die Prüfung hat dieses Produkt deiner Website nicht in Google Shopping gefunden. Es kann trotzdem unter einem anderen Namen gelistet sein. Das Google Merchant Center ist der wichtigste Weg, ein Produkt im Shopping-Tab zu zeigen."
+          },
+          "authorship": {
+            "title": "Kein klarer Autor oder Betreiber",
+            "why": "Leser suchen, wer einen Artikel geschrieben hat und wer die Website betreibt. Nenne den Autor mit einem Link zu einer Profilseite, und verlinke eine Über-uns-, Impressums- oder Kontaktseite."
+          },
+          "sitemap": {
+            "title": "Seite fehlt in der Sitemap",
+            "why": "Das Audit hat nichts gefunden, was Google am Indexieren dieser Seite hindert, aber sie steht nicht in deiner Sitemap. Google findet verlinkte Seiten auch ohne Sitemap, das ist also ein schwaches Signal. Füge die Seite der Sitemap hinzu, damit Google einen Weg mehr hat, sie zu finden."
+          },
+          "moneyLinked": {
+            "title": "Wichtige Seite ohne Link von deinen anderen Seiten",
+            "why": "Keine der anderen Seiten, die dieses Audit gelesen hat, verlinkt auf diese Seite. Jede wichtige Seite braucht einen Link von mindestens einer anderen Seite. Verlinke sie von einer passenden Seite. Das Audit liest nur einige Seiten, ein Link kann also auf einer nicht gelesenen Seite stehen."
+          },
+          "twoForKeyword": {
+            "title": "Mehrere deiner Seiten ranken für dieselbe Suche",
+            "why": "Google zeigt oben meist höchstens zwei Ergebnisse einer Website. Prüfe, ob jede dieser Seiten für diese Suche ranken soll oder ob eine Seite das Thema abdeckt. Das ist ein Punkt zum Prüfen, kein Fehler."
+          },
+          "noH1": {
+            "title": "Keine Hauptüberschrift (h1)",
+            "why": "Die Seite hat keine h1-Überschrift. In einem SEO-Test auf Reise-Listenseiten hat das Ändern der ersten Überschrift in eine h1 den Suchverkehr um 4,5 % gesteigert. Probiere eine h1, die sagt, worum es geht, und miss die Wirkung."
+          },
+          "aiSearchBots": {
+            "title": "robots.txt sperrt KI-Suchbots",
+            "why": "robots.txt sperrt einen oder mehrere der Bots, mit denen KI-Suchdienste wie ChatGPT, Claude oder Perplexity Seiten finden, diese Dienste zeigen die Seite also eventuell nicht in ihren Antworten. Wenn du sie absichtlich sperrst, musst du nichts ändern."
+          }
+        },
+        "checkFound": "Was die Prüfung gefunden hat",
         "suggestion": "Vorschlag:",
         "periodCompare": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous} ({change})",
         "periodBetter": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt besser",
@@ -12424,7 +12632,7 @@
         "otherCode": "Anderer Code",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
-        "help": "Die besten Ideen zuerst. Verfolge eine, um nach jeder Prüfung ihre Google-Position zu sehen. Das Verfolgen ist kostenlos.",
+        "help": "Verfolge eine, um nach jeder Prüfung ihre Google-Position zu sehen. Das Verfolgen ist kostenlos.",
         "dialogHelp": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Positionsprüfungen.",
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
@@ -12452,9 +12660,20 @@
           "medium": "Mittel",
           "low": "Niedrig"
         },
+        "recommendation": {
+          "mix": "Ideen mit wenig Wettbewerb, die gut zum Seitenziel passen, stehen zuerst. Danach wechseln sich die Gruppen ab, solange beide Ideen enthalten. Öffne eine Zeile für die Begründung.",
+          "both": "Empfohlen: geringer Wettbewerb und passendes Seitenziel",
+          "competition": "Empfohlen: geringer Wettbewerb",
+          "goal": "Empfohlen für das Seitenziel",
+          "easeEvidence": "Schwierigkeit {value, number}/100 (unter {limit}).",
+          "goalEvidence": "Die Prüfung schätzt die Chance, das Seitenziel zu erreichen, als hoch ein.",
+          "legend": "Empfohlene Idee",
+          "page": "Geprüfte Seite",
+          "action": "Seitenziel: {action}",
+          "studio": "Entwurf im Content Studio erstellen (demnächst)"
+        },
         "ideas": {
           "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
-          "why": "Warum es gelistet ist",
           "source": {
             "gap": "Von Wettbewerbern",
             "opportunity": "Verwandte Suche"
@@ -12486,11 +12705,14 @@
           "zoomOut": "Verkleinern",
           "zoomReset": "Ganze Karte zeigen",
           "yours": "Ihr Keyword",
+          "preview": "{volume, number} Suchen/Monat · Schwierigkeit {value, number}/100",
+          "estimatedGain": "Geschätzte zusätzliche Klicks/Monat",
+          "rankGain": "Top {rank} {gain}",
           "gainShort": "Zusätzliche Klicks (Top 3)",
           "contentTask": "Content-Aufgabe erstellen",
           "ask": "SEO-Agent fragen",
-          "brief": "Schreibe Webinhalte{site, select, none {} other { für {site}}}, die bei Google für die Suche „{keyword}“ ranken können. Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
-          "question": "Wie kann {site, select, none {meine Website} other {{site}}} bei Google für die Suche „{keyword}“ ranken? Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Die passende Produktfunktion: {feature}.}}",
+          "brief": "Schreibe Webinhalte{site, select, none {} other { für {site}}}, die bei Google für die Suche „{keyword}“ ranken können.{measured, select, yes { Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).} other { Markt: {market}.}}{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
+          "question": "Wie kann {site, select, none {meine Website} other {{site}}} bei Google für die Suche „{keyword}“ ranken?{measured, select, yes { Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).} other { Markt: {market}.}}{feature, select, none {} other { Die passende Produktfunktion: {feature}.}}",
           "noGain": "Unbekannt"
         },
         "historyShow": "Verlauf",
@@ -12591,6 +12813,8 @@
       },
       "actions": {
         "title": "Aktionen",
+        "listTitle": "Empfohlene Aktionen",
+        "listHint": "Änderungen, die unser Agent empfiehlt.",
         "empty": "Keine empfohlenen Aktionen",
         "emptyBody": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Starte eine Prüfung oder frag den SEO-Agenten, was als Nächstes zu tun ist.",
         "emptyBodyOff": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes zu tun ist.",
@@ -12688,6 +12912,23 @@
         "viewEachResult": "{count, plural, one {# Prüfung anzeigen} other {# Prüfungen anzeigen}}"
       },
       "analysis": {
+        "unconfirmed": "Sokosumi konnte den Erfolg der vorherigen Audit-Anfrage nicht bestätigen. Wiederhole diese Anfrage, bevor du eine neue startest.",
+        "retryPrevious": "Vorherige Anfrage wiederholen",
+        "coverage": {
+          "title": "Abdeckung durch die Search Console",
+          "audit": "Das Audit wurde noch nicht gestartet. Daten aus der Search Console siehst du nur in deinem SEO-Arbeitsbereich. Ein eingeschränktes Audit kann ohne diese Daten laufen.",
+          "monitor": "Der Zeitplan wurde noch nicht erstellt. Daten aus der Search Console siehst du nur in deinem SEO-Arbeitsbereich. Eingeschränkte Audits können ohne diese Daten laufen.",
+          "manualRun": "Dieses zusätzliche Audit wurde noch nicht gestartet. Daten aus der Search Console siehst du nur in deinem SEO-Arbeitsbereich. Für dieses einzelne eingeschränkte Audit gilt der genehmigte Preis.",
+          "notConnected": "Verbinde die Search Console, um die Indexierung zu prüfen und die Suchstatistiken für diese Seiten zu lesen.",
+          "reconnect": "Wähle ein Google-Konto oder verbinde es erneut, um die Search Console für diese Seiten zu verwenden.",
+          "property": "Wähle eine Search Console-Property, für die du berechtigt bist und die alle ausgewählten Seiten abdeckt.",
+          "unavailable": "Sokosumi konnte den Zugriff auf die Search Console nicht prüfen. Versuche es erneut.",
+          "retry": "Erneut prüfen und Audit starten",
+          "retryMonitor": "Erneut prüfen und Zeitplan erstellen",
+          "reviewMonitor": "Im SEO-Bereich prüfen",
+          "limited": "Eingeschränktes Audit starten",
+          "limitedMonitor": "Eingeschränkte Audits planen"
+        },
         "title": "Prüfung starten",
         "description": "Der Agent startet mit diesen Einstellungen. Vorhandene Ergebnisse bleiben währenddessen verfügbar.",
         "options": "Optionen ändern",
@@ -12886,16 +13127,26 @@
       },
       "historyLimited": "Es werden die neuesten {limit} Prüfungen und die neuesten {limit} Synchronisierungen für diese Seiten gezeigt. Ältere Einträge fehlen.",
       "audits": {
-        "moreOptions": "Weitere Optionen für {name}",
-        "delete": "Audit löschen",
-        "deleteTitle": "„{name}“ löschen?",
-        "deleteDescription": "Das Audit und seine Ergebnisse werden aus diesem Workspace entfernt. Der Link zum Audit funktioniert danach nicht mehr.",
-        "deleteFailed": "Das Audit konnte nicht gelöscht werden. Versuche es erneut.",
-        "deleteActiveCheck": "Warte, bis die laufende Prüfung abgeschlossen ist, oder brich die zugehörige Aufgabe ab. Versuche es dann erneut.",
-        "deleteActiveChat": "Eine Chatantwort wird erstellt. Warte, bis sie fertig ist, und versuche es erneut.",
-        "deleteScheduled": "Beende die geplanten Prüfungen für dieses Audit und versuche es erneut.",
-        "deleteBlocked": "Dieses Audit wurde geändert. Versuche es erneut.",
-        "deleteUnavailable": "Du kannst dieses Audit nicht mehr löschen.",
+        "archive": "Bericht archivieren",
+        "archiveTitle": "„{name}“ archivieren?",
+        "archiveDescription": "Der Bericht wird mit allen Prüfläufen, Ergebnissen und den dafür erstellten Aufgaben für alle in diesem Workspace archiviert. Unter „Archivierte Berichte“ kannst du ihn wiederherstellen. Aufgaben, die auf ihre Ausführung gewartet haben, werden als Entwürfe ohne Termin wiederhergestellt.",
+        "archiveFailed": "Der Bericht konnte nicht archiviert werden. Versuche es erneut.",
+        "archiveTaskBlocked": "Eine zugehörige Aufgabe kann in ihrem aktuellen Status nicht archiviert werden. Schließe sie ab oder brich sie ab und versuche es erneut.",
+        "archiveActiveCheck": "Warte, bis die aktuelle Prüfung abgeschlossen ist, oder brich ihre Aufgabe ab. Versuche es dann erneut.",
+        "archiveActiveChat": "Eine Chatantwort wird erstellt. Warte, bis sie fertig ist, und versuche es erneut.",
+        "archiveScheduled": "Beende die geplanten Prüfungen für diesen Bericht und versuche es erneut.",
+        "restoreTaskScopeConflict": "Eine zugehörige Aufgabe gehört auch zu einem anderen SEO-Bericht oder Projekt. Prüfe ihre übergeordnete Aufgabe und ihre Unteraufgaben in der Liste der archivierten Aufgaben, bevor du diesen Bericht wiederherstellst.",
+        "taskScopeConflict": "Eine zugehörige Aufgabe ist mit einem anderen SEO-Bericht oder Projekt verknüpft. Wenn Aufgaben aus verschiedenen Berichten verschachtelt sind, öffne die Unteraufgabe und wähle „Aus übergeordnetem Task entfernen“. Versuche es dann erneut.",
+        "archiveBlocked": "Der Bericht oder eine zugehörige Aufgabe kann gerade nicht archiviert werden. Prüfe, ob noch Arbeit läuft, und versuche es erneut.",
+        "archiveUnavailable": "Du kannst diesen Bericht nicht mehr archivieren.",
+        "listOptions": "Optionen für die Berichtsliste",
+        "showArchived": "Archivierte Berichte anzeigen",
+        "showActive": "Aktive Berichte anzeigen",
+        "archived": "Archivierte Berichte",
+        "archivedEmpty": "Keine archivierten Berichte.",
+        "restore": "Wiederherstellen",
+        "restoreLabel": "{name} wiederherstellen",
+        "restoreFailed": "Der Bericht konnte nicht wiederhergestellt werden. Prüfe deinen Zugriff auf die zugehörigen Aufgaben und versuche es erneut.",
         "continue": "Weiter",
         "create": "Audit erstellen",
         "saved": "Gespeicherte Audits",

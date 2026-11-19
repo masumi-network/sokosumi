@@ -1623,7 +1623,10 @@ describe("Notification Center Needs you view", () => {
       ]);
       expect(links[1]?.textContent).toContain("Q4 launch brief");
       expect(links[1]?.textContent).toContain("ask.INPUT_REQUIRED");
-      expect(links[1]?.textContent).toContain("action.INPUT_REQUIRED");
+      // Input is answered in place, so its move is a button beside the link.
+      expect(
+        within(tasks).getByRole("button", { name: "action.INPUT_REQUIRED" }),
+      ).toBeTruthy();
       expect(links[2]?.textContent).toContain("status.APPROVAL_REQUIRED");
       expect(links[2]?.textContent).toContain("action.APPROVAL_REQUIRED");
       expect(screen.getByText("job-ask")).toBeTruthy();

@@ -129,6 +129,39 @@ describe("CheckoutStep", () => {
     expect(cards()[1]).not.toContain("our team checks every post");
   });
 
+  it("counts a video shown on several networks once, and leaves skipped pieces out", async () => {
+    const base = planAt("active");
+    await render({
+      plan: {
+        ...base,
+        calendar: [
+          ...base.calendar,
+          {
+            id: "vid@youtube",
+            date: "2026-10-08",
+            channel: "youtube",
+            title: "Liftoff",
+            format: "short",
+            status: "idea",
+            videoOf: "vid",
+          },
+          {
+            id: "ad-1",
+            date: "2026-10-09",
+            channel: "google_ads",
+            title: "Try it",
+            format: "search_ad",
+            status: "skipped",
+          },
+        ],
+      },
+    });
+    const gets = container.querySelector(".ob-gets")?.textContent ?? "";
+    expect(gets).toContain("1 picture and 1 video");
+    expect(gets).toContain("6 posts");
+    expect(gets).not.toContain("Google Ads");
+  });
+
   it("says what the approved month holds before the price", async () => {
     await render({ plan: planAt("active") });
     const gets = container.querySelector(".ob-gets")?.textContent ?? "";

@@ -16,6 +16,10 @@ import {
   SOKO_BOT_OWNER_NAME_SELECT,
   sokoBotPersonaOf,
 } from "@/helpers/soko-bot-owner";
+import {
+  AI_BUDGET_EXCEEDED,
+  AI_BUDGET_EXCEEDED_MESSAGE,
+} from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { cmoCapabilityLabel } from "@/lib/soko-bot/cmo-step-labels";
@@ -77,6 +81,7 @@ interface ChatLinkedTurn {
   id: string;
   status: string;
   finalAnswer: string | null;
+  errorKind: string | null;
   errorDetail: string | null;
   startedAt: Date | null;
   createdAt: Date;
@@ -159,6 +164,7 @@ async function loadChatLinkedTurn(
       status: true,
       finalAnswer: true,
       chainDepth: true,
+      errorKind: true,
       errorDetail: true,
       startedAt: true,
       createdAt: true,
@@ -547,10 +553,18 @@ export async function persistSokoBotChatTurn(
   const error =
     turn.status === "CANCELLED"
       ? "Soko Bot turn was cancelled"
-      : (turn.errorDetail ?? "Soko Bot could not answer");
+      : turn.errorKind === AI_BUDGET_EXCEEDED
+        ? AI_BUDGET_EXCEEDED_MESSAGE
+        : "Soko Bot could not answer";
+  const mentionFailure =
+    turn.status === "CANCELLED"
+      ? { kind: "turn_cancelled" }
+      : turn.errorKind === AI_BUDGET_EXCEEDED
+        ? { kind: AI_BUDGET_EXCEEDED, message: AI_BUDGET_EXCEEDED_MESSAGE }
+        : null;
   const claimed = await tx.chatRoomMention.updateMany({
     where: { id: mention.id, status: { in: ["pending", "sent"] } },
-    data: { status: "failed", error: error.slice(0, 500) },
+    data: { status: "failed", error },
   });
   if (claimed.count !== 1) return;
   await tx.chatRoomMessage.update({
@@ -561,6 +575,7 @@ export async function persistSokoBotChatTurn(
         in_reply_to_message_id: mention.messageId,
         mention_id: mention.id,
         mention_failed: true,
+        ...(mentionFailure && { mention_failure: mentionFailure }),
         soko_bot: { turn_id: turn.id, ...attemptAt },
       },
     },

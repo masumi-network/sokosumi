@@ -642,6 +642,8 @@ export const imageStudioTalkingVideoCatalogSchema = z
         name: z.string(),
         description: z.string(),
         imageUrl: z.string(),
+        /** The stock voice that sounds like this presenter. */
+        voice: z.string(),
       }),
     ),
     defaultVoice: z.string(),

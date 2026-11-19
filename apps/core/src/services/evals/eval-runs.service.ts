@@ -3,6 +3,7 @@ import {
   type EvalRunTrigger,
   Prisma,
 } from "@sokosumi/database";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import {
   countOutcomes,
@@ -223,10 +224,10 @@ function outcomeData(outcome: CaseOutcome, startedAt: Date | null) {
   return {
     status: outcome.status,
     finishedAt: new Date(),
-    checks: outcome.checks,
-    judge: outcome.judge ?? Prisma.DbNull,
+    checks: jsonInput(outcome.checks),
+    judge: outcome.judge ? jsonInput(outcome.judge) : Prisma.DbNull,
     judgeModel: outcome.judgeModel ?? null,
-    output: outcome.output as Prisma.InputJsonValue,
+    output: jsonInput(outcome.output),
     error: outcome.error ?? null,
     durationMs: startedAt ? Date.now() - startedAt.getTime() : null,
   };
@@ -256,11 +257,12 @@ async function finish(
   outcome: CaseOutcome,
   startedAt: Date | null,
 ) {
+  const turnId = outcome.turnIds.at(0);
   await prisma.evalResult.update({
     where: { id: resultId },
     data: {
       ...outcomeData(outcome, startedAt),
-      turnId: outcome.turnIds[0] ?? undefined,
+      ...(turnId !== undefined ? { turnId } : {}),
       costUsdMicros: await turnsCost(outcome.turnIds),
     },
   });
@@ -360,7 +362,7 @@ async function startNextCase(
       status: "RUNNING",
       startedAt,
       turnId: started.turnId,
-      state: started.state as Prisma.InputJsonValue,
+      state: jsonInput(started.state),
     },
   });
   return "started";

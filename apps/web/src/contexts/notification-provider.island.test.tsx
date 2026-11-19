@@ -1094,18 +1094,16 @@ describe("NotificationProvider paging", () => {
   });
 
   it("drops a row Core no longer lists when it refuses it as a cursor", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
-    );
-    expectConsole(
-      "error",
-      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
+      "Failed to load older notifications:",
+      2,
     );
     await renderLoaded();
-    getNotificationsMock.mockRejectedValue(
-      new CoreApiRequestError("Invalid pagination cursor", { status: 400 }),
-    );
+    const error = new CoreApiRequestError("Invalid pagination cursor", {
+      status: 400,
+    });
+    getNotificationsMock.mockRejectedValue(error);
 
     await act(async () => {
       currentNotifications.loadOlder();
@@ -1130,29 +1128,26 @@ describe("NotificationProvider paging", () => {
     });
     expect(currentNotifications.notifications).toHaveLength(1);
     expect(currentNotifications.olderStatus).toBe("failed");
+    for (const [, loggedError] of errorCalls) {
+      expect(loggedError).toBe(error);
+    }
   });
 
   it("lets a reader's retry drop one more row Core refuses", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
-    );
-    expectConsole(
-      "error",
-      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
-    );
-    expectConsole(
-      "error",
-      "Failed to load older notifications: CoreApiRequestError: Invalid pagination cursor",
+      "Failed to load older notifications:",
+      3,
     );
     getNotificationsMock.mockResolvedValue({
       data: [NEWEST, OLDEST_LOADED, OLDER],
       meta: { pagination: { nextCursor: OLDER.id } },
     });
     await renderLoaded();
-    getNotificationsMock.mockRejectedValue(
-      new CoreApiRequestError("Invalid pagination cursor", { status: 400 }),
-    );
+    const error = new CoreApiRequestError("Invalid pagination cursor", {
+      status: 400,
+    });
+    getNotificationsMock.mockRejectedValue(error);
 
     // Two rows at the end have both left the feed.
     await act(async () => {
@@ -1175,6 +1170,9 @@ describe("NotificationProvider paging", () => {
       NEWEST.id,
     ]);
     expect(currentNotifications.olderStatus).toBe("idle");
+    for (const [, loggedError] of errorCalls) {
+      expect(loggedError).toBe(error);
+    }
   });
 
   it("stays failed through a refresh until the reader retries", async () => {

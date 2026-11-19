@@ -7,6 +7,7 @@ import {
   brandFontName,
   brandFonts,
   designMdBrandLook,
+  designMdLogo,
   designMdPalette,
   distinctColors,
   isNeutral,
@@ -231,5 +232,37 @@ describe("designMdPalette", () => {
     expect(
       designMdPalette("a { color: #6400ff } b { color: #6400ff }"),
     ).toEqual(["#6400ff"]);
+  });
+});
+
+describe("designMdLogo", () => {
+  it("reads the logo block of the front matter", () => {
+    expect(
+      designMdLogo(
+        [
+          "---",
+          "name: Acme",
+          "logo:",
+          "  src: https://acme.io/logo.svg",
+          "  srcDark: 'https://acme.io/logo-white.svg'",
+          "  alt: Acme home",
+          "colors:",
+          "  primary: '#ff6a00'",
+          "---",
+          "",
+          "src: https://elsewhere.example/x.svg",
+        ].join("\n"),
+      ),
+    ).toEqual({
+      src: "https://acme.io/logo.svg",
+      srcDark: "https://acme.io/logo-white.svg",
+    });
+  });
+
+  it("is null without a logo, or with one that is not an http address", () => {
+    expect(designMdLogo("---\nname: Acme\n---\n")).toBeNull();
+    expect(
+      designMdLogo("---\nlogo:\n  src: data:image/svg+xml;utf8,<svg/>\n---\n"),
+    ).toBeNull();
   });
 });

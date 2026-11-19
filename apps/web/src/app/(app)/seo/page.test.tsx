@@ -133,6 +133,30 @@ describe("native SEO audit entry", () => {
     expect(m.coworkers).not.toHaveBeenCalled();
   });
 
+  it("reads archived reports in the chosen project and keeps the cursor in the archive", async () => {
+    m.listAudits.mockResolvedValue({
+      audits: [],
+      pagination: { nextCursor: SEO_TEST_AUDIT },
+    });
+    await show({
+      view: "archived",
+      projectId: SEO_TEST_PROJECT,
+      cursor: SEO_TEST_PAGE,
+    });
+    expect(m.listAudits).toHaveBeenCalledWith({
+      projectId: SEO_TEST_PROJECT,
+      cursor: SEO_TEST_PAGE,
+      status: "archived",
+    });
+    expect(
+      screen.getByRole("link", { name: messages.App.Seo.more }),
+    ).toHaveAttribute(
+      "href",
+      `/seo?projectId=${SEO_TEST_PROJECT}&view=archived&cursor=${SEO_TEST_AUDIT}`,
+    );
+    expect(m.getWorkspace).not.toHaveBeenCalled();
+  });
+
   it("opens the form for a new Audit from the workspace switch prompt's link", async () => {
     m.listAudits.mockResolvedValue({
       audits: [
@@ -183,6 +207,33 @@ describe("native SEO audit entry", () => {
     await show({ auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT });
     expect(screen.getByRole("heading", { name: "Launch pages" })).toBeVisible();
     expect(m.coworkers).not.toHaveBeenCalled();
+  });
+
+  it("loads a channel only on Traffic and drops a stale one from the URL", async () => {
+    m.getWorkspace.mockResolvedValue({
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+    });
+    const open = { auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT };
+    await expect(
+      SeoPage({ searchParams: Promise.resolve({ ...open, channel: "all" }) }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `/seo?auditId=${SEO_TEST_AUDIT}&projectId=${SEO_TEST_PROJECT};`,
+      ),
+    });
+    expect(m.getWorkspace).not.toHaveBeenCalled();
+    await SeoPage({
+      searchParams: Promise.resolve({
+        ...open,
+        tab: "traffic",
+        channel: "all",
+      }),
+    });
+    expect(m.getWorkspace).toHaveBeenCalledWith(
+      { kind: "audit", id: SEO_TEST_AUDIT },
+      { channel: "all" },
+    );
   });
 
   it("loads a search type only on Traffic and drops a stale one from the URL", async () => {

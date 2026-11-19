@@ -59,7 +59,9 @@ export {
   brandColors,
   brandFonts,
   type DesignMdBrandLook,
+  type DesignMdLogo,
   designMdBrandLook,
+  designMdLogo,
   designMdPalette,
   distinctColors,
   isNeutral,
@@ -536,6 +538,12 @@ export {
   seoStatisticsLostData,
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
+export {
+  removeSeoTaskRequest,
+  type SeoTaskMarker,
+  seoTaskDescription,
+  seoTaskRequestPacket,
+} from "./seo-task-request.js";
 export {
   SEO_SEARCH_TYPES,
   SEO_TRAFFIC_CHANNELS,

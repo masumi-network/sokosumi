@@ -114,6 +114,7 @@ export function mapTurn<T extends Partial<TurnWithAttribution>>(turn: T) {
   const { askedBy, chatMention, ...rest } = turn;
   return {
     ...rest,
+    errorDetail: null,
     chatRoom: chatMention?.message?.room ?? null,
     requestedBy: askedBy,
   };

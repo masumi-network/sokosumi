@@ -132,14 +132,12 @@ describe("GET /notifications", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(notificationFindManyMock).toHaveBeenLastCalledWith({
+    expect(notificationFindManyMock.mock.lastCall?.[0]).toStrictEqual({
       where: {
         userId: "user_123",
         ...notificationFeedWhere(),
       },
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
-      skip: undefined,
-      cursor: undefined,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     expect(notificationCountMock).toHaveBeenCalledWith({

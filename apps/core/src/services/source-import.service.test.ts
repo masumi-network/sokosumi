@@ -88,6 +88,25 @@ describe("sourceImportService.enqueueFromMarkdown", () => {
     );
   });
 
+  it("queues trailing-slash deliverables alongside named files", async () => {
+    const directory = "https://example.com/deliverables/123/";
+    const file = "https://example.com/result.pdf";
+    await sourceImportService.enqueueFromMarkdown(
+      "event_1",
+      `[deliverables](${directory}) [file](${file})`,
+    );
+
+    expect(createOutputBlobsMock.mock.calls).toStrictEqual([
+      [
+        [
+          { eventId: "event_1", sourceUrl: directory },
+          { eventId: "event_1", sourceUrl: file, name: "result.pdf" },
+        ],
+        expect.anything(),
+      ],
+    ]);
+  });
+
   it("captures a failing batch with its job event and still attempts the other", async () => {
     const blobFailure = new Error("blob failed");
     const linkFailure = new Error("link failed");

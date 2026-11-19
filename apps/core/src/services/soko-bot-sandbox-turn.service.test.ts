@@ -1,6 +1,7 @@
 import { createGateway, stepCountIs, tool } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { incrementRedisRateLimit } from "@/lib/redis-rate-limit";
 import {
   MODEL_CALL_MAX_MS,
   MODEL_STREAM_IDLE_MS,
@@ -48,6 +49,9 @@ const {
 
 vi.mock("@/config/env", () => ({
   getEnv: () => envState.value,
+}));
+vi.mock("@/lib/redis-rate-limit", () => ({
+  incrementRedisRateLimit: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
@@ -222,6 +226,38 @@ describe("sandbox turn service", () => {
       ),
     ).rejects.toThrow("not this turn's");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("alerts once per Gateway key or team budget in the shared Redis window", async () => {
+    expectCoreLog("error", "AI Gateway budget exhausted", 3);
+    expectCoreLog("warn", "AI Gateway budget exhausted", 2);
+    const counts = new Map<string, number>();
+    const increment = vi.mocked(incrementRedisRateLimit);
+    increment.mockImplementation(async (key) => {
+      const count = (counts.get(key) ?? 0) + 1;
+      counts.set(key, count);
+      return count;
+    });
+    for (const [apiKey, message] of [
+      ["first-key", "API key budget exceeded. Limit: $400."],
+      ["first-key", "API key budget exceeded. Limit: $400."],
+      ["second-key", "API key budget exceeded. Limit: $200."],
+      ["first-key", "Team budget exceeded. Limit: $1000."],
+      ["second-key", "Team budget exceeded. Limit: $1000."],
+      ["second-key", "Temporary upstream failure"],
+    ]) {
+      envState.value = { AI_GATEWAY_API_KEY: apiKey };
+      const body = { error: { type: "internal_server_error", message } };
+      fetchMock.mockResolvedValueOnce(Response.json(body, { status: 500 }));
+      await expect(
+        proxySandboxModelCall(claims, modelRequest()),
+      ).resolves.toMatchObject({ status: 500, body: JSON.stringify(body) });
+    }
+    expect(increment.mock.calls.map(([, ttl]) => ttl)).toEqual(
+      Array(5).fill(3_600),
+    );
+    expect([...counts.values()]).toEqual([2, 1, 2]);
+    expect([...counts.keys()].join()).not.toMatch(/first-key|second-key/);
   });
 
   it.each([
@@ -700,6 +736,32 @@ describe("sandbox turn service", () => {
       "sandbox.untrusted_input",
       "actions.requested",
     ]);
+  });
+
+  it("records each untrusted source, so a page fetched after an MCP read still counts", async () => {
+    // The turn already read its MCP server; a fetched page is a second source.
+    findFirstEventMock.mockImplementation(
+      async (query: { where: { data?: { equals?: string } } }) =>
+        query.where.data?.equals === "mcp:server-1" ? { id: "taint" } : null,
+    );
+    await recordSandboxAction(claims, {
+      name: "web_fetch",
+      toolCallId: "c3",
+      toolInput: { url: "https://example.com" },
+    });
+    expect(findFirstEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          data: { path: ["source"], equals: "web_fetch" },
+        }),
+      }),
+    );
+    expect(events()).toContainEqual(
+      expect.objectContaining({
+        type: "sandbox.untrusted_input",
+        data: { source: "web_fetch" },
+      }),
+    );
   });
 
   it("records a sandbox tool as a tool call with what it could cite", async () => {

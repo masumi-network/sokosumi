@@ -18,7 +18,12 @@ import { channelLabel, isSocialProvider } from "../../lib/calendar";
 import { channelKey } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { joinNames } from "../../lib/names";
-import { CompetitorCards, SiteShowcase } from "../brand-media";
+import {
+  CompetitorCards,
+  SiteGallery,
+  SiteShowcase,
+  siteFinds,
+} from "../brand-media";
 import {
   Accounts,
   AskForm,
@@ -510,6 +515,18 @@ export function BrandStep({
                   </li>
                 ))}
               </ol>
+            </details>
+          ) : null}
+
+          {overview.brandMedia && siteFinds(overview.brandMedia) > 0 ? (
+            <details className="ob-fold ob-found">
+              <summary>
+                <h2>What I found on your site</h2>
+                <span className="ob-small num">
+                  {siteFinds(overview.brandMedia)}
+                </span>
+              </summary>
+              <SiteGallery media={overview.brandMedia} />
             </details>
           ) : null}
         </div>

@@ -71,6 +71,18 @@ describe("mapIntegrationError", () => {
 });
 
 describe("mapTurn", () => {
+  it("keeps provider diagnostics out of the owner turn payload", () => {
+    const turn = {
+      errorKind: "GatewayInternalServerError",
+      errorDetail: "Raw provider diagnostic",
+    };
+    expect(mapTurn(turn)).toMatchObject({
+      errorKind: turn.errorKind,
+      errorDetail: null,
+    });
+    expect(turn.errorDetail).toBe("Raw provider diagnostic");
+  });
+
   it("returns the teammate who asked as requestedBy and the room as chatRoom", () => {
     const teammate = { id: "teammate", name: "Tea Mate", image: null };
     const room = { id: "room-1", name: "general", kind: "channel" };

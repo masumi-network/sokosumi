@@ -91,8 +91,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         kind: body.kind,
         displayName: check.displayName,
         normalizedName: check.normalizedName,
-        color: body.color,
-        customColor: body.customColor,
+        ...(body.color !== undefined && { color: body.color }),
+        ...(body.customColor !== undefined && {
+          customColor: body.customColor,
+        }),
         description: body.description ?? null,
         createdByUserId: context.actor.userId,
       },

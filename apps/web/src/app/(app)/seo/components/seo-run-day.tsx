@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import { ChevronRight, CircleAlert, CircleCheck } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ const HOVER_OPEN_MS = 300;
 /**
  * A stop of the runs row with what happened there: a pointer on it shows the counts and the way to the details.
  * Focus opens no card: the card is out of the keyboard's reach, and a tap on a phone focuses the stop. Keyboard and
- * touch reach the details of the day in view from the title line of the row.
+ * touch reach the details of the day in view from the footer below the row.
  */
 export function SeoRunDayHover({
   workspace,
@@ -87,35 +88,59 @@ export function SeoRunDayHover({
         {children}
       </HoverCardTrigger>
       {nodes.length ? (
-        <HoverCardContent className="w-64 space-y-2 text-sm">
-          <p className="font-medium">{day}</p>
-          {result !== null && coverage ? (
-            <div>
-              <p>{t("timeline.result", { count: result })}</p>
-              <p className="text-muted-foreground text-xs">
-                {[
-                  t("timeline.checkSummary", { checked: coverage.checked }),
-                  coverage.skipped
-                    ? t("timeline.rulesSkipped", { count: coverage.skipped })
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+        <HoverCardContent className="w-72 p-0 text-sm">
+          <div className="space-y-3 p-4">
+            <p className="text-muted-foreground text-xs">{day}</p>
+            {result !== null && coverage ? (
+              // The result is the headline of the card; the tests behind it sit under it.
+              <div className="flex gap-3">
+                <span className="text-muted-foreground -mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border">
+                  {result ? (
+                    <CircleAlert className="size-3.5" />
+                  ) : (
+                    <CircleCheck className="size-3.5" />
+                  )}
+                </span>
+                <div className="min-w-0 space-y-0.5">
+                  <p className="font-medium">
+                    {t("timeline.result", { count: result })}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {[
+                      t("timeline.checkSummary", { checked: coverage.checked }),
+                      coverage.skipped
+                        ? t("timeline.rulesSkipped", {
+                            count: coverage.skipped,
+                          })
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            {hint ? (
+              <p className="text-muted-foreground text-xs">{hint}</p>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-3 border-t py-2 ps-4 pe-2">
+            {/* A stop of check requests alone has nothing to count: its details say what became of them. */}
+            {counts.length ? (
+              <p className="text-muted-foreground min-w-0 text-xs">
+                {format.list(counts, { type: "unit" })}
               </p>
-            </div>
-          ) : null}
-          {/* A stop of check requests alone has nothing to count: its details say what became of them. */}
-          {counts.length ? (
-            <p className="text-muted-foreground text-xs">
-              {format.list(counts, { type: "unit" })}
-            </p>
-          ) : null}
-          {hint ? (
-            <p className="text-muted-foreground text-xs">{hint}</p>
-          ) : null}
-          <Button variant="outline" size="sm" onClick={onDetails}>
-            {t("runs.details")}
-          </Button>
+            ) : null}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ms-auto"
+              onClick={onDetails}
+            >
+              {t("runs.details")}
+              <ChevronRight />
+            </Button>
+          </div>
         </HoverCardContent>
       ) : null}
     </HoverCard>

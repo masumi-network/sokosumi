@@ -226,6 +226,11 @@ describe("admin agents routes", () => {
       hasOverride: false,
       displayName: "Registry Name",
     });
+    const query = agentFindManyMock.mock.lastCall?.[0];
+    expect(query).not.toHaveProperty("where");
+    expect(query).not.toHaveProperty("cursor");
+    expect(query).not.toHaveProperty("skip");
+    expect(agentCountMock.mock.lastCall?.[0]).toStrictEqual({});
   });
 
   it("filters agents by status query param", async () => {
@@ -358,6 +363,7 @@ describe("admin agents routes", () => {
 
     expect(response.status).toBe(200);
     expect(queryRawMock).toHaveBeenCalled();
+    expect(agentCountMock.mock.lastCall?.[0]).toStrictEqual({});
     expect(agentFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: { in: ["agent_2", "agent_1"] } },

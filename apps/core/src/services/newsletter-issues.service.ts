@@ -12,13 +12,13 @@ import {
   type NewsletterBrand,
 } from "@sokosumi/utils";
 import slugify from "slugify";
-
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import prisma from "@/lib/db/prisma";
 import type { SokoBotAuthenticationContext } from "@/middleware/auth";
@@ -72,7 +72,7 @@ export async function listNewsletterIssues(
   query: ListNewsletterIssuesQuery,
 ) {
   const newsletter = await getNewsletter(scope);
-  const { cursor, take, skip } = parseCursorPagination(query);
+  const { cursor, take } = parseCursorPagination(query);
   const range =
     query.from && query.to
       ? { gte: new Date(query.from), lt: new Date(query.to) }
@@ -80,7 +80,7 @@ export async function listNewsletterIssues(
   const where: Prisma.NewsletterIssueWhereInput = {
     ...scope,
     newsletterId: newsletter.id,
-    status: query.status,
+    ...(query.status !== undefined ? { status: query.status } : {}),
     // An issue is delivered at its schedule; an issue sent without one, at sentAt.
     ...(range
       ? { OR: [{ scheduledAt: range }, { scheduledAt: null, sentAt: range }] }
@@ -89,8 +89,7 @@ export async function listNewsletterIssues(
   const [issues, total] = await Promise.all([
     prisma.newsletterIssue.findMany({
       where,
-      cursor: cursor ? { id: cursor } : undefined,
-      skip,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       take: take + 1,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
@@ -128,7 +127,12 @@ export async function createNewsletterIssue(
         data: {
           ...scope,
           newsletterId: newsletter.id,
-          ...input,
+          subject: input.subject,
+          template: input.template,
+          content: jsonInput(input.content),
+          ...(input.previewText !== undefined
+            ? { previewText: input.previewText }
+            : {}),
           publicSlug,
           ...(creatorSokoBotId ? { creatorSokoBotId } : {}),
         },
@@ -195,7 +199,7 @@ export async function patchNewsletterIssue(
   if (issue.revision !== input.revision) {
     throw conflict("Newsletter issue changed; refresh and try again");
   }
-  const { revision, ...content } = input;
+  const { revision, subject, previewText, template, content } = input;
   // Guard both revision and status against concurrent edits or scheduling.
   return inTransaction(client, async (tx) => {
     const { count } = await tx.newsletterIssue.updateMany({
@@ -207,7 +211,10 @@ export async function patchNewsletterIssue(
         status: { in: ["DRAFT", "NEEDS_APPROVAL"] },
       },
       data: {
-        ...content,
+        ...(subject !== undefined ? { subject } : {}),
+        ...(previewText !== undefined ? { previewText } : {}),
+        ...(template !== undefined ? { template } : {}),
+        ...(content !== undefined ? { content: jsonInput(content) } : {}),
         status: "DRAFT",
         approvedAt: null,
         approvedByUserId: null,

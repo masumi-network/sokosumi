@@ -87,7 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
     const { kind, status } = queryParams;
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const takePlusOne = take + 1;
     const organizationId = userContext.organizationId;
 
@@ -142,8 +142,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.chatRoom.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         include: chatRoomInclude,
         // `id` breaks ties so the cursor walk is a total order; `updatedAt`
         // alone is not unique and would drop or repeat rows across pages.

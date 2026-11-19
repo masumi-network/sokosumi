@@ -140,6 +140,13 @@ vi.mock("next-intl", () => ({
   }),
 }));
 
+// Reads Core through react-query; covered by its own test.
+vi.mock("./similar-tasks-hint", () => ({
+  SimilarTasksHint: ({ brief }: { brief: string }) => (
+    <div data-testid="similar-tasks-hint">{brief}</div>
+  ),
+}));
+
 vi.mock("./markdown-editor", () => ({
   MarkdownEditor: forwardRef(function MockMarkdownEditor(
     {
@@ -406,7 +413,11 @@ const baseLabels = {
   cancel: "Cancel",
   ctrl: "Ctrl",
   taskCreated: "Task created",
-  taskCreatedHint: "Everything's set up and ready to go.",
+  taskCreatedHint: {
+    DRAFT: "Draft hint",
+    QUEUED: "Scheduled hint",
+    READY: "Ready hint",
+  },
   goToTask: "Bring me to the task",
   createAnother: "Create another task",
   uploadingFile: "Uploading {fileName}",
@@ -628,6 +639,40 @@ describe("TaskForm", () => {
     });
 
     expect(createTaskMock).not.toHaveBeenCalled();
+  });
+
+  it("checks the brief for similar open Tasks on create only", () => {
+    const { rerender } = render(
+      <TaskForm
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{
+          assigneeUserId: "user-1",
+          description: "Launch newsletter",
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("similar-tasks-hint")).toHaveTextContent(
+      "Launch newsletter",
+    );
+
+    rerender(
+      <TaskForm
+        mode="edit"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        taskId="task-1"
+        initialValues={{ name: "Task name", description: "Launch newsletter" }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("similar-tasks-hint")).not.toBeInTheDocument();
   });
 
   it("hides the title field on create and shows it on edit", () => {

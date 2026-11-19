@@ -6,6 +6,7 @@ import {
 } from "@/config/social-providers";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { parseCursorPagination } from "@/helpers/pagination";
+import { projectSocialConnectionSummary } from "@/helpers/project-social-connection-summary";
 import { strongSocialAccountPostIds } from "@/helpers/social-account-post-strong";
 import {
   buildSocialPerformanceConsistency,
@@ -184,19 +185,12 @@ type StatisticsConnection = Prisma.ProjectSocialConnectionGetPayload<{
 }>;
 
 function accountFromRecord(record: StatisticsConnection) {
-  if (!isProjectSocialProvider(record.provider)) return null;
+  const summary = projectSocialConnectionSummary(record);
+  if (!summary) return null;
   const statistics =
     socialAccountStatisticsSchema.safeParse(record.statistics).data ?? null;
   return socialAccountStatisticsAccountSchema.parse({
-    id: record.id,
-    provider: record.provider,
-    externalHandle: record.externalHandle,
-    displayName: record.displayName,
-    avatarUrl: record.avatarUrl,
-    subscriptionType: record.subscriptionType,
-    status: record.status,
-    connectedAt: record.connectedAt,
-    disconnectedAt: record.disconnectedAt,
+    ...summary,
     statistics,
     postCount: record._count.accountPosts,
     sync: socialSyncReadModel({
@@ -331,7 +325,7 @@ export async function listSocialAccountStatistics(
   const allAccounts = await scopedConnections(input);
   const selected = selectedConnections(allAccounts, input);
   const where = statisticsPostWhere(selected, input);
-  const { cursor, take, skip } = parseCursorPagination(input);
+  const { cursor, take } = parseCursorPagination(input);
   if (
     cursor &&
     !(await prisma.socialAccountPost.findFirst({
@@ -358,7 +352,7 @@ export async function listSocialAccountStatistics(
         { id: "desc" },
       ],
       take: take + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip } : {}),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     }),
     selected.length
       ? prisma.socialAccountPost.findMany({

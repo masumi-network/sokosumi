@@ -1,4 +1,8 @@
-import { type LanguageModelMiddleware, streamText } from "ai";
+import { type LanguageModelMiddleware, RetryError, streamText } from "ai";
+import {
+  aiGatewayBudgetScope,
+  GATEWAY_INTERNAL_SERVER_ERROR,
+} from "../ai-gateway-budget-error";
 
 /**
  * Soko Bot model calls stream, because the AI Gateway cuts a non-streamed
@@ -57,6 +61,17 @@ export function stepReasoningSummary(step: {
   return summary || undefined;
 }
 
+/** The runtime reports only a failure's name and message over the turn API. */
+function unwrapGatewayBudgetRetry(error: unknown): unknown {
+  if (!RetryError.isInstance(error)) return error;
+  const last = error.lastError ?? error.errors.at(-1);
+  return last instanceof Error &&
+    last.name === GATEWAY_INTERNAL_SERVER_ERROR &&
+    aiGatewayBudgetScope(last.message)
+    ? last
+    : error;
+}
+
 /**
  * `streamText`, settled like `generateText`: resolves once every step has
  * finished, or rejects with the first error the stream reported (which
@@ -76,9 +91,9 @@ export async function streamModelCall(options: StreamTextOptions) {
     result.steps,
     result.responseMessages,
   ]).catch((error: unknown) => {
-    throw failure ?? error;
+    throw unwrapGatewayBudgetRetry(failure ?? error);
   });
-  if (failure !== undefined) throw failure;
+  if (failure !== undefined) throw unwrapGatewayBudgetRetry(failure);
   return { text, finishReason, steps, responseMessages };
 }
 

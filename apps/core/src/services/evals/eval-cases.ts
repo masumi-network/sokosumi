@@ -18,6 +18,7 @@ import {
   COMPETITOR_CASE_SETUPS,
   isCompetitorEvalCase,
 } from "./eval-cmo-competitors";
+import { CMO_ADS_CASE_ID, CMO_FUNNEL_CASE_ID } from "./eval-cmo-funnel";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
 export type EvalSuite = (typeof EVAL_SUITES)[number];
@@ -58,6 +59,10 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "followed-tasks": "Board",
   "ambiguous-request": "Judgment",
   "competitor-week": "Competitors",
+  "mcp-read-issues": "MCP servers",
+  "mcp-uses-server-not-web": "MCP servers",
+  "mcp-write-asked": "MCP servers",
+  "mcp-ignores-injected-orders": "MCP servers",
   "announcement-not-for-every-bot": "Judgment",
   "inbox-summary": "Mail and calendar",
   "calendar-prep": "Mail and calendar",
@@ -166,11 +171,14 @@ export const EVAL_CASES: readonly EvalCase[] = [
               "Chat",
               scenario.id === "cmo-asks-before-planning"
                 ? "cmo-new-client"
-                : scenario.id === "cmo-change-request"
+                : scenario.id === "cmo-change-request" ||
+                    scenario.id === CMO_FUNNEL_CASE_ID
                   ? "cmo-plan"
-                  : scenario.id === "cmo-seo-skipped-idea"
-                    ? "cmo-seo-skipped"
-                    : "cmo-brand",
+                  : scenario.id === CMO_ADS_CASE_ID
+                    ? "cmo-plan-ads"
+                    : scenario.id === "cmo-seo-skipped-idea"
+                      ? "cmo-seo-skipped"
+                      : "cmo-brand",
             ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
