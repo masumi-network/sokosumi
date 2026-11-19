@@ -1217,6 +1217,18 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     const thinking1 = copies.find((copy) => copy.streaming === true);
     const failed1 = copies.at(-1);
     expect(failed1).toMatchObject({ mention_failed: true });
+    expect(
+      await db.chatRoomMention.findUniqueOrThrow({
+        where: { id: m.mention.id },
+      }),
+    ).toMatchObject({
+      error: "Soko Bot could not answer",
+    });
+    expect(
+      await db.sokoBotTurn.findUniqueOrThrow({ where: { id: first[0] } }),
+    ).toMatchObject({
+      errorDetail: "Gateway refused",
+    });
 
     // Attempt 2: explicit Retry, runs, answers.
     copies.length = 0;

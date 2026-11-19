@@ -553,10 +553,12 @@ export async function persistSokoBotChatTurn(
   const error =
     turn.status === "CANCELLED"
       ? "Soko Bot turn was cancelled"
-      : (turn.errorDetail ?? "Soko Bot could not answer");
+      : turn.errorKind === AI_BUDGET_EXCEEDED
+        ? AI_BUDGET_EXCEEDED_MESSAGE
+        : "Soko Bot could not answer";
   const claimed = await tx.chatRoomMention.updateMany({
     where: { id: mention.id, status: { in: ["pending", "sent"] } },
-    data: { status: "failed", error: error.slice(0, 500) },
+    data: { status: "failed", error },
   });
   if (claimed.count !== 1) return;
   await tx.chatRoomMessage.update({

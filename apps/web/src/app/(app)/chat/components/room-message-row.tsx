@@ -174,6 +174,7 @@ import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
   previewedTaskIds,
+  readSokoBotBackgroundFailure,
   SokoBotFeedbackButtons,
   SokoBotMessageFooter,
   SokoBotSourceLabel,
@@ -2083,10 +2084,12 @@ function MessageTimeOrOutboundStatus({
 function FailedMentionCard({
   name,
   metadata,
+  isSokoBot,
   onRetryMention,
 }: {
   name: string;
   metadata: unknown;
+  isSokoBot: boolean;
   onRetryMention?: () => void;
 }) {
   const t = useTranslations("App.Channels");
@@ -2117,9 +2120,14 @@ function FailedMentionCard({
       <p className="text-muted-foreground text-sm">
         {budgetExceeded
           ? tFailure("aiBudgetExceeded")
-          : saved
-            ? t("MentionStatus.failedSaved")
-            : t("MentionStatus.failedBody")}
+          : isSokoBot
+            ? tFailure("generic")
+            : saved
+              ? t("MentionStatus.failedSaved")
+              : t("MentionStatus.failedBody")}
+        {isSokoBot && !budgetExceeded && saved
+          ? ` ${tFailure("messageSaved")}`
+          : null}
       </p>
       {onRetryMention ? (
         <button
@@ -2529,6 +2537,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
+  const backgroundFailure =
+    message.sender.type === "sokoBot"
+      ? readSokoBotBackgroundFailure(message.metadata)
+      : null;
   const router = useRouter();
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
@@ -2950,6 +2963,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 <FailedMentionCard
                   name={sender.name}
                   metadata={message.metadata}
+                  isSokoBot={message.sender.type === "sokoBot"}
                   onRetryMention={
                     onRetryMention ? () => onRetryMention(message) : undefined
                   }
@@ -3017,6 +3031,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       />
                       {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
                     </>
+                  ) : backgroundFailure ? (
+                    <p>
+                      {backgroundFailure.kind === "turn_deadline_exceeded"
+                        ? tFailure("backgroundDeadline", {
+                            title: backgroundFailure.title,
+                          })
+                        : `${tFailure("backgroundFailed", { title: backgroundFailure.title })} ${tFailure(backgroundFailure.kind === "ai_budget_exceeded" ? "aiBudgetExceeded" : "generic")}`}
+                      {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                    </p>
                   ) : quote && !message.content.trim() ? (
                     bodyEndsTheRow ? (
                       <SeenByInlineReserve />

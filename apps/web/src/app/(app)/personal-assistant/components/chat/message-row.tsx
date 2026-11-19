@@ -290,7 +290,7 @@ export function TurnRows({
               <p className="text-semantic-destructive pt-1 pr-10 text-sm">
                 {turn.errorKind === "ai_budget_exceeded"
                   ? tFailure("aiBudgetExceeded")
-                  : (turn.errorDetail ?? t("failed"))}
+                  : tFailure("generic")}
               </p>
             ) : turn.status === "CANCELLED" ? (
               <p className="text-muted-foreground pt-1 pr-10 text-sm italic">

@@ -431,8 +431,11 @@ import SwiftUI
       switch part {
       case let .sokoBotSource(label):
         SokoBotSourceLabelView(label: label)
-      case let .failedMention(aiBudgetExceeded):
-        CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention, aiBudgetExceeded: aiBudgetExceeded)
+      case let .failedMention(aiBudgetExceeded, isSokoBot):
+        CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention,
+                                  aiBudgetExceeded: aiBudgetExceeded, isSokoBot: isSokoBot)
+      case let .backgroundFailure(title, kind):
+        SokoBotBackgroundFailureView(title: title, kind: kind)
       case let .thought(startedAt, shellWorking):
         CoworkerThoughtView(thought: CoworkerThought(message: message), working: streamThinking || shellWorking,
                             startedAt: startedAt)
@@ -441,10 +444,7 @@ import SwiftUI
           .italic()
           .foregroundStyle(.secondary)
       case .quote:
-        if let quote = message.quote {
-          MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
-            .id(quote.messageId + quote.snippet)
-        }
+        quoteBody
       case .editComposer:
         if let editing {
           MessageEditComposer(editing: editing).id(message.id)
@@ -455,6 +455,14 @@ import SwiftUI
         ProjectSelectionChip(projectId: reply.projectId, mark: reply.mark)
       case .markdown:
         markdownBody
+      }
+    }
+
+    @ViewBuilder
+    private var quoteBody: some View {
+      if let quote = message.quote {
+        MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
+          .id(quote.messageId + quote.snippet)
       }
     }
 

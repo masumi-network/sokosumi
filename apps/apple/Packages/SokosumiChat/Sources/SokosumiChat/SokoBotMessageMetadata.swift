@@ -2,6 +2,12 @@ import CoreAPI
 import Foundation
 import OpenAPIRuntime
 
+public enum SokoBotBackgroundFailureKind: String, Sendable {
+  case budget = "ai_budget_exceeded"
+  case deadline = "turn_deadline_exceeded"
+  case unknown
+}
+
 /// `metadata.soko_bot` on a message a Soko Bot turn produced (web
 /// `readSokoBotMetadata`): the turn to rate, the approvals it still waits on
 /// and the Tasks it created. Web renders the footer only on settled rows.
@@ -15,6 +21,9 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
   public let scheduleName: String?
   public let scheduleKey: String?
 
+  public let backgroundTitle: String?
+  public let backgroundFailure: SokoBotBackgroundFailureKind?
+
   public init(turnId: String, pendingDecisionIds: [String] = [], taskIds: [String] = [], source: String? = nil,
               scheduleName: String? = nil, scheduleKey: String? = nil) {
     self.turnId = turnId
@@ -23,6 +32,8 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
     self.source = source
     self.scheduleName = scheduleName
     self.scheduleKey = scheduleKey
+    backgroundTitle = nil
+    backgroundFailure = nil
   }
 
   public init?(metadata: [String: OpenAPIValueContainer]?) {
@@ -34,6 +45,10 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
     source = record["source"] as? String
     scheduleName = record["schedule_name"] as? String
     scheduleKey = record["schedule_key"] as? String
+    backgroundTitle = record["background_run_title"] as? String
+    backgroundFailure = (record["background_failure_kind"] as? String).map {
+      SokoBotBackgroundFailureKind(rawValue: $0) ?? .unknown
+    }
   }
 
   public init?(message: Components.Schemas.ChatRoomMessage) {

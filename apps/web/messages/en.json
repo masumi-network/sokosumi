@@ -1,7 +1,11 @@
 {
   "Components": {
     "SokoBotTurnFailure": {
-      "aiBudgetExceeded": "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets."
+      "aiBudgetExceeded": "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+      "generic": "Something went wrong on our side. Try again. If it keeps happening, contact support.",
+      "messageSaved": "Your message is saved.",
+      "backgroundFailed": "Background run \"{title}\" failed before it could report.",
+      "backgroundDeadline": "Background run \"{title}\" ran out of time before it could report."
     },
     "AuthCaptcha": {
       "error": "Security check could not load. Turn off content blockers or reload the page.",
@@ -10786,7 +10790,6 @@
         "answeredIn": "{seconds}s",
         "copy": "Copy",
         "copied": "Copied",
-        "failed": "This turn failed. Try again or rephrase.",
         "cancelled": "Cancelled.",
         "noAnswer": "No answer was recorded for this turn.",
         "stillWorking": "Still working on it",

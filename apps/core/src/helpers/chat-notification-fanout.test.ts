@@ -818,7 +818,7 @@ describe("fanOutChatNotifications", () => {
     });
     expect(messageFindUniqueMock).toHaveBeenNthCalledWith(2, {
       where: { id: MESSAGE_ID },
-      select: { content: true, deletedAt: true },
+      select: expect.objectContaining({ content: true, deletedAt: true }),
     });
   });
 
@@ -1208,6 +1208,29 @@ describe("rewriteChatNotificationPreviews", () => {
     roomName: "general",
     messagePreview: "meet at five",
   };
+
+  it("uses safe copy when re-reading a historical failed background report", async () => {
+    notificationFindManyMock.mockResolvedValue([storedRow(BASE)]);
+    messageFindUniqueMock.mockResolvedValue({
+      content:
+        'Background run "Review" failed before it could report. (Raw provider diagnostic)',
+      deletedAt: null,
+      senderSokoBotId: "bot-1",
+      metadata: {
+        soko_bot: { turn_id: "turn-1", background_run_title: "Review" },
+      },
+    });
+    await rewriteChatNotificationPreviews({
+      roomId: ROOM_ID,
+      messageId: MESSAGE_ID,
+    });
+
+    const preview = paramsWrittenTo(0).messagePreview;
+    expect(preview).toContain(
+      'Background run "Review" failed before it could report. Something went wrong',
+    );
+    expect(preview).not.toContain("Raw provider diagnostic");
+  });
 
   /**
    * The message row keeps no text after a delete. A copy left on a
@@ -1747,7 +1770,7 @@ describe("preview rewrite ordering", () => {
     expect(values).toEqual([MESSAGE_ID, ROOM_ID]);
     expect(messageFindUniqueMock).toHaveBeenCalledWith({
       where: { id: MESSAGE_ID, roomId: ROOM_ID },
-      select: { content: true, deletedAt: true },
+      select: expect.objectContaining({ content: true, deletedAt: true }),
     });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });

@@ -35,6 +35,7 @@ import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import { toChatMessageSignalDto } from "@/lib/chat-signals/derive";
 import prisma from "@/lib/db/prisma";
+import { readLegacyBackgroundFailure } from "@/lib/soko-bot/background-failure";
 import {
   type ChatRoom,
   type ChatRoomMessageQuote,
@@ -805,14 +806,20 @@ export function mapChatRoomMessage(
     reactionCounts.set(reaction.emoji, current);
   }
 
-  const metadata = (message.metadata as Record<string, unknown> | null) ?? null;
   const isDeleted = message.deletedAt != null;
+  const storedMetadata =
+    (message.metadata as Record<string, unknown> | null) ?? null;
+  const legacyFailure =
+    !isDeleted && message.senderSokoBotId
+      ? readLegacyBackgroundFailure(message.content, storedMetadata)
+      : null;
+  const metadata = legacyFailure?.metadata ?? storedMetadata;
 
   return {
     id: message.id,
     roomId: message.roomId,
     parentMessageId: message.parentMessageId,
-    content: isDeleted ? "" : message.content,
+    content: isDeleted ? "" : (legacyFailure?.content ?? message.content),
     createdAt: message.createdAt,
     deletedAt: message.deletedAt ?? null,
     editedAt: isDeleted ? null : (message.editedAt ?? null),
@@ -1009,8 +1016,11 @@ export function buildRoomQuoteSnapshot(
 ): ChatRoomMessageQuote {
   assertChatRoomContentMessage(quoted.metadata);
 
+  const legacyFailure = quoted.senderSokoBot
+    ? readLegacyBackgroundFailure(quoted.content, quoted.metadata)
+    : null;
   const { snippet, attachment, attachments } = buildRoomQuoteSnippetParts(
-    quoted.content,
+    legacyFailure?.content ?? quoted.content,
   );
 
   return {

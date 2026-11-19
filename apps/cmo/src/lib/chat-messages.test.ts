@@ -4,20 +4,50 @@ import { cmoChatMessage } from "../test-fixtures/cmo";
 import { cusoText, toCusoMessages, withoutIdMentions } from "./chat-messages";
 
 describe("toCusoMessages", () => {
+  it.each([
+    undefined,
+    { kind: "GatewayInternalServerError", message: "Raw provider diagnostic" },
+  ])(
+    "shows a safe fallback for an unclassified failed reply (%j)",
+    (failure) => {
+      expect(
+        toCusoMessages([
+          cmoChatMessage({
+            content: "",
+            metadata: { mention_failed: true, mention_failure: failure },
+          }),
+        ]),
+      ).toMatchObject([
+        {
+          fromCuso: true,
+          content:
+            "Something went wrong on our side. Try again. If it keeps happening, contact support.",
+        },
+      ]);
+    },
+  );
+
   it("shows the usage-limit reason in place of Cuso's empty failed reply", () => {
-    const message =
-      "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.";
     expect(
       toCusoMessages([
         cmoChatMessage({
           content: "",
           metadata: {
             mention_failed: true,
-            mention_failure: { kind: "ai_budget_exceeded", message },
+            mention_failure: {
+              kind: "ai_budget_exceeded",
+              message: "Raw provider diagnostic",
+            },
           },
         }),
       ]),
-    ).toMatchObject([{ fromCuso: true, content: message }]);
+    ).toMatchObject([
+      {
+        fromCuso: true,
+        content:
+          "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+      },
+    ]);
   });
 
   it("names a Coworker who writes in Cuso's room, never Sokosumi", () => {

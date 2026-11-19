@@ -3331,6 +3331,46 @@ describe("ChatMessageRow coworker Thought", () => {
     );
   });
 
+  it("shows the generic failure copy for an unclassified Soko Bot reply", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: {
+            kind: "GatewayInternalServerError",
+            message: "Raw provider diagnostic",
+          },
+        },
+      }),
+    });
+
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).not.toHaveTextContent("Raw provider diagnostic");
+    expect(card).toHaveTextContent("generic");
+  });
+
+  it("uses the translated failure copy for a background run", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "Raw provider diagnostic",
+        metadata: {
+          soko_bot: {
+            turn_id: "turn-1",
+            background_run_title: "Review",
+            background_failure_kind: "unknown",
+          },
+        },
+      }),
+    });
+
+    expect(
+      screen.queryByText("Raw provider diagnostic"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("backgroundFailed generic")).toBeInTheDocument();
+  });
+
   it("shows a Soko Bot's live Thinking with its latest step and elapsed clock", () => {
     renderRow({
       message: sokoBotMessage({
@@ -3366,7 +3406,7 @@ describe("ChatMessageRow coworker Thought", () => {
     const card = screen.getByTestId("coworker-mention-failed");
     expect(card).toHaveAttribute("role", "status");
     expect(card).toHaveTextContent("MentionStatus.failed");
-    expect(card).toHaveTextContent("MentionStatus.failedSaved");
+    expect(card).toHaveTextContent("messageSaved");
   });
 
   it("shows Retry on a failed mention shell for the mentioner", async () => {
