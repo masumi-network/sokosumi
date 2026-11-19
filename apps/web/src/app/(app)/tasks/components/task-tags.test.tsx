@@ -6,6 +6,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
+  fireEvent,
   render,
   renderHook,
   screen,
@@ -169,10 +170,8 @@ describe("TaskTagSection", () => {
         edit={{ taskId: "task-1", activeOrganizationId: null }}
       />,
     );
-    await userEvent.setup().click(removeButton("Release"));
-    await waitFor(() =>
-      expect(screen.getByText("Release")).toBeInTheDocument(),
-    );
+    await act(async () => fireEvent.click(removeButton("Release")));
+    expect(screen.getByText("Release")).toBeInTheDocument();
     expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
       taskId: "task-1",
       expectedWorkspaceTagIds: ["release"],
@@ -213,7 +212,6 @@ describe("TaskTagSection", () => {
   });
 
   it("applies a pending workspace suggestion and shows later classifier updates on an open detail", async () => {
-    const user = userEvent.setup();
     const edit = { taskId: "task", activeOrganizationId: null };
     const tag = {
       id: "label",
@@ -234,7 +232,9 @@ describe("TaskTagSection", () => {
         workspaceTagSuggestions: [],
       },
     });
-    await user.click(screen.getByRole("button", { name: "acceptSuggestion" }));
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "acceptSuggestion" })),
+    );
     expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
       taskId: "task",
       expectedWorkspaceTagIds: [],
@@ -263,7 +263,7 @@ describe("TaskTagSection", () => {
         workspaceTagSuggestions: [],
       },
     });
-    await user.click(screen.getByRole("button", { name: "remove" }));
+    await act(async () => fireEvent.click(removeButton("Procurement")));
     expect(setTaskWorkspaceTags).toHaveBeenLastCalledWith({
       taskId: "task",
       expectedWorkspaceTagIds: ["label"],
@@ -273,35 +273,44 @@ describe("TaskTagSection", () => {
   });
 
   it("removes a legacy manual topic and shows the server's confirmed tags", async () => {
+    const pending =
+      Promise.withResolvers<Awaited<ReturnType<typeof setTaskWorkspaceTags>>>();
     render(
       <TaskTagSection
         tags={initialTags}
         edit={{ taskId: "task", activeOrganizationId: null }}
       />,
     );
-    vi.mocked(setTaskWorkspaceTags).mockResolvedValueOnce({
-      ok: true,
-      value: {
-        tags: {
-          manual: [],
-          automatic: ["research", "writing"],
-          rejected: ["design"],
-        },
-        workspaceTags: [],
-        workspaceTagSuggestions: [],
-      },
-    });
-    await userEvent.setup().click(removeButton("vocabulary.design"));
-    expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
-      taskId: "task",
-      dismissedTopicIds: ["design"],
-    });
+    vi.mocked(setTaskWorkspaceTags).mockReturnValueOnce(pending.promise);
+    try {
+      await userEvent.setup().click(removeButton("vocabulary.design"));
+      expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
+        taskId: "task",
+        dismissedTopicIds: ["design"],
+      });
+      expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
+      expect(screen.queryByText("vocabulary.writing")).not.toBeInTheDocument();
+    } finally {
+      await act(async () =>
+        pending.resolve({
+          ok: true,
+          value: {
+            tags: {
+              manual: [],
+              automatic: ["research", "writing"],
+              rejected: ["design"],
+            },
+            workspaceTags: [],
+            workspaceTagSuggestions: [],
+          },
+        }),
+      );
+    }
     expect(screen.queryByText("vocabulary.design")).not.toBeInTheDocument();
     expect(removeButton("vocabulary.writing")).toBeEnabled();
   });
 
   it("keeps a concurrent detail edit after refreshing and retrying a rejected replacement", async () => {
-    const user = userEvent.setup();
     const tag = { id: "old", displayName: "Design", source: "jev" as const };
     const added = { id: "new", displayName: "Finance" };
     vi.mocked(setTaskWorkspaceTags)
@@ -328,16 +337,14 @@ describe("TaskTagSection", () => {
         edit={{ taskId: "task", activeOrganizationId: null }}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "remove" }));
+    await act(async () => fireEvent.click(removeButton("Design")));
     expect(screen.getByRole("alert")).toHaveTextContent("conflict");
     expect(screen.getByText("Design")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "reloadTags" }));
-    expect(removeButton("vocabulary.research")).toBeEnabled();
-    await user.click(
-      within(screen.getByText("Design").parentElement!).getByRole("button", {
-        name: "remove",
-      }),
+    await act(async () =>
+      fireEvent.click(screen.getByRole("button", { name: "reloadTags" })),
     );
+    expect(removeButton("vocabulary.research")).toBeEnabled();
+    await act(async () => fireEvent.click(removeButton("Design")));
     expect(setTaskWorkspaceTags).toHaveBeenLastCalledWith({
       taskId: "task",
       expectedWorkspaceTagIds: ["old", "new"],
@@ -461,7 +468,9 @@ it("removes a canonical topic and its workspace alias with a single click", asyn
       workspaceTagSuggestions: [],
     },
   });
-  await userEvent.setup().click(screen.getByRole("button", { name: "remove" }));
+  await act(async () =>
+    fireEvent.click(screen.getByRole("button", { name: "remove" })),
+  );
   expect(setTaskWorkspaceTags).toHaveBeenCalledTimes(1);
   expect(setTaskWorkspaceTags).toHaveBeenCalledWith({
     taskId: "task",
