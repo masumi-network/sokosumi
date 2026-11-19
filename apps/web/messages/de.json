@@ -2031,7 +2031,25 @@
           "moveToWorkspaceCancel": "Abbrechen",
           "moveToWorkspaceSuccess": "Task wurde verschoben",
           "moveToWorkspaceError": "Task konnte nicht verschoben werden",
-          "markAs": "Markieren als",
+          "linkToTask": "Mit Task verknüpfen",
+          "linkPicker": {
+            "related": {
+              "title": "Als zugehörig verknüpfen",
+              "description": "Wählen Sie einen Task. Jeder Task zeigt den anderen unter Zugehörig."
+            },
+            "blocks": {
+              "title": "Als blockierend verknüpfen",
+              "description": "Wählen Sie den Task, den dieser blockiert. Dieser Task zeigt ihn unter Blockiert, der andere zeigt diesen unter Blockiert durch."
+            },
+            "blockedBy": {
+              "title": "Als blockiert durch verknüpfen",
+              "description": "Wählen Sie den Task, auf den dieser wartet. Dieser Task zeigt ihn unter Blockiert durch, der andere zeigt diesen unter Blockiert."
+            },
+            "duplicate": {
+              "title": "Als Duplikat verknüpfen",
+              "description": "Wählen Sie den Task, den dieser wiederholt. Jeder Task zeigt den anderen unter Duplikat. Es wird nichts kopiert."
+            }
+          },
           "createRelated": "Verknüpften Task erstellen",
           "removeRelated": "Verknüpften Task entfernen",
           "removeRelatedSuccess": "Verknüpfter Task entfernt",
@@ -2039,8 +2057,6 @@
           "linkTaskSuccess": "Task verknüpft",
           "linkTaskError": "Task konnte nicht verknüpft werden",
           "createRelatedSuccess": "Verknüpfter Task erstellt",
-          "taskPickerTitle": "Markieren als {relation}",
-          "taskPickerDescription": "Wählen Sie einen Task aus, den Sie mit dem aktuellen Task verknüpfen möchten.",
           "taskPickerSearchPlaceholder": "Tasks suchen...",
           "taskPickerLoading": "Tasks werden geladen...",
           "taskPickerEmpty": "Keine Tasks gefunden.",
@@ -2063,7 +2079,7 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren",
+          "duplicate": "Als Entwurf kopieren",
           "sendToChat": {
             "menuItem": "In Chat senden",
             "title": "Aufgabe in Chat senden",
@@ -2258,7 +2274,7 @@
         "previewUse": "Diesen Task verwenden",
         "previewEmpty": "Noch kein Beispiel verfügbar.",
         "taskCreated": "Task erstellt",
-        "taskCreatedHint": "Alles ist eingerichtet und bereit.",
+        "taskCreatedHint": "{status, select, DRAFT {Er liegt als Entwurf im Backlog. Nichts startet, bis du ihn auf Bereit setzt.} QUEUED {Er wartet im Backlog und startet zur festgelegten Zeit.} other {Er steht unter Offen und kann starten.}}",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
@@ -2853,7 +2869,7 @@
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
-          "facebookPage": "Verbinde ein Facebook-Konto, das genau eine Seite verwaltet. Konten ohne Seiten oder mit mehreren Seiten werden noch nicht unterstützt.",
+          "facebookPage": "Dieses Facebook-Login verwaltet keine Seite. Verbinde dich erneut mit dem Login, das deine Seite verwaltet.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
@@ -2866,14 +2882,23 @@
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
           "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren.",
-          "sync": "Synchronisierung konnte nicht gestartet werden."
+          "sync": "Synchronisierung konnte nicht gestartet werden.",
+          "youtubeChannel": "Diese Google-Anmeldung hat keinen YouTube-Kanal. Verbinde dich erneut und wähle auf dem Google-Bildschirm das Konto des Kanals."
         },
         "comingSoon": "Bald verfügbar",
-        "linkedinPersonalOnly": "Nur persönliches Profil. Unternehmensseiten werden noch nicht unterstützt.",
         "personalProfile": "Persönliches Profil",
         "connectComingSoon": "{provider} (bald verfügbar)",
         "empty": "Noch keine Konten.",
-        "emptyHint": "Verbinde eines, um zu posten."
+        "emptyHint": "Verbinde eines, um zu posten.",
+        "choose": {
+          "title": "Welches Konto?",
+          "description": "Deine {provider}-Anmeldung erreicht mehr als ein Konto. Beiträge erscheinen unter dem Konto, das du auswählst.",
+          "listLabel": "Konten",
+          "page": "Unternehmensseite",
+          "profile": "Dein persönliches Profil",
+          "cancel": "Abbrechen",
+          "confirm": "Verbinden"
+        }
       },
       "SocialPosts": {
         "loadError": {
@@ -4469,7 +4494,13 @@
       "newVideo": "Neues Video",
       "videoMaking": "In Arbeit",
       "videoFailed": "Nicht erstellt",
-      "you": "Du"
+      "you": "Du",
+      "videoReady": "Fertig",
+      "videoUnavailable": "Nicht verfügbar",
+      "loadFailed": "Video konnte nicht geladen werden",
+      "loadFailedBody": "Die Datei ist nicht angekommen. Versuche es gleich noch einmal.",
+      "tryAgain": "Erneut versuchen",
+      "checking": "Das Video wird geprüft. Wenn es nicht startet, drücke auf Abspielen."
     },
     "Studio": {
       "back": "Zurück zum Projekt",
@@ -9970,6 +10001,7 @@
         "you": "Du",
         "youNamed": "{name} (du)",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
+        "composerPlaceholder": "Schreibe dir eine Notiz",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       },
       "Signals": {
@@ -11105,6 +11137,59 @@
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"
         }
+      },
+      "Mcp": {
+        "title": "MCP-Server",
+        "description": "Verbinde deinen Bot mit einem beliebigen entfernten MCP-Server. Sokosumi führt jeden Aufruf aus und verwahrt den Schlüssel; der Bot sieht ihn nie.",
+        "addTitle": "Server hinzufügen",
+        "nameLabel": "Name",
+        "namePlaceholder": "Linear",
+        "urlLabel": "Adresse",
+        "authLabel": "Anmeldung",
+        "authBearer": "API-Schlüssel",
+        "authHeader": "Schlüssel in eigenem Header",
+        "authNone": "Keine",
+        "keyLabel": "Schlüssel",
+        "headerNameLabel": "Header-Name",
+        "connect": "Verbinden",
+        "addHelp": "Sokosumi liest die Tools des Servers sofort.",
+        "added": "{name} ist verbunden",
+        "addError": "Der Server konnte nicht verbunden werden",
+        "toolCount": "{enabled} von {total} Tools an",
+        "refresh": "Tools von {name} neu lesen",
+        "refreshed": "Die Tools von {name} sind aktuell",
+        "refreshError": "Die Tools des Servers konnten nicht gelesen werden",
+        "remove": "{name} entfernen",
+        "removeError": "Der Server konnte nicht entfernt werden",
+        "reads": "Liest",
+        "changes": "Ändert etwas",
+        "kindLabel": "Was {name} tut",
+        "enabledLabel": "Bot darf {name} nutzen",
+        "toolError": "Das Tool konnte nicht geändert werden",
+        "authOauth": "Auf der Seite des Servers anmelden",
+        "signIn": "Anmelden",
+        "signInNeeded": "Melde dich bei diesem Server an, bevor dein Bot ihn nutzen kann.",
+        "signInError": "Die Anmeldung konnte nicht gestartet werden"
+      },
+      "Shell": {
+        "title": "Kommandozeilen-Tools",
+        "description": "Richte die Tools ein, die die Shell deines Bots braucht. Seine Sandbox startet in jedem Durchgang leer, deshalb laufen diese jedes Mal neu.",
+        "commandsTitle": "Einrichtungsbefehle",
+        "commandsHelp": "Ein Befehl pro Zeile, höchstens zehn. Sie laufen vor jedem Durchgang mit Shell.",
+        "saveCommands": "Befehle speichern",
+        "commandsSaved": "Einrichtungsbefehle gespeichert",
+        "commandsError": "Die Einrichtungsbefehle konnten nicht gespeichert werden",
+        "keysTitle": "Schlüssel",
+        "keysHelp": "Ein Schlüssel mit Shell-Zugriff erreicht jeden Befehl als Umgebungsvariable mit diesem Namen. Der Bot sieht den Namen, nicht den Wert, aber ein Befehl, den er ausführt, kann den Wert lesen. Füge also nur Schlüssel hinzu, die du auch einem Skript geben würdest.",
+        "keyNameLabel": "Name des Schlüssels",
+        "keyValueLabel": "Wert des Schlüssels",
+        "keyValuePlaceholder": "Schlüssel einfügen",
+        "addKey": "Schlüssel hinzufügen",
+        "keySaved": "{name} gespeichert",
+        "keyError": "Der Schlüssel konnte nicht gespeichert werden",
+        "shellAccess": "Shell-Zugriff",
+        "shellAccessLabel": "Shell-Befehle dürfen {name} nutzen",
+        "deleteKey": "{name} löschen"
       }
     },
     "SokoBots": {

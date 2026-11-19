@@ -37,7 +37,8 @@ export function Alternatives({
   alternatives: NonNullable<Strategy["alternatives"]>;
   onAsk?: (text: string, label?: string) => Promise<void>;
 }) {
-  // Plain state, not a transition, for the same reason as PacePicker.
+  // Plain state, not a transition: the host shows its re-planning screen at
+  // once, and a refusal stays here instead of throwing.
   const [picked, setPicked] = useState<string | null>(null);
   const switching = picked !== null;
   return (
@@ -103,9 +104,15 @@ export function OfferLadder({
   );
 }
 
-/** The classic funnel step each stage is, and what people do there. */
+/**
+ * The classic funnel step each stage is, and what people do there. Cuso
+ * writes AIDA's four; the last three are stages of strategies saved before.
+ */
 const STAGES: Record<Stage["stage"], { label: string; people: string }> = {
   awareness: { label: "Awareness", people: "People who could buy hear of you" },
+  interest: { label: "Interest", people: "They look closer" },
+  desire: { label: "Desire", people: "They want it" },
+  action: { label: "Action", people: "They buy, book or sign up" },
   consideration: { label: "Consideration", people: "They weigh you up" },
   conversion: { label: "Conversion", people: "They buy or sign up" },
   loyalty: { label: "Loyalty", people: "They come back" },
@@ -207,27 +214,31 @@ function FunnelSegment({
   );
 }
 
-/** Cuso's work at a stage, one line a channel. */
+/** Cuso's work at a stage: his own sentence, then one line a channel. */
 function CusoPart({ stage }: { stage: Stage }) {
   const plays = stage.plays ?? [];
   if (plays.length > 0) {
     return (
-      <ul className="sc-plays">
-        {plays.map((play) => (
-          <li key={`${play.channel}:${play.what}`}>
-            <span className="sc-play-channel">
-              <ChannelIcon
-                channel={channelKey(play.channel) ?? play.channel}
-                size={16}
-              />
-              {channelLabel(play.channel)}
-            </span>
-            <span>{play.what}</span>
-          </li>
-        ))}
-      </ul>
+      <>
+        {stage.cusoDoes ? <p className="sc-says">{stage.cusoDoes}</p> : null}
+        <ul className="sc-plays">
+          {plays.map((play) => (
+            <li key={`${play.channel}:${play.what}`}>
+              <span className="sc-play-channel">
+                <ChannelIcon
+                  channel={channelKey(play.channel) ?? play.channel}
+                  size={16}
+                />
+                {channelLabel(play.channel)}
+              </span>
+              <span>{play.what}</span>
+            </li>
+          ))}
+        </ul>
+      </>
     );
   }
+  if (stage.cusoDoes) return <p>{stage.cusoDoes}</p>;
   const channels = stage.channels ?? [];
   if (stage.owner === "you" || channels.length === 0) {
     return <p>Nothing here. This step is yours.</p>;
@@ -246,7 +257,10 @@ function CusoPart({ stage }: { stage: Stage }) {
   );
 }
 
-/** The owner's part: their own pages at the sale, with Cuso's ideas for them. */
+/** The stages where the sale happens, on the owner's own pages. */
+const SALE_STAGES: readonly Stage["stage"][] = ["action", "conversion"];
+
+/** The owner's part: their own sentence, and at the sale Cuso's ideas for their pages. */
 function OwnerPart({
   stage,
   improvements,
@@ -255,31 +269,37 @@ function OwnerPart({
   improvements: NonNullable<Strategy["improvements"]>;
 }) {
   const owner = stage.owner ?? "cuso";
-  if (owner === "cuso") return <p>Nothing. {AGENT_NAME} runs this step.</p>;
+  if (owner === "cuso" && !stage.youDo)
+    return <p>Nothing. {AGENT_NAME} runs this step.</p>;
   const ideas =
-    stage.stage === "conversion"
+    owner !== "cuso" && SALE_STAGES.includes(stage.stage)
       ? improvements.filter((item) =>
           ["landing", "pricing", "checkout"].includes(item.area),
         )
       : [];
-  if (ideas.length === 0) {
-    return (
-      <p>
-        {owner === "you"
-          ? "This step happens on your own pages, product or sales."
-          : `Your pages and offer do the rest. ${AGENT_NAME} suggests changes, you decide.`}
-      </p>
-    );
-  }
+  const says =
+    stage.youDo ??
+    (ideas.length > 0
+      ? null
+      : owner === "you"
+        ? "This step happens on your own pages, product or sales."
+        : `Your pages and offer do the rest. ${AGENT_NAME} suggests changes, you decide.`);
   return (
-    <ul className="sc-ideas">
-      {ideas.map((item) => (
-        <li key={item.idea}>
-          <span>{item.idea}</span>
-          <span className="note">{item.why}</span>
-        </li>
-      ))}
-    </ul>
+    <>
+      {says ? (
+        <p className={ideas.length > 0 ? "sc-says" : undefined}>{says}</p>
+      ) : null}
+      {ideas.length > 0 ? (
+        <ul className="sc-ideas">
+          {ideas.map((item) => (
+            <li key={item.idea}>
+              <span>{item.idea}</span>
+              <span className="note">{item.why}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
   );
 }
 
@@ -361,60 +381,6 @@ export const PACES: { level: Pace; name: string; does: string }[] = [
   },
 ];
 
-/** How hard the plan publishes: Cuso's pick, one tap to change. */
-export function PacePicker({
-  pace,
-  onAsk,
-}: {
-  pace: NonNullable<Strategy["pace"]>;
-  onAsk?: (text: string, label?: string) => Promise<void>;
-}) {
-  // Plain state, not a transition: the host shows its re-planning screen the
-  // moment this is tapped, and a refusal stays here instead of throwing.
-  const [asked, setAsked] = useState<Pace | null>(null);
-  const changing = asked !== null;
-  return (
-    <div className="sc-pace">
-      <div className="sc-pace-options" role="group" aria-label="Pace">
-        {PACES.map((option) => {
-          const current = option.level === pace.level;
-          return (
-            <button
-              key={option.level}
-              type="button"
-              className="sc-pace-option"
-              aria-pressed={current}
-              disabled={!onAsk || current || changing}
-              onClick={async () => {
-                setAsked(option.level);
-                try {
-                  await onAsk?.(
-                    `Change the pace to ${option.name} (${option.does.toLowerCase()}) and re-plan the calendar to match.`,
-                    `${option.name} pace`,
-                  );
-                } catch {
-                  // The host shows the refusal.
-                } finally {
-                  setAsked(null);
-                }
-              }}
-            >
-              <b>{option.name}</b>
-              <span>{option.does}</span>
-              {changing && asked === option.level ? (
-                <Loader2 size={14} className="spin" aria-hidden="true" />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-      <p className="note">
-        {pace.perWeek} posts a week. {pace.why}
-      </p>
-    </div>
-  );
-}
-
 export function money(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat("en", {
@@ -428,54 +394,84 @@ export function money(amount: number, currency: string): string {
 }
 
 /**
- * Paid ads, the only part that costs more: Cuso's amount and what it should
- * bring, what happens without it, and the owner's own figure.
+ * Ads cost the owner money on top of their plan, so they are a Yes or No of
+ * their own: No until the owner says otherwise, and the budget only after a
+ * Yes. Cuso's suggestion fills the amount in; saving it asks him to plan the
+ * ads, and No takes them out again.
  */
-export function AdBudget({
+export function AdsChoice({
   ads,
   onSetAds,
 }: {
   ads: NonNullable<Strategy["ads"]>;
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [amount, setAmount] = useState(String(ads.monthly));
+  const on = ads.monthly > 0;
+  const [wants, setWants] = useState(on);
+  const [amount, setAmount] = useState(
+    String(on ? ads.monthly : (ads.suggest?.monthly ?? "")),
+  );
   const [saving, setSaving] = useState(false);
   const value = Number(amount.replace(/[^\d.]/g, ""));
+  const suggested = ads.suggest;
+
+  async function save(monthly: number) {
+    if (!onSetAds) return;
+    setSaving(true);
+    try {
+      await onSetAds(monthly, ads.currency);
+    } catch {
+      // The host shows the refusal; the choice stays to try again.
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="sc-ads">
-      <p className="sc-ads-amount">
-        <b className="num">{money(ads.monthly, ads.currency)}</b>
-        <span className="note">
-          a month
-          {ads.setByOwner ? ", your budget" : `, ${AGENT_NAME}'s suggestion`}
-        </span>
-      </p>
-      <p>{ads.monthly > 0 ? ads.expect : ads.without}</p>
-      {ads.monthly > 0 ? (
-        <p className="note">Without ads: {ads.without}</p>
-      ) : null}
+      <p className="sc-ads-question">Do you want ads?</p>
       <p className="note">
-        Ads are the only extra cost. You pay the ad networks directly;{" "}
-        {AGENT_NAME}
-        never spends more than this.
+        Ads are extra to your plan: you pay the ad network directly, and{" "}
+        {AGENT_NAME} never spends more than the budget you set.
       </p>
-      {onSetAds ? (
-        editing ? (
+      <div className="ob-tabs" role="group" aria-label="Ads">
+        <button
+          type="button"
+          aria-pressed={wants}
+          disabled={!onSetAds || saving}
+          onClick={() => setWants(true)}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          aria-pressed={!wants}
+          disabled={!onSetAds || saving}
+          onClick={() => {
+            setWants(false);
+            if (on) void save(0);
+          }}
+        >
+          No
+        </button>
+      </div>
+      {wants ? (
+        <>
+          {suggested && !ads.setByOwner ? (
+            <p className="note">
+              {AGENT_NAME} would start with{" "}
+              {money(suggested.monthly, ads.currency)} a month on{" "}
+              {channelLabel(suggested.channel)}. {ads.expect}
+            </p>
+          ) : on ? (
+            <p className="note">{ads.expect}</p>
+          ) : null}
           <form
             className="sc-ads-form"
-            onSubmit={async (event) => {
+            onSubmit={(event) => {
               event.preventDefault();
-              if (!Number.isFinite(value) || value < 0) return;
-              setSaving(true);
-              try {
-                await onSetAds(value, ads.currency);
-                setEditing(false);
-              } catch {
-                // The host shows the refusal; the amount stays to try again.
-              } finally {
-                setSaving(false);
-              }
+              if (!Number.isFinite(value) || value <= 0) return;
+              void save(value);
             }}
           >
             <label className="sc-ads-input">
@@ -485,33 +481,22 @@ export function AdBudget({
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 aria-label={`Monthly ad budget in ${ads.currency}`}
+                disabled={!onSetAds}
               />
+              <span className="note">a month</span>
             </label>
             <button
               type="submit"
               className="button button-secondary button-small"
-              disabled={saving}
+              disabled={!onSetAds || saving || (on && value === ads.monthly)}
             >
-              {saving ? "Saving…" : "Set budget"}
-            </button>
-            <button
-              type="button"
-              className="button button-ghost button-small"
-              onClick={() => setEditing(false)}
-            >
-              Cancel
+              {saving ? "Saving…" : on ? "Change budget" : "Set budget"}
             </button>
           </form>
-        ) : (
-          <button
-            type="button"
-            className="sc-link"
-            onClick={() => setEditing(true)}
-          >
-            Set your own budget
-          </button>
-        )
-      ) : null}
+        </>
+      ) : (
+        <p className="note">No ads. {ads.without}</p>
+      )}
     </div>
   );
 }

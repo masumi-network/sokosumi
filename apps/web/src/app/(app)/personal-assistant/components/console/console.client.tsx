@@ -4,6 +4,8 @@ import {
   type SokoBotDailyStats,
   type SokoBotInstalledSkill,
   type SokoBotIntegrations,
+  type SokoBotMcpServer,
+  type SokoBotSecret,
   SokoBotStatus,
   type SokoBotUsage,
   type SokoBotVersion,
@@ -56,14 +58,15 @@ import { DeleteSokoBotButton } from "../delete-soko-bot-button.client";
 import { FollowBoardToggle } from "../follow-board-toggle.client";
 import { HowItWorks } from "../how-it-works";
 import { MailAutoReadToggle } from "../mail-auto-read-toggle.client";
+import { McpServersSection } from "../mcp-servers-section.client";
 import { ProactiveSettings } from "../proactive-settings.client";
 import { RenameSokoBotForm } from "../rename-soko-bot-form.client";
 import { ResetMemoryButton } from "../reset-memory-button.client";
 import { ScheduleForm } from "../schedule-form.client";
 import { ScheduleRowActions } from "../schedule-row-actions.client";
+import { ShellSetupSection } from "../shell-setup-section.client";
 import { SkillsSection } from "../skills-section.client";
 import { SokoBotTargetContext } from "../soko-bot-target";
-
 import { ActivityList } from "./activity-list.client";
 import { AutomationChecks } from "./automation-checks";
 import { BotProfileAvatar } from "./bot-profile-avatar.client";
@@ -256,6 +259,15 @@ export interface SokoBotConsoleProps {
    * empty state's link; null without the Social beta.
    */
   ads: { accounts: BotAdAccount[]; projectId: string | null } | null;
+  /**
+   * The caller's own bot's MCP servers, setup commands and saved keys
+   * (ADR 0074); null on a shared bot or outside Advanced.
+   */
+  ownTools?: {
+    mcpServers: SokoBotMcpServer[];
+    setupCommands: string[];
+    secrets: SokoBotSecret[];
+  } | null;
 }
 
 /**
@@ -291,6 +303,7 @@ export function SokoBotConsole({
   cmoProjectId = null,
   sharedRoomId,
   ads,
+  ownTools = null,
 }: SokoBotConsoleProps) {
   const isCuso = cmoProjectId !== null;
   const canManage = viewerCanManage && !isCuso;
@@ -605,6 +618,33 @@ export function SokoBotConsole({
                     </HolderPanel>
                   </HolderSection>
                 )}
+                {ownTools ? (
+                  <>
+                    <HolderSection
+                      title={t("Mcp.title")}
+                      description={t("Mcp.description")}
+                    >
+                      <HolderPanel>
+                        <McpServersSection
+                          botId={state.bot.id}
+                          initialServers={ownTools.mcpServers}
+                        />
+                      </HolderPanel>
+                    </HolderSection>
+                    <HolderSection
+                      title={t("Shell.title")}
+                      description={t("Shell.description")}
+                    >
+                      <HolderPanel>
+                        <ShellSetupSection
+                          botId={state.bot.id}
+                          initialCommands={ownTools.setupCommands}
+                          initialSecrets={ownTools.secrets}
+                        />
+                      </HolderPanel>
+                    </HolderSection>
+                  </>
+                ) : null}
                 {adsBlock ? (
                   <HolderSection
                     title={t("Ads.title")}

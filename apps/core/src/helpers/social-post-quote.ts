@@ -1,5 +1,9 @@
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import { badRequest } from "@/helpers/error";
+import {
+  socialPostConnectionSelect,
+  socialPostConnectionSummary,
+} from "@/helpers/project-social-connection-summary";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 
 export const SOCIAL_POST_QUOTE_BACKOFF_MS = 60_000;
@@ -20,16 +24,7 @@ export const socialPostQuoteSelect = {
   text: true,
   media: true,
   quotedPostId: true,
-  socialConnection: {
-    select: {
-      id: true,
-      externalHandle: true,
-      displayName: true,
-      avatarUrl: true,
-      subscriptionType: true,
-      status: true,
-    },
-  },
+  socialConnection: { select: socialPostConnectionSelect },
 } satisfies Prisma.SocialPostSelect;
 
 type QuotedPostRecord = Prisma.SocialPostGetPayload<{
@@ -45,7 +40,7 @@ export function mapSocialPostQuote(post: QuotedPostRecord) {
     timezone: post.timezone,
     publishedExternalId: post.publishedExternalId,
     publishedUrl: post.publishedUrl,
-    account: post.socialConnection,
+    account: socialPostConnectionSummary(post.socialConnection),
     text: post.text,
     media: parseSocialPostMedia(post.media, post.id).slice(0, 1),
   };

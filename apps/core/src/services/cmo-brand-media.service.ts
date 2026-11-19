@@ -5,9 +5,10 @@ import {
 } from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { type BrandBrain, brandBrainSchema } from "@sokosumi/soko-bot";
-import { list } from "@vercel/blob";
+import { head, list } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import type { Browser } from "puppeteer-core";
+import { z } from "zod";
 
 import prisma from "@/lib/db/prisma";
 import { driveOwnerOf } from "@/lib/drive-blob";
@@ -16,10 +17,14 @@ import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import {
   capturePage,
+  DESKTOP,
   MOBILE,
+  type PageCapture,
   type SiteImage,
+  type SiteSectionKind,
   withBrowser,
 } from "@/lib/site-capture";
+import { readRobots, readSitemapPages } from "@/lib/site-pages";
 import type { CmoBrandMedia } from "@/schemas/cmo.schema";
 import type { Cuso } from "@/services/cmo-cuso.service";
 import {
@@ -31,23 +36,79 @@ import {
 /** Where the material lands: the Project's files, in this Drive folder. */
 export const CMO_BRAND_MEDIA_FOLDER = "Brand research";
 
+/** Where the brand's logo files live, and what each is called (".png"). */
+export const CMO_BRAND_LOGO_FOLDER = `${CMO_BRAND_MEDIA_FOLDER}/Logo`;
+export const CMO_BRAND_LOGO_FILES = {
+  src: "logo",
+  srcDark: "logo-dark",
+  mark: "mark",
+} as const;
+
 /** Screenshot file names (without ".jpg") and how CMO labels them, in order. */
 const PAGE_LABELS: Record<string, string> = {
   home: "Home",
-  "home-mobile": "Home on a phone",
   pricing: "Pricing",
   product: "Product",
   customers: "Customers",
   about: "About",
+  blog: "Blog",
+  docs: "Docs",
 };
+/** A page's phone screenshot is named after the page: "pricing-mobile". */
+const MOBILE_SUFFIX = "-mobile";
+
+/** What a section is called where Cuso and CMO name it. */
+const SECTION_LABELS: Record<SiteSectionKind, string> = {
+  hero: "Hero",
+  pricing: "Pricing cards",
+  testimonials: "Testimonials",
+  customers: "Customer logos",
+  faq: "Questions and answers",
+  product: "Product shot",
+  features: "Feature section",
+  cta: "Call to action",
+  section: "Section",
+};
+const SECTION_NAME = new RegExp(
+  `^(.+?)-(\\d{2})-(${Object.keys(SECTION_LABELS).join("|")})(?:-(.*))?$`,
+);
+
+/** The index of a capture, saved beside its files as index.json. */
+const INDEX_FILE = "index.json";
+const brandIndexSchema = z.object({
+  /** Each page read, by its screenshot's file name. */
+  pages: z.array(
+    z.object({ name: z.string(), url: z.string(), title: z.string() }),
+  ),
+  /** Each section cut from a page, by its file name under Sections. */
+  sections: z.array(
+    z.object({ name: z.string(), title: z.string(), pageUrl: z.string() }),
+  ),
+});
+type BrandIndex = z.infer<typeof brandIndexSchema>;
 
 interface ResearchFile {
   fileId: string;
   pathname: string;
-  /** "", "Competitors" or "Pictures". */
+  /** "", "Competitors", "Pictures", "Sections", "Full pages" or "Logo". */
   folder: string;
-  /** The file name without ".jpg". */
+  /** The file name without ".jpg" or ".png". */
   name: string;
+}
+
+/** A section file's page, kind and words, read from its name. */
+function sectionOf(
+  file: ResearchFile,
+): { page: string; kind: SiteSectionKind; words: string } | null {
+  const match =
+    file.folder === "Sections" ? file.name.match(SECTION_NAME) : null;
+  return match
+    ? {
+        page: match[1] as string,
+        kind: match[3] as SiteSectionKind,
+        words: (match[4] ?? "").replace(/-/g, " "),
+      }
+    : null;
 }
 
 /**
@@ -90,7 +151,7 @@ async function listResearchFiles(projectId: string): Promise<ResearchFile[]> {
         fileId: resource.id,
         pathname: resource.sourceId,
         folder: slash === -1 ? "" : path.slice(0, slash),
-        name: path.slice(slash + 1).replace(/\.jpg$/, ""),
+        name: path.slice(slash + 1).replace(/\.(jpg|png)$/, ""),
       },
     ];
   });
@@ -122,28 +183,101 @@ function pictureAlt(name: string): string {
     .trim();
 }
 
+/** Sections Cuso is offered: enough for a month, short enough for his context. */
+const MAX_OFFERED_SECTIONS = 16;
+
 /**
  * The brand's own pictures from the Project's files, references for images:
  * its page screenshots first (for software they are the product), then the
- * photos from its pages.
+ * sections cut from those pages (pricing cards, testimonials, product shots;
+ * a plain section last), then the photos from its pages.
  */
 export async function listCmoBrandPictures(
   projectId: string,
 ): Promise<{ fileId: string; alt: string }[]> {
   const files = await listResearchFiles(projectId);
-  const pages = Object.keys(PAGE_LABELS).flatMap((name) => {
+  const shot = (name: string, alt: string) => {
     const page = files.find((file) => file.folder === "" && file.name === name);
-    return page
-      ? [{ fileId: page.fileId, alt: `${PAGE_LABELS[name]} page screenshot` }]
-      : [];
-  });
+    return page ? [{ fileId: page.fileId, alt }] : [];
+  };
+  const pages = Object.entries(PAGE_LABELS).flatMap(([name, label]) => [
+    ...shot(name, `${label} page screenshot`),
+    ...(name === "home"
+      ? shot(`home${MOBILE_SUFFIX}`, "Home on a phone page screenshot")
+      : []),
+  ]);
+  const sections = files
+    .flatMap((file) => {
+      const section = sectionOf(file);
+      return section ? [{ file, ...section }] : [];
+    })
+    .sort(
+      (a, b) =>
+        Number(a.kind === "section") - Number(b.kind === "section") ||
+        a.file.name.localeCompare(b.file.name),
+    )
+    .slice(0, MAX_OFFERED_SECTIONS)
+    .map(({ file, page, kind, words }) => ({
+      fileId: file.fileId,
+      alt: `${SECTION_LABELS[kind]}, ${PAGE_LABELS[page] ?? page} page${words ? `: ${words}` : ""}`,
+    }));
   return [
     ...pages,
+    ...sections,
     ...latestPictures(files).map((file) => ({
       fileId: file.fileId,
       alt: pictureAlt(file.name),
     })),
   ];
+}
+
+/**
+ * The brand's full logo from the Project's files, and its version for a dark
+ * background: what goes onto a picture. Null where research saved none.
+ */
+export async function readCmoBrandLogo(
+  projectId: string,
+): Promise<{ logo: Uint8Array | null; dark: Uint8Array | null }> {
+  const files = await listResearchFiles(projectId);
+  const bytes = async (name: string) => {
+    const file = files.find(
+      (candidate) => candidate.folder === "Logo" && candidate.name === name,
+    );
+    if (!file) return null;
+    try {
+      // Our own Blob store: its bot check refuses the SSRF-safe fetch.
+      const response = await fetch((await head(file.pathname)).url, {
+        signal: AbortSignal.timeout(15_000),
+      });
+      return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    logo: await bytes(CMO_BRAND_LOGO_FILES.src),
+    dark: await bytes(CMO_BRAND_LOGO_FILES.srcDark),
+  };
+}
+
+const indexes = new Map<string, BrandIndex | null>();
+
+/** A capture's index.json, read once per upload of it. */
+async function readBrandIndex(blob: {
+  url: string;
+  uploadedAt: Date;
+}): Promise<BrandIndex | null> {
+  const key = `${blob.url}?v=${blob.uploadedAt.getTime()}`;
+  if (indexes.has(key)) return indexes.get(key) ?? null;
+  // Our own Blob store: its bot check refuses the SSRF-safe fetch.
+  const parsed = await fetch(key, { signal: AbortSignal.timeout(8_000) })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((body) => brandIndexSchema.safeParse(body))
+    .catch(() => null);
+  if (!parsed) return null;
+  const index = parsed.success ? parsed.data : null;
+  indexes.set(key, index);
+  return index;
 }
 
 /**
@@ -182,27 +316,69 @@ export async function cmoBrandMedia(input: {
         }
       : null;
   };
+  const indexBlob = blobs.get(`${prefix}${INDEX_FILE}`);
+  const index = indexBlob ? await readBrandIndex(indexBlob) : null;
+  // A capture from before the index names its pages by what research cited.
   const ownPages = input.brain
     ? cmoOwnPages(input.websiteUrl, input.brain)
     : [];
+  const pageUrl = (name: string) =>
+    index?.pages.find((page) => page.name === name)?.url ??
+    ownPages.find((page) => page.label === PAGE_LABELS[name])?.url ??
+    new URL("/", input.websiteUrl).href;
   const labels = Object.keys(PAGE_LABELS);
+  const order = (file: ResearchFile) =>
+    labels.indexOf(file.name.replace(MOBILE_SUFFIX, "")) * 2 +
+    Number(file.name.endsWith(MOBILE_SUFFIX));
   const pages = files
-    .filter((file) => file.folder === "" && PAGE_LABELS[file.name])
-    .sort((a, b) => labels.indexOf(a.name) - labels.indexOf(b.name))
+    .filter(
+      (file) =>
+        file.folder === "" && PAGE_LABELS[file.name.replace(MOBILE_SUFFIX, "")],
+    )
+    .sort((a, b) => order(a) - order(b))
     .flatMap((file) => {
       const saved = shown(file);
       if (!saved) return [];
-      const mobile = file.name === "home-mobile";
-      const label = PAGE_LABELS[file.name] as string;
-      const page = ownPages.find(
-        (candidate) => candidate.label === (mobile ? "Home" : label),
-      );
+      const mobile = file.name.endsWith(MOBILE_SUFFIX);
+      const name = file.name.replace(MOBILE_SUFFIX, "");
+      const full = mobile
+        ? undefined
+        : files.find(
+            (candidate) =>
+              candidate.folder === "Full pages" && candidate.name === name,
+          );
       return [
         {
           ...saved,
-          label,
-          pageUrl: page?.url ?? new URL("/", input.websiteUrl).href,
+          label: PAGE_LABELS[name] as string,
+          pageUrl: pageUrl(name),
           device: mobile ? ("mobile" as const) : ("desktop" as const),
+          fullUrl: (full ? shown(full)?.url : null) ?? null,
+        },
+      ];
+    });
+  // In the pages' order, each page's sections top to bottom.
+  const sections = files
+    .flatMap((file) => {
+      const section = sectionOf(file);
+      return section ? [{ file, section }] : [];
+    })
+    .sort(
+      (a, b) =>
+        labels.indexOf(a.section.page) - labels.indexOf(b.section.page) ||
+        a.file.name.localeCompare(b.file.name),
+    )
+    .flatMap(({ file, section }) => {
+      const saved = shown(file);
+      if (!saved) return [];
+      const indexed = index?.sections.find((entry) => entry.name === file.name);
+      return [
+        {
+          ...saved,
+          kind: section.kind,
+          title: indexed?.title ?? section.words,
+          pageLabel: PAGE_LABELS[section.page] ?? section.page,
+          pageUrl: indexed?.pageUrl ?? pageUrl(section.page),
         },
       ];
     });
@@ -223,17 +399,30 @@ export async function cmoBrandMedia(input: {
     const saved = shown(file);
     return saved ? [{ ...saved, alt: pictureAlt(file.name) }] : [];
   });
+  const logoFile = (name: string) => {
+    const file = files.find(
+      (candidate) => candidate.folder === "Logo" && candidate.name === name,
+    );
+    return (file && shown(file)) ?? null;
+  };
   const stamps = [...blobs.values()].map((blob) => blob.uploadedAt.getTime());
   if (stamps.length === 0) return null;
   return {
     capturedAt: new Date(Math.max(...stamps)).toISOString(),
     pages,
+    sections,
     competitors,
     pictures,
+    logos: {
+      logo: logoFile(CMO_BRAND_LOGO_FILES.src),
+      dark: logoFile(CMO_BRAND_LOGO_FILES.srcDark),
+      mark: logoFile(CMO_BRAND_LOGO_FILES.mark),
+    },
   };
 }
 
-const MAX_OWN_PAGES = 4;
+/** The homepage and one page of each kind. */
+const MAX_OWN_PAGES = 7;
 const MAX_COMPETITORS = 8;
 const MAX_PICTURES = 12;
 const MAX_PICTURE_BYTES = 6_000_000;
@@ -250,6 +439,8 @@ const PAGE_KINDS: { label: string; pattern: RegExp }[] = [
   },
   { label: "Customers", pattern: /customer|case|stories|kunden|referenz/i },
   { label: "About", pattern: /about|ueber|über|team|company/i },
+  { label: "Blog", pattern: /blog|news|journal|magazin|articles|insights/i },
+  { label: "Docs", pattern: /docs|documentation|help|guide|support/i },
 ];
 
 function sameSite(a: URL, b: URL): boolean {
@@ -258,28 +449,43 @@ function sameSite(a: URL, b: URL): boolean {
 }
 
 /**
- * The brand's pages to capture: the homepage, then pricing, product,
- * customers and about pages the research cited, one of each.
+ * The brand's pages to capture: the homepage, then one pricing, product,
+ * customers, about, blog and docs page. A page the research cited comes
+ * first, then the one the site links or lists (`found`: its header and
+ * footer links, then its sitemap) with the shortest path, which is the
+ * section's own page and not a post inside it.
  */
 export function cmoOwnPages(
   websiteUrl: string,
   brain: BrandBrain,
+  found: string[] = [],
 ): { label: string; url: string }[] {
   const site = new URL(websiteUrl);
-  const cited = [
+  const onSite = (urls: (string | undefined)[]) =>
+    urls
+      .map((url) => (url ? URL.parse(url) : null))
+      .filter((url): url is URL => url !== null && sameSite(url, site))
+      .filter((url) => url.pathname.length > 1);
+  const cited = onSite([
     ...brain.offers.map((offer) => offer.url),
     ...Object.values(brain.profile).flatMap(
       (section) => section?.findings.map((finding) => finding.sourceUrl) ?? [],
     ),
-  ]
-    .map((url) => (url ? URL.parse(url) : null))
-    .filter((url): url is URL => url !== null && sameSite(url, site))
-    .filter((url) => url.pathname.length > 1);
+  ]);
+  const listed = onSite(found).sort(
+    (a, b) => a.pathname.length - b.pathname.length,
+  );
+  // A blog post about pricing is a blog page, wherever "pricing" stands in it.
+  const kindOf = (url: URL) =>
+    PAGE_KINDS.find((kind) =>
+      kind.pattern.test(url.pathname.split("/")[1] ?? ""),
+    )?.label;
   const pages = [{ label: "Home", url: new URL("/", site).href }];
   for (const kind of PAGE_KINDS) {
     // Most sites keep prices at /pricing; a page that is not there is skipped.
     const match =
       cited.find((url) => kind.pattern.test(url.pathname)) ??
+      listed.find((url) => kindOf(url) === kind.label) ??
       (kind.label === "Pricing" ? new URL("/pricing", site) : undefined);
     if (match && !pages.some((page) => page.url === match.href)) {
       pages.push({
@@ -357,7 +563,9 @@ async function asJpeg(
   picture: { body: Buffer; contentType: string },
 ): Promise<Buffer | null> {
   if (picture.contentType === "image/jpeg") return picture.body;
-  const page = await browser.newPage();
+  // A browser that died mid-capture costs this picture, never the capture.
+  const page = await browser.newPage().catch(() => null);
+  if (!page) return null;
   try {
     const jpeg = await page.evaluate(
       async (source: string) => {
@@ -380,26 +588,69 @@ async function asJpeg(
   } catch {
     return null;
   } finally {
-    await page.close();
+    await page.close().catch(() => undefined);
   }
 }
 
 const RECAPTURE_AFTER_MS = 10 * 60_000;
+/** No page is started after this; a slow site costs pages, never the run. */
+const CAPTURE_BUDGET_MS = 150_000;
+/** How far down a page its full-page screenshot reaches. */
+const FULL_PAGE_SCREENS = 8;
+/** Sections cut from the homepage, and from each other page. */
+const HOME_SECTIONS = 10;
+const PAGE_SECTIONS = 6;
 /** The homepage shots hiring takes first; they never hold up the full capture. */
 const HOMEPAGE_FILES = ["home.jpg", "home-mobile.jpg"];
 const capturing = new Set<string>();
+
+/** A file a capture could not save, twice: what it was and why. */
+interface SaveFailure {
+  folder: string;
+  bytes: number;
+  failure: ReturnType<typeof messageSafeErrorFields>;
+}
+
+/**
+ * Saves one file of a capture, trying once more when it fails. A file that
+ * cannot be saved is left out and noted in `failures`: it never ends the
+ * capture, which is best effort file by file.
+ */
+async function saveFile(
+  drive: CusoDrive,
+  target: { folder: string; filename: string },
+  body: Buffer,
+  contentType: string,
+  failures?: SaveFailure[],
+): Promise<string | null> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await saveCusoProjectFile(drive, target, body, contentType);
+    } catch (error) {
+      if (attempt < 2) continue;
+      failures?.push({
+        folder: target.folder,
+        bytes: body.byteLength,
+        failure: messageSafeErrorFields(error),
+      });
+      return null;
+    }
+  }
+}
 
 function saveShot(
   drive: CusoDrive,
   folder: string,
   name: string,
   screenshot: Buffer,
+  failures?: SaveFailure[],
 ): Promise<string | null> {
-  return saveCusoProjectFile(
+  return saveFile(
     drive,
     { folder, filename: `${slug(name)}.jpg` },
     screenshot,
     "image/jpeg",
+    failures,
   );
 }
 
@@ -414,6 +665,7 @@ export async function captureCmoHomepage(
   const drive = await cusoDrive(cuso);
   if (!drive) return;
   const home = new URL("/", cuso.websiteUrl).href;
+  if (!(await readRobots(home)).allows("/")) return;
   await withBrowser(async (browser: Browser) => {
     await Promise.all([
       capturePage(browser, home).then(
@@ -441,6 +693,29 @@ export async function captureCmoHomepage(
  * named, pages cited). A second essentials save in the same research, or one
  * while a capture runs here, does not start another.
  */
+/**
+ * Starts the index for one Cuso who has none: hired before the index, or his
+ * capture did not finish. One per call, so the backlog clears a Cuso a sync
+ * without crowding the capture browser.
+ */
+export async function scheduleMissingCmoBrandIndex(
+  cusos: Pick<Cuso, "projectId" | "sokoBotId">[],
+): Promise<void> {
+  if (cusos.length === 0) return;
+  const indexed = await prisma.fileProjectLink.findMany({
+    where: {
+      projectId: { in: cusos.map((cuso) => cuso.projectId) },
+      resource: {
+        sourceId: { endsWith: `/${CMO_BRAND_MEDIA_FOLDER}/${INDEX_FILE}` },
+      },
+    },
+    select: { projectId: true },
+  });
+  const done = new Set(indexed.map((link) => link.projectId));
+  const next = cusos.find((cuso) => !done.has(cuso.projectId));
+  if (next) scheduleCmoBrandMedia(next.sokoBotId);
+}
+
 export function scheduleCmoBrandMedia(sokoBotId: string): void {
   if (capturing.has(sokoBotId)) return;
   capturing.add(sokoBotId);
@@ -468,13 +743,20 @@ export function scheduleCmoBrandMedia(sokoBotId: string): void {
 }
 
 /**
- * Captures what research can show, not just say: the brand's own pages (and
- * its homepage on a phone), each competitor's homepage, and the large
- * pictures on the brand's pages. Everything is saved as the Project's files
- * under "Brand research", for every member and for later posts, each file as
- * soon as it is taken so CMO shows the first ones while the rest load. Best
- * effort: a page that does not load is left out. Nothing runs when the last
- * capture is minutes old; the homepage shots hiring took do not count.
+ * Indexes the brand's site, to show research and to make posts from: its
+ * homepage and the pricing, product, customers, about, blog and docs pages
+ * its header, footer and sitemap lead to (first screen, the page from the
+ * top, and on a phone), every page cut into its sections (hero, pricing
+ * cards, testimonials, customer logos, product shots, feature grids, the
+ * closing call to action), the large pictures on those pages, and each
+ * competitor's homepage. Everything is saved as the Project's files under
+ * "Brand research", for every member and for later posts, each file as soon
+ * as it is taken so CMO shows the first ones while the rest load; index.json
+ * beside them names each page read and each section's heading. robots.txt
+ * decides what is read, and nothing behind a sign-in is. Best effort: a page
+ * that does not load is left out, and none is started once the time budget
+ * is spent. Nothing runs when the last capture is minutes old; the homepage
+ * shots hiring took do not count.
  */
 export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   // The files are saved as Cuso's runner (ADR 0061). Loaded here: the CMO
@@ -500,77 +782,253 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   if (recent) return;
   const drive = await cusoDrive(cuso);
   if (!drive) return;
-  const ownPages = cmoOwnPages(cuso.websiteUrl, brain.data);
+  const site = new URL("/", cuso.websiteUrl);
+  const robots = await readRobots(site.origin);
   const competitorPages = cmoCompetitorPages(brain.data);
+  // A Project without logo files gets the site's logo read again, beside
+  // the capture: a Cuso hired before DESIGN.md named the full logo.
+  const hasLogo = await prisma.fileProjectLink.findFirst({
+    where: {
+      projectId: cuso.projectId,
+      resource: { sourceId: { contains: `/${CMO_BRAND_LOGO_FOLDER}/` } },
+    },
+    select: { id: true },
+  });
+  const logo = hasLogo
+    ? null
+    : import("@/services/cmo-brand-visual.service")
+        .then(({ refreshCmoBrandLogo }) => refreshCmoBrandLogo(cuso))
+        .catch(() => 0);
+  const deadline = Date.now() + CAPTURE_BUDGET_MS;
+  const inTime = () => Date.now() < deadline;
+  const index: BrandIndex = { pages: [], sections: [] };
+  const failures: SaveFailure[] = [];
 
-  const media = await withBrowser(async (browser: Browser) => {
-    const own = await inBatches(ownPages, async (page) => {
-      const capture = await capturePage(browser, page.url);
-      if (capture) {
-        await saveShot(
-          drive,
-          CMO_BRAND_MEDIA_FOLDER,
-          page.label,
-          capture.screenshot,
-        );
-      }
-      return capture;
-    });
-    const phone = await capturePage(
-      browser,
-      ownPages[0]?.url ?? cuso.websiteUrl,
-      MOBILE,
+  /**
+   * Saves what one page of the brand gave, each file as it is ready. False
+   * for an address that led to a page already saved (a guessed /pricing that
+   * sends visitors home).
+   */
+  const saveOwnPage = async (label: string, capture: PageCapture) => {
+    if (index.pages.some((page) => page.url === capture.url)) return false;
+    const name = slug(label);
+    index.pages.push({ name, url: capture.url, title: capture.title });
+    await saveShot(
+      drive,
+      CMO_BRAND_MEDIA_FOLDER,
+      name,
+      capture.screenshot,
+      failures,
     );
-    if (phone) {
+    if (capture.fullPage) {
       await saveShot(
         drive,
-        CMO_BRAND_MEDIA_FOLDER,
-        "home-mobile",
-        phone.screenshot,
+        `${CMO_BRAND_MEDIA_FOLDER}/Full pages`,
+        name,
+        capture.fullPage,
+        failures,
       );
     }
-    await inBatches(competitorPages, async (page) => {
-      const capture = await capturePage(browser, page.url);
-      if (capture) {
-        await saveShot(
-          drive,
-          `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
-          page.name,
-          capture.screenshot,
-        );
-      }
-    });
-    const seen = new Set<string>();
-    const candidates = own
-      .flatMap((capture) => capture?.images ?? [])
-      .filter((image) => {
-        const key = image.url.split("?")[0] ?? image.url;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, MAX_PICTURES);
-    const pictures: { image: SiteImage; body: Buffer }[] = [];
-    for (const image of candidates) {
-      const picture = await downloadPicture(image);
-      const body = picture ? await asJpeg(browser, picture) : null;
-      if (body) pictures.push({ image, body });
+    for (const [position, section] of capture.sections.entries()) {
+      const file = [
+        name,
+        String(position + 1).padStart(2, "0"),
+        section.kind,
+        // A section without words (a video, a picture) is named by its kind.
+        ...(/[a-z0-9]/i.test(section.title)
+          ? [slug(section.title).slice(0, 40).replace(/-$/, "")]
+          : []),
+      ].join("-");
+      index.sections.push({
+        name: file,
+        title: section.title,
+        pageUrl: capture.url,
+      });
+      await saveShot(
+        drive,
+        `${CMO_BRAND_MEDIA_FOLDER}/Sections`,
+        file,
+        section.screenshot,
+        failures,
+      );
     }
-    return { pictures };
-  });
+    return true;
+  };
 
-  for (const [index, { image, body }] of media.pictures.entries()) {
-    const slot = String(index + 1).padStart(2, "0");
-    // The alt text names the picture, so Cuso finds a product's photo.
-    const filename = image.alt.trim()
-      ? `${slot}-${slug(image.alt)}.jpg`
-      : `picture-${slot}.jpg`;
-    await saveCusoProjectFile(
-      drive,
-      { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
-      body,
-      "image/jpeg",
+  /** Where the capture is, so a failure says which step it ended in. */
+  let step = "browser";
+  let ownPagesMissed = 0;
+  let stopped = false;
+  try {
+    const media = await withBrowser(async (browser: Browser) => {
+      step = "home";
+      const home = robots.allows("/")
+        ? await capturePage(browser, site.href, {
+            ...DESKTOP,
+            fullScreens: FULL_PAGE_SCREENS,
+            sections: HOME_SECTIONS,
+          })
+        : null;
+      if (home) await saveOwnPage("Home", home);
+      else if (robots.allows("/")) ownPagesMissed += 1;
+      step = "pages";
+      // The site's own header and footer say which pages matter; its sitemap
+      // fills in what they leave out.
+      const found = home
+        ? [
+            ...home.links.map((link) => link.url),
+            ...(await readSitemapPages(site.origin, robots)),
+          ]
+        : [];
+      const ownPages = cmoOwnPages(cuso.websiteUrl, brain.data, found)
+        .slice(1)
+        .filter((page) => robots.allows(new URL(page.url).pathname));
+      const rest = await inBatches(ownPages, async (page) => {
+        if (!inTime()) return null;
+        const capture = await capturePage(browser, page.url, {
+          ...DESKTOP,
+          fullScreens: FULL_PAGE_SCREENS,
+          sections: PAGE_SECTIONS,
+        });
+        if (!capture) ownPagesMissed += 1;
+        return capture && (await saveOwnPage(page.label, capture))
+          ? capture
+          : null;
+      });
+      const own = [home, ...rest];
+      step = "phones";
+      await inBatches(index.pages, async (page) => {
+        if (!inTime()) return;
+        const phone = await capturePage(browser, page.url, MOBILE);
+        if (phone) {
+          await saveShot(
+            drive,
+            CMO_BRAND_MEDIA_FOLDER,
+            `${page.name}${MOBILE_SUFFIX}`,
+            phone.screenshot,
+            failures,
+          );
+        }
+      });
+      step = "competitors";
+      await inBatches(competitorPages, async (page) => {
+        if (!inTime() || !(await readRobots(page.url)).allows("/")) return;
+        const capture = await capturePage(browser, page.url);
+        if (capture) {
+          await saveShot(
+            drive,
+            `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
+            page.name,
+            capture.screenshot,
+            failures,
+          );
+        }
+      });
+      step = "pictures";
+      const seen = new Set<string>();
+      const candidates = own
+        .flatMap((capture) => capture?.images ?? [])
+        .filter((image) => {
+          const key = image.url.split("?")[0] ?? image.url;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, MAX_PICTURES);
+      const pictures: { image: SiteImage; body: Buffer }[] = [];
+      for (const image of candidates) {
+        const picture = await downloadPicture(image);
+        const body = picture ? await asJpeg(browser, picture) : null;
+        if (body) pictures.push({ image, body });
+      }
+      return { pictures };
+    });
+    step = "save pictures";
+    for (const [index, { image, body }] of media.pictures.entries()) {
+      const slot = String(index + 1).padStart(2, "0");
+      // The alt text names the picture, so Cuso finds a product's photo.
+      const filename = image.alt.trim()
+        ? `${slot}-${slug(image.alt)}.jpg`
+        : `picture-${slot}.jpg`;
+      await saveFile(
+        drive,
+        { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
+        body,
+        "image/jpeg",
+        failures,
+      );
+    }
+  } catch (error) {
+    stopped = true;
+    // Pages can carry what the brand wrote: only the step, the counts and
+    // the error's safe fields are logged.
+    emitCoreWarning(
+      {
+        operation: "cmo_brand_media",
+        sokoBot: { id: sokoBotId },
+        brandMedia: {
+          step,
+          pagesRead: index.pages.length,
+          sections: index.sections.length,
+          ownPagesMissed,
+        },
+        failure: messageSafeErrorFields(error),
+      },
+      {
+        message: "The brand capture stopped partway",
+        why: "A step of the capture threw; what it saved before is kept",
+        fix: "brandMedia.step names the step; at browser, the headless Chromium did not start. Cuso's next essentials save captures again.",
+      },
     );
+  } finally {
+    await logo;
+    // Written last and always, also after a capture that threw: it marks
+    // the Project as indexed, so the backfill moves on to the next Cuso.
+    await saveFile(
+      drive,
+      { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
+      Buffer.from(JSON.stringify(index, null, 2)),
+      "application/json",
+      failures,
+    );
+    if (!stopped && ownPagesMissed > 0) {
+      emitCoreWarning(
+        {
+          operation: "cmo_brand_media",
+          sokoBot: { id: sokoBotId },
+          brandMedia: {
+            step: "pages",
+            pagesRead: index.pages.length,
+            ownPagesMissed,
+          },
+        },
+        {
+          message: "Some of the brand's pages did not load for the capture",
+          why: "The headless browser returned no capture for them",
+          fix: "The capture kept every page that loaded. If no page loads for any site, check the headless Chromium on Core.",
+        },
+      );
+    }
+    if (failures.length > 0) {
+      const first = failures[0] as SaveFailure;
+      emitCoreWarning(
+        {
+          operation: "cmo_brand_media_save",
+          sokoBot: { id: sokoBotId },
+          brandMedia: {
+            failed: failures.length,
+            folder: first.folder.replace(CMO_BRAND_MEDIA_FOLDER, "") || "/",
+            bytes: first.bytes,
+          },
+          failure: first.failure,
+        },
+        {
+          message: "Some of the brand's research files could not be saved",
+          why: "Saving a capture file to the Project's Files failed twice",
+          fix: "The capture kept every other file. If it repeats, look up the error name and code under failure and the file size under brandMedia.",
+        },
+      );
+    }
   }
   nudgeFileIndexing();
 }

@@ -751,39 +751,40 @@ it("keeps the plan on screen and says Cuso is changing it while a brand fix patc
   expect(text()).toContain("Cuso is changing it");
 });
 
-it("swaps the plan for a re-planning screen the moment a pace is tapped", async () => {
-  const core = pending();
-  await renderPlan(core.call, async () => null);
-  await press("All-in");
-
-  expect(core.call).toHaveBeenCalledWith(
-    expect.stringContaining("Change the pace to All-in"),
+it("leaves the volume to the plan: no pace to tap on the strategy", async () => {
+  await renderPlan(
+    async () => null,
+    async () => null,
   );
-  expect(replanning()).toBe(true);
-  expect(text()).toContain("All-in pace.");
-  expect(planHidden()).toBe(true);
-
-  await act(async () => core.answer("Not enough credits"));
-  expect(replanning()).toBe(false);
-  expect(planHidden()).toBe(false);
-  expect(text()).toContain("You're out of credits.");
+  expect(() => button("All-in")).toThrow();
+  expect(text()).toContain("This month is written at the most a plan makes.");
 });
 
 it("re-plans on a new ad budget at once, and keeps the amount when it is refused", async () => {
   const core = pending();
   await renderPlan(async () => null, core.call);
-  await press("Change");
-  await press("Set your own budget");
+  // The strategy has ads, so Yes is picked and the amount shows.
+  expect(button("Yes").getAttribute("aria-pressed")).toBe("true");
   const amount = 'input[aria-label="Monthly ad budget in EUR"]';
-  expect(container.querySelector(amount)).not.toBeNull();
-  await press("Set budget");
+  typeInto(container.querySelector<HTMLInputElement>(amount), "450");
+  await press("Change budget");
 
-  expect(core.call).toHaveBeenCalledWith(300, "EUR");
+  expect(core.call).toHaveBeenCalledWith(450, "EUR");
   expect(replanning()).toBe(true);
 
   await act(async () => core.answer("Not enough credits"));
   expect(replanning()).toBe(false);
   expect(container.querySelector(amount)).not.toBeNull();
+});
+
+it("takes the ads out the moment the owner says No", async () => {
+  const core = pending();
+  await renderPlan(async () => null, core.call);
+  await press("No");
+
+  expect(core.call).toHaveBeenCalledWith(0, "EUR");
+  expect(replanning()).toBe(true);
+  await act(async () => core.answer(null));
 });
 
 it("shows the re-planning screen for a written change before Core answers", async () => {
@@ -1148,7 +1149,7 @@ it("celebrates on Launch without a failure in between, then opens the app on Go 
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(text()).not.toContain("Could not launch");
   expect(text()).toContain("Cuso is on it.");
-  expect(text()).toContain("Active, 7 posts a week");
+  expect(text()).not.toContain("posts a week");
   expect(text()).toContain("€200 a month");
   expect(text()).toContain("posts on your strategy's schedule");
   expect(text()).not.toContain("Nothing posts until");

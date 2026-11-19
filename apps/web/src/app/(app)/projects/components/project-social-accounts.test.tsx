@@ -52,9 +52,15 @@ const MESSAGES: Record<string, string> = {
   connectAccount: "Connect account",
   projectClosed: "This project is closed.",
   comingSoon: "Coming soon",
-  linkedinPersonalOnly:
-    "Personal profile only. Company pages aren't supported yet.",
   personalProfile: "Personal profile",
+  "choose.title": "Which account?",
+  "choose.description":
+    "Your {provider} sign-in reaches more than one account. Posts go out as the one you choose.",
+  "choose.listLabel": "Accounts",
+  "choose.page": "Company page",
+  "choose.profile": "Your personal profile",
+  "choose.cancel": "Cancel",
+  "choose.confirm": "Connect",
   connectComingSoon: "{provider} (coming soon)",
   empty: "No accounts yet.",
   emptyHint: "Connect one to post.",
@@ -102,7 +108,9 @@ const MESSAGES: Record<string, string> = {
     "Reconnect the same account that is already linked to this project.",
   "errors.finalize": "We could not finish connecting this account. Try again.",
   "errors.facebookPage":
-    "Connect a Facebook account that manages exactly one Page. Accounts with no Pages or multiple Pages are not supported yet.",
+    "That Facebook login manages no Page. Connect again with the login that manages your Page.",
+  "errors.youtubeChannel":
+    "That Google sign-in has no YouTube channel. Connect again and choose the channel's account on Google's screen.",
   "errors.disconnect": "We could not disconnect this account. Try again.",
   "errors.sync": "Couldn't start sync.",
 };
@@ -165,6 +173,7 @@ function buildConnection(
   overrides: Partial<ProjectSocialConnection> = {},
 ): ProjectSocialConnection {
   return {
+    personalProfile: false,
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",
@@ -412,7 +421,8 @@ describe("ProjectSocialAccounts", () => {
           projectId: PROJECT_ID,
           action: "connect",
           provider,
-          ...(provider === "tiktok"
+          accountChoice: true,
+          ...(provider === "tiktok" || provider === "linkedin"
             ? { callbackUrl: window.location.origin + "/zernio/callback" }
             : {}),
         }),
@@ -509,9 +519,9 @@ describe("ProjectSocialAccounts", () => {
     );
   });
 
-  it("says LinkedIn connects a personal profile only, and only for LinkedIn", async () => {
+  it("connects LinkedIn without promising a profile, and labels only a profile connection", async () => {
     const user = userEvent.setup();
-    render(
+    const { rerender } = render(
       <SocialProviderAvailabilityProvider
         enabledProviders={SOCIAL_POST_PROVIDERS}
       >
@@ -519,23 +529,221 @@ describe("ProjectSocialAccounts", () => {
       </SocialProviderAvailabilityProvider>,
     );
     await user.click(screen.getByRole("button", { name: "Connect account" }));
-
-    const linkedIn = screen.getByRole("menuitem", {
-      name: "Connect LinkedIn account",
-    });
     expect(
-      within(linkedIn).getByText(
-        "Personal profile only. Company pages aren't supported yet.",
+      within(
+        screen.getByRole("menuitem", { name: "Connect LinkedIn account" }),
+      ).queryByText(/Personal profile/),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    rerender(
+      <SocialProviderAvailabilityProvider
+        enabledProviders={SOCIAL_POST_PROVIDERS}
+      >
+        <ProjectSocialAccounts
+          projectId={PROJECT_ID}
+          connections={[
+            buildConnection({
+              id: "person",
+              provider: "linkedin",
+              personalProfile: true,
+            }),
+            buildConnection({
+              id: "page",
+              provider: "linkedin",
+              personalProfile: false,
+            }),
+          ]}
+        />
+      </SocialProviderAvailabilityProvider>,
+    );
+    expect(
+      within(screen.getByTestId("project-social-connection-person")).getByText(
+        "Personal profile",
       ),
     ).toBeVisible();
-    expect(screen.getAllByTestId("linkedin-personal-only")).toHaveLength(1);
-    for (const name of ["X", "YouTube"]) {
-      expect(
-        within(
-          screen.getByRole("menuitem", { name: `Connect ${name} account` }),
-        ).queryByText(/Personal profile/),
-      ).not.toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("project-social-connection-page")).queryByText(
+        "Personal profile",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  describe("a LinkedIn sign-in that reaches a company Page", () => {
+    const choices = [
+      {
+        id: "choice-profile",
+        name: "Alice Doe",
+        handle: null,
+        kind: "profile" as const,
+      },
+      {
+        id: "choice-page",
+        name: "Acme Rockets",
+        handle: "acme",
+        kind: "page" as const,
+      },
+    ];
+    const signIn = {
+      callbackProof: "proof",
+      pendingDataToken: "pending",
+      connectToken: "connect",
+    };
+
+    async function signInToLinkedIn(user: ReturnType<typeof userEvent.setup>) {
+      vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
+        ok: true,
+        value: {
+          connectionId: "zernio:0123456789abcdef01234567",
+          redirectUrl: "https://www.linkedin.com/oauth/v2/authorization",
+        },
+      });
+      vi.mocked(finalizeProjectSocialConnection).mockResolvedValueOnce({
+        ok: true,
+        value: { choices },
+      });
+      render(
+        <SocialProviderAvailabilityProvider
+          enabledProviders={SOCIAL_POST_PROVIDERS}
+        >
+          <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />
+        </SocialProviderAvailabilityProvider>,
+      );
+      await connectProvider(user, "LinkedIn");
+      await waitFor(() =>
+        expect(MockBroadcastChannel.instances).toHaveLength(1),
+      );
+      await act(async () => {
+        MockBroadcastChannel.instances[0]?.onmessage?.({
+          data: {
+            type: "sokosumi:composio:result",
+            status: "success",
+            connectionId: "zernio:0123456789abcdef01234567",
+            sessionUri: null,
+            errorMessage: null,
+            nonce: "project-social-nonce",
+            ...signIn,
+          },
+        } as MessageEvent);
+      });
+      return screen.findByRole("dialog", { name: "Which account?" });
     }
+
+    it("asks Core for a pick, then lists Pages before the profile with nothing chosen", async () => {
+      const user = userEvent.setup();
+      const dialog = await signInToLinkedIn(user);
+
+      expect(initiateProjectSocialConnection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: "linkedin",
+          accountChoice: true,
+          callbackUrl: `${window.location.origin}/zernio/callback`,
+        }),
+      );
+      expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        connectionId: "zernio:0123456789abcdef01234567",
+        ...signIn,
+        offerChoice: true,
+      });
+      const options = within(dialog).getAllByRole("radio");
+      expect(
+        options.map((option) => option.closest("label")?.textContent),
+      ).toEqual(["Acme RocketsCompany page", "Alice DoeYour personal profile"]);
+      expect(
+        options.every(
+          (option) =>
+            !option.hasAttribute("data-state") ||
+            option.getAttribute("data-state") === "unchecked",
+        ),
+      ).toBe(true);
+      expect(
+        within(dialog).getByRole("button", { name: "Connect" }),
+      ).toBeDisabled();
+      expect(toastSuccessMock).not.toHaveBeenCalled();
+    });
+
+    it("connects the picked Page with the same sign-in", async () => {
+      const user = userEvent.setup();
+      const dialog = await signInToLinkedIn(user);
+      vi.mocked(finalizeProjectSocialConnection).mockResolvedValueOnce({
+        ok: true,
+        value: buildConnection({
+          provider: "linkedin",
+          externalHandle: "acme",
+          displayName: "Acme Rockets",
+          personalProfile: false,
+        }),
+      });
+
+      await user.click(
+        within(dialog).getByRole("radio", { name: /Acme Rockets/ }),
+      );
+      await user.click(within(dialog).getByRole("button", { name: "Connect" }));
+
+      await waitFor(() =>
+        expect(finalizeProjectSocialConnection).toHaveBeenLastCalledWith({
+          projectId: PROJECT_ID,
+          connectionId: "zernio:0123456789abcdef01234567",
+          ...signIn,
+          accountChoiceId: "choice-page",
+          offerChoice: true,
+        }),
+      );
+      expect(toastSuccessMock).toHaveBeenCalledWith("Acme Rockets connected.");
+      await waitFor(() =>
+        expect(
+          screen.queryByRole("dialog", { name: "Which account?" }),
+        ).not.toBeInTheDocument(),
+      );
+      expect(refreshMock).toHaveBeenCalled();
+    });
+
+    it("keeps nothing when the person cancels", async () => {
+      const user = userEvent.setup();
+      const dialog = await signInToLinkedIn(user);
+
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+      expect(finalizeProjectSocialConnection).toHaveBeenCalledOnce();
+      expect(toastSuccessMock).not.toHaveBeenCalled();
+      expect(
+        screen.queryByRole("dialog", { name: "Which account?" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Connect account" }),
+      ).toBeEnabled();
+    });
+  });
+
+  it("names a Google sign-in without a YouTube channel", async () => {
+    vi.mocked(finalizeProjectSocialConnection).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "BAD_INPUT",
+        kind: "social_youtube_channel_required",
+        message: "No channel",
+      },
+    });
+    const user = userEvent.setup();
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+    await connectProvider(user, "YouTube");
+    await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
+    await act(async () => {
+      MockBroadcastChannel.instances[0]?.onmessage?.({
+        data: {
+          type: "sokosumi:composio:result",
+          status: "success",
+          connectionId: "ca_known",
+          sessionUri: "https://backend.composio.dev/session/single-use",
+          errorMessage: null,
+          nonce: "project-social-nonce",
+        },
+      } as MessageEvent);
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "That Google sign-in has no YouTube channel",
+    );
   });
 
   it("labels a connected LinkedIn account as a personal profile", () => {
@@ -550,6 +758,7 @@ describe("ProjectSocialAccounts", () => {
               id: "linkedin-1",
               provider: "linkedin",
               externalHandle: "alice",
+              personalProfile: true,
             }),
             buildConnection({ id: "x-1" }),
           ]}
@@ -584,6 +793,7 @@ describe("ProjectSocialAccounts", () => {
           projectId: PROJECT_ID,
           action: "connect",
           provider,
+          accountChoice: true,
         }),
       );
     },
@@ -930,6 +1140,7 @@ describe("ProjectSocialAccounts", () => {
         projectId: PROJECT_ID,
         action: "connect",
         provider: "x",
+        accountChoice: true,
       });
     });
     expect(toastSuccessMock).not.toHaveBeenCalledWith("Account disconnected.");
@@ -1035,6 +1246,7 @@ describe("ProjectSocialAccounts", () => {
       projectId: PROJECT_ID,
       action: "reconnect",
       socialConnectionId: connection.id,
+      accountChoice: true,
     });
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
@@ -1108,6 +1320,10 @@ describe("ProjectSocialAccounts", () => {
         expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
           projectId: PROJECT_ID,
           connectionId: "ca_known",
+          callbackProof: undefined,
+          pendingDataToken: undefined,
+          connectToken: undefined,
+          offerChoice: true,
         });
       });
       expect(calls).toEqual(["complete", "finalize"]);
@@ -1189,6 +1405,10 @@ describe("ProjectSocialAccounts", () => {
       expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         connectionId: "ca_known",
+        callbackProof: undefined,
+        pendingDataToken: undefined,
+        connectToken: undefined,
+        offerChoice: true,
       });
     });
   });
@@ -1638,6 +1858,7 @@ describe("ProjectSocialAccounts", () => {
         projectId: PROJECT_ID,
         action: "replace",
         socialConnectionId: "connection-1",
+        accountChoice: true,
       });
     });
 

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -69,6 +70,7 @@ vi.mock("@/services/cmo-presenter.service", () => ({
 }));
 vi.mock("@/services/cmo-brand-media.service", () => ({
   listCmoBrandPictures: brandPictures,
+  readCmoBrandLogo: async () => ({ logo: null, dark: null }),
 }));
 vi.mock("@/services/cuso-project-files.service", () => ({
   cusoDrive: async () => ({
@@ -107,6 +109,7 @@ import {
   cmoStyleHeadline,
   cmoStylePrompt,
   cmoVisualKey,
+  logoForPicture,
   REFERENCE_STYLE_MODELS,
 } from "./cmo-media-maker.service";
 
@@ -475,6 +478,28 @@ describe("advanceCmoMedia", () => {
     expect(createImageJob.mock.calls[1]?.[0]).toMatchObject({
       referenceFileIds: ["f-photo"],
     });
+  });
+
+  it("starts each piece without named pictures at another of the brand's own", async () => {
+    jobFindMany.mockResolvedValue([]);
+    jobCount.mockResolvedValue(0);
+    brandPictures.mockResolvedValue([
+      { fileId: "f-home", alt: "Home page screenshot" },
+      { fileId: "f-pricing", alt: "Pricing cards, Home page: plans" },
+      { fileId: "f-quotes", alt: "Testimonials, Home page: what they say" },
+      { fileId: "f-photo", alt: "studio dashboard" },
+    ]);
+    await advanceCmoMedia(context, [
+      piece({ id: "a", socialPostId: "a" }),
+      piece({ id: "b", socialPostId: "b" }),
+      piece({ id: "c", socialPostId: "c" }),
+    ]);
+    const used = createImageJob.mock.calls.map(([job]) => job.referenceFileIds);
+    expect(used).toEqual([
+      ["f-quotes", "f-home"],
+      ["f-photo", "f-home"],
+      ["f-pricing", "f-home"],
+    ]);
   });
 
   it("makes a styled picture on Muse Image twice before the dearer models", async () => {
@@ -876,5 +901,29 @@ describe("advanceCmoMedia", () => {
       expect.objectContaining({ revision: 4, scheduledAt: at }),
     );
     expect(createImageJob).not.toHaveBeenCalled();
+  });
+});
+
+describe("logoForPicture", () => {
+  const plain = (background: string) =>
+    sharp({ create: { width: 400, height: 300, channels: 3, background } })
+      .jpeg()
+      .toBuffer();
+  const logo = new Uint8Array([1]);
+  const darkLogo = new Uint8Array([2]);
+
+  it("puts the light logo on a dark corner and the dark one on a light corner", async () => {
+    expect(
+      await logoForPicture(await plain("#0c0c0c"), { logo, darkLogo }),
+    ).toBe(darkLogo);
+    expect(
+      await logoForPicture(await plain("#f4f4f4"), { logo, darkLogo }),
+    ).toBe(logo);
+  });
+
+  it("keeps the one logo a site has", async () => {
+    expect(
+      await logoForPicture(await plain("#0c0c0c"), { logo, darkLogo: null }),
+    ).toBe(logo);
   });
 });

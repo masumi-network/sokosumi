@@ -221,6 +221,33 @@ describe("Social account statistics", () => {
       postCount: 1,
     });
   });
+  it("says which LinkedIn accounts post as a person and which as a company Page", async () => {
+    const pageId = "33333333-3333-4333-8333-333333333334";
+    mocks.listAccounts.mockResolvedValue([
+      { ...account, provider: "linkedin" },
+      { ...account, id: pageId, provider: "linkedin" },
+    ]);
+    mocks.connections.mockResolvedValue([
+      { ...connection, provider: "linkedin", externalAccountId: "9Acyt0wAkf" },
+      {
+        ...connection,
+        id: pageId,
+        provider: "linkedin",
+        externalAccountId: "urn:li:organization:42",
+      },
+    ]);
+    const result = await listSocialAccountStatistics({
+      ...scope,
+      provider: "linkedin",
+      limit: 1,
+    });
+    expect(result.accounts.map((entry) => entry.personalProfile)).toEqual([
+      true,
+      false,
+    ]);
+    expect(JSON.stringify(result.accounts)).not.toContain("urn:li:");
+  });
+
   it("exports every matching cached post without paging", async () => {
     const publishedFrom = new Date("2026-10-01T00:00:00Z");
     const result = await exportSocialAccountStatistics({

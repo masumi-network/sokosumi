@@ -76,7 +76,6 @@ const NOT_YET_COVERED = new Set([
   "list_tables",
   "manage_reminder",
   "move_file",
-  "open_direct_chat",
   "preview_newsletter_issue",
   "preview_newsletter_signup_form",
   "preview_result",
@@ -206,6 +205,8 @@ describe("CMO chat setup", () => {
       return found?.kind === "scenario" ? found.prepare : undefined;
     };
     expect(prepared("cmo-change-request")).toBe("cmo-plan");
+    expect(prepared("cmo-funnel-aida")).toBe("cmo-plan");
+    expect(prepared("cmo-ads-yes")).toBe("cmo-plan-ads");
     expect(prepared("cmo-comment-replies")).toBe("cmo-comments");
     expect(prepared("cmo-brand-fit")).toBe("cmo-brand");
   });

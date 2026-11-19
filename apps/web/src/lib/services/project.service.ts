@@ -31,6 +31,7 @@ import type {
   ReplaceSocialQueueSlotsRequest,
   ResumeSocialPostThreadRequest,
   ScheduleSocialPostRequest,
+  SocialAccountChoices,
   SocialPost,
   SocialPostStatus,
   SocialQueueSlots,
@@ -333,7 +334,7 @@ export const projectService = (() => {
   async function finalizeSocialConnection(
     projectId: string,
     input: FinalizeProjectSocialConnectionRequest,
-  ): Promise<ProjectSocialConnection> {
+  ): Promise<ProjectSocialConnection | SocialAccountChoices> {
     const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
       projectId,
       input,

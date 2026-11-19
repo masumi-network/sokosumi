@@ -501,8 +501,10 @@ describe("ChatMessageRow", () => {
     );
 
     expect(screen.getByRole("tooltip")).toHaveTextContent("Ada, Bob");
+    // Named by what it shows, so a screen reader hears the count, and
+    // pressed because tapping it again takes the reader's reaction back.
     expect(
-      screen.getByRole("button", { name: "Reactions.toggle" }),
+      screen.getByRole("button", { name: "👍 2", pressed: true }),
     ).toBeInTheDocument();
   });
 
@@ -746,7 +748,7 @@ describe("ChatMessageRow", () => {
 
     // The existing Reaction still says who reacted, but cannot be toggled.
     expect(
-      screen.getByRole("button", { name: "Reactions.toggle" }),
+      screen.getByRole("button", { name: "👍 1", pressed: false }),
     ).toHaveAttribute("aria-disabled", "true");
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));

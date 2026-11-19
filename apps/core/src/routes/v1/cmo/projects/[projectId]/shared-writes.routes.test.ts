@@ -329,13 +329,13 @@ describe("CMO's own routes for its writes on the Cuso's Project", () => {
   it("answers the accounts to pick from when a sign-in reaches several", async () => {
     const choices = [
       {
-        externalAccountId: "urn:li:organization:1",
+        id: "choice-page",
         name: "Acme",
         handle: "acme",
         kind: "page" as const,
       },
       {
-        externalAccountId: "member-1",
+        id: "choice-profile",
         name: "Alice Doe",
         handle: null,
         kind: "profile" as const,

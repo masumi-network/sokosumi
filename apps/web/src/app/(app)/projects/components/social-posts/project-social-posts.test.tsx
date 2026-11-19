@@ -516,6 +516,7 @@ function buildConnection(
   overrides: Partial<ProjectSocialConnection> = {},
 ): ProjectSocialConnection {
   return {
+    personalProfile: false,
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",
@@ -611,6 +612,7 @@ const SCHEDULED_POST = buildPost({
   scheduledAt: new Date("2026-10-01T10:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -657,6 +659,7 @@ const FAILED_POST = buildPost({
   scheduledAt: new Date("2026-09-10T10:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -690,6 +693,7 @@ const PUBLISHING_POST = buildPost({
   scheduledAt: new Date("2026-09-15T09:00:00.000Z"),
   timezone: "UTC",
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: null,
@@ -1029,6 +1033,7 @@ describe("ProjectSocialPosts", () => {
       projectId: PROJECT_ID,
       action: "reconnect",
       socialConnectionId: "connection-1",
+      accountChoice: true,
     });
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText("Retry 1 failed posts?")).toBeVisible();
@@ -1345,6 +1350,7 @@ describe("ProjectSocialPosts", () => {
           buildPost({
             id: "post-handle",
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1357,6 +1363,7 @@ describe("ProjectSocialPosts", () => {
             id: "post-name",
             provider: "linkedin",
             socialConnection: {
+              personalProfile: false,
               id: "connection-2",
               externalHandle: null,
               displayName: "Sokosumi Co",
@@ -1443,6 +1450,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1475,6 +1483,7 @@ describe("ProjectSocialPosts", () => {
             provider: "linkedin",
             media: [IMAGE_REF],
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1509,6 +1518,7 @@ describe("ProjectSocialPosts", () => {
             provider: "linkedin",
             text: "word ".repeat(80),
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi",
@@ -1553,6 +1563,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -1734,6 +1745,7 @@ describe("ProjectSocialPosts", () => {
     const named = buildPost({
       status: "FAILED",
       socialConnection: {
+        personalProfile: false,
         id: "connection-1",
         externalHandle: "sokosumi",
         displayName: "Sokosumi HQ",
@@ -1762,6 +1774,7 @@ describe("ProjectSocialPosts", () => {
           buildPost({
             status: "FAILED",
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -3679,6 +3692,7 @@ describe("ProjectSocialPosts", () => {
         posts={[
           buildPost({
             socialConnection: {
+              personalProfile: false,
               id: "connection-2",
               externalHandle: "sokosumi-co",
               displayName: null,
@@ -5768,6 +5782,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...SCHEDULED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: "Sokosumi HQ",
@@ -6253,6 +6268,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...SCHEDULED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -6286,6 +6302,7 @@ describe("ProjectSocialPosts", () => {
           {
             ...FAILED_POST,
             socialConnection: {
+              personalProfile: false,
               id: "connection-1",
               externalHandle: "sokosumi",
               displayName: null,
@@ -6530,16 +6547,26 @@ describe("ProjectSocialPosts", () => {
         );
         expect(initiateProjectSocialConnection).toHaveBeenCalledWith(
           status === "disconnected"
-            ? { projectId: PROJECT_ID, action: "connect", provider: "x" }
+            ? {
+                projectId: PROJECT_ID,
+                action: "connect",
+                provider: "x",
+                accountChoice: true,
+              }
             : {
                 projectId: PROJECT_ID,
                 action: "reconnect",
                 socialConnectionId: connection.id,
+                accountChoice: true,
               },
         );
         expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
           projectId: PROJECT_ID,
           connectionId: "ca-1",
+          callbackProof: undefined,
+          pendingDataToken: undefined,
+          connectToken: undefined,
+          offerChoice: true,
         });
         expect(within(dialog).getByLabelText("Text")).toHaveValue("Fixed copy");
         expect(

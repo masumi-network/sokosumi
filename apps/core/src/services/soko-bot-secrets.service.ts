@@ -3,7 +3,10 @@ import { forbidden, notFound } from "@/helpers/error";
 import { isPersonalSokoBot } from "@/helpers/soko-bot-kind";
 import { organizationRoleInWorkspace } from "@/helpers/soko-bot-management";
 import prisma from "@/lib/db/prisma";
-import { sealSokoBotSecret } from "@/lib/soko-bot/secret-box";
+import {
+  openSokoBotSecret,
+  sealSokoBotSecret,
+} from "@/lib/soko-bot/secret-box";
 
 /** Keys one bot may hold; a handful of command-line tools, not a vault. */
 export const SOKO_BOT_SECRET_LIMIT = 20;
@@ -130,4 +133,59 @@ export async function deleteSokoBotSecret(
     where: { sokoBotId, name },
   });
   return deleted.count > 0;
+}
+
+/** What a sandbox turn's shell gets: the setup commands and the allowed keys. */
+export interface SokoBotSandboxShell {
+  setupCommands: string[];
+  env: Record<string, string>;
+}
+
+/**
+ * The shell setup of a personal bot, with the values of the keys its owner
+ * allowed in shell commands. Null for a shared bot, which has none (ADR 0074).
+ */
+export async function sandboxShellFor(
+  sokoBotId: string,
+  capabilities: readonly string[],
+): Promise<SokoBotSandboxShell | null> {
+  // Only a turn with a shell gets the keys; the rest never see them.
+  if (!capabilities.includes("bash")) return null;
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: {
+      userId: true,
+      sandboxSetupCommands: true,
+      secrets: {
+        where: { shellAccess: true },
+        select: { name: true, ciphertext: true, keyId: true },
+        orderBy: { name: "asc" },
+      },
+    },
+  });
+  if (!bot || !isPersonalSokoBot(bot)) return null;
+  const env: Record<string, string> = {};
+  for (const secret of bot.secrets)
+    env[secret.name] = await openSokoBotSecret(secret);
+  return { setupCommands: bot.sandboxSetupCommands, env };
+}
+
+/** What the bot is told about its shell: key names and commands, never values. */
+export function sandboxShellNote(shell: SokoBotSandboxShell): string | null {
+  const names = Object.keys(shell.env);
+  if (!names.length && !shell.setupCommands.length) return null;
+  const commands = shell.setupCommands.map((command) => `"${command}"`);
+  return [
+    "SHELL SETUP from your owner.",
+    ...(commands.length
+      ? [
+          `These commands ran in your sandbox before this turn started: ${commands.join(", ")}.`,
+        ]
+      : []),
+    ...(names.length
+      ? [
+          `Your shell commands get these keys as environment variables: ${names.join(", ")}. Use a key through its variable name; never print, write down, upload or send its value.`,
+        ]
+      : []),
+  ].join(" ");
 }

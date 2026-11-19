@@ -202,6 +202,8 @@ describe("thread", () => {
           needPictures: 0,
           finishedAt: null,
           pillars: null,
+          level: "all_in",
+          beyondPlan: [],
         },
         updates: [
           round("r1", "2026-10-01T10:00:00Z"),
@@ -510,7 +512,8 @@ describe("cards", () => {
 
 describe("pages", () => {
   it("gives every page its own address", () => {
-    expect(viewFromPath("/")).toBe("chat");
+    expect(viewFromPath("/")).toBe("today");
+    expect(viewFromPath("/chat")).toBe("chat");
     expect(viewFromPath("/brand-brain")).toBe("brain");
     expect(viewFromPath("/strategy/")).toBe("strategy");
     expect(viewFromPath("/brain")).toBeNull();

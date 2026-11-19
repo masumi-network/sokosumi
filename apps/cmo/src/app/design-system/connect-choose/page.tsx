@@ -18,19 +18,19 @@ export default function ConnectChoosePage({
         choose={choose}
         choices={[
           {
-            externalAccountId: "member-1",
+            id: "profile",
             name: "Alice Doe",
             handle: null,
             kind: "profile",
           },
           {
-            externalAccountId: "urn:li:organization:42",
+            id: "page",
             name: "Acme Rockets",
             handle: "acme-rockets",
             kind: "page",
           },
           {
-            externalAccountId: "urn:li:organization:43",
+            id: "careers",
             name: "Acme Rockets Careers, Europe, Middle East and Africa",
             handle: "acme-careers",
             kind: "page",

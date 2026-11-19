@@ -197,6 +197,8 @@ function overview() {
       needPictures: 0,
       finishedAt: null,
       pillars: null,
+      level: "all_in",
+      beyondPlan: [],
     },
     mailingListSize: 0,
     billing: {

@@ -9,6 +9,10 @@ const db = vi.hoisted(() => ({
   fileResource: { findUnique: vi.fn() },
   fileProjectLink: { findFirst: vi.fn(), findMany: vi.fn() },
 }));
+const logo = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock("@/services/cmo-brand-visual.service", () => ({
+  refreshCmoBrandLogo: logo.refresh,
+}));
 const files = vi.hoisted(() => ({
   put: vi.fn(),
   list: vi.fn(),
@@ -48,15 +52,39 @@ vi.mock("@sokosumi/net", () => ({
       headers: { "content-type": "image/jpeg" },
     }),
 }));
+const site = vi.hoisted(() => ({
+  robots: vi.fn(),
+  sitemap: vi.fn(),
+  /** A host whose capture throws, as a browser that died does. */
+  dies: { host: "" },
+  /** Set when Chromium does not start. */
+  noBrowser: { on: false },
+}));
+vi.mock("@/lib/site-pages", () => ({
+  readRobots: site.robots,
+  readSitemapPages: site.sitemap,
+}));
 vi.mock("@/lib/site-capture", () => ({
+  DESKTOP: { width: 1440, height: 900 },
   MOBILE: { width: 390, height: 844 },
-  withBrowser: (work: (browser: unknown) => unknown) => work({}),
-  capturePage: async (_browser: unknown, url: string) => ({
-    url,
-    title: "Acme",
-    screenshot: Buffer.from("shot"),
-    images:
-      new URL(url).hostname === "acme.io"
+  withBrowser: async (work: (browser: unknown) => unknown) => {
+    if (site.noBrowser.on) throw new Error("Failed to launch the browser");
+    return work({});
+  },
+  capturePage: async (
+    _browser: unknown,
+    url: string,
+    viewport?: { sections?: number; fullScreens?: number },
+  ) => {
+    const own = new URL(url).hostname === "acme.io";
+    if (new URL(url).hostname === site.dies.host) {
+      throw new Error("Protocol error: Target closed");
+    }
+    return {
+      url: url.endsWith("/moved-home") ? "https://acme.io/" : url,
+      title: "Acme",
+      screenshot: Buffer.from("shot"),
+      images: own
         ? [
             {
               url: "https://acme.io/sneaker.jpg",
@@ -66,7 +94,28 @@ vi.mock("@/lib/site-capture", () => ({
             },
           ]
         : [],
-  }),
+      links: own
+        ? [
+            {
+              url: "https://acme.io/pricing",
+              text: "Pricing",
+              place: "header",
+            },
+            { url: "https://acme.io/login", text: "Log in", place: "header" },
+          ]
+        : [],
+      ...(viewport?.fullScreens ? { fullPage: Buffer.from("full") } : {}),
+      sections: viewport?.sections
+        ? [
+            {
+              kind: "pricing",
+              title: "Plans: Starter & Pro",
+              screenshot: Buffer.from("section"),
+            },
+          ]
+        : [],
+    };
+  },
 }));
 
 import {
@@ -77,6 +126,7 @@ import {
   cmoOwnPages,
   listCmoBrandPictures,
   scheduleCmoBrandMedia,
+  scheduleMissingCmoBrandIndex,
 } from "./cmo-brand-media.service";
 
 const finding = (sourceUrl: string) => ({
@@ -135,6 +185,26 @@ describe("cmoOwnPages", () => {
       { label: "Pricing", url: "https://acme.io/pricing" },
       { label: "Product", url: "https://acme.io/features/launch" },
       { label: "Customers", url: "https://acme.io/customers" },
+      { label: "About", url: "https://acme.io/about" },
+      { label: "Blog", url: "https://acme.io/blog/post" },
+    ]);
+  });
+
+  it("fills in the pages the site links and lists, the section's own page first", () => {
+    const pages = cmoOwnPages("https://acme.io", brain({}), [
+      "https://acme.io/blog/why-our-pricing-changed",
+      "https://acme.io/login",
+      "https://acme.io/plans",
+      "https://acme.io/blog",
+      "https://acme.io/docs/api/authentication",
+      "https://acme.io/docs",
+      "https://other.example/about",
+    ]);
+    expect(pages).toEqual([
+      { label: "Home", url: "https://acme.io/" },
+      { label: "Pricing", url: "https://acme.io/plans" },
+      { label: "Blog", url: "https://acme.io/blog" },
+      { label: "Docs", url: "https://acme.io/docs" },
     ]);
   });
 
@@ -211,19 +281,45 @@ describe("captureCmoBrandMedia", () => {
       }),
     );
     files.updateFileMetadata.mockResolvedValue({ status: "applied" });
+    site.robots.mockResolvedValue({ allows: () => true, sitemaps: [] });
+    site.sitemap.mockResolvedValue(["https://acme.io/about"]);
   });
 
-  it("saves screenshots and pictures as the Project's files under Brand research", async () => {
+  it("saves each page, its sections and the pictures as the Project's files under Brand research", async () => {
     await captureCmoBrandMedia("bot-1");
 
-    expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual(
-      expect.arrayContaining([
-        `${ORG}/home.jpg`,
-        `${ORG}/home-mobile.jpg`,
+    const saved = files.put.mock.calls.map(([pathname]) => pathname);
+    expect(saved.sort()).toEqual(
+      [
+        // The homepage, the page its header links and the one its sitemap lists.
+        ...["home", "pricing", "about"].flatMap((page) => [
+          `${ORG}/${page}.jpg`,
+          `${ORG}/${page}-mobile.jpg`,
+          `${ORG}/Full pages/${page}.jpg`,
+          `${ORG}/Sections/${page}-01-pricing-plans-starter-pro.jpg`,
+        ]),
         `${ORG}/Competitors/rival-co.jpg`,
         `${ORG}/Pictures/01-red-sneaker-on-white.jpg`,
-      ]),
+        `${ORG}/index.json`,
+      ].sort(),
     );
+    const index = files.put.mock.calls.find(([pathname]) =>
+      pathname.endsWith("/index.json"),
+    );
+    expect(JSON.parse(String(index?.[1]))).toMatchObject({
+      pages: [
+        { name: "home", url: "https://acme.io/", title: "Acme" },
+        { name: "pricing", url: "https://acme.io/pricing" },
+        { name: "about", url: "https://acme.io/about" },
+      ],
+      sections: expect.arrayContaining([
+        {
+          name: "pricing-01-pricing-plans-starter-pro",
+          title: "Plans: Starter & Pro",
+          pageUrl: "https://acme.io/pricing",
+        },
+      ]),
+    });
     // Each file is linked to Cuso's Project, so every member sees it there.
     const linked = files.updateFileMetadata.mock.calls.map(([input]) => input);
     expect(linked).toContainEqual(
@@ -237,6 +333,119 @@ describe("captureCmoBrandMedia", () => {
       }),
     );
     expect(linked).toHaveLength(files.put.mock.calls.length);
+  });
+
+  it("leaves out a file that cannot be saved twice and keeps the rest", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "Some of the brand's research files could not be saved",
+      ["Saving a capture file to the Project's Files failed twice"],
+    );
+    const put = files.put.getMockImplementation();
+    files.put.mockImplementation(
+      async (pathname: string, ...rest: unknown[]) => {
+        if (pathname.endsWith("/Full pages/pricing.jpg")) {
+          throw new Error("Vercel Blob: request failed");
+        }
+        return put?.(pathname, ...rest);
+      },
+    );
+    await captureCmoBrandMedia("bot-1");
+    const saved = files.put.mock.calls.map(([pathname]) => pathname);
+    // Tried twice, then left out; the pages after it and the index are kept.
+    expect(
+      saved.filter((path) => path.endsWith("/Full pages/pricing.jpg")),
+    ).toHaveLength(2);
+    expect(saved).toContain(`${ORG}/Full pages/about.jpg`);
+    expect(saved).toContain(`${ORG}/about-mobile.jpg`);
+    expect(saved).toContain(`${ORG}/index.json`);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media_save",
+      brandMedia: { failed: 1, folder: "/Full pages", bytes: 4 },
+    });
+  });
+
+  it("still writes the index when the capture throws partway, and says where it stopped", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The brand capture stopped partway",
+      ["A step of the capture threw; what it saved before is kept"],
+    );
+    site.dies.host = "rival.example";
+    try {
+      await captureCmoBrandMedia("bot-1");
+    } finally {
+      site.dies.host = "";
+    }
+    const index = files.put.mock.calls.find(([pathname]) =>
+      pathname.endsWith("/index.json"),
+    );
+    // The pages read before the browser died are kept and named.
+    expect(JSON.parse(String(index?.[1])).pages).toHaveLength(3);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media",
+      brandMedia: { step: "competitors", pagesRead: 3, ownPagesMissed: 0 },
+      failure: { errorName: "Error" },
+    });
+  });
+
+  it("says the browser did not start when Chromium fails to launch", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The brand capture stopped partway",
+      ["A step of the capture threw; what it saved before is kept"],
+    );
+    site.noBrowser.on = true;
+    try {
+      await captureCmoBrandMedia("bot-1");
+    } finally {
+      site.noBrowser.on = false;
+    }
+    expect(warnings[0]?.event).toMatchObject({
+      brandMedia: { step: "browser", pagesRead: 0 },
+    });
+    expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual([
+      `${ORG}/index.json`,
+    ]);
+  });
+
+  it("reads only what robots.txt allows", async () => {
+    site.robots.mockImplementation(async (origin: string) => ({
+      allows: (path: string) =>
+        new URL(origin).hostname === "acme.io" && path !== "/pricing",
+      sitemaps: [],
+    }));
+    await captureCmoBrandMedia("bot-1");
+    const saved = files.put.mock.calls.map(([pathname]) => pathname);
+    expect(saved).toContain(`${ORG}/home.jpg`);
+    expect(saved).toContain(`${ORG}/about.jpg`);
+    expect(saved.filter((path) => /pricing\.|rival/.test(path))).toEqual([]);
+
+    files.put.mockClear();
+    site.robots.mockResolvedValue({ allows: () => false, sitemaps: [] });
+    await captureCmoBrandMedia("bot-1");
+    await captureCmoHomepage({
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+      workspaceId: "ws-1",
+      websiteUrl: "https://acme.io",
+    });
+    // Only the index, which marks the site as read so it is not tried again.
+    expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual([
+      `${ORG}/index.json`,
+    ]);
+  });
+
+  it("keeps one copy of a page two addresses lead to", async () => {
+    // The site sends visitors of its old company page to the homepage.
+    site.sitemap.mockResolvedValue(["https://acme.io/company/moved-home"]);
+    await captureCmoBrandMedia("bot-1");
+    const saved = files.put.mock.calls.map(([pathname]) => pathname);
+    expect(saved.filter((path) => path.includes("/Full pages/"))).toEqual([
+      `${ORG}/Full pages/home.jpg`,
+      `${ORG}/Full pages/pricing.jpg`,
+    ]);
+    expect(saved.filter((path) => path.includes("about"))).toEqual([]);
   });
 
   it("logs a failed background capture without the page's words", async () => {
@@ -256,6 +465,34 @@ describe("captureCmoBrandMedia", () => {
       failure: { errorName: "Error" },
     });
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PAGE");
+  });
+
+  it("reads the site's logo again only for a Project without logo files", async () => {
+    // First lookup: a recent capture (none); second: logo files (none).
+    db.fileProjectLink.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    await captureCmoBrandMedia("bot-1");
+    expect(logo.refresh).toHaveBeenCalledTimes(1);
+
+    logo.refresh.mockClear();
+    db.fileProjectLink.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "logo-link" });
+    await captureCmoBrandMedia("bot-1");
+    expect(logo.refresh).not.toHaveBeenCalled();
+  });
+
+  it("starts the index for one Cuso a sync, the first without one", async () => {
+    db.fileProjectLink.findMany.mockResolvedValue([{ projectId: "project-1" }]);
+    await scheduleMissingCmoBrandIndex([
+      { projectId: "project-1", sokoBotId: "bot-1" },
+      { projectId: "project-2", sokoBotId: "bot-2" },
+      { projectId: "project-3", sokoBotId: "bot-3" },
+    ]);
+    expect(vi.mocked(waitUntil)).toHaveBeenCalledTimes(1);
+    await vi.mocked(waitUntil).mock.calls[0]?.[0];
+    expect(cuso.findForBot).toHaveBeenCalledWith("bot-2");
   });
 
   it("does not capture again within minutes of the last capture", async () => {
@@ -301,6 +538,13 @@ describe("the Project's brand research", () => {
       researchFile("f-home", "home.jpg"),
       researchFile("f-phone", "home-mobile.jpg"),
       researchFile("f-pricing", "pricing.jpg"),
+      researchFile("f-pricing-full", "Full pages/pricing.jpg"),
+      researchFile("f-plain-part", "Sections/home-02-section-how-it-works.jpg"),
+      researchFile(
+        "f-plans",
+        "Sections/pricing-01-pricing-plans-starter-pro.jpg",
+      ),
+      researchFile("f-index", "index.json"),
       researchFile("f-rival", "Competitors/rival-co.jpg"),
       researchFile("f-new", "Pictures/01-red-sneaker.jpg"),
       // An earlier capture's first picture: the newer one replaced it.
@@ -312,6 +556,10 @@ describe("the Project's brand research", () => {
         "home.jpg",
         "home-mobile.jpg",
         "pricing.jpg",
+        "Full pages/pricing.jpg",
+        "Sections/home-02-section-how-it-works.jpg",
+        "Sections/pricing-01-pricing-plans-starter-pro.jpg",
+        "index.json",
         "Competitors/rival-co.jpg",
         "Pictures/01-red-sneaker.jpg",
         "Pictures/picture-02.jpg",
@@ -322,13 +570,36 @@ describe("the Project's brand research", () => {
       })),
       hasMore: false,
     });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          pages: [
+            { name: "home", url: "https://acme.io/", title: "Acme" },
+            { name: "pricing", url: "https://acme.io/plans", title: "Plans" },
+          ],
+          sections: [
+            {
+              name: "pricing-01-pricing-plans-starter-pro",
+              title: "Plans: Starter & Pro",
+              pageUrl: "https://acme.io/plans",
+            },
+          ],
+        }),
+      ),
+    );
   });
 
-  it("gives Cuso the page screenshots, then the pictures, newest per slot", async () => {
+  it("gives Cuso the page screenshots, the sections with the plain ones last, then the pictures", async () => {
     expect(await listCmoBrandPictures("project-1")).toEqual([
       { fileId: "f-home", alt: "Home page screenshot" },
       { fileId: "f-phone", alt: "Home on a phone page screenshot" },
       { fileId: "f-pricing", alt: "Pricing page screenshot" },
+      {
+        fileId: "f-plans",
+        alt: "Pricing cards, Pricing page: plans starter pro",
+      },
+      { fileId: "f-plain-part", alt: "Section, Home page: how it works" },
       { fileId: "f-new", alt: "red sneaker" },
       { fileId: "f-plain", alt: "" },
     ]);
@@ -342,7 +613,7 @@ describe("the Project's brand research", () => {
     );
   });
 
-  it("shows CMO the pages, competitors and pictures from the Project's files", async () => {
+  it("shows CMO the pages read, their sections, competitors and pictures from the Project's files", async () => {
     const stamp = new Date("2026-10-27T10:00:00Z").getTime();
     const media = await cmoBrandMedia({
       projectId: "project-1",
@@ -360,20 +631,42 @@ describe("the Project's brand research", () => {
           label: "Home",
           pageUrl: "https://acme.io/",
           device: "desktop",
+          fullUrl: null,
         },
         {
           url: `https://blob.example/home-mobile.jpg?v=${stamp}`,
           fileId: "f-phone",
-          label: "Home on a phone",
+          label: "Home",
           pageUrl: "https://acme.io/",
           device: "mobile",
+          fullUrl: null,
         },
         {
           url: `https://blob.example/pricing.jpg?v=${stamp}`,
           fileId: "f-pricing",
           label: "Pricing",
-          pageUrl: "https://acme.io/pricing",
+          // The address the capture read, from its index.
+          pageUrl: "https://acme.io/plans",
           device: "desktop",
+          fullUrl: `https://blob.example/Full pages/pricing.jpg?v=${stamp}`,
+        },
+      ],
+      sections: [
+        {
+          url: `https://blob.example/Sections/home-02-section-how-it-works.jpg?v=${stamp}`,
+          fileId: "f-plain-part",
+          kind: "section",
+          title: "how it works",
+          pageLabel: "Home",
+          pageUrl: "https://acme.io/",
+        },
+        {
+          url: `https://blob.example/Sections/pricing-01-pricing-plans-starter-pro.jpg?v=${stamp}`,
+          fileId: "f-plans",
+          kind: "pricing",
+          title: "Plans: Starter & Pro",
+          pageLabel: "Pricing",
+          pageUrl: "https://acme.io/plans",
         },
       ],
       competitors: [
@@ -396,6 +689,7 @@ describe("the Project's brand research", () => {
           alt: "",
         },
       ],
+      logos: { logo: null, dark: null, mark: null },
     });
   });
 

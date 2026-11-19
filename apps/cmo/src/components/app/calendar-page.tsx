@@ -3,7 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { Clock, PenLine, Play } from "lucide-react";
 import { AnimatePresence } from "motion/react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
@@ -14,7 +14,13 @@ import {
   waitsForNetwork,
   wholeWords,
 } from "../../lib/calendar";
-import { formatHasImage, formatHasVideo, formatName } from "../../lib/channels";
+import {
+  channelTone,
+  formatHasImage,
+  formatHasVideo,
+  formatName,
+} from "../../lib/channels";
+import { dayIn } from "../../lib/today";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
 import { StatusDisc } from "../status";
@@ -93,6 +99,8 @@ export function CalendarPage({
   loadText,
   pieceExtra,
   onConnect,
+  initialOpenId = null,
+  now,
 }: {
   overview: CmoOverview;
   /** Approve, decline or rewrite a post that waits for the owner. */
@@ -104,22 +112,31 @@ export function CalendarPage({
   loadText?: (entryId: string) => Promise<string | null>;
   /** What the owner can do with a piece beyond reading it (launch an ad). */
   pieceExtra?: (entry: Entry) => ReactNode;
+  /** The post to open first, picked on Today. */
+  initialOpenId?: string | null;
+  /** Pins the clock (previews, tests). */
+  now?: Date;
 }) {
   // The month being made; a change waiting for approval does not empty it.
   const strategy = overview.approvedStrategy ?? overview.strategy;
   const [channel, setChannel] = useState<string | null>(null);
   const [pillar, setPillar] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId);
+  // What the plan bought does not make waits for a bigger plan, off the month.
+  const beyond = useMemo(
+    () => new Set(overview.production.beyondPlan),
+    [overview.production.beyondPlan],
+  );
   const live = useMemo(
     () =>
       (strategy?.calendar ?? [])
-        .filter((entry) => entry.status !== "skipped")
+        .filter((entry) => entry.status !== "skipped" && !beyond.has(entry.id))
         .sort(
           (a, b) =>
             a.date.localeCompare(b.date) ||
             (a.time ?? "").localeCompare(b.time ?? ""),
         ),
-    [strategy],
+    [strategy, beyond],
   );
   const channels = useMemo(
     () => [...new Set(live.map((entry) => entry.channel))],
@@ -132,6 +149,12 @@ export function CalendarPage({
   );
   const pillars = strategy?.pillars ?? [];
   const weeks = useMemo(() => planWeeks(live), [live]);
+  const today = dayIn(overview.timeZone, now);
+  const thisWeek = useRef<HTMLElement>(null);
+  // The month opens on this week, not on weeks already gone out.
+  useEffect(() => {
+    thisWeek.current?.scrollIntoView({ block: "start" });
+  }, []);
 
   // Posts Cuso made on request, outside the month: they go out only once
   // the owner says so, so they lead the page.
@@ -187,6 +210,9 @@ export function CalendarPage({
         <p className="note num">
           {live.length} posts this month · {ready} ready
           {ready < live.length ? ` · ${live.length - ready} being made` : ""}
+          {beyond.size > 0
+            ? ` · ${beyond.size} more with a bigger plan, in Settings`
+            : ""}
         </p>
         {waitingFor.map((network) => {
           const count = live.filter(
@@ -273,9 +299,15 @@ export function CalendarPage({
         const days = new Set(week.days);
         const pieces = shown.filter((entry) => days.has(entry.date));
         if (pieces.length === 0) return null;
+        const current = days.has(today);
         return (
-          <section key={week.start} className="cal-week">
+          <section
+            key={week.start}
+            className={current ? "cal-week cal-this-week" : "cal-week"}
+            ref={current && weekIndex > 0 ? thisWeek : undefined}
+          >
             <h3 className="cal-week-head">
+              {current ? <span className="cal-now">This week</span> : null}
               Week {weekIndex + 1}
               <span className="note num">
                 {formatDay(week.days[0] ?? week.start, {
@@ -294,9 +326,10 @@ export function CalendarPage({
                       open={entry.id === openId}
                       onOpen={() => setOpenId(entry.id)}
                       waitsFor={waitsForNetwork(entry, connected)}
+                      today={entry.date === today}
                     />
                   ) : (
-                    <PieceInMaking entry={entry} />
+                    <PieceInMaking entry={entry} today={entry.date === today} />
                   )}
                 </li>
               ))}
@@ -363,7 +396,7 @@ function editable(
 }
 
 /** A piece Cuso is still making: where and when, never its unfinished words. */
-function PieceInMaking({ entry }: { entry: Entry }) {
+function PieceInMaking({ entry, today }: { entry: Entry; today: boolean }) {
   return (
     <div className="cal-card cal-making">
       <span className="cal-thumb" aria-hidden="true">
@@ -376,11 +409,7 @@ function PieceInMaking({ entry }: { entry: Entry }) {
         <span className="cal-meta">
           <ChannelIcon channel={entry.channel} size={13} />
           {formatName(entry.channel, entry.format)}
-          <span className="cal-when num">
-            <Clock size={12} aria-hidden="true" />
-            {formatDay(entry.date, { weekday: "short", day: "numeric" })}
-            {entry.time ? ` ${entry.time}` : ""}
-          </span>
+          <When entry={entry} today={today} />
         </span>
         <span className="state">
           <span className="ob-box-dot" aria-hidden="true" />
@@ -397,12 +426,15 @@ function PieceCard({
   open,
   onOpen,
   waitsFor,
+  today,
 }: {
   entry: Entry;
   media?: Media;
   open: boolean;
   onOpen: () => void;
   waitsFor: string | null;
+  /** Goes out today: the day stands on Iris. */
+  today: boolean;
 }) {
   const picture =
     media?.slides?.[0] ?? (media?.kind === "image" ? media.url : null);
@@ -420,7 +452,9 @@ function PieceCard({
       onClick={onOpen}
     >
       {!visual && words ? (
-        <span className="cal-thumb cal-words">
+        <span
+          className={`cal-thumb cal-words net-${channelTone(entry.channel)}`}
+        >
           <span>{words}</span>
         </span>
       ) : (
@@ -449,11 +483,7 @@ function PieceCard({
         <span className="cal-meta">
           <ChannelIcon channel={entry.channel} size={13} />
           {formatName(entry.channel, entry.format)}
-          <span className="cal-when num">
-            <Clock size={12} aria-hidden="true" />
-            {formatDay(entry.date, { weekday: "short", day: "numeric" })}
-            {entry.time ? ` ${entry.time}` : ""}
-          </span>
+          <When entry={entry} today={today} />
         </span>
         {entry.pillar ? (
           <span className="cal-pillar">{entry.pillar}</span>
@@ -463,5 +493,18 @@ function PieceCard({
         <PieceState status={entry.status} waitsFor={waitsFor} />
       </span>
     </button>
+  );
+}
+
+/** When a piece goes out; today stands on Iris. */
+function When({ entry, today }: { entry: Entry; today: boolean }) {
+  return (
+    <span className={today ? "cal-when cal-when-today num" : "cal-when num"}>
+      <Clock size={12} aria-hidden="true" />
+      {today
+        ? "Today"
+        : formatDay(entry.date, { weekday: "short", day: "numeric" })}
+      {entry.time ? ` ${entry.time}` : ""}
+    </span>
   );
 }

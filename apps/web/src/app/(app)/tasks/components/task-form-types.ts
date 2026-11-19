@@ -1,4 +1,5 @@
 import { type Task, TaskStatus, type TaskTagId } from "@sokosumi/core-client";
+import type { CelebrationTaskStatus } from "@/app/tasks/components/task-created-celebration";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
   type CreateTaskResult,
@@ -58,7 +59,7 @@ export interface TaskFormLabels {
   cancel: string;
   ctrl: string;
   taskCreated?: string;
-  taskCreatedHint?: string;
+  taskCreatedHint?: Record<CelebrationTaskStatus, string>;
   goToTask?: string;
   createAnother?: string;
   untitledTask: string;

@@ -3379,13 +3379,15 @@ function RoomView({
                   channels={channelOptions}
                   channelLinks={channelLinks}
                   placeholder={
-                    isDirectRoom
-                      ? t("directComposerPlaceholder", {
-                          member: selectedRoomDisplayName,
-                        })
-                      : t("composerPlaceholderWithChannel", {
-                          channel: selectedRoomDisplayName,
-                        })
+                    selectedRoom.isSelfDirect
+                      ? t("SelfDirect.composerPlaceholder")
+                      : isDirectRoom
+                        ? t("directComposerPlaceholder", {
+                            member: selectedRoomDisplayName,
+                          })
+                        : t("composerPlaceholderWithChannel", {
+                            channel: selectedRoomDisplayName,
+                          })
                   }
                   isSending={isCoworkerStreaming}
                   showMentionShortcut={shouldShowRoomMentionShortcut(

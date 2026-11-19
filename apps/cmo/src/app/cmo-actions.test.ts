@@ -366,7 +366,7 @@ describe("social accounts", () => {
   it("hands back the accounts to pick from, then sends the pick with the sign-in", async () => {
     const choices = [
       {
-        externalAccountId: "urn:li:organization:42",
+        id: "choice-page",
         name: "Acme",
         handle: "acme",
         kind: "page",
@@ -385,12 +385,12 @@ describe("social accounts", () => {
       state: "choose",
       choices,
     });
-    await finalizeChannel("project-1", signIn, "urn:li:organization:42");
+    await finalizeChannel("project-1", signIn, "choice-page");
     expect(
       forProject.finalizeCmoSocialConnectionForProject,
     ).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        body: { ...signIn, externalAccountId: "urn:li:organization:42" },
+        body: { ...signIn, accountChoiceId: "choice-page" },
       }),
     );
   });

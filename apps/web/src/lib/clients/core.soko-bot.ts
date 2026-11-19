@@ -1,4 +1,5 @@
 import type {
+  AddSokoBotMcpServerRequest,
   CreateScopedSokoBotRequest,
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
@@ -9,6 +10,7 @@ import type {
   UpdateSokoBotScheduleRequest,
 } from "@sokosumi/core-client";
 import {
+  addSokoBotMcpServer as coreAddSokoBotMcpServer,
   archiveMySokoBot as coreArchiveMySokoBot,
   archiveSokoBot as coreArchiveSokoBot,
   browseSokoBotSkills as coreBrowseSokoBotSkills,
@@ -25,6 +27,7 @@ import {
   deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
   deleteSokoBotPermanently as coreDeleteSokoBotPermanently,
   deleteSokoBotSchedule as coreDeleteSokoBotSchedule,
+  deleteSokoBotSecret as coreDeleteSokoBotSecret,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
   disconnectSokoBotIntegration as coreDisconnectSokoBotIntegration,
   finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
@@ -36,6 +39,7 @@ import {
   getMySokoBotUsage as coreGetMySokoBotUsage,
   getSokoBot as coreGetSokoBot,
   getSokoBotActivity as coreGetSokoBotActivity,
+  getSokoBotSandboxSetup as coreGetSokoBotSandboxSetup,
   getSokoBotStats as coreGetSokoBotStats,
   getSokoBotTeam as coreGetSokoBotTeam,
   getSokoBotTurn as coreGetSokoBotTurn,
@@ -49,10 +53,14 @@ import {
   listMySokoBotSkills as coreListMySokoBotSkills,
   listMySokoBotTurns as coreListMySokoBotTurns,
   listSokoBotIntegrations as coreListSokoBotIntegrations,
+  listSokoBotMcpServers as coreListSokoBotMcpServers,
+  listSokoBotSecrets as coreListSokoBotSecrets,
   listSokoBotTurns as coreListSokoBotTurns,
   listSokoBotVersions as coreListSokoBotVersions,
   reactivateSokoBot as coreReactivateSokoBot,
+  refreshSokoBotMcpServer as coreRefreshSokoBotMcpServer,
   removeMySokoBotSkill as coreRemoveMySokoBotSkill,
+  removeSokoBotMcpServer as coreRemoveSokoBotMcpServer,
   renameMySokoBot as coreRenameMySokoBot,
   renameSokoBot as coreRenameSokoBot,
   resetMySokoBotMemory as coreResetMySokoBotMemory,
@@ -60,9 +68,12 @@ import {
   resolveMySokoBotDecision as coreResolveMySokoBotDecision,
   resolveSokoBotDecision as coreResolveSokoBotDecision,
   runMySokoBotLabIngest as coreRunMySokoBotLabIngest,
+  saveSokoBotSecret as coreSaveSokoBotSecret,
   searchSokoBotIntegrationCatalog as coreSearchSokoBotIntegrationCatalog,
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
+  setSokoBotSandboxSetup as coreSetSokoBotSandboxSetup,
+  signInToSokoBotMcpServer as coreSignInToSokoBotMcpServer,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
   startSokoBotTurn as coreStartSokoBotTurn,
@@ -71,6 +82,7 @@ import {
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
   updateMySokoBotVersion as coreUpdateMySokoBotVersion,
   updateSokoBotBoardFollowing as coreUpdateSokoBotBoardFollowing,
+  updateSokoBotMcpTool as coreUpdateSokoBotMcpTool,
   updateSokoBotProactive as coreUpdateSokoBotProactive,
   updateSokoBotSchedule as coreUpdateSokoBotSchedule,
 } from "@sokosumi/core-client";
@@ -399,6 +411,117 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listSokoBotSecrets(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListSokoBotSecrets({ client, path: { id }, cache: "no-store" }),
+      "Failed to list Soko Bot keys",
+    );
+  }
+
+  async function saveSokoBotSecret(
+    id: string,
+    name: string,
+    body: { value?: string; shellAccess?: boolean },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSaveSokoBotSecret({ client, path: { id, name }, body }),
+      "Failed to save Soko Bot key",
+    );
+  }
+
+  async function deleteSokoBotSecret(id: string, name: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreDeleteSokoBotSecret({ client, path: { id, name } }),
+      "Failed to delete Soko Bot key",
+    );
+  }
+
+  async function getSokoBotSandboxSetup(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetSokoBotSandboxSetup({ client, path: { id }, cache: "no-store" }),
+      "Failed to load Soko Bot setup commands",
+    );
+  }
+
+  async function setSokoBotSandboxSetup(id: string, commands: string[]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetSokoBotSandboxSetup({
+          client,
+          path: { id },
+          body: { commands },
+        }),
+      "Failed to save Soko Bot setup commands",
+    );
+  }
+
+  async function listSokoBotMcpServers(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListSokoBotMcpServers({ client, path: { id }, cache: "no-store" }),
+      "Failed to list Soko Bot MCP servers",
+    );
+  }
+
+  async function addSokoBotMcpServer(
+    id: string,
+    body: AddSokoBotMcpServerRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreAddSokoBotMcpServer({ client, path: { id }, body }),
+      "Failed to add Soko Bot MCP server",
+    );
+  }
+
+  async function refreshSokoBotMcpServer(id: string, serverId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRefreshSokoBotMcpServer({ client, path: { id, serverId } }),
+      "Failed to refresh Soko Bot MCP server",
+    );
+  }
+
+  async function signInToSokoBotMcpServer(id: string, serverId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSignInToSokoBotMcpServer({ client, path: { id, serverId } }),
+      "Failed to start signing in to the MCP server",
+    );
+  }
+
+  async function updateSokoBotMcpTool(
+    id: string,
+    serverId: string,
+    body: { name: string; enabled?: boolean; readOnly?: boolean },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreUpdateSokoBotMcpTool({ client, path: { id, serverId }, body }),
+      "Failed to update Soko Bot MCP tool",
+    );
+  }
+
+  async function removeSokoBotMcpServer(id: string, serverId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRemoveSokoBotMcpServer({ client, path: { id, serverId } }),
+      "Failed to remove Soko Bot MCP server",
+    );
+  }
+
   async function browseSokoBotSkills(page: number) {
     return executeCoreOperation(
       getClient,
@@ -647,6 +770,17 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     listMySokoBotSkills,
     installMySokoBotSkill,
     removeMySokoBotSkill,
+    listSokoBotSecrets,
+    saveSokoBotSecret,
+    deleteSokoBotSecret,
+    getSokoBotSandboxSetup,
+    setSokoBotSandboxSetup,
+    listSokoBotMcpServers,
+    addSokoBotMcpServer,
+    refreshSokoBotMcpServer,
+    signInToSokoBotMcpServer,
+    updateSokoBotMcpTool,
+    removeSokoBotMcpServer,
     browseSokoBotSkills,
     searchSokoBotSkills,
     listMySokoBotLabRuns,

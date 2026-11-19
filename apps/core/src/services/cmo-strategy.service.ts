@@ -46,7 +46,7 @@ import {
 import { cmoPictureStyleProblem } from "@/services/cmo-media-maker.service";
 import {
   cmoPlanRulesBrokenSince,
-  WEEKLY_STRATEGY_SKILL,
+  cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
@@ -190,6 +190,62 @@ function withoutUnpaidAds<T extends MarketingStrategyPlan>(plan: T): T {
         ? { ...entry, status: "skipped" as const }
         : entry,
     ),
+  };
+}
+
+const AD_CHANNELS = new Set(["google_ads", "meta_ads"]);
+
+/** Whether the Cuso's strategy skill makes ads the owner's Yes or No (cmo-v5). */
+async function asksBeforeAds(
+  sokoBotId: string,
+  db: Prisma.TransactionClient,
+): Promise<boolean> {
+  const bot = await db.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { versionId: true },
+  });
+  return (
+    bot?.versionId != null &&
+    cmoStrategyRules(getSokoBotVersion(bot.versionId).skills).everyNetwork ===
+      true
+  );
+}
+
+/**
+ * A strategy without the owner's Yes to ads holds none: no ads channel, no
+ * ad piece, nothing about ads in the funnel. An amount Cuso set himself
+ * becomes his suggestion. The review asks Cuso for this, but a long month
+ * once ended with ads planned after its review rounds ran out.
+ */
+export function withoutUnaskedAds<T extends MarketingStrategyPlan>(plan: T): T {
+  const ads = plan.ads;
+  if (ads?.setByOwner && ads.monthly > 0) return plan;
+  const isAd = (channel: string) => AD_CHANNELS.has(channel.toLowerCase());
+  const firstAd = plan.channels.find((channel) => isAd(channel.channel));
+  return {
+    ...plan,
+    ads: ads
+      ? {
+          ...ads,
+          monthly: 0,
+          suggest:
+            ads.suggest ??
+            (ads.monthly > 0 && firstAd
+              ? { channel: firstAd.channel.toLowerCase(), monthly: ads.monthly }
+              : undefined),
+        }
+      : ads,
+    channels: plan.channels.filter((channel) => !isAd(channel.channel)),
+    calendar: plan.calendar.map((entry) =>
+      isAd(entry.channel) && entry.status !== "skipped"
+        ? { ...entry, status: "skipped" as const }
+        : entry,
+    ),
+    funnel: plan.funnel.map((stage) => ({
+      ...stage,
+      channels: stage.channels.filter((channel) => !isAd(channel)),
+      plays: stage.plays.filter((play) => !isAd(play.channel)),
+    })),
   };
 }
 
@@ -549,7 +605,7 @@ async function startStrategyTurn(
   });
   const savesWeekly =
     bot?.versionId != null &&
-    getSokoBotVersion(bot.versionId).skills.includes(WEEKLY_STRATEGY_SKILL);
+    cmoStrategyRules(getSokoBotVersion(bot.versionId).skills).weekly === true;
   // Named up front: a goal such as "More leads" once pulled whole plans onto
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];
@@ -1170,6 +1226,9 @@ export async function saveCmoStrategy(
     }
   }
   stored = withoutUnpaidAds(stored);
+  // On cmo-v5 ads wait for the owner's Yes, whatever Cuso saved.
+  if (await asksBeforeAds(cuso.sokoBotId, db))
+    stored = withoutUnaskedAds(stored);
   if (own) {
     return db.marketingStrategy.update({
       where: { id: own.id },

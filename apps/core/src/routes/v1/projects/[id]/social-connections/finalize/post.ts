@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { created } from "@/helpers/response";
+import { created, ok } from "@/helpers/response";
+import { SocialAccountChoiceRequiredError } from "@/helpers/social-account-choice";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -11,6 +12,7 @@ import {
   finalizeProjectSocialConnectionRequestSchema,
   projectSocialConnectionProjectParamsSchema,
   projectSocialConnectionSchema,
+  socialAccountChoicesSchema,
 } from "@/schemas/project-social-connection.schema";
 import { finalizeProjectSocialConnection } from "@/services/project-social-connections.service";
 import { scheduleSocialAccountRefresh } from "@/services/social-account-sync";
@@ -22,7 +24,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/social-connections/finalize",
     description:
-      "Finalize a redeemed X social connection for a Project. Requires an interactive user session in the Project's Workspace.",
+      "Finalize a redeemed social connection for a Project. With `offerChoice`, a sign-in that reaches several accounts (a person's LinkedIn Pages and profile, a login's Facebook Pages) answers 200 with them and keeps nothing; finalize again with the picked choice's `accountChoiceId`. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: projectSocialConnectionProjectParamsSchema,
@@ -36,6 +38,10 @@ const route = withOrganizationSlugHeaderParameter(
       },
     },
     responses: {
+      200: jsonSuccessResponse(
+        socialAccountChoicesSchema,
+        "The sign-in reaches several accounts: pick one",
+      ),
       201: jsonSuccessResponse(
         projectSocialConnectionSchema,
         "Project social connection finalized",
@@ -75,6 +81,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       }).catch(() => undefined);
       return created(c, projectSocialConnectionSchema.parse(connection));
     } catch (error) {
+      if (error instanceof SocialAccountChoiceRequiredError) {
+        return ok(c, socialAccountChoicesSchema.parse(error));
+      }
       return mapProjectSocialConnectionServiceError(error);
     }
   });

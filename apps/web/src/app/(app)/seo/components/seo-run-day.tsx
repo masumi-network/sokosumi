@@ -29,7 +29,7 @@ const HOVER_OPEN_MS = 300;
 /**
  * A stop of the runs row with what happened there: a pointer on it shows the counts and the way to the details.
  * Focus opens no card: the card is out of the keyboard's reach, and a tap on a phone focuses the stop. Keyboard and
- * touch reach the details of the day in view from the title line of the row.
+ * touch reach the details of the day in view from the footer below the row.
  */
 export function SeoRunDayHover({
   workspace,

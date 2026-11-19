@@ -406,7 +406,11 @@ const baseLabels = {
   cancel: "Cancel",
   ctrl: "Ctrl",
   taskCreated: "Task created",
-  taskCreatedHint: "Everything's set up and ready to go.",
+  taskCreatedHint: {
+    DRAFT: "Draft hint",
+    QUEUED: "Scheduled hint",
+    READY: "Ready hint",
+  },
   goToTask: "Bring me to the task",
   createAnother: "Create another task",
   uploadingFile: "Uploading {fileName}",

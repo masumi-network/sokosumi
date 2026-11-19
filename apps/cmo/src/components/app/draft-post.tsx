@@ -10,6 +10,7 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { ChannelIcon } from "../channel-icon";
+import { cusoArt } from "../cuso";
 import { LocalStamp } from "../local-day";
 import { StatusDisc } from "../status";
 
@@ -261,6 +262,8 @@ export function DraftPost({
   const [pending, startTransition] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // The owner's yes gets its moment: Cuso's thumbs-up until the card moves on.
+  const [approved, setApproved] = useState(false);
   const [text, setText] = useState(draft.text);
   const textId = useId();
   const waiting = draft.status === "NEEDS_APPROVAL";
@@ -307,7 +310,28 @@ export function DraftPost({
           <p className="txt">{draft.text}</p>
         )}
       </div>
-      {editing ? (
+      {approved ? (
+        <div className="cf draft-done" role="status">
+          <img
+            className="draft-done-cuso"
+            src={cusoArt("thumbs-up")}
+            alt=""
+            width={48}
+            height={48}
+          />
+          <span>
+            <b>Approved.</b>{" "}
+            {draft.scheduledAt ? (
+              <>
+                It goes out on {network}{" "}
+                <LocalStamp at={new Date(draft.scheduledAt).toISOString()} />.
+              </>
+            ) : (
+              `It goes out on ${network} in about two minutes.`
+            )}
+          </span>
+        </div>
+      ) : editing ? (
         <div className="cf">
           <button
             type="button"
@@ -343,7 +367,10 @@ export function DraftPost({
               actions={actions}
               pending={pending}
               post={(settings) =>
-                run(() => actions.approve(draft.id, draft.revision, settings))
+                run(
+                  () => actions.approve(draft.id, draft.revision, settings),
+                  () => setApproved(true),
+                )
               }
             />
           ) : (
@@ -352,7 +379,10 @@ export function DraftPost({
               className="button button-small"
               disabled={pending}
               onClick={() =>
-                run(() => actions.approve(draft.id, draft.revision))
+                run(
+                  () => actions.approve(draft.id, draft.revision),
+                  () => setApproved(true),
+                )
               }
             >
               {pending ? "Working…" : "Approve"}

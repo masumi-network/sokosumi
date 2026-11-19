@@ -37,10 +37,13 @@ function CommandDialog({
   contentProps,
   commandProps,
   onCloseAutoFocus,
+  showHeader = false,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
+  /** Shows the title and description; otherwise only screen readers get them. */
+  showHeader?: boolean
   commandProps?: React.ComponentProps<typeof CommandPrimitive>
   /** Extra `DialogContent` props; close focus goes through `onCloseAutoFocus`. */
   contentProps?: Omit<
@@ -57,7 +60,9 @@ function CommandDialog({
         onCloseAutoFocus={onCloseAutoFocus}
       >
         {/* Inside the content, so a closed dialog leaves no heading behind. */}
-        <DialogHeader className="sr-only">
+        <DialogHeader
+          className={showHeader ? "px-4 pt-4 pr-12 text-left" : "sr-only"}
+        >
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
