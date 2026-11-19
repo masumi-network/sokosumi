@@ -139,6 +139,11 @@ async function stoppedTaskIds(taskIds: string[]): Promise<Set<string>> {
   return new Set(tasks.map((task) => task.id));
 }
 
+/** Where a position check stands: still running, or what came of it. */
+export type SeoCheckRead =
+  | { state: "running" }
+  | { state: "done" | "failed"; outcome: string };
+
 /**
  * Where a position check stands, for the follow-up that answers the owner:
  * null while it runs, else what it found or why it failed.
@@ -146,11 +151,21 @@ async function stoppedTaskIds(taskIds: string[]): Promise<Set<string>> {
 export async function seoCheckOutcome(
   analysisId: string,
 ): Promise<string | null> {
+  const read = await readSeoCheck(analysisId);
+  return read.state === "running" ? null : read.outcome;
+}
+
+/** Where a position check stands, and what it found or why it failed. */
+export async function readSeoCheck(analysisId: string): Promise<SeoCheckRead> {
+  const failed = (outcome: string): SeoCheckRead => ({
+    state: "failed",
+    outcome,
+  });
   const analysis = await prisma.projectSeoAnalysis.findUnique({
     where: { id: analysisId },
     select: { status: true, taskId: true, failureReason: true, request: true },
   });
-  if (!analysis) return "The SEO check no longer exists.";
+  if (!analysis) return failed("The SEO check no longer exists.");
   const task = analysis.taskId
     ? await prisma.task.findUnique({
         where: { id: analysis.taskId },
@@ -162,8 +177,11 @@ export async function seoCheckOutcome(
     task?.status === "FAILED" ||
     task?.status === "CANCELED"
   )
-    return `The SEO specialist's check failed${analysis.failureReason ? `: ${analysis.failureReason}` : ""}. Nothing was charged for it.`;
-  if (analysis.status !== "completed" || !analysis.taskId) return null;
+    return failed(
+      `The SEO specialist's check failed${analysis.failureReason ? `: ${analysis.failureReason}` : ""}. Nothing was charged for it.`,
+    );
+  if (analysis.status !== "completed" || !analysis.taskId)
+    return { state: "running" };
   const observation = await prisma.projectSeoObservation.findFirst({
     where: { sourceTaskId: analysis.taskId, ownerId: null },
     orderBy: { observedAt: "desc" },
@@ -173,7 +191,9 @@ export async function seoCheckOutcome(
     ? publicSeoPayloadSchema.safeParse(observation.payload)
     : null;
   if (!parsed?.success)
-    return "The SEO specialist finished, but its result could not be read.";
+    return failed(
+      "The SEO specialist finished, but its result could not be read.",
+    );
   const date = observation!.observedAt.toISOString().slice(0, 10);
   const lines = requestKeywords(analysis.request).map((keyword) => {
     const row = parsed.data.keywords.find(
@@ -194,8 +214,11 @@ export async function seoCheckOutcome(
       .join("; ");
     return `- "${keyword}" (${row?.device ?? "mobile"}, ${parsed.data.countryCode}): ${where}${row?.volume != null ? `, ${row.volume} searches a month` : ""}${above ? `. Top results: ${above}` : ""}`;
   });
-  return [
-    `The SEO specialist checked Google on ${date} for ${parsed.data.pageUrls[0]}:`,
-    ...lines,
-  ].join("\n");
+  return {
+    state: "done",
+    outcome: [
+      `The SEO specialist checked Google on ${date} for ${parsed.data.pageUrls[0]}:`,
+      ...lines,
+    ].join("\n"),
+  };
 }

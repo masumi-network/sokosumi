@@ -66,5 +66,7 @@ export function statusLine(work: ChatWork): string {
 /** What a card says while its work is under way. */
 export function waitingNote(work: ChatWork): string {
   if (work.kind === "question") return "I tell you here when the answer is in.";
+  if (work.kind === "audit")
+    return "It takes about ten minutes. What it finds shows in your SEO tab.";
   return "I tell you here when it is done.";
 }

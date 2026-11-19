@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const m = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  findMany: vi.fn(),
   upsert: vi.fn(),
   fetchComparisonSearches: vi.fn(),
   cmoSearchAdBudget: vi.fn(),
@@ -10,7 +11,11 @@ const m = vi.hoisted(() => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    projectSeoResearch: { findUnique: m.findUnique, upsert: m.upsert },
+    projectSeoResearch: {
+      findUnique: m.findUnique,
+      findMany: m.findMany,
+      upsert: m.upsert,
+    },
   },
 }));
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
@@ -35,7 +40,9 @@ vi.mock("@/services/competitors.service", async (importOriginal) => ({
 import type { Cuso } from "@/services/cmo-cuso.service";
 import {
   comparisonKind,
+  comparisonSearchVolume,
   readCmoCompetitorKeywords,
+  unreadCompetitorAdKeywords,
 } from "./cmo-competitor-keywords.service";
 
 const cuso = { projectId: "project-1", websiteUrl: "https://cal.com" } as Cuso;
@@ -300,5 +307,60 @@ describe("readCmoCompetitorKeywords", () => {
 
     expect(read.adBudget?.roomFor).toBe(0);
     expect(read.competitors[0]?.searches[0]?.fitsBudget).toBe(false);
+  });
+});
+
+describe("what the stored reads hold", () => {
+  const stored = [
+    {
+      observedAt: new Date("2026-11-19T09:00:00Z"),
+      payload: {
+        name: "Calendly",
+        countryCode: "US",
+        languageCode: "en",
+        searches: [
+          search("calendly alternatives", 880),
+          search("calendly vs zcal", null),
+        ],
+      },
+    },
+  ];
+  beforeEach(() => m.findMany.mockResolvedValue(stored));
+
+  it("gives a search's monthly searches with when it was read", async () => {
+    expect(
+      await comparisonSearchVolume("project-1", " Calendly  Alternatives "),
+    ).toEqual({ searchVolume: 880, observedAt: stored[0]!.observedAt });
+    expect(
+      await comparisonSearchVolume("project-1", "calendly vs zcal"),
+    ).toBeNull();
+    expect(
+      await comparisonSearchVolume("project-1", "team scheduling software"),
+    ).toBeNull();
+  });
+
+  it("names the keywords of a competitor ad that no read returned", async () => {
+    expect(
+      await unreadCompetitorAdKeywords("project-1", [
+        {
+          campaignId: "competitor-searches",
+          searchAd: {
+            keywords: ["Calendly Alternatives", "team scheduling software"],
+          },
+        },
+        // Any other ad is Cuso's to word.
+        { campaignId: "launch", searchAd: { keywords: ["scheduling api"] } },
+        { searchAd: { keywords: ["booking link"] } },
+      ]),
+    ).toEqual(["team scheduling software"]);
+  });
+
+  it("reads nothing when no entry is a competitor ad", async () => {
+    expect(
+      await unreadCompetitorAdKeywords("project-1", [
+        { searchAd: { keywords: ["booking link"] } },
+      ]),
+    ).toEqual([]);
+    expect(m.findMany).not.toHaveBeenCalled();
   });
 });

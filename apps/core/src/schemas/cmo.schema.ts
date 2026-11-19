@@ -240,7 +240,9 @@ export const cmoChatTableSchema = z
 
 export const cmoChatWorkItemSchema = z
   .object({
-    id: z.string().describe("The tool call that started it."),
+    id: z
+      .string()
+      .describe("The tool call that started it; a weekly audit's own id."),
     kind: z
       .enum([
         "image",
@@ -253,9 +255,11 @@ export const cmoChatWorkItemSchema = z
         "contacts",
         "run",
         "question",
+        "seo",
+        "audit",
       ])
       .describe(
-        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, or a question to a Coworker.",
+        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).",
       ),
     state: z
       .enum(["making", "waiting", "ready", "failed", "stopped"])

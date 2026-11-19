@@ -125,6 +125,21 @@ function showBrollInHook(
   });
 }
 
+/**
+ * Whether the opening sentence is long enough to show B-roll under it. A
+ * clip the edit would leave out is not made, so it is not paid for.
+ */
+export function hookTakesBroll(
+  spoken: readonly SpokenWord[],
+  clipSeconds: number,
+): boolean {
+  return (
+    planTalkingVideoEdit(spoken, clipSeconds, { broll: true })?.cuts.some(
+      (cut) => cut.shot === "broll",
+    ) ?? false
+  );
+}
+
 /** Plans the cuts and captions for a clip from its spoken words. */
 export function planTalkingVideoEdit(
   spoken: readonly SpokenWord[],

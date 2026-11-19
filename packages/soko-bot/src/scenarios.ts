@@ -1582,6 +1582,24 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       answerAvoids: CMO_PLACEHOLDER_PATTERN,
     },
   },
+  {
+    id: "cmo-competitor-landing-page",
+    title: "Writes a landing page for a competitor search from sourced facts",
+    intent:
+      "Asked for the page a search ad opens, Cuso writes it with the search in its H1 and first paragraph, says about the competitor only what its own words say, and saves it for the owner to publish.",
+    prompt:
+      'Write the landing page for the search "calendly alternatives", so our ad for it opens a page that answers it. I will publish it on our site.',
+    rubric:
+      'Cuso saved a landing page with save_seo_suggestions landingPages for the search "calendly alternatives" and the competitor Calendly. Its first line is an H1 that holds "calendly alternatives" word for word, and so does its first paragraph. Most of the page is about what cal.com offers, from the Brand Brain. What it says about Calendly comes only from Calendly\'s own words: the signal check_competitors returned (Standard plan $12 per seat a month, billed yearly, on its pricing page) or a page of calendly.com he read, each given as a claim with its source and quote. It makes no judgement of Calendly ("expensive", "limited", "better than"). His answer says the page is in the SEO tab under Landing pages, that the owner publishes it and then presses "It\'s live" there with its address, and that the ad for that search sends people there from then on. A save Core refused and he fixed is fine. A fact about Calendly with no source, a page saved to the strategy or calendar, publishing or hosting it himself, or claiming it is saved without a successful save_seo_suggestions fails.',
+    expect: {
+      // Writing a page reads as an answer to the classifier; the tool calls decide.
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["save_seo_suggestions"],
+      // Core refuses a quote that is not on the page; he fixes it and saves again.
+      allowFailedTools: ["save_seo_suggestions", "web_fetch"],
+      forbiddenTools: ["create_task", "hire_agent", "save_strategy"],
+    },
+  },
 ];
 
 /**

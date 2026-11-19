@@ -14131,13 +14131,13 @@ export type CmoChatWork = {
 
 export type CmoChatWorkItem = {
     /**
-     * The tool call that started it.
+     * The tool call that started it; a weekly audit's own id.
      */
     id: string;
     /**
-     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, or a question to a Coworker.
+     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).
      */
-    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question';
+    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question' | 'seo' | 'audit';
     /**
      * making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.
      */
@@ -14304,6 +14304,7 @@ export type CmoSeo = {
     searchConsole: CmoSearchConsole;
     articles: Array<CmoSeoSuggestion>;
     pageChanges: Array<CmoSeoSuggestion>;
+    landingPages: Array<CmoSeoSuggestion>;
     keywordSearches: Array<CmoKeywordSearch>;
     keywordSearchesLeft: number;
 };
@@ -14366,7 +14367,7 @@ export type CmoSearchConsole = {
 
 export type CmoSeoSuggestion = {
     id: string;
-    kind: 'article' | 'page_change';
+    kind: 'article' | 'page_change' | 'landing_page';
     source: 'audit' | 'cuso';
     title: string;
     keyword: string | null;
@@ -14375,6 +14376,11 @@ export type CmoSeoSuggestion = {
     body: string;
     newText: string | null;
     draft: string | null;
+    sources: Array<{
+        text: string;
+        sourceUrl: string;
+        quote: string;
+    }>;
     evidence: Array<CmoSeoEvidence>;
     status: 'open' | 'done' | 'verified' | 'dismissed';
     createdAt: Date;
@@ -14414,6 +14420,16 @@ export type CmoKeywordSearchRequest = {
 
 export type CmoSeoSuggestionStatusRequest = {
     status: 'open' | 'done' | 'dismissed';
+};
+
+export type CmoLandingPageLive = {
+    page: CmoSeoSuggestion;
+    adsUpdated: number;
+    adsLaunched: number;
+};
+
+export type CmoLandingPageLiveRequest = {
+    url: string;
 };
 
 export type CmoPresenterPhoto = {
@@ -89883,6 +89899,97 @@ export type SetCmoSeoSuggestionStatusForProjectResponses = {
 };
 
 export type SetCmoSeoSuggestionStatusForProjectResponse = SetCmoSeoSuggestionStatusForProjectResponses[keyof SetCmoSeoSuggestionStatusForProjectResponses];
+
+export type MarkCmoLandingPageLiveForProjectData = {
+    body: CmoLandingPageLiveRequest;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/live';
+};
+
+export type MarkCmoLandingPageLiveForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such landing page
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The address is not on the business's site
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MarkCmoLandingPageLiveForProjectError = MarkCmoLandingPageLiveForProjectErrors[keyof MarkCmoLandingPageLiveForProjectErrors];
+
+export type MarkCmoLandingPageLiveForProjectResponses = {
+    /**
+     * The page, and the search ads that changed
+     */
+    200: {
+        data: CmoLandingPageLive;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type MarkCmoLandingPageLiveForProjectResponse = MarkCmoLandingPageLiveForProjectResponses[keyof MarkCmoLandingPageLiveForProjectResponses];
 
 export type SkipCmoSubscriptionForProjectData = {
     body?: never;

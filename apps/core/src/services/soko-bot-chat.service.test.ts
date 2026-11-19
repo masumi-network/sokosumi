@@ -224,7 +224,7 @@ describe("persistSokoBotChatTurn", () => {
         toolName: "find_style_references",
         summary: null,
       },
-      { type: "actions.requested", toolName: "create_task", summary: null },
+      { type: "actions.requested", toolName: "link_tasks", summary: null },
     ];
     turnFindUnique.mockResolvedValue(
       completedTurn({

@@ -110,7 +110,10 @@ import {
   captureTalkingVideoSitePage,
   loadTalkingVideoEndCard,
 } from "@/lib/image-studio/talking-video-brand";
-import { editTalkingVideo } from "@/lib/image-studio/talking-video-edit";
+import {
+  editTalkingVideo,
+  hookTakesBroll,
+} from "@/lib/image-studio/talking-video-edit";
 import { timeSpokenWords } from "@/lib/image-studio/talking-video-words";
 import {
   findVideoModelForEndpoint,
@@ -1399,7 +1402,7 @@ async function prepareTalkingVideo(
   // The paid extras last, once nothing before them can fail.
   const [sitePagePathname, brollRequestId, musicRequestId] = await Promise.all([
     sitePage,
-    settings.broll
+    settings.broll && hookTakesBroll(words, spokenSeconds)
       ? writeTalkingVideoBrollPrompt(job.prompt).then((prompt) =>
           prompt
             ? startTalkingVideoExtra(

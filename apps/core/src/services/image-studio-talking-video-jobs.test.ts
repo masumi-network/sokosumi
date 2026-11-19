@@ -285,7 +285,17 @@ describe("starting a talking video that shows the site", () => {
 });
 
 describe("starting a talking video with extras", () => {
+  /** A hook of four seconds: room for the presenter's first second and a clip. */
+  const LONG_HOOK = [
+    { text: "Your", start: 0.1, end: 0.6 },
+    { text: "inbox", start: 0.7, end: 1.6 },
+    { text: "is", start: 1.7, end: 2.4 },
+    { text: "full.", start: 2.5, end: 4 },
+    { text: "Stop.", start: 4.6, end: 5 },
+  ];
+
   it("quotes them and starts the clip and the music beside the presenter", async () => {
+    timeSpokenWordsMock.mockResolvedValue(LONG_HOOK);
     writeBrollPromptMock.mockResolvedValue("Hands on a laptop at a desk.");
     submitToQueueMock.mockImplementation(
       async ({ model }: { model: string }) => ({
@@ -331,7 +341,28 @@ describe("starting a talking video with extras", () => {
     );
   });
 
+  it("makes no clip for a hook too short to show one, and does not charge for it", async () => {
+    writeBrollPromptMock.mockResolvedValue("Hands on a laptop at a desk.");
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+
+    await createTalkingVideoJob({ ...BASE_INPUT, broll: true });
+
+    expect(writeBrollPromptMock).not.toHaveBeenCalled();
+    expect(submitToQueueMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ model: "fal-ai/wan-25-preview/text-to-video" }),
+    );
+    expect(jobUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          settings: expect.objectContaining({ broll: false }),
+          chargedCents: convertCreditsToCents(52),
+        }),
+      }),
+    );
+  });
+
   it("takes an extra that could not be started off the charge", async () => {
+    timeSpokenWordsMock.mockResolvedValue(LONG_HOOK);
     writeBrollPromptMock.mockResolvedValue(null);
     submitToQueueMock
       .mockResolvedValueOnce({ kind: "rejected", status: 422 })

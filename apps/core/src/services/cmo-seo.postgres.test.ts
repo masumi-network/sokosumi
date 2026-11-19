@@ -16,6 +16,7 @@ import prisma from "@/lib/db/prisma";
 import { parseSeoMonitorPlan } from "@/lib/seo/monitor-plan";
 import { type Cuso, findCusoForBot } from "./cmo-cuso.service";
 import {
+  markCmoLandingPageLive,
   readCmoSeo,
   saveCmoSeoSuggestions,
   searchCmoKeywords,
@@ -23,6 +24,7 @@ import {
 } from "./cmo-seo.service";
 import {
   keepCmoSeoAudit,
+  listCmoSeoAuditRuns,
   pauseCmoSeoAuditsWithoutCuso,
   verifyCmoSeoChanges,
 } from "./cmo-seo-audit.service";
@@ -49,6 +51,39 @@ vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
       cpc: null,
     },
   ]),
+}));
+
+// A landing page's quotes are read on the competitor's own page.
+vi.mock("@/lib/competitors/page-read", () => ({
+  readCompetitorPage: vi.fn(async (url: string) =>
+    url === "https://apphousekitchen.com/pricing"
+      ? {
+          url,
+          html: "",
+          lines: ["AlDente Pro", "Yearly: 12 EUR a year", "Lifetime: 25 EUR"],
+        }
+      : null,
+  ),
+}));
+// Jev backs every statement but one that calls the competitor slow.
+vi.mock("@/lib/soko-bot/jev", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/soko-bot/jev")>()),
+  evaluateWithJev: vi.fn(
+    async (options: {
+      state: { statements: { key: string; statement: string }[] };
+    }) => ({
+      costUsd: 0.001,
+      answers: new Map(
+        options.state.statements.map(({ key, statement }) => [
+          key,
+          {
+            type: "boolean" as const,
+            probability: /slow/.test(statement) ? 0.05 : 0.95,
+          },
+        ]),
+      ),
+    }),
+  ),
 }));
 
 // "Run now" announces the first audit's Task over realtime.
@@ -672,6 +707,309 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         where: { projectId, key: { endsWith: ":0" } },
       }),
     ).toBe(0);
+  });
+
+  it("saves a landing page backed by the competitor's own words, and points the waiting ad at it once it is live", async () => {
+    const competitor = await prisma.trackedCompetitor.create({
+      data: {
+        projectId,
+        name: "AlDente",
+        nameKey: "aldente",
+        websiteUrl: "https://apphousekitchen.com/",
+        source: "RESEARCH",
+      },
+      select: { id: true },
+    });
+    await prisma.projectSeoResearch.create({
+      data: {
+        projectId,
+        kind: "comparison_searches",
+        key: "aldente|US|en",
+        observedAt: new Date("2026-11-19T09:00:00Z"),
+        payload: {
+          name: "AlDente",
+          countryCode: "US",
+          languageCode: "en",
+          searches: [
+            {
+              keyword: "aldente alternative",
+              searchVolume: 90,
+              cpc: 1.2,
+              lowTopOfPageBid: 0.4,
+              highTopOfPageBid: 2,
+              competition: "LOW",
+            },
+          ],
+        },
+      },
+    });
+    const draft = [
+      "# AlDente alternative that shows what wears your battery",
+      "",
+      "Looking for an AlDente alternative? Battery Sensei shows which habits wear your MacBook battery and limits the charge for you.",
+      "",
+      "## What it costs",
+      "",
+      "AlDente Pro costs 12 EUR a year or 25 EUR once. Battery Sensei is a single purchase.",
+      "",
+      "If you only want a charge limit, AlDente's free version does that.",
+      "",
+      "Battery Sensei runs on every MacBook with Apple silicon and needs no account to start.",
+    ].join("\n");
+    const page = {
+      keyword: "aldente alternative",
+      competitor: "AlDente",
+      why: "People who search this are choosing a battery app right now.",
+      draft,
+      claims: [
+        {
+          text: "AlDente Pro costs 12 EUR a year or 25 EUR once.",
+          sourceUrl: "https://apphousekitchen.com/pricing",
+          quote: "Yearly: 12 EUR a year",
+        },
+        {
+          text: "AlDente Pro can be bought once.",
+          sourceUrl: "https://apphousekitchen.com/pricing",
+          quote: "Lifetime: 25 EUR",
+        },
+      ],
+    };
+
+    // A price the page does not show, a quote that is not there, a search
+    // nobody measured, and something no quote says are each refused.
+    const refused = async (change: Partial<typeof page>): Promise<string> => {
+      const result = await saveCmoSeoSuggestions(cuso, {
+        landingPages: [{ ...page, ...change }],
+      });
+      expect(result.saved).toEqual([]);
+      return result.refused.join(" ");
+    };
+    expect(
+      await refused({ draft: draft.replace("12 EUR a year", "19 EUR a year") }),
+    ).toMatch(/has a number no source gives \(19\)/);
+    expect(
+      await refused({
+        claims: [{ ...page.claims[0]!, quote: "Yearly: 9 EUR a year" }],
+      }),
+    ).toMatch(
+      /"Yearly: 9 EUR a year" is not on https:\/\/apphousekitchen\.com\/pricing/,
+    );
+    expect(
+      await refused({
+        claims: [
+          {
+            ...page.claims[0]!,
+            sourceUrl: "https://reviews.example.com/aldente",
+          },
+        ],
+      }),
+    ).toMatch(
+      /neither AlDente's own site nor a source the weekly check stored/,
+    );
+    expect(
+      await refused({
+        keyword: "aldente vs battery sensei",
+        draft: draft.replaceAll(
+          /AlDente alternative/gi,
+          "AlDente vs Battery Sensei",
+        ),
+      }),
+    ).toMatch(/no measured searches/);
+    expect(
+      await refused({ draft: `${draft}\n\nAlDente is slow to update.` }),
+    ).toMatch(
+      /"AlDente is slow to update\." says something about AlDente that no cited source says/,
+    );
+    expect(await refused({ competitor: "CoconutBattery" })).toMatch(
+      /not on the competitor watch list/,
+    );
+    expect(
+      await refused({
+        draft: draft.replace("# AlDente alternative", "# A better app"),
+      }),
+    ).toMatch(/H1 .* does not hold the search "aldente alternative"/);
+
+    const saved = await saveCmoSeoSuggestions(cuso, { landingPages: [page] });
+    expect(saved.refused).toEqual([]);
+    expect(saved.costUsd).toBeGreaterThan(0);
+    const [landing] = (await readCmoSeo(cuso)).landingPages;
+    expect(landing).toMatchObject({
+      kind: "landing_page",
+      title: "AlDente alternative that shows what wears your battery",
+      keyword: "aldente alternative",
+      status: "open",
+      pageUrl: null,
+      sources: page.claims,
+      evidence: [
+        expect.objectContaining({
+          metric: "searchVolume",
+          value: "90",
+          source: "keyword_research",
+        }),
+      ],
+    });
+    // Saved again, the same search is the same page.
+    await saveCmoSeoSuggestions(cuso, { landingPages: [page] });
+    expect((await readCmoSeo(cuso)).landingPages).toHaveLength(1);
+
+    // Two search ads on that search: one waiting, one already launched.
+    const strategy = await prisma.marketingStrategy.create({
+      data: {
+        projectId,
+        plan: {},
+        approvedAt: new Date(),
+        approvedByUserId: userId,
+      },
+      select: { id: true },
+    });
+    const ad = {
+      keywords: ["AlDente Alternative", "aldente alternatives"],
+      headlines: ["AlDente Alternative", "Battery Sensei", "See What Wears It"],
+      descriptions: ["See what wears your battery.", "Limit the charge."],
+      finalUrl: "https://battery-sensei.app/",
+      location: "United States",
+    };
+    for (const [entryId, adCampaignId] of [
+      ["kw-waiting", null],
+      ["kw-launched", "campaign-1"],
+    ] as const) {
+      const file = await prisma.fileResource.create({
+        data: {
+          workspaceId,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceScope: "USER",
+          sourceId: `users/${userId}/${entryId}.md`,
+          ownerUserId: userId,
+          displayName: `${entryId}.md`,
+          normalizedName: `${entryId}.md`,
+        },
+        select: { id: true },
+      });
+      await prisma.marketingStrategyFile.create({
+        data: {
+          marketingStrategyId: strategy.id,
+          entryId,
+          fileResourceId: file.id,
+          searchAd: ad,
+          adCampaignId,
+        },
+      });
+    }
+
+    await expect(
+      markCmoLandingPageLive(
+        { userId, projectId },
+        landing!.id,
+        "https://example.com/aldente-alternative",
+      ),
+    ).rejects.toThrow(/not on battery-sensei\.app/);
+    const live = await markCmoLandingPageLive(
+      { userId, projectId },
+      landing!.id,
+      "https://battery-sensei.app/aldente-alternative",
+    );
+    expect(live).toMatchObject({
+      adsUpdated: 1,
+      adsLaunched: 1,
+      page: {
+        status: "done",
+        pageUrl: "https://battery-sensei.app/aldente-alternative",
+      },
+    });
+    const files = await prisma.marketingStrategyFile.findMany({
+      where: { marketingStrategyId: strategy.id },
+      orderBy: { entryId: "asc" },
+      select: { entryId: true, searchAd: true },
+    });
+    expect(
+      files.map((file) => [
+        file.entryId,
+        (file.searchAd as { finalUrl: string }).finalUrl,
+      ]),
+    ).toEqual([
+      ["kw-launched", "https://battery-sensei.app/"],
+      ["kw-waiting", "https://battery-sensei.app/aldente-alternative"],
+    ]);
+
+    await prisma.marketingStrategy.delete({ where: { id: strategy.id } });
+    await prisma.trackedCompetitor.delete({ where: { id: competitor.id } });
+  });
+
+  it("lists the weekly audits with where each stands, for the chat", async () => {
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { projectId, kind: "audit_full" },
+    });
+    const now = new Date("2026-11-23T09:00:00Z");
+    const audit = (key: string, hoursAgo: number, rest: object = {}) =>
+      prisma.projectSeoAnalysis.create({
+        data: {
+          projectId,
+          idempotencyKey: `test-audit-${key}`,
+          requestHash: key,
+          kind: "audit_full",
+          request: {},
+          requestedBy: userId,
+          createdAt: new Date(now.getTime() - hoursAgo * 3_600_000),
+          ...rest,
+        },
+        select: { id: true },
+      });
+    // An audit's Task, free again now that its audit row is gone.
+    const taken = await prisma.projectSeoAnalysis.findMany({
+      where: { projectId, taskId: { not: null } },
+      select: { taskId: true },
+    });
+    const task = await prisma.task.findFirstOrThrow({
+      where: {
+        workspaceId,
+        id: { notIn: taken.flatMap((row) => row.taskId ?? []) },
+      },
+      select: { id: true },
+    });
+    const running = await audit("running", 0);
+    const stuck = await audit("stuck", 4);
+    const failed = await audit("failed", 30, { status: "failed" });
+    const done = await audit("done", 170, {
+      status: "completed",
+      taskId: task.id,
+    });
+    await prisma.projectSeoObservation.create({
+      data: {
+        projectId,
+        kind: "audit_full",
+        source: "seo_coworker",
+        sourceKey: `test:${randomUUID()}`,
+        sourceTaskId: task.id,
+        pageIds: [],
+        artifactHash: randomUUID(),
+        payload: report as object,
+        observedAt: new Date(now.getTime() - 169 * 3_600_000),
+      },
+    });
+
+    const runs = await listCmoSeoAuditRuns(
+      projectId,
+      new Date(now.getTime() - 30 * 86_400_000),
+      now,
+    );
+
+    expect(runs.map((run) => [run.id, run.state])).toEqual([
+      [running.id, "running"],
+      [stuck.id, "failed"],
+      [failed.id, "failed"],
+      [done.id, "done"],
+    ]);
+    expect(runs[3]?.found?.checked).toBeGreaterThan(0);
+    expect(runs[3]?.found?.passed).toBeLessThan(runs[3]!.found!.checked);
+    expect(runs[3]?.found?.fixes).toBe(Math.min(report.actions.length, 5));
+    // An audit before the window is left out.
+    expect(
+      await listCmoSeoAuditRuns(
+        projectId,
+        new Date(now.getTime() - 86_400_000),
+        now,
+      ),
+    ).toHaveLength(2);
   });
 
   it("pauses the weekly audit of a Cuso that was let go, but not a monitor a person made", async () => {
