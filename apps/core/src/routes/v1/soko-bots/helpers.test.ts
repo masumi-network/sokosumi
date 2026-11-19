@@ -71,6 +71,18 @@ describe("mapIntegrationError", () => {
 });
 
 describe("mapTurn", () => {
+  it("gives owners the tool failure kind and keeps the stored diagnostic", () => {
+    const toolCall = {
+      status: "FAILED",
+      errorKind: "provider_error",
+      errorDetail: "Raw tool provider diagnostic",
+    };
+    expect(mapTurn({ toolCalls: [toolCall] }).toolCalls).toEqual([
+      { ...toolCall, errorDetail: null },
+    ]);
+    expect(toolCall.errorDetail).toBe("Raw tool provider diagnostic");
+  });
+
   it("keeps provider diagnostics out of the owner turn payload", () => {
     const turn = {
       errorKind: "GatewayInternalServerError",

@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ChatSignalEvaluator } from "@/lib/chat-signals/jev-tagger";
 import prisma from "@/lib/db/prisma";
 import { tagRoomChatSignals } from "./chat-message-signals.service";
+import { captureExternalRoomContacts } from "./chat-signal-effects.service";
 import { chatOpenLoopsBlock } from "./soko-bot-proactive.service";
 
 // The flow publishes over Ably; the test env has no real key.
@@ -214,6 +215,44 @@ describe.runIf(enabled)("chat signal effects on PostgreSQL", () => {
     });
     await tagRoomChatSignals(channelId, { source: "live", evaluate });
     expect(await chatNotifications(alice)).toHaveLength(1);
+  });
+
+  it("rewrites an old background failure in a Contact escalation preview", async () => {
+    const bot = await prisma.sokoBot.create({ data: { workspaceId } });
+    const sentAt = new Date();
+    const message = await prisma.chatRoomMessage.create({
+      data: {
+        roomId: partnerId,
+        senderSokoBotId: bot.id,
+        content:
+          'Background run "Review" failed before it could report. (Raw provider diagnostic)',
+        metadata: { soko_bot: { background_run_title: "Review" } },
+        createdAt: sentAt,
+      },
+    });
+    const sourceRef = `sokosumi-chat:${partnerId}:${message.id}:${dana}`;
+    try {
+      await captureExternalRoomContacts(partnerId, [
+        {
+          messageId: message.id,
+          authorUserId: alice,
+          probabilities: { escalation: 0.95 },
+          addressedUserIds: [],
+          mentionedUserIds: [],
+          sentAt,
+        },
+      ]);
+      const interaction = await prisma.contactInteraction.findFirstOrThrow({
+        where: { sourceRef },
+        select: { summary: true },
+      });
+      expect(interaction.summary).toContain('Background run "Review" failed');
+      expect(interaction.summary).not.toContain("Raw provider diagnostic");
+    } finally {
+      await prisma.contactInteraction.deleteMany({ where: { sourceRef } });
+      await prisma.chatRoomMessage.delete({ where: { id: message.id } });
+      await prisma.sokoBot.delete({ where: { id: bot.id } });
+    }
   });
 
   it("logs an external room on the outside person's Contact: one entry a day, and each escalation", async () => {

@@ -592,7 +592,6 @@ export async function dreaming(
         userMessage: true,
         finalAnswer: true,
         errorKind: true,
-        errorDetail: true,
         ownerFeedback: true,
         qualityVerdict: true,
         backgroundTitle: true,
@@ -606,7 +605,7 @@ export async function dreaming(
       },
       orderBy: { createdAt: "desc" },
       take: 200,
-      select: { capability: true, errorKind: true, errorDetail: true },
+      select: { capability: true, errorKind: true },
     }),
     prisma.sokoBotToolCall.findMany({
       where: {
@@ -679,34 +678,23 @@ export async function dreaming(
         .slice(0, 15)
         .map(
           (turn) =>
-            `- ${at(turn.createdAt)} ${turn.source.toLowerCase()}${turn.backgroundTitle ? ` "${quote(turn.backgroundTitle, 80)}"` : ""}: ${turn.errorKind ?? "error"}${turn.errorDetail ? ` (${quote(turn.errorDetail, 140)})` : ""}`,
+            `- ${at(turn.createdAt)} ${turn.source.toLowerCase()}${turn.backgroundTitle ? ` "${quote(turn.backgroundTitle, 80)}"` : ""}: ${turn.errorKind ?? "error"}`,
         ),
       "",
     );
 
-  const toolFailures = new Map<
-    string,
-    { count: number; detail: string | null }
-  >();
+  const toolFailures = new Map<string, number>();
   for (const call of failedTools) {
     const key = `${call.capability} (${call.errorKind ?? "error"})`;
-    const entry = toolFailures.get(key) ?? {
-      count: 0,
-      detail: call.errorDetail,
-    };
-    entry.count += 1;
-    toolFailures.set(key, entry);
+    toolFailures.set(key, (toolFailures.get(key) ?? 0) + 1);
   }
   if (toolFailures.size > 0)
     lines.push(
       "## Tools that failed",
       ...[...toolFailures]
-        .sort((a, b) => b[1].count - a[1].count)
+        .sort((a, b) => b[1] - a[1])
         .slice(0, 12)
-        .map(
-          ([key, { count, detail }]) =>
-            `- ${key} ×${count}${detail ? `: ${quote(detail, 140)}` : ""}`,
-        ),
+        .map(([key, count]) => `- ${key} ×${count}`),
       "",
     );
 

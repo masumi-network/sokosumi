@@ -538,6 +538,7 @@ describe("dreaming", () => {
         source: "SCHEDULE",
         status: "FAILED",
         errorKind: "timeout",
+        errorDetail: "Raw turn provider diagnostic",
         userMessage: "Weekly wrap…",
       }),
     ]);
@@ -551,6 +552,7 @@ describe("dreaming", () => {
     expect(text).not.toContain("secret packet");
     expect(text).toContain("## Turns that failed");
     expect(text).toContain("schedule: timeout");
+    expect(text).not.toContain("Raw turn provider diagnostic");
   });
 
   it("groups failing tools so a repeat shows, and lists weak answers and saved attachments", async () => {
@@ -568,12 +570,12 @@ describe("dreaming", () => {
             {
               capability: "read_email",
               errorKind: "provider_error",
-              errorDetail: "429",
+              errorDetail: "Raw tool provider diagnostic",
             },
             {
               capability: "read_email",
               errorKind: "provider_error",
-              errorDetail: "429",
+              errorDetail: "Raw tool provider diagnostic",
             },
           ]
         : [
@@ -582,7 +584,8 @@ describe("dreaming", () => {
           ],
     );
     const text = (await dream()).lines.join("\n");
-    expect(text).toContain("- read_email (provider_error) ×2: 429");
+    expect(text).not.toContain("Raw tool provider diagnostic");
+    expect(text).toContain("- read_email (provider_error) ×2");
     expect(text).toContain(
       "fail: Claimed a Task was created without a tool result",
     );

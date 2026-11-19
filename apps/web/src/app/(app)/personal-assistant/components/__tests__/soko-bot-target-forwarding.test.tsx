@@ -222,6 +222,37 @@ describe("console panels act on the shared bot in context", () => {
     );
   });
 
+  it("shows the translated failure label without exposing a tool diagnostic", async () => {
+    const turn = {
+      capabilityNames: ["search_inbox"],
+      events: [
+        {
+          id: "event-1",
+          type: "actions.requested",
+          toolName: "search_inbox",
+        },
+      ],
+      toolCalls: [
+        {
+          capability: "search_inbox",
+          status: "FAILED",
+          errorKind: "provider_error",
+          errorDetail: "Raw tool provider diagnostic",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ turn })),
+    );
+    renderShared(<TurnExplain turnId="t1" stepCount={1} />);
+    fireEvent.click(screen.getByRole("button", { name: /toggle/ }));
+
+    const failure = await screen.findByText(/^failed/);
+    expect(failure.textContent).toBe("failed");
+    expect(screen.queryByRole("button", { name: /rawResult/ })).toBeNull();
+  });
+
   it("integration connect and disconnect", async () => {
     const assign = vi.fn();
     vi.stubGlobal("location", { origin: "https://app.test", assign });
