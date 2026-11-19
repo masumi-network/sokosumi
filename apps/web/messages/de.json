@@ -1888,7 +1888,14 @@
         "board": "Board",
         "density": "Dichte",
         "normal": "Standard",
-        "compact": "Kompakt"
+        "compact": "Kompakt",
+        "sortBy": "Sortieren nach",
+        "sortOptions": {
+          "updatedAt": "Zuletzt aktualisiert",
+          "createdAt": "Neueste",
+          "priority": "Priorität",
+          "dueOn": "Fälligkeit"
+        }
       },
       "List": {
         "placeholder": "Keine Tasks"

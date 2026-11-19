@@ -1,6 +1,7 @@
 import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
 
 import { isUuidString } from "@/lib/utils/uuid";
+import { parseTasksSort, type TasksSort } from "./task-sort";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
@@ -45,6 +46,11 @@ export interface TasksFilters {
    * commented since, anywhere in the workspace.
    */
   mentions?: boolean;
+  /**
+   * The order the reader picked. Left out, each layout keeps its own default.
+   * A view setting, not a filter: clearing filters keeps it.
+   */
+  sort?: TasksSort;
 }
 
 /** Days in one status after which a waiting Task counts as stuck. */
@@ -83,6 +89,7 @@ export interface TasksFiltersSearchParams {
   needsMe?: TasksFilterQueryParam;
   mentions?: TasksFilterQueryParam;
   tag?: TasksFilterQueryParam;
+  sort?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -99,6 +106,7 @@ export const TASKS_FILTER_PARAM_KEYS = {
   needsMe: "needsMe",
   mentions: "mentions",
   tag: "tag",
+  sort: "sort",
 } as const;
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
@@ -257,6 +265,7 @@ export function getTasksFiltersFromSearchParams(
       stuck: searchParams.get(TASKS_FILTER_PARAM_KEYS.stuck) ?? undefined,
       needsMe: searchParams.get(TASKS_FILTER_PARAM_KEYS.needsMe) ?? undefined,
       mentions: searchParams.get(TASKS_FILTER_PARAM_KEYS.mentions) ?? undefined,
+      sort: searchParams.get(TASKS_FILTER_PARAM_KEYS.sort) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -350,7 +359,13 @@ export function parseTasksFilters(
     ...(sanitizeTasksStuckInput(firstQueryString(searchParams.mentions))
       ? { mentions: true }
       : {}),
+    ...withTasksSort(parseTasksSort(firstQueryString(searchParams.sort))),
   };
+}
+
+/** Left out when unset, so a filter set without a sort keeps its shape. */
+function withTasksSort(sort: TasksSort | undefined): { sort?: TasksSort } {
+  return sort ? { sort } : {};
 }
 
 /** `stuck=1` in the URL, or `true` from server-action JSON. */
@@ -441,6 +456,12 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.mentions);
   }
 
+  if (filters.sort) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.sort, filters.sort);
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.sort);
+  }
+
   return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
 }
 
@@ -463,7 +484,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}`;
 }
 
 /**

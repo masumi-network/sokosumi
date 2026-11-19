@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const connectionMock = vi.fn(async () => undefined);
 const getSessionResultMock = vi.fn();
 const getSessionMock = vi.fn();
+const getTasksColumnPageMock = vi.fn(async (_params: { sort?: string }) => ({
+  tasks: [],
+  nextCursor: null,
+  total: 0,
+}));
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
@@ -37,6 +42,10 @@ vi.mock("@/app/tasks/utils/task-assignee-members", () => ({
 vi.mock("@/app/tasks/utils/task-assignee-options", () => ({
   listTaskAssigneeOptions: async () => [],
 }));
+vi.mock("@/app/tasks/utils/tasks-column-page", () => ({
+  getTasksColumnPage: (params: { sort?: string }) =>
+    getTasksColumnPageMock(params),
+}));
 vi.mock("@/app/tasks/utils/tasks-list-page", () => ({
   getTasksListPage: async () => ({ tasks: [], nextCursor: null }),
 }));
@@ -48,10 +57,10 @@ const SESSION = {
   session: { activeOrganizationId: "org-1" },
 };
 
-function load() {
+function load(viewMode: "list" | "board" = "list") {
   return loadTasksPageData({
     filterParams: {},
-    viewMode: "list",
+    viewMode,
     personalAssistantFallback: "Personal assistant",
     createAssigneeSlug: null,
   });
@@ -94,5 +103,17 @@ describe("loadTasksPageData", () => {
     await expect(load()).rejects.toThrow("NEXT_REDIRECT");
 
     expect(connectionMock).not.toHaveBeenCalled();
+  });
+
+  // The view options menu says "Last updated" for the board by default.
+  it("pages board columns by last update when no sort is picked", async () => {
+    getSessionResultMock.mockResolvedValue(ok(SESSION));
+
+    await load("board");
+
+    expect(getTasksColumnPageMock).toHaveBeenCalled();
+    for (const [params] of getTasksColumnPageMock.mock.calls) {
+      expect(params.sort).toBe("updatedAt");
+    }
   });
 });

@@ -1888,7 +1888,14 @@
         "board": "Tablero",
         "density": "Densidad",
         "normal": "Normal",
-        "compact": "Compacto"
+        "compact": "Compacto",
+        "sortBy": "Ordenar por",
+        "sortOptions": {
+          "updatedAt": "Última actualización",
+          "createdAt": "Más recientes",
+          "priority": "Prioridad",
+          "dueOn": "Fecha de vencimiento"
+        }
       },
       "List": {
         "placeholder": "Sin Tasks"

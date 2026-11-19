@@ -1,7 +1,20 @@
 "use client";
 
-import { Columns3, Ellipsis, LayoutGrid, List, Rows3 } from "lucide-react";
-import { useCallback } from "react";
+import {
+  Check,
+  Columns3,
+  Ellipsis,
+  LayoutGrid,
+  List,
+  Rows3,
+} from "lucide-react";
+import { RadioGroup } from "radix-ui";
+import { useCallback, useId } from "react";
+import {
+  parseTasksSort,
+  TASKS_SORT_VALUES,
+  type TasksSort,
+} from "@/app/tasks/utils/task-sort";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -30,7 +43,12 @@ export interface ViewModeSwitchProps {
     density: string;
     normal: string;
     compact: string;
+    sortBy: string;
+    sortOptions: Record<TasksSort, string>;
   };
+  /** The order in effect, the layout's default until the reader picks one. */
+  sort: TasksSort;
+  onSortChange: (value: TasksSort) => void;
   /** Rows under the display options: view actions and where else the Tasks can be seen. */
   children?: React.ReactNode;
 }
@@ -41,9 +59,12 @@ export function ViewModeSwitch({
   density,
   onDensityChange,
   labels,
+  sort,
+  onSortChange,
   children,
 }: ViewModeSwitchProps) {
   const isClient = useIsClient();
+  const sortLabelId = useId();
   const handleChange = useCallback(
     (next: string) => {
       if (next === "board" || next === "list") {
@@ -145,6 +166,36 @@ export function ViewModeSwitch({
                 </ToggleGroupItem>
               </PopoverClose>
             </ToggleGroup>
+          </div>
+          <div className={VIEW_MENU_SECTION_CLASS}>
+            <p id={sortLabelId} className="text-sm font-medium">
+              {labels.sortBy}
+            </p>
+            {/* Every order in view: one click, no second dropdown. The Radix
+                primitive, not ui/radio-group, because each option is a
+                full-width row with a check, not a circle beside a label. */}
+            <RadioGroup.Root
+              value={sort}
+              onValueChange={(next) => {
+                const parsed = parseTasksSort(next);
+                if (parsed) onSortChange(parsed);
+              }}
+              aria-labelledby={sortLabelId}
+              className="space-y-0.5"
+            >
+              {TASKS_SORT_VALUES.map((option) => (
+                <RadioGroup.Item
+                  key={option}
+                  value={option}
+                  className="hover:bg-accent focus-visible:ring-ring data-[state=checked]:bg-accent flex h-8 w-full items-center justify-between rounded-md px-2 text-sm outline-none focus-visible:ring-2"
+                >
+                  {labels.sortOptions[option]}
+                  <RadioGroup.Indicator>
+                    <Check className="size-4" aria-hidden />
+                  </RadioGroup.Indicator>
+                </RadioGroup.Item>
+              ))}
+            </RadioGroup.Root>
           </div>
           {children ? (
             <div className="space-y-1 border-t pt-3">{children}</div>

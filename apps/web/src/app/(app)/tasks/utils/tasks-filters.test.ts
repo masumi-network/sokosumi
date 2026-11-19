@@ -595,6 +595,22 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
     },
   );
 
+  it("keeps a picked sort through the URL and through Clear", () => {
+    const initial = new URLSearchParams({ sort: "priority", status: "READY" });
+    const filters = getTasksFiltersFromSearchParams(initial, "org-1", []);
+    expect(filters.sort).toBe("priority");
+    expect(parseTasksFilters({ sort: "bogus" }, "org-1").sort).toBeUndefined();
+    const cleared = clearTasksFilters(filters, "org-1");
+    expect(hasClearableTasksFilters(cleared, "org-1")).toBe(false);
+    expect(
+      buildTasksFiltersSearchParams(
+        new URLSearchParams(),
+        cleared,
+        "org-1",
+      ).toString(),
+    ).toBe("sort=priority");
+  });
+
   it("drops malformed tag identifiers before sending a Core query", () => {
     expect(
       parseTasksFilters({ tag: "build me a tag" }, null).tag,

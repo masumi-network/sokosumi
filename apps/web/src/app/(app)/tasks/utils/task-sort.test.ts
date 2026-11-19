@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 
-import { compareTasksDesc } from "./task-sort";
+import {
+  compareTasks,
+  compareTasksDesc,
+  effectiveTasksSort,
+  parseTasksSort,
+} from "./task-sort";
 
 function buildTask(
   overrides: Partial<TaskWithCoworker> & Pick<TaskWithCoworker, "id">,
@@ -49,5 +54,67 @@ describe("compareTasksDesc", () => {
       "newer",
       "older",
     ]);
+  });
+});
+
+describe("compareTasks", () => {
+  const ids = (
+    sort: Parameters<typeof compareTasks>[0],
+    tasks: TaskWithCoworker[],
+  ) => [...tasks].sort(compareTasks(sort)).map((task) => task.id);
+
+  it("puts urgent first and none last, then the most recently updated", () => {
+    expect(
+      ids("priority", [
+        buildTask({ id: "none", priority: "NONE" }),
+        buildTask({ id: "low", priority: "LOW" }),
+        buildTask({
+          id: "urgent-old",
+          priority: "URGENT",
+          updatedAt: "2026-06-01T00:00:00.000Z",
+        }),
+        buildTask({
+          id: "urgent-new",
+          priority: "URGENT",
+          updatedAt: "2026-06-03T00:00:00.000Z",
+        }),
+      ]),
+    ).toEqual(["urgent-new", "urgent-old", "low", "none"]);
+  });
+
+  it("puts the earliest due day first and undated Tasks last", () => {
+    expect(
+      ids("dueOn", [
+        buildTask({ id: "undated", dueOn: null }),
+        buildTask({ id: "late", dueOn: "2026-07-10" }),
+        buildTask({ id: "soon", dueOn: "2026-06-05" }),
+      ]),
+    ).toEqual(["soon", "late", "undated"]);
+  });
+
+  it("orders newest created first, whatever was updated last", () => {
+    expect(
+      ids("createdAt", [
+        buildTask({
+          id: "old-but-touched",
+          createdAt: "2026-05-01T00:00:00.000Z",
+          updatedAt: "2026-06-09T00:00:00.000Z",
+        }),
+        buildTask({ id: "new", createdAt: "2026-06-01T00:00:00.000Z" }),
+      ]),
+    ).toEqual(["new", "old-but-touched"]);
+  });
+});
+
+describe("Sort by values", () => {
+  it("accepts only Core's sort keys", () => {
+    expect(parseTasksSort("priority")).toBe("priority");
+    expect(parseTasksSort("name")).toBeUndefined();
+  });
+
+  it("shows each layout's own default when the reader picked none", () => {
+    expect(effectiveTasksSort(undefined, "board")).toBe("updatedAt");
+    expect(effectiveTasksSort(undefined, "list")).toBe("createdAt");
+    expect(effectiveTasksSort("dueOn", "list")).toBe("dueOn");
   });
 });
