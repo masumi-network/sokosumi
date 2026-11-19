@@ -75,8 +75,10 @@ export function optionalChannels(
       : [];
   });
   const everything = [
-    ...SOCIAL_PROVIDERS,
-    ...(overview.tiktokEnabled ? ["tiktok"] : []),
+    // TikTok only where Core can connect it.
+    ...SOCIAL_PROVIDERS.filter(
+      (key) => key !== "tiktok" || overview.tiktokEnabled,
+    ),
     "google_ads",
     "meta_ads",
   ]
