@@ -319,6 +319,38 @@ export const CMO_LIVE_NETWORKS: readonly string[] = Object.entries(
   .map(([key]) => key);
 
 /**
+ * The planned networks the Brand Brain shows no profile on, without the
+ * "New:" that tells the owner to open the account first.
+ */
+export function cmoNewNetworkProblems(
+  strategy: MarketingStrategyPlan,
+  brain: BrandBrain,
+): string[] {
+  const found = [
+    ...(brain.channels ?? []),
+    ...(brain.marketingToday?.channels ?? []),
+  ].map((channel) => channel.name.trim().toLowerCase());
+  const names = CMO_CHANNELS as Record<string, { name: string }>;
+  const unmarked = strategy.channels
+    .filter((channel) => {
+      const key = channel.channel.toLowerCase();
+      if (!CMO_LIVE_NETWORKS.includes(key)) return false;
+      const known = [key, names[key]?.name.toLowerCase() ?? key];
+      if (key === "x") known.push("twitter", "x (twitter)");
+      return (
+        !found.some((name) => known.includes(name)) &&
+        !/^new:/i.test(channel.why?.trim() ?? "")
+      );
+    })
+    .map((channel) => channel.channel);
+  return unmarked.length > 0
+    ? [
+        `the Brand Brain shows no profile on ${unmarked.join(", ")}; start ${unmarked.length === 1 ? "its" : "each one's"} why with "New:" and say the owner opens the account.`,
+      ]
+    : [];
+}
+
+/**
  * Every live network is planned or left out with a reason, never parked in
  * proposals: a month once held only LinkedIn, X and Google Ads, because a
  * network without an account was a proposal the owner never saw as posts.

@@ -45,6 +45,7 @@ import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
   cmoDraftProblems,
+  cmoNewNetworkProblems,
   cmoPlanDrift,
   cmoPlanProblemsSince,
   cmoReplySafety,
@@ -288,6 +289,8 @@ export async function reviewCmoPlan(
   const brain = bot?.projectId
     ? parseBrandBrain((await getBrandBrain(bot.projectId))?.body)
     : null;
+  if (rules.everyNetwork && brain)
+    problems.push(...cmoNewNetworkProblems(strategy, brain));
   let mainOffer: CmoPlanOfferVerdict = "skipped";
   if (plan.planSent && brain) {
     const drift = await cmoPlanDrift({ strategy, brain });

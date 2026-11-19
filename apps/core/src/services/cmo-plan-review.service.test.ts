@@ -21,6 +21,7 @@ import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
   cmoDraftProblems,
+  cmoNewNetworkProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoPlanProblemsSince,
@@ -1225,5 +1226,37 @@ describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
     expect(cmoPlanProblems(crowded, { weekly: true }).join("\n")).toMatch(
       /linkedin is a side channel with 16 pieces over 4 weeks/,
     );
+  });
+});
+
+describe("a network the Brand Brain shows no profile on", () => {
+  const brain = {
+    channels: [{ name: "Website" }, { name: "LinkedIn" }],
+    marketingToday: { channels: [{ name: "X" }] },
+  } as BrandBrain;
+  const on = (channel: string, why?: string) =>
+    ({
+      channel,
+      cadence: "3 a week",
+      why,
+    }) as MarketingStrategyPlan["channels"][number];
+
+  it("asks for New: on a planned network with no profile, main or side", () => {
+    expect(
+      cmoNewNetworkProblems(
+        plan({
+          channels: [
+            on("linkedin", "Where operations leads read."),
+            on("x"),
+            on("instagram", "Teams look at product shots."),
+            on("youtube", "New: you open the channel."),
+            on("newsletter", "Regulars read email."),
+          ],
+        }),
+        brain,
+      ),
+    ).toEqual([
+      'the Brand Brain shows no profile on instagram; start its why with "New:" and say the owner opens the account.',
+    ]);
   });
 });
