@@ -139,6 +139,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     media: [],
     ...cmoStrategyVersion(null, new Date("2026-10-01T09:02:00Z")),
     updates: [],
+    drafts: [],
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
