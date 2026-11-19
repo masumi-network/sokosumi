@@ -46,6 +46,27 @@ export async function isTestCopyProject(
   return typeof project?.testCopyOfProjectId === "string";
 }
 
+/**
+ * A test copy's family: its source Project and every copy of it, the copy
+ * itself included. Null for a Project that is not a test copy.
+ */
+export async function testCopyFamilyProjectIds(
+  projectId: string,
+  db: Prisma.TransactionClient = prisma,
+): Promise<string[] | null> {
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { testCopyOfProjectId: true },
+  });
+  const sourceProjectId = project?.testCopyOfProjectId;
+  if (typeof sourceProjectId !== "string") return null;
+  const copies = await db.project.findMany({
+    where: { testCopyOfProjectId: sourceProjectId },
+    select: { id: true },
+  });
+  return [sourceProjectId, ...copies.map((copy) => copy.id)];
+}
+
 /** Whether this person made the test copy that is this Project's Cuso. */
 export async function madeTestCopy(
   userId: string,

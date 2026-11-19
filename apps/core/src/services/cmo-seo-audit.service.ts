@@ -28,6 +28,7 @@ import {
 import { addProjectSeoPage } from "@/services/project-seo.service";
 import { createProjectSeoMonitor } from "@/services/project-seo-monitor.service";
 import { normalizeSeoUrl } from "@/services/project-seo-store";
+import { testCopyFamilyProjectIds } from "@/services/project-test-copy";
 import {
   changeTaskScheduleRun,
   changeTaskScheduleState,
@@ -49,6 +50,8 @@ const WEEKLY_AUDIT_RULE = {
 const SKIP_WINDOW_MS = 60 * 60 * 1000;
 /** A new Cuso gets his first audit at once unless the weekly Run is this close. */
 const FIRST_AUDIT_GAP_MS = 2 * 24 * 60 * 60 * 1000;
+/** A test copy starts no audit while its family had one this recently (ADR 0073). */
+const TEST_COPY_AUDIT_GAP_MS = 7 * 24 * 60 * 60 * 1000;
 /** Monitors `cmoSeoMonitors` reads per Project, so the generations a Project can have. */
 const MONITORS_READ = 20;
 const ISSUE_SEVERITIES = ["critical", "major", "minor"] as const;
@@ -159,6 +162,9 @@ export async function keepCmoSeoAudit(
     return;
   }
   if (!live) {
+    // A daily test copy audits the same site as its source: one audit a week
+    // for all of them, and the copy reads that one (`latestCmoSeoAudit`).
+    if (await testCopyAuditedSince(cuso.projectId, now)) return;
     const page = await cmoSeoHomePage(cuso, actor);
     const market = await cmoSeoMarket(cuso);
     // Short of 750 credits: no monitor yet; a later sync starts it once they cover a week.
@@ -198,6 +204,28 @@ export async function keepCmoSeoAudit(
     return;
   }
   await skipUnaffordableWeek(live, actor, vars, now);
+}
+
+/**
+ * Whether the Project is a test copy whose source, or another copy of it,
+ * had a full audit in the last week that did not fail.
+ */
+async function testCopyAuditedSince(
+  projectId: string,
+  now: Date,
+): Promise<boolean> {
+  const family = await testCopyFamilyProjectIds(projectId);
+  if (!family) return false;
+  const audit = await prisma.projectSeoAnalysis.findFirst({
+    where: {
+      projectId: { in: family },
+      kind: "audit_full",
+      status: { not: "failed" },
+      createdAt: { gte: new Date(now.getTime() - TEST_COPY_AUDIT_GAP_MS) },
+    },
+    select: { id: true },
+  });
+  return audit !== null;
 }
 
 /** A stable UUID per Project and monitor generation, so a retried sync makes one monitor. */
@@ -294,12 +322,20 @@ async function skipUnaffordableWeek(
   });
 }
 
-/** The latest weekly audit of the Project, as its stored report. */
+/**
+ * The latest weekly audit of the Project, as its stored report. A test copy
+ * reads the latest of its family: the same site, audited once a week.
+ */
 export async function latestCmoSeoAudit(
   projectId: string,
 ): Promise<{ id: string; observedAt: Date; payload: PublicSeoPayload } | null> {
+  const family = await testCopyFamilyProjectIds(projectId);
   const row = await prisma.projectSeoObservation.findFirst({
-    where: { projectId, kind: "audit_full", ownerId: null },
+    where: {
+      projectId: family ? { in: family } : projectId,
+      kind: "audit_full",
+      ownerId: null,
+    },
     orderBy: { observedAt: "desc" },
     select: { id: true, observedAt: true, payload: true },
   });
