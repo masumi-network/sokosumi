@@ -13,10 +13,14 @@ import {
 } from "@/components/soko-bot/setup-steps";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import type { SokoBotConnectOffer } from "@/lib/soko-bot/connect-prompt";
+import {
+  dismissConnectPrompt,
+  type SokoBotConnectOffer,
+} from "@/lib/soko-bot/connect-prompt";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
 
 interface AssistantConnectStepProps {
+  botId: string;
   botName: string;
   /** The picture picked on the step before; null shows the bot's orb. */
   botImageUrl: string | null;
@@ -30,6 +34,7 @@ interface AssistantConnectStepProps {
 
 /** Optional: give the new bot mail and calendar, then open its chat. */
 export function AssistantConnectStep({
+  botId,
   botName,
   botImageUrl,
   botOrbSeed,
@@ -97,7 +102,13 @@ export function AssistantConnectStep({
         variant={anyConnected ? "default" : "ghost"}
         className="w-full"
       >
-        <Link href={doneUrl} replace>
+        {/* Leaving here answers the chat's connect card too: it would ask
+            again on the very next screen. */}
+        <Link
+          href={doneUrl}
+          replace
+          onClick={() => dismissConnectPrompt(botId)}
+        >
           {t(anyConnected ? "continue" : "skip")}
         </Link>
       </Button>

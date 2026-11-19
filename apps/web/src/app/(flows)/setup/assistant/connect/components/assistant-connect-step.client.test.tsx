@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { isConnectPromptDismissed } from "@/lib/soko-bot/connect-prompt";
 import en from "@/messages/en.json";
 
 import { AssistantConnectStep } from "./assistant-connect-step.client";
@@ -26,6 +27,7 @@ function renderStep(offers = OFFERS, botImageUrl: string | null = null) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
       <AssistantConnectStep
+        botId="bot-1"
         botName="Atlas"
         botImageUrl={botImageUrl}
         botOrbSeed="orb:u1"
@@ -55,6 +57,19 @@ describe("AssistantConnectStep", () => {
       "href",
       "/chat/rooms/room-1",
     );
+  });
+
+  it("keeps the chat from offering the same connect again after Skip", async () => {
+    window.localStorage.clear();
+    renderStep();
+    const skip = screen.getByRole("link", { name: "Skip" });
+    // Only the click matters here, not where the link goes.
+    skip.addEventListener("click", (event) => event.preventDefault());
+
+    await userEvent.click(skip);
+
+    expect(isConnectPromptDismissed("bot-1")).toBe(true);
+    expect(isConnectPromptDismissed("bot-2")).toBe(false);
   });
 
   it("keeps the picture picked on the step before", () => {

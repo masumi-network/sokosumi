@@ -14,21 +14,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type {
-  SokoBotConnectOffer,
-  SokoBotConnectPromptState,
+import {
+  dismissConnectPrompt,
+  isConnectPromptDismissed,
+  type SokoBotConnectOffer,
+  type SokoBotConnectPromptState,
 } from "@/lib/soko-bot/connect-prompt";
 import { startSokoBotConnect } from "@/lib/soko-bot/start-integration-connect";
-
-const DISMISSED_KEY = "soko-bot-connect-prompt-dismissed";
-
-function readDismissed(botId: string): boolean {
-  try {
-    return window.localStorage.getItem(`${DISMISSED_KEY}:${botId}`) === "1";
-  } catch {
-    return false;
-  }
-}
 
 async function fetchPrompt(): Promise<SokoBotConnectPromptState | null> {
   const response = await fetch("/api/personal-assistant/connect-prompt", {
@@ -57,14 +49,12 @@ export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
     !data ||
     data.botId !== sokoBotId ||
     dismissed ||
-    readDismissed(sokoBotId)
+    isConnectPromptDismissed(sokoBotId)
   )
     return null;
 
   function dismiss() {
-    try {
-      window.localStorage.setItem(`${DISMISSED_KEY}:${sokoBotId}`, "1");
-    } catch {}
+    dismissConnectPrompt(sokoBotId);
     setDismissed(true);
   }
 
