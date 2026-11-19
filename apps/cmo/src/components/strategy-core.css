@@ -52,6 +52,11 @@
   list-style: none;
 }
 
+/* The app holds a list item to reading width; a stage is a card, not a line. */
+.sc-funnel > .sc-stage {
+  max-width: none;
+}
+
 .sc-stage {
   display: grid;
   gap: 16px;
