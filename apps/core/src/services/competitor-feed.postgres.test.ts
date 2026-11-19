@@ -14,6 +14,7 @@ import {
   type SaveCompetitorFeedInput,
   SOKO_BOT_TOOL_DESCRIPTIONS,
 } from "@sokosumi/soko-bot";
+import { readCmoCompetitorWeek } from "@sokosumi/utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -296,34 +297,82 @@ describe.skipIf(!enabled)(
       ]);
     });
 
-    it("posts each big move to Cuso's room once, with its sources", async () => {
+    it("posts the week to Cuso's room as one message, and rewrites it on a second save", async () => {
       const w = await world();
-      const feed = priceFeed(
-        w,
-        "Calendly raised Standard from $10 to $12 per seat.",
-      );
-      for (let save = 0; save < 2; save += 1)
-        await saveCusoCompetitorFeed({
+      const zcal = {
+        competitorId: w.zcal,
+        facts: [
+          {
+            text: "Zcal added team pages.",
+            signalIds: [w.news],
+            support: "weak" as const,
+          },
+        ],
+        meaning: "Zcal's team pages give teams a second booking page.",
+        move: "Put our team page on the homepage on Tuesday.",
+      };
+      const save = (text: string) =>
+        saveCusoCompetitorFeed({
           projectId: w.cuso.projectId,
           sokoBotId: w.cuso.sokoBotId,
           turnId: null,
-          feed,
+          feed: {
+            items: [zcal, ...priceFeed(w, text).items],
+            openQuestions: [],
+          },
           now: NOW,
         });
+      await save("Calendly raised Standard from $10 to $12.");
+      await save("Calendly raised Standard from $10 to $12 per seat.");
       const messages = await prisma.chatRoomMessage.findMany({
         where: { senderSokoBotId: w.cuso.sokoBotId },
-        select: { content: true },
+        select: { content: true, clientMessageId: true, metadata: true },
       });
       expect(messages).toHaveLength(1);
+      expect(messages[0]?.clientMessageId).toBe(
+        "cmo:competitor-week:2026-11-16",
+      );
       expect(messages[0]?.content).toBe(
         [
-          "**Calendly**",
-          "Calendly raised Standard from $10 to $12 per seat.",
-          '> "$12 per seat/month" [Source](https://example.com/source), example.com, 2026-11-15',
-          "**What this means for you:** Calendly's price rise makes our Teams plan the cheaper one for small teams.",
-          "**Suggested move:** Lead the pricing page with the price per seat next week.",
+          "**What your competitors did this week**",
+          [
+            "- Calendly raised Standard from $10 to $12 per seat. ([example.com](https://example.com/source))",
+            "  - What this means for you: Calendly's price rise makes our Teams plan the cheaper one for small teams.",
+            "  - Suggested move: Lead the pricing page with the price per seat next week.",
+            "- Zcal added team pages. ([example.com](https://example.com/source))",
+          ].join("\n"),
+          "Every move, with what it means for you and what to do about it, is on the Competitors tab.",
         ].join("\n\n"),
       );
+      // Nothing of the scrape (the source's quote) or of how well it is
+      // backed reaches the chat; the Competitors tab keeps both.
+      expect(messages[0]?.content).not.toMatch(/\$12 per seat\/month|in part/);
+      expect(readCmoCompetitorWeek(messages[0]?.metadata)).toEqual({
+        checkDay: "2026-11-16",
+        moves: [
+          {
+            competitor: "Calendly",
+            text: "Calendly raised Standard from $10 to $12 per seat.",
+            source: {
+              label: "example.com",
+              url: "https://example.com/source",
+            },
+            big: true,
+            meaning:
+              "Calendly's price rise makes our Teams plan the cheaper one for small teams.",
+            move: "Lead the pricing page with the price per seat next week.",
+          },
+          {
+            competitor: "Zcal",
+            text: "Zcal added team pages.",
+            source: {
+              label: "example.com",
+              url: "https://example.com/source",
+            },
+            big: false,
+          },
+        ],
+      });
     });
 
     it("refuses a meaning that fits any move and a post on a network that is not connected", async () => {
@@ -352,7 +401,7 @@ describe.skipIf(!enabled)(
       ).toBe(0);
     });
 
-    it("posts nothing for a week without big moves", async () => {
+    it("calls nothing out in a week without big moves", async () => {
       const w = await world();
       await saveCusoCompetitorFeed({
         projectId: w.cuso.projectId,
@@ -378,11 +427,12 @@ describe.skipIf(!enabled)(
         },
         now: NOW,
       });
-      expect(
-        await prisma.chatRoomMessage.count({
-          where: { senderSokoBotId: w.cuso.sokoBotId },
-        }),
-      ).toBe(0);
+      const [message] = await prisma.chatRoomMessage.findMany({
+        where: { senderSokoBotId: w.cuso.sokoBotId },
+        select: { content: true },
+      });
+      expect(message?.content).toContain("- Zcal added team pages.");
+      expect(message?.content).not.toContain("Suggested move");
     });
 
     it("refuses the whole feed when one fact rests on nothing", async () => {
@@ -447,6 +497,11 @@ describe.skipIf(!enabled)(
         now: NOW,
       });
       expect(saved).toMatchObject({ saved: 0, bigMoves: [], costUsd: 0 });
+      expect(
+        await prisma.chatRoomMessage.count({
+          where: { senderSokoBotId: w.cuso.sokoBotId },
+        }),
+      ).toBe(0);
       expect(await latestCompetitorFeed(w.cuso.projectId)).toMatchObject({
         items: [],
         openQuestions: ["Is Zcal's team page free or paid? No source says."],

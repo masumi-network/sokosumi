@@ -1,6 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoCompetitorWeek } from "@sokosumi/utils";
 import { useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
@@ -23,7 +24,13 @@ export interface CardActions {
   /** Puts text in the composer and focuses it. */
   compose: (text: string) => void;
   open: (
-    view: "strategy" | "brain" | "results" | "channels" | "settings",
+    view:
+      | "strategy"
+      | "brain"
+      | "results"
+      | "competitors"
+      | "channels"
+      | "settings",
   ) => void;
   /** The top-up checkout, or null when this Cuso may not top up. */
   topUp: StartTopUp | null;
@@ -347,6 +354,74 @@ export function ConnectCard({ actions }: { actions: CardActions }) {
           Connect a channel
         </button>
         <span className="note">Until then I keep the posts as drafts.</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The week's competitor moves as one card: a line per move with where it was
+ * read, the big ones with what they mean and what to do. The rest of each
+ * move is on the Competitors tab.
+ */
+export function CompetitorWeekCard({
+  week,
+  actions,
+}: {
+  week: CmoCompetitorWeek;
+  actions: CardActions;
+}) {
+  return (
+    <div className="card">
+      <div className="ch">
+        <b>What your competitors did this week</b>
+      </div>
+      <div className="cb">
+        <ul className="list">
+          {week.moves.map((move) => (
+            <li key={`${move.competitor}:${move.text}`} className="li">
+              <span className="grow">
+                {move.text}
+                {move.source ? (
+                  <>
+                    {" "}
+                    <span className="note">
+                      <a
+                        href={move.source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {move.source.label}
+                      </a>
+                    </span>
+                  </>
+                ) : null}
+                {move.big && move.meaning && move.move ? (
+                  <span className="week-called">
+                    <span>
+                      <b>What this means for you:</b> {move.meaning}
+                    </span>
+                    <span>
+                      <b>Suggested move:</b> {move.move}
+                    </span>
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="cf">
+        <button
+          type="button"
+          className="button button-small"
+          onClick={() => actions.open("competitors")}
+        >
+          See every move
+        </button>
+        <span className="note">
+          Each with what it means for you and what to do.
+        </span>
       </div>
     </div>
   );

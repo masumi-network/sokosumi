@@ -1573,6 +1573,14 @@ button.card-focus {
   margin-left: auto;
 }
 
+/* A big competitor move in the week's card: what it means, and the move. */
+.week-called {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
 /* Settings: the time zone, with its one-tap suggestion and the full list. */
 .time-zone-actions {
   display: flex;
