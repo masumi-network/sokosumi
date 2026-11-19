@@ -13907,7 +13907,7 @@
           },
           "38": {
             "title": "Export und Zeitraum-Vorlagen",
-            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Die Tabellen „Länder und Geräte“ und „KI-Assistenten“ haben keinen Export. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
+            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Für die Tabellen „Länder und Geräte“, „KI-Assistenten“ und „Was sich bei organischen Besuchen geändert hat“ ist kein Export verfügbar. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
           },
           "39": {
             "title": "Verlauf der Zitate in KI-Übersichten",

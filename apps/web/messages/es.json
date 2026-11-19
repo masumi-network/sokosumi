@@ -13907,7 +13907,7 @@
           },
           "38": {
             "title": "Exportación y periodos predefinidos",
-            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas «Países y dispositivos» y «Asistentes de IA» no tienen exportación. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
+            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas «Países y dispositivos», «Asistentes de IA» y «Qué cambió en las visitas orgánicas» no se pueden exportar. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",
