@@ -679,6 +679,11 @@ export const cmoOverviewSchema = z
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),
     connectChannelUrl: z.string(),
+    tiktokEnabled: z
+      .boolean()
+      .describe(
+        "TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.",
+      ),
     adProviders: z.array(z.string()),
     connectAdsUrl: z.string(),
     measurement: z

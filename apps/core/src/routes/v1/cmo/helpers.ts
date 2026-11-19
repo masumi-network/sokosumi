@@ -73,6 +73,7 @@ function mapOverview(overview: CmoOverview) {
     })),
     upNext: overview.upNext,
     connectChannelUrl: overview.connectChannelUrl,
+    tiktokEnabled: overview.tiktokEnabled,
     adProviders: overview.adProviders,
     connectAdsUrl: overview.connectAdsUrl,
     measurement: overview.measurement,

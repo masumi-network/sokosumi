@@ -214,7 +214,7 @@ export function BrandBrainPage({
   );
 }
 
-type Provider = (typeof SOCIAL_PROVIDERS)[number];
+type Provider = (typeof SOCIAL_PROVIDERS)[number] | "tiktok";
 
 /** Starts a network's connection; the provider sends the founder back to CMO. */
 export type ConnectChannel = (
@@ -286,7 +286,13 @@ export function ChannelsPage({
       <section className="card">
         <h3>Social accounts</h3>
         <ul className="list">
-          {SOCIAL_PROVIDERS.map((provider) => {
+          {(
+            [
+              ...SOCIAL_PROVIDERS,
+              // Only where Core allows it; no TikTok posts are planned yet.
+              ...(overview.tiktokEnabled ? (["tiktok"] as const) : []),
+            ] satisfies Provider[]
+          ).map((provider) => {
             const account = overview.channels.find(
               (channel) => channel.provider.toLowerCase() === provider,
             );
