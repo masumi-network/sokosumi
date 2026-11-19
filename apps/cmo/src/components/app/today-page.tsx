@@ -128,6 +128,9 @@ function saying(overview: CmoOverview, needs: number): string {
   if (overview.production.state === "running") {
     return `I'm making your month: ${overview.production.ready} of ${overview.production.total} ready.`;
   }
+  if (overview.production.state === "blocked") {
+    return "I couldn't start your month yet. I keep trying every ten minutes.";
+  }
   return "Nothing needs you. Everything goes out on its day.";
 }
 

@@ -32,6 +32,7 @@ import {
   strategy,
   strategyRows,
   turnFindFirst,
+  turnFindUnique,
 } from "@/test-fixtures/cmo-service";
 
 const libraryAvailable = vi.hoisted(() => vi.fn(() => false));
@@ -638,6 +639,36 @@ describe("saving versions", () => {
     expect(plan(added).summary).toBe("A sharper headline.");
     // The approved version is never rewritten by a new plan.
     expect(plan(running)).toEqual(strategy);
+  });
+
+  const ownerSet = (row: (typeof strategyRows)[number]) =>
+    (plan(row).channels[0] as { setByOwner?: boolean } | undefined)?.setByOwner;
+
+  it("marks a cadence the owner lowered in chat as theirs, and never one Cuso marks himself", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    seedStrategy(strategy);
+    const linkedin = (cadence: string, setByOwner?: boolean) => ({
+      channels: [
+        { channel: "linkedin", cadence, role: "main" as const, setByOwner },
+      ],
+    });
+    turnFindUnique.mockResolvedValueOnce({
+      source: "CHAT",
+      userMessage: "Only 1 a day on LinkedIn, please.",
+    });
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, linkedin("1 a day"), {
+      turnId: "turn-1",
+    });
+    expect(ownerSet(strategyRows.at(-1)!)).toBe(true);
+
+    turnFindUnique.mockResolvedValueOnce({
+      source: "SCHEDULE",
+      userMessage: "Daily check",
+    });
+    await saveCmoStrategy({ sokoBotId: "bot-1" }, linkedin("1 a week", true), {
+      turnId: "turn-2",
+    });
+    expect(ownerSet(strategyRows.at(-1)!)).toBeUndefined();
   });
 
   it("starts a new version once the turn's own one was approved", async () => {

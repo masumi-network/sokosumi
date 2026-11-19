@@ -10,8 +10,8 @@ Projects lets a signed-in user open `/projects` and see their projects as a card
 
 ## How to get to it (user POV)
 
-- Desktop: **Work** → **Projects** (directly under **Home**). When a project is already in scope, that row is **Overview** and opens that project instead of the list.
-- Open `/projects` directly. The header scope control lists projects and **Create project**. It has no **Manage projects** row.
+- Open the project picker in the header. Select **Open projects page**, the maximize icon beside **Create project**.
+- Open `/projects` directly.
 - Mobile: choose **Projects** in the bottom tabs.
 
 ## Driving it with agent-browser
@@ -30,4 +30,4 @@ Preconditions:
 - Empty projects is valid for a new fixture user — do not require existing projects.
 - True empty uses heading **No projects yet**. A search/filter miss uses **No projects match "…"**, not the empty title.
 - Creating a project (`?create=true` / modal) is out of scope for this entry; list/empty landing only.
-- Desktop **Work** includes **Projects** (or **Overview** when a project is scoped). Do not look for **Manage projects**.
+- To open the selected project, use **Overview** in the sidebar.

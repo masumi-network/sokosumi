@@ -24,7 +24,7 @@ vi.mock("@/lib/redis-rate-limit", () => ({
   incrementRedisRateLimit: vi.fn(),
 }));
 
-it("returns 500 for a script budget refusal with only the shared alert", async () => {
+it("returns a 503 script budget refusal with only the shared alert", async () => {
   vi.mocked(incrementRedisRateLimit).mockResolvedValueOnce(1);
   vi.mocked(writeTalkingVideoScripts).mockImplementation(() =>
     rethrowAiGatewayFailure(
@@ -63,10 +63,15 @@ it("returns 500 for a script budget refusal with only the shared alert", async (
     },
   );
 
-  expect(response.status).toBe(500);
+  expect(response.status).toBe(503);
+  expect(await response.json()).toMatchObject({
+    kind: "ai_budget_exceeded",
+    message:
+      "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+  });
   expect(coreLogEvents()).toMatchObject([
     {
-      status: 500,
+      status: 503,
       level: "error",
       error: { message: "AI Gateway budget exhausted" },
     },

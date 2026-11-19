@@ -59,9 +59,11 @@ import {
 } from "@/services/cmo-strategy.service";
 import {
   approvedMarketingStrategy,
+  cmoChangeKind,
   isMarketingFilePiece,
   parseMarketingPlan,
   readMarketingPlan,
+  STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
 import {
   handleSocialComment,
@@ -248,7 +250,17 @@ export async function reviewCmoPlan(
       select: { plan: true },
     }));
   const earlier = parseMarketingPlan(before?.plan);
-  const problems = cmoPlanProblemsSince(strategy, earlier, rules);
+  // A new month (a plan or finish turn, not an owner's change) is held to
+  // the top volume whatever the month before it had.
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: authorized.turn.id },
+    select: { clientTurnId: true, userMessage: true },
+  });
+  const fresh =
+    turn?.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX) === true &&
+    cmoChangeKind(turn.clientTurnId) === null &&
+    !turn.userMessage.includes("The owner asked: ");
+  const problems = cmoPlanProblemsSince(strategy, earlier, { ...rules, fresh });
   if (reviewed >= budget) {
     return {
       save: saves,

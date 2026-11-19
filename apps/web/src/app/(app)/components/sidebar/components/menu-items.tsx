@@ -74,8 +74,6 @@ interface MenuItemConfig {
   tile?: ReactNode;
   /** The Badge campaign row this is, when the feature has one. */
   feature?: AnnouncedFeature;
-  /** Current only on `href` itself, not on the pages under it. */
-  exact?: true | undefined;
   /**
    * A resting hover loads the page's content, not only its shell. Only for a
    * page whose reads are private-cached, or the prefetch renders for nothing.
@@ -138,19 +136,6 @@ function ScopedMenuItems({
       Icon: House,
       group: "work",
       desktopOnly: true,
-      prefetchContent: true,
-    },
-    // Under Home: Home answers what needs you, Projects browses the work.
-    // Projects stays while a project is selected, so the list is always one
-    // click away; the selected project's own page follows it as Overview.
-    {
-      key: "projects",
-      href: "/projects",
-      label: t("projects"),
-      Icon: FolderKanban,
-      group: "work",
-      // Inside a project, Overview is the current row, not the list.
-      exact: hasProjectPage || undefined,
       prefetchContent: true,
     },
     ...(hasProjectPage
@@ -304,16 +289,13 @@ function ScopedMenuItems({
     Icon,
     tile,
     feature,
-    exact,
     prefetchContent,
   }: MenuItemConfig) {
     // A click that heads for another project's page keeps the mark on
     // Overview: on arrival this row is that project's.
     const headsForProject =
       key === "overview" && projectPageSection(navPathname) !== null;
-    const isActive = exact
-      ? navPathname === href
-      : headsForProject || isPathActive(navPathname, href);
+    const isActive = headsForProject || isPathActive(navPathname, href);
 
     return (
       <SidebarMenuItem key={key}>

@@ -262,6 +262,7 @@ export function CmoApp({
   // A post opened from Today opens on the Calendar.
   const [focusEntry, setFocusEntry] = useState<string | null>(null);
   const [sending, startSending] = useTransition();
+  const [sendFailed, setSendFailed] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -369,12 +370,14 @@ export function CmoApp({
     const content = draft.trim();
     if (!content) return;
     setDraft("");
+    setSendFailed(false);
     startSending(async () => {
       // A message that did not send comes back to the box, not lost.
       try {
         await actions.sendMessage(content);
       } catch {
         setDraft(content);
+        setSendFailed(true);
         return;
       }
       await refresh();
@@ -496,6 +499,11 @@ export function CmoApp({
                   </button>
                 ))}
               </div>
+              {sendFailed ? (
+                <p className="note" role="alert">
+                  Your message didn't send. Try again.
+                </p>
+              ) : null}
               <form className="composer" onSubmit={send}>
                 <textarea
                   ref={input}
@@ -918,9 +926,11 @@ function ProductionCard({
             ? "Your month is ready"
             : production.state === "stuck"
               ? "Most of your month is ready"
-              : notStarted
-                ? `${AGENT_NAME} is about to make your month`
-                : `${AGENT_NAME} is making your month`}
+              : production.state === "blocked"
+                ? `${AGENT_NAME} couldn't start your month`
+                : notStarted
+                  ? `${AGENT_NAME} is about to make your month`
+                  : `${AGENT_NAME} is making your month`}
         </b>
         <span className="note num">
           {production.ready} of {production.total} ready
@@ -941,11 +951,13 @@ function ProductionCard({
           ? "Every post, picture, article and email is made. Each goes out on its day."
           : production.state === "stuck"
             ? `A few posts didn't finish. ${AGENT_NAME} tries them again on his next round.`
-            : notStarted
-              ? "He starts shortly: first every post's words, then the pictures."
-              : production.state === "starting"
-                ? `${productionSteps(production)}. He makes the rest shortly.`
-                : `${productionSteps(production)}. First the words, then the pictures.`}
+            : production.state === "blocked"
+              ? "Something on our side keeps him from starting. He tries again every ten minutes."
+              : notStarted
+                ? "He starts shortly: first every post's words, then the pictures."
+                : production.state === "starting"
+                  ? `${productionSteps(production)}. He makes the rest shortly.`
+                  : `${productionSteps(production)}. First the words, then the pictures.`}
       </p>
       <button
         type="button"

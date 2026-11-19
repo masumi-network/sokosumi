@@ -614,6 +614,46 @@ describe("advanceCmoMedia", () => {
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
   });
 
+  it("puts a finished picture on a post Cuso already scheduled, keeping its time", async () => {
+    jobFindMany.mockResolvedValue([
+      {
+        id: "job-b",
+        idempotencyKey: `cmo-media:version-1:b:0:image:${cmoVisualKey(piece())}:1`,
+        status: "SUCCEEDED",
+        prompt: "prompt",
+        asset: { id: "asset-b" },
+      },
+    ]);
+    ensureDriveFile.mockResolvedValue({
+      id: "file-b",
+      name: "b.jpg",
+      pathname: "drive/b.jpg",
+      mimeType: "image/jpeg",
+      size: 10,
+    });
+    postFindUnique.mockResolvedValue({
+      id: "b",
+      provider: "x",
+      text: "Written words.",
+      media: [],
+      revision: 3,
+      status: "SCHEDULED",
+      scheduledAt: new Date(Date.now() + 86_400_000),
+      planning: {},
+    });
+    updateSocialPost.mockResolvedValue({ media: [{}], revision: 4 });
+    await advanceCmoMedia(context, [
+      piece({ id: "b", socialPostId: "b", status: "scheduled" }),
+    ]);
+    expect(updateSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ postId: "b", revision: 3 }),
+    );
+    expect(updateSocialPost.mock.calls[0]?.[0]).not.toHaveProperty(
+      "scheduledAt",
+    );
+    expect(scheduleSocialPost).not.toHaveBeenCalled();
+  });
+
   it("logs a refused schedule without the post's text", async () => {
     const warnings = expectCoreLogWhys(
       "warn",

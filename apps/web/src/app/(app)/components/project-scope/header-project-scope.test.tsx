@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   search: "",
   push: vi.fn(),
   fetch: vi.fn(),
+  loadActivity: vi.fn(),
   loadPinned: vi.fn(),
 }));
 
@@ -24,6 +25,9 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
+}));
+vi.mock("@/lib/utils/notification-time", () => ({
+  useNotificationTimeFormatter: () => () => "2 minutes ago",
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
@@ -36,10 +40,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 vi.mock("@/lib/project-scope-list.client", () => ({
-  fetchScopeList: (path: string) =>
-    path.startsWith("/api/project-scope/pinned")
+  fetchScopeList: (path: string) => {
+    if (path === "/api/project-scope/activity") return mocks.loadActivity();
+    return path.startsWith("/api/project-scope/pinned")
       ? mocks.loadPinned()
-      : Promise.resolve({ projects: [], nextCursor: null }),
+      : Promise.resolve({ projects: [], nextCursor: null });
+  },
 }));
 vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
   InlineCreateProjectModal: () => null,
@@ -74,6 +80,7 @@ function trigger() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.loadActivity.mockResolvedValue([]);
   mocks.pathname = "/tasks";
   mocks.search = "";
   mocks.fetch.mockImplementation(() =>
@@ -180,6 +187,16 @@ describe("header project scope", () => {
     ).toBeTruthy();
   });
 
+  it("reads workspace activity only after the desktop picker opens", async () => {
+    const user = userEvent.setup();
+    renderScope();
+    expect(mocks.loadActivity).not.toHaveBeenCalled();
+
+    await user.click(trigger());
+    await screen.findByRole("heading", { name: "title" });
+    expect(mocks.loadActivity).toHaveBeenCalledOnce();
+  });
+
   it("opens the Create dialog from the popover", async () => {
     const user = userEvent.setup();
     renderScope();
@@ -275,6 +292,10 @@ describe("header project scope", () => {
       // The page needs one project: leaving for All projects is no answer.
       expect(screen.queryByTestId("project-scope-all")).toBeNull();
       expect(menu).toHaveAccessibleDescription("Ads need a project");
+      expect(
+        screen.queryByRole("link", { name: "openProjectsPage" }),
+      ).toBeNull();
+      expect(mocks.loadActivity).not.toHaveBeenCalled();
       expect(screen.getByTestId("project-scope-backdrop")).toHaveClass(
         "bg-scrim",
       );

@@ -651,6 +651,8 @@ const strategyPlanShape = {
       why: shortText,
       /** Pieces a week across all channels. */
       perWeek: z.number().int().min(1).max(200),
+      /** Set by Core: the owner asked for this lower pace. */
+      setByOwner: z.boolean().optional(),
     })
     .optional(),
   /**
@@ -992,6 +994,8 @@ export const marketingStrategyPlanSchema = z.object({
         role: z.enum(["main", "side"]).optional(),
         /** The Brand Brain buyer a side channel's pieces are written for. */
         buyer: shortText.optional(),
+        /** Set by Core: the owner asked for this lower cadence. */
+        setByOwner: z.boolean().optional(),
       }),
     )
     .max(10),

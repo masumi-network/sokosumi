@@ -49,6 +49,7 @@ import {
   cmoCalendarWeeks,
   cmoPlanRulesBrokenSince,
   cmoStrategyRules,
+  cmoWithOwnerPace,
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
@@ -355,6 +356,21 @@ export async function startCmoPlanAfterResearch(
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
   return startCmoStrategy(cuso, userId, null);
+}
+
+/**
+ * The owner's words a turn carries: their chat message, or the request a
+ * strategy change was started with. Null for Cuso's own runs.
+ */
+export async function cmoOwnerRequest(turnId: string): Promise<string | null> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { userMessage: true, source: true },
+  });
+  const message = turn?.userMessage ?? "";
+  const asked = message.match(/The owner asked: (.+)/)?.[1];
+  if (asked) return asked;
+  return turn?.source === "CHAT" && message ? message : null;
 }
 
 /**
@@ -1226,6 +1242,13 @@ export async function saveCmoStrategy(
       : parsed;
     stored = options.turnId ? withoutDashes(withLineBreaks(merged)) : merged;
   }
+  // Only the owner lowers the pace or a cadence; Core marks what they asked for.
+  if (options.turnId)
+    stored = cmoWithOwnerPace(
+      stored,
+      before,
+      await cmoOwnerRequest(options.turnId),
+    );
   // A talking video shows a generated presenter: its script speaks for the
   // brand, never as a customer of it.
   const testimonial = options.turnId
