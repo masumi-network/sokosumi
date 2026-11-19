@@ -122,6 +122,7 @@ export const TEST_CATALOG: StudioCatalog = {
         name: "Maya",
         description: "Woman in her late twenties",
         imageUrl: "https://example.com/maya.jpg",
+        voice: "Sarah",
       },
     ],
     defaultVoice: "Sarah",

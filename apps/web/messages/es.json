@@ -4491,7 +4491,13 @@
       "newVideo": "Nuevo vídeo",
       "videoMaking": "Creando",
       "videoFailed": "No creado",
-      "you": "Tú"
+      "you": "Tú",
+      "videoReady": "Listo",
+      "videoUnavailable": "No disponible",
+      "loadFailed": "No se pudo cargar el vídeo",
+      "loadFailedBody": "El archivo no llegó. Inténtalo de nuevo en un momento.",
+      "tryAgain": "Intentar de nuevo",
+      "checking": "Comprobando el vídeo. Si no empieza, pulsa reproducir."
     },
     "Studio": {
       "back": "Volver al proyecto",

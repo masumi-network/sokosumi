@@ -45,11 +45,12 @@ import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
   cmoDraftProblems,
+  cmoNewNetworkProblems,
   cmoPlanDrift,
   cmoPlanProblemsSince,
   cmoReplySafety,
   cmoSideChannelFit,
-  WEEKLY_STRATEGY_SKILL,
+  cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
 import { reportCmoUpdate } from "@/services/cmo-reports.service";
 import {
@@ -222,9 +223,10 @@ export async function reviewCmoPlan(
     ? CMO_CALENDAR_REVIEWS_PER_TURN
     : CMO_PLAN_REVIEWS_PER_TURN;
   // A weekly Cuso saves a long month in four calendar calls first.
-  const weekly = getSokoBotVersion(authorized.turn.versionId).skills.includes(
-    WEEKLY_STRATEGY_SKILL,
+  const rules = cmoStrategyRules(
+    getSokoBotVersion(authorized.turn.versionId).skills,
   );
+  const weekly = rules.weekly === true;
   // Jev reads the first saves only; the rule checks cost nothing and run on
   // a few more, so a late save still hears about a repeated title. Past
   // that the review stops, so a plan that cannot be fixed still ends.
@@ -246,7 +248,7 @@ export async function reviewCmoPlan(
       select: { plan: true },
     }));
   const earlier = parseMarketingPlan(before?.plan);
-  const problems = cmoPlanProblemsSince(strategy, earlier, { weekly });
+  const problems = cmoPlanProblemsSince(strategy, earlier, rules);
   if (reviewed >= budget) {
     return {
       save: saves,
@@ -287,6 +289,8 @@ export async function reviewCmoPlan(
   const brain = bot?.projectId
     ? parseBrandBrain((await getBrandBrain(bot.projectId))?.body)
     : null;
+  if (rules.everyNetwork && brain)
+    problems.push(...cmoNewNetworkProblems(strategy, brain));
   let mainOffer: CmoPlanOfferVerdict = "skipped";
   if (plan.planSent && brain) {
     const drift = await cmoPlanDrift({ strategy, brain });

@@ -221,3 +221,30 @@ describe("plural", () => {
     expect(plural("YouTube Short", 2)).toBe("2 YouTube Shorts");
   });
 });
+
+it("counts a talking video on YouTube too, and names a network left out with its reason", async () => {
+  const { richPlan } = await import("../test-fixtures/onboarding");
+  const { ChannelPlan } = await import("./strategy-reveal");
+  const html = renderToStaticMarkup(<ChannelPlan strategy={richPlan} />);
+  // YouTube has no entry of its own: its piece is LinkedIn's talking video.
+  const youtube = html.slice(html.indexOf("YouTube</p>"));
+  expect(youtube.slice(0, youtube.indexOf("</li>"))).toMatch(
+    /1 a week.*1 talking video/i,
+  );
+  expect(html).toContain(
+    "<b>Not on Facebook.</b> Product teams do not follow software vendors on Facebook.",
+  );
+  // A network left out is not offered again as one Cuso could add.
+  expect(html).not.toMatch(/can also run[^<]*Facebook[,. ]/);
+});
+
+it("says what Cuso does for the owner's site, which is never on the calendar", async () => {
+  const { richPlan } = await import("../test-fixtures/onboarding");
+  const { ChannelPlan } = await import("./strategy-reveal");
+  const html = renderToStaticMarkup(<ChannelPlan strategy={richPlan} />);
+  expect(html).toContain("Your website and Google search");
+  expect(html).toContain(
+    "A weekly audit of your site, page fixes, and articles",
+  );
+  expect(html).toContain("You put them on your site.");
+});

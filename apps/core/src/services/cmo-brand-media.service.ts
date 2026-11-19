@@ -855,8 +855,13 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     return true;
   };
 
+  /** Where the capture is, so a failure says which step it ended in. */
+  let step = "browser";
+  let ownPagesMissed = 0;
+  let stopped = false;
   try {
     const media = await withBrowser(async (browser: Browser) => {
+      step = "home";
       const home = robots.allows("/")
         ? await capturePage(browser, site.href, {
             ...DESKTOP,
@@ -865,6 +870,8 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
           })
         : null;
       if (home) await saveOwnPage("Home", home);
+      else if (robots.allows("/")) ownPagesMissed += 1;
+      step = "pages";
       // The site's own header and footer say which pages matter; its sitemap
       // fills in what they leave out.
       const found = home
@@ -883,11 +890,13 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
           fullScreens: FULL_PAGE_SCREENS,
           sections: PAGE_SECTIONS,
         });
+        if (!capture) ownPagesMissed += 1;
         return capture && (await saveOwnPage(page.label, capture))
           ? capture
           : null;
       });
       const own = [home, ...rest];
+      step = "phones";
       await inBatches(index.pages, async (page) => {
         if (!inTime()) return;
         const phone = await capturePage(browser, page.url, MOBILE);
@@ -901,6 +910,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
           );
         }
       });
+      step = "competitors";
       await inBatches(competitorPages, async (page) => {
         if (!inTime() || !(await readRobots(page.url)).allows("/")) return;
         const capture = await capturePage(browser, page.url);
@@ -914,6 +924,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
           );
         }
       });
+      step = "pictures";
       const seen = new Set<string>();
       const candidates = own
         .flatMap((capture) => capture?.images ?? [])
@@ -932,6 +943,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
       }
       return { pictures };
     });
+    step = "save pictures";
     for (const [index, { image, body }] of media.pictures.entries()) {
       const slot = String(index + 1).padStart(2, "0");
       // The alt text names the picture, so Cuso finds a product's photo.
@@ -946,6 +958,28 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
         failures,
       );
     }
+  } catch (error) {
+    stopped = true;
+    // Pages can carry what the brand wrote: only the step, the counts and
+    // the error's safe fields are logged.
+    emitCoreWarning(
+      {
+        operation: "cmo_brand_media",
+        sokoBot: { id: sokoBotId },
+        brandMedia: {
+          step,
+          pagesRead: index.pages.length,
+          sections: index.sections.length,
+          ownPagesMissed,
+        },
+        failure: messageSafeErrorFields(error),
+      },
+      {
+        message: "The brand capture stopped partway",
+        why: "A step of the capture threw; what it saved before is kept",
+        fix: "brandMedia.step names the step; at browser, the headless Chromium did not start. Cuso's next essentials save captures again.",
+      },
+    );
   } finally {
     await logo;
     // Written last and always, also after a capture that threw: it marks
@@ -957,6 +991,24 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
       "application/json",
       failures,
     );
+    if (!stopped && ownPagesMissed > 0) {
+      emitCoreWarning(
+        {
+          operation: "cmo_brand_media",
+          sokoBot: { id: sokoBotId },
+          brandMedia: {
+            step: "pages",
+            pagesRead: index.pages.length,
+            ownPagesMissed,
+          },
+        },
+        {
+          message: "Some of the brand's pages did not load for the capture",
+          why: "The headless browser returned no capture for them",
+          fix: "The capture kept every page that loaded. If no page loads for any site, check the headless Chromium on Core.",
+        },
+      );
+    }
     if (failures.length > 0) {
       const first = failures[0] as SaveFailure;
       emitCoreWarning(

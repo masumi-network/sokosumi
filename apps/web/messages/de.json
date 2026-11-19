@@ -4491,7 +4491,13 @@
       "newVideo": "Neues Video",
       "videoMaking": "In Arbeit",
       "videoFailed": "Nicht erstellt",
-      "you": "Du"
+      "you": "Du",
+      "videoReady": "Fertig",
+      "videoUnavailable": "Nicht verfügbar",
+      "loadFailed": "Video konnte nicht geladen werden",
+      "loadFailedBody": "Die Datei ist nicht angekommen. Versuche es gleich noch einmal.",
+      "tryAgain": "Erneut versuchen",
+      "checking": "Das Video wird geprüft. Wenn es nicht startet, drücke auf Abspielen."
     },
     "Studio": {
       "back": "Zurück zum Projekt",

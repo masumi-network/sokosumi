@@ -79,18 +79,16 @@ function yearlySaving(plans: CmoSubscriptionPlan[]): number {
 
 /** What the approved plan makes in a month, in the person's terms. */
 function monthOf(strategy: Strategy) {
-  const media = strategy.calendar.map((entry) =>
-    formatMedia(entry.channel, entry.format),
-  );
+  const live = strategy.calendar.filter((entry) => entry.status !== "skipped");
+  // A talking video shown on several networks is one video.
+  const media = live
+    .filter((entry) => !entry.videoOf)
+    .map((entry) => formatMedia(entry.channel, entry.format));
   const channels = [
-    ...new Set(
-      strategy.calendar.map(
-        (entry) => channelKey(entry.channel) ?? entry.channel,
-      ),
-    ),
+    ...new Set(live.map((entry) => channelKey(entry.channel) ?? entry.channel)),
   ].map(channelLabel);
   return {
-    pieces: strategy.calendar.length,
+    pieces: live.length,
     channels,
     pictures: media.filter((kind) => kind === "image" || kind === "images")
       .length,

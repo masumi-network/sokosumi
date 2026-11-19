@@ -22304,13 +22304,17 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                     },
                     imageUrl: {
                         type: 'string'
+                    },
+                    voice: {
+                        type: 'string'
                     }
                 },
                 required: [
                     'id',
                     'name',
                     'description',
-                    'imageUrl'
+                    'imageUrl',
+                    'voice'
                 ]
             }
         },
@@ -31949,6 +31953,25 @@ export const MarketingStrategySchema = {
                                 setByOwner: {
                                     type: 'boolean',
                                     default: false
+                                },
+                                suggest: {
+                                    type: 'object',
+                                    properties: {
+                                        channel: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        monthly: {
+                                            type: 'number',
+                                            minimum: 0,
+                                            maximum: 10000000
+                                        }
+                                    },
+                                    required: [
+                                        'channel',
+                                        'monthly'
+                                    ]
                                 }
                             },
                             required: [
@@ -32386,6 +32409,9 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         enum: [
                                             'awareness',
+                                            'interest',
+                                            'desire',
+                                            'action',
                                             'consideration',
                                             'conversion',
                                             'loyalty'
@@ -32397,6 +32423,16 @@ export const MarketingStrategySchema = {
                                         maxLength: 400
                                     },
                                     goal: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    cusoDoes: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    youDo: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
@@ -32487,12 +32523,35 @@ export const MarketingStrategySchema = {
                                 },
                                 required: [
                                     'stage',
-                                    'name',
                                     'goal',
                                     'metric'
                                 ]
                             },
                             maxItems: 4,
+                            default: []
+                        },
+                        leftOut: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 6,
                             default: []
                         },
                         proposals: {
@@ -33782,6 +33841,25 @@ export const MarketingStrategyRequestSchema = {
                         setByOwner: {
                             type: 'boolean',
                             default: false
+                        },
+                        suggest: {
+                            type: 'object',
+                            properties: {
+                                channel: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                monthly: {
+                                    type: 'number',
+                                    minimum: 0,
+                                    maximum: 10000000
+                                }
+                            },
+                            required: [
+                                'channel',
+                                'monthly'
+                            ]
                         }
                     },
                     required: [
@@ -34219,6 +34297,9 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 enum: [
                                     'awareness',
+                                    'interest',
+                                    'desire',
+                                    'action',
                                     'consideration',
                                     'conversion',
                                     'loyalty'
@@ -34230,6 +34311,16 @@ export const MarketingStrategyRequestSchema = {
                                 maxLength: 400
                             },
                             goal: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            cusoDoes: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            youDo: {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
@@ -34320,12 +34411,35 @@ export const MarketingStrategyRequestSchema = {
                         },
                         required: [
                             'stage',
-                            'name',
                             'goal',
                             'metric'
                         ]
                     },
                     maxItems: 4,
+                    default: []
+                },
+                leftOut: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'channel',
+                            'why'
+                        ]
+                    },
+                    maxItems: 6,
                     default: []
                 },
                 proposals: {
@@ -54487,6 +54601,25 @@ export const CmoPlanSchema = {
                 setByOwner: {
                     type: 'boolean',
                     default: false
+                },
+                suggest: {
+                    type: 'object',
+                    properties: {
+                        channel: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        monthly: {
+                            type: 'number',
+                            minimum: 0,
+                            maximum: 10000000
+                        }
+                    },
+                    required: [
+                        'channel',
+                        'monthly'
+                    ]
                 }
             },
             required: [
@@ -54924,6 +55057,9 @@ export const CmoPlanSchema = {
                         type: 'string',
                         enum: [
                             'awareness',
+                            'interest',
+                            'desire',
+                            'action',
                             'consideration',
                             'conversion',
                             'loyalty'
@@ -54935,6 +55071,16 @@ export const CmoPlanSchema = {
                         maxLength: 400
                     },
                     goal: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    cusoDoes: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    youDo: {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
@@ -55025,12 +55171,35 @@ export const CmoPlanSchema = {
                 },
                 required: [
                     'stage',
-                    'name',
                     'goal',
                     'metric'
                 ]
             },
             maxItems: 4,
+            default: []
+        },
+        leftOut: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    channel: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    why: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    }
+                },
+                required: [
+                    'channel',
+                    'why'
+                ]
+            },
+            maxItems: 6,
             default: []
         },
         proposals: {

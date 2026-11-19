@@ -21,12 +21,14 @@ import {
   cmoCalendarLanguage,
   cmoCalendarRepeats,
   cmoDraftProblems,
+  cmoNewNetworkProblems,
   cmoPlanDrift,
   cmoPlanProblems,
   cmoPlanProblemsSince,
   cmoPlanRuleProblems,
   cmoReplySafety,
   cmoSideChannelFit,
+  cmoStrategyRules,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
@@ -975,5 +977,451 @@ describe("cmoCalendarRepeats", () => {
     expect(problems).toEqual([
       'p1, p2, p3 tell one story ("Sri Charran bought a Japan eSIM with ADA"); keep it in two pieces at most and give the others another proof from the Brand Brain, or another approach.',
     ]);
+  });
+});
+
+describe("the funnel of a Cuso on the AIDA strategy skill", () => {
+  const aidaStage = (
+    stage: MarketingStrategyPlan["funnel"][number]["stage"],
+    patch: Partial<MarketingStrategyPlan["funnel"][number]> = {},
+  ): MarketingStrategyPlan["funnel"][number] => ({
+    stage,
+    goal: "g",
+    channels: [],
+    metric: stage === "action" ? "Intro calls" : "Visits",
+    plays: [{ channel: "linkedin", what: "Posts" }],
+    cusoDoes: "I post a customer story a day on LinkedIn.",
+    ...patch,
+  });
+  const aida = plan({
+    funnel: [
+      aidaStage("awareness"),
+      aidaStage("interest"),
+      aidaStage("desire"),
+      aidaStage("action"),
+    ],
+  });
+  const funnelProblems = (strategy: MarketingStrategyPlan) =>
+    cmoPlanProblems(strategy, { aida: true }).filter((problem) =>
+      /funnel|stage/.test(problem),
+    );
+
+  it("passes Awareness, Interest, Desire, Action, each with what Cuso does", () => {
+    expect(funnelProblems(aida)).toEqual([]);
+  });
+
+  it("refuses the stages Cuso chose before, and says which four to give", () => {
+    expect(funnelProblems(plan())).toEqual(
+      expect.arrayContaining([
+        "funnel has the stages awareness, consideration, conversion; give exactly these four in this order: awareness, interest, desire, action.",
+      ]),
+    );
+  });
+
+  it("refuses three stages, a fifth one and another order", () => {
+    const [awareness, interest, desire, action] = aida.funnel;
+    if (!awareness || !interest || !desire || !action) throw new Error("four");
+    for (const funnel of [
+      [awareness, interest, action],
+      [awareness, desire, interest, action],
+      [awareness, interest, desire, aidaStage("conversion")],
+    ]) {
+      expect(funnelProblems({ ...aida, funnel }).join("\n")).toMatch(
+        /give exactly these four in this order/,
+      );
+    }
+  });
+
+  it("asks for Cuso's part, the owner's part on a shared stage, and no own name", () => {
+    const problems = funnelProblems({
+      ...aida,
+      funnel: [
+        aidaStage("awareness", { cusoDoes: undefined }),
+        aidaStage("interest", { name: "Judge the preview" }),
+        aidaStage("desire"),
+        aidaStage("action", { owner: "shared" }),
+      ],
+    });
+    expect(problems).toEqual([
+      "the awareness stage has no cusoDoes; say in one sentence what you do there.",
+      'the interest stage has a name of its own ("Judge the preview"); leave name out, the owner reads the stage\'s classic name.',
+      "the action stage is shared but has no youDo; say in one sentence what the owner does there.",
+    ]);
+  });
+
+  it("holds the action stage to the objective's metric", () => {
+    const [awareness, interest, desire] = aida.funnel;
+    if (!awareness || !interest || !desire) throw new Error("three");
+    expect(
+      funnelProblems({
+        ...aida,
+        funnel: [
+          awareness,
+          interest,
+          desire,
+          aidaStage("action", { metric: "Demos" }),
+        ],
+      }),
+    ).toEqual([
+      'the action stage measures "Demos"; make it the objective\'s metric, "Intro calls".',
+    ]);
+  });
+
+  it("leaves a Cuso on an earlier skill to three or four stages of his own", () => {
+    expect(
+      cmoPlanProblems(plan()).filter((problem) => /funnel/.test(problem)),
+    ).toEqual([]);
+  });
+
+  it("asks nothing of a funnel saved before, when a change leaves it alone", () => {
+    const calendar = [entry("a", "linkedin", "post")];
+    const before = plan({ calendar });
+    expect(
+      cmoPlanProblemsSince(plan({ calendar, summary: "Changed" }), before, {
+        aida: true,
+      }).filter((problem) => /funnel|stage/.test(problem)),
+    ).toEqual([]);
+  });
+});
+
+describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
+  const channel = (
+    key: string,
+    patch: Partial<MarketingStrategyPlan["channels"][number]> = {},
+  ): MarketingStrategyPlan["channels"][number] =>
+    ({
+      channel: key,
+      cadence: "3 a week",
+      role: "side",
+      buyer: "Operations leads",
+      ...patch,
+    }) as MarketingStrategyPlan["channels"][number];
+  const everywhere = plan({
+    channels: [
+      "linkedin",
+      "x",
+      "facebook",
+      "instagram",
+      "youtube",
+      "tiktok",
+    ].map((key) => channel(key)),
+  });
+  const networkProblems = (strategy: MarketingStrategyPlan) =>
+    cmoPlanProblems(strategy, { everyNetwork: true }).filter((problem) =>
+      /leftOut|proposals/.test(problem),
+    );
+
+  it("reads the rules from the strategy skill a version carries", () => {
+    expect(cmoStrategyRules(["cmo-strategy-every-network"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
+      weekly: true,
+      aida: false,
+      everyNetwork: false,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
+      weekly: false,
+      aida: false,
+      everyNetwork: false,
+    });
+  });
+
+  it("passes a strategy with every live network in channels", () => {
+    expect(networkProblems(everywhere)).toEqual([]);
+  });
+
+  it("refuses a month on LinkedIn and X alone, and names what is missing", () => {
+    expect(
+      networkProblems(plan({ channels: [channel("linkedin"), channel("x")] })),
+    ).toEqual([
+      'facebook, instagram, youtube, tiktok are in neither channels nor leftOut; plan every live network (one the business has no account on as a side channel whose why starts with "New:"), or name it in leftOut with why it does not fit this buyer.',
+    ]);
+  });
+
+  it("lets a network that does not fit the buyer stay out, with its reason", () => {
+    expect(
+      networkProblems(
+        plan({
+          channels: everywhere.channels.filter((c) => c.channel !== "x"),
+          leftOut: [
+            { channel: "x", why: "Diners do not look for lunch on X." },
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses a social network in proposals, and one both planned and left out", () => {
+    const problems = networkProblems(
+      plan({
+        channels: everywhere.channels.filter((c) => c.channel !== "instagram"),
+        leftOut: [{ channel: "x", why: "No fit." }],
+        proposals: [
+          {
+            channel: "instagram",
+            what: "Reels of the kitchen",
+            why: "Diners look there",
+            perMonth: 8,
+          },
+          {
+            channel: "newsletter",
+            what: "A monthly issue",
+            why: "Regulars read email",
+            perMonth: 1,
+          },
+        ],
+      }),
+    );
+    expect(problems).toEqual([
+      'instagram is in neither channels nor leftOut; plan every live network (one the business has no account on as a side channel whose why starts with "New:"), or name it in leftOut with why it does not fit this buyer.',
+      "x is in channels and in leftOut; keep each in one.",
+      "instagram is in proposals; a social network is planned in channels or named in leftOut, never proposed.",
+    ]);
+  });
+
+  it("asks none of it of a Cuso on an earlier skill", () => {
+    expect(
+      cmoPlanProblems(plan({ channels: [channel("linkedin")] })).filter(
+        (problem) => /leftOut/.test(problem),
+      ),
+    ).toEqual([]);
+  });
+
+  it("counts a talking video on every network it also goes out on, and once as a video", () => {
+    const day = (week: number) =>
+      `2026-11-${String(2 + week * 7).padStart(2, "0")}`;
+    const videos = [0, 1, 2, 3].map((week) => ({
+      ...entry(`v${week}`, "linkedin", "talking_video"),
+      date: day(week),
+      title: `Video ${week}`,
+      story: "A customer cut their handoffs",
+      alsoOn: ["youtube", "facebook"],
+    }));
+    const month = plan({
+      channels: [
+        channel("linkedin", { cadence: "1 a week" }),
+        channel("youtube", { cadence: "1 a week" }),
+        channel("facebook", { cadence: "1 a week" }),
+      ],
+      calendar: videos,
+    });
+    const problems = cmoPlanProblems(month, { weekly: true }).join("\n");
+    // YouTube has no entry of its own and still meets "1 a week".
+    expect(problems).not.toMatch(/youtube has 0 calendar pieces/);
+    expect(problems).not.toMatch(/facebook has 0 calendar pieces/);
+    // Four shared videos are four videos, not twelve.
+    expect(problems).not.toMatch(/videos; plan at most/);
+    // And a side channel's three a week counts the shared ones.
+    const crowded = plan({
+      ...month,
+      calendar: [0, 1, 2, 3].flatMap((week) =>
+        [0, 1, 2, 3].map((n) => ({
+          ...entry(`p${week}-${n}`, "linkedin", "post"),
+          date: day(week),
+          title: `Post ${week} ${n}`,
+          story: "A customer cut their handoffs",
+          alsoOn: undefined,
+        })),
+      ),
+      channels: [channel("linkedin", { cadence: "4 a week" })],
+    });
+    expect(cmoPlanProblems(crowded, { weekly: true }).join("\n")).toMatch(
+      /linkedin is a side channel with 16 pieces over 4 weeks/,
+    );
+  });
+});
+
+describe("a network the Brand Brain shows no profile on", () => {
+  const brain = {
+    channels: [{ name: "Website" }, { name: "LinkedIn" }],
+    marketingToday: { channels: [{ name: "X" }] },
+  } as BrandBrain;
+  const on = (channel: string, why?: string) =>
+    ({
+      channel,
+      cadence: "3 a week",
+      why,
+    }) as MarketingStrategyPlan["channels"][number];
+
+  it("asks for New: on a planned network with no profile, main or side", () => {
+    expect(
+      cmoNewNetworkProblems(
+        plan({
+          channels: [
+            on("linkedin", "Where operations leads read."),
+            on("x"),
+            on("instagram", "Teams look at product shots."),
+            on("youtube", "New: you open the channel."),
+            on("newsletter", "Regulars read email."),
+          ],
+        }),
+        brain,
+      ),
+    ).toEqual([
+      'the Brand Brain shows no profile on instagram; start its why with "New:" and say the owner opens the account.',
+    ]);
+  });
+});
+
+describe("ads and questions, for a Cuso on cmo-v5's strategy skill", () => {
+  const live = [
+    "linkedin",
+    "x",
+    "facebook",
+    "instagram",
+    "youtube",
+    "tiktok",
+  ].map(
+    (channel) =>
+      ({
+        channel,
+        cadence: "3 a week",
+        role: "side",
+        buyer: "Operations leads",
+      }) as MarketingStrategyPlan["channels"][number],
+  );
+  const ask = (question: string, id = "q") => ({
+    id,
+    question,
+    statement: "It holds.",
+  });
+  const found = (strategy: MarketingStrategyPlan, about: RegExp) =>
+    cmoPlanProblems(strategy, { everyNetwork: true }).filter((problem) =>
+      about.test(problem),
+    );
+
+  it("refuses ads in channels or the funnel before the owner said yes", () => {
+    const base = plan({ channels: live });
+    const [awareness, ...rest] = base.funnel;
+    if (!awareness) throw new Error("funnel");
+    const planned = plan({
+      channels: [
+        ...live,
+        { channel: "google_ads", cadence: "4 ads this month" },
+      ] as MarketingStrategyPlan["channels"],
+      funnel: [
+        {
+          ...awareness,
+          plays: [{ channel: "google_ads", what: "Search ads" }],
+        },
+        ...rest,
+      ],
+      ads: {
+        monthly: 0,
+        currency: "CHF",
+        expect: "20 to 40 clicks",
+        without: "Posts and search",
+        setByOwner: false,
+        suggest: { channel: "google_ads", monthly: 600 },
+      },
+    });
+    expect(found(planned, /said yes to ads/)).toEqual([
+      "the owner has not said yes to ads, but channels holds google_ads and the funnel names ads at awareness; take ads out of channels, the calendar and the funnel, keep monthly 0, and say what you would start with in ads.suggest.",
+    ]);
+    expect(
+      found(
+        {
+          ...planned,
+          ads: {
+            ...planned.ads,
+            monthly: 600,
+            setByOwner: true,
+          } as NonNullable<MarketingStrategyPlan["ads"]>,
+        },
+        /said yes to ads/,
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses ad pieces in the calendar before the owner said yes", () => {
+    expect(
+      found(
+        plan({
+          channels: live,
+          calendar: [
+            entry("w1-ad1", "google_ads", "search_ad"),
+            {
+              ...entry("w1-ad2", "google_ads", "search_ad"),
+              status: "skipped",
+            },
+          ],
+        }),
+        /said yes to ads/,
+      ),
+    ).toEqual([
+      "the owner has not said yes to ads, but the calendar holds ads (w1-ad1); take ads out of channels, the calendar and the funnel, keep monthly 0, and say what you would start with in ads.suggest.",
+    ]);
+  });
+
+  it("refuses a question about ads or a budget", () => {
+    const asked = plan({
+      channels: live,
+      questions: [
+        ask("Is CHF 600 a suitable monthly test budget for Google search ads?"),
+        ask("Do you get about 30 orders a week?", "q2"),
+      ],
+    });
+    expect(found(asked, /asks about ads/)).toHaveLength(1);
+    expect(
+      found(
+        plan({
+          channels: live,
+          questions: [
+            ask("Do you get about 30 orders a week?"),
+            ask("Do most buyers add a second seat in month one?", "q2"),
+          ],
+        }),
+        /asks about ads|can do or knows/,
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses a question whether the owner can count or share something", () => {
+    for (const question of [
+      "Can you count new NMKR Studio account starts each week?",
+      "Can you share your monthly sign-ups?",
+      "Do you track trial starts in your CRM?",
+      "Could you tell me how many demos you run?",
+    ])
+      expect(
+        found(
+          plan({
+            channels: live,
+            questions: [ask(question), ask("Do buyers pay yearly?", "q2")],
+          }),
+          /can do or knows/,
+        ),
+      ).toEqual([
+        `questions asks whether the owner can do or knows something ("${question}"); a yes or no to that changes nothing. State your estimate and ask if it holds ("Do about 30 new accounts start each week?").`,
+      ]);
+    // An offer the owner can make is a real assumption, not a request.
+    expect(
+      found(
+        plan({
+          channels: live,
+          questions: [
+            ask("Can you offer 10% off a first order?"),
+            ask("Do buyers pay yearly?", "q2"),
+          ],
+        }),
+        /can do or knows/,
+      ),
+    ).toEqual([]);
+  });
+
+  it("asks neither of a Cuso on an earlier skill", () => {
+    expect(
+      cmoPlanProblems(
+        plan({
+          questions: [
+            ask("Can you share your monthly sign-ups?"),
+            ask("Is CHF 600 a suitable budget for ads?", "q2"),
+          ],
+        }),
+      ).filter((problem) => /asks about ads|can do or knows/.test(problem)),
+    ).toEqual([]);
   });
 });

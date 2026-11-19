@@ -6384,6 +6384,7 @@ export type ProjectImageStudioTalkingVideoCatalog = {
         name: string;
         description: string;
         imageUrl: string;
+        voice: string;
     }>;
     defaultVoice: string;
     voices: Array<string>;
@@ -8808,6 +8809,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             expect: string;
             without: string;
             setByOwner?: boolean;
+            suggest?: {
+                channel: string;
+                monthly: number;
+            };
         };
         beforeAfter?: Array<{
             channel: string;
@@ -8879,9 +8884,11 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             metric: string;
         }>;
         funnel?: Array<{
-            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-            name: string;
+            stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+            name?: string;
             goal: string;
+            cusoDoes?: string;
+            youDo?: string;
             channels?: Array<string>;
             metric: string;
             target?: string;
@@ -8896,6 +8903,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 basis: 'measured' | 'estimated' | 'unknown';
                 source?: string;
             };
+        }>;
+        leftOut?: Array<{
+            channel: string;
+            why: string;
         }>;
         proposals?: Array<{
             channel: string;
@@ -9122,6 +9133,10 @@ export type MarketingStrategyRequest = {
             expect: string;
             without: string;
             setByOwner?: boolean;
+            suggest?: {
+                channel: string;
+                monthly: number;
+            };
         };
         beforeAfter?: Array<{
             channel: string;
@@ -9193,9 +9208,11 @@ export type MarketingStrategyRequest = {
             metric: string;
         }>;
         funnel?: Array<{
-            stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-            name: string;
+            stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+            name?: string;
             goal: string;
+            cusoDoes?: string;
+            youDo?: string;
             channels?: Array<string>;
             metric: string;
             target?: string;
@@ -9210,6 +9227,10 @@ export type MarketingStrategyRequest = {
                 basis: 'measured' | 'estimated' | 'unknown';
                 source?: string;
             };
+        }>;
+        leftOut?: Array<{
+            channel: string;
+            why: string;
         }>;
         proposals?: Array<{
             channel: string;
@@ -13808,6 +13829,10 @@ export type CmoPlan = {
         expect: string;
         without: string;
         setByOwner?: boolean;
+        suggest?: {
+            channel: string;
+            monthly: number;
+        };
     };
     beforeAfter?: Array<{
         channel: string;
@@ -13879,9 +13904,11 @@ export type CmoPlan = {
         metric: string;
     }>;
     funnel?: Array<{
-        stage: 'awareness' | 'consideration' | 'conversion' | 'loyalty';
-        name: string;
+        stage: 'awareness' | 'interest' | 'desire' | 'action' | 'consideration' | 'conversion' | 'loyalty';
+        name?: string;
         goal: string;
+        cusoDoes?: string;
+        youDo?: string;
         channels?: Array<string>;
         metric: string;
         target?: string;
@@ -13896,6 +13923,10 @@ export type CmoPlan = {
             basis: 'measured' | 'estimated' | 'unknown';
             source?: string;
         };
+    }>;
+    leftOut?: Array<{
+        channel: string;
+        why: string;
     }>;
     proposals?: Array<{
         channel: string;
