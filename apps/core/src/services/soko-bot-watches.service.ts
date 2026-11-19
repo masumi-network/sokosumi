@@ -58,6 +58,17 @@ const RUN_MANAGEMENT_TOOLS = new Set<SokoBotCapability>([
   "stop_background_run",
 ]);
 
+/** A Coworker's reply carries `streaming` in its metadata while it is written. */
+function isBeingWritten(message: { metadata: unknown }): boolean {
+  const { metadata } = message;
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    "streaming" in metadata &&
+    metadata.streaming === true
+  );
+}
+
 function clip(text: string, max = OUTCOME_CHARS): string {
   const flat = text.trim();
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
@@ -124,6 +135,8 @@ export async function watchOutcome(watch: {
       roomId: watch.targetId,
       createdAt: { gt: watch.createdAt },
       deletedAt: null,
+      // A Coworker's reply starts empty and fills as it is written.
+      content: { not: "" },
       OR: [
         { senderSokoBotId: null },
         { senderSokoBotId: { not: watch.sokoBotId } },
@@ -133,12 +146,14 @@ export async function watchOutcome(watch: {
     take: 10,
     select: {
       content: true,
+      metadata: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
       senderSokoBot: { select: { name: true } },
     },
   });
-  if (replies.length === 0) return null;
+  // A reply still being written is no answer yet: the next check reads it.
+  if (replies.length === 0 || replies.some(isBeingWritten)) return null;
   return clip(
     `New in the chat (room ${watch.targetId}):\n${replies
       .map(

@@ -8,9 +8,10 @@ const ELENA = { id: "cow_elena", name: "Elena", slug: "elena" };
 const HANNAH = { id: "cow_hannah", name: "Hannah", slug: "hannah" };
 const PARAMS = {
   organizationId: "org_1",
-  ownerUserId: "user_owner",
+  memberUserId: "user_owner",
   sokoBotId: "bot_1",
   coworkers: [ELENA],
+  discoverability: "private" as const,
 };
 
 function roster(room: {
@@ -113,5 +114,53 @@ describe("addressCoworkers", () => {
     expect(addressCoworkers("@elena hi", [ELENA], () => true)).toBe(
       "@elena hi",
     );
+  });
+});
+
+describe("a shared bot's question room", () => {
+  const SHARED = {
+    ...PARAMS,
+    memberUserId: "user_ada",
+    discoverability: "public" as const,
+  };
+
+  it("is public, for the member who asked, and never a private room", async () => {
+    const { tx, create, findMany } = client([]);
+
+    await expect(
+      createOrGetCoworkerQuestionRoom(tx, SHARED),
+    ).resolves.toMatchObject({ id: "room_new", created: true });
+    // Only public rooms are looked at, so a private one is never reused.
+    expect(findMany.mock.calls[0]?.[0].where).toMatchObject({
+      organizationId: "org_1",
+      discoverability: "public",
+      userMembers: { some: { userId: "user_ada" } },
+    });
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        organizationId: "org_1",
+        createdByUserId: "user_ada",
+        discoverability: "public",
+        userMembers: { create: [{ userId: "user_ada", access: "member" }] },
+        coworkerMembers: { create: [{ coworkerId: "cow_elena" }] },
+        sokoBotMembers: { create: [{ sokoBotId: "bot_1" }] },
+      }),
+      select: { id: true, name: true },
+    });
+  });
+
+  it("continues the member's own conversation with the same Coworker", async () => {
+    const { tx, create } = client([
+      roster({
+        id: "room_mine",
+        users: ["user_ada"],
+        coworkers: ["cow_elena"],
+      }),
+    ]);
+
+    await expect(
+      createOrGetCoworkerQuestionRoom(tx, SHARED),
+    ).resolves.toMatchObject({ id: "room_mine", created: false });
+    expect(create).not.toHaveBeenCalled();
   });
 });
