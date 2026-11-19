@@ -10,6 +10,7 @@ import { AdminSokoBotAvatar } from "@/components/admin/soko-bots/admin-soko-bot-
 import { AdminSokoBotDangerZone } from "@/components/admin/soko-bots/admin-soko-bot-danger-zone.client";
 import { AdminSokoBotHeader } from "@/components/admin/soko-bots/admin-soko-bot-header";
 import { AdminSokoBotVersion } from "@/components/admin/soko-bots/admin-soko-bot-version.client";
+import { versionChoices } from "@/components/admin/soko-bots/version-choices";
 import { botFaceSeed } from "@/components/soko-bot/bot-face";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
@@ -34,6 +35,7 @@ export default async function AdminSokoBotAdvancedPage({
     adminSokoBotService.listVersions(),
   ]);
   if (!bot) notFound();
+  const choices = versionChoices(bot.versionId ?? null, versionList);
 
   return (
     <div className="min-h-full w-full">
@@ -42,11 +44,8 @@ export default async function AdminSokoBotAdvancedPage({
         <AdminSokoBotVersion
           sokoBotId={bot.id}
           currentVersionId={bot.versionId ?? null}
-          versions={versionList.versions.map((version) => ({
-            id: version.id,
-            name: version.name,
-          }))}
-          defaultVersionId={versionList.defaultVersionId}
+          versions={choices.versions}
+          defaultVersionId={choices.defaultVersionId}
         />
         {/* The studio reads the owner console's copy, which the admin bag leaves out. */}
         <ClientMessageBoundary
