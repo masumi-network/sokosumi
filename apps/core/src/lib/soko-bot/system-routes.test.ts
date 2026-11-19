@@ -7,9 +7,12 @@ import { describe, expect, it } from "vitest";
 
 import { presetClassificationResult } from "@/lib/soko-bot/classifier";
 import {
+  failedTurnRoute,
   inheritedScheduleRoute,
+  isStoredMeetingPrep,
   PERSON_SCHEDULE_CAPABILITIES,
   SYSTEM_TURN_ROUTES,
+  storedMeetingRetrySlot,
   systemScheduleRoute,
 } from "@/lib/soko-bot/system-routes";
 
@@ -108,20 +111,76 @@ describe("system turn routes", () => {
     expect(briefing).toContain("update_memory");
   });
 
-  it("lets meeting prep search mail itself without writing anything", () => {
-    const capabilities = capabilitiesForClassification(
-      presetClassificationResult("beat", SYSTEM_TURN_ROUTES["meeting-prep"])
-        .classification,
+  it("restricts scheduled meeting prep to the evidence collected for its meetings", () => {
+    expect(systemScheduleRoute("meeting-prep")?.capabilities).toEqual([]);
+  });
+
+  it("keeps meeting evidence isolated on retries, including turns created before the marker", () => {
+    const preset = SYSTEM_TURN_ROUTES["meeting-prep"];
+    const original = presetClassificationResult("prepared evidence", preset);
+    const turn = {
+      source: "SCHEDULE",
+      classifierVersion: original.version,
+      classification: original.classification,
+      route: preset.route,
+      capabilityNames: ["search_inbox"],
+    };
+    const legacy = {
+      ...turn,
+      classification: {
+        rationaleSummary: "Meeting prep: brief the owner, change nothing.",
+      },
+    };
+
+    expect(original.classification.systemKey).toBe("meeting-prep");
+    expect(failedTurnRoute(legacy)).toBe(preset);
+    const route = failedTurnRoute(turn);
+    if (!route) throw new Error("Missing retry route");
+    const retry = presetClassificationResult("prepared evidence", route);
+    expect(
+      isStoredMeetingPrep({
+        ...turn,
+        source: "ADMIN_RETRY",
+        classification: retry.classification,
+      }),
+    ).toBe(true);
+    expect(isStoredMeetingPrep({ ...legacy, source: "CHAT" })).toBe(false);
+    expect(isStoredMeetingPrep({ ...legacy, classifierVersion: "other" })).toBe(
+      false,
     );
-    expect(capabilities).toContain("search_inbox");
-    expect(capabilities).toContain("read_email");
-    for (const capability of [
-      "run_integration_tool",
-      "post_chat",
-      "create_task",
-      "update_memory",
-    ])
-      expect(capabilities).not.toContain(capability);
+    expect(
+      isStoredMeetingPrep({
+        ...turn,
+        classification: { systemKey: "standup" },
+      }),
+    ).toBe(false);
+  });
+
+  it("persists a rebuilt meeting slot only as trusted admin retry metadata", () => {
+    const slot = "2026-11-19T13:30:00.000Z";
+    const result = presetClassificationResult("current evidence", {
+      ...SYSTEM_TURN_ROUTES["meeting-prep"],
+      meetingPrepSlot: slot,
+    });
+    const turn = {
+      source: "ADMIN_RETRY",
+      classifierVersion: result.version,
+      classification: result.classification,
+    };
+    expect(storedMeetingRetrySlot(turn)?.toISOString()).toBe(slot);
+    expect(storedMeetingRetrySlot({ ...turn, source: "CHAT" })).toBeNull();
+    expect(
+      storedMeetingRetrySlot({
+        ...turn,
+        classification: { ...turn.classification, systemKey: "standup" },
+      }),
+    ).toBeNull();
+    expect(
+      storedMeetingRetrySlot({
+        ...turn,
+        classification: { ...turn.classification, meetingPrepSlot: "Invalid" },
+      }),
+    ).toBeNull();
   });
 
   it("lets task-board and stand-up turns work Tasks", () => {

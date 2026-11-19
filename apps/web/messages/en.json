@@ -9421,6 +9421,7 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
+      "aiAgentSender": "{name} (AI agent)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Personal assistant",
       "openDirectMessage": "Message",
@@ -11621,6 +11622,10 @@
       "searching": "Searching projects..."
     },
     "Contacts": {
+      "workspaceSwitch": {
+        "title": "This contact is in another workspace",
+        "description": "Switch to {account} to open this contact."
+      },
       "Metadata": {
         "title": "Contacts",
         "description": "Everyone your team knows, with every way to reach them."

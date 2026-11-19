@@ -1,4 +1,5 @@
 import type { ContactDetail, ContactList } from "@sokosumi/core-client";
+import { contactDetailHref } from "@sokosumi/utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   fireEvent,
@@ -7,7 +8,10 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import ContactsPage from "@/app/contacts/page";
 import { ContactPanel } from "./contact-panel";
 
 // The service is a plain delegate, not the spy itself: Vitest fails a test
@@ -21,6 +25,13 @@ const { createList, changeMembers, member, toastError, unarchive } = vi.hoisted(
     toastError: vi.fn(),
   }),
 );
+
+const sessionScope = vi.hoisted(() => ({
+  organizationId: null as string | null,
+}));
+afterEach(() => {
+  sessionScope.organizationId = null;
+});
 
 const LENA = {
   id: "c-1",
@@ -43,14 +54,20 @@ const shown = { current: LENA };
 
 vi.mock("@/lib/services/contacts.client", () => ({
   contactsService: {
-    get: () => Promise.resolve(shown.current),
+    get: (id: string) =>
+      sessionScope.organizationId === "org-source"
+        ? Promise.reject(new Error("Contact not found"))
+        : Promise.resolve(id === shown.current.id ? shown.current : null),
+    list: () => Promise.resolve({ contacts: [], nextCursor: null, total: 0 }),
+    lists: () => Promise.resolve([]),
+    organizations: () => Promise.resolve([]),
     unarchive: (id: string) => {
       unarchive(id);
       return Promise.resolve();
     },
     interactions: () => Promise.resolve({ items: [], nextCursor: null }),
     activity: () => Promise.resolve({ items: [], nextCursor: null }),
-    duplicates: () => Promise.resolve({ groups: [] }),
+    duplicates: () => Promise.resolve([]),
     createList: (body: { name: string }) => {
       createList(body);
       return Promise.resolve({ id: "l-1", kind: "manual", ...body });
@@ -60,6 +77,14 @@ vi.mock("@/lib/services/contacts.client", () => ({
       return member.current();
     },
   },
+}));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({
+    data: {
+      user: { id: "reader" },
+      session: { activeOrganizationId: sessionScope.organizationId },
+    },
+  }),
 }));
 vi.mock("sonner", () => ({
   toast: Object.assign(vi.fn(), { error: toastError, success: vi.fn() }),
@@ -72,6 +97,56 @@ vi.mock("next-intl", () => ({
     number: String,
   }),
   useNow: () => new Date("2026-11-12T08:00:00.000Z"),
+}));
+
+const { selectWorkspace, stayInWorkspace } = vi.hoisted(() => ({
+  selectWorkspace: vi.fn(),
+  stayInWorkspace: vi.fn(),
+}));
+vi.mock("next/server", () => ({ connection: async () => {} }));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ push: stayInWorkspace }),
+}));
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string, values?: { account?: string }) =>
+    values?.account ?? key,
+}));
+vi.mock("@/app/components/user-avatar/workspace-switcher", () => ({
+  useWorkspaceSwitcher: () => ({
+    handleSelectWorkspace: selectWorkspace,
+    isPending: false,
+  }),
+}));
+vi.mock("@/lib/auth/auth.server", () => ({
+  getSession: async () => ({
+    user: { id: "reader", name: "Reader", email: "reader@example.com" },
+    session: { activeOrganizationId: sessionScope.organizationId },
+  }),
+}));
+vi.mock("@/lib/services/user.service", () => ({
+  userService: {
+    getMyWorkspaces: async () => ({
+      workspaces: [
+        { id: "personal-workspace", organizationId: null },
+        { id: "source-workspace", organizationId: "org-source" },
+      ],
+    }),
+    getMyMembersWithOrganizations: async () => [
+      {
+        organizationId: "org-source",
+        organization: {
+          id: "org-source",
+          name: "Source team",
+          slug: "source",
+          logo: null,
+        },
+      },
+    ],
+  },
+}));
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: { getMine: async () => null },
 }));
 
 function renderPanel(lists: ContactList[] = []) {
@@ -116,6 +191,70 @@ async function createListFromPanel() {
   fireEvent.click(within(dialog).getByRole("button", { name: "create" }));
   return trigger;
 }
+
+async function openContactLink(workspace?: string, client = new QueryClient()) {
+  const url = new URL(contactDetailHref(LENA.id), window.location.origin);
+  if (workspace) url.searchParams.set("workspace", workspace);
+  const page = await ContactsPage({
+    searchParams: Promise.resolve(Object.fromEntries(url.searchParams)),
+  });
+  const view = render(
+    <QueryClientProvider client={client}>
+      <NuqsTestingAdapter searchParams={url.searchParams}>
+        {page}
+      </NuqsTestingAdapter>
+    </QueryClientProvider>,
+  );
+  return { url, unmount: view.unmount };
+}
+
+it.each([undefined, "personal-workspace"])(
+  "opens the linked contact in this workspace and copies its scoped URL (%s)",
+  async (workspace) => {
+    const user = userEvent.setup();
+    const { url } = await openContactLink(workspace);
+    const panel = await screen.findByRole("dialog", { name: LENA.name });
+    expect(panel).toBeVisible();
+    await user.click(within(panel).getByRole("button", { name: "panel.menu" }));
+    await user.click(screen.getByRole("menuitem", { name: "panel.copyLink" }));
+    url.searchParams.set("workspace", "personal-workspace");
+    expect(await navigator.clipboard.readText()).toBe(url.href);
+  },
+);
+
+it("asks before opening the contact in its accessible source workspace", async () => {
+  const user = userEvent.setup();
+  await openContactLink("source-workspace");
+  const prompt = await screen.findByRole("alertdialog");
+  expect(within(prompt).getByText("Source team")).toBeVisible();
+  expect(screen.queryByRole("dialog", { name: LENA.name })).toBeNull();
+  expect(selectWorkspace).not.toHaveBeenCalled();
+  await user.click(within(prompt).getByRole("button", { name: "confirm" }));
+  expect(selectWorkspace).toHaveBeenCalledWith("org-source", expect.anything());
+  await user.click(within(prompt).getByRole("button", { name: "cancel" }));
+  expect(stayInWorkspace).toHaveBeenCalledWith("/contacts");
+});
+
+it("does not reuse a contact cached under a different workspace", async () => {
+  const client = new QueryClient({
+    defaultOptions: { queries: { staleTime: Infinity, retry: false } },
+  });
+  const { unmount } = await openContactLink("personal-workspace", client);
+  expect(await screen.findByRole("dialog", { name: LENA.name })).toBeVisible();
+  unmount();
+  sessionScope.organizationId = "org-source";
+  await openContactLink("source-workspace", client);
+  expect(screen.queryByRole("dialog", { name: LENA.name })).toBeNull();
+  expect(
+    await screen.findByRole("dialog", { name: "notFoundTitle" }),
+  ).toBeVisible();
+});
+
+it("returns a missing page for a workspace outside the reader's memberships", async () => {
+  await expect(openContactLink("someone-elses-workspace")).rejects.toThrow(
+    "404",
+  );
+});
 
 describe("ContactPanel lists menu", () => {
   beforeEach(() => {

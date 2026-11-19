@@ -14,6 +14,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 import { parseSokoBotBrief } from "@/lib/soko-bot/brief";
+import { ChannelMessageText } from "./room-message-row";
 import { isSokoBotBriefSource, SokoBotBriefCard } from "./soko-bot-brief-card";
 
 const meta = (soko_bot: Record<string, unknown>) => ({
@@ -47,6 +48,46 @@ describe("SokoBotBriefCard", () => {
     expect(screen.getByText("9 completed")).toBeInTheDocument();
     expect(screen.getByText("Updated memory.")).toBeInTheDocument();
   });
+
+  it.each(["scheduled brief", "chat message"])(
+    "keeps a contact name linked to the person's detail in a %s",
+    (surface) => {
+      const href = "/contacts?contact=01960001-0001-7001-8001-000000000001";
+      const line = `Meet [Avery](${href}) at 15:00.`;
+      const message = (content: string) => (
+        <ChannelMessageText
+          content={content}
+          coworkersById={new Map()}
+          coworkersBySlug={new Map()}
+          channelLinks={[]}
+        />
+      );
+      if (surface === "scheduled brief") {
+        const brief = parseSokoBotBrief(
+          `Water cooler talk.\n\n### Attendees\n- ${line}`,
+        );
+        if (!brief) throw new Error("Expected a scheduled brief");
+        render(
+          <SokoBotBriefCard
+            messageId="msg-1"
+            brief={brief}
+            metadata={meta({
+              source: "SCHEDULE",
+              schedule_key: "meeting-prep",
+              schedule_name: "Meeting prep",
+            })}
+            createdAt="2026-11-19T14:31:00Z"
+            renderMarkdown={message}
+          />,
+        );
+      } else {
+        render(message(line));
+      }
+      const link = screen.getByRole("link", { name: "Avery" });
+      expect(link).toHaveAttribute("href", href);
+      expect(link).not.toHaveAttribute("target", "_blank");
+    },
+  );
 
   it("collapses a long brief behind Show more", async () => {
     const user = userEvent.setup();

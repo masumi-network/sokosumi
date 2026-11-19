@@ -59,6 +59,9 @@ vi.mock("next-intl", () => ({
       if (key === "position" && values) {
         return `${values.current} / ${values.total}`;
       }
+      if (key === "aiAgentSender" && values) {
+        return `${values.name} (AI agent)`;
+      }
       if (key === "MentionAll.label") {
         return "Everyone";
       }
@@ -376,31 +379,20 @@ describe("ChatMessageRow", () => {
     expect(markdownRenders.count).toBe(rendersAfterMount);
   });
 
-  it("shows coworker bot badge on avatar, not beside name", () => {
-    renderRow({ message: coworkerMessage() });
+  it.each([
+    ["Jamal", coworkerMessage],
+    ["Joseph", sokoBotMessage],
+  ])("marks %s as an AI agent before the sender name", (name, message) => {
+    renderRow({ message: message() });
 
-    // File mock returns i18n keys (not English copy); label is coworkerBadge
-    const badge = screen.getByRole("img", { name: "coworkerBadge" });
-    expect(badge).toHaveAttribute("data-testid", "coworker-avatar-badge");
-    // Single labeled chip — catches a residual name-row Bot with the same label
-    expect(screen.getAllByRole("img", { name: "coworkerBadge" })).toHaveLength(
-      1,
-    );
-
-    const name = screen.getByText("Jamal");
-    expect(name).toHaveTextContent("Jamal");
-    // Badge is under the avatar trigger, not under the name hover trigger
-    expect(name.parentElement).not.toContainElement(badge);
-
-    // HoverCard merges self-start/shrink-0 onto this trigger; size-8 keeps absolute badge on avatar
-    const avatarWrap = screen.getByTestId("message-sender-avatar");
-    expect(avatarWrap).toHaveClass(
-      "relative",
-      "size-8",
-      "shrink-0",
-      "self-start",
-    );
-    expect(avatarWrap).toContainElement(badge);
+    const sender = screen.getByRole("button", { name: `${name} (AI agent)` });
+    const icon = sender.querySelector("svg");
+    expect(icon).toBeInTheDocument();
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon?.nextElementSibling).toHaveTextContent(name);
+    expect(
+      screen.queryByTestId("coworker-avatar-badge"),
+    ).not.toBeInTheDocument();
   });
 
   it("draws a Soko Bot's live avatar without a ring", () => {
@@ -425,15 +417,15 @@ describe("ChatMessageRow", () => {
     expect(avatar.querySelector(".ring-1")).toBeNull();
   });
 
-  it("does not show coworker bot badge for human senders", () => {
+  it("keeps a human sender's name free of the AI agent mark", () => {
     renderRow({ message: userMessage() });
 
     expect(
-      screen.queryByTestId("coworker-avatar-badge"),
+      screen.queryByRole("button", { name: /AI agent/ }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("img", { name: "coworkerBadge" }),
-    ).not.toBeInTheDocument();
+    const sender = screen.getByText("Ada").closest('[role="button"]');
+    expect(sender).toHaveAccessibleName("Ada");
+    expect(sender?.querySelector("svg")).not.toBeInTheDocument();
   });
 
   it("keeps sender attribution on continuation rows", () => {

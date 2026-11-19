@@ -3,10 +3,52 @@
  * meetings and in its daily brief: who they are, who on the team knows them,
  * the last touchpoint and their lists. Unknown addresses get nothing.
  */
+import type { MailAddress } from "@/lib/contacts/capture-extract";
 import { contactReplyState } from "@/lib/contacts/reply-state";
 import prisma from "@/lib/db/prisma";
 
 const MAX_KNOWN_BY = 3;
+
+interface MeetingContact {
+  id: string;
+  role: string | null;
+}
+
+/** Add a role and detail link only when Contacts and this invitation identify the same person. */
+export async function confirmedMeetingContacts(
+  workspaceId: string,
+  guests: readonly MailAddress[],
+): Promise<Map<string, MeetingContact>> {
+  const names = new Map(
+    guests.flatMap(({ email, name }) =>
+      name ? [[email, name.toLowerCase()] as const] : [],
+    ),
+  );
+  const matches = new Map<string, MeetingContact>();
+  if (!names.size) return matches;
+  const channels = await prisma.contactChannel.findMany({
+    where: {
+      workspaceId,
+      type: "EMAIL",
+      value: { in: [...names.keys()] },
+      contact: { kind: "PERSON", mergedIntoId: null, archivedAt: null },
+    },
+    select: {
+      value: true,
+      contact: {
+        select: { id: true, name: true, role: true, organization: true },
+      },
+    },
+  });
+  for (const { value, contact } of channels) {
+    if (names.get(value) !== contact.name.trim().toLowerCase()) continue;
+    const role = [contact.role, contact.organization]
+      .filter(Boolean)
+      .join(" @ ");
+    matches.set(value, { id: contact.id, role: role || null });
+  }
+  return matches;
+}
 
 function shortDate(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-GB", {

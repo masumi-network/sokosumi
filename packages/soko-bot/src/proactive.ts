@@ -100,9 +100,13 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     cronExpression: "*/30 7-19 * * 1-5",
     description:
       "Before a meeting with people from outside: who is coming, your last mail with them, and related open Tasks.",
-    prompt: brief(
-      "Meeting prep. A meeting with people from outside starts within the hour. Give the owner a short brief (under 12 lines): who is coming and from where, what was last said with them by mail, open Tasks connected to them, and anything still unanswered. The headline names the meeting, its time, and what to get out of it. The packet below is a starting point: when it has no real mail with someone, look them up yourself with search_inbox (their name, their company or domain) and read_email for the thread that matters. Say no mail was found only after you have searched. When there is nothing useful beyond the meeting itself, answer exactly: Nothing to add.",
-    ),
+    prompt: [
+      "Meeting prep. Brief the owner using only the meeting sections below. Address the owner as you.",
+      'Write a one-line headline, then one "### " heading for each meeting with its calendar title and start time. Keep simultaneous meetings separate. Put short bullets under each heading.',
+      "Use the guest names supplied for this event. Copy each supplied Contacts link when naming that guest. Only link guests who have a supplied link. For a confirmed guest without a name, use their address. Leave possible owner addresses out of the guest list. Include an agenda, earlier correspondence or an open Task only when it matters to this meeting.",
+      "Mail is past correspondence. Use the calendar entry for the meeting time and who is coming. Omit unsupported claims about missing mail, open Tasks and unanswered questions.",
+      "If there is nothing useful beyond a bare meeting title and time, answer exactly: Nothing to add.",
+    ].join(" "),
   },
   {
     key: "end-of-day",

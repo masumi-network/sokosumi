@@ -30,6 +30,18 @@ struct MessageMarkdownTests {
     ])
   }
 
+  @Test(arguments: ["/contacts?contact=known-contact", "/contacts?contact=known-contact&workspace=source-workspace"])
+  func meetingGuestLinksKeepTheirContactDestinationOnWeb(_ path: String) throws {
+    let baseURL = try #require(URL(string: "https://worktree.web.sokosumi.localhost"))
+    let result = MessageMarkdown("### Meeting\n\n- [Guest](\(path))", baseURL: baseURL)
+    let bullet = try #require(result.blocks.last?.children.first?.children.first?.text)
+    let linkedGuest = try #require(bullet.runs.first { $0.link != nil })
+    let destination = try #require(linkedGuest.link)
+    #expect(String(bullet[linkedGuest.range].characters) == "Guest")
+    #expect(destination.absoluteString == "https://worktree.web.sokosumi.localhost\(path)")
+    #expect(ChatLink(url: destination, webBaseURL: baseURL) == nil)
+  }
+
   @Test func reportHeadingsAndEmphasis() throws {
     let result = MessageMarkdown("### Report\n\nFinished **analysis** with _results_ and ~~old data~~.")
     #expect(result.blocks.map(\.kind) == [.header(level: 3), .paragraph])

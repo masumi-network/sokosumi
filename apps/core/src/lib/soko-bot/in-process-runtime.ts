@@ -26,8 +26,6 @@ import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { runAsBackgroundWork } from "@/lib/evlog";
-import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
-import { withCmoReplyLanguage } from "@/lib/soko-bot/cmo-reply-language";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -42,7 +40,7 @@ import {
   stepReasoningSummary,
   streamModelCall,
 } from "@/lib/soko-bot/stream-model-call";
-import { withTurnSkills } from "@/services/chat-message-skills.service";
+import { modelUserMessage } from "@/lib/soko-bot/turn-model-context";
 import {
   evaluationBinding,
   prepareEvaluationStep,
@@ -247,13 +245,7 @@ async function runTurn(
     // it, so the turn still has time to write from their hand-overs.
     const partMs = Math.min(TURN_PART_MAX_MS, budgetMs / 2);
     const userMessage = await withPartHandOvers(
-      await withCmoReplyLanguage(
-        input.turnId,
-        await withActiveBackgroundRuns(
-          input.turnId,
-          await withTurnSkills(input.turnId, input.message),
-        ),
-      ),
+      await modelUserMessage(turn, input.message),
       turn.parts,
       async (part) =>
         (
