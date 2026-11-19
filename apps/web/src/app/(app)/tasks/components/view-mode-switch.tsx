@@ -14,7 +14,7 @@ import useIsClient from "@/hooks/use-is-client";
 import type { TasksDensity } from "@/lib/ui-preferences/tasks-density";
 
 /** One group of the menu: a rule above it and room around it. */
-export const VIEW_MENU_SECTION_CLASS = "space-y-2.5 border-t pt-4";
+const VIEW_MENU_SECTION_CLASS = "space-y-2.5 border-t pt-4";
 
 export interface ViewModeSwitchProps {
   value: "board" | "list";
