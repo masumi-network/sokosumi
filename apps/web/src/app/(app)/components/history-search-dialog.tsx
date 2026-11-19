@@ -7,9 +7,10 @@ import type {
   TaskListItem,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
-import { FileText, ListTodo } from "lucide-react";
+import { Copy, FileText, ListPlus, ListTodo } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -17,6 +18,7 @@ import {
 } from "@/app/components/history-search-item";
 import { getHistorySearchItemHref } from "@/app/components/history-search-item-href";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
+import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { useContactSearchGroup } from "@/app/components/use-contact-search-group";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
@@ -35,6 +37,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { escapeMarkdownDisplayText } from "@/lib/utils/mention-parser";
 
 interface HistorySearchDialogLabels {
   dialogTitle: string;
@@ -48,6 +51,9 @@ interface HistorySearchDialogLabels {
   filesSeeAll: string;
   filesFilenameMatch: string;
   peopleGroup: string;
+  copyEmail: (email: string) => string;
+  emailCopied: string;
+  mentionInTask: (name: string) => string;
   tagsGroup: string;
   tagTasksGroup: (tag: string) => string;
   tagsError: string;
@@ -90,6 +96,10 @@ export function HistorySearchDialog({
     activeOrganizationId,
     debouncedQuery,
   });
+  // Until the debounce settles, People still shows the previous query's
+  // contacts: they open, but their quick actions wait.
+  const contactsStale = query.trim() !== debouncedQuery.trim();
+  const wizard = useOptionalNewTaskWizard();
   const { tags, tagsState, topTag, tasks, tasksState } = useTagSearchGroup({
     open,
     activeOrganizationId,
@@ -148,6 +158,27 @@ export function HistorySearchDialog({
 
   function handleSelectContact(contact: Contact) {
     closeAndGo(`/contacts?contact=${encodeURIComponent(contact.id)}`);
+  }
+
+  function handleCopyEmail(email: string) {
+    void navigator.clipboard
+      ?.writeText(email)
+      .then(() => toast.success(labels.emailCopied));
+  }
+
+  function handleMentionInTask(contact: Contact) {
+    if (!wizard) return;
+    // Absolute, since a Coworker reading the Task is not inside the app.
+    const href = new URL(
+      `/contacts?contact=${encodeURIComponent(contact.id)}`,
+      window.location.origin,
+    );
+    // Focus belongs to the new Task draft, not the Search button.
+    navigatingRef.current = true;
+    handleOpenChange(false);
+    wizard.openNewTaskWizard({
+      prompt: `[${escapeMarkdownDisplayText(contact.name)}](${href}) `,
+    });
   }
 
   function handleSelectTag(tag: WorkspaceLabel) {
@@ -214,8 +245,11 @@ export function HistorySearchDialog({
 
         <PeopleSearchGroup
           contacts={contacts}
-          heading={labels.peopleGroup}
+          labels={labels}
+          actionsDisabled={contactsStale}
           onSelect={handleSelectContact}
+          onCopyEmail={handleCopyEmail}
+          onMentionInTask={wizard ? handleMentionInTask : undefined}
         />
 
         {history.length > 0 ? (
@@ -387,46 +421,101 @@ function TagSearchGroups({
   );
 }
 
-/** Contacts matching the query; picking one opens its panel in Contacts. */
+/**
+ * Contacts matching the query; picking one opens its panel in Contacts.
+ * Copy email and Mention in a new Task sit beside each row as their own
+ * options, so arrow keys reach them and nothing interactive nests.
+ */
 function PeopleSearchGroup({
   contacts,
-  heading,
+  labels,
+  actionsDisabled,
   onSelect,
+  onCopyEmail,
+  onMentionInTask,
 }: {
   contacts: Contact[];
-  heading: string;
+  labels: Pick<
+    HistorySearchDialogLabels,
+    "peopleGroup" | "copyEmail" | "mentionInTask"
+  >;
+  actionsDisabled: boolean;
   onSelect: (contact: Contact) => void;
+  onCopyEmail: (email: string) => void;
+  onMentionInTask?: (contact: Contact) => void;
 }) {
   if (contacts.length === 0) return null;
+  const actionClassName = "size-10 shrink-0 justify-center px-0 md:size-8";
   return (
-    <CommandGroup heading={heading}>
-      {contacts.map((contact) => (
-        <CommandItem
-          key={contact.id}
-          value={`contact:${contact.id}`}
-          onSelect={() => onSelect(contact)}
-          className="flex items-center gap-2"
-        >
-          <ContactAvatar
-            name={contact.name}
-            src={contact.avatarUrl}
-            email={primaryEmail(contact.channels)}
-            kind={contact.kind}
-            className="size-5"
-          />
-          <div className="min-w-0 flex-1">
-            <span className="block truncate">{contact.name}</span>
-            {contact.organization || contact.role ? (
-              <span className="text-muted-foreground block truncate text-xs">
-                {[contact.role, contact.organization]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
+    <CommandGroup heading={labels.peopleGroup}>
+      {contacts.map((contact) => {
+        const email = primaryEmail(contact.channels);
+        return (
+          <div key={contact.id} className="flex items-center gap-1">
+            <CommandItem
+              value={`contact:${contact.id}`}
+              onSelect={() => onSelect(contact)}
+              className="min-w-0 flex-1"
+            >
+              <PersonRow contact={contact} email={email} />
+            </CommandItem>
+            {email ? (
+              <CommandItem
+                value={`contact-email:${contact.id}`}
+                aria-label={labels.copyEmail(email)}
+                title={labels.copyEmail(email)}
+                disabled={actionsDisabled}
+                onSelect={() => onCopyEmail(email)}
+                className={actionClassName}
+              >
+                <Copy aria-hidden />
+              </CommandItem>
+            ) : null}
+            {onMentionInTask ? (
+              <CommandItem
+                value={`contact-task:${contact.id}`}
+                aria-label={labels.mentionInTask(contact.name)}
+                title={labels.mentionInTask(contact.name)}
+                disabled={actionsDisabled}
+                onSelect={() => onMentionInTask(contact)}
+                className={actionClassName}
+              >
+                <ListPlus aria-hidden />
+              </CommandItem>
             ) : null}
           </div>
-        </CommandItem>
-      ))}
+        );
+      })}
     </CommandGroup>
+  );
+}
+
+/** Avatar, name, then role and company. */
+function PersonRow({
+  contact,
+  email,
+}: {
+  contact: Contact;
+  email: string | null;
+}) {
+  return (
+    <>
+      <ContactAvatar
+        name={contact.name}
+        src={contact.avatarUrl}
+        email={email}
+        kind={contact.kind}
+        className="size-5"
+      />
+      <div className="min-w-0 flex-1">
+        <span className="block truncate">{contact.name}</span>
+        {contact.organization || contact.role ? (
+          <span className="text-muted-foreground block truncate text-xs">
+            {[contact.role, contact.organization].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
+      </div>
+    </>
   );
 }
 
