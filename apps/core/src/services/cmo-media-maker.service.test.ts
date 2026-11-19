@@ -253,7 +253,10 @@ describe("a picture in a reference library style", () => {
     expect(prompt).toContain("Copy none of its words");
     expect(prompt).toContain('"Fresh minted"');
     expect(prompt).toContain("#11F250, #021205");
-    expect(prompt).toContain("Keep the lower-right corner plain");
+    // The logo once covered the end of a headline set along the bottom.
+    expect(prompt).toContain(
+      "Keep the lower-right corner plain and every word clear of it",
+    );
     expect(
       cmoStylePrompt({
         piece: styled({ headline: undefined }),

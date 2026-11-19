@@ -562,7 +562,7 @@ export function cmoStylePrompt(input: {
     input.colours.length > 0
       ? `Recolour everything around the brand colours ${input.colours.join(", ")}; a few neutral tones are fine.`
       : "",
-    `Draw no ${own > 0 ? "other " : ""}logo, brand mark, emblem, coin, currency symbol, signature or watermark. Keep the lower-right corner plain: the brand's logo is placed there afterwards.`,
+    `Draw no ${own > 0 ? "other " : ""}logo, brand mark, emblem, coin, currency symbol, signature or watermark. Keep the lower-right corner plain and every word clear of it: the brand's logo is placed there afterwards.`,
     "Never a real, named person.",
   ]
     .filter(Boolean)
