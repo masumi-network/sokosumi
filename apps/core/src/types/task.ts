@@ -173,7 +173,16 @@ const taskBaseInclude = {
 
 export const taskListInclude = {
   ...workspaceRelationInclude,
-  ...taskSubtaskProgressInclude,
+  // The list also names the first open sub-tasks, so it reads a few more
+  // columns of the same rows the progress counts.
+  subtasks: {
+    where: { archivedAt: null },
+    orderBy: [
+      { position: "asc" },
+      { id: "asc" },
+    ] as Prisma.TaskOrderByWithRelationInput[],
+    select: { id: true, number: true, name: true, status: true },
+  },
   ...taskOwnerAssigneeCreatorInclude,
   _count: {
     select: {
