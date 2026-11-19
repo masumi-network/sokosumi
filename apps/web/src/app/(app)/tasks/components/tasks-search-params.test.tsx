@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { saveTasksViewMock, routerReplaceMock, searchParamsRef } = vi.hoisted(
   () => ({
     saveTasksViewMock: vi.fn(
-      async (_query: string, _organizationId: string | null) => undefined,
+      async (_query: string, _organizationId: string | null) => true,
     ),
     routerReplaceMock: vi.fn(),
     searchParamsRef: { current: new URLSearchParams() },
@@ -28,8 +28,13 @@ function ShowParams() {
   return <output>{useTasksSearchParams().toString()}</output>;
 }
 
-function renderAt(search: string, restoredQuery: string | null, org: string) {
-  window.history.replaceState(null, "", `/tasks${search}`);
+function renderAt(
+  search: string,
+  restoredQuery: string | null,
+  org: string,
+  historyState: unknown = null,
+) {
+  window.history.replaceState(historyState, "", `/tasks${search}`);
   searchParamsRef.current = new URLSearchParams(search);
   return render(
     <TasksSearchParamsProvider
@@ -47,7 +52,9 @@ describe("TasksSearchParamsProvider", () => {
   });
 
   it("reads the opened view before the address bar has it, then writes it there", () => {
-    renderAt("?projectId=p-1", "scope=owned&status=READY", "org-a");
+    renderAt("?projectId=p-1", "scope=owned&status=READY", "org-a", {
+      __NA: true,
+    });
 
     expect(screen.getByRole("status").textContent).toBe(
       "projectId=p-1&scope=owned&status=READY",
@@ -56,6 +63,8 @@ describe("TasksSearchParamsProvider", () => {
       "?projectId=p-1&scope=owned&status=READY",
     );
     expect(routerReplaceMock).not.toHaveBeenCalled();
+    // Next skips its URL sync for a state that carries its own markers.
+    expect(window.history.state).toBeNull();
   });
 
   it("loads the view this tab saved last over an older visited copy", () => {
@@ -108,6 +117,19 @@ describe("replaceTasksQuery", () => {
     expect(saveTasksViewMock.mock.invocationCallOrder[0]).toBeLessThan(
       router.replace.mock.invocationCallOrder[0] ?? 0,
     );
+  });
+
+  it("saves a view again after the action dropped it", async () => {
+    saveTasksViewMock.mockResolvedValueOnce(false);
+    const router = { replace: vi.fn() };
+    const next = new URLSearchParams("scope=owned&status=BLOCKED");
+
+    replaceTasksQuery(router, "/tasks", next, "org-f");
+    await waitFor(() => expect(saveTasksViewMock).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    replaceTasksQuery(router, "/tasks", next, "org-f");
+
+    expect(saveTasksViewMock).toHaveBeenCalledTimes(2);
   });
 
   it("saves a view again after its save failed", async () => {

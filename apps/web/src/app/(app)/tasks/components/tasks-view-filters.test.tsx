@@ -9,7 +9,7 @@ const WORKSPACE_TAG_ID = "11223344-55aa-7111-8123-456789012345";
 const filterDropdownMenuMock = vi.fn();
 
 vi.mock("@/app/tasks/actions", () => ({
-  saveTasksView: vi.fn(async () => undefined),
+  saveTasksView: vi.fn(async () => true),
 }));
 
 vi.mock("@/components/common/filter-dropdown-menu", () => ({

@@ -177,16 +177,17 @@ export async function loadMoreTasksList({
 export async function saveTasksView(
   query: string,
   pageOrganizationId: string | null,
-): Promise<void> {
+): Promise<boolean> {
   // Core saves to the session's workspace. Another tab can switch it after
   // this page loaded; then the view belongs to a different workspace.
   const session = await getSession();
   if ((session?.session.activeOrganizationId ?? null) !== pageOrganizationId) {
-    return;
+    return false;
   }
   await taskService.saveTasksViewQuery(
     pickTasksViewQuery(new URLSearchParams(query)),
   );
+  return true;
 }
 
 /** Core's largest page. */

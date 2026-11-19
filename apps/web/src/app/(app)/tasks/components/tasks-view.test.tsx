@@ -138,7 +138,7 @@ vi.mock("@/app/tasks/actions", () => ({
   loadMoreTasksList: vi.fn(),
   exportTasks: vi.fn(),
   previewTasksExport: vi.fn(async () => ({ rows: [], matched: 0 })),
-  saveTasksView: vi.fn(async () => undefined),
+  saveTasksView: vi.fn(async () => true),
 }));
 
 vi.mock("./create-task-modal", () => ({

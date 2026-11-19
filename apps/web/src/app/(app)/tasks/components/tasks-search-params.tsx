@@ -121,12 +121,19 @@ export function replaceTasksQuery(
     // Sent before the navigation: a navigation lets an action already sent
     // finish, but holds a later one back until the new board has loaded.
     // Server actions run one at a time, so the last change is the last save.
-    saveTasksView(viewQuery, activeOrganizationId).catch((error: unknown) => {
+    const forget = () => {
       if (lastSavedViewByWorkspace.get(key) === viewQuery) {
         lastSavedViewByWorkspace.delete(key);
       }
-      console.error("Failed to save the Tasks view", error);
-    });
+    };
+    saveTasksView(viewQuery, activeOrganizationId)
+      .then((saved) => {
+        if (!saved) forget();
+      })
+      .catch((error: unknown) => {
+        forget();
+        console.error("Failed to save the Tasks view", error);
+      });
   }
 
   const nextQuery = nextSearchParams.toString();

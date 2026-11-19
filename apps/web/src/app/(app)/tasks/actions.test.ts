@@ -683,7 +683,9 @@ describe("saveTasksView", () => {
   });
 
   it("saves only the view keys for the page's workspace", async () => {
-    await saveTasksView(`status=READY&projectId=${PROJECT_ID}`, "org-1");
+    await expect(
+      saveTasksView(`status=READY&projectId=${PROJECT_ID}`, "org-1"),
+    ).resolves.toBe(true);
 
     expect(saveTasksViewQueryMock).toHaveBeenCalledExactlyOnceWith(
       "status=READY",
@@ -691,7 +693,7 @@ describe("saveTasksView", () => {
   });
 
   it("drops the save after another tab switched the workspace", async () => {
-    await saveTasksView("status=READY", "org-2");
+    await expect(saveTasksView("status=READY", "org-2")).resolves.toBe(false);
 
     expect(saveTasksViewQueryMock).not.toHaveBeenCalled();
   });
