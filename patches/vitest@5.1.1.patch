@@ -1,8 +1,8 @@
-diff --git a/dist/chunks/config.d.B3YV4t0O.d.ts b/dist/chunks/config.d.B3YV4t0O.d.ts
-index ffec4fd96d1a345d075b1b5d893037d03ddb92f8..6dbe3d744eba79fd8addadf31b148c7cee8eb368 100644
---- a/dist/chunks/config.d.B3YV4t0O.d.ts
-+++ b/dist/chunks/config.d.B3YV4t0O.d.ts
-@@ -1756,6 +1756,8 @@ interface Assertion<
+diff --git a/dist/chunks/config.d.BpJq6tRA.d.ts b/dist/chunks/config.d.BpJq6tRA.d.ts
+index 0000000000000000000000000000000000000000..1111111111111111111111111111111111111111 100644
+--- a/dist/chunks/config.d.BpJq6tRA.d.ts
++++ b/dist/chunks/config.d.BpJq6tRA.d.ts
+@@ -1760,6 +1760,8 @@ interface Assertion<
  	R extends void | Promise<void> = void,
  	T = unknown
  > extends VitestAssertion<Chai.Assertion, R, T>, JestAssertion<R, T>, ChaiMockAssertion<R, T>, Matchers<R, T> {
