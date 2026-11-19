@@ -74,15 +74,17 @@ const ATTEMPTS = 2;
 /** Default references when the visual names none: the brand's own pictures. */
 const DEFAULT_REFERENCES = 2;
 /**
- * The models a picture in a reference library style rotates through, one per
- * try: GPT Image 2.6 kept the period look and lettering best in Patrick's
- * NMKR test (2026-11-16), Nano Banana 2.1 made the boldest layouts, Seedream
- * 5 Pro the cleanest. A try that fails the style check goes to the next.
+ * The models a picture in a reference library style goes through, one per
+ * try. Muse Image first, twice: on ten pieces of CMO.XYZ's month (2026-11-19)
+ * it passed the style check 16 of 20 times at 1 credit, with every headline
+ * spelled right. GPT Image 2.6 passed 9 of 10 and letters bolder, at 21
+ * credits, so it is the remake. Nano Banana 2.1 is the last try.
  */
 export const REFERENCE_STYLE_MODELS = [
+  "muse-image",
+  "muse-image",
   "gpt-image-2-6",
   "nano-banana-2-1",
-  "seedream-5-pro",
 ] as const;
 
 /**
@@ -255,7 +257,7 @@ export function cmoVisualKey(
     .slice(0, 10);
 }
 
-/** A styled picture gets one try per style model; any other, two. */
+/** A styled picture gets one try per entry of the style models; any other, two. */
 function attemptsFor(piece: Pick<CmoMediaPiece, "styleReferenceId">): number {
   return piece.styleReferenceId ? REFERENCE_STYLE_MODELS.length : ATTEMPTS;
 }
