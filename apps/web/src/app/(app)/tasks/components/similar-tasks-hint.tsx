@@ -94,26 +94,26 @@ export function SimilarTasksHint({
                   href={taskHref(task)}
                   target="_blank"
                   rel="noopener"
-                  className="hover:bg-quinary flex min-h-10 min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                  className="hover:bg-quinary flex min-h-10 min-w-0 items-start gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {task.identifier ? (
                     <span className="text-muted-foreground shrink-0 tabular-nums">
                       {task.identifier}
                     </span>
                   ) : null}
-                  <span className="min-w-0 flex-1 truncate">
+                  {/* Two lines, as on a board card: the words that match are often past the first. */}
+                  <span className="min-w-0 flex-1 line-clamp-2 wrap-anywhere">
                     {stripInlineMarkdown(task.name)}
                   </span>
                   <TaskStatusBadge
                     status={task.status}
                     label={tStatus(task.status)}
                     plain
-                    className="max-w-32"
+                    className="h-5 max-w-32"
                   />
-                  <ExternalLink
-                    aria-hidden
-                    className="text-muted-foreground size-3.5 shrink-0"
-                  />
+                  <span aria-hidden className="flex h-5 shrink-0 items-center">
+                    <ExternalLink className="text-muted-foreground size-3.5" />
+                  </span>
                   <span className="sr-only">{t("opensInNewTab")}</span>
                 </Link>
               </li>
