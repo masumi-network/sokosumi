@@ -5,6 +5,7 @@ import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-crea
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import { SocialCalendarPreviewProvider } from "@/app/social/components/social-calendar-preview";
 import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
+import { PageHeaderSearch } from "@/components/page-header-search";
 import { PageQuerySearchField } from "@/components/page-query-search-field";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { rankPageItems } from "@/lib/utils/page-search";
@@ -59,10 +60,9 @@ export default async function CalendarPage({
   return (
     <CreateTaskModalProvider>
       <RefreshPrefetchedPage />
-      <PageQuerySearchField
-        className="mb-3 w-full sm:w-64"
-        placeholder={tSearch("calendar")}
-      />
+      <PageHeaderSearch>
+        <PageQuerySearchField inHeader placeholder={tSearch("calendar")} />
+      </PageHeaderSearch>
       {empty ? (
         <p role="status" className="text-muted-foreground mb-3 text-sm">
           {tSearch("noMatches")}

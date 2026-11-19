@@ -31,7 +31,8 @@ export function ProjectsFilter({
 }: ProjectsFilterProps) {
   return (
     <PageQuerySearchField
-      className="min-w-0 flex-1 basis-full sm:basis-0"
+      inHeader
+      className="md:ms-0"
       placeholder={labels.placeholder}
       clearLabel={labels.clear}
       startTransition={startTransition}

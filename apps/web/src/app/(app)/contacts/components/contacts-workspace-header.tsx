@@ -34,6 +34,7 @@ import { ContactsPresetTabs } from "./contacts-views-bar";
 type Layout = "map" | "companies" | null;
 
 export function ContactsWorkspaceHeader({
+  searchField,
   archived,
   view,
   layout,
@@ -42,6 +43,7 @@ export function ContactsWorkspaceHeader({
   onLayout,
   onDialog,
 }: {
+  searchField?: React.ReactNode;
   archived: boolean;
   view: string;
   layout: Layout;
@@ -76,7 +78,7 @@ export function ContactsWorkspaceHeader({
   }
 
   return (
-    <header className="flex min-w-0 items-start gap-2">
+    <header className="flex min-w-0 flex-wrap items-center gap-2">
       <h1 className="sr-only">{t("title")}</h1>
       <div ref={viewSlot} className="min-w-0 flex-1">
         {layout === "companies" ? (
@@ -211,6 +213,7 @@ export function ContactsWorkspaceHeader({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      {searchField}
     </header>
   );
 }

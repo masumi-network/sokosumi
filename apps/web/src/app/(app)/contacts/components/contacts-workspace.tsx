@@ -364,6 +364,18 @@ export function ContactsWorkspace({
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-col gap-3">
         <ContactsWorkspaceHeader
+          searchField={
+            showCompanies ? undefined : (
+              <PageSearchField
+                inHeader
+                aria-label={t("toolbar.search")}
+                placeholder={t("toolbar.searchPlaceholder")}
+                value={search}
+                maxLength={200}
+                onValueChange={(value) => void setSearch(value || null)}
+              />
+            )
+          }
           archived={archived}
           view={view}
           layout={layout}
@@ -385,14 +397,6 @@ export function ContactsWorkspace({
         ) : (
           <>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <PageSearchField
-                className="order-last w-full sm:order-none sm:w-56"
-                aria-label={t("toolbar.search")}
-                placeholder={t("toolbar.searchPlaceholder")}
-                value={search}
-                maxLength={200}
-                onValueChange={(value) => void setSearch(value || null)}
-              />
               {selected.length ? (
                 <ContactsBulkBar
                   count={selected.length}

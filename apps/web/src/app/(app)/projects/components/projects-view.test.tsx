@@ -285,9 +285,9 @@ describe("ProjectsView toolbar", () => {
     expect(header).toContainElement(toggle);
     expect(screen.getByRole("radio", { name: "Open" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Closed" })).toBeInTheDocument();
-    // Search takes the room the two controls leave.
-    expect(screen.getByLabelText("Filter projects").parentElement).toHaveClass(
-      "flex-1",
+    // Search follows the actions in reading and keyboard order.
+    expect(header.lastElementChild).toBe(
+      screen.getByLabelText("Filter projects").parentElement,
     );
   });
 

@@ -81,12 +81,11 @@ export default async function SeoPage({
       return (
         <WorkspacePageShell title={t("title")}>
           <RefreshPrefetchedPage />
-          <PageQuerySearchField
-            className="mb-3 w-full sm:w-64"
-            placeholder={tSearch("audits")}
-          />
           <SeoAuditIndex
             key={JSON.stringify([projectId, cursor, archived])}
+            searchField={
+              <PageQuerySearchField inHeader placeholder={tSearch("audits")} />
+            }
             archived={archived}
             searching={Boolean(term)}
             cursor={term ? null : (cursor ?? null)}

@@ -1,11 +1,11 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import {
   PathnameContext,
   SearchParamsContext,
 } from "next/dist/shared/lib/hooks-client-context.shared-runtime";
 import { NextIntlClientProvider } from "next-intl";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import english from "../../messages/en.json";
 import { PageSearchRows } from "./page-list-search";
 import { PageSearchField } from "./page-search-field";
@@ -137,6 +137,49 @@ describe("page content search", () => {
     expect(input).toHaveFocus();
     rerender(dashboard("projectId=two&tab=campaigns"));
     expect(screen.getByRole("searchbox")).toHaveValue("");
+  });
+
+  it("keeps the dashboard query when search moves from the app header to a narrow page", () => {
+    const media = window.matchMedia("(min-width: 80rem)");
+    let wide = true;
+    vi.spyOn(media, "matches", "get").mockImplementation(() => wide);
+    const originalMatch = window.matchMedia.bind(window);
+    const match = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) =>
+        query === media.media ? media : originalMatch(query),
+      );
+    try {
+      render(
+        <NextIntlClientProvider locale="en" messages={english}>
+          <header>
+            <div data-app-header-search-slot />
+          </header>
+          <main>
+            <PathnameContext.Provider value="/ads">
+              <SearchParamsContext.Provider value={new URLSearchParams()}>
+                <SearchablePageContent sidebar>
+                  <p>Launch</p>
+                </SearchablePageContent>
+              </SearchParamsContext.Provider>
+            </PathnameContext.Provider>
+          </main>
+        </NextIntlClientProvider>,
+      );
+      const header = screen.getByRole("banner");
+      const field = within(header).getByRole("searchbox");
+      fireEvent.change(field, { target: { value: "Launch" } });
+      act(() => {
+        wide = false;
+        media.dispatchEvent(new Event("change"));
+      });
+      expect(
+        within(screen.getByRole("main")).getByRole("searchbox"),
+      ).toHaveValue("Launch");
+      expect(within(header).queryByRole("searchbox")).toBeNull();
+    } finally {
+      match.mockRestore();
+    }
   });
 
   it("steps through visible dashboard text and excludes sidebar and hidden tab text", () => {

@@ -176,7 +176,7 @@ export function Subscribers({
   return (
     <section aria-label={t("title")} className="min-w-0 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 sm:flex-1">
           <h3 className="text-base font-semibold">{t("title")}</h3>
           {contactListId ? (
             <Link
@@ -188,6 +188,21 @@ export function Subscribers({
           ) : null}
         </div>
         {total > 0 ? actions : null}
+        <PageSearchField
+          id="subscriber-search"
+          inHeader
+          value={query.search}
+          aria-label={t("search")}
+          placeholder={t("searchPlaceholder")}
+          maxLength={254}
+          onValueChange={(search) => {
+            setPendingAction("search");
+            void setQuery(
+              { search, cursor: null },
+              pageSearchUrlUpdates(search),
+            );
+          }}
+        />
       </div>
       <dl className={cn(HOLDER_CLASS, "grid grid-cols-2 gap-2 lg:grid-cols-4")}>
         {STATUSES.map((status) => (
@@ -205,21 +220,6 @@ export function Subscribers({
         ))}
       </dl>
       <div className="flex flex-wrap items-end gap-3">
-        <PageSearchField
-          id="subscriber-search"
-          className="min-w-36 flex-1"
-          value={query.search}
-          aria-label={t("search")}
-          placeholder={t("searchPlaceholder")}
-          maxLength={254}
-          onValueChange={(search) => {
-            setPendingAction("search");
-            void setQuery(
-              { search, cursor: null },
-              pageSearchUrlUpdates(search),
-            );
-          }}
-        />
         <div className="space-y-2">
           <Label htmlFor="subscriber-status">{t("filterStatus")}</Label>
           <Select

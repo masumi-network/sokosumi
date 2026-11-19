@@ -52,6 +52,7 @@ export function SeoAuditIndex({
   addOpen = false,
   archived = false,
   searching = false,
+  searchField,
 }: {
   audits: SeoAuditSummary[];
   nextCursor: string | null;
@@ -62,6 +63,7 @@ export function SeoAuditIndex({
   addOpen?: boolean;
   archived?: boolean;
   searching?: boolean;
+  searchField?: React.ReactNode;
 }) {
   const t = useTranslations("App.Seo");
   const tSearch = useTranslations("App.PageSearch");
@@ -101,7 +103,10 @@ export function SeoAuditIndex({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id={SAVED_AUDITS_TITLE_ID} className="text-xl font-semibold">
+        <h2
+          id={SAVED_AUDITS_TITLE_ID}
+          className="text-xl font-semibold sm:flex-1"
+        >
           {t(archived ? "audits.archived" : "audits.saved")}
         </h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -145,6 +150,7 @@ export function SeoAuditIndex({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        {searchField}
       </div>
       {hasAudits ? (
         <section

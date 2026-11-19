@@ -37,7 +37,6 @@ export function ProjectsLoadingView() {
         data-testid="projects-loading-toolbar"
         className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
       >
-        <Skeleton className="h-10 min-w-0 flex-1 basis-full rounded-md sm:basis-0" />
         {/* The Open / Hidden / Closed control: three segments, no copy
             (locale flash). */}
         <Skeleton
@@ -46,8 +45,9 @@ export function ProjectsLoadingView() {
         />
         <Skeleton
           data-testid="projects-loading-create"
-          className="hidden h-10 w-[8.25rem] shrink-0 rounded-md md:inline-flex"
+          className="ms-auto hidden h-10 w-[8.25rem] shrink-0 rounded-md md:inline-flex"
         />
+        <Skeleton className="h-10 ms-auto w-full rounded-md sm:w-64 md:ms-0" />
       </div>
       {/* Open is the default view, so the shell carries its column. */}
       <div className={PROJECTS_OPEN_LAYOUT_CLASS}>

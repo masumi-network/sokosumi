@@ -31,6 +31,7 @@ interface PageSearchFieldProps
   value: string;
   onValueChange: (value: string) => void;
   placeholder: string;
+  inHeader?: boolean;
   clearLabel?: string;
   inputClassName?: string;
   focusOnMount?: boolean;
@@ -40,6 +41,7 @@ export function PageSearchField({
   value,
   onValueChange,
   placeholder,
+  inHeader,
   className,
   clearLabel,
   inputClassName,
@@ -58,6 +60,7 @@ export function PageSearchField({
     <div
       className={cn(
         "@container/page-search relative w-full min-w-0 sm:max-w-sm",
+        inHeader && "ms-auto sm:w-64",
         className,
       )}
     >

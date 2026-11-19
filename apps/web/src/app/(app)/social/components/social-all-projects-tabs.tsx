@@ -37,6 +37,7 @@ function isSocialTab(value: string): value is SocialTab {
  */
 export function SocialAllProjectsTabs({
   actions,
+  searchField,
   attention,
   attentionCount = 0,
   calendar,
@@ -45,6 +46,7 @@ export function SocialAllProjectsTabs({
   workspaceId,
 }: {
   actions: React.ReactNode;
+  searchField?: React.ReactNode;
   /** Every project's failed, missed and waiting-for-approval posts. */
   attention: React.ReactNode;
   /** How many of them, as the tab shows it (`50+` when there are more). */
@@ -75,8 +77,13 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex flex-row items-center justify-between gap-3 max-md:items-start">
-        <div className={cn(SOCIAL_TABS_ROW_CLASS_NAME, "items-center gap-3")}>
+      <div className="flex flex-wrap items-center justify-between gap-3 max-md:items-start">
+        <div
+          className={cn(
+            SOCIAL_TABS_ROW_CLASS_NAME,
+            "items-center gap-3 sm:basis-64",
+          )}
+        >
           <TabsList
             aria-label={t("title")}
             className={cn(
@@ -101,6 +108,7 @@ export function SocialAllProjectsTabs({
           </TabsList>
         </div>
         {actions}
+        {tab === "calendar" || tab === "attention" ? searchField : null}
       </div>
 
       {projectFailed && tab !== "statistics" && tab !== "attention" ? (

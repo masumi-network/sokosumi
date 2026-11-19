@@ -63,10 +63,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   const term = typeof query.q === "string" ? query.q.trim() : "";
   const showCalendar = !data.searchTab || data.searchTab === "calendar";
   const field = (
-    <PageQuerySearchField
-      className="mb-3 w-full sm:w-64"
-      placeholder={tSearch("posts")}
-    />
+    <PageQuerySearchField inHeader placeholder={tSearch("posts")} />
   );
 
   if (data.kind === "workspace") {
@@ -77,6 +74,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         <SocialCalendarPreviewProvider>
           <SocialComposeProvider>
             <SocialAllProjectsTabs
+              searchField={field}
               actions={
                 <SocialNewPostMenu
                   project={null}
@@ -85,7 +83,6 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               }
               attention={
                 <>
-                  {field}
                   {attention ? (
                     <SocialAllProjectsAttention
                       query={term}
@@ -115,7 +112,6 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
               }
               calendar={
                 <>
-                  {field}
                   {showCalendar && (
                     <SocialCalendar calendar={calendar} query={term} />
                   )}

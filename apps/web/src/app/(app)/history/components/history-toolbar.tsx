@@ -53,15 +53,7 @@ export function HistoryToolbar({
 
   return (
     <div data-history-toolbar className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <div className="min-w-0 flex-1">
-          <HistorySearch
-            key={searchResets}
-            activeOrganizationId={activeOrganizationId}
-            projectOptions={projectOptions}
-            labels={labels.search}
-          />
-        </div>
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <p
           className="text-muted-foreground shrink-0 text-sm md:hidden"
           aria-live="polite"
@@ -79,6 +71,12 @@ export function HistoryToolbar({
             labels={labels.filters}
           />
         </div>
+        <HistorySearch
+          key={searchResets}
+          activeOrganizationId={activeOrganizationId}
+          projectOptions={projectOptions}
+          labels={labels.search}
+        />
       </div>
       <HistoryActiveFilters
         onSearchReset={() => setSearchResets((count) => count + 1)}

@@ -158,14 +158,6 @@ export function CompaniesView({
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <PageSearchField
-          className="order-last w-full sm:order-none sm:w-56"
-          aria-label={t("search")}
-          placeholder={t("searchPlaceholder")}
-          value={search}
-          maxLength={200}
-          onValueChange={setSearch}
-        />
         {selected.length ? (
           <div
             role="toolbar"
@@ -284,6 +276,14 @@ export function CompaniesView({
         <span className="text-muted-foreground ms-auto shrink-0 text-sm tabular-nums">
           {companies.isPending ? null : t("count", { count: total })}
         </span>
+        <PageSearchField
+          inHeader
+          aria-label={t("search")}
+          placeholder={t("searchPlaceholder")}
+          value={search}
+          maxLength={200}
+          onValueChange={setSearch}
+        />
       </div>
       {currentList?.description ? (
         <p className="text-muted-foreground -mt-1 truncate text-sm">

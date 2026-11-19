@@ -71,7 +71,7 @@ export function Issues({
   return (
     <section className="min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
+        <div className="space-y-1 sm:flex-1">
           <h3 className="text-base font-semibold">{t("title")}</h3>
           <Link
             className="text-muted-foreground inline-block py-1 text-sm underline underline-offset-4"
@@ -80,7 +80,9 @@ export function Issues({
             {t("Readiness.audienceCount", { count: activeSubscribers })}
           </Link>
         </div>
+        {issues.length || searching ? newIssue : null}
         <PageSearchField
+          inHeader
           value={query.q}
           placeholder={tSearch("issues")}
           maxLength={ISSUE_SEARCH_MAX_LENGTH}
@@ -89,7 +91,6 @@ export function Issues({
             void setQuery({ q, cursor: null }, pageSearchUrlUpdates(q));
           }}
         />
-        {issues.length || searching ? newIssue : null}
       </div>
       {!issues.length ? (
         <div className={HOLDER_CLASS}>

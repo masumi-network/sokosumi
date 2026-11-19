@@ -40,6 +40,11 @@ export default function Header({ className }: HeaderProps) {
         <ProjectScopeGuard />
       </Suspense>
 
+      <div
+        data-app-header-search-slot
+        className="hidden shrink-0 empty:hidden xl:block"
+      />
+
       <HeaderTrailing>
         <HeaderProfileSection />
       </HeaderTrailing>

@@ -216,10 +216,6 @@ export function ProjectsView({
           data-testid="projects-toolbar"
           className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
         >
-          <ProjectsFilter
-            labels={labels.filter}
-            startTransition={startSwitch}
-          />
           <ProjectsStateToggle
             labels={labels.state}
             pending={isSwitching}
@@ -227,7 +223,11 @@ export function ProjectsView({
           />
           <AddProjectButton
             label={labels.newProject}
-            className="hidden md:inline-flex"
+            className="ms-auto hidden md:inline-flex"
+          />
+          <ProjectsFilter
+            labels={labels.filter}
+            startTransition={startSwitch}
           />
         </div>
         {/* The column comes first in source and on screen: stacked above the

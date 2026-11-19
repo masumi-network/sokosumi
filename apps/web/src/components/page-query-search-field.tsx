@@ -14,7 +14,7 @@ const DEFAULT_PAGE_SEARCH_MAX_LENGTH = 200;
 
 type PageQuerySearchFieldProps = Pick<
   ComponentProps<typeof PageSearchField>,
-  "placeholder" | "className" | "clearLabel" | "maxLength"
+  "placeholder" | "inHeader" | "className" | "clearLabel" | "maxLength"
 > & { startTransition?: TransitionStartFunction };
 
 export function pageSearchUrlUpdates(value: string) {

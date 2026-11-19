@@ -267,12 +267,7 @@ export function TaskSchedulesView({
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-          <PageSearchField
-            placeholder={tSearch("schedules")}
-            value={query}
-            onValueChange={setQuery}
-          />
+        <div className="ms-auto flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:gap-3">
           <ListGridViewSwitch
             value={viewMode}
             data-testid="schedules-view-mode-switch"
@@ -288,6 +283,12 @@ export function TaskSchedulesView({
               {t("newSchedule")}
             </Button>
           ) : null}
+          <PageSearchField
+            inHeader
+            placeholder={tSearch("schedules")}
+            value={query}
+            onValueChange={setQuery}
+          />
         </div>
       </div>
 

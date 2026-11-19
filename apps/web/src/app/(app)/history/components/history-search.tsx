@@ -91,6 +91,7 @@ export function HistorySearch({
 
   return (
     <PageSearchField
+      inHeader
       maxLength={HISTORY_SEARCH_MAX_LENGTH}
       placeholder={labels.placeholder}
       clearLabel={labels.clear}

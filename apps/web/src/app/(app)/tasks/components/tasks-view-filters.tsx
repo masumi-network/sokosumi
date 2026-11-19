@@ -442,11 +442,6 @@ export function TasksViewFilters({
           labels={{ all: labels.all, assignedToMe: labels.assignedToMe }}
         />
       ) : null}
-      <PageQuerySearchField
-        className="min-w-36 flex-1"
-        maxLength={TASK_SEARCH_MAX_LENGTH}
-        placeholder={tPage("searchPlaceholder")}
-      />
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {
@@ -504,6 +499,12 @@ export function TasksViewFilters({
         />
       </span>
       {typeof display === "function" ? display(activeFilters) : display}
+      <PageQuerySearchField
+        inHeader
+        className="sm:ms-0"
+        maxLength={TASK_SEARCH_MAX_LENGTH}
+        placeholder={tPage("searchPlaceholder")}
+      />
     </div>
   );
 }
