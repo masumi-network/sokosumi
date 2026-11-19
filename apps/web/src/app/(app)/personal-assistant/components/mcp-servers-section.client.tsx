@@ -179,9 +179,11 @@ function McpServerRow({
             </span>
           </span>
         </button>
-        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-          {t("toolCount", { enabled, total: server.tools.length })}
-        </span>
+        {server.toolsRefreshedAt ? (
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {t("toolCount", { enabled, total: server.tools.length })}
+          </span>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
