@@ -21,6 +21,7 @@ import type { ChatTable, ChatWork } from "../../lib/chat-work";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
+import { needsYou } from "../../lib/today";
 import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
@@ -55,6 +56,7 @@ import { cmoPause, PausedBanner } from "./paused";
 import { initial, Sidebar, VIEWS } from "./sidebar";
 import { StrategyPage } from "./strategy-page";
 import { type ChangePlan, type OpenPortal } from "./subscription-card";
+import { TabBar } from "./tab-bar";
 import { TodayPage } from "./today-page";
 
 const POLL_MS = 4_000;
@@ -659,6 +661,13 @@ export function CmoApp({
           </div>
         )}
       </main>
+      <TabBar
+        view={view}
+        onSelect={go}
+        needs={needsYou(overview).length}
+        manyCusos={manyCusos}
+        signOut={actions.signOut}
+      />
     </div>
   );
 }

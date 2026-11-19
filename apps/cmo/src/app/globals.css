@@ -2040,38 +2040,14 @@ button.card-focus {
 }
 
 @media (max-width: 860px) {
+  /* A phone: the page, and the tab bar under the thumb. */
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .side {
-    flex-direction: row;
-    align-items: center;
-    overflow-x: auto;
-    border-right: 0;
-    border-bottom: var(--line-width) solid var(--line);
-  }
-
-  .side .grow,
-  .cuso-status,
-  .side .ob-who {
     display: none;
-  }
-
-  .business {
-    flex: none;
-    margin: 8px 0 8px 8px;
-    padding: 6px 10px;
-  }
-
-  .business-text .note {
-    display: none;
-  }
-
-  .nav {
-    flex-direction: row;
-    padding: 8px;
   }
 
   .grid4,
@@ -4811,5 +4787,142 @@ button.today-ask:active {
 
   .week-posts {
     flex: 1;
+  }
+}
+
+/* ── Tab bar: the phone's navigation ── */
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .tabbar {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    border-top: var(--line-width) solid var(--line);
+    background: var(--surface);
+  }
+}
+
+.tab {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: var(--clear);
+}
+
+/* The icon sits on a pill; the page you are on fills it with Iris. */
+.tab-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 30px;
+  border: var(--line-width-small) solid var(--clear);
+  border-radius: var(--radius-pill);
+  transition:
+    background-color 150ms,
+    transform 150ms;
+}
+
+.tab.active {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.tab.active .tab-icon {
+  border-color: var(--line);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Pressed: the pill gives under the thumb at once. */
+.tab:active .tab-icon {
+  transform: scale(0.92);
+}
+
+.tab-icon .count {
+  position: absolute;
+  top: -6px;
+  right: 2px;
+}
+
+.tabbar-more {
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  z-index: 20;
+  display: grid;
+  padding: 6px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  transform-origin: bottom right;
+}
+
+.tabbar-more a,
+.tabbar-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tabbar-more a:hover,
+.tabbar-more-item:hover {
+  background: var(--surface);
+}
+
+.tabbar-more a.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+
+.tabbar-more form {
+  border-top: 1px solid var(--border);
+}
+
+.tab:focus-visible,
+.tabbar-more a:focus-visible,
+.tabbar-more-item:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tabbar-more {
+    animation: more-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes more-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
   }
 }
