@@ -252,6 +252,13 @@ const labels = {
     density: "Density",
     normal: "Normal",
     compact: "Compact",
+    sortBy: "Sort by",
+    sortOptions: {
+      updatedAt: "Last updated",
+      createdAt: "Newest",
+      priority: "Priority",
+      dueOn: "Due date",
+    },
   },
   listPlaceholder: "No tasks",
   loadMore: "Load more",

@@ -14,6 +14,10 @@ import {
 } from "@/app/tasks/types/task-board";
 import { COLUMN_MAIN_STATUS } from "@/app/tasks/utils/task-column";
 import {
+  effectiveTasksSort,
+  type TasksSort,
+} from "@/app/tasks/utils/task-sort";
+import {
   buildTasksFiltersSearchParams,
   clearTasksFilters,
   hasClearableTasksFilters,
@@ -111,6 +115,8 @@ export interface TasksViewProps {
     display: {
       button: string;
       layout: string;
+      sortBy: string;
+      sortOptions: Record<TasksSort, string>;
       list: string;
       board: string;
       density: string;
@@ -238,6 +244,16 @@ export function TasksView(props: TasksViewProps) {
     isTaskPaginationInSync &&
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
+  const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
+  const handleSortChange = (sort: TasksSort) => {
+    const nextQuery = buildTasksFiltersSearchParams(
+      searchParams,
+      { ...routeFilters, sort },
+      activeOrganizationId,
+    ).toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  };
+
   const toolbarRef = useRef<HTMLDivElement>(null);
   const handleClearFilters = () => {
     const nextQuery = buildTasksFiltersSearchParams(
@@ -270,6 +286,8 @@ export function TasksView(props: TasksViewProps) {
             onChange: handleViewModeChange,
             density,
             onDensityChange: handleDensityChange,
+            sort: shownSort,
+            onSortChange: handleSortChange,
             labels: labels.display,
           }}
         />
@@ -314,6 +332,7 @@ export function TasksView(props: TasksViewProps) {
                     columnFooterById={columnFooterById}
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
+                    sort={shownSort}
                     canDragTask={(task) =>
                       canCreateTask && isTaskDnDDraggable(task)
                     }
@@ -371,6 +390,7 @@ export function TasksView(props: TasksViewProps) {
                 columnFooterById={columnFooterById}
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
+                sort={shownSort}
                 labels={{
                   columns: labels.columns,
                   emptyColumn: labels.listPlaceholder,

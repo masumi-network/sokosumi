@@ -36,7 +36,7 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt" | "updatedAt" | "dueOn";
+  sort?: "createdAt" | "updatedAt" | "priority" | "dueOn";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
   /** Only Tasks due on or before this day, `YYYY-MM-DD`. */

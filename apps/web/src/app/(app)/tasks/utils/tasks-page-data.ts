@@ -167,6 +167,7 @@ async function readTasksPageData(
     stuck: activeFilters.stuck,
     needsMe: activeFilters.needsMe,
     mentions: activeFilters.mentions,
+    sort: activeFilters.sort,
     coworkersById,
     personalAssistantFallback,
   };
