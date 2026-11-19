@@ -268,13 +268,12 @@ describe("project social connections service", () => {
 
     beforeEach(() => {
       vi.stubEnv("NETWORK", "Mainnet");
+      vi.stubEnv("ZERNIO_API_KEY", "configured");
       getEnvMock.mockReturnValue({ ZERNIO_API_KEY: "configured" });
+      // Any workspace: TikTok through Zernio is public.
       projectFindFirstMock.mockResolvedValue({
         id: PROJECT_ID,
-        workspace: {
-          id: "03d70dc0-f302-45d5-a161-86beb31d2448",
-          organization: { slug: "utxo" },
-        },
+        workspace: { id: WORKSPACE_ID, organization: { slug: "acme" } },
       });
       socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
       socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
@@ -283,6 +282,27 @@ describe("project social connections service", () => {
       socialConnectionCreateMock.mockResolvedValue(saved);
     });
     afterEach(() => vi.unstubAllEnvs());
+
+    it("refuses to reauthorize a connection of our own TikTok app outside utxo's workspace", async () => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...socialConnection,
+        provider: "tiktok",
+        composioConnectedAccountId: "ca_own_app",
+        status: "reauthorization_required",
+      });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await expect(
+        initiateProjectSocialConnection({
+          ...input,
+          action: "reconnect",
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+        }),
+      ).rejects.toThrow("This TikTok connection is no longer supported");
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+      expect(zernioRequest).not.toHaveBeenCalled();
+    });
 
     it("creates an isolated profile and only sends its callback proof through the provider", async () => {
       zernioRequest

@@ -7,6 +7,7 @@ import {
 import { getZernioTikTokCreatorInfo } from "@/clients/social-post-providers/zernio-tiktok";
 import { getZernioAccountId } from "@/clients/zernio.client";
 import {
+  requireOwnTikTokAppAllowed,
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
 } from "@/config/social-providers";
@@ -80,6 +81,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
         await getZernioTikTokCreatorInfo(zernioAccountId, c.req.raw.signal),
       );
     }
+    requireOwnTikTokAppAllowed(connection.project);
     const toolSlug = "TIKTOK_QUERY_CREATOR_INFO";
     const sessionId = await createComposioToolSession({
       toolkitSlug: "tiktok",
