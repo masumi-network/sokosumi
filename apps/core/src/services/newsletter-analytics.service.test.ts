@@ -71,7 +71,7 @@ describe("newsletter analytics aggregation", () => {
       clickRate: 0.25,
     });
     expect(m.newsletter).toHaveBeenCalledExactlyOnceWith(SCOPE);
-    expect(m.sent).toHaveBeenCalledWith({
+    expect(m.sent.mock.lastCall?.[0]).toStrictEqual({
       where: {
         issue: { newsletterId: NEWSLETTER_ID },
         status: "SENT",

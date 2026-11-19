@@ -815,6 +815,11 @@ describe("newsletter subscribers", () => {
     expect(await response.json()).toMatchObject({
       data: { subscribers: [{ contact: null }] },
     });
+    expect(m.findMany.mock.lastCall?.[0]).toStrictEqual({
+      where: { newsletterId: NEWSLETTER_ID },
+      take: 21,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
     expect(m.contactFindMany).not.toHaveBeenCalled();
   });
 

@@ -1126,12 +1126,16 @@ describe.runIf(enabled)("contacts on PostgreSQL", () => {
           linkNewsletterContacts(tx, newsletter.id, asAlice, people, "MANUAL"),
         );
         await prisma.newsletterSubscriber.createMany({
-          data: people.map((person, index) => ({
-            newsletterId: newsletter.id,
-            contactId: original.get(person.email)?.id,
-            email: person.email,
-            status: index === 0 ? "ACTIVE" : "BOUNCED",
-          })),
+          data: people.map((person, index) => {
+            const contact = original.get(person.email);
+            if (!contact) throw new Error("Missing reader contact fixture");
+            return {
+              newsletterId: newsletter.id,
+              contactId: contact.id,
+              email: person.email,
+              status: index === 0 ? "ACTIVE" : "BOUNCED",
+            };
+          }),
         });
         const survivor = await create(asAlice, { name: "Surviving reader" });
         await inContactTransaction((tx) =>

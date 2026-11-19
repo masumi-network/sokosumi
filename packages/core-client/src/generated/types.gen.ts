@@ -3988,20 +3988,6 @@ export type ChatSavedMessageMutation = {
     saved: boolean;
 };
 
-export type ChatSignalListItem = {
-    /**
-     * `needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.
-     */
-    kind: 'needsYou' | 'question' | 'decision' | 'commitment';
-    room: {
-        id: string;
-        name: string;
-        kind: 'channel' | 'direct';
-    };
-    message: ChatRoomMessage;
-    dueAt: Date | null;
-};
-
 export type ChatCatchUpItem = {
     messageId: string;
     roomId: string;
@@ -33918,70 +33904,6 @@ export type GetChatsSignalsDecisionsResponses = {
 
 export type GetChatsSignalsDecisionsResponse = GetChatsSignalsDecisionsResponses[keyof GetChatsSignalsDecisionsResponses];
 
-export type GetChatsSignalsNeedsYouData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/signals/needs-you';
-};
-
-export type GetChatsSignalsNeedsYouErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsSignalsNeedsYouError = GetChatsSignalsNeedsYouErrors[keyof GetChatsSignalsNeedsYouErrors];
-
-export type GetChatsSignalsNeedsYouResponses = {
-    /**
-     * Unread messages that need the viewer
-     */
-    200: {
-        data: Array<ChatSignalListItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsSignalsNeedsYouResponse = GetChatsSignalsNeedsYouResponses[keyof GetChatsSignalsNeedsYouResponses];
-
 export type GetChatsSignalsImportantData = {
     body?: never;
     headers?: {
@@ -34045,70 +33967,6 @@ export type GetChatsSignalsImportantResponses = {
 };
 
 export type GetChatsSignalsImportantResponse = GetChatsSignalsImportantResponses[keyof GetChatsSignalsImportantResponses];
-
-export type GetChatsSignalsOpenLoopsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/signals/open-loops';
-};
-
-export type GetChatsSignalsOpenLoopsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsSignalsOpenLoopsError = GetChatsSignalsOpenLoopsErrors[keyof GetChatsSignalsOpenLoopsErrors];
-
-export type GetChatsSignalsOpenLoopsResponses = {
-    /**
-     * The viewer's open loops
-     */
-    200: {
-        data: Array<ChatSignalListItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsSignalsOpenLoopsResponse = GetChatsSignalsOpenLoopsResponses[keyof GetChatsSignalsOpenLoopsResponses];
 
 export type GetChatsSignalsSummaryData = {
     body?: never;

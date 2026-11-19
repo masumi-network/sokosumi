@@ -51,7 +51,9 @@ export async function createProject(
       data: {
         workspaceId,
         name: input.name,
-        identifier: input.identifier,
+        ...(input.identifier !== undefined
+          ? { identifier: input.identifier }
+          : {}),
         filesToken,
         briefing,
         websiteUrl: input.websiteUrl ?? null,

@@ -153,6 +153,11 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("public newsletter signup", () => {
+  it("omits the subscriber name when the form leaves it out", async () => {
+    await signup();
+    expect(m.createMany.mock.lastCall?.[0]?.data).not.toHaveProperty("name");
+  });
+
   it("creates pending consent, records SUBSCRIBED and sends a signed confirmation from the newsletter domain", async () => {
     await signup({
       email: " Reader@EXAMPLE.com ",

@@ -547,6 +547,12 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
     // A unique violation here aborts this transaction. It is caught by the
     // caller, on a fresh connection, because the aborted one cannot answer
     // another query.
+    const productId = input.product?.id ?? source?.job.productId;
+    const productName = input.product?.name ?? source?.job.productName;
+    const useProductCutout = inheritsCutout || input.useProductCutout;
+    const productCutoutChecksum = inheritsCutout
+      ? source?.job.productCutoutChecksum
+      : undefined;
     const job = await tx.projectImageJob.create({
       data: {
         projectId: input.projectId,
@@ -556,27 +562,39 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         kind: input.kind,
         model: input.model,
         prompt: input.prompt,
-        productId: input.product?.id ?? source?.job.productId,
-        productName: input.product?.name ?? source?.job.productName,
-        batchId: input.batchId,
-        templateId: input.templateId,
-        creativeDirection: input.creativeDirection,
-        variationIndex: input.variationIndex,
-        batchSlotId,
-        exportHeadline,
+        ...(productId !== undefined ? { productId } : {}),
+        ...(productName !== undefined ? { productName } : {}),
+        ...(input.batchId !== undefined ? { batchId: input.batchId } : {}),
+        ...(input.templateId !== undefined
+          ? { templateId: input.templateId }
+          : {}),
+        ...(input.creativeDirection !== undefined
+          ? { creativeDirection: input.creativeDirection }
+          : {}),
+        ...(input.variationIndex !== undefined
+          ? { variationIndex: input.variationIndex }
+          : {}),
+        ...(batchSlotId !== undefined ? { batchSlotId } : {}),
+        ...(exportHeadline !== undefined ? { exportHeadline } : {}),
         lettering: input.lettering ?? (exportHeadline ? "ideogram" : "overlay"),
-        letteringQuoteCents: input.letteringQuoteCents,
-        presenterConsentAt: input.presenterConsentAt,
-        useProductCutout: inheritsCutout || input.useProductCutout,
-        productCutoutChecksum: inheritsCutout
-          ? source?.job.productCutoutChecksum
-          : undefined,
+        ...(input.letteringQuoteCents !== undefined
+          ? { letteringQuoteCents: input.letteringQuoteCents }
+          : {}),
+        ...(input.presenterConsentAt !== undefined
+          ? { presenterConsentAt: input.presenterConsentAt }
+          : {}),
+        ...(useProductCutout !== undefined ? { useProductCutout } : {}),
+        ...(productCutoutChecksum !== undefined
+          ? { productCutoutChecksum }
+          : {}),
         settings: {
           ...input.settings,
           ...(input.letteringSettings
             ? {
                 letteringSettings: { ...input.letteringSettings },
-                letteringModel: input.letteringModel,
+                ...(input.letteringModel !== undefined
+                  ? { letteringModel: input.letteringModel }
+                  : {}),
               }
             : {}),
         },
@@ -674,7 +692,7 @@ async function claimForSettlement(
   const claimed = await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
-      falRequestId,
+      ...(falRequestId !== undefined ? { falRequestId } : {}),
       status: { in: [...LIVE_STATUSES] },
       OR: [{ settleLeaseAt: null }, { settleLeaseAt: { lt: deadline } }],
     },
@@ -2950,9 +2968,9 @@ async function insertAsset(input: {
     exportHeadline: string | null;
     lettering?: string;
     letteringQuoteCents?: bigint | null;
-    sessionId?: string | null;
-    productId?: string | null;
-    productName?: string | null;
+    sessionId: string | null;
+    productId: string | null;
+    productName: string | null;
     batchSlotId?: string | null;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
@@ -3075,8 +3093,12 @@ async function insertAsset(input: {
         prompt: input.job.prompt,
         settings: input.job.settings ?? {},
         blobPathname: input.blobPathname,
-        backdropBlobPathname: input.backdropBlobPathname,
-        backdropContentType: input.backdropContentType,
+        ...(input.backdropBlobPathname !== undefined
+          ? { backdropBlobPathname: input.backdropBlobPathname }
+          : {}),
+        ...(input.backdropContentType !== undefined
+          ? { backdropContentType: input.backdropContentType }
+          : {}),
         contentType: input.contentType,
         mediaType: input.mediaType,
         aiGenerated: input.aiGenerated,

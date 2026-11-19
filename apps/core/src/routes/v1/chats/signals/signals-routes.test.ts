@@ -14,8 +14,6 @@ const views = vi.hoisted(() => ({
   getChatRoomCatchUp: vi.fn(),
   listChatRoomMessagesWithTag: vi.fn(),
   listChatDecisions: vi.fn(),
-  listChatNeedsYou: vi.fn(),
-  listChatOpenLoops: vi.fn(),
   correctChatMessageSignal: vi.fn(),
   setChatMessageSignalLoop: vi.fn(),
 }));
@@ -50,8 +48,6 @@ import mountGetImportant from "./important/get";
 import mountPutCorrection from "./messages/[messageId]/corrections/put";
 import mountPutLoop from "./messages/[messageId]/loop/put";
 import mountGetRouting from "./messages/[messageId]/routing/get";
-import mountGetNeedsYou from "./needs-you/get";
-import mountGetOpenLoops from "./open-loops/get";
 import mountGetCatchUp from "./rooms/[id]/catch-up/get";
 import mountGetDecisions from "./rooms/[id]/decisions/get";
 import mountGetSummary from "./summary/get";
@@ -104,9 +100,7 @@ function createApp(actor: "user" | "coworker" = "user") {
   });
   for (const mount of [
     mountGetAllDecisions,
-    mountGetNeedsYou,
     mountGetImportant,
-    mountGetOpenLoops,
     mountGetSummary,
     mountGetCatchUp,
     mountGetDecisions,
@@ -208,15 +202,6 @@ describe("chat signal routes", () => {
     const response = await createApp("coworker").request("/decisions");
     expect(response.status).toBe(403);
     expect(views.listChatDecisions).not.toHaveBeenCalled();
-  });
-
-  it("lists needs-you and open loops in the active organization", async () => {
-    views.listChatNeedsYou.mockResolvedValue([]);
-    views.listChatOpenLoops.mockResolvedValue([]);
-    expect((await createApp().request("/needs-you")).status).toBe(200);
-    expect((await createApp().request("/open-loops")).status).toBe(200);
-    expect(views.listChatNeedsYou).toHaveBeenCalledWith(USER_ID, ORG_ID);
-    expect(views.listChatOpenLoops).toHaveBeenCalledWith(USER_ID, ORG_ID);
   });
 
   it("lists the last day's important messages for Home", async () => {

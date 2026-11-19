@@ -552,7 +552,9 @@ export async function runSuggestionJob(
         // Null for a file judged on its metadata: there is no span to quote,
         // and a generated reason is the one thing this column must not hold.
         evidenceSnippet: evidence ? evidence.text.slice(0, 240) : null,
-        evidenceAnchor: evidence?.anchor ?? undefined,
+        ...(evidence?.anchor != null
+          ? { evidenceAnchor: evidence.anchor }
+          : {}),
         contentRevision: resource.contentRevision,
         vocabularyVersion: entry.vocabularyVersion,
       },

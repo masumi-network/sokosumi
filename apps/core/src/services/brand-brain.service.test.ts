@@ -380,6 +380,7 @@ describe("Brand Brain questions", () => {
 
     const brain = brainUpdate.mock.lastCall?.[0].data.body;
     expect(brain.questions[0].answer).toBe("unsure");
+    expect(brain.questions[0]).not.toHaveProperty("note");
     expect(brain.profile.marketing.findings).toHaveLength(1);
   });
 
