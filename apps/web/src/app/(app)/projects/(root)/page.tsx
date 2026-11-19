@@ -52,11 +52,12 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         }
       : null;
 
-  const [{ projectsPage, hasClosedProjects }, t, tCmo] = await Promise.all([
-    projectsPageDataPromise,
-    translationsPromise,
-    getTranslations("Components.CmoProject"),
-  ]);
+  const [{ projectsPage, hasClosedProjects, otherMatches }, t, tCmo] =
+    await Promise.all([
+      projectsPageDataPromise,
+      translationsPromise,
+      getTranslations("Components.CmoProject"),
+    ]);
   const initialCreateProjectOpen = create === "true";
 
   return (
@@ -68,6 +69,7 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
         query={query}
         state={state}
         hasClosedProjects={hasClosedProjects}
+        otherMatches={otherMatches}
         initialCreateProjectOpen={initialCreateProjectOpen}
         createProjectModalResetKey={String(initialCreateProjectOpen)}
         column={
@@ -153,6 +155,17 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
             clear: t("list.filter.clear"),
           },
           noMatches: t("list.filter.noMatches", { query }),
+          noMatchesIn: {
+            open: t("list.filter.noMatchesIn.open", { query }),
+            hidden: t("list.filter.noMatchesIn.hidden", { query }),
+            closed: t("list.filter.noMatchesIn.closed", { query }),
+          },
+          elsewhere: t("list.filter.elsewhere"),
+          showIn: {
+            open: t("list.filter.showIn.open"),
+            hidden: t("list.filter.showIn.hidden"),
+            closed: t("list.filter.showIn.closed"),
+          },
         }}
       />
     </div>

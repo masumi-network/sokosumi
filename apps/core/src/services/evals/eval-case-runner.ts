@@ -24,6 +24,10 @@ import {
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
+  COMPETITOR_ADS_CASE_ID,
+  competitorAdChecks,
+} from "./eval-cmo-competitor-ads";
+import {
   competitorFeedChecks,
   isCompetitorEvalCase,
   prepareSokoBotCompetitorCase,
@@ -296,6 +300,12 @@ async function pollScenario(
       scenario.id,
       context.startedAt,
     );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === COMPETITOR_ADS_CASE_ID) {
+    const extra = await competitorAdChecks(lane);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

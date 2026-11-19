@@ -162,7 +162,9 @@ export type CmoChatSetup =
   /** cal.com's competitors after a check: a week with moves, or a quiet one. */
   | "cmo-competitors"
   | "cmo-competitors-quiet"
-  | "cmo-competitors-second-hand";
+  | "cmo-competitors-second-hand"
+  /** An approved month with an ad budget and the competitors' searches read. */
+  | "cmo-competitor-ads";
 
 /** The brand Cuso's chat and replies cases run for, and the comments it answers. */
 export const CMO_CHAT_BRAND = "cal.com";

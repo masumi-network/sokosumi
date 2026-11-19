@@ -671,11 +671,80 @@ describe("saving versions", () => {
         }),
       ],
     });
-    // Pieces write Social posts only: no version's plan changes, and other
-    // channels are not produced.
+    // A new piece that is a file joins the running version's calendar
+    // without its words, which its file holds; no other version changes.
+    const { draft: _words, ...planned } = newsletter;
     expect(strategyRows).toHaveLength(2);
-    expect(plan(running)).toEqual(strategy);
+    expect(plan(running).calendar).toEqual([...strategy.calendar, planned]);
     expect(plan(draft)).toEqual(revised);
+  });
+
+  it("adds a search ad written in chat to the approved calendar, without its parts", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    const running = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    const ad = {
+      id: "kw-calendly-alternative",
+      date: "2026-10-22",
+      channel: "google_ads",
+      title: "Calendly alternative search ad",
+      format: "search_ad",
+      status: "draft" as const,
+      campaignId: "competitor-searches",
+      draft: "Headlines:\n- Calendly Alternative",
+      searchAd: {
+        keywords: ["calendly alternative"],
+        headlines: ["Calendly Alternative", "Open Source Scheduling", "Free"],
+        descriptions: ["Scheduling you own.", "Start free in two minutes."],
+        finalUrl: "https://acme.io",
+        location: "United States",
+      },
+    };
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [ad] },
+      { turnId: "turn-2", part: "pieces" },
+    );
+    // Sent again, it is already planned and is not added twice.
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [ad] },
+      { turnId: "turn-3", part: "pieces" },
+    );
+
+    const { draft: _words, searchAd: _parts, ...planned } = ad;
+    expect(plan(running).calendar).toEqual([...strategy.calendar, planned]);
+  });
+
+  it("refuses a new piece in a format its channel does not have", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    const running = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: [
+            {
+              id: "page",
+              date: "2026-10-22",
+              channel: "google_ads",
+              title: "Calendly alternative page",
+              format: "landing_page",
+              status: "draft" as const,
+              draft: "# Calendly alternative",
+            },
+          ],
+        },
+        { turnId: "turn-2", part: "pieces" },
+      ),
+    ).rejects.toThrow('google_ads has no format "landing_page"');
+
+    expect(plan(running)).toEqual(strategy);
   });
 
   describe("a talking video that also goes out on other networks", () => {
