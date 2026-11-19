@@ -137,3 +137,48 @@ it("lists sending the newsletter as soon, and TikTok once, only where it can be 
   expect(text(enabled)).toContain("You confirm each video before it goes out.");
   expect(text(html)).not.toMatch(/coming soon/i);
 });
+
+it("draws the month by network: what is out of each network's posts", () => {
+  const base = cmoOverview().strategy;
+  if (!base) throw new Error("The fixture has a strategy");
+  const entry = (
+    id: string,
+    channel: string,
+    status: "published" | "scheduled",
+  ) => ({ id, date: "2026-11-02", channel, title: id, format: "post", status });
+  const html = renderToStaticMarkup(
+    <ResultsPage
+      overview={cmoOverview({
+        ...cmoStrategyVersion(new Date("2026-11-02T09:00:00Z")),
+        updates: [],
+        strategy: {
+          ...base,
+          calendar: [
+            entry("a", "linkedin", "published"),
+            entry("b", "linkedin", "scheduled"),
+            entry("c", "linkedin", "scheduled"),
+            entry("d", "x", "published"),
+          ],
+        },
+      })}
+      compose={() => {}}
+      openUpdate={() => {}}
+      openView={() => {}}
+      connectMeasurement={async () => ({ url: null, error: null })}
+      ads={{
+        loadAdCampaigns: async () => [],
+        setAdCampaignStatus: async () => ({ overview: null, error: null }),
+      }}
+      onChange={() => {}}
+    />,
+  );
+  expect(html).toContain('aria-label="LinkedIn: 1 of 3 out"');
+  expect(html).toContain('aria-label="X: 1 of 1 out"');
+  expect(html).toContain(
+    'aria-label="Out 2, Scheduled 2, Written 0, To make 0"',
+  );
+  // The longest bar is the network with the most posts.
+  expect(html.indexOf("LinkedIn: 1 of 3")).toBeLessThan(
+    html.indexOf("X: 1 of 1"),
+  );
+});
