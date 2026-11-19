@@ -38,7 +38,7 @@ import { SokoBotReconciliationLeaseLostError } from "@/lib/soko-bot/reconciliati
 import { SETTLEMENT_TRIGGER_EVENT_TYPES } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import {
-  REASONING_SUMMARY_OPTIONS,
+  modelReasoningSummaryOptions,
   stepReasoningSummary,
   streamModelCall,
 } from "@/lib/soko-bot/stream-model-call";
@@ -177,7 +177,7 @@ async function runTurn(
           ...request,
           // The provider's reasoning summary, as the sandbox runner asks for.
           providerOptions: {
-            ...REASONING_SUMMARY_OPTIONS,
+            ...modelReasoningSummaryOptions(turn.model),
             ...request.providerOptions,
           },
           system: turn.system,

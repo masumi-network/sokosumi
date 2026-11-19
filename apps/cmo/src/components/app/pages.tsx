@@ -345,7 +345,7 @@ export function BrandBrainPage({
   );
 }
 
-type Provider = (typeof SOCIAL_PROVIDERS)[number] | "tiktok";
+type Provider = (typeof SOCIAL_PROVIDERS)[number];
 
 /** Starts a network's connection; the provider sends the founder back to CMO. */
 export type ConnectChannel = (
@@ -423,12 +423,9 @@ export function ChannelsPage({
       <section className="card">
         <h3>Social accounts</h3>
         <ul className="list">
-          {(
-            [
-              ...SOCIAL_PROVIDERS,
-              // Only where Core allows it; no TikTok posts are planned yet.
-              ...(overview.tiktokEnabled ? (["tiktok"] as const) : []),
-            ] satisfies Provider[]
+          {SOCIAL_PROVIDERS.filter(
+            // TikTok only where Core can connect it (it holds a Zernio key).
+            (provider) => provider !== "tiktok" || overview.tiktokEnabled,
           ).map((provider) => {
             const account = overview.channels.find(
               (channel) => channel.provider.toLowerCase() === provider,
@@ -444,6 +441,9 @@ export function ChannelsPage({
                     {account
                       ? `${account.handle ?? account.displayName ?? "Connected"}${account.personalProfile ? " · your personal profile" : ""}`
                       : "Not connected"}
+                    {provider === "tiktok"
+                      ? ". You confirm each video before it goes out."
+                      : null}
                   </span>
                 </span>
                 {active ? (
@@ -484,21 +484,14 @@ export function ChannelsPage({
             );
           })}
           {SOON_CHANNELS.filter(
-            ({ key }) =>
-              channelInfo(key)?.group === "social" &&
-              // Where Core already lets TikTok connect, its row is above.
-              !(key === "tiktok" && overview.tiktokEnabled),
+            ({ key }) => channelInfo(key)?.group === "social",
           ).map(({ key, name }) => (
             <li key={key} className="crow">
               <ChannelIcon channel={key} size={20} />
               <span className="grow">
                 <b>{name}</b>
                 <br />
-                <span className="note">
-                  {key === "tiktok"
-                    ? `Posting opens once TikTok approves our app. Until then ${AGENT_NAME}'s short videos go out as Reels and Shorts.`
-                    : "Not open yet."}
-                </span>
+                <span className="note">Not open yet.</span>
               </span>
               <span className="tag">Soon</span>
             </li>

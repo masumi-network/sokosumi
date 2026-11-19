@@ -22,13 +22,17 @@ export function calendarKind(
   return "post";
 }
 
-/** Social networks Cuso posts to once connected; TikTok follows soon. */
+/**
+ * Social networks Cuso posts to once connected. On TikTok each video waits
+ * for the owner's own confirmation.
+ */
 export const SOCIAL_PROVIDERS = [
   "x",
   "linkedin",
   "instagram",
   "facebook",
   "youtube",
+  "tiktok",
 ] as const;
 
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];

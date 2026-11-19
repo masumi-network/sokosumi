@@ -18,7 +18,10 @@ import {
   SOKO_BOT_CMO_CAPABILITIES,
   SOKO_BOT_COMPETITOR_CAPABILITIES,
 } from "../policy.js";
-import { marketingStrategyPlanSchema } from "../project-marketing.js";
+import {
+  cmoCalendarEntrySchema,
+  marketingStrategyPlanSchema,
+} from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import { CMO_SKILLS } from "../versions/cmo-skills.js";
@@ -475,10 +478,13 @@ describe("CMO strategy and rhythms", () => {
         ],
       },
     });
-    expect(
-      cmoSaveStrategyInputSchema.safeParse(proposing("instagram")).success,
-    ).toBe(true);
-    for (const outside of ["reddit", "tiktok", "linkedin"]) {
+    // TikTok is a channel Cuso runs: the owner confirms each video.
+    for (const run of ["instagram", "tiktok"]) {
+      expect(cmoSaveStrategyInputSchema.safeParse(proposing(run)).success).toBe(
+        true,
+      );
+    }
+    for (const outside of ["reddit", "linkedin"]) {
       expect(
         cmoSaveStrategyInputSchema.safeParse(proposing(outside)).success,
       ).toBe(false);
@@ -652,6 +658,29 @@ describe("picture styles", () => {
   });
 });
 
+describe("pictures of the month", () => {
+  it("tells Cuso to style every picture, each slide with its own words", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-production");
+    expect(skill?.content).toContain(
+      "Every piece with a picture takes the look of an old print",
+    );
+    expect(skill?.content).toContain("slideHeadlines: one entry per slide");
+    expect(skill?.content).not.toContain("Decide per piece");
+    expect(
+      cmoCalendarEntrySchema.safeParse({
+        id: "c1",
+        date: "2026-12-01",
+        channel: "instagram",
+        title: "Three steps",
+        format: "carousel",
+        status: "draft",
+        slideHeadlines: ["Review the drafts", "Then it goes live"],
+      }).success,
+    ).toBe(true);
+  });
+});
+
 describe("pictures in chat", () => {
   it("tells Cuso to make a chat post's picture in a library style", async () => {
     const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
@@ -660,7 +689,10 @@ describe("pictures in chat", () => {
       "In chat, a picture for a post or an ad goes the same way",
     );
     expect(skill?.content).toContain("the reference's id as styleReferenceId");
-    expect(skill?.content).toContain("maxCredits 30");
+    expect(skill?.content).toContain("maxCredits 25");
+    expect(skill?.content).toContain(
+      "pass that picture in referenceFileIds as well",
+    );
     const scenario = CMO_SCENARIOS.find(
       (entry) => entry.id === "cmo-post-with-picture",
     );
