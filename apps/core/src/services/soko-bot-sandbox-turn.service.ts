@@ -16,10 +16,8 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
-import {
-  aiGatewayBudgetScope,
-  reportAiGatewayBudgetFailure,
-} from "@/lib/ai-gateway-budget";
+import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
+import { aiGatewayBudgetScope } from "@/lib/ai-gateway-budget-error";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import prisma from "@/lib/db/prisma";

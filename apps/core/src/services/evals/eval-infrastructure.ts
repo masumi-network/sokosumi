@@ -1,9 +1,9 @@
 import { z } from "zod";
+import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import {
-  AI_BUDGET_EXCEEDED,
   aiGatewayBudgetScope,
   GATEWAY_INTERNAL_SERVER_ERROR,
-} from "@/lib/ai-gateway-budget";
+} from "@/lib/ai-gateway-budget-error";
 import prisma from "@/lib/db/prisma";
 import type { CaseOutcome } from "./eval-case-runner";
 

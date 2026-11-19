@@ -16,11 +16,11 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { stepCountIs, type ToolSet, tool } from "ai";
+import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
 import {
   aiGatewayBudgetScope,
   GATEWAY_INTERNAL_SERVER_ERROR,
-  reportAiGatewayBudgetFailure,
-} from "@/lib/ai-gateway-budget";
+} from "@/lib/ai-gateway-budget-error";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import { databaseNow } from "@/lib/db/database-now";

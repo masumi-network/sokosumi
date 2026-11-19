@@ -6,13 +6,8 @@ import { incrementRedisRateLimit } from "@/lib/redis-rate-limit";
 export const AI_BUDGET_EXCEEDED = "ai_budget_exceeded";
 export const AI_BUDGET_EXCEEDED_MESSAGE =
   "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.";
-export const GATEWAY_INTERNAL_SERVER_ERROR = "GatewayInternalServerError";
-
-export function aiGatewayBudgetScope(message: unknown) {
-  if (typeof message !== "string") return undefined;
-  if (/^\s*API key budget exceeded\b/i.test(message)) return "key";
-  if (/^\s*Team budget exceeded\b/i.test(message)) return "team";
-}
+const ALERT_WINDOW_SECONDS = 60 * 60;
+const localAlertExpiresAt = new Map<string, number>();
 
 export async function reportAiGatewayBudgetFailure(
   scope: "key" | "team",
@@ -27,7 +22,7 @@ export async function reportAiGatewayBudgetFailure(
           .digest("hex")}`;
   const count = await incrementRedisRateLimit(
     `ai-gateway:budget-alert:${scopeId}`,
-    60 * 60,
+    ALERT_WINDOW_SECONDS,
   );
   const context = {
     operation: AI_BUDGET_EXCEEDED,
@@ -38,7 +33,14 @@ export async function reportAiGatewayBudgetFailure(
     why: "The Gateway rejected a model call because its spend limit was reached.",
     fix: "Inspect the budget with vercel ai-gateway budgets.",
   };
-  // Without a confirmed claim, warn so Redis outages cannot cause an alert storm.
-  const report = count === 1 ? recordCoreError : recordCoreWarning;
+  // Without a confirmed Redis claim, warn after the local scope is claimed so
+  // Redis outages cannot cause an alert storm.
+  const now = Date.now();
+  const alert =
+    count === 1 ||
+    (count === undefined && (localAlertExpiresAt.get(scopeId) ?? 0) <= now);
+  if (alert)
+    localAlertExpiresAt.set(scopeId, now + ALERT_WINDOW_SECONDS * 1000);
+  const report = alert ? recordCoreError : recordCoreWarning;
   report(context, diagnostic);
 }

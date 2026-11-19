@@ -260,7 +260,7 @@ Runtime authorization can attach a session while the turn is still `STARTING`. A
 - A drain can settle a `CANCEL_REQUESTED` row from its persisted trigger. The normal cancellation ordering still applies. A live admin reset holds a separate fenced lease and settles `CANCELLED`/`session_reset` itself.
 - Fence 6 keeps settlement and billing idempotent if a drain reaches settlement as its lease changes.
 
-An exhausted AI Gateway key or team budget fails the turn with `ai_budget_exceeded`. Core uses shared Redis to alert once per exhausted scope per hour and logs repeats or unconfirmed claims as warnings. Manage the limits with [`vercel ai-gateway budgets`](https://vercel.com/docs/cli/ai-gateway#budgets).
+An exhausted AI Gateway key or team budget fails the turn with `ai_budget_exceeded`. Core uses shared Redis to alert once per exhausted scope per hour. When Redis cannot confirm a claim, Core allows one alert per scope per instance per hour. Repeats log at warn. Manage the limits with [`vercel ai-gateway budgets`](https://vercel.com/docs/cli/ai-gateway#budgets).
 
 ### Start fences
 

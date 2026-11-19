@@ -6,6 +6,7 @@ import type {
 } from "@sokosumi/soko-bot";
 import { createGateway } from "ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { streamModelCall } from "@/lib/soko-bot/stream-model-call";
 import { jevRoute } from "@/test/jev-routes";
 
 const {
@@ -380,33 +381,38 @@ describe("SokoBotControlPlane reconciliation", () => {
   });
 
   it.each([
-    ["API key budget exceeded. Limit: $400.", "ai_budget_exceeded"],
-    ["Team budget exceeded. Limit: $1000.", "ai_budget_exceeded"],
-    ["Temporary upstream failure", "GatewayInternalServerError"],
-  ])("settles a failed Gateway turn for %s", async (message, errorKind) => {
+    [["API key budget exceeded. Limit: $400."], "ai_budget_exceeded"],
+    [["Team budget exceeded. Limit: $1000."], "ai_budget_exceeded"],
+    [["Temporary upstream failure"], "GatewayInternalServerError"],
+    [
+      ["Temporary upstream failure", "API key budget exceeded. Limit: $400."],
+      "ai_budget_exceeded",
+    ],
+    [
+      ["Team budget exceeded. Limit: $1000.", "Temporary upstream failure"],
+      "AI_RetryError",
+    ],
+  ])("settles a failed Gateway turn for %j", async (messages, errorKind) => {
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    for (const message of messages) {
+      fetch.mockResolvedValueOnce(
+        Response.json(
+          { error: { type: "internal_server_error", message } },
+          { status: 500, headers: { "retry-after-ms": "0" } },
+        ),
+      );
+    }
     const gateway = createGateway({
       apiKey: "test-key",
-      fetch: async () =>
-        Response.json(
-          {
-            error: {
-              type: "internal_server_error",
-              message,
-            },
-          },
-          { status: 500 },
-        ),
+      fetch,
     });
     const runtime = runtimeFor([]);
     runtime.streamEvents = vi.fn(async function* () {
       try {
-        await gateway("google/gemini-3.6-flash").doStream({
-          prompt: [
-            {
-              role: "user",
-              content: [{ type: "text", text: "Plan the launch" }],
-            },
-          ],
+        await streamModelCall({
+          model: gateway("google/gemini-3.6-flash"),
+          prompt: "Plan the launch",
+          maxRetries: messages.length - 1,
         });
       } catch (error) {
         if (!(error instanceof Error)) throw error;
@@ -430,6 +436,7 @@ describe("SokoBotControlPlane reconciliation", () => {
       LEASE_TOKEN,
     );
 
+    expect(fetch).toHaveBeenCalledTimes(messages.length);
     expect(turnUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -438,7 +445,9 @@ describe("SokoBotControlPlane reconciliation", () => {
           errorDetail:
             errorKind === "ai_budget_exceeded"
               ? "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets."
-              : message,
+              : errorKind === "AI_RetryError"
+                ? "Failed after 2 attempts. Last error: GatewayInternalServerError: Temporary upstream failure"
+                : messages[0],
         }),
       }),
     );

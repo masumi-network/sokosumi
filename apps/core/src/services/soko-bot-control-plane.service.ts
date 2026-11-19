@@ -71,9 +71,11 @@ import {
 import {
   AI_BUDGET_EXCEEDED,
   AI_BUDGET_EXCEEDED_MESSAGE,
+} from "@/lib/ai-gateway-budget";
+import {
   aiGatewayBudgetScope,
   GATEWAY_INTERNAL_SERVER_ERROR,
-} from "@/lib/ai-gateway-budget";
+} from "@/lib/ai-gateway-budget-error";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
