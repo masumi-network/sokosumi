@@ -19,6 +19,17 @@ import {
 } from "./notification-message";
 
 describe("getNotificationMessageTranslationKey", () => {
+  it("labels a completed SEO analysis as a link to its results", () => {
+    expect(
+      getNotificationMessageTranslationKey("Notifications.Task.completed", {
+        seoResult: true,
+      }),
+    ).toBe("Library.Notifications.Task.seoCompleted");
+    expect(
+      getNotificationMessageTranslationKey("Notifications.Task.completed"),
+    ).toBe("Library.Notifications.Task.completed");
+  });
+
   it("puts a stored notification key under the Library namespace", () => {
     expect(
       getNotificationMessageTranslationKey("Notifications.Job.completed"),

@@ -40,6 +40,34 @@ export type StartImpersonationBody = {
     reason: string;
 };
 
+export type AdminSeoAlerts = {
+    total: number;
+    critical: number;
+    warning: number;
+    info: number;
+    pageSize: number;
+    failurePercent: number;
+    importGraceMinutes: number;
+    connectionTotal: number;
+    reconnect: number;
+    connections: Array<{
+        id: string;
+        userId: string;
+        provider: 'ga4' | 'search_console';
+        status: 'NEEDS_RECONNECT' | 'DISCONNECTED';
+        at: Date;
+    }>;
+    items: Array<{
+        id: string;
+        taskId: string | null;
+        at: Date;
+        severity: 'critical' | 'warning' | 'info';
+        reasons: Array<'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
+        failedPages: number;
+        attemptedPages: number;
+    }>;
+};
+
 export type AdminAgentList = Array<AdminAgentListItem>;
 
 export type AdminAgentListItem = {
@@ -17283,6 +17311,68 @@ export type StartAdminImpersonationResponses = {
 };
 
 export type StartAdminImpersonationResponse = StartAdminImpersonationResponses[keyof StartAdminImpersonationResponses];
+
+export type ListAdminSeoAlertsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        view?: 'counts' | 'connections';
+        period?: '7' | '30' | '90' | 'all';
+        page?: number;
+    };
+    url: '/admin/seo-alerts';
+};
+
+export type ListAdminSeoAlertsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoAlertsError = ListAdminSeoAlertsErrors[keyof ListAdminSeoAlertsErrors];
+
+export type ListAdminSeoAlertsResponses = {
+    /**
+     * SEO audit alerts
+     */
+    200: {
+        data: AdminSeoAlerts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoAlertsResponse = ListAdminSeoAlertsResponses[keyof ListAdminSeoAlertsResponses];
 
 export type ListAdminAgentsData = {
     body?: never;

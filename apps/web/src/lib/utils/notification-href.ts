@@ -3,6 +3,7 @@ import {
   BILLING_CUSO_LOW_CREDITS_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+  taskNotificationHref,
 } from "@sokosumi/utils";
 import {
   buildWorkspaceApprovalReviewHref,
@@ -86,7 +87,7 @@ export function getNotificationHref(
 ): string {
   switch (notification.kind) {
     case "TASK":
-      return `/tasks/${encodeURIComponent(notification.referenceId)}`;
+      return taskNotificationHref(notification);
 
     case "PROJECT":
       return `/projects/${encodeURIComponent(notification.referenceId)}`;

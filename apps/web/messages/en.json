@@ -6350,6 +6350,10 @@
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
           },
+          "seoAlerts": {
+            "title": "SEO audit alerts",
+            "description": "Inspect audit failures and connection coverage."
+          },
           "x402Payments": {
             "title": "x402 payments",
             "description": "Inspect direct-payment health and resolve held or disputed x402 charges."
@@ -7599,6 +7603,48 @@
           "saveFailed": "Couldn't save the campaign",
           "deleteFailed": "Couldn't delete the campaign",
           "started": "Campaign started"
+        }
+      },
+      "SeoAlerts": {
+        "type": "Alert type",
+        "auditTab": "Audit runs ({count})",
+        "connectionTab": "Current connections ({count})",
+        "connectionDescription": "Each row shows the current account setting for one provider in an SEO workspace. The date is the last recorded update.",
+        "reconnect": "Needs reconnection",
+        "disconnected": "Disconnected",
+        "openAccount": "Open account",
+        "connectionEmpty": "No current connection issues.",
+        "search_console": "Search Console",
+        "ga4": "Google Analytics 4",
+        "connectionSummary": "Connections to reconnect: {count}",
+        "summary": "Last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
+        "unavailable": "Alert counts are unavailable.",
+        "title": "SEO audit alerts",
+        "description": "The latest finished run for each audit. Page failure warnings start at {percent}% of attempted pages.",
+        "period": "Audit period",
+        "all": "All time",
+        "days": "{days} days",
+        "total": "Affected audits",
+        "critical": "Critical",
+        "warning": "Warning",
+        "info": "Information",
+        "openTask": "Open source task",
+        "empty": "No alerts in this period.",
+        "emptyPage": "No alerts on this page.",
+        "pagination": "Alert pages",
+        "previous": "Previous",
+        "next": "Next",
+        "reason": {
+          "workerFailed": "The assigned worker reported a failed task.",
+          "auditFailed": "The audit failed.",
+          "reportMissing": "The Task finished at least {minutes} minutes ago. Its full report has not arrived.",
+          "reportRejected": "Sokosumi could not verify the report file or permission to import it.",
+          "pageException": "The worker recorded a page exception.",
+          "pageFailureRate": "{failed} of {attempted} attempted pages failed.",
+          "gscDisconnected": "Search Console was disconnected.",
+          "gscProperty": "The audit could not use the selected Search Console property.",
+          "gscUnavailable": "The audit could not verify Search Console coverage.",
+          "gscSkipped": "The owner chose to continue without Search Console."
         }
       },
       "CmoSpend": {
@@ -14257,6 +14303,7 @@
         "authenticationRequired": "{coworkerName} needs authentication for {taskName}",
         "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
         "completed": "{coworkerName} completed {taskName}",
+        "seoCompleted": "Open SEO results for {taskName}.",
         "failed": "{coworkerName} failed to complete {taskName}",
         "canceled": "{taskName} was canceled",
         "overdue": "{taskName} is past its due date",

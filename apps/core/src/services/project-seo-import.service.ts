@@ -10,8 +10,14 @@ import {
 } from "@/helpers/error";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import {
+  failedPageRuns,
+  reportObject,
+  SEO_REPORT_IMPORT_REJECTED,
+} from "@/helpers/project-seo-public-report";
+import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
+  skippedPages,
 } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -208,7 +214,10 @@ export async function importProjectSeoAudit(
       });
       pageIds.push(page.id);
     }
-    const data: Prisma.InputJsonObject = payload;
+    const data: Prisma.InputJsonObject =
+      analysis && reportObject(raw)?.kind === "site"
+        ? { ...payload, pageRunFailures: failedPageRuns(skippedPages(raw)) }
+        : payload;
     const observation = await tx.projectSeoObservation.create({
       data: {
         ...seoOwnerData(actor),
@@ -308,8 +317,7 @@ export async function reconcileProjectSeoTaskFile(
       },
       data: {
         status: "failed",
-        failureReason:
-          "The source report or its current authority could not be validated",
+        failureReason: SEO_REPORT_IMPORT_REJECTED,
       },
     });
   }

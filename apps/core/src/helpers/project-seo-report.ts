@@ -9,12 +9,16 @@ import {
 } from "@/schemas/project-seo.schema";
 import {
   OPEN_STRATEGY,
+  publicDecisionSourceSchema,
   publicPageSnapshotSchema,
   storedSeoDecisionsSchema,
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
-import { readPublicSeoDecisions } from "./project-seo-decisions";
+import {
+  bindMarketSource,
+  readPublicSeoDecisions,
+} from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import {
   reportObject as object,
@@ -136,7 +140,7 @@ const publicSeoPayload = z.object({
   strategyDecisions: storedSeoDecisionsSchema.optional(),
   seasonalIdeas: z.array(seoSeasonalIdeaSchema).max(100).optional(),
   decisionSources: z
-    .array(publicPageSnapshotSchema)
+    .array(publicDecisionSourceSchema)
     .max(10)
     .optional()
     .catch(undefined),
@@ -199,7 +203,7 @@ const siteSkipped = z.object({
       .max(10),
   }),
 });
-const skippedPages = (raw: unknown) => {
+export const skippedPages = (raw: unknown) => {
   if (object(raw)?.kind !== "site") return [];
   const parsed = siteSkipped.safeParse(raw);
   return parsed.success ? parsed.data.selection.skipped : [];
@@ -536,10 +540,13 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         snapshotId: url === sourceUrl ? child?.snapshotId : undefined,
       }));
     });
-    const sources = eligible.flatMap((item) => {
-      const result = publicPageSnapshotSchema.safeParse(item);
-      return result.success ? [result.data] : [];
-    });
+    const sources = bindMarketSource(
+      object(raw),
+      eligible.flatMap((item) => {
+        const result = publicPageSnapshotSchema.safeParse(item);
+        return result.success ? [result.data] : [];
+      }),
+    );
     const decisions = readPublicSeoDecisions(
       object(raw)?.strategyDecisions,
       eligible.map((page) => page.url),

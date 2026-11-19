@@ -9,6 +9,7 @@ const PRIVATE_FIELDS = [
   "searchConsole",
   "searchConsoleNear",
   "searchHistory",
+  "ownerExplorationRequest",
   "privateStrategyDecisions",
   "outcomes",
   "outcomeEvidence",
@@ -48,4 +49,18 @@ export function refusePrivateReport(raw: unknown): void {
     input.pages.forEach((page) =>
       refusePrivateReport(reportObject(page)?.report ?? page),
     );
+}
+
+// Emitted by the worker for a page that started and raised an exception.
+export const SEO_REPORT_IMPORT_REJECTED =
+  "The source report or its current authority could not be validated";
+export const SEO_PAGE_RUN_FAILURE_PREFIX = "the page Run failed: ";
+export function failedPageRuns(
+  skipped: readonly { url: string; reason: string }[],
+): number {
+  return new Set(
+    skipped
+      .filter((row) => row.reason.startsWith(SEO_PAGE_RUN_FAILURE_PREFIX))
+      .map((row) => row.url),
+  ).size;
 }

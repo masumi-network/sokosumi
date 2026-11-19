@@ -6171,6 +6171,10 @@
             "title": "Tareas",
             "description": "Lista de todas las tareas con búsqueda por usuarios y organizaciones."
           },
+          "seoAlerts": {
+            "title": "Alertas de auditorías SEO",
+            "description": "Revisa los fallos de auditoría y el estado de las conexiones."
+          },
           "x402Payments": {
             "title": "Pagos x402",
             "description": "Revisa pagos directos y resuelve cargos x402 retenidos o disputados."
@@ -7563,6 +7567,48 @@
           "saveFailed": "No se pudo guardar la campaña",
           "deleteFailed": "No se pudo eliminar la campaña",
           "started": "Campaña iniciada"
+        }
+      },
+      "SeoAlerts": {
+        "type": "Tipo de alerta",
+        "auditTab": "Auditorías ({count})",
+        "connectionTab": "Conexiones actuales ({count})",
+        "connectionDescription": "Cada fila muestra el estado actual de una cuenta y un proveedor en un espacio de trabajo SEO. La fecha indica la última actualización registrada.",
+        "reconnect": "Requiere reconexión",
+        "disconnected": "Desconectada",
+        "openAccount": "Abrir cuenta",
+        "connectionEmpty": "No hay incidencias de conexión actuales.",
+        "search_console": "Search Console",
+        "ga4": "Google Analytics 4",
+        "connectionSummary": "Conexiones que requieren reconexión: {count}",
+        "summary": "Últimos 30 días: {critical, plural, one {# crítica} other {# críticas}}, {warning, plural, one {# advertencia} other {# advertencias}}",
+        "unavailable": "Los recuentos de alertas no están disponibles.",
+        "title": "Alertas de auditorías SEO",
+        "description": "Última ejecución finalizada de cada auditoría. La alerta se activa cuando falla al menos el {percent}% de las páginas que se intentaron analizar.",
+        "period": "Período de auditoría",
+        "all": "Todo el período",
+        "days": "{days} días",
+        "total": "Auditorías afectadas",
+        "critical": "Crítico",
+        "warning": "Advertencia",
+        "info": "Información",
+        "openTask": "Abrir tarea de origen",
+        "empty": "No hay alertas en este período.",
+        "emptyPage": "No hay alertas en esta página.",
+        "pagination": "Páginas de alertas",
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "reason": {
+          "workerFailed": "El agente asignado informó que la tarea falló.",
+          "auditFailed": "Falló la auditoría.",
+          "reportMissing": "La tarea terminó hace al menos {minutes} minutos. Aún no se ha recibido el informe completo.",
+          "reportRejected": "Sokosumi no pudo verificar el archivo del informe o el permiso para importarlo.",
+          "pageException": "El agente registró una excepción al analizar una página.",
+          "pageFailureRate": "Fallaron {failed} de las {attempted} páginas que se intentaron analizar.",
+          "gscDisconnected": "Se desconectó Search Console.",
+          "gscProperty": "La auditoría no pudo utilizar la propiedad seleccionada de Search Console.",
+          "gscUnavailable": "La auditoría no pudo verificar la cobertura de Search Console.",
+          "gscSkipped": "El propietario optó por continuar sin Search Console."
         }
       },
       "CmoSpend": {
@@ -14257,6 +14303,7 @@
         "authenticationRequired": "{coworkerName} necesita autenticación para {taskName}",
         "outOfCredits": "{coworkerName} se quedó sin créditos para {taskName}",
         "completed": "{coworkerName} completó {taskName}",
+        "seoCompleted": "Abrir los resultados SEO de {taskName}.",
         "failed": "{coworkerName} no pudo completar {taskName}",
         "canceled": "{taskName} fue cancelado",
         "overdue": "{taskName} superó su fecha límite",

@@ -1,16 +1,41 @@
 import { createHash } from "node:crypto";
+import { z } from "zod";
 import {
+  marketSourceSchema,
   OPEN_STRATEGY,
   type PublicSeoDecision,
+  publicDecisionSourceSchema,
   publicSeoDecisionSchema,
   withinStrategyLimit,
 } from "@/schemas/project-seo-action.schema";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 
+type Source = z.infer<typeof publicDecisionSourceSchema>;
+
+export function bindMarketSource(
+  raw: Record<string, unknown> | null,
+  pages: Source[],
+): Source[] {
+  const market = marketSourceSchema.safeParse(raw?.openMarketEvidence);
+  const site = z.hash("sha256").safeParse(raw?.snapshotId);
+  if (
+    !market.success ||
+    !site.success ||
+    pages.some((p) => p.snapshotId === site.data)
+  )
+    return pages;
+  const source = market.data;
+  return pages.map((p) =>
+    p.url === source.url && p.snapshotId === source.pageSnapshotId
+      ? { ...p, market: { siteSnapshotId: site.data, record: source.record } }
+      : p,
+  );
+}
+
 export function readPublicSeoDecisions(
   raw: unknown,
   destinations: string[],
-  snapshots: readonly { url: string; snapshotId: string }[] = [],
+  snapshots: readonly Source[] = [],
 ) {
   if (!Array.isArray(raw) || !withinStrategyLimit(raw)) return undefined;
   const pages = new Map(
@@ -28,7 +53,10 @@ export function readPublicSeoDecisions(
         if (!pages.has(citation.url)) return false;
         const sources = snapshots.filter((page) => page.url === citation.url);
         return (
-          sources.length === 1 && sources[0]?.snapshotId === citation.snapshotId
+          sources.length === 1 &&
+          (sources[0]?.snapshotId === citation.snapshotId ||
+            (sources[0]?.market?.siteSnapshotId === citation.snapshotId &&
+              sources[0].market.record === citation.record))
         );
       })
     )

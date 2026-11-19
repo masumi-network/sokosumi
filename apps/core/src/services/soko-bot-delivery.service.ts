@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import { taskNotificationHref } from "@sokosumi/utils";
 import { z } from "zod";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
+import { hasSeoTaskResult } from "@/helpers/seo-task-notification";
 import { writableAssistantRoomWhere } from "@/helpers/shared-soko-bot-room";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
@@ -11,6 +13,7 @@ import {
   withNoticeMention,
 } from "@/helpers/soko-bot-notice-room";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
@@ -232,6 +235,53 @@ async function destinationStillAuthorized(
   };
 }
 
+const FOLLOWED_TASK_COMPLETION = `${TASK_SUMMARY_CLIENT_TURN_PREFIX}status:`;
+
+/** Resolve the event from the server-created turn, never an ID from the model's answer. */
+async function withFollowerSeoResult(
+  tx: Prisma.TransactionClient,
+  turn: {
+    clientTurnId: string;
+    source: string;
+    status: string;
+    workspaceId: string;
+  },
+  userId: string | null,
+  content: string,
+): Promise<string> {
+  if (
+    !content ||
+    !userId ||
+    turn.status !== "COMPLETED" ||
+    turn.source !== "EVENT" ||
+    !turn.clientTurnId.startsWith(FOLLOWED_TASK_COMPLETION)
+  )
+    return content;
+  const event = await tx.taskEvent.findFirst({
+    where: {
+      id: turn.clientTurnId.slice(FOLLOWED_TASK_COMPLETION.length),
+      status: "COMPLETED",
+      task: {
+        workspaceId: turn.workspaceId,
+        archivedAt: null,
+        status: "COMPLETED",
+        ...buildHumanTaskVisibilityWhere(userId),
+      },
+    },
+    select: { taskId: true },
+  });
+  if (!event || !(await hasSeoTaskResult(tx, turn.workspaceId, event.taskId)))
+    return content;
+  const href = taskNotificationHref({
+    referenceId: event.taskId,
+    messageKey: "Notifications.Task.completed",
+    metadata: { seoResult: true },
+  });
+  return content.includes(`](${href})`)
+    ? content
+    : `${content}\n\n[Open SEO results](${href})`;
+}
+
 /** Retries only persistence/transport. Never invokes inference or capabilities. */
 export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
   const now = new Date();
@@ -354,6 +404,17 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         // A background run's report carries the cards of what it made, as a
         // chat reply does.
         const snapshots = await collectTurnResultSnapshots(turn.id, tx);
+        const answer = turn.finalAnswer?.trim() || backgroundStopNote(turn);
+        const content =
+          delivery.purpose === "FINAL" &&
+          delivery.destinationId === turn.destinationRoomId
+            ? await withFollowerSeoResult(
+                tx,
+                turn,
+                sokoBotActingUserId(turn),
+                answer,
+              )
+            : answer;
         const message = await tx.chatRoomMessage.upsert({
           where: {
             roomId_clientMessageId: {
@@ -365,10 +426,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             roomId: delivery.roomId,
             clientMessageId: `soko-bot:${turn.id}:${delivery.purpose === "FINAL" ? "final" : delivery.id}`,
             senderSokoBotId: turn.sokoBotId,
-            content: withNoticeMention(
-              turn.finalAnswer?.trim() || backgroundStopNote(turn),
-              destination.mentionUserId,
-            ),
+            content: withNoticeMention(content, destination.mentionUserId),
             metadata: {
               ...(snapshots.length
                 ? { [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue(snapshots) }

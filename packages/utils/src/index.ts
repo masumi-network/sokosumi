@@ -661,6 +661,10 @@ export {
   formatTaskIdentifier,
   parseTaskRef,
 } from "./task-identifier.js";
+export {
+  isSeoTaskCompletion,
+  taskNotificationHref,
+} from "./task-notification-link.js";
 export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   isAgentOnlyTaskStatus,

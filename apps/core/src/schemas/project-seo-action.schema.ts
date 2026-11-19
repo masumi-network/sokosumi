@@ -70,6 +70,20 @@ export const publicPageSnapshotSchema = z.strictObject({
   url: publicUrl,
   snapshotId: z.hash("sha256"),
 });
+export const publicDecisionSourceSchema = publicPageSnapshotSchema.extend({
+  market: z
+    .strictObject({
+      siteSnapshotId: z.hash("sha256"),
+      record: z.hash("sha256"),
+    })
+    .optional(),
+});
+export const marketSourceSchema = z.strictObject({
+  provider: z.literal("dataforseo"),
+  url: publicUrl,
+  pageSnapshotId: z.hash("sha256"),
+  record: z.hash("sha256"),
+});
 const observationSchema = publicPageSnapshotSchema.extend({
   record: z.hash("sha256"),
   quote: publicText(8, 180),

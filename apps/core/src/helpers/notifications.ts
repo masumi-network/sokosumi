@@ -20,6 +20,7 @@ import {
   CHAT_ROOM_BADGE_MESSAGE_KEYS,
   deliveryOutsideMention,
   resolveNotificationDelivery,
+  TASK_COMPLETED_MESSAGE_KEY,
   toNotificationCategory,
 } from "@/helpers/notification-delivery";
 import {
@@ -33,6 +34,7 @@ import {
 } from "@/helpers/notification-publish-queue";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { hasSeoTaskResult } from "@/helpers/seo-task-notification";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { recordCoreError, runAsBackgroundWork } from "@/lib/evlog";
@@ -563,15 +565,24 @@ export async function createNotification(
   }
 
   try {
+    const seoResult =
+      input.workspaceId &&
+      input.kind === NotificationKind.TASK &&
+      input.messageKey === TASK_COMPLETED_MESSAGE_KEY
+        ? await hasSeoTaskResult(client, input.workspaceId, input.referenceId)
+        : undefined;
+    const storedMetadata =
+      seoResult === undefined ? metadata : { ...metadata, seoResult };
+    const messageParams = seoResult
+      ? { ...input.messageParams, seoResult: true }
+      : input.messageParams;
     const notification = await client.notification.create({
       data: {
         ...uniqueKey,
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-        messageParams: JSON.stringify(input.messageParams),
+        messageParams: JSON.stringify(messageParams),
         metadata:
-          metadata === undefined || metadata === null
-            ? null
-            : JSON.stringify(metadata),
+          storedMetadata == null ? null : JSON.stringify(storedMetadata),
         inApp: delivery.inApp,
         ...notificationPublishFields(delivery),
       },

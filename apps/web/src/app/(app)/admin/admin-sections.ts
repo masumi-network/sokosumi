@@ -1,4 +1,5 @@
 import {
+  Activity,
   Award,
   Bot,
   BotMessageSquare,
@@ -102,6 +103,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     href: "/admin/vendors",
     Icon: Store,
     group: "catalog",
+  },
+  {
+    key: "seoAlerts",
+    href: "/admin/seo-alerts",
+    Icon: Activity,
+    group: "operations",
   },
   {
     key: "tasks",

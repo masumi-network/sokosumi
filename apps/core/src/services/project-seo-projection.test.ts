@@ -2452,3 +2452,39 @@ it("drops contact details, identifiers and private routes from optional opportun
     ),
   ).toBeUndefined();
 });
+
+it("binds a fresh market citation to its enclosing site, source page and provider record", () => {
+  const { card, pages, observations } = openExperimentAudit();
+  const snapshotId = "e".repeat(64);
+  const cited = { ...observations[0], snapshotId };
+  const market = {
+    url: cited.url,
+    pageSnapshotId: pages[0].snapshotId,
+    record: cited.record,
+    provider: "dataforseo",
+  };
+  const parse = (openMarketEvidence: unknown) =>
+    parsePublicSeoArtifact({
+      ...siteStrategyReport(),
+      pages,
+      snapshotId,
+      openMarketEvidence,
+      strategyDecisions: [{ ...card, observations: [cited, observations[1]] }],
+    });
+  const input = fixture();
+  input.observations = [
+    observation(input, parse(market), "2026-10-10T12:00:00Z"),
+  ];
+  expect(
+    projectSeoProjection(input).actions.some((a) => a.title === card.action),
+  ).toBe(true);
+  for (const invalid of [
+    undefined,
+    { ...market, url: observations[1].url },
+    { ...market, provider: "search-console" },
+    { ...market, pageSnapshotId: snapshotId },
+    { ...market, record: "f".repeat(64) },
+  ]) {
+    expect(parse(invalid).strategyDecisions).toBeUndefined();
+  }
+});

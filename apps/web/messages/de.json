@@ -6167,6 +6167,10 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
+          "seoAlerts": {
+            "title": "Warnungen für SEO-Audits",
+            "description": "Auditfehler und Verbindungsstatus prüfen."
+          },
           "x402Payments": {
             "title": "x402-Zahlungen",
             "description": "Direktzahlungen prüfen und zurückgehaltene oder strittige x402-Abbuchungen bearbeiten."
@@ -7563,6 +7567,48 @@
           "saveFailed": "Kampagne konnte nicht gespeichert werden",
           "deleteFailed": "Kampagne konnte nicht gelöscht werden",
           "started": "Kampagne gestartet"
+        }
+      },
+      "SeoAlerts": {
+        "type": "Meldungstyp",
+        "auditTab": "Auditläufe ({count})",
+        "connectionTab": "Aktuelle Verbindungen ({count})",
+        "connectionDescription": "Jede Zeile zeigt die aktuelle Kontoeinstellung für einen Anbieter in einem SEO-Arbeitsbereich. Das Datum gibt die letzte erfasste Änderung an.",
+        "reconnect": "Erneute Verbindung erforderlich",
+        "disconnected": "Getrennt",
+        "openAccount": "Konto öffnen",
+        "connectionEmpty": "Keine aktuellen Verbindungsprobleme.",
+        "search_console": "Search Console",
+        "ga4": "Google Analytics 4",
+        "connectionSummary": "Erneut zu verbindende Konten: {count}",
+        "summary": "Letzte 30 Tage: {critical} kritisch, {warning, plural, one {# Warnung} other {# Warnungen}}",
+        "unavailable": "Die Anzahl der Meldungen ist nicht verfügbar.",
+        "title": "Warnungen für SEO-Audits",
+        "description": "Der letzte abgeschlossene Lauf pro Audit. Ab {percent}% fehlgeschlagener Seiten wird eine Warnung angezeigt.",
+        "period": "Auditzeitraum",
+        "all": "Gesamter Zeitraum",
+        "days": "{days} Tage",
+        "total": "Betroffene Audits",
+        "critical": "Kritisch",
+        "warning": "Warnung",
+        "info": "Information",
+        "openTask": "Quellaufgabe öffnen",
+        "empty": "Keine Meldungen in diesem Zeitraum.",
+        "emptyPage": "Keine Meldungen auf dieser Seite.",
+        "pagination": "Seiten mit Meldungen",
+        "previous": "Zurück",
+        "next": "Weiter",
+        "reason": {
+          "workerFailed": "Der zugewiesene Worker hat einen Aufgabenfehler gemeldet.",
+          "auditFailed": "Das Audit ist fehlgeschlagen.",
+          "reportMissing": "Die Aufgabe ist seit mindestens {minutes} Minuten abgeschlossen. Der vollständige Bericht fehlt.",
+          "reportRejected": "Sokosumi konnte die Berichtsdatei oder die Berechtigung zum Import nicht prüfen.",
+          "pageException": "Der Worker hat einen Fehler bei der Prüfung einer Seite aufgezeichnet.",
+          "pageFailureRate": "Bei {failed} von {attempted} geprüften Seiten ist ein Fehler aufgetreten.",
+          "gscDisconnected": "Die Verbindung zur Search Console wurde getrennt.",
+          "gscProperty": "Das Audit konnte die ausgewählte Search Console-Property nicht nutzen.",
+          "gscUnavailable": "Das Audit konnte die Abdeckung der Search Console nicht prüfen.",
+          "gscSkipped": "Das Audit wurde auf Wunsch des Inhabers ohne Search Console fortgesetzt."
         }
       },
       "CmoSpend": {
@@ -14257,6 +14303,7 @@
         "authenticationRequired": "{coworkerName} benötigt eine Authentifizierung für {taskName}",
         "outOfCredits": "{coworkerName} hat keine Credits mehr für {taskName}",
         "completed": "{coworkerName} hat {taskName} abgeschlossen",
+        "seoCompleted": "SEO-Ergebnisse für {taskName} öffnen.",
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen",
         "overdue": "{taskName} ist überfällig",

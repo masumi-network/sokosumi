@@ -247,6 +247,7 @@ export function renderTaskCompletedEmail({
   recipientName,
   settingsUrl,
   taskName,
+  seoResult,
 }: TaskCompletedEmailProps): Promise<RenderedEmail> {
   const { locale: lang, rich, t } = createEmailTranslator(locale);
   const scope = `${EVENT_SCOPE}.task.completed`;
@@ -265,7 +266,9 @@ export function renderTaskCompletedEmail({
     t,
     words: {
       body: t(`${scope}.body`, values),
-      button: t(`${EVENT_SCOPE}.task.button`),
+      button: t(
+        seoResult ? `${scope}.seoButton` : `${EVENT_SCOPE}.task.button`,
+      ),
       subject: t(`${scope}.subject`, values),
       title: t(`${scope}.title`),
     },

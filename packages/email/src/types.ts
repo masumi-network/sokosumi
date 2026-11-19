@@ -132,7 +132,9 @@ export interface ProjectUpdateEmailProps extends NotificationEmailProps {
 }
 
 /** A task that finished (SOK-1090). */
-export type TaskCompletedEmailProps = TaskEmailProps;
+export interface TaskCompletedEmailProps extends TaskEmailProps {
+  seoResult?: boolean;
+}
 
 /**
  * Unread messages wait in a room the reader is in (SOK-1142).

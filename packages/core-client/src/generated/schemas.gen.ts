@@ -86,6 +86,167 @@ export const StartImpersonationBodySchema = {
     ]
 } as const;
 
+export const AdminSeoAlertsSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'integer',
+            minimum: 0
+        },
+        critical: {
+            type: 'integer',
+            minimum: 0
+        },
+        warning: {
+            type: 'integer',
+            minimum: 0
+        },
+        info: {
+            type: 'integer',
+            minimum: 0
+        },
+        pageSize: {
+            type: 'integer',
+            minimum: 0
+        },
+        failurePercent: {
+            type: 'integer',
+            minimum: 0
+        },
+        importGraceMinutes: {
+            type: 'integer',
+            minimum: 0
+        },
+        connectionTotal: {
+            type: 'integer',
+            minimum: 0
+        },
+        reconnect: {
+            type: 'integer',
+            minimum: 0
+        },
+        connections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    userId: {
+                        type: 'string'
+                    },
+                    provider: {
+                        type: 'string',
+                        enum: [
+                            'ga4',
+                            'search_console'
+                        ]
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'NEEDS_RECONNECT',
+                            'DISCONNECTED'
+                        ]
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                },
+                required: [
+                    'id',
+                    'userId',
+                    'provider',
+                    'status',
+                    'at'
+                ]
+            }
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    taskId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'warning',
+                            'info'
+                        ]
+                    },
+                    reasons: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'workerFailed',
+                                'auditFailed',
+                                'reportRejected',
+                                'pageException',
+                                'pageFailureRate',
+                                'reportMissing',
+                                'gscDisconnected',
+                                'gscProperty',
+                                'gscUnavailable',
+                                'gscSkipped'
+                            ]
+                        },
+                        minItems: 1
+                    },
+                    failedPages: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    attemptedPages: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'id',
+                    'taskId',
+                    'at',
+                    'severity',
+                    'reasons',
+                    'failedPages',
+                    'attemptedPages'
+                ]
+            }
+        }
+    },
+    required: [
+        'total',
+        'critical',
+        'warning',
+        'info',
+        'pageSize',
+        'failurePercent',
+        'importGraceMinutes',
+        'connectionTotal',
+        'reconnect',
+        'connections',
+        'items'
+    ]
+} as const;
+
 export const AdminAgentListSchema = {
     type: 'array',
     items: {

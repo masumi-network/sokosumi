@@ -14,6 +14,7 @@ import { configDefaults, defineConfig } from "vitest/config";
  * exclude; the filter then narrows the run. Directory filters do not.
  */
 const optInPostgresFiles = [
+  "src/services/admin-seo-alerts.postgres.test.ts",
   "src/services/project-seo.postgres.test.ts",
   "src/services/project-seo-page-changes.postgres.test.ts",
   "src/services/image-studio-recovery.postgres.test.ts",
