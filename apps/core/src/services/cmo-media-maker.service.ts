@@ -996,7 +996,9 @@ async function attach(
       planning: true,
     },
   });
-  if (!post || post.status !== "DRAFT") return false;
+  // Cuso may schedule a post before its picture is made; it still gets it.
+  if (!post || (post.status !== "DRAFT" && post.status !== "SCHEDULED"))
+    return false;
   const media = parseSocialPostMedia(post.media, post.id);
   if (media.some((item) => item.pathname === file.pathname)) return true;
   const kind = socialPostMediaKindForMime(file.mimeType);
@@ -1023,7 +1025,7 @@ async function attach(
       },
     ],
   });
-  if (updated.media.length >= slotsOf(piece))
+  if (post.status === "DRAFT" && updated.media.length >= slotsOf(piece))
     await schedule(context, scope, { ...post, revision: updated.revision });
   return true;
 }
