@@ -34,6 +34,10 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
+import {
+  presetClassificationResult,
+  type TurnClassifier,
+} from "@/lib/soko-bot/classifier";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import { streamStoredEvents } from "@/lib/soko-bot/in-process-runtime";
 import { triageMail } from "@/lib/soko-bot/mail-triage";
@@ -276,6 +280,67 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       acceptedAt: new Date().toISOString(),
     };
   }
+
+  it("offers and reserves an intent that is live in PostgreSQL when the host is ahead", async () => {
+    await fundStart();
+    const now = await databaseNow();
+    const priorTurnId = await createTurn(now, {
+      status: "RUNNING",
+      eveSessionId: "prior_session",
+      leaseInMs: MINUTE,
+    });
+    await prisma.sokoBotTurn.update({
+      where: { id: priorTurnId },
+      data: { status: "COMPLETED" },
+    });
+    const intent = await prisma.sokoBotIntent.create({
+      data: {
+        sokoBotId: botId,
+        workspaceId,
+        requesterId: userId,
+        originatingTurnId: priorTurnId,
+        state: "AWAITING_CONFIRMATION",
+        desiredOutcome: "Check the board",
+        targetIds: [],
+        allowedActions: [],
+        acceptanceCriteria: [],
+        evidenceIds: [],
+        expiresAt: new Date(now.getTime() + 30_000),
+      },
+    });
+    const classify: TurnClassifier["classify"] = async (message, context) => {
+      expect
+        .soft(context.pendingIntents)
+        .toEqual([expect.objectContaining({ id: intent.id })]);
+      const result = presetClassificationResult(message, {
+        route: "DIRECT_RESPONSE",
+        reason: "Fixture selects the pending intent",
+      });
+      result.classification.selectedIntentId = intent.id;
+      return result;
+    };
+    const control = new SokoBotControlPlane(
+      { ...unusedRuntime, createSession: async () => acceptedSession() },
+      undefined,
+      { classify },
+    );
+    await skewApplicationClock(MINUTE);
+
+    const { turnId } = await control.startTurn({
+      userId,
+      workspaceId,
+      clientTurnId: randomUUID(),
+      message: "Yes",
+      source: "CHAT",
+    });
+
+    await expect(
+      prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: turnId } }),
+    ).resolves.toMatchObject({
+      intentId: intent.id,
+      intentRevision: intent.revision,
+    });
+  });
 
   it("leaves a start created just now to its starter when the host runs 5 minutes ahead", async () => {
     const now = await databaseNow();
@@ -1725,10 +1790,11 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
             },
             () => mutate(turnId, confirmationId),
             () => {
-              clock.mockResolvedValue(new Date(now.getTime() + MINUTE + 1));
+              clock.mockResolvedValueOnce(new Date(now.getTime() + MINUTE + 1));
             },
           ),
         ).rejects.toThrow(refusal);
+        expect(clock).toHaveBeenCalledTimes(1);
       },
     );
 

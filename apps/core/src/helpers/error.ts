@@ -247,7 +247,7 @@ export function aiBudgetUnavailable(
   error: AiGatewayBudgetError,
 ): HTTPException {
   return serviceUnavailable(error.message, {
-    kind: error.code,
+    kind: CORE_API_ERROR_KINDS.AI_BUDGET_EXCEEDED,
     reportToSentry: false,
   });
 }

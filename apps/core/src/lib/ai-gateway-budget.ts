@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { RetryError } from "ai";
 import {
   aiGatewayBudgetScope,
@@ -12,7 +13,7 @@ import {
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import { incrementRedisRateLimit } from "@/lib/redis-rate-limit";
 
-export const AI_BUDGET_EXCEEDED = "ai_budget_exceeded";
+export const AI_BUDGET_EXCEEDED = CORE_API_ERROR_KINDS.AI_BUDGET_EXCEEDED;
 export const AI_BUDGET_EXCEEDED_MESSAGE =
   "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.";
 const ALERT_WINDOW_SECONDS = 60 * 60;

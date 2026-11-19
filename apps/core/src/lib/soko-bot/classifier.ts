@@ -10,6 +10,7 @@ import {
   AiGatewayBudgetError,
   rethrowAiGatewayFailure,
 } from "@/lib/ai-gateway-budget";
+import { databaseNow } from "@/lib/db/database-now";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -570,16 +571,6 @@ export class JevTurnClassifier implements TurnClassifier {
     context = evaluationClassifierContext(context);
     const startedAt = performance.now();
     const elapsed = () => Math.round(performance.now() - startedAt);
-    const authorizedTaskIds = context.taskIds;
-    const pending = (context.pendingIntents ?? [])
-      .filter((intent) => Date.parse(intent.expiresAt) > Date.now())
-      .map((intent) => ({
-        ...intent,
-        targetIds: (intent.targetIds ?? []).filter((id) =>
-          authorizedTaskIds.includes(id),
-        ),
-      }));
-
     if (!message.trim()) {
       return {
         classification: baseClassification(
@@ -594,6 +585,19 @@ export class JevTurnClassifier implements TurnClassifier {
         failed: false,
         usage: null,
       };
+    }
+
+    let pending = context.pendingIntents ?? [];
+    if (pending.length > 0) {
+      const now = (await databaseNow()).getTime();
+      pending = pending
+        .filter((intent) => Date.parse(intent.expiresAt) > now)
+        .map((intent) => ({
+          ...intent,
+          targetIds: (intent.targetIds ?? []).filter((id) =>
+            context.taskIds.includes(id),
+          ),
+        }));
     }
 
     let usage: ClassifierUsage | null = null;

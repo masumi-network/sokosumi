@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -143,7 +144,7 @@ describe("POST /projects/{id}/image-studio/assets/{assetId}/caption", () => {
     for (const response of [await request(), await request()]) {
       expect(response.status).toBe(503);
       expect(await response.json()).toMatchObject({
-        kind: "ai_budget_exceeded",
+        kind: CORE_API_ERROR_KINDS.AI_BUDGET_EXCEEDED,
         message:
           "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
       });

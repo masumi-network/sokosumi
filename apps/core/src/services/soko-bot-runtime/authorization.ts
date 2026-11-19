@@ -296,8 +296,10 @@ export async function requireMutationAuthority(
   });
   if (intentTurn?.intentId) {
     await tx.$queryRaw`SELECT "id" FROM "soko_bot_intent" WHERE "id" = ${intentTurn.intentId}::uuid FOR UPDATE`;
-    // Sample after the lock so an intent that expires during the wait is refused.
-    const now = await databaseNow(tx);
+  }
+  // Sample after the last lock so intent and lease expirations during the wait both count.
+  const now = await databaseNow(tx);
+  if (intentTurn?.intentId) {
     const intent = await tx.sokoBotIntent.findFirst({
       where: {
         id: intentTurn.intentId,
@@ -317,8 +319,6 @@ export async function requireMutationAuthority(
       );
   }
   if (approved && authorized.confirmationTurnId) {
-    // Sampled after the confirmation, bot and intent locks, so a lease that ends during the wait counts.
-    const now = await databaseNow(tx);
     const confirmation = await tx.sokoBotTurn.findFirst({
       where: {
         id: authorized.confirmationTurnId,
@@ -359,8 +359,6 @@ export async function requireMutationAuthority(
     return workspace;
   }
 
-  // Sampled after the turn and bot locks above.
-  const now = await databaseNow(tx);
   const writable = await tx.sokoBotTurn.findFirst({
     where: {
       id: authorized.turn.id,
