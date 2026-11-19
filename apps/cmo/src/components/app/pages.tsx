@@ -16,6 +16,7 @@ import {
   adsReturnError,
   ConnectAdsButton,
 } from "../ads";
+import { hostOf } from "../brand-profile";
 import { ChannelIcon } from "../channel-icon";
 import { LocalDay } from "../local-day";
 import { BrandStep } from "../onboarding/brand-step";
@@ -114,7 +115,7 @@ export function ResultsPage({
             {review ? (
               <>
                 The first weekly report arrives on{" "}
-                <LocalDay at={review.at} serverZone={review.zone} />.
+                <LocalDay at={review.at} serverZone={review.zone} time />.
               </>
             ) : (
               "The first weekly report arrives in the week after you approve the strategy."
@@ -168,7 +169,7 @@ export function ResultsLead({ overview }: { overview: CmoOverview }) {
       {review ? (
         <>
           {" "}
-          Next check: <LocalDay at={review.at} serverZone={review.zone} />.
+          Next check: <LocalDay at={review.at} serverZone={review.zone} time />.
         </>
       ) : null}
     </>
@@ -510,6 +511,7 @@ export function SettingsPage({
   name,
   email,
   startOver,
+  mayHire = false,
   setTimeZone,
   signOut,
   topUp,
@@ -521,6 +523,8 @@ export function SettingsPage({
   name: string;
   email: string;
   startOver: () => Promise<string | null>;
+  /** The person may hire another Cuso; without it the offer is left out. */
+  mayHire?: boolean;
   setTimeZone: SetTimeZone;
   signOut: () => Promise<void>;
   /** The top-up checkout, or null when this Cuso may not top up. */
@@ -601,17 +605,18 @@ export function SettingsPage({
           ))}
         </ul>
       </section>
-      <section className="card">
-        <h3>Another website</h3>
-        <p className="muted">
-          Hire {AGENT_NAME} again for a different website.
-        </p>
-        <StartOver
-          className="button button-secondary button-small"
-          startOver={startOver}
-          subscribed={cusoSubscribed(overview)}
-        />
-      </section>
+      {mayHire ? (
+        <section className="card">
+          <h3>Another website</h3>
+          <p className="muted">
+            Hire another {AGENT_NAME} for a different website. This one keeps
+            working.
+          </p>
+          <a className="button button-secondary button-small" href="/?hire=1">
+            Hire {AGENT_NAME} for another website
+          </a>
+        </section>
+      ) : null}
       <section className="card">
         <h3>Account</h3>
         <div className="li">
@@ -629,6 +634,19 @@ export function SettingsPage({
             </button>
           </form>
         </div>
+      </section>
+      <section className="card">
+        <h3>Stop this {AGENT_NAME}</h3>
+        <p className="muted">
+          Starting over ends {AGENT_NAME}'s work for{" "}
+          {hostOf(overview.websiteUrl)} for good: he stops and his unsent posts
+          are canceled. You then hire him again from the start.
+        </p>
+        <StartOver
+          className="button button-secondary button-small"
+          startOver={startOver}
+          subscribed={cusoSubscribed(overview)}
+        />
       </section>
     </div>
   );

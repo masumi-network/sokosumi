@@ -56955,6 +56955,37 @@ export const CmoSeoAuditSchema = {
                 passed: {
                     type: 'integer'
                 },
+                failedChecks: {
+                    type: 'integer'
+                },
+                readingChecks: {
+                    type: 'integer'
+                },
+                readings: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            detail: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'title',
+                            'pageUrl',
+                            'detail'
+                        ]
+                    }
+                },
                 issues: {
                     type: 'array',
                     items: {
@@ -57020,6 +57051,9 @@ export const CmoSeoAuditSchema = {
                 'observedAt',
                 'checked',
                 'passed',
+                'failedChecks',
+                'readingChecks',
+                'readings',
                 'issues',
                 'fixes'
             ]

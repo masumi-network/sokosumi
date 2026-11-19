@@ -14341,6 +14341,13 @@ export type CmoSeoAudit = {
         observedAt: Date;
         checked: number;
         passed: number;
+        failedChecks: number;
+        readingChecks: number;
+        readings: Array<{
+            title: string;
+            pageUrl: string;
+            detail: string | null;
+        }>;
         issues: Array<{
             title: string;
             pageUrl: string;
