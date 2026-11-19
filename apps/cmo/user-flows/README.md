@@ -1,6 +1,19 @@
 # CMO user flows
 
-What an owner typically does with Cuso after hiring, and what they expect. Rough steps, not a script. Use them to test CMO end to end and to judge whether a change helps.
+What an owner typically does with Cuso, from hiring on, and what they expect. Rough steps, not a script. Use them to test CMO end to end and to judge whether a change helps.
+
+## Setup
+
+| Flow                                            | State (2026-11-19)                        |
+| ----------------------------------------------- | ----------------------------------------- |
+| [Hire and research](setup-hire-and-research.md) | Works; invite-only (`CMO_HIRE_ALLOWLIST`) |
+| [Brand](setup-brand.md)                         | Works                                     |
+| [Strategy](setup-strategy.md)                   | Works; AIDA funnel on cmo-v5 in progress  |
+| [Subscribe](setup-subscribe.md)                 | Works                                     |
+| [Launch](setup-launch.md)                       | Works; needs one connected network        |
+| [Later changes](setup-later-changes.md)         | Works                                     |
+
+## After setup
 
 | Flow                                                      | Channel                             | State (2026-11-18)                                |
 | --------------------------------------------------------- | ----------------------------------- | ------------------------------------------------- |
