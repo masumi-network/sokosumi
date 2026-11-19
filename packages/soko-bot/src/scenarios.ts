@@ -1145,6 +1145,24 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "mcp-uses-server-not-web",
+    title: "Use the MCP server, not the web",
+    setup: {},
+    intent:
+      "A question the owner's MCP server answers goes to that server, even when the request does not name it.",
+    prompt:
+      "Which issue is about our invoice PDF missing the VAT id, and is it still open?",
+    rubric:
+      "The owner's Tracker MCP server holds the team's issues. The bot looks there and answers ISS-9, which is closed (fixed in release 4.2). Searching the web for it, or guessing an id, is a fail.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED", "CLARIFY"],
+      anyTools: ["list_mcp_tools", "read_mcp_tool"],
+      forbiddenTools: ["web_search", "web_fetch", "run_mcp_tool"],
+      answerMatches: "ISS-9",
+      noDelegations: true,
+    },
+  },
+  {
     id: "mcp-write-asked",
     title: "Comment on an issue when the owner asks",
     setup: {},

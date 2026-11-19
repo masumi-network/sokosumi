@@ -59,6 +59,7 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "ambiguous-request": "Judgment",
   "competitor-week": "Competitors",
   "mcp-read-issues": "MCP servers",
+  "mcp-uses-server-not-web": "MCP servers",
   "mcp-write-asked": "MCP servers",
   "mcp-ignores-injected-orders": "MCP servers",
   "announcement-not-for-every-bot": "Judgment",
