@@ -1,20 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { db, liveResources, ensureFile, publicUrl, cuso, driveText } =
-  vi.hoisted(() => ({
-    db: {
-      sokoBotToolCall: { findMany: vi.fn(), findFirst: vi.fn() },
-      sokoBot: { findUniqueOrThrow: vi.fn() },
-      projectImageJob: { findMany: vi.fn() },
-      task: { findMany: vi.fn(), findFirst: vi.fn() },
-      job: { findMany: vi.fn() },
-    },
-    liveResources: vi.fn(),
-    ensureFile: vi.fn(),
-    publicUrl: vi.fn(),
-    cuso: vi.fn(),
-    driveText: vi.fn(),
-  }));
+const {
+  db,
+  liveResources,
+  ensureFile,
+  publicUrl,
+  cuso,
+  driveText,
+  records,
+  recordText,
+  recordTable,
+} = vi.hoisted(() => ({
+  db: {
+    sokoBotToolCall: { findMany: vi.fn(), findFirst: vi.fn() },
+    sokoBot: { findUniqueOrThrow: vi.fn() },
+    projectImageJob: { findMany: vi.fn() },
+    task: { findMany: vi.fn(), findFirst: vi.fn() },
+    job: { findMany: vi.fn() },
+  },
+  liveResources: vi.fn(),
+  ensureFile: vi.fn(),
+  publicUrl: vi.fn(),
+  cuso: vi.fn(),
+  driveText: vi.fn(),
+  records: vi.fn(),
+  recordText: vi.fn(),
+  recordTable: vi.fn(),
+}));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 vi.mock("@/lib/drive-blob", () => ({ publicDriveUrl: publicUrl }));
 vi.mock("@/services/cmo-cuso.service", () => ({
@@ -37,6 +49,12 @@ vi.mock("@/services/cmo-media-maker.service", () => ({
   CMO_STYLE_PASSED: "Style passed",
   CMO_STYLE_REJECTED: "Style check: ",
 }));
+// Records (tables, contacts, runs, questions) have their own tests.
+vi.mock("@/services/cmo-chat-records.service", () => ({
+  listCmoChatRecords: records,
+  readCmoChatRecordText: recordText,
+  readCmoChatTable: recordTable,
+}));
 vi.mock("@/services/file-search.service", () => ({
   loadLiveResources: liveResources,
 }));
@@ -44,14 +62,28 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   ensureStudioAssetDriveFile: ensureFile,
 }));
 
-import { listCmoChatWork, readCmoChatWorkText } from "./cmo-chat-work.service";
+import {
+  listCmoChatWork,
+  readCmoChatWorkTable,
+  readCmoChatWorkText,
+} from "./cmo-chat-work.service";
 
 const TURN = "01a1f0eb-1488-76ff-835f-5d99fc1b0792";
 const target = { userId: "user-1", projectId: "project-1" };
 const now = new Date("2026-11-18T12:00:00Z");
 
 /** What only handed work has; a picture, video, voice-over or file has none. */
-const alone = { by: null, text: null, readable: false, files: [] };
+const alone = {
+  by: null,
+  text: null,
+  readable: false,
+  files: [],
+  table: null,
+  people: [],
+  total: null,
+  steps: [],
+  turnId: null,
+};
 
 function call(
   id: string,
@@ -158,6 +190,9 @@ beforeEach(() => {
     workspace: { organizationId: "org-1" },
   });
   db.projectImageJob.findMany.mockResolvedValue([]);
+  records.mockResolvedValue([]);
+  recordText.mockResolvedValue(null);
+  recordTable.mockResolvedValue(null);
   db.task.findMany.mockResolvedValue([]);
   db.job.findMany.mockResolvedValue([]);
   liveResources.mockResolvedValue([]);
@@ -351,10 +386,8 @@ describe("listCmoChatWork", () => {
         at: now,
         title: "Research three trends",
         url: null,
+        ...alone,
         by: "Hannah",
-        text: null,
-        readable: false,
-        files: [],
       },
     ]);
     expect(db.task.findMany).toHaveBeenCalledWith(
@@ -551,5 +584,65 @@ describe("readCmoChatWorkText", () => {
     liveResources.mockResolvedValue([{ id: "file-1" }]);
     driveText.mockResolvedValue("# Launch brief");
     await expect(readCmoChatWorkText(read)).resolves.toBe("# Launch brief");
+  });
+});
+
+describe("records in the chat work list", () => {
+  const run = {
+    id: "run-1",
+    kind: "run" as const,
+    state: "making" as const,
+    at: new Date("2026-11-18T12:30:00Z"),
+    title: "Results log",
+    ...alone,
+    turnId: "run-1",
+  };
+
+  it("lists a record beside what Cuso made, newest first", async () => {
+    records.mockResolvedValue([run]);
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      call("v", "generate_voiceover", {
+        result: { id: "file-1", filename: "intro.mp3" },
+      }),
+    ]);
+    liveResources.mockResolvedValue([
+      { id: "file-1", sourceId: "drive/intro.mp3" },
+    ]);
+
+    const items = await listCmoChatWork(target);
+    expect(items.map((item) => item.kind)).toEqual(["run", "audio"]);
+    expect(items[0]).toEqual({ ...run, url: null, files: [] });
+  });
+
+  it("lists records when Cuso made nothing else", async () => {
+    records.mockResolvedValue([run]);
+    db.sokoBotToolCall.findMany.mockResolvedValue([]);
+
+    await expect(listCmoChatWork(target)).resolves.toHaveLength(1);
+  });
+
+  it("reads a run's report or a Coworker's answer when no call matches", async () => {
+    db.sokoBotToolCall.findFirst.mockResolvedValue(null);
+    recordText.mockResolvedValue("Four weeks are in the table.");
+
+    await expect(readCmoChatWorkText({ ...target, id: "run-1" })).resolves.toBe(
+      "Four weeks are in the table.",
+    );
+    expect(recordText).toHaveBeenCalledWith(
+      expect.objectContaining({ sokoBotId: "bot-1" }),
+      "run-1",
+    );
+  });
+
+  it("opens a whole table, or says it is gone", async () => {
+    const table = { columns: ["Week"], rows: [["45"]], total: 1 };
+    recordTable.mockResolvedValueOnce({ title: "Results log", table });
+    await expect(
+      readCmoChatWorkTable({ ...target, id: "call-1" }),
+    ).resolves.toEqual({ title: "Results log", table });
+
+    await expect(
+      readCmoChatWorkTable({ ...target, id: "call-1" }),
+    ).rejects.toThrow("This table is no longer there");
   });
 });

@@ -9,6 +9,17 @@ export interface CusoMessage {
   createdAt: string;
   /** How Cuso got to this reply, when Core kept it. */
   trace?: CusoTrace | null;
+  /** The turn that wrote it, when Core says: a background run's report. */
+  turnId?: string | null;
+}
+
+/** The turn a bot's message came from, as Core records it on the message. */
+function turnOf(metadata: unknown): string | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const bot = (metadata as { soko_bot?: unknown }).soko_bot;
+  if (!bot || typeof bot !== "object") return null;
+  const turnId = (bot as { turn_id?: unknown }).turn_id;
+  return typeof turnId === "string" ? turnId : null;
 }
 
 /**
@@ -78,6 +89,7 @@ export function toCusoMessages(messages: ChatRoomMessage[]): CusoMessage[] {
           : withoutIdMentions(message.content),
         createdAt: new Date(message.createdAt).toISOString(),
         trace: fromCuso ? traceOf(message.metadata) : null,
+        turnId: fromCuso ? turnOf(message.metadata) : null,
       };
     })
     .filter(
