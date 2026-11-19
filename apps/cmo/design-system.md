@@ -49,7 +49,7 @@ The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the s
 
 ## Type
 
-PP Mori, through `--font-sans` (`mori-regular.woff2` and `mori-semibold.woff2` in `public/site/assets/fonts`, loaded in `src/app/layout.tsx`). Numbers that compare use `font-variant-numeric: tabular-nums`.
+PP Mori, through `--font-sans` (`mori-regular.woff2` and `mori-semibold.woff2` in `public/site/assets/fonts`, loaded in `src/app/layout.tsx`). The one other face on screen is content: the Brand Brain's "Your look" sets each of the brand's font names in that font where the device has it (`FontNames` in `brand-look.tsx`, the guard's one exception), and shows the brand's colours as discs, never as hex codes in a row. Numbers that compare use `font-variant-numeric: tabular-nums`.
 
 | Step      | Size / line | Weight     | Tracking | Use                                  |
 | --------- | ----------- | ---------- | -------- | ------------------------------------ |

@@ -724,8 +724,14 @@ describe("pages", () => {
           onChange={() => {}}
         />,
       );
-    expect(page(true)).toContain("<b>TikTok</b>");
-    expect(page(false)).not.toContain("<b>TikTok</b>");
+    const row = (html: string) => {
+      const from = html.slice(html.indexOf("<b>TikTok</b>"));
+      return from.slice(0, from.indexOf("</li>"));
+    };
+    expect(row(page(true))).toContain("<button");
+    // Everywhere else TikTok is listed as soon, with nothing to press.
+    expect(row(page(false))).toContain('<span class="tag">Soon</span>');
+    expect(row(page(false))).not.toContain("<button");
   });
 
   it("offers ad accounts to everyone", () => {
