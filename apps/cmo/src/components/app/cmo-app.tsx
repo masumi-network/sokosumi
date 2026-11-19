@@ -135,6 +135,8 @@ interface CmoAppProps {
   plans?: CmoSubscriptionPlan[];
   /** The person has another Cuso, for the sidebar's "Your Cusos". */
   manyCusos?: boolean;
+  /** The person may hire another Cuso (CMO is invite-only for now). */
+  mayHire?: boolean;
   actions: CmoAppActions;
 }
 
@@ -221,6 +223,7 @@ export function CmoApp({
   connectFailed = false,
   plans = [],
   manyCusos = false,
+  mayHire = false,
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
@@ -551,6 +554,7 @@ export function CmoApp({
                 />
               ) : view === "seo" ? (
                 <SeoPage
+                  timeZone={overview.timeZone}
                   actions={{
                     ...actions,
                     connectSearchConsole: () =>
@@ -611,6 +615,7 @@ export function CmoApp({
                   name={name}
                   email={email}
                   startOver={actions.startOver}
+                  mayHire={mayHire}
                   setTimeZone={actions.setTimeZone}
                   signOut={actions.signOut}
                   topUp={topUp}

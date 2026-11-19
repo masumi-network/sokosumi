@@ -629,6 +629,25 @@ export const seo: CmoSeo = {
       observedAt: seoAt("2026-11-16T06:12:00Z"),
       checked: 110,
       passed: 86,
+      failedChecks: 6,
+      readingChecks: 18,
+      readings: [
+        {
+          title: "Title length",
+          pageUrl: "https://acme.io/",
+          detail: "title 45 characters",
+        },
+        {
+          title: "Meta description length",
+          pageUrl: "https://acme.io/",
+          detail: "meta description 147 characters",
+        },
+        {
+          title: "Redirect hops",
+          pageUrl: "https://acme.io/",
+          detail: "1 redirect hop before the final URL",
+        },
+      ],
       issues: [
         {
           title: "Structured data",
