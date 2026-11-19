@@ -512,7 +512,7 @@ export class ContextPacketBuilder {
           select: {
             name: true,
             members: {
-              where: { userId: input.userId ?? undefined },
+              ...(input.userId !== null && { where: { userId: input.userId } }),
               select: { role: true },
               take: 1,
             },
