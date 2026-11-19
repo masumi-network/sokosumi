@@ -7161,9 +7161,10 @@ describe("ask_coworker", () => {
       expect.any(Object),
       {
         organizationId: "org_1",
-        ownerUserId: SCOPE.userId,
+        memberUserId: SCOPE.userId,
         sokoBotId: SCOPE.sokoBotId,
         coworkers: [ELENA],
+        discoverability: "private",
       },
     );
     // The mention is what the Coworker dispatch answers; the outbox turns it
@@ -7221,23 +7222,51 @@ describe("ask_coworker", () => {
     expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
   });
 
-  it("refuses a shared bot, which has no owner to ask with", async () => {
-    arm();
+  describe("on a shared bot", () => {
+    const sharedScope = {
+      sokoBotId: SCOPE.sokoBotId,
+      workspaceId: SCOPE.workspaceId,
+      projectId: "project_1",
+    };
+    const shared = (overrides: object = {}) =>
+      ({
+        ...(arm() as object),
+        askedByKind: "TEAMMATE",
+        reader: { sharedScope },
+        ...overrides,
+      }) as never;
 
-    await expect(
-      ask({
-        turn: SCOPE_TURN,
-        askedByKind: "OWNER",
-        reader: {
-          sharedScope: {
-            sokoBotId: SCOPE.sokoBotId,
-            workspaceId: SCOPE.workspaceId,
-            projectId: null,
-          },
+    it("asks for the member who asked, in a public room", async () => {
+      await expect(ask(shared())).resolves.toMatchObject({
+        roomId: "room_ask",
+        queuedMentions: 1,
+      });
+      expect(createOrGetCoworkerQuestionRoomMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        {
+          organizationId: "org_1",
+          memberUserId: SCOPE.userId,
+          sokoBotId: SCOPE.sokoBotId,
+          coworkers: [ELENA],
+          discoverability: "public",
         },
-      } as never),
-    ).rejects.toThrow(/shared Soko Bot/);
-    expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+      );
+    });
+
+    it.each([
+      ["another bot's message", { askedByKind: "ASSISTANT" }],
+      ["its own rhythm", { turn: { ...SCOPE_TURN, source: "SCHEDULE" } }],
+      ["a chained turn", { turn: { ...SCOPE_TURN, chainDepth: 1 } }],
+      [
+        "a turn nobody asked for",
+        { turn: { ...SCOPE_TURN, actingUserId: null } },
+      ],
+    ])("does not ask on %s", async (_label, overrides) => {
+      await expect(ask(shared(overrides))).rejects.toThrow(
+        /member's own request in chat/,
+      );
+      expect(createOrGetCoworkerQuestionRoomMock).not.toHaveBeenCalled();
+    });
   });
 
   it("stops after three questions in one turn", async () => {

@@ -28,6 +28,46 @@ describe("Newsletter mobile tab selection", () => {
   });
 });
 
+describe("You row mobile tab selection", () => {
+  const activeTabs = (pathname: string, search = "") =>
+    CHAT_MOBILE_TABS.filter((tab) =>
+      tab.isActive(pathname, new URLSearchParams(search)),
+    ).map((tab) => tab.id);
+
+  it.each([
+    "/history",
+    "/agents",
+    "/schedules",
+    "/calendar",
+    "/studio",
+    "/tiktok-studio",
+    "/social",
+    "/contacts",
+    "/drive",
+  ])("selects You on %s opened from You, Home otherwise", (pathname) => {
+    expect(activeTabs(pathname, "from=you")).toEqual(["you"]);
+    expect(activeTabs(pathname)).toEqual(["home"]);
+  });
+
+  it("keeps the project on a You row and still selects You", () => {
+    expect(activeTabs("/tiktok-studio", "project=p1&from=you")).toEqual([
+      "you",
+    ]);
+  });
+
+  // A project's post preview opens Social accounts: Home, as before.
+  it("selects Home on Social opened from a project", () => {
+    expect(activeTabs("/social", "projectId=p1&tab=accounts")).toEqual([
+      "home",
+    ]);
+  });
+
+  it("keeps Home on Home and the inbox", () => {
+    expect(activeTabs("/", "from=you")).toEqual(["home"]);
+    expect(activeTabs("/notifications", "from=you")).toEqual(["home"]);
+  });
+});
+
 describe("chatMobileHeightShellClass", () => {
   it("uses no-tab-bar shell for rooms", () => {
     expect(chatMobileHeightShellClass("/chat/rooms/r1")).toBe(

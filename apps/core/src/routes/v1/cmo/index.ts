@@ -18,6 +18,8 @@ import mountConfirmCmoBrandBrainForProject from "./projects/[projectId]/brand-br
 import mountUpdateCmoBrandBrainForProject from "./projects/[projectId]/brand-brain/put.js";
 import mountPauseCmoCalendarEntryForProject from "./projects/[projectId]/calendar/[id]/pause/post.js";
 import mountGetCmoCalendarEntryTextForProject from "./projects/[projectId]/calendar/[id]/text/get.js";
+import mountGetCmoChatWorkTextForProject from "./projects/[projectId]/chat-work/[id]/text/get.js";
+import mountGetCmoChatWorkForProject from "./projects/[projectId]/chat-work/get.js";
 import mountStartCmoPlanCheckoutForProject from "./projects/[projectId]/checkout/post.js";
 import mountRemoveCmoCompetitorForProject from "./projects/[projectId]/competitors/[competitorId]/delete.js";
 import mountUpdateCmoCompetitorForProject from "./projects/[projectId]/competitors/[competitorId]/patch.js";
@@ -49,6 +51,7 @@ import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.
 import mountSetCmoAdBudgetForProject from "./projects/[projectId]/strategy/ads/post.js";
 import mountApplyCmoPlanAnswersForProject from "./projects/[projectId]/strategy/answers/apply/post.js";
 import mountRequestCmoStrategyForProject from "./projects/[projectId]/strategy/post.js";
+import mountSetCmoTimeZoneForProject from "./projects/[projectId]/time-zone/put.js";
 import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
 
@@ -76,6 +79,8 @@ mountLaunchCmoSearchAdForProject(app);
 mountPauseCmoCalendarEntryForProject(app);
 mountGetCmoCalendarEntryTextForProject(app);
 mountGetCmoOverviewForProject(app);
+mountGetCmoChatWorkForProject(app);
+mountGetCmoChatWorkTextForProject(app);
 mountGetCmoCompetitorsForProject(app);
 mountAddCmoCompetitorForProject(app);
 mountUpdateCmoCompetitorForProject(app);
@@ -88,6 +93,7 @@ mountRetryCmoOnboardingForProject(app);
 mountChangeCmoPlanForProject(app);
 mountOpenCmoCustomerPortalForProject(app);
 mountStartCmoOverForProject(app);
+mountSetCmoTimeZoneForProject(app);
 mountGetCmoSeoForProject(app);
 mountSearchCmoKeywordsForProject(app);
 mountRequestCmoArticleIdeasForProject(app);

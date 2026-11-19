@@ -1568,6 +1568,24 @@ button.card-focus {
   margin-left: auto;
 }
 
+/* Settings: the time zone, with its one-tap suggestion and the full list. */
+.time-zone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-zone select {
+  max-width: 100%;
+  font: inherit;
+  padding: 6px 10px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
+}
+
 .list.reverted .grow {
   color: var(--muted);
   text-decoration: line-through;
@@ -3447,6 +3465,105 @@ button.cal-card:hover {
 
 .production > .note {
   margin: 0;
+}
+
+/* What Cuso makes in the chat: a frame that waits, then the file itself. */
+.made {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.made-frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 200px;
+  padding: 16px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  text-align: center;
+}
+
+.made-frame .note {
+  margin: 0;
+}
+
+.made-media {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+.made-audio {
+  display: block;
+  width: 100%;
+}
+
+/* A file Cuso wrote, or work he handed on: where it stands, and its words. */
+.made-words {
+  max-width: 520px;
+  padding: 16px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--background);
+}
+
+.made-words .note {
+  margin: 0;
+}
+
+.made-title {
+  font-weight: 600;
+}
+
+.made-text {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.made-read {
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.made-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.made-files a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.made-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.made-acts:empty {
+  display: none;
 }
 
 .sheet-head > span:not(.sheet-steps) {

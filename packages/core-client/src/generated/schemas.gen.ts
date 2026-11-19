@@ -50793,6 +50793,10 @@ export const CmoOverviewSchema = {
                 $ref: '#/components/schemas/CmoRoutine'
             }
         },
+        timeZone: {
+            type: 'string',
+            description: 'The time zone Cuso\'s routines run in, as the owner set it.'
+        },
         brandBrain: {
             anyOf: [
                 {
@@ -53335,6 +53339,7 @@ export const CmoOverviewSchema = {
         'presenterSet',
         'onboardingStep',
         'routines',
+        'timeZone',
         'brandBrain',
         'brandBrainUpdatedAt',
         'brandBrainConfirmedAt',
@@ -56057,6 +56062,12 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             minLength: 1,
             description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
+        },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The owner\'s time zone, from their browser: Cuso\'s routines run at their local times in it. Without it he works on Europe/Berlin time.'
         }
     },
     required: [
@@ -56205,6 +56216,131 @@ export const CmoPieceTextSchema = {
     },
     required: [
         'text'
+    ]
+} as const;
+
+export const CmoChatWorkSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChatWorkItem'
+            }
+        }
+    },
+    required: [
+        'items'
+    ]
+} as const;
+
+export const CmoChatWorkItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'The tool call that started it.'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video',
+                'audio',
+                'file',
+                'task',
+                'agent'
+            ],
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'making',
+                'waiting',
+                'ready',
+                'failed'
+            ],
+            description: 'making until it is done; waiting when handed work needs the owner; failed when it never will be done.'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Cuso started it.'
+        },
+        title: {
+            type: 'string',
+            description: 'What it is: the prompt, the words spoken, the file\'s or the work\'s name.'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the finished file plays or downloads from.'
+        },
+        by: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who does handed work: the Coworker or the Agent.'
+        },
+        text: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Handed work: what is asked while it waits, the start of the result once done.'
+        },
+        readable: {
+            type: 'boolean',
+            description: 'Its full words are at /chat-work/{id}/text.'
+        },
+        files: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    url: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'name',
+                    'url'
+                ]
+            },
+            description: 'Files handed work came back with.'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'state',
+        'at',
+        'title',
+        'url',
+        'by',
+        'text',
+        'readable',
+        'files'
     ]
 } as const;
 
@@ -56420,6 +56556,20 @@ export const CmoCustomerPortalSchema = {
     },
     required: [
         'url'
+    ]
+} as const;
+
+export const CmoTimeZoneSchema = {
+    type: 'object',
+    properties: {
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'timeZone'
     ]
 } as const;
 

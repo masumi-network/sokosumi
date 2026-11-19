@@ -33,6 +33,8 @@ import {
   fixCmoBrandSectionForProject,
   getChatsRoomsByIdMessages,
   getCmoCalendarEntryTextForProject,
+  getCmoChatWorkForProject,
+  getCmoChatWorkTextForProject,
   getCmoCompetitorsForProject,
   getCmoOverviewForProject,
   getCmoSeoForProject,
@@ -61,6 +63,7 @@ import {
   setCmoAdCampaignStatusForProject,
   setCmoPresenterForProject,
   setCmoSeoSuggestionStatusForProject,
+  setCmoTimeZoneForProject,
   skipCmoSubscriptionForProject,
   startCmoOnboarding,
   startCmoOverForProject,
@@ -81,6 +84,7 @@ import type { DraftResult } from "../components/app/draft-post";
 import { AGENT_NAME } from "../lib/agent";
 import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
+import type { ChatWork } from "../lib/chat-work";
 import { coreForCurrentUser } from "../lib/core";
 import { INVITE_ONLY_NOTE, INVITE_ONLY_TITLE } from "../lib/invite-only";
 import { lastCusoCookie } from "../lib/last-cuso";
@@ -219,6 +223,7 @@ export async function onboard(
     organizationId,
   };
 
+  const timeZone = knownTimeZone(formData.get("timeZone"));
   const websiteUrl = normalizeWebsiteUrl(typed);
   if (!websiteUrl) {
     return {
@@ -230,7 +235,11 @@ export async function onboard(
   const core = await requireCore();
   const { data, error } = await startCmoOnboarding({
     ...core,
-    body: organizationId ? { websiteUrl, organizationId } : { websiteUrl },
+    body: {
+      websiteUrl,
+      ...(organizationId ? { organizationId } : {}),
+      ...(timeZone ? { timeZone } : {}),
+    },
   });
   if (!data) {
     const kind =
@@ -532,6 +541,32 @@ export async function loadPieceText(
   return data?.data.text ?? null;
 }
 
+/**
+ * The pictures, videos and voice-overs Cuso started in chat, each as it
+ * stands now. Empty when Core cannot say, so the chat still shows.
+ */
+export async function loadChatWork(projectId: string): Promise<ChatWork[]> {
+  const core = await requireCore();
+  const { data } = await getCmoChatWorkForProject({
+    ...core,
+    path: { projectId },
+  });
+  return data?.data.items ?? [];
+}
+
+/** The full words of a file Cuso wrote, or of work he handed on. */
+export async function loadChatWorkText(
+  projectId: string,
+  id: string,
+): Promise<string | null> {
+  const core = await requireCore();
+  const { data } = await getCmoChatWorkTextForProject({
+    ...core,
+    path: { projectId, id },
+  });
+  return data?.data.text ?? null;
+}
+
 /** Overview and messages in one go, for the app's polling. */
 export async function loadState(projectId: string): Promise<{
   overview: CmoOverview | null;
@@ -653,6 +688,33 @@ export async function startOver(projectId: string): Promise<string | null> {
   // A person who may not hire goes to the Cusos left, or the invite-only page.
   const list = await loadCusos().catch(() => undefined);
   redirect(list?.mayHire === false ? "/?cusos=1" : "/?hire=1");
+}
+
+/** Moves this Cuso's routines to the owner's time zone; a refusal comes back as text. */
+export async function setTimeZone(
+  projectId: string,
+  timeZone: string,
+): Promise<string | null> {
+  const { error } = await setCmoTimeZoneForProject({
+    ...(await requireCore()),
+    path: { projectId },
+    body: { timeZone },
+  });
+  if (error) return errorText(error, "Could not change the time zone");
+  revalidatePath("/");
+  return null;
+}
+
+/** A browser's time zone when this server knows it, else nothing. */
+function knownTimeZone(value: FormDataEntryValue | null): string | undefined {
+  const timeZone = String(value ?? "").trim();
+  if (!timeZone) return undefined;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return timeZone;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The CMO plans, for the checkout step; none when Core cannot read them from Polar. */

@@ -1,6 +1,7 @@
 import type { CmoOverview, CmoSeo } from "@sokosumi/core-client";
 import { AGENT_NAME } from "../../../lib/agent";
 import type { CusoMessage } from "../../../lib/chat-messages";
+import type { ChatWork } from "../../../lib/chat-work";
 import { VIEW_PATHS, type View } from "../../../lib/views";
 import {
   cmoBilling,
@@ -177,6 +178,7 @@ export const overview: CmoOverview = cmoOverview({
       rewriting: false,
     },
   },
+  timeZone: "Europe/Berlin",
   routines: [
     {
       key: "cmo-daily-run",
@@ -370,6 +372,9 @@ export const messages: CusoMessage[] = [
   ),
 ];
 
+/** A picture, video or voice-over: nobody else works on it. */
+const media = { url: null, by: null, text: null, readable: false, files: [] };
+
 /**
  * The chat page's own state: a long German message, to check how the thread
  * wraps, and Cuso at work, so the typing row shows above the composer.
@@ -384,7 +389,83 @@ export const chat = {
       "Bitte schreibe die LinkedIn-Beiträge für die Produkteinführung auf Deutsch, mit einem klaren Nutzenversprechen für Produktverantwortliche und einem Hinweis auf die vierzehntägige Testphase. Die Geschwindigkeitsbegrenzung im Wettbewerbsvergleich darf nicht fehlen.",
       "04T10:05:00",
     ),
+    message(
+      "m7",
+      false,
+      "Make a picture, a short video and a voice-over for the launch, write the brief, and get the research done.",
+      "04T10:20:00",
+    ),
+    message("m8", true, "Started image.\n\nStarted video.", "04T10:20:01"),
   ],
+  // What Cuso makes and hands on in the chat, in each state it can be in.
+  work: [
+    {
+      ...media,
+      id: "w1",
+      kind: "image",
+      state: "ready",
+      at: new Date("2026-11-04T10:20:10Z"),
+      title: "The launch on a phone",
+      url: "/cuso/walking.png",
+    },
+    {
+      ...media,
+      id: "w2",
+      kind: "video",
+      state: "making",
+      at: new Date("2026-11-04T10:20:20Z"),
+      title: "A walk through the launch",
+    },
+    {
+      ...media,
+      id: "w3",
+      kind: "audio",
+      state: "failed",
+      at: new Date("2026-11-04T10:20:30Z"),
+      title: "Launch day is here.",
+    },
+    {
+      ...media,
+      id: "w4",
+      kind: "file",
+      state: "ready",
+      at: new Date("2026-11-04T10:21:00Z"),
+      title: "Launch brief.md",
+      url: "/cuso/walking.png",
+      readable: true,
+    },
+    {
+      ...media,
+      id: "w5",
+      kind: "task",
+      state: "making",
+      at: new Date("2026-11-04T10:22:00Z"),
+      title: "Research three launch trends",
+      by: "Hannah",
+    },
+    {
+      ...media,
+      id: "w6",
+      kind: "task",
+      state: "waiting",
+      at: new Date("2026-11-04T10:23:00Z"),
+      title: "Write the press note",
+      by: "Alex",
+      text: "Which date goes in the headline, the 12th or the 14th?",
+    },
+    {
+      ...media,
+      id: "w7",
+      kind: "agent",
+      state: "ready",
+      at: new Date("2026-11-04T10:24:00Z"),
+      title: "Market scan for product teams",
+      by: "Market Scout",
+      text: "Three trends stand out this quarter: loyalty passes replace one-off drops, brands mint on their own site, and buyers pay by card.",
+      readable: true,
+      files: [{ name: "market-scan.pdf", url: "/cuso/walking.png" }],
+    },
+  ] satisfies ChatWork[],
 };
 
 const seoAt = (iso: string) => new Date(iso);

@@ -11,6 +11,24 @@ import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
+/** An IANA time zone this server knows, such as "America/New_York". */
+export const cmoTimeZoneSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .refine(
+    (value) => {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Not a time zone" },
+  );
+
 export const cmoOnboardingRequestSchema = z
   .object({
     websiteUrl: z
@@ -25,6 +43,11 @@ export const cmoOnboardingRequestSchema = z
       .optional()
       .describe(
         "An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.",
+      ),
+    timeZone: cmoTimeZoneSchema
+      .optional()
+      .describe(
+        "The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.",
       ),
   })
   .openapi("CmoOnboardingRequest");
@@ -206,6 +229,56 @@ export const cmoUpdateIdParamsSchema = z.object({
 export const cmoPieceTextSchema = z
   .object({ text: z.string() })
   .openapi("CmoPieceText");
+
+export const cmoChatWorkItemSchema = z
+  .object({
+    id: z.string().describe("The tool call that started it."),
+    kind: z
+      .enum(["image", "video", "audio", "file", "task", "agent"])
+      .describe(
+        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).",
+      ),
+    state: z
+      .enum(["making", "waiting", "ready", "failed"])
+      .describe(
+        "making until it is done; waiting when handed work needs the owner; failed when it never will be done.",
+      ),
+    at: dateTimeSchema.describe("When Cuso started it."),
+    title: z
+      .string()
+      .describe(
+        "What it is: the prompt, the words spoken, the file's or the work's name.",
+      ),
+    url: z
+      .union([z.string(), z.null()])
+      .describe("Where the finished file plays or downloads from."),
+    by: z
+      .union([z.string(), z.null()])
+      .describe("Who does handed work: the Coworker or the Agent."),
+    text: z
+      .union([z.string(), z.null()])
+      .describe(
+        "Handed work: what is asked while it waits, the start of the result once done.",
+      ),
+    readable: z
+      .boolean()
+      .describe("Its full words are at /chat-work/{id}/text."),
+    files: z
+      .array(z.object({ name: z.string(), url: z.string() }))
+      .describe("Files handed work came back with."),
+  })
+  .openapi("CmoChatWorkItem");
+
+export const cmoChatWorkSchema = z
+  .object({ items: z.array(cmoChatWorkItemSchema) })
+  .openapi("CmoChatWork");
+
+export const cmoChatWorkIdParamsSchema = cmoProjectParamsSchema.extend({
+  id: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "id", in: "path" } }),
+});
 
 /** A report is its card's message in Cuso's shared room. */
 export const cmoReportIdParamsSchema = z.object({ id: z.string().uuid() });
@@ -454,6 +527,9 @@ export const cmoOverviewSchema = z
         "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.",
       ),
     routines: z.array(cmoRoutineSchema),
+    timeZone: z
+      .string()
+      .describe("The time zone Cuso's routines run in, as the owner set it."),
     brandBrain: z.union([brandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),

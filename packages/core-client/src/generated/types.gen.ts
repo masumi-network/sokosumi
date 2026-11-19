@@ -13043,6 +13043,10 @@ export type CmoOverview = {
      */
     onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
+    /**
+     * The time zone Cuso's routines run in, as the owner set it.
+     */
+    timeZone: string;
     brandBrain: {
         summary: string;
         voice: {
@@ -14056,6 +14060,10 @@ export type CmoOnboardingRequest = {
      * An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.
      */
     organizationId?: string;
+    /**
+     * The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.
+     */
+    timeZone?: string;
 };
 
 export type CmoSubscriptionPlan = {
@@ -14101,6 +14109,56 @@ export type CmoAdsFinalized = {
 
 export type CmoPieceText = {
     text: string;
+};
+
+export type CmoChatWork = {
+    items: Array<CmoChatWorkItem>;
+};
+
+export type CmoChatWorkItem = {
+    /**
+     * The tool call that started it.
+     */
+    id: string;
+    /**
+     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).
+     */
+    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent';
+    /**
+     * making until it is done; waiting when handed work needs the owner; failed when it never will be done.
+     */
+    state: 'making' | 'waiting' | 'ready' | 'failed';
+    /**
+     * When Cuso started it.
+     */
+    at: Date;
+    /**
+     * What it is: the prompt, the words spoken, the file's or the work's name.
+     */
+    title: string;
+    /**
+     * Where the finished file plays or downloads from.
+     */
+    url: string | null;
+    /**
+     * Who does handed work: the Coworker or the Agent.
+     */
+    by: string | null;
+    /**
+     * Handed work: what is asked while it waits, the start of the result once done.
+     */
+    text: string | null;
+    /**
+     * Its full words are at /chat-work/{id}/text.
+     */
+    readable: boolean;
+    /**
+     * Files handed work came back with.
+     */
+    files: Array<{
+        name: string;
+        url: string;
+    }>;
 };
 
 export type CmoCompetitors = {
@@ -14178,6 +14236,10 @@ export type CmoPlanChange = {
 
 export type CmoCustomerPortal = {
     url: string;
+};
+
+export type CmoTimeZone = {
+    timeZone: string;
 };
 
 export type CmoSeo = {
@@ -87843,6 +87905,157 @@ export type GetCmoOverviewForProjectResponses = {
 
 export type GetCmoOverviewForProjectResponse = GetCmoOverviewForProjectResponses[keyof GetCmoOverviewForProjectResponses];
 
+export type GetCmoChatWorkForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/chat-work';
+};
+
+export type GetCmoChatWorkForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoChatWorkForProjectError = GetCmoChatWorkForProjectErrors[keyof GetCmoChatWorkForProjectErrors];
+
+export type GetCmoChatWorkForProjectResponses = {
+    /**
+     * What Cuso made in chat
+     */
+    200: {
+        data: CmoChatWork;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoChatWorkForProjectResponse = GetCmoChatWorkForProjectResponses[keyof GetCmoChatWorkForProjectResponses];
+
+export type GetCmoChatWorkTextForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/chat-work/{id}/text';
+};
+
+export type GetCmoChatWorkTextForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Nothing to read yet, or Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoChatWorkTextForProjectError = GetCmoChatWorkTextForProjectErrors[keyof GetCmoChatWorkTextForProjectErrors];
+
+export type GetCmoChatWorkTextForProjectResponses = {
+    /**
+     * Its words
+     */
+    200: {
+        data: CmoPieceText;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoChatWorkTextForProjectResponse = GetCmoChatWorkTextForProjectResponses[keyof GetCmoChatWorkTextForProjectResponses];
+
 export type GetCmoCompetitorsForProjectData = {
     body?: never;
     path: {
@@ -89009,6 +89222,96 @@ export type StartCmoOverForProjectResponses = {
 };
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
+
+export type SetCmoTimeZoneForProjectData = {
+    body: CmoTimeZone;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/time-zone';
+};
+
+export type SetCmoTimeZoneForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a time zone
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoTimeZoneForProjectError = SetCmoTimeZoneForProjectErrors[keyof SetCmoTimeZoneForProjectErrors];
+
+export type SetCmoTimeZoneForProjectResponses = {
+    /**
+     * Cuso works in this time zone now
+     */
+    200: {
+        data: CmoTimeZone;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoTimeZoneForProjectResponse = SetCmoTimeZoneForProjectResponses[keyof SetCmoTimeZoneForProjectResponses];
 
 export type GetCmoSeoForProjectData = {
     body?: never;
