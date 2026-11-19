@@ -173,11 +173,9 @@ describe("GET /tasks/{id}/events", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(taskEventFindManyMock).toHaveBeenCalledWith({
+    expect(taskEventFindManyMock.mock.lastCall?.[0]).toStrictEqual({
       where: { taskId: "tsk_123" },
       take: 21,
-      skip: undefined,
-      cursor: undefined,
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       include: expect.any(Object),
     });
@@ -258,8 +256,6 @@ describe("GET /tasks/{id}/events", () => {
     expect(taskEventFindManyMock).toHaveBeenCalledWith({
       where: { taskId: "tsk_123" },
       take: undefined,
-      skip: undefined,
-      cursor: undefined,
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       include: expect.any(Object),
     });

@@ -486,17 +486,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               }),
         },
         data: {
-          name,
+          ...(name !== undefined && { name }),
           ...(editsTags ? { updatedAt: new Date() } : {}),
           ...(dismissedTopicIds?.length
             ? dismissTaskTopics(task, dismissedTopicIds)
             : {}),
-          description: nextDescription,
-          projectId,
-          priority,
+          ...(nextDescription !== undefined && {
+            description: nextDescription,
+          }),
+          ...(projectId !== undefined && { projectId }),
+          ...(priority !== undefined && { priority }),
           ...(assigneeWrite ?? {}),
-          runAt: runAtWrite,
-          dueOn: dueOnWrite,
+          ...(runAtWrite !== undefined && { runAt: runAtWrite }),
+          ...(dueOnWrite !== undefined && { dueOn: dueOnWrite }),
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),
         },
         include: buildTaskIncludeForViewer(

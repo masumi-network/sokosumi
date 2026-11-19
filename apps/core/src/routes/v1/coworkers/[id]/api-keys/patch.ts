@@ -52,13 +52,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         },
         data: {
-          name: body.name,
-          expiresAt:
-            body.expiresAt === undefined
-              ? undefined
-              : body.expiresAt === null
-                ? null
-                : new Date(body.expiresAt),
+          ...(body.name !== undefined && { name: body.name }),
+          ...(body.expiresAt !== undefined && {
+            expiresAt:
+              body.expiresAt === null ? null : new Date(body.expiresAt),
+          }),
         },
       });
 

@@ -143,7 +143,7 @@ describe("GET /history", () => {
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(historyFindManyMock).toHaveBeenCalledWith({
+    expect(historyFindManyMock.mock.lastCall?.[0]).toStrictEqual({
       where: {
         AND: [
           { archivedAt: null },
@@ -161,8 +161,6 @@ describe("GET /history", () => {
         ],
       },
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
-      skip: undefined,
-      cursor: undefined,
       orderBy: [{ sortAt: "desc" }, { id: "desc" }],
     });
     expect(historyCountMock).toHaveBeenCalledWith({

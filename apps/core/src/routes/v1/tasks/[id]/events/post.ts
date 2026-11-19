@@ -354,10 +354,10 @@ function mountTaskEventRoute(
         data: {
           taskId,
           status: eventStatus,
-          comment,
-          authenticationUrl,
+          ...(comment !== undefined && { comment }),
+          ...(authenticationUrl !== undefined && { authenticationUrl }),
           channel,
-          cents,
+          ...(cents !== undefined && { cents }),
           transactionId,
           ...actorData,
         },

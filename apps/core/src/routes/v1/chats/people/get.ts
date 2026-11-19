@@ -33,7 +33,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    const { cursor, take, skip } = parseCursorPagination(c.req.valid("query"));
+    const { cursor, take } = parseCursorPagination(c.req.valid("query"));
     const where = { id: { not: userId }, ...directReachableUserWhere(userId) };
     const [people, count] = await prisma.$transaction([
       prisma.user.findMany({
@@ -41,8 +41,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { id: true, name: true, email: true, image: true },
         orderBy: [{ name: "asc" }, { id: "asc" }],
         take: take + 1,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       }),
       prisma.user.count({ where }),
     ]);
