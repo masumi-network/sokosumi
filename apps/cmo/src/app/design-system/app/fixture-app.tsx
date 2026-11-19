@@ -13,6 +13,15 @@ const actions: CmoAppActions = {
   loadChatWork: async () => [],
   loadChatWorkText: async () =>
     "## Three trends\n\n- Loyalty passes replace one-off drops\n- Brands mint on their own site\n- Buyers pay by card",
+  loadChatWorkTable: async () => ({
+    columns: ["Post", "Channel", "Status"],
+    rows: Array.from({ length: 12 }, (_, index) => [
+      `Launch post ${index + 1}`,
+      index % 2 ? "LinkedIn" : "X",
+      index < 4 ? "Made" : "Planned",
+    ]),
+    total: 12,
+  }),
   sendMessage: async () => {},
   skipSubscription: async () => ({ error: null }),
   loadPieceText: async (id) =>

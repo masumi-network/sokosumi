@@ -28,9 +28,29 @@ export const CHAT_WORK_WAIT: Record<MediaKind, string> = {
   audio: "A few seconds.",
 };
 
-/** Where work Cuso handed on stands, in one line that names who has it. */
-export function handedLine(work: ChatWork): string {
+/** A table as the chat shows it. */
+export type ChatTable = NonNullable<ChatWork["table"]>;
+
+/**
+ * Where work stands, in one line that names who has it: a Coworker or a
+ * hired Agent, Cuso himself on a background run, or the Coworker he asked.
+ */
+export function statusLine(work: ChatWork): string {
   const who = work.by ?? "A helper";
+  if (work.kind === "run") {
+    switch (work.state) {
+      case "ready":
+        return "Done";
+      case "stopped":
+        return "Stopped";
+      case "failed":
+        return "This did not finish";
+      default:
+        return "Working on this in the background";
+    }
+  }
+  if (work.kind === "question")
+    return work.state === "ready" ? `${who} answered` : `Asked ${who}`;
   switch (work.state) {
     case "making":
       return `${who} is working on this`;
@@ -38,7 +58,13 @@ export function handedLine(work: ChatWork): string {
       return `${who} needs an answer from you`;
     case "ready":
       return `${who} is done`;
-    case "failed":
+    default:
       return `${who} could not finish this`;
   }
+}
+
+/** What a card says while its work is under way. */
+export function waitingNote(work: ChatWork): string {
+  if (work.kind === "question") return "I tell you here when the answer is in.";
+  return "I tell you here when it is done.";
 }

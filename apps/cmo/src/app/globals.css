@@ -3555,6 +3555,36 @@ button.cal-card:hover {
   font-size: 0.875rem;
 }
 
+.made-table {
+  max-width: 62ch;
+}
+
+.made-table .seo-table-wrap {
+  width: 100%;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.made-people {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.made-people li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
 .made-files a {
   color: inherit;
   text-decoration: underline;
