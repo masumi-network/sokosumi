@@ -4,6 +4,7 @@ const MAX_SECTIONS = 64;
 const MAX_ITEMS = 128;
 const MAX_ID_LENGTH = 64;
 const MAX_NAME_LENGTH = 64;
+const SECTION_NAME_PATTERN = /^[^\p{Cc}]+$/u;
 export const MAX_SEEN_SIDEBAR_ITEMS = 512;
 
 export const sidebarIdSchema = z
@@ -19,8 +20,9 @@ const sidebarSectionSchema = z.object({
     .trim()
     .min(1)
     .max(MAX_NAME_LENGTH)
-    .regex(/^[^\p{Cc}]+$/u)
-    .nullable(),
+    .regex(SECTION_NAME_PATTERN)
+    .nullable()
+    .openapi({ pattern: SECTION_NAME_PATTERN.source }),
   items: sidebarItemsSchema,
 });
 

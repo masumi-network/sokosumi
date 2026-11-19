@@ -23755,7 +23755,7 @@ export const SidebarLayoutSchema = {
                         ],
                         minLength: 1,
                         maxLength: 64,
-                        pattern: '^[^\\p{Cc}]+$/u'
+                        pattern: '^[^\\p{Cc}]+$'
                     },
                     items: {
                         type: 'array',

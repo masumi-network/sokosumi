@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { SidebarLayoutSchema } from "./generated/schemas.gen.js";
 import {
   getCmoCompetitorsForProjectResponseTransformer,
   getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponseTransformer,
@@ -15,6 +16,14 @@ import {
 import type { SidebarLayout } from "./generated/types.gen.js";
 
 const meta = { timestamp: "2026-10-01T00:00:00.000Z" };
+
+it("accepts printable section names and rejects embedded controls in the published schema", () => {
+  const section = SidebarLayoutSchema.properties.sections.items;
+  const name = new RegExp(section.properties.name.pattern, "u");
+  expect("My desk").toMatch(name);
+  expect("Équipe 🪴").toMatch(name);
+  expect("My\ndesk").not.toMatch(name);
+});
 
 it.each([null, { scheduledAt: meta.timestamp, account: null }])(
   "revives quote dates and keeps nullable quotes/accounts safe (%j)",
