@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import { COMPETITOR_SOURCE_STATUSES } from "@/services/competitor-check.service";
 
 export const projectCompetitorsParamsSchema = z.object({
@@ -228,7 +229,7 @@ export const projectCompetitorChecksSchema = z
     on: z
       .boolean()
       .describe(
-        "true turns the weekly check on: 3 credits per competitor a week, charged to the Project's organization (or the person, in a personal workspace). false turns it off and keeps what the checks found.",
+        `true turns the weekly check on: ${COMPETITOR_CHECK_CREDITS} credits per competitor a week, charged to the Project's organization (or the person, in a personal workspace). false turns it off and keeps what the checks found.`,
       ),
   })
   .openapi("ProjectCompetitorChecks");

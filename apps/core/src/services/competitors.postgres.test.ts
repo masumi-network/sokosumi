@@ -34,6 +34,7 @@ vi.mock("@/services/cmo-cuso.service", async (original) => ({
   startCmoTurn: readers.startCmoTurn,
 }));
 
+import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import prisma from "@/lib/db/prisma";
 import {
   keepCusoFirstCompetitorCheck,
@@ -41,7 +42,6 @@ import {
   syncTrackedCompetitorsFromBrandBrain,
   watchedMapPlayers,
 } from "@/services/cmo-competitors.service";
-import { COMPETITOR_CHECK_CREDITS } from "@/services/competitor-check.service";
 import {
   addTrackedCompetitor,
   listTrackedCompetitors,

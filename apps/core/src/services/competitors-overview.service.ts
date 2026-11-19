@@ -3,11 +3,11 @@ import { z } from "zod";
 import { metaAdLibraryConfigured } from "@/clients/meta-ad-library.client";
 import { getEnv } from "@/config/env";
 import { averageEngagement } from "@/lib/competitors/instagram";
+import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import prisma from "@/lib/db/prisma";
 import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
   CHECK_EVERY_MS,
-  COMPETITOR_CHECK_CREDITS,
   COMPETITOR_SOURCES,
   type CompetitorCheckSources,
   type CompetitorSourceStatus,
