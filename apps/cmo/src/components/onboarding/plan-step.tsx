@@ -11,7 +11,7 @@ import { channelInfo } from "../../lib/channels";
 import { strategyApproved } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { AdBudget, money } from "../strategy-core";
+import { AdsChoice, money } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
@@ -425,7 +425,6 @@ export function PlanReview({
   const changing = sending !== null;
   const [going, startGoing] = useTransition();
   const [refusal, setRefusal] = useState<string | null>(null);
-  const [budgetOpen, setBudgetOpen] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const work = overview.work;
   const writing = work?.kind === "strategy" && work.status === "running";
@@ -724,31 +723,17 @@ export function PlanReview({
             ) : null}
             {ads ? (
               <div className="ob-budget">
-                <div className="ob-budget-row">
-                  <p>
-                    {ads.monthly > 0
-                      ? `${money(ads.monthly, ads.currency)} a month for ads`
-                      : "No ads"}
-                  </p>
-                  <button
-                    type="button"
-                    className="button button-ghost button-small"
-                    aria-expanded={budgetOpen}
-                    onClick={() => setBudgetOpen(!budgetOpen)}
-                  >
-                    {ads.monthly > 0 ? "Change" : "Add a budget"}
-                  </button>
-                </div>
-                {budgetOpen ? (
-                  <AdBudget
-                    ads={ads}
-                    onSetAds={(monthly, currency) =>
-                      send(`Ad budget: ${currency} ${monthly} a month`, () =>
-                        onSetAds(monthly, currency),
-                      )
-                    }
-                  />
-                ) : null}
+                <AdsChoice
+                  ads={ads}
+                  onSetAds={(monthly, currency) =>
+                    send(
+                      monthly > 0
+                        ? `Ad budget: ${currency} ${monthly} a month`
+                        : "No ads",
+                      () => onSetAds(monthly, currency),
+                    )
+                  }
+                />
               </div>
             ) : null}
           </div>

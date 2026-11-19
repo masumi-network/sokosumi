@@ -693,26 +693,41 @@ export async function captureCmoHomepage(
  * named, pages cited). A second essentials save in the same research, or one
  * while a capture runs here, does not start another.
  */
+/** A Cuso whose capture read no page is tried again after this long. */
+const RETRY_INDEX_AFTER_MS = 6 * 60 * 60_000;
+
 /**
  * Starts the index for one Cuso who has none: hired before the index, or his
- * capture did not finish. One per call, so the backlog clears a Cuso a sync
- * without crowding the capture browser.
+ * capture read no page. A Project counts as indexed once it has a page from
+ * the top down (`Full pages/`), which only a capture that read a page saves;
+ * a Project whose research files changed in the last six hours waits, so a
+ * site that never loads is tried four times a day, not every sync. One per
+ * call, so the backlog clears a Cuso a sync without crowding the browser.
  */
 export async function scheduleMissingCmoBrandIndex(
   cusos: Pick<Cuso, "projectId" | "sokoBotId">[],
+  now: Date = new Date(),
 ): Promise<void> {
   if (cusos.length === 0) return;
-  const indexed = await prisma.fileProjectLink.findMany({
+  const links = await prisma.fileProjectLink.findMany({
     where: {
       projectId: { in: cusos.map((cuso) => cuso.projectId) },
-      resource: {
-        sourceId: { endsWith: `/${CMO_BRAND_MEDIA_FOLDER}/${INDEX_FILE}` },
-      },
+      OR: [
+        {
+          resource: {
+            sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/Full pages/` },
+          },
+        },
+        {
+          updatedAt: { gte: new Date(now.getTime() - RETRY_INDEX_AFTER_MS) },
+          resource: { sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` } },
+        },
+      ],
     },
     select: { projectId: true },
   });
-  const done = new Set(indexed.map((link) => link.projectId));
-  const next = cusos.find((cuso) => !done.has(cuso.projectId));
+  const skip = new Set(links.map((link) => link.projectId));
+  const next = cusos.find((cuso) => !skip.has(cuso.projectId));
   if (next) scheduleCmoBrandMedia(next.sokoBotId);
 }
 
@@ -982,8 +997,8 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     );
   } finally {
     await logo;
-    // Written last and always, also after a capture that threw: it marks
-    // the Project as indexed, so the backfill moves on to the next Cuso.
+    // Written last and always, also after a capture that threw: it names
+    // what was read. The backfill counts a page from the top down, not this.
     await saveFile(
       drive,
       { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },

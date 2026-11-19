@@ -12667,6 +12667,7 @@ describe("CMO record saves", () => {
             brandBrain: null,
           },
         }),
+        findUnique: vi.fn().mockResolvedValue({ versionId: "cmo-v4" }),
       },
       marketingStrategy: {
         // The approved version runs; this turn has written none yet.

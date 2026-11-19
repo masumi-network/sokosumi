@@ -1,4 +1,8 @@
-import type { BrandBrain, MarketingStrategyPlan } from "@sokosumi/soko-bot";
+import {
+  type BrandBrain,
+  CMO_AIDA_STAGES,
+  type MarketingStrategyPlan,
+} from "@sokosumi/soko-bot";
 import { CMO_CHANNELS } from "@sokosumi/utils";
 
 import type { EmbedTexts } from "@/lib/embeddings";
@@ -150,9 +154,12 @@ export function cmoPlanProblems(
   if (strategy.mix.length === 0)
     problems.push("mix is empty; give two to four approaches.");
   problems.push(...pillarListProblems(strategy.pillars));
-  if (strategy.funnel.length < 3)
+  problems.push(...funnelProblems(strategy.funnel, options));
+  if (options.everyNetwork)
     problems.push(
-      `funnel has ${strategy.funnel.length} stages; give three or four.`,
+      ...networkProblems(strategy),
+      ...unaskedAdProblems(strategy),
+      ...askedForNothingProblems(strategy),
     );
   if (!strategy.idea)
     problems.push(
@@ -165,7 +172,7 @@ export function cmoPlanProblems(
   for (const stage of strategy.funnel) {
     if (stage.owner !== "you" && stage.plays.length === 0)
       problems.push(
-        `the ${stage.name} stage has no plays; say what each channel does there and how often.`,
+        `the ${stage.name ?? stage.stage} stage has no plays; say what each channel does there and how often.`,
       );
   }
   if (strategy.questions.length < 2)
@@ -185,7 +192,7 @@ export function cmoPlanProblems(
       "measurement.experiment is missing: the month's one test, with change, expect and judge.",
     );
   const conversion = strategy.funnel.find(
-    (stage) => stage.stage === "conversion",
+    (stage) => stage.stage === "conversion" || stage.stage === "action",
   );
   const metric = strategy.objective?.metric;
   if (
@@ -194,7 +201,7 @@ export function cmoPlanProblems(
     conversion.metric.trim().toLowerCase() !== metric.trim().toLowerCase()
   )
     problems.push(
-      `the conversion stage measures "${conversion.metric}"; make it the objective's metric, "${metric}".`,
+      `the ${conversion.stage} stage measures "${conversion.metric}"; make it the objective's metric, "${metric}".`,
     );
   const pieces = strategy.calendar.filter(
     (entry) => entry.status !== "skipped",
@@ -285,6 +292,207 @@ export function cmoPlanProblemsSince(
 export interface PlanReviewOptions {
   /** The Cuso saves a long month week by week (cmo-v3's strategy skill). */
   weekly?: boolean;
+  /** The Cuso writes the funnel in AIDA's four stages (cmo-v5's strategy skill). */
+  aida?: boolean;
+  /** The Cuso plans every live social network CMO offers (cmo-v5's strategy skill). */
+  everyNetwork?: boolean;
+}
+
+/**
+ * cmo-v5's strategy skill: cmo-v3's month per network, every live network
+ * planned, and the funnel as Awareness, Interest, Desire, Action.
+ */
+export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
+
+/** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
+export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
+  const everyNetwork = skills.includes(EVERY_NETWORK_STRATEGY_SKILL);
+  return {
+    weekly: everyNetwork || skills.includes(WEEKLY_STRATEGY_SKILL),
+    aida: everyNetwork,
+    everyNetwork,
+  };
+}
+
+/** The social networks a strategy can post to today, in the menu's order. */
+export const CMO_LIVE_NETWORKS: readonly string[] = Object.entries(
+  CMO_CHANNELS as Record<string, { owner: string; status: string }>,
+)
+  .filter(
+    ([, channel]) => channel.owner === "connect" && channel.status === "live",
+  )
+  .map(([key]) => key);
+
+const AD_CHANNELS = ["google_ads", "meta_ads"];
+
+/**
+ * Ads cost the owner money on top of their plan, so they are the owner's Yes
+ * or No on the strategy (cmo-v5): until a yes with an amount, nothing of the
+ * strategy holds them and no question asks about them.
+ */
+function unaskedAdProblems(strategy: MarketingStrategyPlan): string[] {
+  const problems: string[] = [];
+  const asked = strategy.questions.filter((question) =>
+    /\b(ads?|advertis\w*|ad budget|paid reach)\b/i.test(question.question),
+  );
+  if (asked.length > 0)
+    problems.push(
+      `questions asks about ads ("${asked[0]?.question}"); never ask about ads or a budget, the owner answers that with a Yes or No of its own on the strategy. Remove it and say what you would start with in ads.suggest.`,
+    );
+  if ((strategy.ads?.monthly ?? 0) > 0) return problems;
+  const planned = strategy.channels
+    .map((channel) => channel.channel.toLowerCase())
+    .filter((channel) => AD_CHANNELS.includes(channel));
+  const inFunnel = strategy.funnel.filter(
+    (stage) =>
+      stage.channels.some((channel) => AD_CHANNELS.includes(channel)) ||
+      stage.plays.some((play) => AD_CHANNELS.includes(play.channel)),
+  );
+  const pieces = strategy.calendar.filter(
+    (entry) =>
+      AD_CHANNELS.includes(entry.channel.toLowerCase()) &&
+      entry.status !== "skipped",
+  );
+  if (planned.length > 0 || inFunnel.length > 0 || pieces.length > 0)
+    problems.push(
+      `the owner has not said yes to ads, but ${[
+        planned.length > 0 ? `channels holds ${planned.join(", ")}` : "",
+        pieces.length > 0
+          ? `the calendar holds ads (${pieces.map((entry) => entry.id).join(", ")})`
+          : "",
+        inFunnel.length > 0
+          ? `the funnel names ads at ${inFunnel.map((stage) => stage.stage).join(", ")}`
+          : "",
+      ]
+        .filter(Boolean)
+        .join(
+          " and ",
+        )}; take ads out of channels, the calendar and the funnel, keep monthly 0, and say what you would start with in ads.suggest.`,
+    );
+  return problems;
+}
+
+/**
+ * A question whether the owner can count, share or tell something: a yes or
+ * no to it changes nothing in the strategy. "Can you count new account
+ * starts each week?" once sat among the assumptions.
+ */
+function askedForNothingProblems(strategy: MarketingStrategyPlan): string[] {
+  const empty = strategy.questions.filter((question) =>
+    /^(can|could|are you able to|will|would) you (please )?(count|share|tell|provide|send|give|track|measure|report|confirm how|say|show|look up|check)\b|^do you (know|track|measure|have (the )?(numbers?|data|figures?))\b/i.test(
+      question.question.trim(),
+    ),
+  );
+  return empty.length > 0
+    ? [
+        `questions asks whether the owner can do or knows something ("${empty[0]?.question}"); a yes or no to that changes nothing. State your estimate and ask if it holds ("Do about 30 new accounts start each week?").`,
+      ]
+    : [];
+}
+
+/**
+ * The planned networks the Brand Brain shows no profile on, without the
+ * "New:" that tells the owner to open the account first.
+ */
+export function cmoNewNetworkProblems(
+  strategy: MarketingStrategyPlan,
+  brain: BrandBrain,
+): string[] {
+  const found = [
+    ...(brain.channels ?? []),
+    ...(brain.marketingToday?.channels ?? []),
+  ].map((channel) => channel.name.trim().toLowerCase());
+  const names = CMO_CHANNELS as Record<string, { name: string }>;
+  const unmarked = strategy.channels
+    .filter((channel) => {
+      const key = channel.channel.toLowerCase();
+      if (!CMO_LIVE_NETWORKS.includes(key)) return false;
+      const known = [key, names[key]?.name.toLowerCase() ?? key];
+      if (key === "x") known.push("twitter", "x (twitter)");
+      return (
+        !found.some((name) => known.includes(name)) &&
+        !/^new:/i.test(channel.why?.trim() ?? "")
+      );
+    })
+    .map((channel) => channel.channel);
+  return unmarked.length > 0
+    ? [
+        `the Brand Brain shows no profile on ${unmarked.join(", ")}; start ${unmarked.length === 1 ? "its" : "each one's"} why with "New:" and say the owner opens the account.`,
+      ]
+    : [];
+}
+
+/**
+ * Every live network is planned or left out with a reason, never parked in
+ * proposals: a month once held only LinkedIn, X and Google Ads, because a
+ * network without an account was a proposal the owner never saw as posts.
+ */
+function networkProblems(strategy: MarketingStrategyPlan): string[] {
+  const planned = new Set(
+    strategy.channels.map((channel) => channel.channel.toLowerCase()),
+  );
+  const leftOut = new Set(
+    (strategy.leftOut ?? []).map((item) => item.channel.toLowerCase()),
+  );
+  const problems: string[] = [];
+  const missing = CMO_LIVE_NETWORKS.filter(
+    (network) => !planned.has(network) && !leftOut.has(network),
+  );
+  if (missing.length > 0)
+    problems.push(
+      `${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} in neither channels nor leftOut; plan every live network (one the business has no account on as a side channel whose why starts with "New:"), or name it in leftOut with why it does not fit this buyer.`,
+    );
+  const both = CMO_LIVE_NETWORKS.filter(
+    (network) => planned.has(network) && leftOut.has(network),
+  );
+  if (both.length > 0)
+    problems.push(
+      `${both.join(", ")} ${both.length === 1 ? "is" : "are"} in channels and in leftOut; keep each in one.`,
+    );
+  const proposed = strategy.proposals
+    .map((proposal) => proposal.channel.toLowerCase())
+    .filter((channel) => CMO_LIVE_NETWORKS.includes(channel));
+  if (proposed.length > 0)
+    problems.push(
+      `${proposed.join(", ")} ${proposed.length === 1 ? "is" : "are"} in proposals; a social network is planned in channels or named in leftOut, never proposed.`,
+    );
+  return problems;
+}
+
+/**
+ * What a funnel breaks. A Cuso on the AIDA skill gives exactly the four
+ * classic stages in order, each with what he does there; one before it gave
+ * three or four of his own choosing, and strategies saved then still pass.
+ */
+function funnelProblems(
+  funnel: MarketingStrategyPlan["funnel"],
+  { aida }: PlanReviewOptions,
+): string[] {
+  if (!aida)
+    return funnel.length < 3
+      ? [`funnel has ${funnel.length} stages; give three or four.`]
+      : [];
+  const stages = funnel.map((stage) => stage.stage);
+  const problems: string[] = [];
+  if (stages.join() !== CMO_AIDA_STAGES.join())
+    problems.push(
+      `funnel has the stages ${stages.join(", ") || "none"}; give exactly these four in this order: ${CMO_AIDA_STAGES.join(", ")}.`,
+    );
+  for (const stage of funnel) {
+    if (!stage.cusoDoes)
+      problems.push(
+        `the ${stage.stage} stage has no cusoDoes; say in one sentence what you do there.`,
+      );
+    if (stage.name)
+      problems.push(
+        `the ${stage.stage} stage has a name of its own ("${stage.name}"); leave name out, the owner reads the stage's classic name.`,
+      );
+    if (stage.owner && stage.owner !== "cuso" && !stage.youDo)
+      problems.push(
+        `the ${stage.stage} stage is ${stage.owner === "you" ? "the owner's" : "shared"} but has no youDo; say in one sentence what the owner does there.`,
+      );
+  }
+  return problems;
 }
 
 /** The strategy skill whose Cuso saves a long month week by week. */
@@ -295,6 +503,22 @@ export const WEEKLY_STRATEGY_SKILL = "cmo-strategy-weekly";
  * saved week by week takes four calendar saves before any fix.
  */
 export const CMO_WEEKLY_EXTRA_REVIEWS = 4;
+
+/**
+ * Whether a piece goes out on a network: its own, or one its talking video
+ * is also shown on. Counted there too, so a network that takes only video
+ * (YouTube) meets its cadence through the month's shared videos.
+ */
+function goesOutOn(
+  entry: MarketingStrategyPlan["calendar"][number],
+  channel: string,
+): boolean {
+  const key = channel.toLowerCase();
+  return (
+    entry.channel.toLowerCase() === key ||
+    (entry.alsoOn ?? []).some((network) => network.toLowerCase() === key)
+  );
+}
 
 /** Whole or started weeks from the calendar's first piece to its last. */
 function calendarWeeks(pieces: MarketingStrategyPlan["calendar"]): number {
@@ -338,8 +562,8 @@ function roleProblems(
       problems.push(
         `${channel.channel} is a side channel without a buyer; name the Brand Brain buyer its pieces are written for.`,
       );
-    const count = pieces.filter(
-      (entry) => entry.channel === channel.channel,
+    const count = pieces.filter((entry) =>
+      goesOutOn(entry, channel.channel),
     ).length;
     const most = CMO_SIDE_CHANNEL_PER_WEEK * weeks;
     if (count > most)
@@ -457,7 +681,8 @@ const MAX_PER_DAY_OTHER = 2;
 function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
   const counts = new Map<string, number>();
   for (const entry of pieces)
-    counts.set(entry.channel, (counts.get(entry.channel) ?? 0) + 1);
+    for (const network of [entry.channel, ...(entry.alsoOn ?? [])])
+      counts.set(network, (counts.get(network) ?? 0) + 1);
   return [...counts].flatMap(([channel, count]) => {
     const social =
       (CMO_CHANNELS as Record<string, { owner: string }>)[channel]?.owner ===
@@ -517,8 +742,8 @@ function cadenceProblems(
   return channels.flatMap((channel) => {
     const range = cadenceRange(channel.cadence);
     if (!range) return [];
-    const count = pieces.filter(
-      (entry) => entry.channel.toLowerCase() === channel.channel.toLowerCase(),
+    const count = pieces.filter((entry) =>
+      goesOutOn(entry, channel.channel),
     ).length;
     const [low, high] = range;
     if (count >= Math.floor(low * 0.6) && count <= Math.ceil(high * 1.4))

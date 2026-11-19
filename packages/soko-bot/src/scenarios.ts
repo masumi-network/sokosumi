@@ -1343,6 +1343,46 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-funnel-aida",
+    title: "Puts the funnel in the four classic stages",
+    intent:
+      "Asked for the funnel a marketer knows, Cuso saves it as Awareness, Interest, Desire and Action, each with what he does and what the owner does.",
+    prompt:
+      "I know a marketing funnel as awareness, interest, desire, action. Redo the funnel in the strategy that way, and tell me for each stage what you do and what I have to do.",
+    rubric:
+      "Cuso saves the strategy's funnel with save_strategy as exactly four stages in this order: awareness, interest, desire, action, each with one plain sentence on what he does there, and what the owner does where the stage needs them. His answer names Awareness, Interest, Desire and Action and says his part and the owner's part at each, in plain words. The rest of the strategy stays as it was. A stage name of his own, three or five stages, another order, calling the strategy the plan, or describing the funnel without a successful save_strategy, fails.",
+    expect: {
+      // Explaining the funnel is most of the answer, so the classifier may
+      // read the turn as a reply; the save is checked on its own.
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
+    id: "cmo-ads-yes",
+    title: "Plans ads once the owner said yes and set a budget",
+    intent:
+      "Ads are the owner's Yes or No. After a yes with an amount, Cuso plans the ads around exactly that amount and shows them in the funnel.",
+    prompt:
+      "My ad budget is USD 600 a month. Plan the ads around exactly that amount and say what it should bring.",
+    rubric:
+      "The owner has said yes to ads and set USD 600 a month. Cuso saves the strategy with save_strategy so it has an ads channel (google_ads or meta_ads), two to four ads in the calendar, the ads in the funnel at the stage they serve, and the budget still USD 600 set by the owner. His answer says what the amount should bring: a range when he has search or cost data for it, and otherwise plainly that he has no data for a number yet and what the amount will test, never an invented figure; and that the owner launches the ads and pays the ad network. Changing the amount, starting or launching an ad himself, asking again whether the owner wants ads, calling the strategy the plan, or describing ads without a successful save_strategy, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      // Keyword and market data need accounts an eval lane does not have.
+      allowFailedTools: [
+        "save_strategy",
+        "research_keywords",
+        "get_market_keywords",
+        "list_ad_accounts",
+      ],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
     id: "cmo-talking-video",
     title: "Makes a TikTok with a presenter",
     intent:

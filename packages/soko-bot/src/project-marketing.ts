@@ -563,9 +563,20 @@ export const REFERENCE_PURPOSES = [
   "brand",
 ] as const;
 
-/** The funnel's stages, top to bottom. */
-export const CMO_FUNNEL_STAGES = [
+/** The funnel's four stages, top to bottom: the classic AIDA funnel. */
+export const CMO_AIDA_STAGES = [
   "awareness",
+  "interest",
+  "desire",
+  "action",
+] as const;
+
+/**
+ * Every stage a saved funnel may hold: AIDA's four, and the three a Cuso
+ * before cmo-v5 wrote, which older strategies still carry.
+ */
+export const CMO_FUNNEL_STAGES = [
+  ...CMO_AIDA_STAGES,
   "consideration",
   "conversion",
   "loyalty",
@@ -655,6 +666,16 @@ const strategyPlanShape = {
       without: shortText,
       /** The owner set the amount; Cuso keeps it. */
       setByOwner: z.boolean().default(false),
+      /**
+       * What Cuso would start with if the owner says yes to ads (cmo-v5):
+       * ads are planned only after that yes.
+       */
+      suggest: z
+        .object({
+          channel: channelKey,
+          monthly: z.number().min(0).max(10_000_000),
+        })
+        .optional(),
     })
     .optional(),
   /** Each channel before Cuso and in this plan, from the Brand Brain's marketing today. */
@@ -766,9 +787,13 @@ const strategyPlanShape = {
     .array(
       z.object({
         stage: z.enum(CMO_FUNNEL_STAGES),
-        /** What people do here, in their words: "Hear about us". */
-        name: shortText,
+        /** A name of Cuso's own for the stage; only older strategies have one. */
+        name: shortText.optional(),
         goal: shortText,
+        /** What Cuso does at this stage, in one plain sentence. */
+        cusoDoes: shortText.optional(),
+        /** What the owner does at this stage, when it needs them. */
+        youDo: shortText.optional(),
         channels: z.array(channelKey).max(6).default([]),
         metric: shortText,
         target: shortText.optional(),
@@ -797,6 +822,15 @@ const strategyPlanShape = {
       }),
     )
     .max(4)
+    .default([]),
+  /**
+   * Live social networks this strategy leaves out because they clearly do
+   * not fit the buyer, each with its reason. Every other live network is in
+   * `channels` (cmo-v5).
+   */
+  leftOut: z
+    .array(z.object({ channel: channelKey, why: shortText }))
+    .max(6)
     .default([]),
   /**
    * Channels Cuso runs that this plan leaves out because the owner has no
