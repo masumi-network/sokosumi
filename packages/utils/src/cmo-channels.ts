@@ -156,12 +156,19 @@ export const CMO_CHANNELS = {
   tiktok: {
     name: "TikTok",
     group: "social",
-    status: "soon",
+    status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       video: {
         name: "Short video",
-        what: "Coming soon",
+        what: "A five-second vertical video made from a brand picture, with a caption",
         image: false,
         video: true,
       },

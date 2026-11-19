@@ -246,7 +246,7 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
     .filter((key) => CMO_CHANNELS[key].status === "live" && !used.has(key))
     .map((key) => CMO_CHANNELS[key].name);
   const soon = (Object.keys(CMO_CHANNELS) as (keyof typeof CMO_CHANNELS)[])
-    .filter((key) => CMO_CHANNELS[key].status === "soon")
+    .filter((key) => (CMO_CHANNELS[key].status as string) === "soon")
     .map((key) => CMO_CHANNELS[key].name);
   return (
     <>
