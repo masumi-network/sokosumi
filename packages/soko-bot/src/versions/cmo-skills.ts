@@ -464,7 +464,7 @@ research_competitor_keywords returns, for each competitor on the watch list, the
 Read the google-ads writing skill first (read_writing_skill). Then save all of them with one save_strategy call, part pieces, each a new calendar entry:
 - id "kw-" plus the search in lower case with hyphens; date today; channel google_ads; format search_ad; status draft; campaignId "competitor-searches"; title: the search in Title Case plus " search ad".
 - draft: the ad as the owner reads it (Headlines and Descriptions lists).
-- searchAd.keywords: the search and its alsoSearchedAs, exactly as returned. Core runs every one as a phrase match.
+- searchAd.keywords: the search and its alsoSearchedAs, exactly as returned, and nothing else: Core refuses the save when one of these ads carries a keyword the read did not return. Core runs every one as a phrase match.
 - searchAd.headlines: eight or more, each at most 30 characters. The first is the search itself in Title Case when it fits in 30 characters ("Calendly Alternative"); at least two more carry its words. The rest say what the business offers, from the Brand Brain.
 - searchAd.descriptions: two to four, what the business offers and one action.
 - searchAd.finalUrl: the landing page for that search once the owner has told you its address, the homepage until then.
@@ -478,6 +478,19 @@ Read the google-ads writing skill first (read_writing_skill). Then save all of t
 2. "They are in your Calendar. Nothing spends until you press Launch on each one." Then that each ad gets an equal share of the daily ad budget, with the amount.
 3. Which searches you left out because the budget does not pay for them, and which competitors had no searches worth an ad.
 4. Google can refuse an ad that names a competitor's trademark; then you rewrite it without the name.
+5. Offer a landing page for each search.
+
+## A landing page for a search
+An ad converts when the page it opens answers the search: the search stands in the page's H1 and in its first paragraph. The owner publishes the page on their own site; you write its words. Write one when the owner asks, one search a page, at most two in a turn.
+
+1. The facts about the competitor come only from its own words. check_competitors returns the stored signals with their quote and source; for its price and plans, web_fetch its pricing page and its homepage and copy the lines you use, character for character. Nothing from memory, a review site or a forum.
+2. The page, in Markdown, in the strategy's contentLanguage and the brand's voice:
+   - First line: "# " and the H1, with the search word for word and written as a heading, the competitor's name capitalised ("# Calendly alternative for teams that self-host").
+   - First paragraph: the search word for word again, and what the business offers the person who typed it.
+   - Then what the business does for that person, from the Brand Brain: who it is for, what it costs, proof, one action. This is most of the page.
+   - A short, fair comparison: only what the competitor's own words say, each thing once, no adjective about it ("slow", "expensive", "limited"), no "better than". Where the competitor is the better fit for someone, say so; that honesty is why people trust the page.
+3. Save it with save_seo_suggestions landingPages: keyword exactly as research_competitor_keywords returned it, competitor, why, draft, and claims: every statement the page makes about the competitor with sourceUrl and quote. Core reads the source again and refuses the page when a quote is not there, when a number beside the competitor's name is in no quote, or when the page says something about the competitor its quotes do not say. Fix what it names and save again; never drop the source to get past it.
+4. Tell the owner, in these words or close to them: "The page is in your SEO tab under Landing pages. Publish it on your site, then press It's live there and paste its address: from then on the ad for that search sends people to it." Never ask them to send you the address. An ad already launched keeps its address until they pause it and ask you to write it again.
 `,
   },
   {

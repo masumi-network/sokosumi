@@ -27,6 +27,11 @@ export interface SeoActions {
     id: string,
     status: "open" | "done" | "dismissed",
   ) => Promise<string | null>;
+  /** The owner published a landing page at this address on their site. */
+  markLandingPageLive: (
+    id: string,
+    url: string,
+  ) => Promise<{ note: string | null; error: string | null }>;
   /** No id: more article ideas; an id: the full article. */
   askCusoForArticles: (articleId?: string) => Promise<string | null>;
   connectSearchConsole: () => Promise<{
@@ -495,6 +500,121 @@ function Article({
   );
 }
 
+/** Where a source stands, as its site's name. */
+function sourceSite(url: string): string {
+  return URL.parse(url)?.hostname.replace(/^www\./, "") ?? url;
+}
+
+/**
+ * A page for a search that names a competitor: its words to copy, what it
+ * says about the competitor with the competitor's own words, and where the
+ * owner says it is live.
+ */
+function LandingPage({
+  page,
+  markLive,
+  setStatus,
+}: {
+  page: CmoSeoSuggestion;
+  markLive: (url: string) => Promise<void>;
+  setStatus: (status: "open" | "done" | "dismissed") => Promise<void>;
+}) {
+  const live = page.status !== "open" && page.pageUrl;
+  return (
+    <li className="li seo-item">
+      <div className="grow stack-sm">
+        <b>{page.title}</b>
+        {page.keyword ? (
+          <span className="note">For the search "{page.keyword}"</span>
+        ) : null}
+        <p className="note">{page.why}</p>
+        <Evidence items={page.evidence} />
+        <details>
+          <summary className="note">Read the page</summary>
+          <DraftText text={page.draft ?? ""} />
+        </details>
+        {page.sources.length > 0 ? (
+          <details>
+            <summary className="note">
+              What it says about them, and where they say it
+            </summary>
+            <ul className="list">
+              {page.sources.map((source) => (
+                <li key={`${source.sourceUrl}${source.quote}`} className="li">
+                  <span className="grow stack-sm">
+                    <span>{source.text}</span>
+                    <span className="note">
+                      "{source.quote}" (
+                      <a
+                        href={source.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {sourceSite(source.sourceUrl)}
+                      </a>
+                      )
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+        {live ? null : (
+          <form
+            className="seo-search"
+            action={async (form) => {
+              const url = String(form.get("url") ?? "").trim();
+              if (url) await markLive(url);
+            }}
+          >
+            <input
+              aria-label={`Where "${page.title}" is live`}
+              name="url"
+              type="url"
+              placeholder="https://your-site.com/the-page"
+              maxLength={500}
+              required
+            />
+            <SubmitButton className="button button-small">
+              It's live
+            </SubmitButton>
+          </form>
+        )}
+      </div>
+      <div className="seo-actions">
+        {page.draft ? (
+          <>
+            <CopyButton text={page.draft} label="Copy" />
+            <DownloadButton text={page.draft} title={page.title} />
+          </>
+        ) : null}
+        {live ? (
+          <>
+            <StatusText>Live</StatusText>
+            <span className="note">{pagePath(page.pageUrl)}</span>
+            <button
+              type="button"
+              className="button button-ghost button-small"
+              onClick={() => setStatus("open")}
+            >
+              Not live yet
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => setStatus("dismissed")}
+          >
+            Skip
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
 function KeywordResults({ search }: { search: CmoKeywordSearch }) {
   return (
     <div className="stack-sm">
@@ -658,6 +778,12 @@ export function SeoPage({ actions }: { actions: SeoActions }) {
           : `${AGENT_NAME} is looking for new ideas. They show here in a few minutes, and he tells you in the chat.`),
     );
   };
+  const markLive = (id: string) => async (url: string) => {
+    const result = await actions.markLandingPageLive(id, url);
+    setNote(result.error ?? result.note);
+    await refresh();
+  };
+  const landingPages = seo.landingPages.filter((p) => p.status !== "dismissed");
   const changes = seo.pageChanges.filter((c) => c.status !== "dismissed");
   const open = changes.filter((c) => c.status === "open");
   const articles = seo.articles.filter((a) => a.status !== "dismissed");
@@ -725,6 +851,27 @@ export function SeoPage({ actions }: { actions: SeoActions }) {
           </ul>
         )}
       </section>
+      {landingPages.length > 0 ? (
+        <section className="card">
+          <h3>Landing pages</h3>
+          <p className="muted">
+            Pages for people comparing you with a competitor, each with the
+            search in its heading and first paragraph. Publish one on your site,
+            then say where it is live: the search ad for that search sends
+            people there from then on.
+          </p>
+          <ul className="list">
+            {landingPages.map((page) => (
+              <LandingPage
+                key={page.id}
+                page={page}
+                markLive={markLive(page.id)}
+                setStatus={setStatus(page.id)}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <KeywordSearch
         seo={seo}
         search={actions.searchKeywords}

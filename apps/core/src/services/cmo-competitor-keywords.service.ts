@@ -253,3 +253,66 @@ export async function readCmoCompetitorKeywords(
     adBudget: budget && { ...budget, roomFor },
   };
 }
+
+/**
+ * The monthly searches of a search that names a competitor, as the latest
+ * read stored it, with when it was read. Null when no read holds it.
+ */
+export async function comparisonSearchVolume(
+  projectId: string,
+  keyword: string,
+): Promise<{ searchVolume: number; observedAt: Date } | null> {
+  const wanted = keyword.trim().toLowerCase().replace(/\s+/g, " ");
+  const rows = await prisma.projectSeoResearch.findMany({
+    where: { projectId, kind: COMPARISON_SEARCHES_KIND },
+    orderBy: { observedAt: "desc" },
+    select: { payload: true, observedAt: true },
+  });
+  for (const row of rows) {
+    const parsed = payloadSchema.safeParse(row.payload);
+    const found = parsed.data?.searches.find(
+      (search) => search.keyword.toLowerCase() === wanted,
+    );
+    if (found?.searchVolume)
+      return { searchVolume: found.searchVolume, observedAt: row.observedAt };
+  }
+  return null;
+}
+
+/** The campaign Cuso gives every search ad on a competitor's searches. */
+export const COMPETITOR_SEARCHES_CAMPAIGN = "competitor-searches";
+
+/**
+ * The keywords of search ads on competitors' searches that no read of those
+ * searches holds: such an ad targets only what people were measured to
+ * search, so a general keyword never spends its share of the budget.
+ */
+export async function unreadCompetitorAdKeywords(
+  projectId: string,
+  entries: readonly {
+    campaignId?: string;
+    searchAd?: { keywords: string[] };
+  }[],
+): Promise<string[]> {
+  const keywords = entries.flatMap((entry) =>
+    entry.campaignId === COMPETITOR_SEARCHES_CAMPAIGN
+      ? (entry.searchAd?.keywords ?? [])
+      : [],
+  );
+  if (keywords.length === 0) return [];
+  const rows = await prisma.projectSeoResearch.findMany({
+    where: { projectId, kind: COMPARISON_SEARCHES_KIND },
+    select: { payload: true },
+  });
+  const read = new Set(
+    rows.flatMap((row) => {
+      const parsed = payloadSchema.safeParse(row.payload);
+      return parsed.success
+        ? parsed.data.searches.map((search) => search.keyword.toLowerCase())
+        : [];
+    }),
+  );
+  return keywords.filter(
+    (keyword) => !read.has(keyword.trim().toLowerCase().replace(/\s+/g, " ")),
+  );
+}
