@@ -23,14 +23,14 @@ export function seoProjectHref(projectId: string) {
   return `/seo?${new URLSearchParams({ projectId, view: "project" })}`;
 }
 
-/** The same SEO URL without one query key. */
+/** The same SEO URL without these query keys. */
 export function seoHrefWithout(
   query: Record<string, string | string[] | undefined>,
-  key: string,
+  ...keys: string[]
 ) {
   const params = new URLSearchParams();
   for (const [name, value] of Object.entries(query))
-    if (name !== key)
+    if (!keys.includes(name))
       for (const one of [value ?? []].flat()) params.append(name, one);
   return `/seo?${params}`;
 }
