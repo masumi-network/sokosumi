@@ -483,13 +483,35 @@ describe("captureCmoBrandMedia", () => {
     expect(logo.refresh).not.toHaveBeenCalled();
   });
 
-  it("starts the index for one Cuso a sync, the first without one", async () => {
+  it("starts the index for one Cuso a sync, the first without a page read", async () => {
     db.fileProjectLink.findMany.mockResolvedValue([{ projectId: "project-1" }]);
-    await scheduleMissingCmoBrandIndex([
-      { projectId: "project-1", sokoBotId: "bot-1" },
-      { projectId: "project-2", sokoBotId: "bot-2" },
-      { projectId: "project-3", sokoBotId: "bot-3" },
-    ]);
+    const now = new Date("2026-11-19T12:00:00Z");
+    await scheduleMissingCmoBrandIndex(
+      [
+        { projectId: "project-1", sokoBotId: "bot-1" },
+        { projectId: "project-2", sokoBotId: "bot-2" },
+        { projectId: "project-3", sokoBotId: "bot-3" },
+      ],
+      now,
+    );
+    // Indexed means a page from the top down; a recent try waits six hours.
+    expect(db.fileProjectLink.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            {
+              resource: {
+                sourceId: { contains: "/Brand research/Full pages/" },
+              },
+            },
+            {
+              updatedAt: { gte: new Date("2026-11-19T06:00:00Z") },
+              resource: { sourceId: { contains: "/Brand research/" } },
+            },
+          ],
+        }),
+      }),
+    );
     expect(vi.mocked(waitUntil)).toHaveBeenCalledTimes(1);
     await vi.mocked(waitUntil).mock.calls[0]?.[0];
     expect(cuso.findForBot).toHaveBeenCalledWith("bot-2");
