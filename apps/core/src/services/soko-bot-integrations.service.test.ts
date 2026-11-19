@@ -1488,12 +1488,23 @@ describe("ad toolkits stay off the Soko Bot", () => {
       { slug: "TIKTOK", name: "TikTok", ...managed },
       { slug: "GOOGLEADS", name: "Google Ads", ...managed },
       { slug: "metaads", name: "Meta Ads", ...managed },
+      {
+        slug: "webhooks",
+        name: "Webhooks",
+        meta: { description: "Works with GitHub" },
+        ...managed,
+      },
       { slug: "github", name: "GitHub", ...managed },
       // Needs the owner's own OAuth app or API key: no one-click connect.
       { slug: "selfhosted", name: "Self-hosted", authSchemes: ["API_KEY"] },
     ]);
     const entries = await searchSokoBotIntegrationCatalog("");
-    expect(entries.map((entry) => entry.provider)).toEqual(["github"]);
+    expect(entries.map((entry) => entry.provider)).toEqual([
+      "webhooks",
+      "github",
+    ]);
+    const matched = await searchSokoBotIntegrationCatalog("github", 1);
+    expect(matched.map((entry) => entry.provider)).toEqual(["github"]);
   });
 
   it("refuses to list an ad toolkit's tools", async () => {

@@ -4,8 +4,8 @@ import type { ProjectImageJob } from "@sokosumi/core-client";
 import { LoaderCircle, Plus, VideoOff } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
-
 import { assetContentUrl } from "@/app/projects/components/image-studio/types";
+import { usePageListSearch } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ export function TikTokStudioLibrary({
   selectedId,
   onSelect,
   onNew,
+  retryHistory,
 }: {
   jobs: ProjectImageJob[];
   assetFor: (job: ProjectImageJob) => TalkingVideoAsset | null;
@@ -38,8 +39,13 @@ export function TikTokStudioLibrary({
   onSelect: (job: ProjectImageJob) => void;
   /** Leads to the form; none when the project is changed elsewhere. */
   onNew?: () => void;
+  retryHistory?: () => void;
 }) {
   const t = useTranslations("App.TikTokStudio");
+  const visibleJobs = usePageListSearch(jobs, (job) => ({
+    primary: [job.prompt, job.id],
+    secondary: [job.status, job.model, job.kind],
+  }));
   const format = useFormatter();
   return (
     <section aria-label={t("videos")} className={cn(HOLDER_CLASS, "min-w-0")}>
@@ -47,8 +53,15 @@ export function TikTokStudioLibrary({
         {/* The panel's section label, as DESIGN.md's page surfaces set it. */}
         <h2 className="text-muted-foreground flex items-baseline gap-2 text-xs font-medium">
           {t("videos")}
-          <span className="tabular-nums">{format.number(jobs.length)}</span>
+          <span className="tabular-nums">
+            {format.number(visibleJobs.length)}
+          </span>
         </h2>
+        {retryHistory ? (
+          <Button onClick={retryHistory} size="sm" variant="outline">
+            {t("tryAgain")}
+          </Button>
+        ) : null}
         {onNew ? (
           <Button onClick={onNew} size="sm" variant="outline">
             <Plus aria-hidden />
@@ -57,7 +70,7 @@ export function TikTokStudioLibrary({
         ) : null}
       </div>
       <ul className="flex gap-2 overflow-x-auto p-0.5">
-        {jobs.map((job) => {
+        {visibleJobs.map((job) => {
           const asset = assetFor(job);
           return (
             <li className="w-22 shrink-0" key={job.id}>

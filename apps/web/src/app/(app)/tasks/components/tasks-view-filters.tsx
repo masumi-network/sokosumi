@@ -25,12 +25,14 @@ import {
   hasTasksViewParams,
   type ProjectFilterOption,
   STUCK_AFTER_DAYS,
+  TASK_SEARCH_MAX_LENGTH,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
+import { PageQuerySearchField } from "@/components/page-query-search-field";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
@@ -100,6 +102,7 @@ export function TasksViewFilters({
   labels,
 }: TasksViewFiltersProps) {
   const t = useTranslations("App.Tasks.Filters");
+  const tPage = useTranslations("App.Tasks.Page");
   const tTags = useTranslations("App.Tasks.Tags");
   const workspaceTags = useWorkspaceTags(activeOrganizationId, {
     includeArchived: true,
@@ -418,6 +421,8 @@ export function TasksViewFilters({
   const activeFilters = [
     t("chip", { label: t("viewLabel"), value: viewName }),
     project && t("chip", { label: t("projectLabel"), value: project.name }),
+    filters.search &&
+      t("chip", { label: tPage("searchPlaceholder"), value: filters.search }),
     ...chips.map((chip) => t("chip", { label: chip.label, value: chip.value })),
   ].filter((name): name is string => !!name);
 
@@ -437,6 +442,11 @@ export function TasksViewFilters({
           labels={{ all: labels.all, assignedToMe: labels.assignedToMe }}
         />
       ) : null}
+      <PageQuerySearchField
+        className="min-w-36 flex-1"
+        maxLength={TASK_SEARCH_MAX_LENGTH}
+        placeholder={tPage("searchPlaceholder")}
+      />
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {

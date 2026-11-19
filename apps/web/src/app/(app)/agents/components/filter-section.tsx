@@ -2,15 +2,17 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import Categories from "@/app/agents/components/categories";
+import { PageSearchHint } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
 import useGalleryFilter from "@/hooks/use-gallery-filter";
+import { usePageSearchShortcut } from "@/hooks/use-page-search-shortcut";
 import {
   GALLERY_AGENT_KINDS,
   type GalleryAgentKindFilter,
@@ -23,6 +25,8 @@ interface FilterSectionProps {
 }
 
 export default function FilterSection({ categories }: FilterSectionProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  usePageSearchShortcut(inputRef, { focusOnMount: true });
   const t = useTranslations("App.Agents.FilterSection");
   const {
     query,
@@ -68,16 +72,22 @@ export default function FilterSection({ categories }: FilterSectionProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Input
-          className="max-w-full min-w-36 shrink-0 md:max-w-64"
-          placeholder={t("searchPlaceholder")}
-          value={searchValue}
-          onChange={(e) => {
-            const next = e.target.value;
-            setSearchValue(next);
-            debouncedSetQuery(next);
-          }}
-        />
+        <div className="@container/page-search relative w-full min-w-36 shrink-0 sm:w-64">
+          <Input
+            ref={inputRef}
+            aria-label={t("searchPlaceholder")}
+            aria-keyshortcuts="Meta+F Control+F"
+            className="@min-[14rem]/page-search:pe-16"
+            placeholder={t("searchPlaceholder")}
+            value={searchValue}
+            onChange={(e) => {
+              const next = e.target.value;
+              setSearchValue(next);
+              debouncedSetQuery(next);
+            }}
+          />
+          <PageSearchHint className="absolute end-3 top-1/2 -translate-y-1/2" />
+        </div>
         <div className="flex flex-wrap gap-2">
           {GALLERY_AGENT_KINDS.map((option) => (
             <Button

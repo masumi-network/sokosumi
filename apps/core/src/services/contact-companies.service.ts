@@ -5,15 +5,18 @@
  * Soko Bots and a background read of the company's website fill.
  */
 import type { Prisma } from "@sokosumi/database";
-import { PrismaRaw } from "@sokosumi/database/client";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { z } from "zod";
 import { conflict, notFound } from "@/helpers/error";
-import { literalSubstringPattern } from "@/helpers/project-activity";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { emitCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import {
+  type CompanyStats,
+  companyStats,
+  sortCompanies,
+} from "@/services/contact-company-search";
 import {
   generateWithContactModel,
   parseJsonObject,
@@ -77,69 +80,6 @@ export interface CompanySummary {
   strongestStage: (typeof STAGE_STRENGTH)[number] | null;
   /** The company lists it is on. */
   listIds: string[];
-}
-
-interface CompanyStats {
-  key: string;
-  /** The group's name as lowercase letters and digits ("acmerobotics"). */
-  org: string | null;
-  spelling: string | null;
-  domain: string | null;
-  /** Every spelling its people write, as lowercase letters and digits. */
-  orgs: string[];
-  people: number;
-  teammates: number;
-  interactions: number;
-  lastContactAt: Date | null;
-  stages: string[];
-}
-
-/**
- * Every company the workspace's live contacts work at, with what the team's
- * contact with its people adds up to. Gives each new group its row first, so
- * every company has an id to read and edit.
- */
-async function companyStats(
-  workspaceId: string,
-  options: { search?: string; name?: string; keys?: readonly string[] } = {},
-): Promise<CompanyStats[]> {
-  const named = (pattern: string) => PrismaRaw.sql`a.key IN (
-      SELECT cc.key FROM contact_company cc
-      WHERE cc."workspaceId" = ${workspaceId}::uuid AND cc.name ILIKE ${pattern} ESCAPE '\\'
-    )`;
-  const search = options.search
-    ? PrismaRaw.sql`HAVING bool_or(a.raw ILIKE ${literalSubstringPattern(options.search)} ESCAPE '\\')
-        OR bool_or(a.key ILIKE ${literalSubstringPattern(options.search)} ESCAPE '\\')
-        OR ${named(literalSubstringPattern(options.search))}`
-    : PrismaRaw.empty;
-  // Exactly the company a name belongs to, as the contact filter reads it.
-  const name = options.name
-    ? PrismaRaw.sql`AND (a.key IN (
-        SELECT key FROM assigned
-        WHERE org = regexp_replace(lower(${options.name}), '[^[:alnum:]]+', '', 'g')
-      ) OR ${named(options.name.trim().replace(/[\\%_]/g, "\\$&"))})`
-    : PrismaRaw.empty;
-  const keys = options.keys
-    ? PrismaRaw.sql`AND a.key = ANY(${options.keys}::text[])`
-    : PrismaRaw.empty;
-  return prisma.$queryRaw<CompanyStats[]>`
-    ${contactCompaniesCte(workspaceId)}
-    SELECT a.key, min(a.cluster_org) AS org,
-      mode() WITHIN GROUP (ORDER BY a.raw) FILTER (WHERE a.org = a.cluster_org) AS spelling,
-      CASE WHEN a.key LIKE 'd:%' THEN substr(a.key, 3) END AS domain,
-      coalesce(array_agg(DISTINCT a.org) FILTER (WHERE a.org <> ''), '{}') AS orgs,
-      count(*)::int AS people,
-      (SELECT count(DISTINCT i."userId")::int FROM contact_interaction i
-        WHERE i."contactId" = ANY(array_agg(a.id)) AND i."userId" IS NOT NULL) AS teammates,
-      sum(c."interactionCount")::int AS interactions,
-      max(c."lastContactAt") AS "lastContactAt",
-      array_agg(DISTINCT c.stage::text) AS stages
-    FROM assigned a
-    JOIN contact c ON c.id = a.id
-    WHERE a.key IS NOT NULL ${keys} ${name}
-    GROUP BY a.key
-    ${search}
-  `;
 }
 
 function nameKey(name: string): string {
@@ -395,14 +335,7 @@ export async function listCompanies(
       item.industry?.toLowerCase().includes(industry),
     );
   }
-  const sort = options.sort ?? "people";
-  items.sort((a, b) =>
-    sort === "name"
-      ? a.name.localeCompare(b.name)
-      : sort === "lastContact"
-        ? (b.lastContactAt?.getTime() ?? 0) - (a.lastContactAt?.getTime() ?? 0)
-        : b.people - a.people || a.name.localeCompare(b.name),
-  );
+  sortCompanies(items, options.sort ?? "people", options.search);
   const offset = options.offset ?? 0;
   const page = items.slice(offset, offset + options.limit);
   const listIds = await listIdsByCompany(page.map((item) => item.id));

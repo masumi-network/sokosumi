@@ -1,6 +1,9 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render as renderTree, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ReactNode, Suspense, use } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import messages from "@/../messages/en.json";
 
 const {
   connectionMock,
@@ -272,6 +275,16 @@ function page(cursor: string | null = null) {
   return { posts: [], nextCursor: cursor };
 }
 
+function render(node: ReactNode) {
+  return renderTree(
+    <NuqsTestingAdapter>
+      <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+        {node}
+      </NextIntlClientProvider>
+    </NuqsTestingAdapter>,
+  );
+}
+
 async function visit(
   searchParams: Record<string, string | undefined> = {},
 ): Promise<void> {
@@ -446,11 +459,10 @@ describe("SocialPage", () => {
     });
     await visit();
 
-    expect(projectServiceMock.listWorkspaceSocialPosts).toHaveBeenCalledWith([
-      "FAILED",
-      "MISSED",
-      "NEEDS_APPROVAL",
-    ]);
+    expect(projectServiceMock.listWorkspaceSocialPosts).toHaveBeenCalledWith(
+      ["FAILED", "MISSED", "NEEDS_APPROVAL"],
+      false,
+    );
     const list = screen.getByTestId("social-all-attention");
     expect(list).toHaveAttribute("data-posts", "failed,approval");
     expect(list).toHaveAttribute("data-has-more", "true");
@@ -748,6 +760,75 @@ describe("SocialPage", () => {
    * left over from the last visit. Task runs never appear on it, so the lock
    * is a prop rather than a toggle the reader has to find and keep set.
    */
+  it("pages only the searched tab and passes matching posts to the client", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialPosts.mockImplementation(
+      async (_id, { statuses, cursor }) => ({
+        posts: [
+          { id: cursor ?? statuses[0], text: cursor ? "Launch" : "Unrelated" },
+        ],
+        nextCursor: cursor ? null : statuses[0] + "-next",
+      }),
+    );
+    await visit({ projectId: PROJECT.id, tab: "drafts", q: "launch" });
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-order",
+      "DRAFT-next",
+    );
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-affected",
+      "",
+    );
+    expect(
+      projectServiceMock.listSocialPosts.mock.calls
+        .map(([, request]) => request.cursor)
+        .filter(Boolean),
+    ).toEqual(["DRAFT-next"]);
+    expect(readWorkspaceCalendarPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ complete: false, projectId: PROJECT.id }),
+      expect.anything(),
+    );
+  });
+
+  it("ranks workspace attention posts on the server without draining the hidden calendar", async () => {
+    projectServiceMock.listWorkspaceSocialPosts.mockResolvedValue({
+      items: [
+        { post: { id: "metadata", text: "Checklist" }, projectName: "Launch" },
+        {
+          post: { id: "unrelated", text: "Weekly update" },
+          projectName: "Other",
+        },
+        { post: { id: "primary", text: "Launch day" }, projectName: "Other" },
+      ],
+      hasMore: false,
+    });
+    await visit({ tab: "attention", q: "launch" });
+    expect(screen.getByTestId("social-all-attention")).toHaveAttribute(
+      "data-posts",
+      "primary,metadata",
+    );
+    expect(projectServiceMock.listWorkspaceSocialPosts).toHaveBeenCalledWith(
+      expect.anything(),
+      true,
+    );
+    expect(readWorkspaceCalendarPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ complete: false }),
+      expect.anything(),
+    );
+  });
+
+  it("completes only the calendar when a workspace search opens on its default tab", async () => {
+    await visit({ q: "launch" });
+    expect(projectServiceMock.listWorkspaceSocialPosts).toHaveBeenCalledWith(
+      expect.anything(),
+      false,
+    );
+    expect(readWorkspaceCalendarPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({ complete: true }),
+      expect.anything(),
+    );
+  });
+
   it("loads later attention and scheduled pages for complete account counts", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
     projectServiceMock.listSocialPosts.mockImplementation(

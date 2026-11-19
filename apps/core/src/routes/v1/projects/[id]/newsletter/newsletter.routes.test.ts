@@ -794,6 +794,7 @@ describe("newsletter subscribers", () => {
         status: "ACTIVE",
         OR: [
           { email: { contains: "ADA", mode: "insensitive" } },
+          { contactId: null, name: { contains: "ADA", mode: "insensitive" } },
           { contact: { name: { contains: "ADA", mode: "insensitive" } } },
           {
             contact: {

@@ -24,12 +24,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTimeZone, useTranslations } from "next-intl";
-import {
-  parseAsString,
-  parseAsStringEnum,
-  parseAsStringLiteral,
-  useQueryState,
-} from "nuqs";
+import { parseAsString, parseAsStringEnum, useQueryState } from "nuqs";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
@@ -39,6 +34,7 @@ import { SocialPostComposerDialog } from "@/app/projects/components/social-posts
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
 import { EmptyState } from "@/components/common/empty-state";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import {
   SOCIAL_POST_PROVIDERS,
   SocialPlatformFilter,
@@ -63,7 +59,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
@@ -110,11 +105,16 @@ import {
   isBrowserOffline,
   isRevisionConflict,
   isTimeoutRejection,
+  postsInSection,
+  searchSocialPosts,
   sectionOf,
-  sortSection,
   upsertPost,
   withoutActions,
 } from "./social-post-list";
+import {
+  SocialPostNoMatches,
+  SocialPostRowSkeleton,
+} from "./social-post-list-feedback";
 import { SocialPostMediaThumb } from "./social-post-media-thumb";
 import { SocialPostMetrics } from "./social-post-metrics";
 import { SocialPostPreview } from "./social-post-preview";
@@ -133,9 +133,13 @@ import {
   SOCIAL_TABS_LIST_CLASS_NAME,
   SOCIAL_TABS_ROW_CLASS_NAME,
   SocialTabTrigger,
+  useSocialTab,
 } from "./social-tab-trigger";
 
 interface ProjectSocialPostsProps {
+  sectionCounts?: Record<SectionKey, number>;
+  searchQuery?: string;
+  searchField?: ReactNode;
   queueSlots?: SocialQueueSlot[];
   /** Social's calendar, shown as the first tab when given. */
   calendar?: ReactNode;
@@ -229,26 +233,11 @@ function previewAccountFor(
   };
 }
 
-/** Same boxes as a list row so Load more does not jump the page. */
-function SocialPostRowSkeleton() {
-  return (
-    <li
-      aria-hidden
-      className="bg-background border-border flex items-start gap-3 rounded-lg border p-3"
-      data-testid="social-post-row-skeleton"
-    >
-      <Skeleton className="size-9 shrink-0 rounded-md" />
-      <div className="min-w-48 flex-1 space-y-1.5">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-3 w-24" />
-      </div>
-    </li>
-  );
-}
-
 export function ProjectSocialPosts({
   accounts,
+  sectionCounts,
+  searchQuery = "",
+  searchField,
   accountCount,
   connectDisabled = false,
   managedConnections,
@@ -295,10 +284,7 @@ export function ProjectSocialPosts({
     section: SectionKey;
     kind: LoadMoreErrorKind;
   } | null>(null);
-  const [tabParam, setTabParam] = useQueryState(
-    "tab",
-    parseAsStringLiteral(SOCIAL_TABS),
-  );
+  const [tabParam, setTabParam] = useSocialTab();
   const [provider, setProvider] = useQueryState(
     "provider",
     parseAsStringEnum<ProjectSocialProviderValue>(SOCIAL_POST_PROVIDERS),
@@ -380,13 +366,6 @@ export function ProjectSocialPosts({
       returnFocus();
   }
 
-  function postsIn(section: SectionKey): SocialPost[] {
-    return sortSection(
-      posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
-      section,
-    );
-  }
-
   const [reconnectedAccounts, setReconnectedAccounts] = useState<
     ProjectSocialConnection[]
   >([]);
@@ -466,7 +445,9 @@ export function ProjectSocialPosts({
     if (candidate === "accounts") return accounts !== undefined;
     return (
       candidate !== "attention" ||
-      postsIn(candidate).length > 0 ||
+      (sectionCounts?.[candidate] ?? postsInSection(posts, candidate).length) >
+        0 ||
+      (Boolean(searchQuery) && tabParam === candidate) ||
       reconnections.length > 0 ||
       Boolean(cursors[candidate]) ||
       failedSections.includes(candidate)
@@ -484,7 +465,10 @@ export function ProjectSocialPosts({
             !(tab === "attention" && reconnections.length > 0)
           ? "reconnect"
           : null;
-  const retryablePosts = postsIn("attention").filter(
+  const retryablePosts = searchSocialPosts(
+    postsInSection(posts, "attention"),
+    searchQuery,
+  ).filter(
     (post) =>
       canRetryPost(post) && (provider === null || post.provider === provider),
   );
@@ -1412,7 +1396,8 @@ export function ProjectSocialPosts({
                 {tabs.map((candidate) => {
                   const count =
                     candidate === "drafts" || candidate === "attention"
-                      ? postsIn(candidate).length +
+                      ? (sectionCounts?.[candidate] ??
+                          postsInSection(posts, candidate).length) +
                         (candidate === "attention" ? reconnections.length : 0)
                       : candidate === "accounts"
                         ? listedAccountCount
@@ -1515,11 +1500,14 @@ export function ProjectSocialPosts({
 
           {SECTION_ORDER.filter((section) => tabs.includes(section)).map(
             (section) => {
-              const sectionPosts = postsIn(section).filter(
+              const sectionPosts = searchSocialPosts(
+                postsInSection(posts, section),
+                searchQuery,
+              ).filter(
                 (post) => provider === null || post.provider === provider,
               );
               const sectionReconnections =
-                section === "attention"
+                section === "attention" && !searchQuery
                   ? reconnections.filter(
                       ({ connection }) =>
                         provider === null || connection.provider === provider,
@@ -1533,6 +1521,7 @@ export function ProjectSocialPosts({
                   data-testid={`social-posts-section-${section}`}
                   value={section}
                 >
+                  {searchField}
                   {sectionReconnections.length > 0 ? (
                     <ProjectSocialAccounts
                       connections={managed}
@@ -1624,6 +1613,8 @@ export function ProjectSocialPosts({
                         </>
                       ) : null}
                     </ul>
+                  ) : searchQuery ? (
+                    <SocialPostNoMatches />
                   ) : cursor || sectionReconnections.length > 0 ? null : (
                     <EmptyState
                       description={t(`emptyHint.${section}`)}
@@ -1674,7 +1665,9 @@ export function ProjectSocialPosts({
             data-testid="social-posts-section-statistics"
           >
             {tab === "statistics" ? (
-              <SocialPostStatistics key={projectId} projectId={projectId} />
+              <SearchablePageContent>
+                <SocialPostStatistics key={projectId} projectId={projectId} />
+              </SearchablePageContent>
             ) : null}
           </TabsContent>
 

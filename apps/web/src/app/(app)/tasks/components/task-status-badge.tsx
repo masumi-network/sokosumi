@@ -144,7 +144,7 @@ export function getTaskStatusDotColorClass(status: TaskStatus): string {
   return getToneStyle(getTaskStatusMarker(status).tone).dot;
 }
 
-function getTaskStatusLabel(status: TaskStatus): string {
+export function getTaskStatusLabel(status: TaskStatus): string {
   return STATUS_LABELS[status] ?? "Unknown";
 }
 

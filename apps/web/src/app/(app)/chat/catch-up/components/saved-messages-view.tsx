@@ -16,6 +16,10 @@ import { useRoomDisplayName } from "@/app/chat/components/use-room-display-name"
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
+import {
+  usePageListSearch,
+  usePageSearchPagination,
+} from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -86,6 +90,22 @@ export function SavedMessagesView({
       (!sawLiveRooms.current || roomsById.has(item.message.roomId)),
   );
 
+  const matching = usePageListSearch(visibleItems, ({ message }) => {
+    const room = roomsById.get(message.roomId);
+    return {
+      primary: [
+        formatUnreadThreadsPreview(
+          message.content,
+          roomMentionNames(room, tChannels("MentionAll.label")),
+        ),
+      ],
+      secondary: [
+        messageSender(message).name,
+        room && roomDisplayName(room, currentUserId),
+      ],
+    };
+  });
+
   async function handleRemove(messageId: string) {
     setRemoving((current) => new Set(current).add(messageId));
     // A rejected call is a failed write too: the row must not stay off the
@@ -105,6 +125,8 @@ export function SavedMessagesView({
       return next;
     });
   }
+
+  usePageSearchPagination(nextCursor, loadingOlder, handleLoadOlder);
 
   async function handleLoadOlder() {
     if (!nextCursor) return;
@@ -149,7 +171,7 @@ export function SavedMessagesView({
             </div>
           ) : (
             <ul className="flex flex-col gap-0.5" data-testid="saved-messages">
-              {visibleItems.map(({ messageId, savedAt, message }) => {
+              {matching.map(({ messageId, savedAt, message }) => {
                 const room = roomsById.get(message.roomId);
                 const roomName = room
                   ? room.kind === "channel"

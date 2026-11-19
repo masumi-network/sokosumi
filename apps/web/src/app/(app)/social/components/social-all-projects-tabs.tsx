@@ -1,7 +1,6 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
 
 import {
   SOCIAL_TABS,
@@ -13,7 +12,9 @@ import {
   SOCIAL_TABS_LIST_CLASS_NAME,
   SOCIAL_TABS_ROW_CLASS_NAME,
   SocialTabTrigger,
+  useSocialTab,
 } from "@/app/projects/components/social-posts/social-tab-trigger";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import {
   SEGMENTED_TABS_LIST_CLASS_NAME,
   Tabs,
@@ -60,10 +61,7 @@ export function SocialAllProjectsTabs({
   workspaceId: string;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
-  const [tabParam, setTabParam] = useQueryState(
-    "tab",
-    parseAsStringLiteral(SOCIAL_TABS),
-  );
+  const [tabParam, setTabParam] = useSocialTab();
   const tab = tabParam ?? "calendar";
 
   return (
@@ -124,14 +122,20 @@ export function SocialAllProjectsTabs({
         {calendar}
       </TabsContent>
       <TabsContent value="drafts">
-        <SocialAccountsProjectPrompt kind="drafts" />
+        <SearchablePageContent>
+          <SocialAccountsProjectPrompt kind="drafts" />
+        </SearchablePageContent>
       </TabsContent>
       <TabsContent value="attention">{attention}</TabsContent>
       <TabsContent value="statistics">
-        <SocialPostStatistics workspaceId={workspaceId} />
+        <SearchablePageContent>
+          <SocialPostStatistics workspaceId={workspaceId} />
+        </SearchablePageContent>
       </TabsContent>
       <TabsContent value="accounts">
-        <SocialAccountsProjectPrompt notice={notice} />
+        <SearchablePageContent>
+          <SocialAccountsProjectPrompt notice={notice} />
+        </SearchablePageContent>
       </TabsContent>
     </Tabs>
   );

@@ -47760,6 +47760,7 @@ export type GetDriveTablesData = {
         limit?: number;
         archived?: 'true' | 'false';
         projectId?: string;
+        search?: string;
     };
     url: '/drive/tables';
 };
@@ -59607,7 +59608,7 @@ export type GetProjectsData = {
          */
         limit?: number;
         /**
-         * Case-insensitive substring match on the project name, applied across the whole workspace before pagination
+         * Case-insensitive substring match on project name, identifier, briefing or website. Name and identifier matches come first, before pagination.
          */
         q?: string;
         /**
@@ -63934,6 +63935,10 @@ export type GetProjectsByIdNewsletterIssuesData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        /**
+         * Find issues by subject, then by preview text and newsletter content.
+         */
+        search?: string;
         status?: NewsletterIssueStatus;
         /**
          * Inclusive start of a delivery range: only issues scheduled (or, without a schedule, sent) at or after this time. Requires to.
@@ -76708,11 +76713,29 @@ export type GetProjectsByIdImageStudioTalkingVideosData = {
     path: {
         id: string;
     };
-    query?: never;
+    query?: {
+        before?: Date;
+        beforeId?: string;
+    };
     url: '/projects/{id}/image-studio/talking-videos';
 };
 
 export type GetProjectsByIdImageStudioTalkingVideosErrors = {
+    /**
+     * Invalid history cursor
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */
@@ -76767,7 +76790,9 @@ export type GetProjectsByIdImageStudioTalkingVideosResponses = {
      * The Project's talking videos
      */
     200: {
-        data: ProjectTalkingVideos;
+        data: ProjectTalkingVideos & {
+            hasMore?: boolean;
+        };
         meta: {
             timestamp: Date;
             requestId: string;
@@ -101209,6 +101234,10 @@ export type GetTasksData = {
          * Case-insensitive task name filter
          */
         q?: string;
+        /**
+         * Find Tasks by name or identifier first, then by visible tag or description. The selected sort breaks ties within each group.
+         */
+        search?: string;
         /**
          * Only Tasks with this workspace tag.
          */

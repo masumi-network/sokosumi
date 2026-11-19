@@ -54,7 +54,7 @@ export function HistoryToolbar({
   return (
     <div data-history-toolbar className="flex flex-col gap-3">
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="hidden min-w-0 flex-1 md:block">
+        <div className="min-w-0 flex-1">
           <HistorySearch
             key={searchResets}
             activeOrganizationId={activeOrganizationId}
@@ -63,7 +63,7 @@ export function HistoryToolbar({
           />
         </div>
         <p
-          className="text-muted-foreground min-w-0 flex-1 truncate text-sm md:hidden"
+          className="text-muted-foreground shrink-0 text-sm md:hidden"
           aria-live="polite"
         >
           {resultsCountLabel}

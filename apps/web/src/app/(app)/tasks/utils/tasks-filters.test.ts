@@ -612,6 +612,24 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
     expect(getTaskTagQuery("12345678-1234-1234-1234-123456789abc")).toEqual({});
   });
 
+  it("resets pagination for a new search without saving the text as a view preference", () => {
+    const params = new URLSearchParams({ q: "  Launch  ", tag: "research" });
+    const filters = getTasksFiltersFromSearchParams(params, "org", []);
+    expect(filters.search).toBe("Launch");
+    const query = buildTasksFiltersSearchParams(params, filters);
+    expect(query.get("q")).toBe("Launch");
+    expect(pickTasksViewQuery(query)).toBe("scope=workspace&tag=research");
+    expect(getTasksFiltersResetKey(filters, "org")).not.toBe(
+      getTasksFiltersResetKey({ ...filters, search: "Release" }, "org"),
+    );
+    expect(
+      buildTasksFiltersSearchParams(
+        query,
+        clearTasksFilters(filters, "org"),
+      ).has("q"),
+    ).toBe(false);
+  });
+
   it("reads, writes and clears the Stuck filter", () => {
     const filters = parseTasksFilters({ stuck: "1" }, "org-1");
     expect(filters.stuck).toBe(true);

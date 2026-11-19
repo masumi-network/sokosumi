@@ -136,12 +136,14 @@ export function searchMatchRange(
   return [start, end];
 }
 
-/** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. */
+/** The rows Core's `search` would keep, judged on the client: name, organization, any channel value, or location without accents. Roles and summaries also match. */
 export function matchesContactSearch(
   contact: {
     name: string;
     organization: string | null;
     location: string | null;
+    role?: string | null;
+    summary?: string | null;
     channels: ContactChannel[];
   },
   search: string,
@@ -151,10 +153,22 @@ export function matchesContactSearch(
     [
       contact.name,
       contact.organization,
+      contact.role,
+      contact.summary,
       ...contact.channels.map((channel) => channel.value),
     ].some((value) => value?.toLowerCase().includes(needle)) ||
     (!!contact.location && !!searchMatchRange(contact.location, search))
   );
+}
+
+/** Update the visible checkboxes while remembering rows outside the current search. */
+export function replaceVisibleSelection(
+  previous: readonly string[],
+  visible: readonly string[],
+  next: string[],
+): string[] {
+  const visibleIds = new Set(visible);
+  return [...previous.filter((id) => !visibleIds.has(id)), ...next];
 }
 
 /**

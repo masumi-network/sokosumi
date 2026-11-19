@@ -129,6 +129,10 @@ const newsletterIssuePageQuerySchema = cursorPaginationQuerySchema.extend({
 
 export const listNewsletterIssuesQuerySchema = newsletterIssuePageQuerySchema
   .extend({
+    search: z.string().trim().min(1).max(200).optional().openapi({
+      description:
+        "Find issues by subject, then by preview text and newsletter content.",
+    }),
     status: newsletterIssueStatusSchema.optional(),
     from: z.iso.datetime().optional().openapi({
       description:

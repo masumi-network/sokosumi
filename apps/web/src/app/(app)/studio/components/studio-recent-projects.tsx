@@ -4,9 +4,9 @@ import type { ImageStudioRecentProjects } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
-
 import { handStudioBriefTo } from "@/app/projects/components/image-studio/studio-workspace-brief";
 import { assetContentUrl } from "@/app/projects/components/image-studio/types";
+import { usePageListSearch } from "@/components/page-list-search";
 
 type Formatter = ReturnType<typeof useFormatter>;
 
@@ -44,6 +44,9 @@ export function StudioRecentProjects({
   projects: ImageStudioRecentProjects["projects"];
 }) {
   const t = useTranslations("App.Studio.RecentProjects");
+  const visibleProjects = usePageListSearch(projects, (project) => ({
+    primary: [project.projectName, project.projectId],
+  }));
   const format = useFormatter();
   return (
     <section
@@ -57,7 +60,7 @@ export function StudioRecentProjects({
         {t("title")}
       </h2>
       <ul className="grid gap-3 sm:grid-cols-3">
-        {projects.map((project) => (
+        {visibleProjects.map((project) => (
           <li key={project.projectId}>
             <Link
               className="bg-card-background border-border hover:bg-card-background-hover focus-visible:ring-ring flex items-center gap-3 rounded-xl border p-2 transition-colors outline-none focus-visible:ring-2 sm:flex-col sm:items-stretch"

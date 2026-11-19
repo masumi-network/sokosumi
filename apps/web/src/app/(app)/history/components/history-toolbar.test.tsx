@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -52,8 +54,8 @@ const filterLabels = {
 };
 
 describe("HistoryToolbar", () => {
-  it("hides the page search input on mobile so header search owns filtering", () => {
-    const { container } = render(
+  it("focuses the page filter with Ctrl+F in the mobile toolbar", () => {
+    render(
       <HistoryToolbar
         activeOrganizationId={null}
         filters={{
@@ -75,11 +77,12 @@ describe("HistoryToolbar", () => {
       />,
     );
 
-    const searchSlot = container.querySelector(".hidden.md\\:block");
-    expect(searchSlot).not.toBeNull();
-    expect(
-      screen.getByPlaceholderText("Search transactions").closest(".hidden"),
-    ).toBeTruthy();
+    const field = screen.getByRole("searchbox", {
+      name: "Search transactions",
+    });
+    expect(field.closest(".hidden")).toBeNull();
+    fireEvent.keyDown(window, { key: "f", ctrlKey: true });
+    expect(field).toHaveFocus();
     expect(screen.getByTestId("history-view-filters")).toBeInTheDocument();
   });
 

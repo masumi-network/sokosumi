@@ -2,13 +2,17 @@
 
 import type { JobSummary } from "@sokosumi/core-client";
 import { Search, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
+import { PageSearchHint } from "@/components/page-search-field";
 import { Input } from "@/components/ui/input";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { usePageSearchShortcut } from "@/hooks/use-page-search-shortcut";
 import { jobMatchesQuery, type SearchableJob } from "@/lib/job/job-search";
+import { cn } from "@/lib/utils";
 
 const MAX_QUERY_LENGTH = 256;
 
@@ -39,6 +43,9 @@ export function JobsSearch({
   hasMoreHistory = false,
   onFilteredChange,
 }: JobsSearchProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pathname = usePathname();
+  usePageSearchShortcut(inputRef, { focusOnMount: pathname.endsWith("/jobs") });
   const t = useTranslations("Components.Jobs.JobsSearch");
 
   const [queryParam, setQueryParam] = useQueryState("query", {
@@ -75,16 +82,26 @@ export function JobsSearch({
   }
 
   function handleClear() {
+    debouncedSetQuery.cancel();
     setSearchValue("");
-    setQueryParam("");
+    void setQueryParam("");
+    inputRef.current?.focus();
   }
 
   return (
     <div className="flex w-full flex-col items-start gap-1 px-2 pb-2 md:px-0 md:pr-4">
-      <div className="relative w-full">
+      <div className="@container/page-search relative w-full">
         <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2" />
         <Input
-          className="pr-8 pl-8"
+          ref={inputRef}
+          aria-label={t("placeholder")}
+          aria-keyshortcuts="Meta+F Control+F"
+          className={cn(
+            "pr-8 pl-8",
+            searchValue
+              ? "@min-[14rem]/page-search:pe-24"
+              : "@min-[14rem]/page-search:pe-16",
+          )}
           placeholder={t("placeholder")}
           value={searchValue}
           onChange={(e) => handleInputChange(e.target.value)}
@@ -101,6 +118,12 @@ export function JobsSearch({
             <X className="size-4" />
           </button>
         ) : null}
+        <PageSearchHint
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2",
+            searchValue ? "end-10" : "end-3",
+          )}
+        />
       </div>
       {searchValue ? (
         <div className="text-muted-foreground flex flex-col gap-0.5 px-1 text-xs">

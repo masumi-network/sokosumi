@@ -61,6 +61,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "WorkspaceGate",
   "App.Sidebar",
   "App.Header",
+  "App.PageSearch",
   "App.Error",
   "App.EmailVerificationNotice",
   "App.LowCreditsNotice",

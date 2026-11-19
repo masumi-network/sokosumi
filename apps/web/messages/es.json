@@ -1819,7 +1819,8 @@
     "Tasks": {
       "Page": {
         "title": "Task Manager",
-        "description": "Crea Tasks para Agents y gestiona tu trabajo de forma eficiente en una vista colaborativa."
+        "description": "Crea Tasks para Agents y gestiona tu trabajo de forma eficiente en una vista colaborativa.",
+        "searchPlaceholder": "Buscar tareas"
       },
       "Export": {
         "button": "Exportar como CSV…",
@@ -11753,7 +11754,9 @@
       "matchingRows": "{count, plural, one {# fila coincide} other {# filas coinciden}}",
       "contactsName": "Contactos",
       "contactsPinned": "Fijado",
-      "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}"
+      "contactsCount": "{count, plural, =1 {1 contacto} other {# contactos}}",
+      "searchPlaceholder": "Buscar tablas",
+      "noMatches": "Ninguna tabla coincide"
     },
     "ProjectScope": {
       "clearSearch": "Borrar búsqueda",
@@ -14214,6 +14217,24 @@
       "adminOnly": "Solo los administradores del espacio pueden cambiar estas preferencias.",
       "loadError": "No se pudieron cargar las preferencias de datos de anuncios. Inténtalo de nuevo.",
       "retry": "Reintentar"
+    },
+    "PageSearch": {
+      "find": "Buscar en esta página",
+      "filter": "Filtrar la lista",
+      "clear": "Borrar búsqueda",
+      "previous": "Coincidencia anterior",
+      "next": "Coincidencia siguiente",
+      "position": "{current} de {total}",
+      "noMatches": "Sin coincidencias",
+      "schedules": "Buscar programaciones",
+      "calendar": "Buscar en el calendario",
+      "audits": "Buscar informes",
+      "searching": "Buscando…",
+      "results": "{count, plural, =0 {Sin coincidencias} one {# coincidencia} other {# coincidencias}}",
+      "issues": "Buscar ediciones",
+      "posts": "Buscar publicaciones",
+      "controlShortcut": "Ctrl+F",
+      "loadedResults": "{count, plural, =0 {Sin coincidencias en los elementos cargados} one {# coincidencia en los elementos cargados} other {# coincidencias en los elementos cargados}}"
     }
   },
   "Share": {

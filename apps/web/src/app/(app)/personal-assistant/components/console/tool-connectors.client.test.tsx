@@ -11,6 +11,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../../messages/en.json";
 import { ToolConnectors } from "./tool-connectors.client";
@@ -74,7 +75,15 @@ function renderConnectors(
   readOnly = false,
   onError?: (error: Error) => void,
   client = new QueryClient(),
+  withPageSearch = false,
 ) {
+  const connectors = (
+    <ToolConnectors
+      integrations={{ configured: true, integrations }}
+      focusProvider={focusProvider}
+      readOnly={readOnly}
+    />
+  );
   return render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
@@ -84,11 +93,11 @@ function renderConnectors(
         formats={createFormats("h12")}
         onError={onError}
       >
-        <ToolConnectors
-          integrations={{ configured: true, integrations }}
-          focusProvider={focusProvider}
-          readOnly={readOnly}
-        />
+        {withPageSearch ? (
+          <SearchablePageContent>{connectors}</SearchablePageContent>
+        ) : (
+          connectors
+        )}
       </NextIntlClientProvider>
     </QueryClientProvider>,
   );
@@ -164,6 +173,21 @@ describe("ToolConnectors", () => {
       expect(screen.getAllByRole("listitem")).toHaveLength(1),
     );
     expect(screen.getByRole("button", { name: "Connect figma" })).toBeTruthy();
+  });
+
+  it("uses one dashboard field for a linked provider and for catalog matches beyond the popular suggestions", async () => {
+    const user = userEvent.setup();
+    renderConnectors([], "figma", false, undefined, new QueryClient(), true);
+    const field = screen.getByRole("searchbox");
+    expect(field).toHaveValue("figma");
+    expect(
+      await screen.findByRole("button", { name: "Connect figma" }),
+    ).toBeInTheDocument();
+    await user.clear(field);
+    await user.type(field, "teams");
+    expect(
+      await screen.findByRole("button", { name: "Connect microsoft_teams" }),
+    ).toBeInTheDocument();
   });
 
   it("opens a bot's connect link on that app", async () => {

@@ -5,9 +5,11 @@ import { InvitationStatus, MemberRole } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import DataTable from "@/components/data-table/data-table";
+import { usePageSearchQuery } from "@/components/page-list-search";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
+import { rankPageItems } from "@/lib/utils/page-search";
 import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 import MemberActionsModal from "./member-actions-modal";
@@ -32,10 +34,26 @@ export default function MembersTable({
   unusedSeats = 0,
 }: MembersTableProps) {
   const t = useTranslations("Components.MembersTable");
+  const query = usePageSearchQuery();
   const isOwnerOrAdmin =
     me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
   // Invitations with a cancel on its way: off the table before Core answers.
   const [cancelling, setCancelling] = useState<readonly string[]>([]);
+
+  const rows = combineMembersAndPendingInvitations(
+    members,
+    pendingInvitations.filter(
+      (invitation) => !cancelling.includes(invitation.id),
+    ),
+  );
+  // Keep translated roles, seats and dates available to the dashboard finder after name hits.
+  const named = new Set(
+    query
+      ? rankPageItems(rows, query, (row) => ({
+          primary: [row.name ?? row.email],
+        }))
+      : [],
+  );
 
   return (
     <SeatManagementContextProvider
@@ -55,17 +73,17 @@ export default function MembersTable({
               showSeatManagement,
               includeActions: isOwnerOrAdmin,
             })}
-            data={combineMembersAndPendingInvitations(
-              members,
-              pendingInvitations.filter(
-                (invitation) => !cancelling.includes(invitation.id),
-              ),
-            )}
+            data={
+              named.size
+                ? [...named, ...rows.filter((row) => !named.has(row))]
+                : rows
+            }
             rowClassName={() =>
               "text-foreground active:bg-accent hover:bg-accent"
             }
             containerClassName={cn("w-full rounded-xl bg-card-background p-2")}
-            showPagination={members.length > 10}
+            // The organization finder also reads roles, seat labels and translated dates on later pages.
+            showPagination={!query && members.length > 10}
             showRowsPerPage={false}
             enableRowSelection={false}
             initialPageSize={10}

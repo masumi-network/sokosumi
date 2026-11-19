@@ -355,7 +355,6 @@ import {
   getProjectsByIdHide as coreGetProjectsByIdHide,
   getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdImageStudioAssetsByAssetIdSocialMedia as coreGetProjectsByIdImageStudioAssetsByAssetIdSocialMedia,
-  getProjectsByIdImageStudioTalkingVideos as coreGetProjectsByIdImageStudioTalkingVideos,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdNewsletter as coreGetProjectsByIdNewsletter,
   getProjectsByIdNewsletterAnalytics as coreGetProjectsByIdNewsletterAnalytics,
@@ -626,6 +625,7 @@ import {
 } from "./core.request";
 import { createSokoBotClient } from "./core.soko-bot";
 import { createSokoBotAvatarClient } from "./core.soko-bot-avatars";
+import { createStudioHistoryClient } from "./core.studio-history";
 import { createTaskInterestClient } from "./core.task-interest";
 import { createTaskSubtasksClient } from "./core.task-subtasks";
 import { createTaskViewClient } from "./core.task-view";
@@ -4586,19 +4586,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function getProjectsByIdImageStudioTalkingVideos(id: string) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreGetProjectsByIdImageStudioTalkingVideos({
-          client,
-          path: { id },
-          cache: "no-store",
-        }),
-      "Failed to fetch the Project's talking videos",
-    );
-  }
-
   async function postProjectsByIdImageStudioJobsByJobIdCancel(
     id: string,
     jobId: string,
@@ -7529,7 +7516,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioVideoJobs,
     postProjectsByIdImageStudioTalkingVideoJobs,
     postProjectsByIdImageStudioTalkingVideoScripts,
-    getProjectsByIdImageStudioTalkingVideos,
     getProjectsByIdSocialPosts,
     getWorkspacesSocialPosts,
     getProjectsByIdSocialPostsStatistics,
@@ -7606,6 +7592,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     updateOrganizationSubscriptionSeats,
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
+    ...createStudioHistoryClient(getClient),
     ...createTaskInterestClient(getClient),
     ...createTaskSubtasksClient(getClient),
     ...createTaskViewClient(getClient),

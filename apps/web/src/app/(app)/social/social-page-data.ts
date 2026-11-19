@@ -15,12 +15,15 @@ import {
 import {
   SECTION_ORDER,
   SECTION_STATUSES,
+  SOCIAL_TABS,
+  type SocialTab,
 } from "@/app/projects/components/social-posts/constants";
 import { getSession, getSessionResult } from "@/lib/auth/auth.server";
 import { CoreAuthUnavailableError } from "@/lib/auth/errors";
 import { PREFETCHED_CONTENT_STALE_SECONDS } from "@/lib/navigation/prefetched-content-stale-time";
 import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { collectCursorPages } from "@/lib/utils/collect-cursor-pages";
 
 /**
  * All projects' Needs attention: what a project lists there (failed and
@@ -52,16 +55,21 @@ function socialCalendarQuery(query: CalendarPageSearchParams) {
   };
 }
 
-export type SocialPageQuery = CalendarPageSearchParams & { postId?: string };
+export type SocialPageQuery = CalendarPageSearchParams & {
+  postId?: string;
+  q?: string;
+  tab?: string;
+};
 
 interface SocialPageDataInput {
+  searchTab: SocialTab | null;
   query: SocialPageQuery;
   /** The calendar's zone, resolved from the request. */
   timezone: string;
 }
 
 async function readWorkspaceSocialPage(
-  { query, timezone }: SocialPageDataInput,
+  { query, timezone, searchTab }: SocialPageDataInput,
   session: Session | null,
   projectLoadFailed: boolean,
 ) {
@@ -70,6 +78,7 @@ async function readWorkspaceSocialPage(
     // to a project that is not there.
     readWorkspaceCalendarPage(
       {
+        complete: searchTab === "calendar",
         requested: { ...socialCalendarQuery(query), projectId: undefined },
         types: SOCIAL_CALENDAR_TYPES,
         timezone,
@@ -78,7 +87,10 @@ async function readWorkspaceSocialPage(
     ),
     sokoBotService.getMine().catch(() => null),
     projectService
-      .listWorkspaceSocialPosts(ALL_PROJECTS_ATTENTION_STATUSES)
+      .listWorkspaceSocialPosts(
+        ALL_PROJECTS_ATTENTION_STATUSES,
+        searchTab === "attention",
+      )
       .catch(() => null),
   ]);
   // Without a route Project the calendar always has a page.
@@ -93,7 +105,7 @@ async function readWorkspaceSocialPage(
 }
 
 async function readProjectSocialPage(
-  { query, timezone }: SocialPageDataInput,
+  { query, timezone, searchTab }: SocialPageDataInput,
   session: Session | null,
   projectId: string,
 ) {
@@ -108,11 +120,28 @@ async function readProjectSocialPage(
     Promise.all(
       SECTION_ORDER.map(async (section) => {
         try {
+          const statuses = SECTION_STATUSES[section];
+          const first = await projectService.listSocialPosts(projectId, {
+            statuses,
+          });
+          const complete = searchTab === section;
+          const posts = complete
+            ? await collectCursorPages(
+                first.posts,
+                first.nextCursor,
+                async (cursor) => {
+                  const page = await projectService.listSocialPosts(projectId, {
+                    statuses,
+                    cursor,
+                  });
+                  return { items: page.posts, nextCursor: page.nextCursor };
+                },
+              )
+            : first.posts;
           return {
             failed: false as const,
-            ...(await projectService.listSocialPosts(projectId, {
-              statuses: SECTION_STATUSES[section],
-            })),
+            posts,
+            nextCursor: complete ? null : first.nextCursor,
           };
         } catch {
           return {
@@ -136,6 +165,7 @@ async function readProjectSocialPage(
     readWorkspaceCalendarPage(
       {
         projectId,
+        complete: searchTab === "calendar",
         requested: socialCalendarQuery(query),
         types: SOCIAL_CALENDAR_TYPES,
         timezone,
@@ -155,28 +185,32 @@ async function readProjectSocialPage(
   ]);
   // Count every affected scheduled/failed post, including later list pages.
   // A failed read here only shortens the reconnect counts; Social stays up.
-  const affectedPosts: SocialPost[] = [...pages[1].posts];
-  try {
-    const scheduledPage = await projectService.listSocialPosts(projectId, {
-      statuses: ["SCHEDULED"],
-    });
-    affectedPosts.push(...scheduledPage.posts);
-    for (const [statuses, initialCursor] of [
-      [SECTION_STATUSES.attention, pages[1].nextCursor],
-      [["SCHEDULED"], scheduledPage.nextCursor],
-    ] as const) {
-      let cursor = initialCursor;
-      while (cursor) {
-        const page = await projectService.listSocialPosts(projectId, {
-          statuses,
-          cursor,
-        });
-        affectedPosts.push(...page.posts);
-        cursor = page.nextCursor;
+  const affectedPosts: SocialPost[] = [];
+  // Reconnection cards sit outside post search. Their complete counts are needed in the unfiltered view.
+  if (!searchTab) {
+    affectedPosts.push(...pages[1].posts);
+    try {
+      const scheduledPage = await projectService.listSocialPosts(projectId, {
+        statuses: ["SCHEDULED"],
+      });
+      affectedPosts.push(...scheduledPage.posts);
+      for (const [statuses, initialCursor] of [
+        [SECTION_STATUSES.attention, pages[1].nextCursor],
+        [["SCHEDULED"], scheduledPage.nextCursor],
+      ] as const) {
+        let cursor = initialCursor;
+        while (cursor) {
+          const page = await projectService.listSocialPosts(projectId, {
+            statuses,
+            cursor,
+          });
+          affectedPosts.push(...page.posts);
+          cursor = page.nextCursor;
+        }
       }
+    } catch {
+      // Keep the posts already read.
     }
-  } catch {
-    // Keep the posts already read.
   }
   return {
     pages,
@@ -236,8 +270,13 @@ async function readPrivateCachedSocialPageData(
  * turns into a fallback value, such as a failed project or section list, is
  * kept for the stale window until the refresh on mount replaces it.
  */
-export async function loadSocialPageData(query: SocialPageQuery) {
+export async function loadSocialPageData({ q, ...query }: SocialPageQuery) {
   const input: SocialPageDataInput = {
+    searchTab:
+      typeof q === "string" && q.trim()
+        ? (SOCIAL_TABS.find((candidate) => candidate === query.tab) ??
+          "calendar")
+        : null,
     query,
     timezone: await requestCalendarTimezone(query),
   };
@@ -249,5 +288,5 @@ export async function loadSocialPageData(query: SocialPageQuery) {
     },
   );
   if (!data) notFound();
-  return data;
+  return { ...data, searchTab: input.searchTab };
 }

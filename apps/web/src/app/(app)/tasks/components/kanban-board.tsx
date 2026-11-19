@@ -33,6 +33,8 @@ interface KanbanBoardProps {
   statusLabels?: Record<TaskStatus, string>;
   /** The order inside each column; the board's default is last updated. */
   sort?: TasksSort;
+  /** Search results arrive in relevance order, with the chosen sort within each rank. */
+  preserveSearchOrder?: boolean;
 }
 
 export function KanbanBoard({
@@ -46,14 +48,14 @@ export function KanbanBoard({
   compact = false,
   statusLabels,
   sort = "updatedAt",
+  preserveSearchOrder = false,
 }: KanbanBoardProps) {
   const compare = compareTasks(sort);
   return (
     <DragScrollContainer className="-mx-2 flex size-full min-h-[calc(100dvh-8.5rem)] min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
       {columns.map((column) => {
-        const columnTasks = tasks
-          .filter((task) => task.columnId === column.id)
-          .sort(compare);
+        const columnTasks = tasks.filter((task) => task.columnId === column.id);
+        if (!preserveSearchOrder) columnTasks.sort(compare);
         const isDraggableColumn = isDragEnabled && isDnDDragColumn(column.id);
         const isDropTargetColumn = isDragEnabled && isDnDDropColumn(column.id);
 

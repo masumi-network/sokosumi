@@ -11,6 +11,8 @@ import { useTranslations } from "next-intl";
 import { useQueryStates } from "nuqs";
 import { useRef, useState, useTransition } from "react";
 import { EmptyState } from "@/components/common/empty-state";
+import { pageSearchUrlUpdates } from "@/components/page-query-search-field";
+import { PageSearchField } from "@/components/page-search-field";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
@@ -26,7 +28,7 @@ import {
   IssueWhen,
 } from "./issue-delivery-status";
 import { NewIssueDialog } from "./new-issue-dialog";
-import { issueSearchParams } from "./search-params";
+import { ISSUE_SEARCH_MAX_LENGTH, issueSearchParams } from "./search-params";
 
 export function Issues({
   projectId,
@@ -43,14 +45,16 @@ export function Issues({
   readOnly?: boolean;
 }) {
   const t = useTranslations("App.Projects.Newsletter.Issues");
+  const tSearch = useTranslations("App.PageSearch");
   const [dialogOpen, setDialogOpen] = useState(false);
   const newButton = useRef<HTMLButtonElement>(null);
   const [pending, startTransition] = useTransition();
   const [pendingPage, setPendingPage] = useState<"first" | "next" | null>(null);
-  const [, setQuery] = useQueryStates(issueSearchParams, {
+  const [query, setQuery] = useQueryStates(issueSearchParams, {
     shallow: false,
     startTransition,
   });
+  const searching = Boolean(query.q.trim());
   const newIssue = readOnly ? null : (
     <div className="flex flex-wrap justify-center gap-2">
       <DraftIssueButton projectId={projectId} />
@@ -76,15 +80,26 @@ export function Issues({
             {t("Readiness.audienceCount", { count: activeSubscribers })}
           </Link>
         </div>
-        {issues.length ? newIssue : null}
+        <PageSearchField
+          value={query.q}
+          placeholder={tSearch("issues")}
+          maxLength={ISSUE_SEARCH_MAX_LENGTH}
+          onValueChange={(q) => {
+            setPendingPage(null);
+            void setQuery({ q, cursor: null }, pageSearchUrlUpdates(q));
+          }}
+        />
+        {issues.length || searching ? newIssue : null}
       </div>
       {!issues.length ? (
         <div className={HOLDER_CLASS}>
           <EmptyState
             icon={Mail}
-            title={t("emptyTitle")}
-            description={t("emptyDescription")}
-            action={newIssue}
+            title={searching ? undefined : t("emptyTitle")}
+            description={
+              searching ? tSearch("noMatches") : t("emptyDescription")
+            }
+            action={searching ? undefined : newIssue}
           />
         </div>
       ) : (

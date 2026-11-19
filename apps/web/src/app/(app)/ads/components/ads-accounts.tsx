@@ -10,8 +10,8 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-
 import { EmptyState } from "@/components/common/empty-state";
+import { usePageListSearch } from "@/components/page-list-search";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,6 +65,10 @@ export function AdsAccounts({
   readOnly = false,
 }: AdsAccountsProps) {
   const t = useTranslations("App.Ads.accounts");
+  const visibleAccounts = usePageListSearch(accounts, (account) => ({
+    primary: [account.name, account.externalAccountId],
+    secondary: [t(`providers.${account.provider}`), account.currency],
+  }));
   const { connect } = useComposioConnection();
   const sectionRef = useRef<HTMLElement | null>(null);
   const [connecting, setConnecting] = useState<ProjectAdProvider | null>(null);
@@ -275,7 +279,7 @@ export function AdsAccounts({
         <>
           {connectControls}
           <ul aria-label={t("listLabel")} className="flex flex-col gap-4">
-            {accounts.map((account) => (
+            {visibleAccounts.map((account) => (
               <li
                 key={account.id}
                 className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4"

@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
 
 const { refreshMock } = vi.hoisted(() => ({ refreshMock: vi.fn() }));
@@ -40,9 +40,10 @@ function renderTabs(
   notice?: string,
   projectFailed = false,
   attentionCount?: number | string,
+  onUrlUpdate?: (event: UrlUpdateEvent) => void,
 ) {
   return render(
-    <NuqsTestingAdapter searchParams={searchParams}>
+    <NuqsTestingAdapter searchParams={searchParams} onUrlUpdate={onUrlUpdate}>
       <SocialAllProjectsTabs
         actions={<button type="button">New post</button>}
         attention={<p>Every project needs attention</p>}
@@ -92,6 +93,19 @@ describe("SocialAllProjectsTabs", () => {
 
     await user.click(screen.getByRole("tab", { name: "sections.accounts" }));
     expect(screen.getByText("choose a project for accounts")).toBeVisible();
+  });
+
+  it("asks the server for the selected tab while keeping the search term", async () => {
+    const user = userEvent.setup();
+    const onUrlUpdate = vi.fn<(event: UrlUpdateEvent) => void>();
+    renderTabs("?q=launch", undefined, false, undefined, onUrlUpdate);
+    await user.click(screen.getByRole("tab", { name: "sections.attention" }));
+    expect(onUrlUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({ shallow: false }),
+        searchParams: new URLSearchParams("q=launch&tab=attention"),
+      }),
+    );
   });
 
   it("opens the tab the URL names", () => {

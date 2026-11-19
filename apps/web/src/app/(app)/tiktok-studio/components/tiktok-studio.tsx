@@ -4,7 +4,6 @@ import type {
   ProjectImageJob,
   ProjectImageStudioTalkingVideoCatalog,
   ProjectSocialConnection,
-  ProjectTalkingVideos,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
@@ -13,12 +12,10 @@ import {
   resolveUserUploadContentType,
   talkingVideoQuotedSeconds,
 } from "@sokosumi/utils";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, Upload } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { RadioGroup } from "radix-ui";
 import { type ReactNode, useId, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
@@ -31,14 +28,6 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import {
@@ -48,6 +37,7 @@ import {
 } from "@/lib/actions/image-studio/action";
 import { authClient } from "@/lib/auth/auth.client";
 import { coreClient } from "@/lib/clients/core.browser.client";
+import type { TalkingVideoPage } from "@/lib/services/image-studio.service";
 import { writeSocialComposePrefill } from "@/lib/social-compose-prefill";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
@@ -56,6 +46,13 @@ import {
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
 
+import {
+  OWN_PHOTO,
+  PHOTO_TYPES,
+  PresenterControls,
+  type PresenterPhoto,
+  SCRIPT_LANGUAGES,
+} from "./presenter-controls";
 import { TikTokStudioLibrary } from "./tiktok-studio-library";
 import {
   ACTIVE_STATUSES,
@@ -64,6 +61,7 @@ import {
   StagePreview,
   type TalkingVideoAsset,
 } from "./tiktok-studio-stage";
+import { useTalkingVideoHistory } from "./use-talking-video-history";
 
 const TikTokComposer = dynamic(() =>
   import(
@@ -71,13 +69,7 @@ const TikTokComposer = dynamic(() =>
   ).then((module) => module.SocialPostComposerDialog),
 );
 
-const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_PHOTO_MIB = 12;
-const POLL_MS = 4_000;
-/** Languages the voices speak well; the reader's own comes first. */
-const SCRIPT_LANGUAGES = ["en", "de", "es", "fr", "it", "pt", "nl"] as const;
-const OWN_PHOTO = "own-photo";
-
 type Script = { hook: string; script: string };
 
 /** Something that went wrong, shown beside the step it belongs to. */
@@ -85,17 +77,6 @@ type Problem = {
   step: "presenter" | "script" | "make";
   message: string;
 } | null;
-
-async function fetchTalkingVideos(
-  projectId: string,
-): Promise<ProjectTalkingVideos> {
-  const response = await fetch(
-    `/api/projects/${projectId}/image-studio/talking-videos`,
-    { credentials: "same-origin" },
-  );
-  if (!response.ok) throw new Error("Talking videos unavailable");
-  return (await response.json()) as ProjectTalkingVideos;
-}
 
 /** One thing a video can have besides its presenter. */
 function Extra({
@@ -135,7 +116,7 @@ export function TikTokStudio({
   /** The Project has a website a video can show. */
   hasWebsite: boolean;
   catalog: ProjectImageStudioTalkingVideoCatalog;
-  initialVideos: ProjectTalkingVideos;
+  initialVideos: TalkingVideoPage;
   /** A CMO Project is changed in CMO only. */
   readOnly: boolean;
 }) {
@@ -144,26 +125,19 @@ export function TikTokStudio({
   const locale = useLocale();
   const router = useRouter();
   const scriptId = useId();
-  const voiceId = useId();
-  const languageId = useId();
-  const consentId = useId();
   const showSiteId = useId();
   const musicId = useId();
   const brollId = useId();
   const makeHintId = useId();
   const queryClient = useQueryClient();
-  const queryKey = ["talking-videos", projectId];
+  const videos = useTalkingVideoHistory(projectId, initialVideos);
+  const queryKey = videos.queryKey;
 
   const [script, setScript] = useState("");
   const [presenterId, setPresenterId] = useState(
     catalog.presenters[0]?.id ?? OWN_PHOTO,
   );
-  const [photo, setPhoto] = useState<{
-    id: string;
-    name: string;
-    /** A local preview of the file just uploaded. */
-    previewUrl: string;
-  } | null>(null);
+  const [photo, setPhoto] = useState<PresenterPhoto | null>(null);
   const [consent, setConsent] = useState(false);
   const [showSite, setShowSite] = useState(true);
   const siteShots = hasWebsite && showSite;
@@ -195,19 +169,8 @@ export function TikTokStudio({
   );
   /** What the stage player found for each finished video's file, by asset. */
   const [playback, setPlayback] = useState<Record<string, Playback>>({});
-  const photoInput = useRef<HTMLInputElement>(null);
   const stage = useRef<HTMLElement>(null);
   const form = useRef<HTMLFormElement>(null);
-
-  const { data: videos } = useQuery({
-    queryKey,
-    queryFn: () => fetchTalkingVideos(projectId),
-    initialData: initialVideos,
-    refetchInterval: (query) =>
-      query.state.data?.jobs.some((job) => ACTIVE_STATUSES.has(job.status))
-        ? POLL_MS
-        : false,
-  });
 
   const model =
     catalog.models.find(
@@ -219,7 +182,7 @@ export function TikTokStudio({
   const presenterImage = (id: string | null | undefined) =>
     catalog.presenters.find((presenter) => presenter.id === id)?.imageUrl;
   const assetFor = (job: ProjectImageJob): TalkingVideoAsset | null =>
-    videos.assets.find((asset) => asset.jobId === job.id) ?? null;
+    videos.assetsByJob.get(job.id) ?? null;
   const stageJob = videos.jobs.find((job) => job.id === stageJobId) ?? null;
   const stageAsset = stageJob ? assetFor(stageJob) : null;
   const playbackFor = (asset: TalkingVideoAsset) => playback[asset.id];
@@ -355,7 +318,8 @@ export function TikTokStudio({
       }
       // A list read still in flight predates this video and would drop it.
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData<ProjectTalkingVideos>(queryKey, (current) => ({
+      queryClient.setQueryData<TalkingVideoPage>(queryKey, (current) => ({
+        ...current,
         assets: current?.assets ?? [],
         jobs: [
           result.job,
@@ -414,11 +378,6 @@ export function TikTokStudio({
         {problem.message}
       </p>
     ) : null;
-  const tileClass = (selected: boolean) =>
-    cn(
-      "bg-muted relative flex aspect-9/16 w-full items-center justify-center overflow-hidden rounded-lg border-2",
-      selected ? "border-foreground" : "border-transparent",
-    );
   const seconds = talkingVideoQuotedSeconds(trimmed);
 
   return (
@@ -426,7 +385,8 @@ export function TikTokStudio({
       {videos.jobs.length > 0 ? (
         <TikTokStudioLibrary
           assetFor={assetFor}
-          jobs={videos.jobs}
+          jobs={videos.libraryJobs}
+          retryHistory={videos.retry}
           onNew={readOnly ? undefined : startNew}
           onSelect={(job) => showOnStage(job.id)}
           playbackFor={playbackFor}
@@ -508,11 +468,22 @@ export function TikTokStudio({
         }}
       >
         <Step number={1} title={t("stepPresenter")}>
-          <RadioGroup.Root
-            aria-label={t("presenter")}
-            className="grid grid-cols-5 gap-2 sm:grid-cols-10"
-            disabled={readOnly}
-            onValueChange={(id) =>
+          <PresenterControls
+            catalog={catalog}
+            presenterId={presenterId}
+            photo={photo}
+            consent={consent}
+            voice={voice}
+            languageCode={languageCode}
+            languageNames={languageNames}
+            readOnly={readOnly}
+            uploading={uploading}
+            problem={problemFor("presenter")}
+            onConsentChange={(checked) => edit(() => setConsent(checked))}
+            onVoiceChange={(name) => edit(() => setVoice(name))}
+            onLanguageChange={(code) => edit(() => setLanguageCode(code))}
+            onPhoto={handlePhoto}
+            onPresenterChange={(id) =>
               edit(() => {
                 setPresenterId(id);
                 // Each presenter comes with a voice that sounds like them.
@@ -522,145 +493,7 @@ export function TikTokStudio({
                 if (presenterVoice) setVoice(presenterVoice);
               })
             }
-            value={presenterId}
-          >
-            {catalog.presenters.map((presenter) => (
-              <RadioGroup.Item
-                className="press flex min-w-0 flex-col gap-1 rounded-lg text-start"
-                key={presenter.id}
-                title={presenter.description}
-                value={presenter.id}
-              >
-                <span className={tileClass(presenterId === presenter.id)}>
-                  <PresenterImage src={presenter.imageUrl} />
-                </span>
-                <span className="truncate text-xs">{presenter.name}</span>
-              </RadioGroup.Item>
-            ))}
-            {photo ? (
-              <RadioGroup.Item
-                className="press flex min-w-0 flex-col gap-1 rounded-lg text-start"
-                title={photo.name}
-                value={OWN_PHOTO}
-              >
-                <span className={tileClass(ownPhoto)}>
-                  <img
-                    alt=""
-                    className="size-full object-cover"
-                    src={photo.previewUrl}
-                  />
-                </span>
-                <span className="truncate text-xs">{t("you")}</span>
-              </RadioGroup.Item>
-            ) : (
-              <button
-                className="press flex min-w-0 flex-col gap-1 rounded-lg text-start"
-                disabled={readOnly || uploading}
-                onClick={() => photoInput.current?.click()}
-                title={t("ownPhotoHint")}
-                type="button"
-              >
-                <span className={tileClass(false)}>
-                  {uploading ? (
-                    <LoaderCircle
-                      aria-hidden
-                      className="text-muted-foreground size-5 motion-safe:animate-spin"
-                    />
-                  ) : (
-                    <Upload
-                      aria-hidden
-                      className="text-muted-foreground size-5"
-                    />
-                  )}
-                </span>
-                <span className="truncate text-xs">{t("you")}</span>
-              </button>
-            )}
-          </RadioGroup.Root>
-          <input
-            accept={PHOTO_TYPES.join(",")}
-            aria-label={t("ownPhoto")}
-            className="hidden"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              if (file) void handlePhoto(file);
-            }}
-            ref={photoInput}
-            type="file"
           />
-          {problemFor("presenter")}
-          {ownPhoto && photo ? (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  checked={consent}
-                  className="mt-0.5"
-                  id={consentId}
-                  onCheckedChange={(checked) =>
-                    edit(() => setConsent(checked === true))
-                  }
-                />
-                <Label
-                  className="text-sm leading-normal font-normal"
-                  htmlFor={consentId}
-                >
-                  {t("consent")}
-                </Label>
-              </div>
-              <button
-                className="text-muted-foreground hover:text-foreground w-fit text-xs underline underline-offset-2"
-                onClick={() => photoInput.current?.click()}
-                type="button"
-              >
-                {t("changePhoto")}
-              </button>
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-xs">
-              {t("presenterNote")}
-            </p>
-          )}
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-            <div className="flex min-w-0 flex-col gap-1">
-              <Label htmlFor={voiceId}>{t("voice")}</Label>
-              <Select
-                disabled={readOnly}
-                onValueChange={(name) => edit(() => setVoice(name))}
-                value={voice}
-              >
-                <SelectTrigger className="w-full" id={voiceId}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {catalog.voices.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex min-w-0 flex-col gap-1">
-              <Label htmlFor={languageId}>{t("language")}</Label>
-              <Select
-                disabled={readOnly}
-                onValueChange={(code) => edit(() => setLanguageCode(code))}
-                value={languageCode}
-              >
-                <SelectTrigger className="w-full" id={languageId}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SCRIPT_LANGUAGES.map((code) => (
-                    <SelectItem key={code} value={code}>
-                      {languageNames.of(code) ?? code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
         </Step>
 
         <Step
@@ -824,35 +657,6 @@ export function TikTokStudio({
         />
       ) : null}
     </div>
-  );
-}
-
-/** A presenter photo that pulses until it has loaded, then fades in. */
-function PresenterImage({ src }: { src: string }) {
-  const [loaded, setLoaded] = useState(false);
-  return (
-    <>
-      {loaded ? null : (
-        <Skeleton aria-hidden className="absolute inset-0 rounded-none" />
-      )}
-      <img
-        alt=""
-        className={cn(
-          "size-full object-cover transition-opacity duration-300 motion-reduce:transition-none",
-          loaded ? "opacity-100" : "opacity-0",
-        )}
-        height={160}
-        loading="lazy"
-        onError={() => setLoaded(true)}
-        onLoad={() => setLoaded(true)}
-        // A cached image can finish before hydration attaches onLoad.
-        ref={(img) => {
-          if (img?.complete) setLoaded(true);
-        }}
-        src={src}
-        width={90}
-      />
-    </>
   );
 }
 

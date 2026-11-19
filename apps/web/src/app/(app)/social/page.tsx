@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { calendarSearchFields } from "@/app/calendar/calendar-search";
 import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
 import type { LoadedWorkspaceCalendarPage } from "@/app/calendar/load-calendar-page";
 import { ProjectPostingInstructions } from "@/app/projects/components/project-posting-instructions";
@@ -8,8 +9,15 @@ import { ProjectSocialAccounts } from "@/app/projects/components/project-social-
 import { SECTION_ORDER } from "@/app/projects/components/social-posts/constants";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import { SocialLoadError } from "@/app/projects/components/social-posts/social-load-error";
+import {
+  searchSocialPosts,
+  socialPostSearchFields,
+} from "@/app/projects/components/social-posts/social-post-list";
 import { CmoProjectBanner } from "@/components/cmo-project-banner";
+import { PageQuerySearchField } from "@/components/page-query-search-field";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
+import { SearchablePageContent } from "@/components/searchable-page-content";
+import { rankPageItems } from "@/lib/utils/page-search";
 
 import { SocialAllProjectsAttention } from "./components/social-all-projects-attention";
 import { SocialAllProjectsTabs } from "./components/social-all-projects-tabs";
@@ -46,11 +54,20 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function SocialPage({ searchParams }: SocialPageProps) {
   const query = await searchParams;
-  const [t, data] = await Promise.all([
+  const [t, tSearch, data] = await Promise.all([
     getTranslations("App.Social"),
+    getTranslations("App.PageSearch"),
     loadSocialPageData(query),
   ]);
   const projectId = query.projectId?.trim();
+  const term = typeof query.q === "string" ? query.q.trim() : "";
+  const showCalendar = !data.searchTab || data.searchTab === "calendar";
+  const field = (
+    <PageQuerySearchField
+      className="mb-3 w-full sm:w-64"
+      placeholder={tSearch("posts")}
+    />
+  );
 
   if (data.kind === "workspace") {
     const { calendar, sokoBot, attention, projectLoadFailed } = data;
@@ -67,21 +84,43 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
                 />
               }
               attention={
-                attention ? (
-                  <SocialAllProjectsAttention
-                    hasMore={attention.hasMore}
-                    items={attention.items}
-                  />
-                ) : (
-                  <SocialLoadError kind="attention" />
-                )
+                <>
+                  {field}
+                  {attention ? (
+                    <SocialAllProjectsAttention
+                      query={term}
+                      hasMore={attention.hasMore}
+                      items={
+                        term
+                          ? data.searchTab === "attention"
+                            ? rankPageItems(
+                                attention.items,
+                                term,
+                                ({ post, projectName }) =>
+                                  socialPostSearchFields(post, projectName),
+                              )
+                            : []
+                          : attention.items
+                      }
+                    />
+                  ) : (
+                    <SocialLoadError kind="attention" />
+                  )}
+                </>
               }
               attentionCount={
                 attention?.items.length
                   ? `${attention.items.length}${attention.hasMore ? "+" : ""}`
                   : undefined
               }
-              calendar={<SocialCalendar calendar={calendar} />}
+              calendar={
+                <>
+                  {field}
+                  {showCalendar && (
+                    <SocialCalendar calendar={calendar} query={term} />
+                  )}
+                </>
+              }
               notice={
                 projectId && !projectLoadFailed
                   ? t("pickUnavailable")
@@ -117,14 +156,19 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   const managedAccountCount = connections.filter(
     (socialConnection) => socialConnection.status !== "disconnected",
   ).length;
+  const listedPosts = term
+    ? pages.flatMap((page, index) =>
+        SECTION_ORDER[index] === data.searchTab
+          ? searchSocialPosts(page.posts, term)
+          : [],
+      )
+    : pages.flatMap((page) => page.posts);
   const posts = selectedPost
     ? [
         selectedPost,
-        ...pages
-          .flatMap((page) => page.posts)
-          .filter((post) => post.id !== selectedPost.id),
+        ...listedPosts.filter((post) => post.id !== selectedPost.id),
       ]
-    : pages.flatMap((page) => page.posts);
+    : listedPosts;
 
   return (
     <SocialPageShell title={t("title")}>
@@ -135,27 +179,39 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       <SocialCalendarPreviewProvider>
         <SocialComposeProvider>
           <ProjectSocialPosts
+            searchField={field}
+            searchQuery={term}
+            sectionCounts={
+              term
+                ? {
+                    drafts: pages[0].posts.length,
+                    attention: pages[1].posts.length,
+                  }
+                : undefined
+            }
             readOnly={project.cmo}
             connectDisabled={Boolean(project.closingAt || project.closedAt)}
             accounts={
-              <div className="space-y-6">
-                <ProjectSocialAccounts
-                  projectId={project.id}
-                  connections={connections}
-                  readOnly={project.cmo}
-                  queueSlots={queueSlots ?? undefined}
-                  connectDisabled={Boolean(
-                    project.closingAt || project.closedAt,
-                  )}
-                />
-                <ProjectPostingInstructions
-                  projectId={project.id}
-                  postingInstructionsMd={project.postingInstructionsMd}
-                  disabled={Boolean(
-                    project.cmo || project.closingAt || project.closedAt,
-                  )}
-                />
-              </div>
+              <SearchablePageContent>
+                <div className="space-y-6">
+                  <ProjectSocialAccounts
+                    projectId={project.id}
+                    connections={connections}
+                    readOnly={project.cmo}
+                    queueSlots={queueSlots ?? undefined}
+                    connectDisabled={Boolean(
+                      project.closingAt || project.closedAt,
+                    )}
+                  />
+                  <ProjectPostingInstructions
+                    projectId={project.id}
+                    postingInstructionsMd={project.postingInstructionsMd}
+                    disabled={Boolean(
+                      project.cmo || project.closingAt || project.closedAt,
+                    )}
+                  />
+                </div>
+              </SearchablePageContent>
             }
             actions={
               project.cmo ? undefined : (
@@ -167,10 +223,16 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
             }
             calendar={
               calendar ? (
-                <SocialCalendar
-                  calendar={calendar}
-                  lockedProjectId={project.id}
-                />
+                <>
+                  {field}
+                  {showCalendar && (
+                    <SocialCalendar
+                      calendar={calendar}
+                      lockedProjectId={project.id}
+                      query={term}
+                    />
+                  )}
+                </>
               ) : undefined
             }
             accountCount={managedAccountCount}
@@ -203,9 +265,11 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
 
 function SocialCalendar({
   calendar,
+  query,
   lockedProjectId,
 }: {
   calendar: LoadedWorkspaceCalendarPage;
+  query: string;
   lockedProjectId?: string;
 }) {
   return (
@@ -214,7 +278,9 @@ function SocialCalendar({
       coworkers={calendar.coworkerOptions}
       currentUserId={calendar.currentUserId}
       initialDate={calendar.initialDate}
-      items={calendar.items}
+      items={rankPageItems(calendar.items, query, (entry) =>
+        calendarSearchFields(entry, calendar),
+      )}
       key={calendar.calendarKey}
       latestDate={calendar.latestDate}
       lockedProjectId={lockedProjectId}

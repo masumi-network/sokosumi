@@ -13,6 +13,10 @@ import {
   tableViewDefinitionSchema,
 } from "@sokosumi/utils";
 import { z } from "zod";
+import {
+  type DataTableListOptions,
+  readDataTablePage,
+} from "@/helpers/data-table-list";
 import { validateTableValues } from "@/helpers/data-table-values";
 import {
   conflict,
@@ -27,7 +31,6 @@ import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
   dataTableSchema,
-  dataTableSummarySchema,
   tableBatchResultSchema,
   tableColumnSchema,
   tableRowSchema,
@@ -460,60 +463,10 @@ export async function createDataTable(
 /** Most recently changed first; the cursor is the last table ID of a page. */
 export async function listDataTables(
   actor: TableActor,
-  options: {
-    cursor?: string;
-    limit?: number;
-    archived?: boolean;
-    projectId?: string;
-    search?: string;
-  } = {},
+  options: DataTableListOptions = {},
 ) {
   const scope = await scopeForTask(actor, null, prisma);
-  const limit = Math.min(options.limit ?? 50, 100);
-  const search = options.search?.trim();
-  const where: Prisma.DataTableWhereInput = {
-    workspaceId: actor.workspaceId,
-    ...(scope ? { id: scope.tableId } : {}),
-    archivedAt: options.archived ? { not: null } : null,
-    ...((actor.projectScope ?? options.projectId)
-      ? { projectId: actor.projectScope ?? options.projectId }
-      : {}),
-    ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
-  };
-  const cursor = options.cursor
-    ? await prisma.dataTable.findFirst({
-        where: { id: options.cursor, workspaceId: actor.workspaceId },
-        select: { id: true, updatedAt: true },
-      })
-    : null;
-  if (options.cursor && !cursor)
-    throw unprocessableEntity("Invalid table cursor");
-  const [tables, total] = await Promise.all([
-    prisma.dataTable.findMany({
-      where: cursor
-        ? {
-            ...where,
-            OR: [
-              { updatedAt: { lt: cursor.updatedAt } },
-              { updatedAt: cursor.updatedAt, id: { lt: cursor.id } },
-            ],
-          }
-        : where,
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
-      include: { _count: { select: { columns: true } } },
-    }),
-    prisma.dataTable.count({ where }),
-  ]);
-  return {
-    total,
-    items: tables
-      .slice(0, limit)
-      .map(({ _count, ...table }) =>
-        dataTableSummarySchema.parse({ ...table, columnCount: _count.columns }),
-      ),
-    nextCursor: tables.length > limit ? tables[limit - 1].id : null,
-  };
+  return readDataTablePage(actor, options, scope?.tableId);
 }
 
 export async function mutateDataTable(

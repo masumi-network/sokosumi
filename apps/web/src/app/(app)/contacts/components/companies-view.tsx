@@ -1,21 +1,19 @@
 "use client";
 import type { ContactCompany, ContactCompanyList } from "@sokosumi/core-client";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowDown,
-  Building2,
-  ListMinus,
-  ListPlus,
-  Search,
-  X,
-} from "lucide-react";
+import { ArrowDown, Building2, ListMinus, ListPlus, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useDebounce } from "use-debounce";
-import { coreErrorOf, LIST_COLOR_DOT } from "@/app/contacts/contacts-view";
+import {
+  coreErrorOf,
+  LIST_COLOR_DOT,
+  replaceVisibleSelection,
+} from "@/app/contacts/contacts-view";
 import { EmptyState } from "@/components/common/empty-state";
+import { PageSearchField } from "@/components/page-search-field";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +36,6 @@ import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -93,7 +90,7 @@ export function CompaniesView({
     getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
   const [sort, setSort] = useState<CompanySort>("people");
-  const [selected, setSelected] = useState<string[]>([]);
+  const [selectedIds, setSelected] = useState<string[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const lists = useCompanyLists();
   const allLists = lists.data ?? [];
@@ -108,6 +105,10 @@ export function CompaniesView({
   const rows = companies.data?.companies ?? [];
   const total = companies.data?.total ?? 0;
   const listsById = new Map(allLists.map((list) => [list.id, list]));
+  const selection = new Set(selectedIds);
+  const selected = rows
+    .filter((row) => selection.has(row.id))
+    .map((row) => row.id);
   const allSelected = rows.length > 0 && selected.length === rows.length;
 
   function changeList(next: string | null) {
@@ -157,6 +158,14 @@ export function CompaniesView({
   return (
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <PageSearchField
+          className="order-last w-full sm:order-none sm:w-56"
+          aria-label={t("search")}
+          placeholder={t("searchPlaceholder")}
+          value={search}
+          maxLength={200}
+          onValueChange={setSearch}
+        />
         {selected.length ? (
           <div
             role="toolbar"
@@ -250,23 +259,6 @@ export function CompaniesView({
           </div>
         ) : (
           <>
-            <div className="relative order-last w-full sm:order-none sm:w-56">
-              <Search
-                aria-hidden
-                className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2"
-              />
-              <Input
-                type="search"
-                aria-label={t("search")}
-                placeholder={t("searchPlaceholder")}
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setSelected([]);
-                }}
-                className={cn(CONTROL, "ps-9")}
-              />
-            </div>
             <ListsMenu
               companies
               view={listId ?? ""}
@@ -347,8 +339,12 @@ export function CompaniesView({
                             : false
                       }
                       onCheckedChange={(checked) =>
-                        setSelected(
-                          checked === true ? rows.map((row) => row.id) : [],
+                        setSelected((current) =>
+                          replaceVisibleSelection(
+                            current,
+                            selected,
+                            checked === true ? rows.map((row) => row.id) : [],
+                          ),
                         )
                       }
                     />
@@ -386,7 +382,7 @@ export function CompaniesView({
                   <CompanyRow
                     key={company.id}
                     company={company}
-                    selected={selected.includes(company.id)}
+                    selected={selection.has(company.id)}
                     onSelect={(checked) =>
                       setSelected((current) =>
                         checked

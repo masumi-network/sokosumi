@@ -4,6 +4,7 @@ import type { ProjectCompetitor } from "@sokosumi/core-client";
 import { PencilIcon, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
+import { usePageListSearch } from "@/components/page-list-search";
 
 import { Button } from "@/components/ui/button";
 import { removeCompetitor } from "@/lib/actions/competitors/action";
@@ -35,6 +36,15 @@ export function CompetitorsWatchList({
   readOnly: boolean;
 }) {
   const t = useTranslations("App.Competitors.list");
+  const visibleCompetitors = usePageListSearch(competitors, (competitor) => ({
+    primary: [competitor.name, competitor.id],
+    secondary: [
+      competitor.websiteUrl,
+      competitor.pricingUrl,
+      competitor.instagramHandle,
+      competitor.facebookHandle,
+    ],
+  }));
   const [editing, setEditing] = useState<ProjectCompetitor | "new" | null>(
     null,
   );
@@ -64,7 +74,7 @@ export function CompetitorsWatchList({
       {competitors.length === 0 ? (
         <CompetitorsEmpty>{t("emptyReadOnly")}</CompetitorsEmpty>
       ) : (
-        competitors.map((competitor) => {
+        visibleCompetitors.map((competitor) => {
           const facts = [
             competitor.websiteUrl
               ? host(competitor.websiteUrl)

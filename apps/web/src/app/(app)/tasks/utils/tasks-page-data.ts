@@ -195,6 +195,7 @@ async function readTasksPageData(
     status: activeFilters.status,
     projectId: activeFilters.projectId,
     visibility: activeFilters.visibility,
+    search: activeFilters.search,
     tag: activeFilters.tag,
     stuck: activeFilters.stuck,
     needsMe: activeFilters.needsMe,
@@ -227,6 +228,7 @@ async function readTasksPageData(
     shouldCountGrantPendingTasks
       ? taskService.listTasks({
           status: TaskStatus.GRANT_PENDING,
+          search: activeFilters.search,
           ...getTaskTagQuery(activeFilters.tag),
           scope: tasksQueryScope(activeFilters.scope, activeFilters),
           ...(activeFilters.mentions ? { unansweredMention: true } : {}),

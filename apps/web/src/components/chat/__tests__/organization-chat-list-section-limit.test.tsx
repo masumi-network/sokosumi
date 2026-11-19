@@ -1,9 +1,11 @@
 import type { ChatRoom } from "@sokosumi/core-client";
-import { screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { PageListSearchContext } from "@/components/page-list-search";
 import {
+  createOrganizationChatList,
   emptyListResult,
   harnessPathname,
   listRoomsMock,
@@ -66,6 +68,23 @@ describe("OrganizationChatList section limit", () => {
       "aria-expanded",
       "false",
     );
+  });
+
+  it("finds a channel past Show more and ranks its name ahead of another channel's topic", () => {
+    const rooms = channels({
+      "ch-1": { topic: "launch" },
+      "ch-9": { name: "Launch team" },
+    });
+    render(
+      <PageListSearchContext.Provider
+        value={{ query: "launch", register: () => () => {} }}
+      >
+        {createOrganizationChatList({ rooms, paintOnly: true })}
+      </PageListSearchContext.Provider>,
+    );
+    expect(
+      screen.getAllByTestId("room-row").map((row) => row.textContent),
+    ).toEqual(["Launch team", "ch-1"]);
   });
 
   it("always lists an unread room and the open room past the limit", () => {

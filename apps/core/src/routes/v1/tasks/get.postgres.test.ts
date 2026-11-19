@@ -217,6 +217,87 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
     await prisma.$disconnect();
   });
 
+  it("ranks name and identifier matches ahead of tags and descriptions across pages", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Search fixture", identifier: "FIND" },
+    });
+    const label = await prisma.workspaceLabel.create({
+      data: {
+        workspaceId,
+        kind: "TAG",
+        displayName: "50%_launch",
+        normalizedName: "50%_launch",
+      },
+    });
+    const taskDefaults = {
+      workspaceId,
+      projectId: project.id,
+      ownerId: adaId,
+      status: TaskStatus.FAILED,
+    };
+    const named = await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "50%_launch announcement",
+        description: "50%_launch",
+        createdAt: day("2026-01-01"),
+      },
+    });
+    await prisma.task.create({
+      data: {
+        ...taskDefaults,
+        name: "Tagged",
+        workspaceTags: { create: { labelId: label.id } },
+      },
+    });
+    await prisma.task.createMany({
+      data: [
+        {
+          name: "Brief only",
+          description: "50%_LAUNCH",
+          createdAt: day("2026-01-02"),
+        },
+        { name: "50 other launch", description: "wildcards must be literal" },
+        {
+          name: "50%_launch private",
+          visibility: TaskVisibility.PRIVATE,
+          ownerId: bobId,
+        },
+      ].map((task) => ({ ...taskDefaults, ...task })),
+    });
+
+    async function searchPages(search: string, limit: number) {
+      const params = new URLSearchParams({
+        scope: "workspace",
+        projectId: project.id,
+        search,
+        limit: String(limit),
+      });
+      const names: string[] = [];
+      let total = 0;
+      do {
+        const response = await createApp().request(
+          `http://localhost/?${params}`,
+        );
+        const body = (await response.json()) as Page;
+        expect(response.status, JSON.stringify(body)).toBe(200);
+        names.push(...body.data.map(({ name }) => name));
+        total = body.meta.pagination.total;
+        if (!body.meta.pagination.nextCursor) break;
+        params.set("cursor", body.meta.pagination.nextCursor);
+      } while (names.length <= total);
+      return { names, total };
+    }
+
+    const expected = { names: [named.name, "Tagged", "Brief only"], total: 3 };
+    expect(await searchPages("50%_launch", 1)).toEqual(expected);
+    expect(await searchPages("50%_launch", 2)).toEqual(expected);
+    expect(await searchPages(`find-${named.number}`, 2)).toEqual({
+      names: [named.name],
+      total: 1,
+    });
+  });
+
   it("pages through exactly the six matching Tasks, earliest due first", async () => {
     const first = await myDayPage();
 

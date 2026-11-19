@@ -51,6 +51,7 @@ export function SeoAuditIndex({
   projectId,
   addOpen = false,
   archived = false,
+  searching = false,
 }: {
   audits: SeoAuditSummary[];
   nextCursor: string | null;
@@ -60,8 +61,10 @@ export function SeoAuditIndex({
   /** The link asked for a new Audit, so its form starts open. */
   addOpen?: boolean;
   archived?: boolean;
+  searching?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const tSearch = useTranslations("App.PageSearch");
   const hasAudits = audits.length > 0 || Boolean(nextCursor);
   const form = useCreateSeoAudit(projectId, !archived && addOpen && hasAudits);
   const [pending, startRestore] = useTransition();
@@ -226,6 +229,10 @@ export function SeoAuditIndex({
             </div>
           ) : null}
         </section>
+      ) : searching ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {tSearch("noMatches")}
+        </p>
       ) : cursor ? (
         <Button asChild variant="outline">
           <Link href={seoIndexHref(projectId, { archived })}>

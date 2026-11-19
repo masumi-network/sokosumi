@@ -22,6 +22,7 @@ vi.mock("@/app/tasks/components/task-due-badge", () => ({
   TaskDueBadge: ({ dueOn }: { dueOn: string }) => <span>due {dueOn}</span>,
 }));
 
+import { SearchablePageContent } from "@/components/searchable-page-content";
 import type { MyDayRow } from "./my-day";
 import { MyDayList } from "./my-day-list.client";
 
@@ -88,6 +89,38 @@ describe("MyDayList", () => {
     });
     expect(screen.getAllByTestId("home-my-day-row")).toHaveLength(6);
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("finds a sixth due task from the Home field while keeping the rest of the dashboard searchable", async () => {
+    loadMoreMyDay.mockResolvedValue({
+      rows: [row(6)],
+      total: 6,
+      nextCursor: null,
+    });
+    render(
+      <SearchablePageContent>
+        <p>Dashboard summary</p>
+        <MyDayList
+          today="2026-11-10"
+          initial={{ rows: firstFive, total: 6, nextCursor: "t5" }}
+        />
+      </SearchablePageContent>,
+    );
+    const field = screen.getByRole("searchbox", { name: "find" });
+    fireEvent.change(field, { target: { value: "Due 6" } });
+    expect(
+      await screen.findByRole("link", { name: /Due 6/ }),
+    ).toBeInTheDocument();
+    fireEvent.change(field, { target: { value: "Dashboard summary" } });
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        'position:{"current":1,"total":1}',
+      ),
+    );
+    expect(loadMoreMyDay).toHaveBeenCalledExactlyOnceWith({
+      today: "2026-11-10",
+      cursor: "t5",
+    });
   });
 
   it("keeps its rows and says so when the next page fails", async () => {
