@@ -12507,7 +12507,7 @@
         "otherCode": "Other code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Best ideas first. Track one to see its Google position after every check. Tracking is free.",
+        "help": "Track one to see its Google position after every check. Tracking is free.",
         "dialogHelp": "Tracking a keyword is free. It does not start paid position checks.",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
@@ -12535,9 +12535,20 @@
           "medium": "Medium",
           "low": "Low"
         },
+        "recommendation": {
+          "mix": "Ideas that fit the page goal and face less competition come first. Then the two groups alternate while both have ideas. Open a row to see why.",
+          "both": "Recommended for lower competition and strong goal fit",
+          "competition": "Recommended for lower competition",
+          "goal": "Recommended for strong goal fit",
+          "easeEvidence": "Difficulty {value, number}/100 (below {limit}).",
+          "goalEvidence": "High estimated chance of reaching the page goal.",
+          "legend": "Recommended idea",
+          "page": "Audited page",
+          "action": "Page goal: {action}",
+          "studio": "Draft in Content Studio (coming soon)"
+        },
         "ideas": {
           "title": "{count, plural, one {# keyword idea} other {# keyword ideas}}",
-          "why": "Why it is listed",
           "source": {
             "gap": "From competitors",
             "opportunity": "Related search"
@@ -12569,11 +12580,14 @@
           "zoomOut": "Zoom out",
           "zoomReset": "Show the whole map",
           "yours": "Your keyword",
+          "preview": "{volume, number} searches/mo · Difficulty {value, number}/100",
+          "estimatedGain": "Estimated extra clicks/month",
+          "rankGain": "Top {rank} {gain}",
           "gainShort": "Extra clicks in top 3",
           "contentTask": "Create content task",
           "ask": "Ask the SEO agent",
-          "brief": "Write web content{site, select, none {} other { for {site}}} that can rank on Google for the search \"{keyword}\". The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { Lead with this product feature: {feature}.}}",
-          "question": "How can {site, select, none {my site} other {{site}}} rank on Google for the search \"{keyword}\"? The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { The product feature it fits: {feature}.}}",
+          "brief": "Write web content{site, select, none {} other { for {site}}} that can rank on Google for the search \"{keyword}\".{measured, select, yes { The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).} other { Market: {market}.}}{feature, select, none {} other { Lead with this product feature: {feature}.}}",
+          "question": "How can {site, select, none {my site} other {{site}}} rank on Google for the search \"{keyword}\"?{measured, select, yes { The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).} other { Market: {market}.}}{feature, select, none {} other { The product feature it fits: {feature}.}}",
           "noGain": "Unknown"
         },
         "historyShow": "History",

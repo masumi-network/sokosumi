@@ -77,7 +77,7 @@ export async function fetchDriveTaskOutputRecentsBatch(input: {
 
   const taskFileWhere = buildDriveTaskOutputRecentsWhere({
     baseTaskWhere,
-    searchQuery,
+    ...(searchQuery !== undefined ? { searchQuery } : {}),
   });
 
   let effectiveCursor = cursor;
@@ -98,8 +98,7 @@ export async function fetchDriveTaskOutputRecentsBatch(input: {
     where: taskFileWhere,
     orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
     take: takePlusOne,
-    skip: effectiveCursor ? 1 : undefined,
-    cursor: effectiveCursor ? { id: effectiveCursor } : undefined,
+    ...(effectiveCursor ? { skip: 1, cursor: { id: effectiveCursor } } : {}),
     include: {
       task: {
         select: {
