@@ -13,6 +13,7 @@ import {
   sokoBotToolDescription,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -156,6 +157,7 @@ export class RuntimeEventLog {
           eventId: event.meta.id,
           type: event.type,
           data: { ...event.data },
+          createdAt: await databaseNow(tx),
           occurredAt: new Date(event.meta.at),
         },
       });
@@ -325,7 +327,10 @@ export async function prepareTurn(
       ? await mcpServersGuidance(authorized.turn.sokoBotId)
       : []),
     ...(requiresActionProof ? [ACTION_PROOF_INSTRUCTION] : []),
-    ...modelContextBlock(context.packet, authorized.meetingPrep === true),
+    ...(await modelContextBlock(
+      context.packet,
+      authorized.meetingPrep === true,
+    )),
   ].join("\n");
   // Only a Cuso's first read has parts today (SOKD-167).
   const parts =

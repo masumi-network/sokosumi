@@ -8,6 +8,7 @@ import {
   memberSokoBot,
   type SokoBotSelector,
 } from "@/helpers/soko-bot-resolver";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
@@ -63,7 +64,8 @@ export async function getSokoBotDailyStats(input: {
     input.selector ?? ME_SOKO_BOT,
   );
   if (!bot) return null;
-  const since = new Date(Date.now() - DAYS * DAY_MS);
+  const now = (await databaseNow()).getTime();
+  const since = new Date(now - DAYS * DAY_MS);
   since.setUTCHours(0, 0, 0, 0);
   const [turns, delegations, toolCalls] = await Promise.all([
     prisma.sokoBotTurn.findMany({
@@ -110,7 +112,7 @@ export async function getSokoBotDailyStats(input: {
   const totals = emptyDay();
   const daily: SokoBotDailyStats["daily"] = [];
   for (let i = DAYS - 1; i >= 0; i -= 1) {
-    const date = new Date(Date.now() - i * DAY_MS).toISOString().slice(0, 10);
+    const date = new Date(now - i * DAY_MS).toISOString().slice(0, 10);
     const row = byDay.get(date) ?? emptyDay();
     daily.push({ date, ...row });
     for (const key of Object.keys(totals) as (keyof SokoBotDayStats)[]) {
@@ -145,7 +147,7 @@ const CHECK_GRACE_MS = 10 * 60 * 1_000;
 export async function sokoBotAutomationChecks(
   sokoBotId: string,
 ): Promise<SokoBotDailyStats["checks"]> {
-  const now = Date.now();
+  const now = (await databaseNow()).getTime();
   const [schedules, integrations, lastSelfStarted] = await Promise.all([
     prisma.sokoBotSchedule.findMany({
       where: { sokoBotId, enabled: true },

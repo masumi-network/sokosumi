@@ -58,6 +58,7 @@ const closers: (() => void)[] = [];
 /** Every request the runner made, in order, with when it arrived. */
 const requests: { path: string; at: number }[] = [];
 afterEach(() => {
+  requests.length = 0;
   for (const close of closers.splice(0)) close();
 });
 
@@ -114,7 +115,7 @@ function runRunner(coreUrl: string) {
 
 describe("a runner whose start call fails", () => {
   it("hands Core its diagnostic in the supervisor's failure report, which Core logs with the turn id", async () => {
-    service.startSandboxTurn.mockRejectedValue(serviceUnavailable());
+    service.startSandboxTurn.mockRejectedValueOnce(serviceUnavailable());
     const entries = expectCoreLog(
       "error",
       "A Soko Bot turn could not start in its sandbox",
@@ -154,3 +155,38 @@ describe("a runner whose start call fails", () => {
     );
   }, 30_000);
 });
+
+it("completes a turn when older Core sends only an absolute deadline", async () => {
+  service.startSandboxTurn.mockResolvedValueOnce({
+    message: "Hello",
+    system: "Reply with a greeting.",
+    model: "google/gemini-3.6-flash",
+    capabilities: [],
+    deadlineAt: new Date(Date.now() + 60_000).toISOString(),
+    maxSteps: 1,
+  });
+  service.proxySandboxModelCall.mockResolvedValueOnce({
+    status: 200,
+    contentType: "text/event-stream",
+    body: [
+      { type: "text-start", id: "answer" },
+      { type: "text-delta", id: "answer", delta: "Hello there." },
+      { type: "text-end", id: "answer" },
+      {
+        type: "finish",
+        finishReason: { unified: "stop", raw: "stop" },
+        usage: { inputTokens: { total: 10 }, outputTokens: { total: 3 } },
+      },
+    ]
+      .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+      .join(""),
+  });
+
+  const result = await runRunner(await coreBehindSandboxProxy());
+
+  expect(result.code, result.output).toBe(0);
+  expect(service.completeSandboxTurn).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ turnId: TURN_ID }),
+    { text: "Hello there.", finishReason: "stop" },
+  );
+}, 30_000);

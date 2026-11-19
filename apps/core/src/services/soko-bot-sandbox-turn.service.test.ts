@@ -59,6 +59,7 @@ vi.mock("@/lib/redis-rate-limit", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
+    $queryRaw: async () => [{ now: new Date() }],
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstEventMock,
@@ -80,7 +81,10 @@ vi.mock("@/lib/db/prisma", () => {
       ...client,
       // The event log's locked append: the same models, plus the lock.
       $transaction: async (operation: (tx: unknown) => Promise<unknown>) => {
-        const result = await operation({ ...client, $executeRaw: vi.fn() });
+        const result = await operation({
+          ...client,
+          $executeRaw: vi.fn(),
+        });
         const waiting = afterCommit.next;
         afterCommit.next = null;
         await waiting?.();

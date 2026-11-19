@@ -1226,6 +1226,7 @@ export class SokoBotControlPlane {
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
+        const acknowledgedAt = await databaseNow(tx);
         const updatedTurn = await tx.sokoBotTurn.updateMany({
           where: {
             id: turn.id,
@@ -1236,8 +1237,8 @@ export class SokoBotControlPlane {
             status: "RUNNING",
             eveSessionId: runtimeTurn.sessionId,
             runtimeVersion: runtimeTurn.runtimeVersion,
-            startedAt: new Date(runtimeTurn.acceptedAt),
-            reconcilerHeartbeatAt: await databaseNow(tx),
+            startedAt: acknowledgedAt,
+            reconcilerHeartbeatAt: acknowledgedAt,
             errorKind: null,
             errorDetail: null,
           },
@@ -1798,7 +1799,7 @@ export class SokoBotControlPlane {
                 : undefined,
             )
           : null;
-      const now = new Date();
+      const now = await databaseNow(tx);
       const settled = await tx.sokoBotTurn.updateMany({
         where: {
           id: input.turnId,
@@ -1810,7 +1811,7 @@ export class SokoBotControlPlane {
           status: settledStatus,
           completedAt: now,
           durationMs: turn.startedAt
-            ? now.getTime() - turn.startedAt.getTime()
+            ? Math.max(0, now.getTime() - turn.startedAt.getTime())
             : null,
           errorKind: errorKind ?? null,
           errorDetail: errorDetail ?? null,
@@ -3147,6 +3148,7 @@ export class SokoBotControlPlane {
           WHERE "id" = ${bot.id}::uuid
           FOR UPDATE
         `;
+        const acknowledgedAt = await databaseNow(tx);
         const acknowledged = await tx.sokoBotTurn.updateMany({
           where: {
             id: turn.id,
@@ -3157,8 +3159,8 @@ export class SokoBotControlPlane {
             status: "RUNNING",
             eveSessionId: runtimeTurn.sessionId,
             runtimeVersion: runtimeTurn.runtimeVersion,
-            startedAt: new Date(runtimeTurn.acceptedAt),
-            reconcilerHeartbeatAt: await databaseNow(tx),
+            startedAt: acknowledgedAt,
+            reconcilerHeartbeatAt: acknowledgedAt,
           },
         });
         if (acknowledged.count === 0) {

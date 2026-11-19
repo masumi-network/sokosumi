@@ -6,6 +6,7 @@ import {
   type SokoBotJudgeVerdict,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -275,7 +276,10 @@ async function pollScenario(
 ): Promise<CasePoll> {
   const turn = await loadLabScenarioTurn(turnId);
   if (!SETTLED_TURN_STATUSES.includes(turn.status)) {
-    if (Date.now() - context.startedAt.getTime() < SCENARIO_TIMEOUT_MS)
+    if (
+      (await databaseNow()).getTime() - context.startedAt.getTime() <
+      SCENARIO_TIMEOUT_MS
+    )
       return { kind: "waiting" };
     await sokoBotControlPlane
       .cancelTurn(lane.userId, turnId)

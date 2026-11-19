@@ -20,6 +20,7 @@ import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
 import { aiGatewayBudgetScopeFromBody } from "@/lib/ai-gateway-budget-error";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
@@ -153,6 +154,7 @@ export interface SandboxTurnStart
   extends Omit<PreparedTurn, "inferenceRegion" | "meetingPrep"> {
   message: string;
   deadlineAt: string;
+  budgetMs: number;
   maxSteps: number;
   background: boolean;
   /** The owner's setup commands and allowed keys, when this turn has a shell. */
@@ -200,6 +202,10 @@ export async function startSandboxTurn(
     message: shellNote ? `${message}\n\n${shellNote}` : message,
     ...(shell ? { shell } : {}),
     deadlineAt: stored.deadlineAt.toISOString(),
+    budgetMs: Math.max(
+      30_000,
+      stored.deadlineAt.getTime() - (await databaseNow()).getTime() - 20_000,
+    ),
     maxSteps: sokoBotMaxSteps(
       stored.deadlineAt.getTime() - stored.createdAt.getTime(),
     ),

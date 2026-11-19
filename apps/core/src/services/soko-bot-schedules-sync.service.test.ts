@@ -35,6 +35,10 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+const { beatDatabaseNow } = vi.hoisted(() => ({
+  beatDatabaseNow: vi.fn(async () => new Date()),
+}));
+vi.mock("@/lib/db/database-now", () => ({ databaseNow: beatDatabaseNow }));
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
   buildSystemBeatMessage: vi.fn(),
@@ -404,6 +408,8 @@ describe("SokoBotSchedulesSyncService", () => {
   );
 
   it("runs a Cuso rhythm with his own registry prompt, his dream included", async () => {
+    const databaseTime = new Date("2026-08-17T12:01:23.000Z");
+    beatDatabaseNow.mockResolvedValueOnce(databaseTime);
     botFindUniqueMock.mockResolvedValue({
       id: "bot_1",
       name: "Cuso",
@@ -435,6 +441,7 @@ describe("SokoBotSchedulesSyncService", () => {
     const [beat] = vi.mocked(buildSystemBeatMessage).mock.calls[0] ?? [];
     expect(beat?.prompt).toContain("your daily run does that");
     expect(beat?.prompt).not.toContain("stand-up");
+    expect(beat?.now).toEqual(databaseTime);
   });
 
   it("completes a quiet built-in rhythm without starting a turn", async () => {

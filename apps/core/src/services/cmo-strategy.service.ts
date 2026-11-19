@@ -268,11 +268,9 @@ function newestStrategyTurn(sokoBotId: string) {
 }
 
 /** The strategy turn still running, if any. */
-async function strategyTurnRunning(sokoBotId: string, now: Date) {
+async function strategyTurnRunning(sokoBotId: string) {
   const turn = await newestStrategyTurn(sokoBotId);
-  return turn && (await settledTurnStatus(turn, now)) === "running"
-    ? turn
-    : null;
+  return turn && (await settledTurnStatus(turn)) === "running" ? turn : null;
 }
 
 /**
@@ -289,9 +287,8 @@ export async function requestCmoStrategy(
     siteLanguage?: string;
     patch?: boolean;
   },
-  now: Date = new Date(),
 ): Promise<{ turnId: string }> {
-  return requestStrategyForCuso(await requireCuso(input), input, now);
+  return requestStrategyForCuso(await requireCuso(input), input);
 }
 
 /**
@@ -306,9 +303,8 @@ async function requestStrategyForCuso(
     siteLanguage?: string;
     patch?: boolean;
   },
-  now: Date = new Date(),
 ): Promise<{ turnId: string }> {
-  const writing = await strategyTurnRunning(cuso.sokoBotId, now);
+  const writing = await strategyTurnRunning(cuso.sokoBotId);
   if (writing) {
     // A fix or patch is a short turn: a change waits for it to land. A plain
     // ask gets it back, since the first plan starts once it ends.
@@ -324,7 +320,6 @@ async function requestStrategyForCuso(
     cuso,
     input.userId,
     input.note ? { note: input.note, patch: input.patch ?? false } : null,
-    now,
     input.siteLanguage,
   );
 }
@@ -358,7 +353,7 @@ export async function startCmoPlanAfterResearch(
     return null;
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
-  return startCmoStrategy(cuso, userId, null, new Date());
+  return startCmoStrategy(cuso, userId, null);
 }
 
 /**
@@ -378,7 +373,7 @@ export async function afterCmoTurn(input: {
     cmoChangeKind(input.clientTurnId) === "fix";
   return (
     (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
-    (await startNextCmoChange(input, new Date(), cuso))
+    (await startNextCmoChange(input, cuso))
   );
 }
 
@@ -390,14 +385,13 @@ export async function afterCmoTurn(input: {
  */
 export async function fixCmoBrandSection(
   input: CusoTarget & { section: CmoBrandSectionKey; note: string },
-  now: Date = new Date(),
 ): Promise<{ turnId: string } | { queued: true }> {
   const cuso = await requireCuso(input);
   const brandBrain = await requestBrandBrainFix(cuso.projectId, {
     section: input.section,
     note: input.note,
   });
-  return startQueuedFix(cuso, input.userId, brandBrain, now);
+  return startQueuedFix(cuso, input.userId, brandBrain);
 }
 
 /** Starts the fix just stored, unless Cuso is busy: then it waits for his turn to end. */
@@ -405,12 +399,10 @@ async function startQueuedFix(
   cuso: Cuso,
   userId: string,
   brandBrain: BrandBrain,
-  now: Date,
 ): Promise<{ turnId: string } | { queued: true }> {
   try {
     const started = await startNextCmoChange(
       { sokoBotId: cuso.sokoBotId, userId },
-      now,
       { ...cuso, brandBrain },
     );
     return started ?? { queued: true };
@@ -438,7 +430,6 @@ export async function answerCmoBrandQuestion(
     answer: CmoBrandAnswer;
     note?: string;
   },
-  now: Date = new Date(),
 ): Promise<void> {
   const cuso = await requireCuso(input);
   // The answer and its fix are one write: an answered no always waits on
@@ -466,11 +457,9 @@ export async function answerCmoBrandQuestion(
   });
   if (!fixed) return;
   // A fix that cannot start now (no credits) runs when Cuso's next turn ends.
-  await startQueuedFix(cuso, input.userId, fixed, now).catch(
-    (error: unknown) => {
-      if (!(error instanceof CmoConflictError)) throw error;
-    },
-  );
+  await startQueuedFix(cuso, input.userId, fixed).catch((error: unknown) => {
+    if (!(error instanceof CmoConflictError)) throw error;
+  });
 }
 
 /**
@@ -480,7 +469,6 @@ export async function answerCmoBrandQuestion(
  */
 export async function startNextCmoChange(
   input: { sokoBotId: string; userId: string | null },
-  now: Date = new Date(),
   known?: Cuso,
 ): Promise<{ turnId: string } | null> {
   const cuso = known ?? (await findCusoForBot(input.sokoBotId));
@@ -489,7 +477,7 @@ export async function startNextCmoChange(
   const open = brandBrainOpenFixes(brain);
   if (open.length === 0) return null;
   const last = await newestStrategyTurn(cuso.sokoBotId);
-  if (last && (await settledTurnStatus(last, now)) === "running") return null;
+  if (last && (await settledTurnStatus(last)) === "running") return null;
   // The last fix turn was sent every fix asked up to the time in its id.
   const sent =
     last && cmoChangeKind(last.clientTurnId) === "fix"
@@ -506,7 +494,6 @@ async function startCmoStrategy(
   cuso: Cuso,
   userId: string,
   change: { note: string; patch: boolean } | null,
-  now: Date,
   /** The site's language when the caller knows it; detected otherwise. */
   siteLanguage?: string,
 ): Promise<{ turnId: string }> {
@@ -522,9 +509,7 @@ async function startCmoStrategy(
   } catch (error) {
     // One turn per bot: a plan another request started first is this one;
     // a fix or patch is not.
-    const writing = change
-      ? null
-      : await strategyTurnRunning(cuso.sokoBotId, now);
+    const writing = change ? null : await strategyTurnRunning(cuso.sokoBotId);
     if (writing && cmoChangeKind(writing.clientTurnId) === null)
       return { turnId: writing.id };
     throw error;

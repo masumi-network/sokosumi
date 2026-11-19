@@ -40,8 +40,9 @@ vi.mock("@/services/reference-library.service", () => ({
 }));
 
 // PostgreSQL's clock is the test clock here.
+const pgClock = vi.hoisted(() => ({ now: null as Date | null }));
 vi.mock("@/lib/db/database-now", () => ({
-  databaseNow: async () => new Date(),
+  databaseNow: async () => pgClock.now ?? new Date(),
 }));
 vi.mock(
   "@/lib/db/prisma",
@@ -372,14 +373,16 @@ describe("the plan starts when the research ends", () => {
   };
   afterEach(() => {
     resetTurns();
+    pgClock.now = null;
     vi.useRealTimers();
   });
 
   beforeEach(() => {
     resetTurns();
+    pgClock.now = now;
     cusoFind.mockResolvedValue(cuso);
     // The plan turn keeps making progress.
-    eventFindFirst.mockResolvedValue({ occurredAt: now });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
   });
 
   it("after a chat turn reads only the Cuso when no fix is open", async () => {
@@ -477,14 +480,15 @@ describe("the plan starts when the research ends", () => {
       });
       // A change waits for it to land.
       await expect(
-        requestCmoStrategy(
-          { projectId: "project-1", userId: "user-1", note: "Fewer posts" },
-          now,
-        ),
+        requestCmoStrategy({
+          projectId: "project-1",
+          userId: "user-1",
+          note: "Fewer posts",
+        }),
       ).rejects.toThrow("finishing a change");
       // A plain ask gets it back: the first plan starts once it ends.
       await expect(
-        requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
+        requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
       ).resolves.toEqual({ turnId: "change-1" });
     }
     expect(expireTurn).not.toHaveBeenCalled();
@@ -495,7 +499,7 @@ describe("the plan starts when the research ends", () => {
     turnFindFirst.mockResolvedValue(planTurn(2));
 
     await expect(
-      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
     ).resolves.toEqual({ turnId: "plan-1" });
 
     expect(startTurn).not.toHaveBeenCalled();
@@ -516,7 +520,7 @@ describe("the plan starts when the research ends", () => {
 
     const [fromResearch, fromApprove] = await Promise.all([
       startCmoPlanAfterResearch({ sokoBotId: "bot-1", userId: "user-1" }),
-      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }, now),
+      requestCmoStrategy({ projectId: "project-1", userId: "user-1" }),
     ]);
 
     expect(fromResearch).toEqual({ turnId: "plan-1" });
@@ -527,10 +531,11 @@ describe("the plan starts when the research ends", () => {
   it("refuses a change while the plan is still being written", async () => {
     turnFindFirst.mockResolvedValue(planTurn(2));
     await expect(
-      requestCmoStrategy(
-        { projectId: "project-1", userId: "user-1", note: "Fewer posts" },
-        now,
-      ),
+      requestCmoStrategy({
+        projectId: "project-1",
+        userId: "user-1",
+        note: "Fewer posts",
+      }),
     ).rejects.toThrow("still writing the strategy");
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -1941,26 +1946,27 @@ describe("changes after the plan", () => {
     turnFindFirst.mockReset();
     startTurn.mockReset();
   };
-  afterEach(resetTurns);
+  afterEach(() => {
+    resetTurns();
+    pgClock.now = null;
+  });
   beforeEach(() => {
     resetTurns();
+    pgClock.now = now;
     cusoFind.mockResolvedValue(cuso);
-    eventFindFirst.mockResolvedValue({ occurredAt: now });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     startTurn.mockResolvedValue({ turnId: "turn-9" });
   });
 
   it("patches the plan for a pace, never re-plans it", async () => {
     seedStrategy(wholePlan());
 
-    await requestCmoStrategy(
-      {
-        projectId: "project-1",
-        userId: "user-1",
-        note: "Switch to the active pace.",
-        patch: true,
-      },
-      now,
-    );
+    await requestCmoStrategy({
+      projectId: "project-1",
+      userId: "user-1",
+      note: "Switch to the active pace.",
+      patch: true,
+    });
 
     expect(startTurn.mock.lastCall?.[0]).toMatchObject({
       clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:patch:/),
@@ -2031,15 +2037,12 @@ describe("changes after the plan", () => {
   it("refuses a patch while the plan is still being written", async () => {
     turnFindFirst.mockResolvedValue(turn("plan", 2));
     await expect(
-      requestCmoStrategy(
-        {
-          projectId: "project-1",
-          userId: "user-1",
-          note: "Switch to the active pace.",
-          patch: true,
-        },
-        now,
-      ),
+      requestCmoStrategy({
+        projectId: "project-1",
+        userId: "user-1",
+        note: "Switch to the active pace.",
+        patch: true,
+      }),
     ).rejects.toThrow("still writing the strategy");
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -2057,16 +2060,13 @@ describe("changes after the plan", () => {
       ],
     };
     const answer = (value: "yes" | "no", note?: string) =>
-      answerCmoBrandQuestion(
-        {
-          projectId: "project-1",
-          userId: "user-1",
-          questionId: "q1",
-          answer: value,
-          ...(note ? { note } : {}),
-        },
-        now,
-      );
+      answerCmoBrandQuestion({
+        projectId: "project-1",
+        userId: "user-1",
+        questionId: "q1",
+        answer: value,
+        ...(note ? { note } : {}),
+      });
     beforeEach(() => {
       // The stored brain follows each write.
       brainFindUnique.mockImplementation(async () => ({
@@ -2092,7 +2092,7 @@ describe("changes after the plan", () => {
       cusoFind.mockResolvedValue({ ...cuso, brandBrain: stored });
       turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
       await expect(
-        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
       ).resolves.toEqual({ turnId: "turn-9" });
       expect(startTurn.mock.lastCall?.[0]).toMatchObject({
         clientTurnId: expect.stringMatching(/^cmo:strategy:bot-1:fix:/),
@@ -2132,7 +2132,7 @@ describe("changes after the plan", () => {
       cusoFind.mockResolvedValue({ ...cuso, brandBrain: stored });
       turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
       await expect(
-        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+        startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
       ).resolves.toBeNull();
     });
 
@@ -2170,15 +2170,12 @@ describe("changes after the plan", () => {
     brainFindUnique.mockResolvedValue({ body: essentials });
     seedStrategy(wholePlan());
 
-    await fixCmoBrandSection(
-      {
-        projectId: "project-1",
-        userId: "user-1",
-        section: "pricing",
-        note: "From 19 dollars a month.",
-      },
-      now,
-    );
+    await fixCmoBrandSection({
+      projectId: "project-1",
+      userId: "user-1",
+      section: "pricing",
+      note: "From 19 dollars a month.",
+    });
 
     // Only that section holds the fix; the others stay as they were.
     const body = brainUpdate.mock.lastCall?.[0].data.body;
@@ -2243,7 +2240,7 @@ describe("changes after the plan", () => {
     });
     turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
 
-    await startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now);
+    await startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" });
 
     expect(message()).not.toContain("True instead: Not true");
     expect(message()).toContain(
@@ -2259,15 +2256,12 @@ describe("changes after the plan", () => {
     turnFindFirst.mockResolvedValue(turn("plan", 2));
 
     await expect(
-      fixCmoBrandSection(
-        {
-          projectId: "project-1",
-          userId: "user-1",
-          section: "pricing",
-          note: "From 19 dollars a month.",
-        },
-        now,
-      ),
+      fixCmoBrandSection({
+        projectId: "project-1",
+        userId: "user-1",
+        section: "pricing",
+        note: "From 19 dollars a month.",
+      }),
     ).resolves.toEqual({ queued: true });
     expect(startTurn).not.toHaveBeenCalled();
 
@@ -2275,7 +2269,7 @@ describe("changes after the plan", () => {
     cusoFind.mockResolvedValue({ ...cuso, brandBrain: pending });
     turnFindFirst.mockResolvedValue(turn("plan", 1, "COMPLETED"));
     await expect(
-      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
     ).resolves.toEqual({ turnId: "turn-9" });
     expect(message()).toContain("- pricing: you wrote");
   });
@@ -2300,7 +2294,7 @@ describe("changes after the plan", () => {
     });
 
     await expect(
-      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
     ).resolves.toBeNull();
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -2329,7 +2323,7 @@ describe("changes after the plan", () => {
     });
 
     await expect(
-      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }, now),
+      startNextCmoChange({ sokoBotId: "bot-1", userId: "user-1" }),
     ).resolves.toEqual({ turnId: "turn-9" });
     expect(startTurn.mock.lastCall?.[0].clientTurnId).toMatch(
       new RegExp(`:fix:\\d+:${Date.parse(later)}$`),

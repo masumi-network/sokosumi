@@ -196,7 +196,7 @@ async function strategyBeingWritten(projectId: string): Promise<boolean> {
     select: TURN_ROW_SELECT,
   });
   if (!writing) return false;
-  return (await settledTurnStatus(writing, new Date())) === "running";
+  return (await settledTurnStatus(writing)) === "running";
 }
 
 interface VersionChange {

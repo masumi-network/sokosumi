@@ -1,4 +1,12 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { CaseOutcome } from "./eval-case-runner";
 import { infrastructureCaseOutcome } from "./eval-infrastructure";
 
@@ -86,7 +94,9 @@ vi.mock("./eval-case-runner", async (importOriginal) => {
   };
 });
 
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
+import { CMO_EVAL_CASES } from "./eval-cmo-cases";
 import {
   cancelEvalRun,
   createEvalRun,
@@ -115,6 +125,29 @@ describe.skipIf(!enabled)("eval runs", () => {
     infrastructureOutcomes.clear();
     busy.clear();
     await prisma.evalRun.deleteMany({});
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("starts a month result on PostgreSQL time so its turns fall inside the result window", async () => {
+    const month = CMO_EVAL_CASES.find((item) => item.kind === "cmo-month");
+    if (!month) throw new Error("Missing month eval fixture");
+    const run = await createEvalRun({ trigger: "MANUAL", caseIds: [month.id] });
+    const before = await databaseNow();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(before.getTime() + 60 * 60_000);
+
+    await tickEvalRuns();
+
+    const [{ startedAt }] = await prisma.evalResult.findMany({
+      where: { runId: run.id },
+    });
+    expect(startedAt?.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(startedAt?.getTime()).toBeLessThanOrEqual(
+      (await databaseNow()).getTime(),
+    );
   });
 
   afterAll(async () => {

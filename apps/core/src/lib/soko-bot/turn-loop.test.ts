@@ -46,6 +46,7 @@ describe("RuntimeEventLog", () => {
       async (operation: (tx: unknown) => Promise<unknown>) => {
         let release = () => {};
         const tx = {
+          $queryRaw: async () => [{ now: new Date() }],
           $executeRaw: async (_sql: TemplateStringsArray, key: string) => {
             const previous = locks.get(key) ?? Promise.resolve();
             const held = new Promise<void>((resolve) => {

@@ -7,6 +7,10 @@ import {
   modelContextBlock,
 } from "./turn-model-context";
 
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
+
 describe("contextBlock", () => {
   it("states the reply language last, after the packet and the latest exchange", () => {
     const now = Date.parse("2026-09-30T21:27:00Z");
@@ -35,23 +39,23 @@ describe("contextBlock", () => {
 });
 
 describe("modelContextBlock", () => {
-  it("keeps a prior assistant claim as conversation history and directs ordinary identity questions to their source", () => {
+  it("keeps a prior assistant claim as conversation history and directs ordinary identity questions to their source", async () => {
     const staleClaim = "Micah Vale works at Cerise Paper.";
     const packet = {
       recentTurns: [{ source: "SCHEDULE", finalAnswer: staleClaim }],
     };
-    const chat = modelContextBlock(packet, false).join("\n");
+    const chat = (await modelContextBlock(packet, false)).join("\n");
     expect(chat).toContain(staleClaim);
     expect(chat).toMatch(/search_contacts/);
     expect(chat).toMatch(/list_calendar_events/);
     expect(chat).toContain("attendeesIncomplete");
     expect(chat).toContain("contactReferences");
-    const meeting = modelContextBlock(packet, true).join("\n");
+    const meeting = (await modelContextBlock(packet, true)).join("\n");
     expect(meeting).not.toContain(staleClaim);
     expect(meeting).not.toMatch(/search_contacts|list_calendar_events/);
   });
 
-  it("cannot reintroduce an unrelated person's name from a recent turn excluded by an evaluation allowance", () => {
+  it("cannot reintroduce an unrelated person's name from a recent turn excluded by an evaluation allowance", async () => {
     const deployment = {
       branch: "identity-fixture",
       sourceSha: "a".repeat(40),
@@ -75,7 +79,7 @@ describe("modelContextBlock", () => {
       SOKO_BOT_EVALUATION_ALLOWANCE: JSON.stringify(binding),
     });
     try {
-      const lines = modelContextBlock(
+      const lines = await modelContextBlock(
         {
           trigger: { source: "CHAT" },
           tasks: [],

@@ -62,19 +62,11 @@ const ATTENTION_MAX_AGE_MS = 7 * 24 * HOUR_MS;
 
 /** Start of the bot's current local day, for the daily proactive cap. */
 export function localDayStart(now: Date, timeZone: string): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(now);
-  const get = (type: string) =>
-    Number(parts.find((p) => p.type === type)?.value);
-  const minutesIntoDay = (get("hour") % 24) * 60 + get("minute");
-  return new Date(now.getTime() - minutesIntoDay * 60_000);
+  return new Date(
+    Temporal.Instant.fromEpochMilliseconds(now.getTime())
+      .toZonedDateTimeISO(timeZone)
+      .startOfDay().epochMilliseconds,
+  );
 }
 
 export interface ProactiveGate {
