@@ -1037,9 +1037,9 @@ export function listWorkspaceSocialPosts(
 async function readSocialPostsPage(
   input: Omit<ListSocialPostsInput, "projectId"> & { projectId?: string },
 ): Promise<{ posts: SocialPostSummary[]; pagination: CursorPaginationMeta }> {
-  const { cursor, take, skip } = parseCursorPagination(input);
+  const { cursor, take } = parseCursorPagination(input);
   const where: Prisma.SocialPostWhereInput = {
-    projectId: input.projectId,
+    ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
     workspaceId: input.workspaceId,
     ...(input.statuses ? { status: { in: [...input.statuses] } } : {}),
     ...(input.provider ? { provider: input.provider } : {}),
@@ -1088,7 +1088,7 @@ async function readSocialPostsPage(
                 ]
               : [{ updatedAt: "desc" }, { id: "desc" }],
       take: take + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip } : {}),
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     }),
     prisma.socialPost.count({ where }),
   ]);

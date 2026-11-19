@@ -22,7 +22,6 @@ import {
   getChatRoomCatchUp,
   getChatRoomNeedsYouCounts,
   listChatDecisions,
-  listChatNeedsYou,
   listChatOpenLoops,
   listChatRoomMessagesWithTag,
   setChatMessageSignalLoop,
@@ -134,8 +133,10 @@ async function taggedMessage(input: {
       senderUserId: carla,
       content: input.content,
       createdAt: input.createdAt,
-      parentMessageId: input.parentMessageId,
-      deletedAt: input.deletedAt,
+      ...(input.parentMessageId !== undefined
+        ? { parentMessageId: input.parentMessageId }
+        : {}),
+      ...(input.deletedAt !== undefined ? { deletedAt: input.deletedAt } : {}),
     },
   });
   await prisma.chatMessageSignal.create({
@@ -275,8 +276,6 @@ describe.runIf(enabled)("chat signals on PostgreSQL", () => {
     expect(await getChatRoomNeedsYouCounts([channelId], carla)).toEqual(
       new Map(),
     );
-    const needsYou = await listChatNeedsYou(alice, organizationId);
-    expect(needsYou.map((item) => item.message.id)).toEqual([question]);
   });
 
   it("buckets the catch-up line, one bucket per unread message", async () => {

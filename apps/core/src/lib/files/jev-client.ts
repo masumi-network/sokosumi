@@ -11,59 +11,14 @@ import {
 } from "@/lib/files/jev-rubrics";
 
 /**
- * The Jev transport.
- *
- * Jev is an evaluation model: it answers typed questions about supplied
- * state. It is not a chat model, so it does not go through
- * `@sokosumi/ai-provider` — forcing an evaluation through a streaming text
- * interface would mean parsing prose back into a score, which is exactly the
- * failure mode the typed surface exists to avoid.
- *
- * ## The contract is the one main already ships
- *
- * An earlier revision of this file was written against a *guessed* Gateway
- * contract: `state` as a JSON string, `questions` as an array of
- * `{name, type: "choice", choices}`, and a reply read out of
- * `results[name].choice`. Task-tag classification
- * (`clients/task-tag-classifier.ts`) has since shipped a working integration,
- * and it disagrees on every one of those points. This file now follows the
- * working one:
- *
- * - `state` is an **object**, not a serialized string.
- * - `questions` is an **object map** of `{id: {type, instructions}}`.
- * - the reply is `{model, answers, usage, providerMetadata}`, Zod-validated.
- * - `providerOptions.gateway` carries the retention request on every call.
- *
- * Only `type: "boolean"` is demonstrated by that working integration, so the
- * 0–3 relevance rubric is asked as a **ladder of booleans** rather than as an
- * unverified `choice` question. The ordinal the ranking stage consumes is
- * derived from the highest rung that came back true. If `choice` is later
- * confirmed against the official contract, the ladder collapses into one
- * question without changing any caller.
- *
- * ## Retention is requested, not verified
- *
- * Every call asks for `zeroDataRetention` and `disallowPromptTraining`. That
- * is a request to the Gateway, and this code does not treat a successful
- * response as proof that either was honoured — nothing in the reply attests
- * to it. What it does guarantee is that a call is never retried without
- * those options: there is no code path that builds a request without them,
- * so a rejection cannot be answered by quietly downgrading.
- *
- * ## There is no provider latch any more
- *
- * A 400 or a 422 used to latch the evaluator off for the life of the
- * process, on the theory that the Gateway was rejecting the retention
- * options. It discriminates on `error.type`, not on status, so that
- * inference was wrong in both directions: a 400 for any other reason
- * killed ranking on the instance until it restarted, and a 413 — the
- * status an oversized request actually gets — did not fire it at all.
- *
- * One bad request could therefore take an instance's ranking out
- * permanently, with siblings still serving, so the feature went half dead
- * and no aggregate moved enough to notice. The scheduler's circuit breaker
- * is the real protection here and it half-opens by itself, which a latch
- * with nothing to clear it never did.
+ * Jev answers typed questions about supplied state. `postEvaluation` POSTs
+ * `{model, state, questions, providerOptions.gateway}` to the AI Gateway
+ * `/evaluate` endpoint: `state` is an object, `questions` maps each id to
+ * `{type: "boolean", instructions}`, and `providerOptions.gateway` always
+ * requests `zeroDataRetention` and `disallowPromptTraining`. The reply is
+ * `{model, answers, usage, providerMetadata}`, checked by `resultSchema`.
+ * Relevance is a ladder of those booleans; the score is the highest
+ * consistent rung (`readLadder`).
  */
 
 const GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";

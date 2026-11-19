@@ -169,11 +169,21 @@ export async function createSharedSokoBot(
           workspaceId: input.workspaceId,
           name,
           versionId,
-          avatarSeed: input.avatarSeed,
-          personalityTone: input.personalityTone,
-          personalityDetail: input.personalityDetail,
-          personalityStyle: input.personalityStyle,
-          ingestTimezone: input.timezone,
+          ...(input.avatarSeed !== undefined
+            ? { avatarSeed: input.avatarSeed }
+            : {}),
+          ...(input.personalityTone !== undefined
+            ? { personalityTone: input.personalityTone }
+            : {}),
+          ...(input.personalityDetail !== undefined
+            ? { personalityDetail: input.personalityDetail }
+            : {}),
+          ...(input.personalityStyle !== undefined
+            ? { personalityStyle: input.personalityStyle }
+            : {}),
+          ...(input.timezone !== undefined
+            ? { ingestTimezone: input.timezone }
+            : {}),
           memoryVersion: 1,
           memoryHash: hash,
         },
@@ -274,7 +284,7 @@ export async function reactivateSharedSokoBot(
       data: {
         archivedAt: null,
         // A durable administrator pause survives reactivation.
-        status: bot.adminPausedAt === null ? "IDLE" : undefined,
+        ...(bot.adminPausedAt === null ? { status: "IDLE" } : {}),
       },
     });
     if (count === 0) throw new SokoBotNotFoundError("Soko Bot not found");

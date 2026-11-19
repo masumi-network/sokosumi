@@ -1732,6 +1732,15 @@ describe("social posts service", () => {
     expect(socialPostFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({ where }),
     );
+    expect(socialPostFindManyMock.mock.lastCall?.[0]?.where).toStrictEqual(
+      where,
+    );
+    expect(socialPostFindManyMock.mock.lastCall?.[0]).not.toHaveProperty(
+      "cursor",
+    );
+    expect(socialPostFindManyMock.mock.lastCall?.[0]).not.toHaveProperty(
+      "skip",
+    );
     expect(socialPostCountMock).toHaveBeenCalledWith({ where });
     expect(projectFindFirstMock).not.toHaveBeenCalled();
   });

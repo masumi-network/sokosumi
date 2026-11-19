@@ -870,8 +870,10 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       expect((lists as { id: string }[]).map((list) => list.id)).not.toContain(
         smart.id,
       );
+    const praxisId = ids.get("Praxis");
+    if (!praxisId) throw new Error("Missing Praxis fixture");
     const praxis = await prisma.contact.findUniqueOrThrow({
-      where: { id: ids.get("Praxis") },
+      where: { id: praxisId },
       include: { activities: true },
     });
     expect(praxis).toMatchObject({
@@ -888,10 +890,12 @@ describe.runIf(enabled)("contact capture on PostgreSQL", () => {
       name: { before: "Praxis", after: "Praxis Weber" },
       kind: { before: "PERSON", after: "ORGANIZATION" },
     });
+    const omarId = ids.get("Omar Haddad");
+    if (!omarId) throw new Error("Missing Omar Haddad fixture");
     expect(
       (
         await prisma.contact.findUniqueOrThrow({
-          where: { id: ids.get("Omar Haddad") },
+          where: { id: omarId },
         })
       ).stage,
     ).toBe("INVESTOR");

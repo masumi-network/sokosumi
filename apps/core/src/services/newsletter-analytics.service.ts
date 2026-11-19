@@ -68,7 +68,7 @@ async function totals(
       prisma.newsletterSend.count({
         where: {
           issue: { newsletterId },
-          issueId,
+          ...(issueId !== undefined ? { issueId } : {}),
           status: "SENT",
           ...(range ? { sentAt: { gte: range.start, lt: range.end } } : {}),
         },

@@ -279,7 +279,7 @@ export async function finalizeSokoBotIntegration(input: {
     },
     data: {
       status,
-      connectedAt: status === "ACTIVE" ? new Date() : undefined,
+      ...(status === "ACTIVE" ? { connectedAt: new Date() } : {}),
       lastError:
         status === "FAILED" || status === "REVOKED"
           ? (account.statusReason ?? account.status)
