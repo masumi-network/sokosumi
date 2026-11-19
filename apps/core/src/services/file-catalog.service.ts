@@ -219,13 +219,38 @@ export async function reserveDriveCopyResource(input: {
 }
 
 /**
- * Make a copy live with the metadata of the bytes at its pathname, and queue
- * its extraction, in one transaction. Only while it is still this claim at
- * this pathname: a delete or rename in between publishes nothing here.
+ * Record the write a copy proved its own: the ETag its no-overwrite copy
+ * call returned, checked against the target and an unchanged source. Once,
+ * and only on this claim at this pathname. From here the write is the
+ * claim's, so a relocation no longer takes the name and the reconciler may
+ * finish publishing it.
+ */
+export async function recordDriveCopyWrite(input: {
+  resourceId: string;
+  pathname: string;
+  etag: string;
+}): Promise<boolean> {
+  const { count } = await prisma.fileVersion.updateMany({
+    where: {
+      resourceId: input.resourceId,
+      revision: 1,
+      etag: null,
+      resource: { sourceId: input.pathname, tombstonedAt: null, ...COPY_CLAIM },
+    },
+    data: { etag: input.etag },
+  });
+  return count > 0;
+}
+
+/**
+ * Make a copy live with the metadata of its recorded write, and queue its
+ * extraction, in one transaction. Only while it is still this claim at this
+ * pathname with this write recorded: anything else publishes nothing.
  */
 export async function publishDriveCopyResource(input: {
   resourceId: string;
   pathname: string;
+  etag: string;
   sizeBytes: number;
   mimeType: string;
 }): Promise<boolean> {
@@ -237,6 +262,7 @@ export async function publishDriveCopyResource(input: {
         sourceId: input.pathname,
         tombstonedAt: null,
         ...COPY_CLAIM,
+        versions: { some: { revision: 1, etag: input.etag } },
       },
       data: { lifecycle: FileResourceLifecycle.ACTIVE, ...metadata },
     });
@@ -267,14 +293,31 @@ export async function releaseDriveCopyResource(claim: {
   });
 }
 
-/** Claims old enough that no request can still be publishing them. */
-export function staleDriveCopyClaims(olderThan: Date, take: number) {
-  return prisma.fileResource.findMany({
-    where: { ...COPY_CLAIM, tombstonedAt: null, createdAt: { lt: olderThan } },
-    select: { id: true, sourceId: true },
+/**
+ * Claims with a recorded write that their request did not publish, oldest
+ * first. Age only schedules: a claim with no recorded write is never here.
+ */
+export async function recordedDriveCopyClaims(olderThan: Date, take: number) {
+  const claims = await prisma.fileResource.findMany({
+    where: {
+      ...COPY_CLAIM,
+      tombstonedAt: null,
+      createdAt: { lt: olderThan },
+      versions: { some: { revision: 1, etag: { not: null } } },
+    },
+    select: {
+      id: true,
+      sourceId: true,
+      versions: { where: { revision: 1 }, select: { etag: true } },
+    },
     orderBy: { createdAt: "asc" },
     take,
   });
+  return claims.map((claim) => ({
+    resourceId: claim.id,
+    pathname: claim.sourceId,
+    etag: claim.versions[0]?.etag ?? "",
+  }));
 }
 
 /**
@@ -344,6 +387,19 @@ export async function renameDriveUploadResource(input: {
   const sourceScope = toSourceScope(input.scope);
 
   await prisma.$transaction(async (tx) => {
+    // The relocation's bytes are already at the destination, and storage
+    // never overwrites, so a copy claimed there has not written and cannot.
+    // Its claim yields; one with a recorded write keeps the name (P2002).
+    await tx.fileResource.deleteMany({
+      where: {
+        workspaceId: input.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope,
+        sourceId: input.toPathname,
+        ...COPY_CLAIM,
+        versions: { some: { revision: 1, etag: null } },
+      },
+    });
     const resource = await tx.fileResource.findUnique({
       where: {
         workspaceId_sourceKind_sourceScope_sourceId: {

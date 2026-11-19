@@ -1,54 +1,69 @@
 import { driveHead } from "@/lib/drive-blob";
+import { recordCoreWarning } from "@/lib/evlog";
 import {
   publishDriveCopyResource,
+  recordedDriveCopyClaims,
   releaseDriveCopyResource,
-  staleDriveCopyClaims,
 } from "@/services/file-catalog.service";
 
-/**
- * Well past the longest a copy request can run (300 s), so no request can
- * still be publishing a claim this old and any write it started has settled.
- */
+/** Only schedules: a request still running gets this long to publish. */
 const STALE_AFTER_MS = 15 * 60_000;
 
 /**
- * Settle the copies a request left unpublished: it failed, timed out, or
- * lost the answer to a write or a commit. Storage is read outside any
- * transaction, then one fenced catalog step:
+ * Finish copies whose write is proven and recorded but whose request did not
+ * publish them (it failed or lost the answer after recording). Nothing else:
+ * a claim with no recorded write is never published or released here.
  *
- * - No bytes at the claim's pathname: nothing was exposed, so the claim is
- *   given back and the name is free again.
- * - Bytes there: published as the copy, live and pinned free, with their
- *   own size and type. The claim fences every catalog writer off this name,
- *   so only a storage-first rename could have put other bytes there, and
- *   its own catalog step then failed on this claim. Either way the bytes
- *   are kept and reachable, and no paid model labels them.
+ * - Bytes at the pathname carry the recorded ETag: publish them.
+ * - No bytes: the recorded write is gone and cannot land again, so the claim
+ *   is given back.
+ * - Other bytes: left alone.
+ *
+ * Each claim is settled on its own, and the sweep stops when the tick is out
+ * of time, so a broken claim never holds up the next one or the indexing.
  */
-export async function reconcileStaleDriveCopies(take = 50) {
-  const claims = await staleDriveCopyClaims(
+export async function reconcileStaleDriveCopies(
+  options: { shouldContinue?: () => boolean; take?: number } = {},
+) {
+  const claims = await recordedDriveCopyClaims(
     new Date(Date.now() - STALE_AFTER_MS),
-    take,
+    options.take ?? 50,
   );
-  let published = 0;
-  let released = 0;
+  const result = { published: 0, released: 0, kept: 0, failed: 0 };
   for (const claim of claims) {
-    const there = await driveHead(claim.sourceId);
-    if (!there) {
-      await releaseDriveCopyResource({
-        resourceId: claim.id,
-        pathname: claim.sourceId,
-      });
-      released += 1;
-    } else if (
-      await publishDriveCopyResource({
-        resourceId: claim.id,
-        pathname: claim.sourceId,
-        sizeBytes: there.size,
-        mimeType: there.contentType,
-      })
-    ) {
-      published += 1;
+    if (options.shouldContinue && !options.shouldContinue()) break;
+    try {
+      const there = await driveHead(claim.pathname);
+      if (!there) {
+        await releaseDriveCopyResource({
+          resourceId: claim.resourceId,
+          pathname: claim.pathname,
+        });
+        result.released += 1;
+      } else if (
+        there.etag === claim.etag &&
+        (await publishDriveCopyResource({
+          ...claim,
+          sizeBytes: there.size,
+          mimeType: there.contentType,
+        }))
+      ) {
+        result.published += 1;
+      } else {
+        result.kept += 1;
+      }
+    } catch (error) {
+      result.failed += 1;
+      recordCoreWarning(
+        { job: "drive-copy-reconcile" },
+        {
+          message: "Could not settle a Drive copy",
+          why: "Its next sweep tries again.",
+          cause: error,
+        },
+        { resourceId: claim.resourceId },
+      );
     }
   }
-  return { published, released };
+  return result;
 }

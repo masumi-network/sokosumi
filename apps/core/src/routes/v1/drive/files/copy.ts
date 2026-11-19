@@ -40,6 +40,7 @@ import {
 } from "@/schemas/drive-file.schema";
 import {
   publishDriveCopyResource,
+  recordDriveCopyWrite,
   releaseDriveCopyResource,
   reserveDriveCopyResource,
 } from "@/services/file-catalog.service";
@@ -150,9 +151,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname: target,
     });
 
-    // Identity and the free-indexing pins first, then bytes, then one fenced
-    // publish (see reserveDriveCopyResource). An outcome this request cannot
-    // know leaves the claim for reconcileStaleDriveCopies to settle.
+    // Identity and the free-indexing pins first, then bytes, then the proven
+    // write recorded, then one fenced publish (see reserveDriveCopyResource).
+    // A write this request cannot prove is never published by anyone.
     const sourceName = pathname.slice(folderPrefix.length);
     let target: string | null = null;
     let resourceId = "";
@@ -213,11 +214,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("The file changed while it was copied; try again");
     }
 
-    const published = await publishDriveCopyResource({
-      ...claim,
-      sizeBytes: written.size,
-      mimeType: written.contentType,
-    });
+    // From here the write is the claim's: if publishing fails, the
+    // reconciler finishes it from this record.
+    const proven = { ...claim, etag: copied.etag };
+    const published =
+      (await recordDriveCopyWrite(proven)) &&
+      (await publishDriveCopyResource({
+        ...proven,
+        sizeBytes: written.size,
+        mimeType: written.contentType,
+      }));
     if (!published) {
       throw conflict("The copy was moved or deleted before it was finished");
     }

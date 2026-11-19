@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-
+import { recordCoreWarning } from "@/lib/evlog";
 import {
   backfillMissingSuggestionJobs,
   reviveFailedSuggestionJobs,
@@ -38,9 +38,6 @@ export default function mount(app: Hono) {
          * every-minute retry of a document that is simply broken.
          */
         const revived = await reviveFailedSuggestionJobs();
-        // Copies a request could not finish: published or given back
-        // before extraction, so a published one is extracted this tick.
-        const copies = await reconcileStaleDriveCopies();
 
         // Extraction first: a document has to have text before anything can
         // have an opinion about its category.
@@ -86,6 +83,17 @@ export default function mount(app: Hono) {
         // ordering. `@@index([expiresAt])` existed for this sweep before
         // the sweep did.
         const prunedResultWindows = await pruneExpiredResultWindows();
+        // Last and on its own: a copy that cannot be settled never holds up
+        // the indexing above. A published copy is extracted next tick.
+        const copies = await reconcileStaleDriveCopies({
+          shouldContinue: context.shouldContinue,
+        }).catch((error: unknown) => {
+          recordCoreWarning(
+            { job: "drive-index-sync" },
+            { message: "Drive copy sweep failed", cause: error },
+          );
+          return null;
+        });
         context.log.set({
           result: {
             revived,

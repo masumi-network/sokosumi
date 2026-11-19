@@ -346,6 +346,8 @@ export async function driveRename(
     toStore: target,
     contentType,
     cacheControlMaxAge: options.cacheControlMaxAge,
+    // A user's move never replaces what is already at the destination.
+    allowOverwrite: false,
   });
 }
 
@@ -387,6 +389,8 @@ export async function transferBetweenStores(input: {
   /** Defaults to the source object's own type. */
   contentType?: string;
   cacheControlMaxAge?: number;
+  /** Defaults to true: a room migration rewrites the same pathname. */
+  allowOverwrite?: boolean;
 }): Promise<{ url: string; pathname: string; access: BlobAccessType }> {
   const source = await get(input.fromPathname, {
     access: input.fromStore.access,
@@ -397,7 +401,7 @@ export async function transferBetweenStores(input: {
     access: input.toStore.access,
     token: input.toStore.token,
     addRandomSuffix: false,
-    allowOverwrite: true,
+    allowOverwrite: input.allowOverwrite ?? true,
     contentType: input.contentType ?? source.blob.contentType,
     cacheControlMaxAge: input.cacheControlMaxAge,
   });

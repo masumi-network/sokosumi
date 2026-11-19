@@ -11,11 +11,12 @@ import {
   leaseNextFileIndexJob,
 } from "@/lib/files/index-jobs";
 import type { JevLabelEvaluator } from "@/lib/files/jev-client";
-import { reconcileStaleDriveCopies } from "@/services/drive-copy-reconcile";
 import {
   activateDriveUploadResource,
   adoptDriveUploadResource,
   publishDriveCopyResource,
+  recordDriveCopyWrite,
+  recordedDriveCopyClaims,
   releaseDriveCopyResource,
   renameDriveUploadResource,
   reserveDriveCopyResource,
@@ -23,14 +24,6 @@ import {
   tombstoneDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { runSuggestionJob } from "@/services/file-suggestions.service";
-
-/** Objects in the mocked Blob store, by pathname. */
-const objects = vi.hoisted(
-  () => new Map<string, { size: number; contentType: string }>(),
-);
-vi.mock("@/lib/drive-blob", () => ({
-  driveHead: async (pathname: string) => objects.get(pathname) ?? null,
-}));
 
 /** Set to make the next enqueue throw, as a dropped connection would. */
 const enqueueFault = vi.hoisted(() => ({ failNext: false }));
@@ -55,10 +48,10 @@ vi.mock("@/lib/files/index-jobs", async (importOriginal) => {
  * A Drive copy against the real catalog and job queue.
  *
  * The route test models storage. This one checks the catalog's side of the
- * publication protocol: a copy's identity and its free-indexing pins exist
- * before its bytes, no ordinary writer (upload, finalize, backfill) takes
- * or activates a claim, publication is fenced and atomic, and a claim a
- * request left behind is settled by the sweep, never by guessing.
+ * ownership rule: a copy's identity and its free-indexing pins exist before
+ * its bytes; upload, finalize and backfill never take or activate a claim;
+ * a relocation takes a destination from a claim with no proven write and
+ * keeps its own document; only a recorded write is ever published.
  */
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -144,12 +137,28 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
     });
   }
 
-  function publish(id: string, name: string) {
+  async function publish(id: string, name: string, etag = "e1") {
+    await recordDriveCopyWrite({
+      resourceId: id,
+      pathname: key(name).pathname,
+      etag,
+    });
     return publishDriveCopyResource({
       resourceId: id,
       pathname: key(name).pathname,
+      etag,
       sizeBytes: 7,
       mimeType: "text/plain",
+    });
+  }
+
+  function rename(from: string, to: string) {
+    return renameDriveUploadResource({
+      workspaceId,
+      scope: "user",
+      fromPathname: key(from).pathname,
+      toPathname: key(to).pathname,
+      displayName: to,
     });
   }
 
@@ -178,13 +187,6 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
   function extractJobs(resourceId: string) {
     return prisma.fileIndexJob.count({
       where: { resourceId, pipeline: FileIndexJobPipeline.EXTRACT },
-    });
-  }
-
-  async function age(id: string) {
-    await prisma.fileResource.update({
-      where: { id },
-      data: { createdAt: new Date(Date.now() - 16 * 60_000) },
     });
   }
 
@@ -322,55 +324,95 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
     });
   });
 
-  describe("the sweep settles claims a request left behind", () => {
-    it("releases a stale claim with no bytes, publishes one with bytes, and leaves fresh ones", async () => {
-      const empty = await reserve("empty (copy).md");
-      const landed = await reserve("landed (copy).md");
-      const fresh = await reserve("fresh (copy).md");
-      await age(empty);
-      await age(landed);
-      objects.set(key("landed (copy).md").pathname, {
-        size: 5,
-        contentType: "text/csv",
-      });
-      objects.set(key("fresh (copy).md").pathname, {
-        size: 5,
-        contentType: "text/csv",
-      });
+  describe("one owner per pathname, shared with relocations", () => {
+    it("lets a rename or move take a name from a claim with no proven write, keeping its document", async () => {
+      const claim = await reserve("target (copy).md");
+      const { resourceId: moving } = await upload("mine.txt");
 
-      await reconcileStaleDriveCopies();
+      await rename("mine.txt", "target (copy).md");
 
-      expect(await row(empty)).toBeNull();
-      expect(await row(landed)).toMatchObject({
-        lifecycle: "ACTIVE",
-        sizeBytes: 5,
-        mimeType: "text/csv",
+      expect(await row(claim)).toBeNull();
+      expect(await row(moving)).toMatchObject({
+        sourceId: key("target (copy).md").pathname,
       });
-      expect(await extractJobs(landed)).toBe(1);
-      expect((await row(fresh))?.lifecycle).toBe("PENDING");
     });
 
-    it("publishes a renamed claim at the name its bytes now have", async () => {
-      const id = await reserve("away (copy).md");
-      await renameDriveUploadResource({
-        workspaceId,
-        scope: "user",
-        fromPathname: key("away (copy).md").pathname,
-        toPathname: key("away.md").pathname,
-        displayName: "away.md",
+    it("never takes a name from a copy whose write is recorded", async () => {
+      const claim = await reserve("held (copy).md");
+      await recordDriveCopyWrite({
+        resourceId: claim,
+        pathname: key("held (copy).md").pathname,
+        etag: "e1",
       });
-      objects.set(key("away.md").pathname, {
-        size: 3,
-        contentType: "text/plain",
-      });
-      await age(id);
+      await upload("other.txt");
 
-      await reconcileStaleDriveCopies();
+      await expect(rename("other.txt", "held (copy).md")).rejects.toMatchObject(
+        { code: "P2002" },
+      );
+      expect((await row(claim))?.lifecycle).toBe("PENDING");
+    });
+  });
 
-      expect(await row(id)).toMatchObject({
-        lifecycle: "ACTIVE",
-        sourceId: key("away.md").pathname,
+  describe("only a recorded write is published", () => {
+    it("records a write once, only on its own claim at its pathname", async () => {
+      const id = await reserve("rec (copy).md");
+      const at = key("rec (copy).md").pathname;
+
+      expect(
+        await recordDriveCopyWrite({ resourceId: id, pathname: at, etag: "a" }),
+      ).toBe(true);
+      expect(
+        await recordDriveCopyWrite({ resourceId: id, pathname: at, etag: "b" }),
+      ).toBe(false);
+      expect(
+        await publishDriveCopyResource({
+          resourceId: id,
+          pathname: at,
+          etag: "b",
+          sizeBytes: 1,
+          mimeType: "text/plain",
+        }),
+      ).toBe(false);
+      expect((await row(id))?.lifecycle).toBe("PENDING");
+    });
+
+    it("hands the reconciler only old claims with a recorded write", async () => {
+      const unknown = await reserve("unknown (copy).md");
+      const recorded = await reserve("recorded (copy).md");
+      await recordDriveCopyWrite({
+        resourceId: recorded,
+        pathname: key("recorded (copy).md").pathname,
+        etag: "e9",
       });
+      const later = new Date(Date.now() + 60_000);
+
+      const claims = await recordedDriveCopyClaims(later, 500);
+
+      expect(claims).toContainEqual({
+        resourceId: recorded,
+        pathname: key("recorded (copy).md").pathname,
+        etag: "e9",
+      });
+      expect(claims.map((claim) => claim.resourceId)).not.toContain(unknown);
+      expect(
+        (await recordedDriveCopyClaims(new Date(0), 500)).map(
+          (claim) => claim.resourceId,
+        ),
+      ).not.toContain(recorded);
+    });
+
+    it("never publishes a claim with no recorded write", async () => {
+      const id = await reserve("bare (copy).md");
+
+      expect(
+        await publishDriveCopyResource({
+          resourceId: id,
+          pathname: key("bare (copy).md").pathname,
+          etag: "e1",
+          sizeBytes: 1,
+          mimeType: "text/plain",
+        }),
+      ).toBe(false);
     });
   });
 
@@ -383,9 +425,15 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
       sizeBytes: 5,
       decidedByUserId: ownerId,
     });
+    await recordDriveCopyWrite({
+      resourceId,
+      pathname: copy.pathname,
+      etag: "e1",
+    });
     await publishDriveCopyResource({
       resourceId,
       pathname: copy.pathname,
+      etag: "e1",
       sizeBytes: 5,
       mimeType: "text/plain",
     });

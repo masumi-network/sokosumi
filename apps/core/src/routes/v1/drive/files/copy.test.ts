@@ -51,12 +51,14 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const catalog = vi.hoisted(() => ({
   reserve: vi.fn(),
+  record: vi.fn(),
   publish: vi.fn(),
   release: vi.fn(),
 }));
 
 vi.mock("@/services/file-catalog.service", () => ({
   reserveDriveCopyResource: catalog.reserve,
+  recordDriveCopyWrite: catalog.record,
   publishDriveCopyResource: catalog.publish,
   releaseDriveCopyResource: catalog.release,
 }));
@@ -137,7 +139,7 @@ interface StoredObject {
 /** Objects that exist, by pathname. */
 let stored: Map<string, StoredObject>;
 /** Catalog rows by pathname: a pending claim until published. */
-let rows: Map<string, { id: string; live: boolean }>;
+let rows: Map<string, { id: string; live: boolean; etag?: string }>;
 /** Order of side effects, to check identity comes before bytes. */
 let events: string[];
 let etags: number;
@@ -195,9 +197,17 @@ beforeEach(() => {
     events.push(`reserve:${key.pathname}`);
     return id;
   });
-  catalog.publish.mockImplementation(async ({ resourceId, pathname }) => {
+  catalog.record.mockImplementation(async ({ resourceId, pathname, etag }) => {
     const row = rows.get(pathname);
-    if (!row || row.id !== resourceId || row.live) return false;
+    if (!row || row.id !== resourceId || row.live || row.etag) return false;
+    row.etag = etag;
+    events.push(`record:${pathname}`);
+    return true;
+  });
+  catalog.publish.mockImplementation(async ({ resourceId, pathname, etag }) => {
+    const row = rows.get(pathname);
+    if (!row || row.id !== resourceId || row.live || row.etag !== etag)
+      return false;
     row.live = true;
     events.push(`publish:${pathname}`);
     return true;
@@ -217,6 +227,7 @@ describe("copy a personal file", () => {
     expect(events).toEqual([
       `reserve:${TARGET}`,
       `bytes:${TARGET}`,
+      `record:${TARGET}`,
       `publish:${TARGET}`,
     ]);
     expect(catalog.reserve).toHaveBeenCalledWith({
@@ -346,6 +357,7 @@ describe("races and failures", () => {
     expect(catalog.publish).toHaveBeenCalledWith({
       resourceId: "res-1",
       pathname: TARGET,
+      etag: "e1",
       sizeBytes: 42,
       mimeType: "text/markdown",
     });
@@ -383,6 +395,7 @@ describe("races and failures", () => {
       expect(catalog.publish).not.toHaveBeenCalled();
       expect(stored.get(TARGET)?.etag).toBe("theirs");
       expect(rows.get(TARGET)).toEqual({ id: "res-1", live: false });
+      expect(catalog.record).not.toHaveBeenCalled();
     });
 
     it("gives back the claim and returns 404 when the source vanished", async () => {
@@ -454,7 +467,21 @@ describe("races and failures", () => {
       expect(rows.get(TARGET)?.live).toBe(true);
     });
 
-    it("keeps the claim when its own write cannot be removed", async () => {
+    it("leaves a recorded write for the reconciler when publishing fails", async () => {
+      catalog.publish.mockRejectedValueOnce(new Error("database down"));
+
+      const failed = await copyRequest({ pathname: SOURCE, label: "copy" });
+
+      expect(failed.status).toBe(500);
+      expect(rows.get(TARGET)).toEqual({
+        id: "res-1",
+        live: false,
+        etag: "e1",
+      });
+      expect(stored.get(TARGET)?.etag).toBe("e1");
+    });
+
+    it("keeps the claim unrecorded, so never published, when its rejected write cannot be removed", async () => {
       blob.copy.mockImplementationOnce(async (_from: string, to: string) => {
         stored.set(to, { token: "public-token", etag: "c1", size: 42 });
         stored.set(SOURCE, { token: "public-token", etag: "e-new", size: 7 });
@@ -466,7 +493,8 @@ describe("races and failures", () => {
 
       expect(response.status).toBe(409);
       expect(catalog.release).not.toHaveBeenCalled();
-      expect(rows.get(TARGET)?.live).toBe(false);
+      expect(catalog.record).not.toHaveBeenCalled();
+      expect(rows.get(TARGET)).toEqual({ id: "res-1", live: false });
     });
   });
 });
