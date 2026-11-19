@@ -83,6 +83,7 @@ describe("cmo-v4", () => {
       "cmo-daily-watch",
       "cmo-measurement",
       "cmo-seo",
+      "cmo-competitor-ads",
       "cmo-launch-video",
       "cmo-social-posts",
       "cmo-long-work",

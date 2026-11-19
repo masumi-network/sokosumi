@@ -445,9 +445,6 @@ export function PlanReview({
     strategy: { ...strategy, questions },
   });
   const pieces = strategy.calendar.length;
-  const pages =
-    overview.brandMedia?.pages.filter((page) => page.device === "desktop")
-      .length ?? 0;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -484,13 +481,17 @@ export function PlanReview({
     send("Fitting your strategy to your answers", onUpdate).catch(() => {});
   };
 
-  const written = strategy.contentLanguage
-    ? ` Written in ${strategy.contentLanguage}.`
-    : "";
-  const line =
-    pages > 0
-      ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the strategy."}`;
+  // What it rests on and the language of the posts, in plain words. No page
+  // count: the screenshots Core keeps are not the pages Cuso read.
+  const line = [
+    `${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks, built from your website and your answers.`,
+    strategy.contentLanguage
+      ? `The posts are written in ${strategy.contentLanguage}.`
+      : null,
+    approved ? null : "Nothing goes out until you approve the strategy.",
+  ]
+    .filter(Boolean)
+    .join(" ");
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -567,7 +568,8 @@ export function PlanReview({
             }
           />
         )}
-        <p className="muted">{line}</p>
+        {/* The app's page opens on the goal; the line follows it there. */}
+        {readOnly ? null : <p className="muted">{line}</p>}
       </div>
 
       {asking && !locked ? (
@@ -654,6 +656,7 @@ export function PlanReview({
           statement={sentence !== goal ? sentence : undefined}
           facts={goalFacts(strategy)}
         />
+        {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
 
         {changes.length > 0 && !writing ? (
           <div className="card ob-changed">

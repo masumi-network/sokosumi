@@ -273,6 +273,21 @@ it("keeps a finished Site on screen until See your brand", async () => {
   expect(text()).toContain("Looks like us");
 });
 
+it("tells the founder they can close the page and come back", async () => {
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={asking()}
+        messages={[]}
+        actions={actionsFor()}
+      />,
+    ),
+  );
+  expect(text()).toContain(
+    "You can close this page and come back any time to continue.",
+  );
+});
+
 it("moves to the next question before the save returns", async () => {
   const actions = actionsFor({
     answerBrandQuestion: vi.fn(() => new Promise<CmoOverview>(() => {})),

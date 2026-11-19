@@ -12,6 +12,7 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 | [Subscribe](setup-subscribe.md)                 | Works                                              |
 | [Launch](setup-launch.md)                       | Works; needs one connected network                 |
 | [Later changes](setup-later-changes.md)         | Works                                              |
+| [Daily test copy](test-copy.md)                 | Works; for testers only                            |
 
 ## After setup
 

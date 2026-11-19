@@ -1,6 +1,5 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowUpRight } from "lucide-react";
-import { joinNames } from "../../lib/names";
 
 export type BrandVisual = NonNullable<CmoOverview["brandVisual"]>;
 
@@ -15,6 +14,37 @@ export function hasLook(visual: BrandVisual | null | undefined): boolean {
 }
 
 /** The brand's look from its DESIGN.md: colours, fonts and the file itself. */
+/** The brand's colours as swatches: a colour is seen, not read as a code. */
+export function Swatches({ colors }: { colors: string[] }) {
+  return (
+    <span
+      className="ob-look-dots"
+      role="img"
+      aria-label={`Brand colours: ${colors.join(", ")}`}
+    >
+      {colors.map((color) => (
+        <span key={color} style={{ background: color }} title={color} />
+      ))}
+    </span>
+  );
+}
+
+/** Each font's name set in that font, where this device has it. */
+export function FontNames({ fonts }: { fonts: string[] }) {
+  return (
+    <>
+      {fonts.map((font, index) => (
+        <span key={font}>
+          {index > 0 ? (index === fonts.length - 1 ? " and " : ", ") : null}
+          <span style={{ fontFamily: `"${font}", var(--font-sans)` }}>
+            {font}
+          </span>
+        </span>
+      ))}
+    </>
+  );
+}
+
 export function BrandLook({ visual }: { visual: BrandVisual }) {
   return (
     <div className="ob-look">
@@ -31,7 +61,7 @@ export function BrandLook({ visual }: { visual: BrandVisual }) {
       {visual.fonts.length > 0 ? (
         <p className="ob-look-fonts">
           {visual.fonts.length === 1 ? "Font" : "Fonts"}:{" "}
-          {joinNames(visual.fonts)}
+          <FontNames fonts={visual.fonts} />
         </p>
       ) : null}
       {visual.designMdUrl ? (
