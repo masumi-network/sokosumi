@@ -12473,7 +12473,7 @@
           },
           "twoWayFacts": {
             "title": "Datums- oder Zeitangaben, die man zweifach lesen kann",
-            "why": "Ein Datum wie 04/05/2026 heißt in manchen Ländern 5. April und in anderen 4. Mai. Eine Zahl wie 1:30 vor einer Einheit kann 1 Minute 30 Sekunden oder 1 Stunde 30 Minuten heißen. Schreib den Monat als Wort (5. Mai 2026) und Dauern aus (1 Minute 30 Sekunden)."
+            "why": "Ein Datum wie 04/05/2026 heißt in manchen Ländern 5. April und in anderen 4. Mai. Eine Zahl wie 1:30 kann 1 Minute 30 Sekunden, 1 Stunde 30 Minuten oder eine Uhrzeit heißen. Schreib den Monat als Wort (5. Mai 2026) und Dauern aus (1 Minute 30 Sekunden)."
           },
           "retiredMarkup": {
             "title": "Markup für eine Suchfunktion, die Google nicht mehr zeigt",
@@ -12489,7 +12489,7 @@
           },
           "rawRenderedDiff": {
             "title": "JavaScript ändert die Seite nach dem Laden",
-            "why": "Das HTML der Seite und die Seite nach JavaScript zeigen einen anderen Titel, eine andere Beschreibung, h1, andere Links oder Texte. Google liest die Seite nach JavaScript. Crawler, die kein JavaScript ausführen, sehen nur das HTML. Bring das HTML auf den Stand, den JavaScript zeigt."
+            "why": "Das HTML der Seite und die Seite nach JavaScript zeigen einen anderen Titel, eine andere Beschreibung, eine andere h1, andere Links oder Texte. Google liest die Seite nach JavaScript. Crawler, die kein JavaScript ausführen, sehen nur das HTML. Bring das HTML auf den Stand, den JavaScript zeigt."
           },
           "googleExtended": {
             "title": "robots.txt sperrt Google-Extended",
@@ -12497,7 +12497,7 @@
           },
           "canonicalTarget": {
             "title": "Der Canonical-Link zeigt auf eine Seite mit einem Problem",
-            "why": "Der Canonical-Link sagt Google, welche Adresse die Hauptadresse dieser Seite ist. Er muss auf eine erreichbare Seite ohne Weiterleitung und ohne noindex zeigen. Setze ihn auf die erreichbare Adresse, die Google zeigen soll, zum Beispiel die Adresse, auf der die Weiterleitung endet."
+            "why": "Der Canonical-Link sagt Google, welche Adresse die Hauptadresse dieser Seite ist. Er muss auf eine erreichbare Seite ohne Weiterleitung und ohne noindex zeigen. Setze ihn auf die erreichbare Adresse, die Google zeigen soll. Wenn das Ziel weiterleitet, ist das meist die Adresse, auf der die Weiterleitung endet."
           },
           "siteName": {
             "title": "Die Startseite nennt Google den Namen der Website nicht",
@@ -12525,7 +12525,7 @@
           },
           "twoForKeyword": {
             "title": "Mehrere deiner Seiten ranken für dieselbe Suche",
-            "why": "Google zeigt oben meist höchstens zwei Ergebnisse einer Website. Prüfe, ob beide Seiten für diese Suche ranken sollen oder ob eine Seite das Thema abdeckt. Das ist ein Punkt zum Prüfen, kein Fehler."
+            "why": "Google zeigt oben meist höchstens zwei Ergebnisse einer Website. Prüfe, ob jede dieser Seiten für diese Suche ranken soll oder ob eine Seite das Thema abdeckt. Das ist ein Punkt zum Prüfen, kein Fehler."
           },
           "noH1": {
             "title": "Keine Hauptüberschrift (h1)",
@@ -12533,7 +12533,7 @@
           },
           "aiSearchBots": {
             "title": "robots.txt sperrt KI-Suchbots",
-            "why": "robots.txt sperrt die Bots, mit denen KI-Suchdienste wie ChatGPT, Claude oder Perplexity Seiten finden, diese Dienste zeigen die Seite also eventuell nicht in ihren Antworten. Wenn du sie absichtlich sperrst, musst du nichts ändern."
+            "why": "robots.txt sperrt einen oder mehrere der Bots, mit denen KI-Suchdienste wie ChatGPT, Claude oder Perplexity Seiten finden, diese Dienste zeigen die Seite also eventuell nicht in ihren Antworten. Wenn du sie absichtlich sperrst, musst du nichts ändern."
           }
         },
         "checkFound": "Was die Prüfung gefunden hat",

@@ -12473,7 +12473,7 @@
           },
           "twoWayFacts": {
             "title": "Fechas u horas que se pueden leer de dos maneras",
-            "why": "Una fecha como 04/05/2026 significa 5 de abril en algunos países y 4 de mayo en otros. Un número como 1:30 antes de una unidad puede significar 1 minuto 30 segundos o 1 hora 30 minutos. Escribe el mes con letras (5 de mayo de 2026) y las duraciones completas (1 minuto 30 segundos)."
+            "why": "Una fecha como 04/05/2026 significa 5 de abril en algunos países y 4 de mayo en otros. Un número como 1:30 puede significar 1 minuto 30 segundos, 1 hora 30 minutos o una hora del día. Escribe el mes con letras (5 de mayo de 2026) y las duraciones completas (1 minuto 30 segundos)."
           },
           "retiredMarkup": {
             "title": "Marcado para una función de búsqueda que Google ya no muestra",
@@ -12489,7 +12489,7 @@
           },
           "rawRenderedDiff": {
             "title": "JavaScript cambia la página después de cargarla",
-            "why": "El HTML de la página y la página después de ejecutar JavaScript muestran un título, una descripción, un h1, enlaces o textos distintos. Google lee la página después de JavaScript. Los rastreadores que no ejecutan JavaScript solo ven el HTML. Haz que el HTML coincida con lo que muestra JavaScript."
+            "why": "El HTML de la página y la página después de ejecutar JavaScript muestran valores distintos para el título, la descripción, el h1, los enlaces o el texto. Google lee la página después de JavaScript. Los rastreadores que no ejecutan JavaScript solo ven el HTML. Haz que el HTML coincida con lo que muestra JavaScript."
           },
           "googleExtended": {
             "title": "robots.txt bloquea Google-Extended",
@@ -12497,7 +12497,7 @@
           },
           "canonicalTarget": {
             "title": "El enlace canónico apunta a una página con un problema",
-            "why": "El enlace canónico indica a Google cuál es la dirección principal de esta página. Debe apuntar a una página activa, sin redirección y sin noindex. Haz que apunte a la dirección activa que quieres que Google muestre, por ejemplo la dirección donde termina la redirección."
+            "why": "El enlace canónico indica a Google cuál es la dirección principal de esta página. Debe apuntar a una página activa, sin redirección y sin noindex. Haz que apunte a la dirección activa que quieres que Google muestre. Si el destino redirige, suele ser la dirección donde termina la redirección."
           },
           "siteName": {
             "title": "La página de inicio no indica a Google el nombre del sitio",
@@ -12525,7 +12525,7 @@
           },
           "twoForKeyword": {
             "title": "Varias de tus páginas posicionan para la misma búsqueda",
-            "why": "Google suele mostrar como mucho dos resultados de un mismo sitio arriba. Comprueba si las dos páginas deben posicionar para esta búsqueda o si una sola debe cubrirla. Es un punto para revisar, no un error."
+            "why": "Google suele mostrar como mucho dos resultados de un mismo sitio arriba. Comprueba si cada una de estas páginas debe posicionar para esta búsqueda o si una sola debe cubrirla. Es un punto para revisar, no un error."
           },
           "noH1": {
             "title": "Sin encabezado principal (h1)",
@@ -12533,7 +12533,7 @@
           },
           "aiSearchBots": {
             "title": "robots.txt bloquea bots de búsqueda con IA",
-            "why": "robots.txt bloquea los bots que las herramientas de búsqueda con IA (ChatGPT, Claude, Perplexity) usan para encontrar páginas, así que estas herramientas pueden no mostrar la página en sus respuestas. Si los bloqueas a propósito, no hace falta cambiar nada."
+            "why": "robots.txt bloquea uno o más de los bots que las herramientas de búsqueda con IA (ChatGPT, Claude, Perplexity) usan para encontrar páginas, así que estas herramientas pueden no mostrar la página en sus respuestas. Si los bloqueas a propósito, no hace falta cambiar nada."
           }
         },
         "checkFound": "Lo que encontró la comprobación",
