@@ -11761,6 +11761,7 @@
       "label": "Projekt",
       "allProjects": "Alle Projekte",
       "openProjectsPage": "Projektübersicht öffnen",
+      "openProjectsPageHint": "In der Projektübersicht kannst du offene, ausgeblendete oder geschlossene Projekte ansehen.",
       "switchLabel": "Projekt wechseln",
       "selectProject": "Projekt auswählen",
       "pinned": "Angepinnt",

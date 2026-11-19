@@ -235,7 +235,7 @@ describe("ProjectScopeMenu", () => {
     expect(onDone).toHaveBeenCalledOnce();
   });
 
-  it("offers the full Projects page as a keyboard link outside the project options", async () => {
+  it("explains the Projects link on hover and keyboard focus, and opens it with Enter", async () => {
     const user = userEvent.setup();
     const onSelectAll = vi.fn();
     const { onSelect } = setup({ onSelectAll });
@@ -244,8 +244,16 @@ describe("ProjectScopeMenu", () => {
     const link = screen.getByRole("link", { name: "openProjectsPage" });
     expect(link).toHaveAttribute("href", "/projects");
     expect(screen.getByRole("listbox")).not.toContainElement(link);
+    await user.hover(link);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "openProjectsPageHint",
+    );
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
     await user.tab();
     expect(link).toHaveFocus();
+    expect(link).toHaveAccessibleDescription("openProjectsPageHint");
 
     const activate = vi.fn((event: Event) => event.preventDefault());
     link.addEventListener("click", activate);

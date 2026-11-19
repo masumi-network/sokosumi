@@ -36,18 +36,19 @@ export function ProjectScopeActivity({
     <section
       aria-label={t("title")}
       aria-busy={activity.isPending || undefined}
-      className="app-scrollbar min-h-0 min-w-0 overflow-y-auto overscroll-contain border-s py-1.5"
+      className="flex min-h-0 min-w-0 flex-col border-s"
     >
-      <h2 className="text-muted-foreground px-3 py-2 text-xs font-medium">
+      <h2 className="text-muted-foreground flex min-h-10 shrink-0 items-center border-b px-3 text-sm font-medium">
         {t("title")}
       </h2>
       {activity.isPending ? (
-        <Skeleton aria-hidden className="mx-3 my-2 h-4 w-2/3" />
+        <Skeleton aria-hidden className="mx-4 my-3 h-4 w-2/3" />
       ) : activity.isSuccess && activity.data.length > 0 ? (
-        <ul>
+        <ul className="app-scrollbar min-h-0 max-h-96 overflow-y-auto overscroll-contain scroll-py-1.5 p-1.5">
           {activity.data.map((item) => (
             <li key={item.id}>
               <ProjectActivityRow
+                inProjectPicker
                 item={item}
                 time={timeLabel(item.createdAt)}
                 onNavigate={onNavigate}
@@ -56,7 +57,10 @@ export function ProjectScopeActivity({
           ))}
         </ul>
       ) : (
-        <p role="status" className="text-muted-foreground px-3 py-2 text-sm">
+        <p
+          role="status"
+          className="text-muted-foreground overflow-y-auto px-4 py-3 text-sm"
+        >
           {t(activity.isError ? "error" : "empty")}
         </p>
       )}

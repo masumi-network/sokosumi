@@ -130,7 +130,7 @@ export function HeaderProjectScope() {
           className={cn(
             "max-h-(--radix-popover-content-available-height) max-w-(--radix-popover-content-available-width) overflow-hidden p-0 motion-reduce:animate-none",
             showActivity
-              ? "grid w-[42rem] grid-cols-2 grid-rows-1"
+              ? "grid w-[44rem] grid-cols-[5fr_6fr] grid-rows-1"
               : "flex w-80 flex-col",
           )}
         >

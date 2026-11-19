@@ -13,6 +13,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { type ScopeProject, useScopeProjects } from "./use-scope-projects";
@@ -268,25 +273,31 @@ export function ProjectScopeMenu({
           </CommandGroup>
         </CommandList>
         {onSelectAll ? (
-          <Button
-            asChild
-            size="icon"
-            variant="ghost"
-            className="text-muted-foreground absolute end-1.5 bottom-1.5 size-11 md:size-9"
-          >
-            <Link
-              href="/projects"
-              title={t("openProjectsPage")}
-              aria-label={t("openProjectsPage")}
-              onNavigate={onDone}
-              onKeyDown={(event) => {
-                // cmdk handles Enter on the highlighted project.
-                if (event.key === "Enter") event.stopPropagation();
-              }}
-            >
-              <Maximize2 aria-hidden />
-            </Link>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                asChild
+                size="icon"
+                variant="ghost"
+                className="text-muted-foreground absolute end-1.5 bottom-1.5 size-11 md:size-9"
+              >
+                <Link
+                  href="/projects"
+                  aria-label={t("openProjectsPage")}
+                  onNavigate={onDone}
+                  onKeyDown={(event) => {
+                    // cmdk handles Enter on the highlighted project.
+                    if (event.key === "Enter") event.stopPropagation();
+                  }}
+                >
+                  <Maximize2 aria-hidden />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6} className="max-w-64">
+              {t("openProjectsPageHint")}
+            </TooltipContent>
+          </Tooltip>
         ) : null}
       </div>
     </Command>

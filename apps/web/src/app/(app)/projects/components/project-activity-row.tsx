@@ -47,18 +47,22 @@ function describeActivity(
 export function ProjectActivityRow({
   item,
   time,
+  inProjectPicker,
   onNavigate,
 }: {
   item: ProjectActivityItem;
   time: string;
+  inProjectPicker?: boolean;
   onNavigate?: () => void;
 }) {
   const t = useTranslations("App.Projects.column.activity");
   const { title, event, href } = describeActivity(item, t);
   return (
     <WorkspaceColumnRow
+      inProjectPicker={inProjectPicker}
       leading={
         <WorkspaceColumnProjectAvatar
+          inProjectPicker={inProjectPicker}
           name={item.project.name}
           logo={item.project.logo}
         />

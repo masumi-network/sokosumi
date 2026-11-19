@@ -11761,6 +11761,7 @@
       "label": "Proyecto",
       "allProjects": "Todos los proyectos",
       "openProjectsPage": "Abrir la página de proyectos",
+      "openProjectsPageHint": "Abre la lista completa para ver proyectos abiertos, ocultos o cerrados.",
       "switchLabel": "Cambiar de proyecto",
       "selectProject": "Seleccionar proyecto",
       "pinned": "Fijados",
