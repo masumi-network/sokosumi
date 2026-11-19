@@ -2,9 +2,9 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 
-import { strategy } from "../../test-fixtures/onboarding";
+import { draft, richPlan, strategy } from "../../test-fixtures/onboarding";
 import { FunnelPlan } from "../strategy-core";
-import { MonthPanel } from "./plan-tabs";
+import { MonthPanel, ResultsPanel } from "./plan-tabs";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 
@@ -90,4 +90,16 @@ it("shows each stage's classic step, Cuso's part, the owner's part and its numbe
     /Profile visits.*About 400 a month.*Cuso&#x27;s estimate/,
   );
   expect(html).toMatch(/Trial starts.*Not measured yet/);
+});
+
+it("names each tracked step by its classic stage, never a name of Cuso's own", () => {
+  const html = renderToStaticMarkup(
+    <ResultsPanel
+      overview={draft({ strategy: richPlan })}
+      strategy={richPlan}
+      onConnectMeasurement={async () => ({ url: null, error: null })}
+    />,
+  );
+  expect(html).toMatch(/Awareness<\/span><b>Profile visits/);
+  expect(html).not.toContain("Hear about us");
 });

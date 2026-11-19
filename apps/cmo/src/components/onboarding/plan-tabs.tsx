@@ -28,6 +28,7 @@ import {
   Improvements,
   MeasureFunnel,
   OfferLadder,
+  stageLabel,
 } from "../strategy-core";
 import {
   APPROACHES,
@@ -504,7 +505,7 @@ export function ResultsPanel({
           <ol className="ob-metrics">
             {stages.map((stage) => (
               <li key={stage.stage}>
-                <span className="note">{stage.name}</span>
+                <span className="note">{stageLabel(stage.stage)}</span>
                 <b>{stage.metric}</b>
                 {stage.target ? (
                   <span className="note">{stage.target}</span>

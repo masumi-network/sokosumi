@@ -131,6 +131,11 @@ const STAGES: Record<Stage["stage"], { label: string; people: string }> = {
   loyalty: { label: "Loyalty", people: "They come back" },
 };
 
+/** The classic name of a stage: "Awareness". */
+export function stageLabel(stage: Stage["stage"]): string {
+  return STAGES[stage].label;
+}
+
 /**
  * The funnel, one card a stage: the classic step, the goal, what Cuso does
  * there on which channels, the owner's part, and the number that shows it
