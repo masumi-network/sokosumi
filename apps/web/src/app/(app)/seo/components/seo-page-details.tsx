@@ -16,11 +16,8 @@ import {
   noteFinding,
   pageDetailGuidance,
   pageDetailGuidanceRows,
-  pageDetailItemHref,
-  pageDetailItemName,
   pageDetailItems,
   pageDetailLines,
-  pageDetailLinkName,
   pageDetailReferences,
   plainNote,
   seoCheckedAt,
@@ -29,6 +26,7 @@ import {
   toolRangesList,
   withoutRuleCodes,
 } from "./seo-overview-model";
+import { SeoPageDetailItemList } from "./seo-page-detail-item-list";
 import { SeoRankDetailRow } from "./seo-rank-detail";
 import { seoRankDetail } from "./seo-rank-detail-model";
 import {
@@ -267,43 +265,11 @@ function PageDetail({
               })}
             </p>
           )}
-          <ul className="space-y-0.5">
-            {group.values.map(({ value, status }, index) => {
-              const label =
-                status === undefined
-                  ? (pageDetailItemName(value) ?? t("overview.inlineImage"))
-                  : pageDetailLinkName(value, finding.pageUrl);
-              const href = pageDetailItemHref(value);
-              return (
-                <li key={`${index}:${value}`} className="min-w-0 break-all">
-                  {href ? (
-                    <a
-                      href={href}
-                      title={value}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline underline-offset-4"
-                    >
-                      {label}
-                    </a>
-                  ) : (
-                    label
-                  )}
-                  {status === undefined ? null : (
-                    <span className="text-muted-foreground tabular-nums">
-                      {" → "}
-                      {status}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-            {group.more ? (
-              <li className="text-muted-foreground">
-                {t("overview.moreItems", { count: group.more })}
-              </li>
-            ) : null}
-          </ul>
+          <SeoPageDetailItemList
+            values={group.values}
+            more={group.more}
+            pageUrl={finding.pageUrl}
+          />
         </div>
       ))}
       {/* The check's own guidance: Google's rule, then what tools use. */}

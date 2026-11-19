@@ -12460,7 +12460,8 @@
           "imgWithoutAlt": "{count, plural, one {# Bild ohne Alt-Text} other {# Bilder ohne Alt-Text}}",
           "linkStatus": "{count, plural, one {# Link} other {# Links}}"
         },
-        "moreItems": "+{count} weitere",
+        "showMoreItems": "{count} weitere anzeigen",
+        "unlistedItems": "{count} weitere, die die Prüfung nicht aufgelistet hat",
         "inlineImage": "Bild in der Seite",
         "plainNote": {
           "cameraFileNames": {

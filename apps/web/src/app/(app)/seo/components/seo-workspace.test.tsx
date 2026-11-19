@@ -1073,10 +1073,11 @@ describe("SEO workspace integration", () => {
     expect(row).not.toHaveTextContent("camera file name:");
     // Another rule's list says in words what its items are, counting the ones the bot left out.
     expect(screen.getByText("3 images without alt text")).toBeVisible();
-    expect(screen.getByText("+2 more")).toBeVisible();
+    expect(screen.getByText("2 more the check did not list")).toBeVisible();
   });
 
   it("lists a broken links note's links by path with the site's answer", async () => {
+    const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     const site = new URL(workspace.pages[0].url).origin;
     workspace.findings.push({
@@ -1091,7 +1092,10 @@ describe("SEO workspace integration", () => {
         "13 of 43 link targets answer 400 or more (12 on the page's host)",
         `${site}/segeln-mit-kindern/ → 429`,
         "https://other.example/gone → 404",
-        "+11 more",
+        `${site}/rund-ruegen-segeln/haefen/ → 429`,
+        `${site}/rund-ruegen-segeln/segeltoern/ → 429`,
+        `${site}/buecher-ruegen-ostsee/ → 429`,
+        "+8 more",
       ],
       sourceRef: "links",
       observedAt: new Date("2026-11-19T10:00:00Z"),
@@ -1119,7 +1123,22 @@ describe("SEO workspace integration", () => {
       within(row).getByRole("link", { name: "other.example/gone" }),
     ).toBeVisible();
     expect(row).toHaveTextContent("/segeln-mit-kindern/ → 429");
-    expect(row).toHaveTextContent("+11 more");
+    // The first three links always show; the rest of the list opens on request.
+    expect(row).toHaveTextContent("/rund-ruegen-segeln/haefen/ → 429");
+    expect(row).not.toHaveTextContent("segeltoern");
+    expect(row).not.toHaveTextContent("did not list");
+    const toggle = within(row).getByRole("button", { name: "Show 2 more" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(
+      within(row).getByRole("link", { name: "/buecher-ruegen-ostsee/" }),
+    ).toBeVisible();
+    // Links the check counted but did not send cannot open; the list says so at its end.
+    expect(row).toHaveTextContent("8 more the check did not list");
+    expect(row).not.toHaveTextContent("+8 more");
+    await user.click(within(row).getByRole("button", { name: "Show less" }));
+    expect(row).not.toHaveTextContent("segeltoern");
     expect(row).not.toHaveTextContent("Links reach live pages");
   });
 
