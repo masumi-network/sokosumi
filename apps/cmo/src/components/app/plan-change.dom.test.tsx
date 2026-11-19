@@ -84,6 +84,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           loadSeo: async () => null,
           searchKeywords: async () => ({ search: null, error: null }),
           setSeoSuggestionStatus: async () => null,
+          markLandingPageLive: async () => ({ note: null, error: null }),
           askCusoForArticles: async () => null,
           loadPieceText: async () => null,
           approveStrategy: same,

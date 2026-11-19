@@ -20,6 +20,7 @@ import {
   type ExecuteSokoBotToolInput,
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
+import { addOverhead } from "./competitors";
 
 const IDEAS_SHOWN = 30;
 
@@ -55,6 +56,10 @@ function forCuso(seo: CmoSeo) {
     pageChanges: seo.pageChanges.map((item) => ({
       ...suggestion(item),
       newText: item.newText,
+    })),
+    landingPages: seo.landingPages.map((item) => ({
+      ...suggestion(item),
+      liveAt: item.status === "open" ? null : item.pageUrl,
     })),
     recentKeywordSearches: seo.keywordSearches.map((search) => ({
       topic: search.topic,
@@ -158,7 +163,11 @@ export async function executeCmoSeoTool(
         const parsed = SOKO_BOT_TOOL_INPUT_SCHEMAS.save_seo_suggestions.parse(
           input.input,
         );
-        const result = await saveCmoSeoSuggestions(cuso, parsed);
+        const { costUsd, ...result } = await saveCmoSeoSuggestions(
+          cuso,
+          parsed,
+        );
+        await addOverhead(authorized.turn.id, costUsd);
         if (result.saved.length === 0)
           throw new SokoBotRuntimeValidationError(
             `Nothing was saved. ${result.refused.join(" ")}`,
