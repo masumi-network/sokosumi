@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   isMobile: false,
   push: vi.fn(),
   fetch: vi.fn(),
+  loadActivity: vi.fn(),
   modal: { current: null as CreateModalProps | null },
 }));
 
@@ -29,6 +30,9 @@ vi.mock("@/hooks/use-mobile", () => ({
   MOBILE_BREAKPOINT: 768,
   useIsMobile: () => mocks.isMobile,
 }));
+vi.mock("@/lib/utils/notification-time", () => ({
+  useNotificationTimeFormatter: () => () => "2 minutes ago",
+}));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
     data: {
@@ -40,10 +44,12 @@ vi.mock("@/lib/auth/auth.client", () => ({
   }),
 }));
 vi.mock("@/lib/project-scope-list.client", () => ({
-  fetchScopeList: (path: string) =>
-    path.startsWith("/api/project-scope/pinned")
+  fetchScopeList: (path: string) => {
+    if (path === "/api/project-scope/activity") return mocks.loadActivity();
+    return path.startsWith("/api/project-scope/pinned")
       ? Promise.resolve([])
-      : Promise.resolve({ projects: [], nextCursor: null }),
+      : Promise.resolve({ projects: [], nextCursor: null });
+  },
 }));
 // The wizard pulls in the whole Create flow. The stub keeps the props, so a
 // test can finish or cancel Create the way the real dialog does.
@@ -169,6 +175,7 @@ async function openCreateFrom(trigger: HTMLElement) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.loadActivity.mockResolvedValue([]);
   mocks.pathname = "/tasks";
   mocks.search = "";
   mocks.isMobile = false;
@@ -266,6 +273,18 @@ describe("sidebar project scope scope name", () => {
 });
 
 describe("sidebar project scope chip", () => {
+  it("keeps the Projects page reachable on phones without loading the second column", async () => {
+    mocks.isMobile = true;
+    const user = userEvent.setup();
+    renderHarness();
+    await user.click(chip());
+
+    expect(
+      await screen.findByRole("link", { name: "openProjectsPage" }),
+    ).toHaveAttribute("href", "/projects");
+    expect(mocks.loadActivity).not.toHaveBeenCalled();
+  });
+
   it("clears the picked project back to All projects with the chip's ×", async () => {
     const user = userEvent.setup();
     mocks.search = "projectId=p-1";

@@ -10,7 +10,6 @@ import {
 import {
   type CmoVolumeLevel,
   cmoMonthAtLevel,
-  cmoVolumeLevelForTier,
   isCmoOwnerConfirmedChannel,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
@@ -25,7 +24,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
-import { isCmoSubscribed } from "@/services/cmo-billing.service";
+import { cmoPlanLevel, isCmoSubscribed } from "@/services/cmo-billing.service";
 import { scheduleMissingCmoBrandIndex } from "@/services/cmo-brand-media.service";
 import {
   type Cuso,
@@ -81,6 +80,8 @@ export const CMO_PRODUCTION_RUNS_PER_DAY = 4;
 const DAY_MS = 24 * 60 * 60 * 1_000;
 /** Pieces one run is given; a longer month continues in the next run. */
 const PIECES_PER_RUN = 40;
+/** How long a month may wait for its next run before the owner is told. */
+export const CMO_PRODUCTION_START_GRACE_MS = 30 * 60 * 1_000;
 
 const RUN_ACTIVE = new Set<SokoBotTurnStatus>([
   "STARTING",
@@ -219,9 +220,10 @@ export interface CmoProductionStatus {
   /**
    * waiting: not approved and paid yet; starting: approved, no run working
    * yet (the next sync starts one); running: a run is making pieces; ready:
-   * every piece is made; stuck: today's runs ended with pieces missing.
+   * every piece is made; stuck: today's runs ended with pieces missing;
+   * blocked: starting, but no run could start for half an hour.
    */
-  state: "waiting" | "starting" | "running" | "ready" | "stuck";
+  state: "waiting" | "starting" | "running" | "ready" | "stuck" | "blocked";
   ready: number;
   total: number;
   /** Pieces whose words are written: the first pass of a run. */
@@ -576,18 +578,6 @@ interface ProductionRead {
 }
 
 /** Where the month's production stands; reads only, never starts a run. */
-/**
- * How much of the month this Cuso's plan makes: its tier's level, or all of
- * it on Tester credits or before a plan is bought.
- */
-export async function cmoPlanLevel(projectId: string): Promise<CmoVolumeLevel> {
-  const subscription = await prisma.polarSubscription.findFirst({
-    where: { projectId, endedAt: null },
-    select: { tier: true },
-  });
-  return cmoVolumeLevelForTier(subscription?.tier ?? null);
-}
-
 export async function readCmoProduction(
   cuso: Cuso,
   context: { connected: ReadonlySet<string>; subscribed: boolean; now: Date },
@@ -630,7 +620,7 @@ export async function readCmoProduction(
   );
   // The month is written at the top volume; the plan bought decides how much
   // of it is made, and a bigger plan makes more of the same month.
-  const level = await cmoPlanLevel(cuso.projectId);
+  const level = await cmoPlanLevel(cuso.projectId, now);
   const inPlan = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);
   const beyondPlan = strategy.calendar
     .filter(
@@ -743,6 +733,11 @@ export async function readCmoProduction(
     ready.size <= lastReady;
   if (today.length >= CMO_PRODUCTION_RUNS_PER_DAY || stalled)
     return read("stuck", runs);
+  // Every sync tries to start a run; one that has not started in half an
+  // hour keeps failing, and the owner should not read "about to start".
+  const since = last?.completedAt ?? last?.createdAt ?? approvedAt;
+  if (runsNow.getTime() - since.getTime() > CMO_PRODUCTION_START_GRACE_MS)
+    return read("blocked", runs);
   return read("starting", runs);
 }
 
@@ -814,7 +809,8 @@ export async function advanceCmoProduction(
     });
     return current;
   }
-  if (current.state !== "starting") return current;
+  if (current.state !== "starting" && current.state !== "blocked")
+    return current;
   const attempt = runs.length + 1;
   await startProductionRun(
     cuso,

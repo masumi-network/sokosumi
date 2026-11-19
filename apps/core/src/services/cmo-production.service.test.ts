@@ -80,7 +80,14 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   cmoRunnerUserId,
   listCmoChannels,
 }));
-vi.mock("@/services/cmo-billing.service", () => ({ isCmoSubscribed }));
+vi.mock("@/services/cmo-billing.service", async () => {
+  const { cmoVolumeLevelForTier } = await import("@sokosumi/utils");
+  return {
+    isCmoSubscribed,
+    cmoPlanLevel: async () =>
+      cmoVolumeLevelForTier((await subscriptionFindFirst())?.tier ?? null),
+  };
+});
 const keepCusoFirstCompetitorCheck = vi.hoisted(() => vi.fn());
 vi.mock("@/services/cmo-competitors.service", () => ({
   keepCusoFirstCompetitorCheck,
@@ -722,12 +729,25 @@ describe("advanceCmoProduction", () => {
   });
 
   it("says starting, not running, while no run works yet", async () => {
+    pgClock.now = new Date(APPROVED + 10 * 60 * 1_000);
     const read = await readCmoProduction(cuso([post({})]), {
       connected: new Set(),
       subscribed: true,
       now: NOW,
     });
     expect(read.status).toMatchObject({ state: "starting", written: 0 });
+  });
+
+  it("says blocked when no run started for half an hour, and still tries", async () => {
+    pgClock.now = new Date(APPROVED + 31 * 60 * 1_000);
+    const read = await readCmoProduction(cuso([post({})]), {
+      connected: new Set(),
+      subscribed: true,
+      now: NOW,
+    });
+    expect(read.status.state).toBe("blocked");
+    await advanceCmoProduction(cuso([post({})]), NOW);
+    expect(startTurn).toHaveBeenCalledTimes(1);
   });
 
   it("leaves a working run alone", async () => {

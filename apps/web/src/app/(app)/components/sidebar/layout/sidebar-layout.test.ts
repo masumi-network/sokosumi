@@ -13,8 +13,8 @@ import {
 
 const catalog: SidebarFeature[] = [
   {
-    id: "projects",
-    label: "Projects",
+    id: "home",
+    label: "Home",
     defaultSection: "work",
     available: true,
   },
@@ -47,7 +47,7 @@ describe("account sidebar layout", () => {
       "marketing",
       "chats",
     ]);
-    expect(defaults.sections[0].items).toEqual(["projects", "overview"]);
+    expect(defaults.sections[0].items).toEqual(["home", "overview"]);
     expect(defaults.sections[2].items).toEqual(["studio", "future-feature"]);
     expect(isNewSidebarFeature("overview")).toBe(false);
     expect(isNewSidebarFeature("future-feature")).toBe(true);
@@ -59,7 +59,7 @@ describe("account sidebar layout", () => {
         {
           id: "marketing",
           name: "Team",
-          items: ["projects", "future-client-only"],
+          items: ["home", "future-client-only"],
         },
         { id: "my-section", name: "My work", items: ["overview"] },
       ],
@@ -67,13 +67,13 @@ describe("account sidebar layout", () => {
     };
     const merged = resolveSidebarLayout(saved, catalog);
     expect(merged.sections[0].items).toEqual([
-      "projects",
+      "home",
       "future-client-only",
       "future-feature",
     ]);
     expect(merged.sections[1]).toEqual(saved.sections[1]);
     expect(merged.hidden).toEqual(["studio"]);
-    expect(saved.sections[0].items).toEqual(["projects", "future-client-only"]);
+    expect(saved.sections[0].items).toEqual(["home", "future-client-only"]);
     expect(resolveSidebarLayout(merged, catalog)).toEqual(merged);
     const moved = placeSidebarFeature(merged, "future-feature", "my-section");
     expect(resolveSidebarLayout(moved, catalog)).toEqual(moved);
@@ -92,7 +92,7 @@ describe("account sidebar layout", () => {
     ]);
     expect(merged.sections[0].items).toContain("future-feature");
     expect(merged.hidden).toContain("studio");
-    const empty = { sections: [], hidden: ["projects", "overview", "studio"] };
+    const empty = { sections: [], hidden: ["home", "overview", "studio"] };
     expect(resolveSidebarLayout(empty, catalog.slice(0, -1))).toEqual(empty);
     expect(resolveSidebarLayout(empty, catalog).sections).toEqual([
       { id: "marketing", name: null, items: ["future-feature"] },
@@ -101,42 +101,37 @@ describe("account sidebar layout", () => {
 
   it("moves slots in both directions, appends to an empty section, and restores a hidden feature", () => {
     const initial = resolveSidebarLayout(null, catalog);
-    const down = placeSidebarFeature(initial, "projects", "work", "overview");
-    expect(down.sections[0].items).toEqual(["overview", "projects"]);
-    expect(placeSidebarFeature(down, "projects", "work", "overview")).toEqual(
+    const down = placeSidebarFeature(initial, "home", "work", "overview");
+    expect(down.sections[0].items).toEqual(["overview", "home"]);
+    expect(placeSidebarFeature(down, "home", "work", "overview")).toEqual(
       initial,
     );
-    const hidden = hideSidebarFeature(initial, "projects");
-    const restored = placeSidebarFeature(hidden, "projects", "records");
+    const hidden = hideSidebarFeature(initial, "home");
+    const restored = placeSidebarFeature(hidden, "home", "records");
     expect(restored.hidden).toEqual([]);
     expect(restored.sections[0].items).toEqual(["overview"]);
-    expect(restored.sections[1].items).toEqual(["projects"]);
-    expect(placeSidebarFeature(restored, "projects", "gone")).toBe(restored);
+    expect(restored.sections[1].items).toEqual(["home"]);
+    expect(placeSidebarFeature(restored, "home", "gone")).toBe(restored);
     expect(
       moveSidebarSection(restored, "records", "work").sections[0].items,
-    ).toEqual(["projects"]);
+    ).toEqual(["home"]);
   });
 
   it("leaves unavailable and unknown features in place during a localized sort", () => {
     const section = {
       id: "work",
       name: null,
-      items: ["projects", "overview", "studio", "unknown"],
+      items: ["home", "overview", "studio", "unknown"],
     };
     const sorted = sortSidebarFeatures(
       section,
       new Map([
-        ["projects", "Z"],
+        ["home", "Z"],
         ["studio", "Ä"],
       ]),
       new Intl.Collator("de").compare,
     );
-    expect(sorted.items).toEqual(["studio", "overview", "projects", "unknown"]);
-    expect(section.items).toEqual([
-      "projects",
-      "overview",
-      "studio",
-      "unknown",
-    ]);
+    expect(sorted.items).toEqual(["studio", "overview", "home", "unknown"]);
+    expect(section.items).toEqual(["home", "overview", "studio", "unknown"]);
   });
 });

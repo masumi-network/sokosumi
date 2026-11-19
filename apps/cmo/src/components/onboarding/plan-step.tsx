@@ -8,7 +8,7 @@ import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
-import { strategyApproved } from "../../lib/strategy";
+import { monthPostCount, strategyApproved } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
 import { AdsChoice, money } from "../strategy-core";
@@ -107,7 +107,7 @@ export function planningRows(
     }
   }
   if (running) {
-    const pieces = strategy?.calendar.length ?? 0;
+    const pieces = strategy ? monthPostCount(strategy.calendar) : 0;
     // On top, so what Cuso is on stays in view above the plan so far.
     rows.unshift({
       id: strategy ? "calendar" : "plan",
@@ -443,7 +443,7 @@ export function PlanReview({
     ...overview,
     strategy: { ...strategy, questions },
   });
-  const pieces = strategy.calendar.length;
+  const pieces = monthPostCount(strategy.calendar);
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -893,7 +893,7 @@ function goalFacts(strategy: Strategy): { term: string; value: string }[] {
   const where = strategy.channels
     .map((channel) => channelLabel(channel.channel))
     .join(", ");
-  const pieces = strategy.calendar.length;
+  const pieces = monthPostCount(strategy.calendar);
   const facts = [
     { term: "Who", value: who },
     { term: "The offer", value: offer },

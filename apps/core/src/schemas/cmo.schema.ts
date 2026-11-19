@@ -117,9 +117,9 @@ const cmoPlanSchema = marketingStrategyPlanSchema.openapi("CmoPlan");
 export const cmoProductionSchema = z
   .object({
     state: z
-      .enum(["waiting", "starting", "running", "ready", "stuck"])
+      .enum(["waiting", "starting", "running", "ready", "stuck", "blocked"])
       .describe(
-        "starting: approved, but no run is working yet; the next sync starts one.",
+        "starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.",
       ),
     ready: z.number().int(),
     total: z.number().int(),

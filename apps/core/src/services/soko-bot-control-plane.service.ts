@@ -2362,7 +2362,7 @@ export class SokoBotControlPlane {
               ...intentScope,
               ...memberAnswerableIntentWhere(bot),
               state: "AWAITING_CONFIRMATION",
-              expiresAt: { gt: new Date() },
+              expiresAt: { gt: await databaseNow() },
             },
             take: 3,
             select: {
@@ -2960,7 +2960,7 @@ export class SokoBotControlPlane {
               ...intentScope,
               ...memberAnswerableIntentWhere(bot),
               state: "AWAITING_CONFIRMATION",
-              expiresAt: { gt: new Date() },
+              expiresAt: { gt: await databaseNow(tx) },
             },
           });
           if (!selected)

@@ -25,7 +25,6 @@ export const MAX_SECTION_NAME_LENGTH = 64;
 // so old layouts gain them and the app can mark them New until the reader opens them.
 const LAUNCH_FEATURE_IDS = new Set([
   "home",
-  "projects",
   "overview",
   "explore-agents",
   "task-manager",

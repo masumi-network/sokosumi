@@ -12,7 +12,7 @@ import {
   type ChatRoomSidebarRowProps,
 } from "./chat-room-sidebar-row";
 import { ChatSidebarSectionHeader } from "./chat-sidebar-section-header";
-import { limitSidebarSectionRooms } from "./limit-sidebar-section-rooms";
+import * as sectionLimits from "./limit-sidebar-section-rooms";
 import { resolveSectionAttention } from "./room-attention";
 import { SidebarSectionShowMoreRow } from "./sidebar-section-show-more-row";
 import { useSidebarSectionShowAll } from "./use-sidebar-section-show-all";
@@ -43,7 +43,11 @@ export function SidebarRoomSection({
   keepInSection,
 }: SidebarRoomSectionProps) {
   const [showAll, setShowAll] = useSidebarSectionShowAll(kind);
-  const { visible, hiddenCount } = limitSidebarSectionRooms(rooms, {
+  const limitRooms =
+    kind === "channels"
+      ? sectionLimits.limitSidebarChannels
+      : sectionLimits.limitSidebarSectionRooms;
+  const { visible, hiddenCount } = limitRooms(rooms, {
     showAll,
     alwaysShow: keepInSection,
   });

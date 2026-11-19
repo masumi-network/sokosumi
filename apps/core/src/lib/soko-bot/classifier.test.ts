@@ -1,5 +1,7 @@
 import { capabilitiesForClassification } from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
+import { databaseNow } from "@/lib/db/database-now";
 import {
   type ClassifierContextSummary,
   JevTurnClassifier,
@@ -10,6 +12,10 @@ import {
 } from "@/lib/soko-bot/classifier";
 import { expectCoreLogWhys } from "@/test/core-log";
 import { jevRoute } from "@/test/jev-routes";
+
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: vi.fn(async () => new Date()),
+}));
 
 describe("unwrapTitleTags", () => {
   it("unwraps bracket tags Jev reads as placeholders, not links", () => {
@@ -453,6 +459,42 @@ describe("pending proposals", () => {
     expect(result.classification.selectedIntentId).toBeUndefined();
   });
 
+  it.each([
+    { host: "ahead", skew: 60_000, expiresIn: 30_000, expected: true },
+    { host: "behind", skew: -60_000, expiresIn: -30_000, expected: false },
+  ])(
+    "uses PostgreSQL to filter pending proposals when the host is $host",
+    async ({ skew, expiresIn, expected }) => {
+      const now = new Date("2026-11-19T12:00:00.000Z");
+      const evaluate = answering(
+        jevRoute("CLARIFY", { confirmsPending: 0.95 }),
+      );
+      vi.mocked(databaseNow).mockResolvedValueOnce(now);
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(now.getTime() + skew);
+      try {
+        const result = await new JevTurnClassifier(evaluate).classify("yes", {
+          ...EMPTY_CONTEXT,
+          pendingIntents: [
+            {
+              ...intent,
+              expiresAt: new Date(now.getTime() + expiresIn).toISOString(),
+            },
+          ],
+        });
+        expect(evaluate).toHaveBeenCalledWith(
+          expect.objectContaining({ hasPendingProposals: expected }),
+        );
+        expect(result.classification.selectedIntentId).toBe(
+          expected ? intent.id : undefined,
+        );
+      } finally {
+        vi.useRealTimers();
+        vi.mocked(databaseNow).mockReset();
+      }
+    },
+  );
+
   it("marks a withdrawal of the pending proposal and keeps the new route", async () => {
     const result = await new JevTurnClassifier(
       answering(
@@ -505,6 +547,29 @@ describe("failing closed", () => {
     expect(evaluate).toHaveBeenCalledTimes(2);
     expect(result.classification.route).toBe("HIRE_AGENT");
     expect(result.failed).toBe(false);
+  });
+
+  it("stops on a budget refusal and falls back to read-only clarification", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "The Soko Bot classifier failed, so the request became a clarification",
+      ["The routing model call failed, or its answer did not parse"],
+    );
+    const evaluate = vi
+      .fn<RouteEvaluator>()
+      .mockRejectedValue(new AiGatewayBudgetError());
+
+    const result = await new JevTurnClassifier(evaluate).classify(
+      "Hire an agent",
+      EMPTY_CONTEXT,
+    );
+
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      failed: true,
+      usage: null,
+      classification: { route: "CLARIFY", confidence: 0 },
+    });
   });
 
   it("reads only when Jev is unreachable", async () => {

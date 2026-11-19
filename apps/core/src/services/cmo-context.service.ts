@@ -247,6 +247,7 @@ export function fitCmoMarketingContext(
   const twoWeeks = new Date(now.getTime() + 14 * 86_400_000)
     .toISOString()
     .slice(0, 10);
+  const oneWeek = draftHorizon(now);
   const calendar = (
     current: MarketingContext,
     shed: (entry: Record<string, unknown>) => Record<string, unknown>,
@@ -270,13 +271,14 @@ export function fitCmoMarketingContext(
     keys: string[],
   ): MarketingContext => {
     const value = current[part];
-    if (!value) return current;
+    const shed = value ? keys.filter((key) => key in value) : [];
+    if (!value || shed.length === 0) return current;
     const kept = Object.fromEntries(
-      Object.entries(value).filter(([key]) => !keys.includes(key)),
+      Object.entries(value).filter(([key]) => !shed.includes(key)),
     );
     const stored = [
       ...((value.storedNotShown as string[] | undefined) ?? []),
-      ...keys,
+      ...shed,
     ];
     return { ...current, [part]: { ...kept, storedNotShown: stored } };
   };
@@ -329,32 +331,35 @@ export function fitCmoMarketingContext(
               calendar: (current.strategy.calendar ?? []).map((entry) => {
                 const piece = entry as Record<string, unknown>;
                 return typeof piece.date === "string" && piece.date > twoWeeks
-                  ? Object.fromEntries(
-                      SHORT_ENTRY_KEYS.filter((key) => key in piece).map(
-                        (key) => [key, piece[key]],
-                      ),
-                    )
+                  ? shortEntry(piece)
                   : entry;
               }),
             },
           }
         : current,
-    // Last resort: the next two weeks only. A 60-piece month with its visuals
-    // once left no room in the packet, and every run failed to start.
+    // The next two weeks only. A 60-piece month with its visuals once left
+    // no room in the packet, and every run failed to start.
+    (current) => calendarUntil(current, twoWeeks),
+    (current) =>
+      without(current, "strategy", ["patched", "start", "campaigns", "funnel"]),
+    (current) => without(current, "brandBrain", ["competitors"]),
+    // A top-volume month holds 80 pieces in two weeks; a turn that still
+    // cannot fit reads a piece with get_social_post.
+    (current) => calendarUntil(current, oneWeek),
     (current) =>
       current.strategy
         ? {
             ...current,
             strategy: {
               ...current.strategy,
-              calendar: (current.strategy.calendar ?? []).filter(
-                (entry) =>
-                  (entry as { date?: string }).date === undefined ||
-                  (entry as { date: string }).date <= twoWeeks,
+              calendar: (current.strategy.calendar ?? []).map((entry) =>
+                shortEntry(entry as Record<string, unknown>),
               ),
             },
           }
         : current,
+    (current) => calendarUntil(current, soon),
+    (current) => without(current, "strategy", ["calendar"]),
   ];
   let fitted = context;
   for (const step of steps) {
@@ -362,6 +367,34 @@ export function fitCmoMarketingContext(
     fitted = step(fitted);
   }
   return fitted;
+}
+
+function shortEntry(piece: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    SHORT_ENTRY_KEYS.filter((key) => key in piece).map((key) => [
+      key,
+      piece[key],
+    ]),
+  );
+}
+
+/** The calendar up to a day; the rest stays stored. */
+function calendarUntil(
+  current: MarketingContext,
+  lastDay: string,
+): MarketingContext {
+  if (!current.strategy) return current;
+  return {
+    ...current,
+    strategy: {
+      ...current.strategy,
+      calendar: (current.strategy.calendar ?? []).filter(
+        (entry) =>
+          (entry as { date?: string }).date === undefined ||
+          (entry as { date: string }).date <= lastDay,
+      ),
+    },
+  };
 }
 
 /** The last day a turn sees full drafts for. */

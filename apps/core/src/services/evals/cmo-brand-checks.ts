@@ -6,8 +6,11 @@ import type {
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
   CMO_LIVE_NETWORKS,
+  cmoFunnelPlanProblems,
+  cmoLeftOutProblems,
   cmoPlanProblems,
   cmoPlanRuleProblems,
+  cmoTopVolumeProblems,
   type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import { parseMarketingPlan } from "@/services/marketing-strategy.service";
@@ -138,6 +141,7 @@ export function strategyChecks(
     });
   }
   if (brand.websiteOnly) checks.push(...websiteOnlyChecks(strategy));
+  if (brand.focus) checks.push(focusCheck(brand.focus, strategy));
   if (options.everyNetwork) checks.push(firstStrategyAdsCheck(strategy));
   const problems = [
     ...cmoPlanRuleProblems(strategy),
@@ -189,6 +193,52 @@ function websiteOnlyChecks(strategy: MarketingStrategyPlan): ScenarioCheck[] {
       actual: proposed.join(", ") || "none",
     },
   ];
+}
+
+/**
+ * One promise of cmo-v5's strategy, checked on its own: the top volume
+ * whatever pays for Cuso, a funnel in the plan's own numbers, and YouTube and
+ * TikTok fed by the month's talking videos. NMKR's month broke all three.
+ */
+function focusCheck(
+  focus: NonNullable<CmoEvalBrand["focus"]>,
+  strategy: MarketingStrategyPlan,
+): ScenarioCheck {
+  if (focus === "top-volume") {
+    const problems = cmoTopVolumeProblems(strategy);
+    return {
+      label: "Writes the month at the top volume",
+      pass: problems.length === 0,
+      actual:
+        problems.join(" · ") ||
+        `${strategy.pace?.level}, ${strategy.channels.map((channel) => `${channel.channel} ${channel.cadence}`).join(", ")}`,
+    };
+  }
+  if (focus === "funnel-plan") {
+    const problems = cmoFunnelPlanProblems(strategy);
+    return {
+      label: "The funnel says what the channels and calendar hold",
+      pass: strategy.funnel.length > 0 && problems.length === 0,
+      actual: problems.join(" · ") || "matches",
+    };
+  }
+  const missing = ["youtube", "tiktok"].filter(
+    (network) =>
+      !strategy.channels.some((channel) => channel.channel === network) ||
+      !strategy.calendar.some(
+        (entry) =>
+          entry.format === "talking_video" &&
+          entry.status !== "skipped" &&
+          (entry.channel === network || entry.alsoOn?.includes(network)),
+      ),
+  );
+  return {
+    label: "Plans YouTube and TikTok with the month's talking videos",
+    pass: missing.length === 0 && cmoLeftOutProblems(strategy).length === 0,
+    actual: missing.length
+      ? `missing ${missing.join(", ")}; left out: ${(strategy.leftOut ?? []).map((item) => `${item.channel} (${item.why})`).join(", ") || "none"}`
+      : "both planned",
+  };
 }
 
 /** A first strategy plans no ads: they wait for the owner's yes. */

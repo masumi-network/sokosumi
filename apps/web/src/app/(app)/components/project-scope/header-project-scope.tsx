@@ -13,7 +13,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SIDEBAR_CONTROL_INTERACTION_CLASS } from "@/components/ui/sidebar-classes";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { ProjectScopeActivity } from "./project-scope-activity";
 import { projectPageSection } from "./project-scope-href";
 import {
   ProjectScopeBackdrop,
@@ -51,6 +53,8 @@ export function HeaderProjectScope() {
   const open = useScopeMenuOpen();
   const request = useScopeRequest();
   const required = open && request?.required === true;
+  const isMobile = useIsMobile();
+  const showActivity = open && !request && !isMobile;
   const reasonId = useId();
   const { projectId, name, closed, label, mark, select } = useCurrentScope();
   const prefetch = usePrefetchScopeProjects();
@@ -122,7 +126,13 @@ export function HeaderProjectScope() {
           onInteractOutside={(event) => {
             if (required) event.preventDefault();
           }}
-          className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
+          collisionPadding={8}
+          className={cn(
+            "max-h-(--radix-popover-content-available-height) max-w-(--radix-popover-content-available-width) overflow-hidden p-0 motion-reduce:animate-none",
+            showActivity
+              ? "grid w-[44rem] grid-cols-[5fr_6fr] grid-rows-1"
+              : "flex w-80 flex-col",
+          )}
         >
           {request?.reason ? (
             <ProjectScopeReason id={reasonId} reason={request.reason} />
@@ -134,7 +144,11 @@ export function HeaderProjectScope() {
             onCreate={openScopeCreate}
             onDone={() => setScopeMenuOpen(false)}
             excludeCmo={request?.excludeCmo}
+            className={showActivity ? "min-w-0 rounded-none" : undefined}
           />
+          {showActivity ? (
+            <ProjectScopeActivity onNavigate={() => setScopeMenuOpen(false)} />
+          ) : null}
         </PopoverContent>
       </Popover>
       {projectId !== null && (

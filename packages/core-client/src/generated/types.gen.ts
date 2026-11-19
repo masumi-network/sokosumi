@@ -14359,9 +14359,9 @@ export type CmoMeasurement = {
  */
 export type CmoProduction = {
     /**
-     * starting: approved, but no run is working yet; the next sync starts one.
+     * starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.
      */
-    state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck';
+    state: 'waiting' | 'starting' | 'running' | 'ready' | 'stuck' | 'blocked';
     ready: number;
     total: number;
     /**
