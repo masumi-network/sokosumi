@@ -1,4 +1,9 @@
-import { CMO_CHANNELS, TALKING_VIDEO_PLANNED_CREDITS } from "@sokosumi/utils";
+import {
+  CMO_CHANNELS,
+  creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PLANNED_SCRIPT,
+  TALKING_VIDEO_PRICE,
+} from "@sokosumi/utils";
 import { CMO_BRAND_SECTIONS, CMO_RESEARCH_GROUPS } from "../cmo.js";
 import { CMO_BRAND_SECTION_KEYS } from "../project-marketing.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
@@ -7,10 +12,19 @@ import { weeklyStrategy } from "./cmo-strategy-weekly.js";
 import type { SokoBotSkill } from "./skills.js";
 
 const nearestTen = (credits: number): number => Math.round(credits / 10) * 10;
+/** A month's talking video as Core makes it: with music and B-roll. */
+const monthVideoCredits = (length: number, siteShots: boolean): number =>
+  nearestTen(
+    creditsPerTalkingVideoCents(TALKING_VIDEO_PRICE, "x".repeat(length), {
+      music: true,
+      broll: true,
+      siteShots,
+    }),
+  );
 /** What a talking video costs, from the price it is charged at. */
 const TALKING_VIDEO_CREDITS = {
-  from: nearestTen(TALKING_VIDEO_PLANNED_CREDITS.shortest),
-  to: nearestTen(TALKING_VIDEO_PLANNED_CREDITS.longest),
+  from: monthVideoCredits(TALKING_VIDEO_PLANNED_SCRIPT.shortest, false),
+  to: monthVideoCredits(TALKING_VIDEO_PLANNED_SCRIPT.longest, true),
 };
 
 /**
@@ -348,7 +362,7 @@ Once the owner approves the strategy and pays, a production run makes the whole 
 You write; Core makes every picture and video. Each social piece is already a draft Social post under the id the brief gives: fill that post, never create another one for it.
 1. Words: write every piece, word for word, in the strategy's contentLanguage and the brand's voice: its title, its first comment, the words in its picture and its script too, whatever language the owner writes to you in. A social piece goes on its post with update_social_post (get_social_post first for its revision). Every other piece (an ad with each headline and text, a newsletter issue with its subject line; an older month's article or page fix in full) is saved with save_strategy part pieces as that entry's draft; Core writes it to the owner's Files, where they paste, launch or send it. Never upload these yourself. A google_ads search ad also gets its searchAd in the same save: 5 to 15 keywords people type when they need the offer (from the Brand Brain and the strategy's audience, never the brand name alone), 8 to 15 distinct headlines of at most 30 characters, 2 to 4 descriptions of at most 90, the finalUrl of the page that sells the offer, the location (the country or city the business serves, as Google names it; required: an ad without one cannot launch) and the language code of the contentLanguage. Also negativeKeywords, searches it must not show for beyond jobs and pirated copies, which Core always excludes ("free" when there is no free plan, "diy", "used", a competitor's name only when buyers of it are not your buyers); maxCpc, the most one click is worth from get_market_keywords' price range (Core also keeps it to a third of the day's budget); and path1 and path2, the words shown after the domain ("teams", "trial"), at most 15 characters each. The owner launches it from CMO; you never start an ad or spend money.
 2. Visuals: for each piece whose format has a picture or video, write its visual in the same save_strategy part pieces call (the entry's id, date, time, channel, format, title and status as the brief gives them, plus visual and visualFileIds). The visual says in one to three sentences what the picture shows for this piece's message: the real product, screen, place or result from the Brand Brain, the style (a photo, a flat graphic, a screen close-up), the framing (close-up, from above, the whole room), the setting and the light. A video's visual also names its one movement and the camera's (a slow push in, the hand pours, the screen scrolls). A carousel also gets slides: one line per slide in order, what it shows and its few words ("Step 2: the order screen, 'Pick a time'"), as many as its hook promises. Name the brand pictures it is made from in visualFileIds (one to three fileIds from brandPictures: a product's photo, a page screenshot for software); Core keeps what they show and changes the rest. Never a real, named person: an anonymous person instead. Text in a picture only on a quote card or a carousel slide, and short. Never call generate_image or generate_video in a production run: Core makes each picture from its visual, a carousel's slides in one style, a video by animating a picture made from the brand's own, and puts them on the post. Each piece gets its own visual; never reuse another piece's picture.
-   A talking video gets no visual: write its script instead, in the same save_strategy call (script, presenter, voice and languageCode on the entry). The script is the spoken words only: a hook sentence first, then one point from the Brand Brain and one next step, 150 to 400 characters, in the brand's own voice ("we", or the presenter speaking for the brand). Never as a customer: no "I bought", "I tried", "since I started using", no invented result or review; the save refuses such a script. presenter is "owner" when ownerPresenter is in your context and the owner wants to be the face, otherwise one stock presenter id that fits the buyer (maya, jonas, aisha, leo, elena, david, mei, omar; all generated, no real person), and voice is a stock voice that fits that presenter. The post's draft is its caption. Core makes the video and puts it on the post, labelled as AI-generated. A talking video that also goes out on other networks (alsoOn) has one more post per network, which the brief lists as "the talking video of" its entry: the script, presenter and voice stay on the main entry only, and each of those posts gets its own caption with update_social_post, written for that network from its writing skill. On YouTube the first line is the video's title, at most 100 characters, and the rest its description.
+   A talking video gets no visual: write its script instead, in the same save_strategy call (script, presenter, voice and languageCode on the entry). The script is the spoken words only: a hook sentence first, then one point from the Brand Brain and one next step, 150 to 400 characters, in the brand's own voice ("we", or the presenter speaking for the brand). Never as a customer: no "I bought", "I tried", "since I started using", no invented result or review; the save refuses such a script. presenter is "owner" when ownerPresenter is in your context and the owner wants to be the face, otherwise one stock presenter id that fits the buyer (maya, jonas, aisha, leo, elena, david, mei, omar; all generated, no real person), and voice is a stock voice that fits that presenter. The post's draft is its caption. Core makes the video and puts it on the post, labelled as AI-generated. Core also lays quiet instrumental music under the voice and, when the opening sentence runs for about two seconds or more, plays a short generated clip under it; both are in the price Core charges. The script stays spoken words only: never describe music, footage or cuts in it. A talking video that also goes out on other networks (alsoOn) has one more post per network, which the brief lists as "the talking video of" its entry: the script, presenter and voice stay on the main entry only, and each of those posts gets its own caption with update_social_post, written for that network from its writing skill. On YouTube the first line is the video's title, at most 100 characters, and the rest its description.
 3. Schedule: on a connected network, schedule a post that needs no picture with schedule_social_post at its date and time. Core schedules a post with a picture once it has it. On any other network a post stays a finished draft until the owner connects it.
 A piece counts as made once its words and its visual are saved; Core counts it ready once its picture is on its post. Report only what the posts show: count them with list_social_posts.
 
