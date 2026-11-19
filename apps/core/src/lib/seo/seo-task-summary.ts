@@ -16,6 +16,7 @@ export function seoTaskSummary(
     "kind" | "keywords" | "countryCode" | "languageCode" | "devices"
   >,
   pageUrls: string[],
+  competitorUrls: string[] = [],
 ): string {
   // A full audit sends only its first keyword (seoTaskPacket).
   const keywords =
@@ -28,15 +29,20 @@ export function seoTaskSummary(
           `Target ${keywords.length === 1 ? "keyword" : "keywords"}: ${keywords.join(", ")}.`,
         ]
       : []),
-    ...(input.kind === "audit_full"
-      ? []
-      : [`Devices: ${input.devices.join(", ")}.`]),
+    // Devices matter only for keyword rank reads, which a full audit plans itself.
+    ...(keywords.length && input.kind !== "audit_full"
+      ? [`Devices: ${input.devices.join(", ")}.`]
+      : []),
   ];
+  const competitors = competitorUrls.length
+    ? ["", "Competitors:", ...competitorUrls.map((url) => `- ${url}`)]
+    : [];
   return [
     // Selected pages: a full audit can add related pages as it runs.
     `${KIND_LABELS[input.kind]} of ${count(pageUrls.length, "selected page")}:`,
     "",
     ...pageUrls.map((url) => `- ${url}`),
+    ...competitors,
     "",
     ...details,
   ].join("\n");

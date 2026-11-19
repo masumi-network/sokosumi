@@ -23,4 +23,20 @@ describe("seoTaskSummary", () => {
     expect(summary).not.toContain("tea");
     expect(summary).not.toContain("Devices");
   });
+
+  it("lists a links check's competitors and leaves out unused devices", () => {
+    const summary = seoTaskSummary(
+      {
+        kind: "links",
+        keywords: [],
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["mobile"],
+      },
+      pageUrls.slice(0, 1),
+      ["https://rival.example/"],
+    );
+    expect(summary).toContain("Competitors:\n- https://rival.example/");
+    expect(summary).not.toContain("Devices");
+  });
 });

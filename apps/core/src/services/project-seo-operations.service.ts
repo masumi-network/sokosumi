@@ -333,7 +333,11 @@ export async function requestProjectSeoAnalysisInTransaction(
       projectId,
       name: `SEO ${input.kind.replaceAll("_", " ")}`,
       description: seoTaskDescription(
-        seoTaskSummary(input, pageUrls),
+        seoTaskSummary(
+          input,
+          pageUrls,
+          input.competitorUrls.map(normalizeSeoUrl),
+        ),
         input.kind === "audit_full" ? "seo_audit" : "seo_job",
         packet,
       ),
