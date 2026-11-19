@@ -8,13 +8,11 @@ import {
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { SIDEBAR_PROJECT_SCOPED_CLASS } from "@/components/ui/sidebar-classes";
 import type { CreditUsage } from "@/lib/types/credit";
 
 import type { CreditWalletScope } from "./components/account-summary-types";
 
 import AnnouncementCards from "./components/announcement-cards";
-import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav";
 import SidebarLogo from "./components/sidebar-logo.client";
 import { SidebarNewTaskButton } from "./components/sidebar-new-task-button.client";
@@ -89,15 +87,13 @@ interface SidebarProps {
   /** The Workspace switcher, at the start of the header on desktop. */
   workspaceSwitcher: ReactNode;
   accountFooter: ReactNode;
-  chatList: ReactNode;
-  newsletterEnabled: boolean;
+  navigation: ReactNode;
 }
 
 export default function Sidebar({
   workspaceSwitcher,
   accountFooter,
-  chatList,
-  newsletterEnabled,
+  navigation,
 }: SidebarProps) {
   return (
     <ShadcnSidebar>
@@ -134,10 +130,7 @@ export default function Sidebar({
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
-          <div className={SIDEBAR_PROJECT_SCOPED_CLASS}>
-            <MenuItems newsletterEnabled={newsletterEnabled} />
-          </div>
-          {chatList}
+          {navigation}
         </div>
       </SidebarContent>
       {/*

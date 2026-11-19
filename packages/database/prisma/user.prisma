@@ -62,6 +62,10 @@ model User {
   // Off by default; a Direct is tagged only when every human in it opted in.
   tagDirectMessages   Boolean @default(false)
 
+  // A null layout follows the current sidebar defaults.
+  sidebarLayout    Json?
+  sidebarSeenItems String[] @default([])
+
   // UTM Attribution
   utmAttribution UTMAttribution?
   signUpContext  SignUpContext?

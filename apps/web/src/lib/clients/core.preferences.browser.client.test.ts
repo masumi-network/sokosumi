@@ -89,6 +89,24 @@ describe("core.preferences.browser.client", () => {
     expect(Object.keys(body)).toEqual(["pushOptIn"]);
   });
 
+  it("binds a sidebar read and save to the account that opened the editor", async () => {
+    const { preferencesBrowserClient } = await import(
+      "./core.preferences.browser.client"
+    );
+    const accountId = "779df365-02c9-43ba-ba36-6f446b0c6c2b";
+    await preferencesBrowserClient.getMyPreferences(accountId);
+    await preferencesBrowserClient.patchMyPreferences(
+      { sidebarLayout: null },
+      accountId,
+    );
+    expect(getMock).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { id: accountId } }),
+    );
+    expect(patchMock).toHaveBeenCalledWith(
+      expect.objectContaining({ path: { id: accountId } }),
+    );
+  });
+
   it("reads the session user's preferences", async () => {
     const { preferencesBrowserClient } = await import(
       "./core.preferences.browser.client"

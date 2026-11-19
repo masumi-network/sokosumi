@@ -1,9 +1,9 @@
 import type { SessionUser } from "@sokosumi/utils";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
 import { loadSidebarChatList } from "./private-sidebar-cache";
 import Sidebar from "./sidebar";
-import { SidebarChatListSkeleton } from "./sidebar/components/sidebar-chat-list-skeleton";
+import { AccountSidebarNavigation } from "./sidebar/account-sidebar-navigation";
 import { SidebarChatList } from "./sidebar-chat-list.client";
 import SidebarDeferredAccount, {
   SidebarAccountChipFallback,
@@ -31,19 +31,31 @@ export default function PrivateCachedAppSidebar({
   return (
     <Sidebar
       workspaceSwitcher={<WorkspaceSwitcherMenu placement="sidebar" />}
-      newsletterEnabled={newsletterEnabled}
-      chatList={
+      navigation={
         <Suspense
           fallback={
-            <SidebarChatListSkeleton
-              hasOrganization={activeOrganizationId !== null}
-            />
+            <Suspense fallback={null}>
+              <AccountSidebarNavigation
+                key={sessionUser.id}
+                userId={sessionUser.id}
+                newsletterEnabled={newsletterEnabled}
+                hasOrganization={activeOrganizationId !== null}
+                waitingForRooms
+              />
+            </Suspense>
           }
         >
           <PrivateCachedSidebarRooms
             userId={sessionUser.id}
             activeOrganizationId={activeOrganizationId}
-          />
+          >
+            <AccountSidebarNavigation
+              key={sessionUser.id}
+              userId={sessionUser.id}
+              hasOrganization={activeOrganizationId !== null}
+              newsletterEnabled={newsletterEnabled}
+            />
+          </PrivateCachedSidebarRooms>
         </Suspense>
       }
       accountFooter={
@@ -60,11 +72,13 @@ export default function PrivateCachedAppSidebar({
 }
 
 interface PrivateCachedSidebarRoomsProps {
+  children: ReactNode;
   userId: string;
   activeOrganizationId: string | null;
 }
 
 async function PrivateCachedSidebarRooms({
+  children,
   userId,
   activeOrganizationId,
 }: PrivateCachedSidebarRoomsProps) {
@@ -87,6 +101,8 @@ async function PrivateCachedSidebarRooms({
       deferred={deferred}
       currentUserId={userId}
       organizationId={activeOrganizationId}
-    />
+    >
+      {children}
+    </SidebarChatList>
   );
 }

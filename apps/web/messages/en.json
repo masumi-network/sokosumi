@@ -5901,6 +5901,32 @@
       "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "Sidebar": {
+      "Layout": {
+        "edit": "Edit sidebar",
+        "allChats": "All chats",
+        "saveFailed": "Could not save sidebar preferences. Try again.",
+        "loadFailed": "Could not load sidebar preferences. Try again.",
+        "save": "Save",
+        "cancel": "Cancel",
+        "addSection": "Add section",
+        "renameSection": "Rename section",
+        "sectionName": "Section name",
+        "removeSection": "Remove section",
+        "addFeature": "Add feature",
+        "removeFeature": "Hide feature",
+        "sortFeatures": "Sort features by name",
+        "sortSections": "Sort sections by name",
+        "reset": "Reset to default",
+        "reorder": "Reorder {name}",
+        "actions": "Options for {name}",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "moveTo": "Move to section",
+        "emptySection": "Drop a feature here or add one from the section menu.",
+        "instructions": "Use the up and down arrow keys to reorder. Use left and right to move a feature between sections.",
+        "position": "{name}, {section}, {position} of {total}.",
+        "sectionPosition": "{name}, section {position} of {total}."
+      },
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details unavailable",

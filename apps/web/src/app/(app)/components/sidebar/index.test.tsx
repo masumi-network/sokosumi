@@ -30,9 +30,6 @@ vi.mock("@/app/components/sidebar/components/personal-assistant-nav", () => ({
 vi.mock("@/app/components/project-scope/sidebar-project-scope", () => ({
   SidebarProjectScope: () => <button type="button">projectTitle</button>,
 }));
-vi.mock("@/app/components/sidebar/components/menu-items", () => ({
-  default: () => <nav aria-label="menuItems" />,
-}));
 vi.mock("@/app/components/sidebar/components/announcement-cards", () => ({
   default: () => null,
 }));
@@ -62,8 +59,7 @@ function renderSidebar() {
       <Sidebar
         workspaceSwitcher={<button type="button">Acme</button>}
         accountFooter={<div>account</div>}
-        chatList={<nav aria-label="chatList" />}
-        newsletterEnabled={false}
+        navigation={<nav aria-label="menuItems" />}
       />
     </SidebarProvider>,
   );
@@ -132,41 +128,5 @@ describe("Sidebar project scope", () => {
 
     expect(follows(sokoBot, title)).toBe(true);
     expect(follows(title, nav)).toBe(true);
-  });
-
-  // Work, Records and Marketing read as inside the project; the chat
-  // sections are the workspace's, so they sit outside the line.
-  it("ties the nav groups to the title with a line, and leaves chat outside it", () => {
-    renderSidebar();
-
-    const scoped = screen.getByRole("navigation", {
-      name: "menuItems",
-    }).parentElement;
-    const chatList = screen.getByRole("navigation", { name: "chatList" });
-
-    expect(tokens(scoped)).toEqual(
-      expect.arrayContaining(["max-md:border-s", "border-sidebar-border"]),
-    );
-    expect(scoped?.contains(chatList)).toBe(false);
-    expect(
-      scoped?.contains(screen.getByRole("button", { name: "projectTitle" })),
-    ).toBe(false);
-  });
-
-  // The chat area is headed like the nav groups (its Chats heading lives in
-  // the list), so no rule cuts the sidebar in two between them.
-  it("runs the nav straight into the chat area, with no rule between", () => {
-    const { container } = renderSidebar();
-    const scoped = screen.getByRole("navigation", {
-      name: "menuItems",
-    }).parentElement;
-    const chatList = screen.getByRole("navigation", { name: "chatList" });
-
-    expect(
-      container.querySelector(
-        '[data-slot="sidebar-content"] [data-slot="sidebar-separator"]',
-      ),
-    ).toBeNull();
-    expect(scoped?.nextElementSibling).toBe(chatList);
   });
 });

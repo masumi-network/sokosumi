@@ -396,6 +396,7 @@ function makeQueryClient() {
 let harnessQueryClient = makeQueryClient();
 
 export interface OrganizationChatListHarnessOptions {
+  children?: ReactNode;
   rooms?: ChatRoom[];
   archivedRooms?: ChatRoom[];
   pendingInvitations?: ChatRoomInvitation[];
@@ -493,6 +494,7 @@ export function resetOrganizationChatListMocks() {
 }
 
 export function createOrganizationChatList({
+  children,
   rooms = emptyRooms,
   archivedRooms = emptyRooms,
   pendingInvitations,
@@ -513,7 +515,9 @@ export function createOrganizationChatList({
         dismissSheetOnNavigate={false}
         paintOnly={paintOnly}
         withChatsHeading={withChatsHeading}
-      />
+      >
+        {children}
+      </OrganizationChatList>
     </QueryClientProvider>
   );
 }

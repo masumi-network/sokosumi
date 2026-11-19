@@ -42,7 +42,9 @@ describe("chat list page scroll clearance contract", () => {
 
     // Require the className binding — a bare import would still match the
     // identifier alone and would not prove the shell mounts on the list root.
-    expect(code).toMatch(/className=\{CHAT_CHATS_MOBILE_LIST_SHELL_CLASS\}/);
+    expect(code).toMatch(
+      /className=\{cn\(\s*CHAT_CHATS_MOBILE_LIST_SHELL_CLASS,/,
+    );
     expect(code).not.toMatch(/LIST_MOBILE_CREATE_FAB_CLEARANCE/);
     expect(code).not.toMatch(/overflow-y-auto/);
     expect(code).not.toMatch(/\bmin-h-0\b/);

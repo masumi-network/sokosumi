@@ -5,15 +5,8 @@ import {
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import {
-  applyUserRouteMiddleware,
-  type UserRouteVariables,
-} from "@/routes/v1/users/user-route-context";
-
-import mountGetUserPreferences from "./get.js";
-import mountPatchUserPreferences from "./patch.js";
+import { createPreferencesApp, patchRequest } from "./preferences.test-app.js";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -48,6 +41,8 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 const PREFERENCES = {
+  sidebarLayout: null,
+  sidebarSeenItems: [],
   marketingOptIn: true,
   notificationsOptIn: false,
   pushOptIn: false,
@@ -81,33 +76,6 @@ const SESSION_ADMIN: AuthenticationContext = {
   organizationId: null,
   role: "admin",
 };
-
-function createPreferencesApp(
-  authContext: AuthenticationContext,
-): OpenAPIHonoWithAuth {
-  const app = new OpenAPIHonoWithAuth();
-
-  app.use("*", async (c, next) => {
-    c.set("isAuthenticated", true);
-    c.set("authContext", authContext);
-    return await next();
-  });
-
-  const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  applyUserRouteMiddleware(userByIdApp);
-  mountGetUserPreferences(userByIdApp);
-  mountPatchUserPreferences(userByIdApp);
-  app.route("/:id", userByIdApp);
-  return app;
-}
-
-function patchRequest(path: string, body: unknown) {
-  return new Request(`http://localhost${path}`, {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-}
 
 describe("user preferences routes", () => {
   beforeEach(() => {
@@ -196,6 +164,8 @@ describe("user preferences routes", () => {
         pushOptIn: true,
         hideRoomUnreadCount: true,
         tagDirectMessages: true,
+        sidebarLayout: true,
+        sidebarSeenItems: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
@@ -224,11 +194,39 @@ describe("user preferences routes", () => {
         pushOptIn: true,
         hideRoomUnreadCount: true,
         tagDirectMessages: true,
+        sidebarLayout: true,
+        sidebarSeenItems: true,
         notificationPreferences: {
           select: { category: true, channel: true, enabled: true },
         },
       },
     });
+  });
+
+  it("saves trimmed custom names, item order and hidden future features on the session user", async () => {
+    const section = {
+      id: "group-1",
+      name: "Marketing",
+      items: ["social", "ads"],
+    };
+    const layout = { sections: [section], hidden: ["future-item"] };
+    userUpdateMock.mockResolvedValue({ ...PREFERENCES, sidebarLayout: layout });
+    const response = await createPreferencesApp(SESSION_USER).request(
+      patchRequest("/me/preferences", {
+        sidebarLayout: {
+          ...layout,
+          sections: [{ ...section, name: "  Marketing  " }],
+        },
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(userUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: SESSION_USER.userId },
+        data: { sidebarLayout: layout },
+      }),
+    );
+    expect((await response.json()).data.sidebarLayout).toEqual(layout);
   });
 
   it("leaves the email opt-ins untouched when only pushOptIn is sent", async () => {
@@ -517,6 +515,48 @@ describe("user preferences routes", () => {
     expect(response.status).toBe(422);
     expect(userUpdateMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [
+      "repeated section",
+      [
+        { id: "a", name: null, items: [] },
+        { id: "a", name: "Other", items: [] },
+      ],
+      [],
+    ],
+    [
+      "repeated placement",
+      [
+        { id: "a", name: null, items: ["tasks"] },
+        { id: "b", name: "Work", items: ["tasks"] },
+      ],
+      [],
+    ],
+    [
+      "visible and hidden",
+      [{ id: "a", name: null, items: ["tasks"] }],
+      ["tasks"],
+    ],
+    ["blank name", [{ id: "a", name: "   ", items: [] }], []],
+    ["invalid item ID", [], ["/tasks"]],
+    [
+      "too many items",
+      [{ id: "a", name: null, items: ["tasks"] }],
+      Array.from({ length: 128 }, (_, i) => `item-${i}`),
+    ],
+  ])(
+    "rejects an ambiguous or invalid sidebar layout (%s)",
+    async (_reason, sections, hidden) => {
+      const response = await createPreferencesApp(SESSION_USER).request(
+        patchRequest("/me/preferences", {
+          sidebarLayout: { sections, hidden },
+        }),
+      );
+      expect(response.status).toBe(422);
+      expect(userUpdateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects a foreign user id on PATCH without writing", async () => {
     const app = createPreferencesApp(SESSION_USER);

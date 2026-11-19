@@ -88,6 +88,17 @@ describe("OrganizationChatList decline invitation", () => {
     expect(shownInvitations()).toEqual(["Vendors"]);
   });
 
+  it("keeps a returned invitation disabled after declining the last one hides External", async () => {
+    const write = holdOpen();
+    const { rerender } = await renderPending([partners]);
+    fireEvent.click(declineButtons()[0]);
+    expect(shownInvitations()).toEqual([]);
+    rerender(createOrganizationChatList({ pendingInvitations: [partners] }));
+    expect(declineButtons()[0]).toBeDisabled();
+    await write.answer({ ok: true, value: partners });
+    expect(shownInvitations()).toEqual([]);
+  });
+
   it.each([
     [
       "Core refuses",

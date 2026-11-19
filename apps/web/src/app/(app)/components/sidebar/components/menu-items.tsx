@@ -93,6 +93,7 @@ interface NavDestination extends MenuItemConfig {
   group: NavGroup;
   /** Left off the phone sheet, which reaches the page another way. */
   desktopOnly?: true;
+  available?: boolean;
 }
 
 /**
@@ -113,11 +114,7 @@ export default function MenuItems({
   );
 }
 
-function ScopedMenuItems({
-  newsletterEnabled,
-}: {
-  newsletterEnabled: boolean;
-}) {
+export function useSidebarDestinations(newsletterEnabled: boolean) {
   const { projectId, hrefFor } = useProjectScope();
   const selectedProject = useSelectedScopeProject(projectId);
   // A deleted or foreign project has no page to open.
@@ -153,25 +150,24 @@ function ScopedMenuItems({
       exact: hasProjectPage || undefined,
       prefetchContent: true,
     },
-    ...(hasProjectPage
-      ? [
-          {
-            key: "overview",
-            href: `/projects/${encodeURIComponent(projectId)}`,
-            label: t("overview"),
-            // The glyph holds the slot until the project's name and logo load.
-            Icon: FolderKanban,
-            tile: selectedProject ? (
-              <ProjectAvatar
-                name={selectedProject.name}
-                logo={selectedProject.logo}
-              />
-            ) : undefined,
-            group: "work",
-            prefetchContent: true,
-          } satisfies NavDestination,
-        ]
-      : []),
+    {
+      key: "overview",
+      href: hasProjectPage
+        ? `/projects/${encodeURIComponent(projectId)}`
+        : "/projects",
+      available: hasProjectPage,
+      label: t("overview"),
+      // The glyph holds the slot until the project's name and logo load.
+      Icon: FolderKanban,
+      tile: selectedProject ? (
+        <ProjectAvatar
+          name={selectedProject.name}
+          logo={selectedProject.logo}
+        />
+      ) : undefined,
+      group: "work",
+      prefetchContent: true,
+    },
     {
       key: "explore-agents",
       href: "/agents",
@@ -271,17 +267,14 @@ function ScopedMenuItems({
       Icon: Binoculars,
       group: "marketing",
     },
-    ...(newsletterEnabled
-      ? [
-          {
-            key: "newsletter",
-            href: "/newsletter",
-            label: t("newsletter"),
-            Icon: Mail,
-            group: "marketing",
-          } satisfies NavDestination,
-        ]
-      : []),
+    {
+      key: "newsletter",
+      href: "/newsletter",
+      label: t("newsletter"),
+      Icon: Mail,
+      group: "marketing",
+      available: newsletterEnabled,
+    },
     // Desktop only: mobile keeps Files on the You page account surface.
     {
       key: "drive",
@@ -293,20 +286,25 @@ function ScopedMenuItems({
       desktopOnly: true,
     },
   ];
-  const destinations = isMobile
-    ? allDestinations.filter(({ desktopOnly }) => !desktopOnly)
-    : allDestinations;
+  const destinations = allDestinations.map((item) => ({
+    ...item,
+    available: item.available !== false && !(isMobile && item.desktopOnly),
+  }));
 
-  function renderItem({
-    key,
-    href,
-    label,
-    Icon,
-    tile,
-    feature,
-    exact,
-    prefetchContent,
-  }: MenuItemConfig) {
+  function renderItem(
+    {
+      key,
+      href,
+      label,
+      Icon,
+      tile,
+      feature,
+      exact,
+      prefetchContent,
+    }: MenuItemConfig,
+    newIndicator?: ReactNode,
+    onOpen?: () => void,
+  ) {
     // A click that heads for another project's page keeps the mark on
     // Overview: on arrival this row is that project's.
     const headsForProject =
@@ -324,7 +322,10 @@ function ScopedMenuItems({
               // The list on screen needs no prefetch of its own content. A
               // task detail page still marks Tasks active, so match exactly.
               prefetchContent={prefetchContent === true && pathname !== href}
-              onClick={() => feature && markFeatureSeen(feature)}
+              onClick={() => {
+                if (feature) markFeatureSeen(feature);
+                onOpen?.();
+              }}
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 isActive
@@ -341,11 +342,12 @@ function ScopedMenuItems({
                   SIDEBAR_FEATURE_LABEL_CLASS,
                 )}
               >
-                {feature ? (
+                {feature && !newIndicator ? (
                   <SidebarFeatureLabel label={label} feature={feature} />
                 ) : (
                   <span className="min-w-0 truncate">{label}</span>
                 )}
+                {newIndicator}
               </span>
             </RestingIntentLink>
           </SheetClose>
@@ -354,6 +356,17 @@ function ScopedMenuItems({
     );
   }
 
+  return { destinations, renderItem };
+}
+
+function ScopedMenuItems({
+  newsletterEnabled,
+}: {
+  newsletterEnabled: boolean;
+}) {
+  const t = useTranslations("App.Sidebar.Content.MenuItems");
+  const { destinations, renderItem } =
+    useSidebarDestinations(newsletterEnabled);
   return (
     // `px-2` here rather than on the item, so a nav row's `SidebarMenuItem`
     // is the same box a Chat row's is.
@@ -367,8 +380,11 @@ function ScopedMenuItems({
         {NAV_GROUPS.map((group) => (
           <MenuGroup key={group} title={t(`groups.${group}`)}>
             {destinations
-              .filter((destination) => destination.group === group)
-              .map(renderItem)}
+              .filter(
+                (destination) =>
+                  destination.available && destination.group === group,
+              )
+              .map((destination) => renderItem(destination))}
           </MenuGroup>
         ))}
       </SidebarGroupContent>

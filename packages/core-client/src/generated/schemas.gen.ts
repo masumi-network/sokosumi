@@ -23735,6 +23735,62 @@ export const MemberRecordSchema = {
     ]
 } as const;
 
+export const SidebarLayoutSchema = {
+    type: 'object',
+    properties: {
+        sections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        maxLength: 64,
+                        pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+                    },
+                    name: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        minLength: 1,
+                        maxLength: 64,
+                        pattern: '^[^\\p{Cc}]+$/u'
+                    },
+                    items: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 64,
+                            pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+                        },
+                        maxItems: 128
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'items'
+                ]
+            },
+            maxItems: 64
+        },
+        hidden: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 64,
+                pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'
+            },
+            maxItems: 128
+        }
+    },
+    required: [
+        'sections',
+        'hidden'
+    ]
+} as const;
+
 export const NotificationPreferenceSchema = {
     type: 'object',
     properties: {

@@ -6694,6 +6694,15 @@ export type MemberRecord = {
     createdAt: Date;
 };
 
+export type SidebarLayout = {
+    sections: Array<{
+        id: string;
+        name: string | null;
+        items: Array<string>;
+    }>;
+    hidden: Array<string>;
+};
+
 export type NotificationPreference = {
     /**
      * What the notification is about
@@ -52451,6 +52460,14 @@ export type GetUsersByIdPreferencesResponses = {
     200: {
         data: {
             /**
+             * The user's ordered sidebar sections and hidden items across Workspaces. Null uses the current defaults.
+             */
+            sidebarLayout?: SidebarLayout | null;
+            /**
+             * Sidebar items this user has already seen across Workspaces.
+             */
+            sidebarSeenItems?: Array<string>;
+            /**
              * Whether the user wants to receive marketing emails
              */
             marketingOptIn: boolean;
@@ -52489,6 +52506,14 @@ export type GetUsersByIdPreferencesResponse = GetUsersByIdPreferencesResponses[k
 
 export type PatchUsersByIdPreferencesData = {
     body?: {
+        /**
+         * Replace the ordered sidebar layout. Send null to restore the defaults.
+         */
+        sidebarLayout?: SidebarLayout | null;
+        /**
+         * Mark one sidebar item seen for this user. Repeated visits have no effect.
+         */
+        sidebarSeenItem?: string;
         /**
          * Whether the user wants to receive marketing emails
          */
@@ -52591,6 +52616,14 @@ export type PatchUsersByIdPreferencesResponses = {
      */
     200: {
         data: {
+            /**
+             * The user's ordered sidebar sections and hidden items across Workspaces. Null uses the current defaults.
+             */
+            sidebarLayout?: SidebarLayout | null;
+            /**
+             * Sidebar items this user has already seen across Workspaces.
+             */
+            sidebarSeenItems?: Array<string>;
             /**
              * Whether the user wants to receive marketing emails
              */

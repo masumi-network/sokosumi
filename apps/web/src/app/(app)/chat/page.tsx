@@ -13,6 +13,7 @@ import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { ChatRoomsPage } from "@/lib/services/chat-room.service";
+import { cn } from "@/lib/utils";
 import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "./chat-chats-list-shell";
 import { ChatDesktopHomeRedirect } from "./components/chat-desktop-home-redirect.client";
 import {
@@ -59,7 +60,6 @@ async function ChatChatsListWithArchived({
 
   return (
     <OrganizationChatList
-      key={activeOrganizationId ?? "personal"}
       rooms={chatRoomsPage.rooms}
       archivedRooms={archivedChatRoomsPage.rooms}
       currentUserId={currentUserId}
@@ -74,6 +74,7 @@ async function ChatChatsListWithArchived({
  * Mobile Chats tab at bare `/chat`: Personal Assistant (beta-gated) above
  * Channels + DMs (`md:hidden`). Desktop has no list page — client redirect
  * to Welcome. Notice query → Welcome `/?…` (server).
+ * The explicit directory link (`?view=all`) opens the list on desktop, too.
  *
  * Instant Nav uses `chat/loading.tsx` while this page streams after
  * `connection()`.
@@ -87,6 +88,7 @@ async function ChatChatsListWithArchived({
 export default async function ChatPage({ searchParams }: ChatPageProps) {
   const params = await searchParams;
   const qs = toURLSearchParamsFromRecord(params);
+  const showAllChats = qs.get("view") === "all";
 
   if (hasChatNoticeFromRecord(params)) {
     redirect(pathWithSearch(CHAT_WELCOME_PATH, qs));
@@ -104,24 +106,29 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const chatRoomsPage = await getPrivateCachedMembershipVisibleRooms(cacheArgs);
 
-  const listKey = activeOrganizationId ?? "personal";
+  const listKey = `${currentUserId}:${activeOrganizationId ?? "personal"}`;
 
   return (
     <>
-      <ChatDesktopHomeRedirect />
+      {showAllChats ? null : <ChatDesktopHomeRedirect />}
       <Sheet open>
         {/*
           Shell class: top/side main-pad cancel only — see chat-chats-list-shell.ts.
           Grow with content so AppMobileChrome's in-flow tab-bar spacer sits after
           the last row in main's scroll (no nested overflow height-lock).
         */}
-        <div className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}>
+        <div
+          className={cn(
+            CHAT_CHATS_MOBILE_LIST_SHELL_CLASS,
+            showAllChats && "md:flex",
+          )}
+        >
           <PersonalAssistantNav />
           <SidebarSeparator className="-mt-px" />
           <Suspense
+            key={listKey}
             fallback={
               <OrganizationChatList
-                key={listKey}
                 rooms={chatRoomsPage.rooms}
                 archivedRooms={[]}
                 currentUserId={currentUserId}

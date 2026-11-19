@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 
@@ -19,6 +19,7 @@ const settledAnswers = new WeakMap<
 >();
 
 interface SidebarChatListProps {
+  children?: ReactNode;
   rooms: ChatRoom[];
   /** Archived rooms and the owner/admin flag, read beside the rooms. */
   deferred: Promise<SidebarChatListDeferred>;
@@ -35,6 +36,7 @@ interface SidebarChatListProps {
  * An effect, not `use()`: `use()` would suspend the rows this exists to show.
  */
 export function SidebarChatList({
+  children,
   rooms,
   deferred,
   currentUserId,
@@ -69,6 +71,8 @@ export function SidebarChatList({
       organizationId={organizationId}
       isOrgOwnerOrAdmin={settled?.isOrgOwnerOrAdmin ?? false}
       withChatsHeading
-    />
+    >
+      {children}
+    </OrganizationChatList>
   );
 }
