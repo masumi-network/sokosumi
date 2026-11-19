@@ -5872,22 +5872,61 @@ describe("SokoBotRuntimeService table actor", () => {
     ).toMatchObject({ scope: "personal", userId: SCOPE.userId });
   });
 
-  it("acts as the shared bot itself, never as the member", async () => {
-    expect(
-      await tableActorAuth({
-        userId: null,
-        projectId: "project_1",
-        workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
-      }),
-    ).toEqual({
-      actor: "sokoBot",
-      scope: "project",
-      sokoBotId: SCOPE.sokoBotId,
+  it("lets a Project's shared bot work in its Project, for the member who asked", async () => {
+    const { resolveTableActor } = await import("@/helpers/data-table");
+    vi.mocked(resolveTableActor).mockReset();
+    botFindUniqueMock.mockResolvedValue({
       userId: null,
-      workspaceId: SCOPE.workspaceId,
-      organizationId: "org_1",
       projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
     });
+    workspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "org_1",
+    });
+    const service = new SokoBotRuntimeService();
+
+    await expect(
+      service["tableActor"](authorized as never, {}),
+    ).resolves.toEqual({
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+      actorId: SCOPE.sokoBotId,
+      actorKind: "sokoBot",
+      projectScope: "project_1",
+      taskId: undefined,
+      ownerChat: true,
+    });
+    // The member's own membership is what lets the bot in.
+    expect(workspaceFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: SCOPE.workspaceId }),
+      }),
+    );
+    expect(resolveTableActor).not.toHaveBeenCalled();
+  });
+
+  it("refuses a shared bot's table work when the member left, or nobody asked", async () => {
+    botFindUniqueMock.mockResolvedValue({
+      userId: null,
+      projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+    });
+    const service = new SokoBotRuntimeService();
+    workspaceFindFirstMock.mockResolvedValue(null);
+    await expect(
+      service["tableActor"](authorized as never, {}),
+    ).rejects.toThrow("Workspace access is no longer available");
+
+    await expect(
+      service["tableActor"](
+        {
+          ...authorized,
+          turn: { ...authorized.turn, actingUserId: null },
+        } as never,
+        {},
+      ),
+    ).rejects.toThrow("nobody asked for this turn");
   });
 
   it("refuses a bot that does not fit the turn", async () => {
