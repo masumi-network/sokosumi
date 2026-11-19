@@ -3,7 +3,9 @@
  * the relationship they add up to, editing facts, and the website lookup
  * (with a fake page and model).
  */
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { promisify } from "node:util";
 import {
   afterAll,
   beforeAll,
@@ -49,6 +51,7 @@ const alice = randomUUID();
 const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const actor: ContactActor = { workspaceId, userId: alice, sokoBotId: null };
+const execFileAsync = promisify(execFile);
 
 function create(
   input: Partial<Parameters<typeof upsertContact>[2]>,
@@ -276,20 +279,26 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
 
   it("looks up a company again after a Gateway budget refusal", async () => {
     expectCoreLog("warn", "Could not look up a company's website", 0);
-    const failed = await enrichCompanies(workspaceId, {
-      limit: 5,
-      usd: 1,
-      deps: {
-        fetchPage: async () =>
-          `<a href="https://linkedin.com/company/acme">in</a>`,
-        generate: async () => {
-          throw new AiGatewayBudgetError();
-        },
-      },
-    });
-    const [pending] = (await listCompanies(actor, { limit: 1 })).items;
-    expect(pending).toMatchObject({ enrichedAt: null, linkedinUrl: null });
-    expect(failed).toEqual({ looked: 1, filled: 0, costUsd: 0 });
+    for (let run = 0; run < 3; run += 1) {
+      expect(
+        await enrichCompanies(workspaceId, {
+          limit: 5,
+          usd: 1,
+          deps: {
+            fetchPage: async () =>
+              `<a href="https://linkedin.com/company/acme">in</a>`,
+            generate: async () => {
+              throw new AiGatewayBudgetError();
+            },
+          },
+        }),
+      ).toEqual({ looked: 1, filled: 0, costUsd: 0 });
+    }
+    expect(
+      await prisma.contactCompany.findFirstOrThrow({
+        where: { workspaceId, key: "d:acme.com" },
+      }),
+    ).toMatchObject({ enrichedAt: null, linkedinUrl: null, lookupFailures: 0 });
     expect(await workspacesWithPendingCompanies(100)).toContain(workspaceId);
 
     const fetched: string[] = [];
@@ -325,12 +334,53 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     ).toBe(0);
   });
 
-  it("stops scheduling an exhausted lookup and completes an empty lookup after a website edit", async () => {
+  async function createLookupWorkspace() {
     const { id } = await prisma.workspace.create({ data: { userId: alice } });
     onTestFinished(async () => {
       await prisma.workspace.delete({ where: { id } });
     });
-    const lookupActor = { ...actor, workspaceId: id };
+    return { ...actor, workspaceId: id };
+  }
+
+  it("stops the workspace pass after a model-call error without counting a site failure", async () => {
+    expectCoreLog("warn", "Could not run the company lookup model");
+    const lookupActor = await createLookupWorkspace();
+    const id = lookupActor.workspaceId;
+    for (const name of ["Quiet", "Loud"]) {
+      await create(
+        {
+          name,
+          organization: `${name} Company`,
+          channels: [
+            { type: "EMAIL", value: `contact@${name.toLowerCase()}.example` },
+          ],
+        },
+        lookupActor,
+      );
+    }
+    const deps = {
+      fetchPage: vi.fn().mockResolvedValue("<p>Company website</p>"),
+      generate: vi.fn().mockRejectedValue(new Error("Provider unavailable")),
+    };
+
+    expect(await enrichCompanies(id, { deps, limit: 5, usd: 1 })).toEqual({
+      looked: 1,
+      filled: 0,
+      costUsd: 0,
+    });
+    expect(deps.fetchPage).toHaveBeenCalledTimes(1);
+    expect(deps.generate).toHaveBeenCalledTimes(1);
+    expect(
+      await prisma.contactCompany.count({
+        where: { workspaceId: id, enrichedAt: null, lookupFailures: 0 },
+      }),
+    ).toBe(2);
+    expect(await workspacesWithPendingCompanies(100)).toContain(id);
+  });
+
+  it("stops scheduling an exhausted lookup and completes an empty lookup after a website edit", async () => {
+    const lookupActor = await createLookupWorkspace();
+    const id = lookupActor.workspaceId;
     await create(
       {
         name: "Toni Vale",
@@ -355,14 +405,13 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
           });
           throw new Error("The old site failed");
         })
-        .mockResolvedValueOnce("<p>Quiet Company</p>")
+        .mockRejectedValueOnce(new Error("Company website returned HTTP 503"))
         .mockRejectedValueOnce(
           new DOMException("Site timed out", "TimeoutError"),
         )
         .mockResolvedValue("<p>Quiet Company</p>"),
       generate: vi
         .fn()
-        .mockRejectedValueOnce(new Error("Provider unavailable"))
         .mockResolvedValueOnce({ text: "invalid JSON", costUsd: 0.001 })
         .mockResolvedValue({ text: "{}", costUsd: 0 }),
     };
@@ -395,6 +444,80 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     });
     expect(await isPending()).toBe(false);
     expect((await run()).looked).toBe(0);
+  });
+
+  it("requeues only pre-cutover companies with empty lookup facts", async () => {
+    const { workspaceId: id } = await createLookupWorkspace();
+    const old = new Date(1);
+    const cutoff = new Date(2);
+    const recent = new Date(3);
+    const rows = [
+      { key: "empty", enrichedAt: old },
+      {
+        key: "linkedin",
+        enrichedAt: old,
+        linkedinUrl: "https://linkedin.com/company/quiet",
+      },
+      { key: "description", enrichedAt: old, description: "Known" },
+      { key: "industry", enrichedAt: old, industry: "Known" },
+      { key: "size", enrichedAt: old, size: "Known" },
+      { key: "headquarters", enrichedAt: old, headquarters: "Known" },
+      { key: "pending", enrichedAt: null },
+      { key: "recent", enrichedAt: recent },
+    ];
+    await prisma.contactCompany.createMany({
+      data: rows.map((row) => ({
+        ...row,
+        name: row.key,
+        workspaceId: id,
+        lookupFailures: 2,
+      })),
+    });
+    const read = () =>
+      prisma.contactCompany.findMany({
+        where: { workspaceId: id },
+        orderBy: { key: "asc" },
+      });
+    const original = await read();
+    const run = async (...args: string[]) =>
+      (
+        await execFileAsync(
+          "pnpm",
+          [
+            "--filter",
+            "@sokosumi/database",
+            "data-migration:requeue-empty-company-lookups",
+            "--",
+            `--before=${cutoff.toISOString()}`,
+            ...args,
+          ],
+          {
+            cwd: new URL("../../../../", import.meta.url),
+            env: {
+              ...process.env,
+              DATABASE_URL_UNPOOLED: process.env.DATABASE_URL,
+            },
+          },
+        )
+      ).stdout;
+
+    expect(await run()).toContain("Company lookups eligible to requeue: 2");
+    expect(await read()).toEqual(original);
+    expect(await run("--apply")).toContain("Company lookups requeued: 2");
+    expect(await read()).toEqual(
+      original.map((row) =>
+        row.key === "empty" || row.key === "linkedin"
+          ? { ...row, enrichedAt: null, lookupFailures: 0 }
+          : row,
+      ),
+    );
+    await prisma.contactCompany.updateMany({
+      where: { workspaceId: id, key: "empty" },
+      data: { enrichedAt: recent },
+    });
+    const afterLookup = await read();
+    expect(await run("--apply")).toContain("Company lookups requeued: 0");
+    expect(await read()).toEqual(afterLookup);
   });
 
   it("lets a Soko Bot find a company and read its people compactly", async () => {

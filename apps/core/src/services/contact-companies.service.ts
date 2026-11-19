@@ -701,8 +701,9 @@ const defaultLookupDeps: CompanyLookupDeps = {
 /**
  * Reads the website of up to `limit` companies with a lookup due, biggest
  * first, and fills their empty facts. One page and one small model call per
- * company per run; a failed lookup stays due for a later run until it hits
- * the attempt limit. A fact someone wrote meanwhile always wins.
+ * company per run; a site failure stays due until it hits the attempt limit.
+ * A model-call failure ends the workspace pass and leaves the site due.
+ * A fact someone wrote meanwhile always wins.
  */
 export async function enrichCompanies(
   workspaceId: string,
@@ -743,11 +744,29 @@ export async function enrichCompanies(
         await deps.fetchPage(row.website ?? `https://${row.domain}`),
       );
       if (page.linkedinUrl) facts.linkedinUrl = page.linkedinUrl;
-      const answer = await deps.generate({
-        system: SITE_PROMPT,
-        prompt: `<site domain="${row.domain ?? row.website}">\n${page.text}\n</site>`,
-        maxOutputTokens: 800,
-      });
+      let answer: Awaited<ReturnType<CompanyLookupDeps["generate"]>>;
+      try {
+        answer = await deps.generate({
+          system: SITE_PROMPT,
+          prompt: `<site domain="${row.domain ?? row.website}">\n${page.text}\n</site>`,
+          maxOutputTokens: 800,
+        });
+      } catch (error) {
+        if (!(error instanceof AiGatewayBudgetError))
+          emitCoreWarning(
+            {
+              operation: "contact_company_lookup",
+              workspace: { id: workspaceId },
+            },
+            {
+              message: "Could not run the company lookup model",
+              why: "The model request failed before returning an answer",
+              fix: "Check the AI Gateway or provider configuration if it repeats. The next capture run picks up the pending companies.",
+            },
+            { failure: messageSafeErrorFields(error) },
+          );
+        break;
+      }
       result.costUsd += answer.costUsd;
       const parsed = parseJsonObject(answer.text, siteAnswerSchema);
       if (!parsed) throw new Error("Invalid company lookup response");
@@ -773,7 +792,6 @@ export async function enrichCompanies(
         data: { lookupFailures: { increment: 1 } },
         select: { lookupFailures: true },
       });
-      if (error instanceof AiGatewayBudgetError) break;
       // Runs in the contact capture cron. The page and the model answer are
       // the company's site text, so content-free metadata only.
       if (failed?.lookupFailures === MAX_LOOKUP_ATTEMPTS)
