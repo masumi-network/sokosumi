@@ -8826,6 +8826,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             why?: string;
             role?: 'main' | 'side';
             buyer?: string;
+            setByOwner?: boolean;
         }>;
         idea?: {
             who: string;
@@ -8856,6 +8857,7 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             level: 'steady' | 'active' | 'all_in';
             why: string;
             perWeek: number;
+            setByOwner?: boolean;
         };
         ads?: {
             monthly: number;
@@ -9150,6 +9152,7 @@ export type MarketingStrategyRequest = {
             why?: string;
             role?: 'main' | 'side';
             buyer?: string;
+            setByOwner?: boolean;
         }>;
         idea?: {
             who: string;
@@ -9180,6 +9183,7 @@ export type MarketingStrategyRequest = {
             level: 'steady' | 'active' | 'all_in';
             why: string;
             perWeek: number;
+            setByOwner?: boolean;
         };
         ads?: {
             monthly: number;
@@ -13975,6 +13979,7 @@ export type CmoPlan = {
         why?: string;
         role?: 'main' | 'side';
         buyer?: string;
+        setByOwner?: boolean;
     }>;
     idea?: {
         who: string;
@@ -14005,6 +14010,7 @@ export type CmoPlan = {
         level: 'steady' | 'active' | 'all_in';
         why: string;
         perWeek: number;
+        setByOwner?: boolean;
     };
     ads?: {
         monthly: number;

@@ -24,7 +24,7 @@ import type { SokoBotSkill } from "./skills.js";
 const REVISIONS: readonly (readonly [string, string])[] = [
   [
     "Every first strategy is all_in; the owner lowers it with one tap. Once the owner picks a pace, keep it in every later strategy.",
-    "Every strategy is all_in, also a new one written over an approved month: the plan the owner buys decides how much of it is made, and a bigger plan makes more of the same month. So every main network takes its top rate (three a day on X, two on LinkedIn, Facebook and Instagram) and every side channel three a week; never lower the pace or a cadence, also not to clear a problem the review names.",
+    'Every strategy is all_in, also a new one written over an approved month: the plan the owner buys decides how much of it is made, and a bigger plan makes more of the same month. So every main network takes its top rate (three a day on X, two on LinkedIn, Facebook and Instagram) and every side channel three a week; never lower the pace or a cadence, also not to clear a problem the review names. Only the owner lowers them, by asking for less ("only 1 a day on LinkedIn", "post less on X"): then set exactly what they asked, on what they named, and keep it in every later strategy; Core marks it as theirs.',
   ],
   [
     "a side channel gets two or three a week whatever the pace",

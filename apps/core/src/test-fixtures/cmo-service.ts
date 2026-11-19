@@ -26,6 +26,8 @@ export const projectFindUnique = vi.fn();
 export const projectFindFirst = vi.fn();
 export const projectUpdate = vi.fn();
 export const turnFindFirst = vi.fn();
+/** The turn a save runs in; null unless a test gives its message. */
+export const turnFindUnique = vi.fn();
 export const toolCallFindMany = vi.fn();
 export const toolCallFindFirst = vi.fn();
 export const connectionFindMany = vi.fn();
@@ -263,7 +265,7 @@ const client = {
     update: subscriptionUpdate,
   },
   workspace: { findUnique: workspaceFindUnique },
-  sokoBotTurn: { findFirst: turnFindFirst },
+  sokoBotTurn: { findFirst: turnFindFirst, findUnique: turnFindUnique },
   sokoBotToolCall: { findMany: toolCallFindMany, findFirst: toolCallFindFirst },
   projectSocialConnection: { findMany: connectionFindMany },
   socialPost: {

@@ -29,6 +29,9 @@ import {
   cmoReplySafety,
   cmoSideChannelFit,
   cmoStrategyRules,
+  cmoTopVolumeProblems,
+  cmoWithOwnerPace,
+  isTopVolumeProblem,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
@@ -1497,9 +1500,9 @@ describe("a cmo-v5 month at the top volume, whose funnel says what it plans", ()
     const found = problems(nmkr);
     expect(found).toEqual(
       expect.arrayContaining([
-        "pace is steady; write every strategy all_in: the plan the owner buys decides how much of it is made. Never lower the pace or a cadence to clear another problem.",
-        'x has the cadence "1 a day"; at the top volume a main x takes 3 a day. Set it and plan its pieces.',
-        'linkedin has the cadence "1 a day"; at the top volume a main linkedin takes 2 a day. Set it and plan its pieces.',
+        "pace is steady; write every strategy all_in: the plan the owner buys decides how much of it is made. Only the owner lowers the pace or a cadence; never lower one on your own, also not to clear another problem.",
+        'x has the cadence "1 a day"; at the top volume a main x takes 3 a day. Set it and plan its pieces, unless the owner asked for less.',
+        'linkedin has the cadence "1 a day"; at the top volume a main linkedin takes 2 a day. Set it and plan its pieces, unless the owner asked for less.',
         'leftOut leaves youtube out for its account ("The account has been quiet for about two years."); a quiet or missing account is never a reason, you make it active. Plan youtube.',
         'leftOut leaves tiktok out for its audience ("TikTok is built for younger consumer discovery, not Cardano project buyers."); short how-to videos fit company buyers and builders too. Plan tiktok with the cadence "1 a week" and list it in every talking video\'s alsoOn.',
         "the funnel's awareness stage names youtube, which leftOut leaves out; take it out of the funnel, or plan it.",
@@ -1589,5 +1592,121 @@ describe("a cmo-v5 month at the top volume, whose funnel says what it plans", ()
         ),
       ),
     ).toEqual([]);
+  });
+});
+
+describe("a pace or cadence only the owner lowers", () => {
+  type Channel = MarketingStrategyPlan["channels"][number];
+  const channel = (key: string, cadence: string, role: "main" | "side") =>
+    ({ channel: key, cadence, role }) as Channel;
+  const top = plan({
+    pace: { level: "all_in", why: "Reach", perWeek: 40 },
+    channels: [
+      channel("x", "3 a day", "main"),
+      channel("linkedin", "2 a day", "main"),
+      channel("instagram", "3 a week", "side"),
+    ],
+  });
+  const lower = (patch: Partial<MarketingStrategyPlan>) =>
+    plan({ ...top, ...patch });
+  const linkedinOnce = lower({
+    pace: { level: "active", why: "Owner's choice", perWeek: 30 },
+    channels: [
+      channel("x", "3 a day", "main"),
+      channel("linkedin", "1 a day", "main"),
+      channel("instagram", "3 a week", "side"),
+    ],
+  });
+
+  it("keeps what the owner asked for in this turn, on the network they named", () => {
+    const saved = cmoWithOwnerPace(
+      linkedinOnce,
+      top,
+      "Only 1 a day on LinkedIn, please.",
+    );
+    expect(saved.pace?.setByOwner).toBe(true);
+    expect(
+      saved.channels.map((item) => [item.channel, item.setByOwner ?? false]),
+    ).toEqual([
+      ["x", false],
+      ["linkedin", true],
+      ["instagram", false],
+    ]);
+    expect(cmoTopVolumeProblems(saved)).toEqual([]);
+  });
+
+  it("refuses the same lower pace when Cuso lowers it on his own", () => {
+    const saved = cmoWithOwnerPace(
+      { ...linkedinOnce, pace: { ...linkedinOnce.pace!, setByOwner: true } },
+      top,
+      null,
+    );
+    expect(cmoTopVolumeProblems(saved)).toEqual([
+      "pace is active; write every strategy all_in: the plan the owner buys decides how much of it is made. Only the owner lowers the pace or a cadence; never lower one on your own, also not to clear another problem.",
+      'linkedin has the cadence "1 a day"; at the top volume a main linkedin takes 2 a day. Set it and plan its pieces, unless the owner asked for less.',
+    ]);
+  });
+
+  it("keeps an earlier owner's choice while it stays as they set it", () => {
+    const owners = cmoWithOwnerPace(linkedinOnce, top, "post less on LinkedIn");
+    expect(
+      cmoTopVolumeProblems(cmoWithOwnerPace(owners, owners, null)),
+    ).toEqual([]);
+    const lowerStill = lower({
+      ...owners,
+      channels: [
+        channel("x", "1 a day", "main"),
+        { ...channel("linkedin", "1 a day", "main"), setByOwner: true },
+        channel("instagram", "3 a week", "side"),
+      ],
+    });
+    expect(
+      cmoTopVolumeProblems(cmoWithOwnerPace(lowerStill, owners, null)),
+    ).toEqual([
+      'x has the cadence "1 a day"; at the top volume a main x takes 3 a day. Set it and plan its pieces, unless the owner asked for less.',
+    ]);
+  });
+
+  it("reads 'post less on X' as X, and a request naming no network as all of them", () => {
+    const xLess = lower({
+      channels: [
+        channel("x", "1 a day", "main"),
+        channel("linkedin", "1 a day", "main"),
+        channel("instagram", "3 a week", "side"),
+      ],
+    });
+    expect(
+      cmoWithOwnerPace(xLess, top, "post less on X").channels.map(
+        (item) => item.setByOwner ?? false,
+      ),
+    ).toEqual([true, false, false]);
+    expect(
+      cmoWithOwnerPace(
+        xLess,
+        top,
+        "Can we post a bit less overall?",
+      ).channels.map((item) => item.setByOwner ?? false),
+    ).toEqual([true, true, false]);
+    expect(
+      cmoWithOwnerPace(xLess, top, "Add a post about our launch").channels.map(
+        (item) => item.setByOwner ?? false,
+      ),
+    ).toEqual([false, false, false]);
+  });
+
+  it("holds a new month to the top volume whatever the month before had", () => {
+    const old = lower({
+      channels: [channel("x", "13 posts a week", "main")],
+      calendar: [entry("x1", "x", "post")],
+    });
+    const options = { everyNetwork: true, weekly: true, aida: true };
+    const volume = (fresh: boolean) =>
+      cmoPlanProblemsSince(old, old, { ...options, fresh }).filter(
+        isTopVolumeProblem,
+      );
+    expect(volume(false)).toEqual([]);
+    expect(volume(true)).toEqual([
+      'x has the cadence "13 posts a week"; at the top volume a main x takes 3 a day. Set it and plan its pieces, unless the owner asked for less.',
+    ]);
   });
 });
