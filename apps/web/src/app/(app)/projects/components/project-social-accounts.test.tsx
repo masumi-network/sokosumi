@@ -57,7 +57,7 @@ const MESSAGES: Record<string, string> = {
   "choose.description":
     "Your {provider} sign-in reaches more than one account. Posts go out as the one you choose.",
   "choose.listLabel": "Accounts",
-  "choose.page": "Company Page",
+  "choose.page": "Company page",
   "choose.profile": "Your personal profile",
   "choose.cancel": "Cancel",
   "choose.confirm": "Connect",
@@ -649,7 +649,7 @@ describe("ProjectSocialAccounts", () => {
       const options = within(dialog).getAllByRole("radio");
       expect(
         options.map((option) => option.closest("label")?.textContent),
-      ).toEqual(["Acme RocketsCompany Page", "Alice DoeYour personal profile"]);
+      ).toEqual(["Acme RocketsCompany page", "Alice DoeYour personal profile"]);
       expect(
         options.every(
           (option) =>

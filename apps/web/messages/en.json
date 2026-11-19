@@ -2891,7 +2891,7 @@
           "title": "Which account?",
           "description": "Your {provider} sign-in reaches more than one account. Posts go out as the one you choose.",
           "listLabel": "Accounts",
-          "page": "Company Page",
+          "page": "Company page",
           "profile": "Your personal profile",
           "cancel": "Cancel",
           "confirm": "Connect"
