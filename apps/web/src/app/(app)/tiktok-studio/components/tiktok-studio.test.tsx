@@ -547,6 +547,81 @@ describe("TikTokStudio", () => {
       expect(historyCalls()).toHaveLength(1);
     });
 
+    it("reconciles a selected older video through playback without reloading terminal history", {
+      timeout: 12_000,
+    }, async () => {
+      const recent = {
+        jobs: [job("recent", "SUCCEEDED")],
+        assets: [],
+        hasMore: true,
+      };
+      const script = "Archived espresso lesson";
+      let readActive = false;
+      let settled = false;
+      let terminalPageReads = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string) => {
+          const before = new URL(url, "http://localhost").searchParams.get(
+            "beforeId",
+          );
+          if (before === "recent") {
+            terminalPageReads++;
+            return Response.json({
+              jobs: [job("terminal", "FAILED")],
+              assets: [],
+              hasMore: true,
+            });
+          }
+          if (before === "terminal") {
+            readActive = true;
+            return Response.json({
+              jobs: [job("active", settled ? "SUCCEEDED" : "RUNNING", script)],
+              assets: settled ? [asset("active")] : [],
+              hasMore: false,
+            });
+          }
+          if (readActive) {
+            settled = true;
+            return Response.json({
+              ...recent,
+              jobs: [job("new-anchor", "SUCCEEDED")],
+            });
+          }
+          return Response.json(recent);
+        }),
+      );
+      render(
+        <TestQueryProvider>
+          <SearchablePageContent>
+            <TikTokStudio
+              catalog={CATALOG}
+              initialVideos={recent}
+              hasWebsite={false}
+              projectId="project-1"
+              readOnly
+            />
+          </SearchablePageContent>
+        </TestQueryProvider>,
+      );
+      const field = screen.getByRole("searchbox");
+      fireEvent.change(field, { target: { value: "espresso" } });
+      fireEvent.click(
+        await screen.findByRole("button", {
+          name: /videoMaking.*Archived espresso/,
+        }),
+      );
+      fireEvent.change(field, { target: { value: "" } });
+      expect(
+        await screen.findByLabelText(
+          script,
+          { selector: "video" },
+          { timeout: 6500 },
+        ),
+      ).toBeInTheDocument();
+      expect(terminalPageReads).toBe(1);
+    });
+
     it("cancels the pending history request when the search is cleared", async () => {
       const recent = {
         jobs: [job("latest", "SUCCEEDED")],

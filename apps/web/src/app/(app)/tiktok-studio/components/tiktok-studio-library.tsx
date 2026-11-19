@@ -17,6 +17,8 @@ import {
   type TalkingVideoAsset,
 } from "./tiktok-studio-stage";
 
+import { talkingVideoSearchFields } from "./use-talking-video-history";
+
 /**
  * Every video of the project in one row, each with its state; choosing one
  * shows it on the stage. It leads the page, so a returning owner sees what
@@ -42,10 +44,7 @@ export function TikTokStudioLibrary({
   retryHistory?: () => void;
 }) {
   const t = useTranslations("App.TikTokStudio");
-  const visibleJobs = usePageListSearch(jobs, (job) => ({
-    primary: [job.prompt, job.id],
-    secondary: [job.status, job.model, job.kind],
-  }));
+  const visibleJobs = usePageListSearch(jobs, talkingVideoSearchFields);
   const format = useFormatter();
   return (
     <section aria-label={t("videos")} className={cn(HOLDER_CLASS, "min-w-0")}>

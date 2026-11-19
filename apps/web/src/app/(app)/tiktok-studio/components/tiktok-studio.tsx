@@ -130,9 +130,6 @@ export function TikTokStudio({
   const brollId = useId();
   const makeHintId = useId();
   const queryClient = useQueryClient();
-  const videos = useTalkingVideoHistory(projectId, initialVideos);
-  const queryKey = videos.queryKey;
-
   const [script, setScript] = useState("");
   const [presenterId, setPresenterId] = useState(
     catalog.presenters[0]?.id ?? OWN_PHOTO,
@@ -167,6 +164,8 @@ export function TikTokStudio({
       initialVideos.jobs.find((job) => ACTIVE_STATUSES.has(job.status))?.id ??
       null,
   );
+  const videos = useTalkingVideoHistory(projectId, initialVideos, stageJobId);
+  const queryKey = videos.queryKey;
   /** What the stage player found for each finished video's file, by asset. */
   const [playback, setPlayback] = useState<Record<string, Playback>>({});
   const stage = useRef<HTMLElement>(null);
@@ -211,7 +210,10 @@ export function TikTokStudio({
   function showOnStage(jobId: string | null) {
     // Render first: on a phone the stage moves to the top when it shows a
     // video, and a scroll before that lands where it used to be.
-    flushSync(() => setStageJobId(jobId));
+    flushSync(() => {
+      videos.pinSelection(jobId);
+      setStageJobId(jobId);
+    });
     stage.current?.scrollIntoView({ block: "nearest" });
   }
 
