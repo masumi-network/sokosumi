@@ -1,0 +1,186 @@
+import { describe, expect, it } from "vitest";
+import {
+  CMO_AIDA_STAGES,
+  marketingStrategyPlanSchema,
+} from "../project-marketing.js";
+import {
+  CMO_SOKO_BOT_VERSION_ID,
+  CMO_SOKO_BOT_VERSION_IDS,
+  getSokoBotSkill,
+  getSokoBotVersion,
+} from "../versions/index.js";
+
+const v4 = getSokoBotVersion("cmo-v4");
+const v5 = getSokoBotVersion("cmo-v5");
+const skill = getSokoBotSkill("cmo-strategy-every-network")?.content ?? "";
+const before = getSokoBotSkill("cmo-strategy-weekly")?.content ?? "";
+
+const plan = (funnel: object[]) =>
+  marketingStrategyPlanSchema.parse({
+    month: "2026-10",
+    summary: "Grow LinkedIn reach with founder-led posts.",
+    goals: ["More demo requests"],
+    pillars: ["Product stories"],
+    channels: [{ channel: "LinkedIn", cadence: "3 posts a week" }],
+    calendar: [],
+    funnel,
+  });
+
+const stage = (stage: string, extra: object = {}) => ({
+  stage,
+  goal: "Teams see a launch story",
+  metric: "Profile visits",
+  ...extra,
+});
+
+describe("cmo-v5", () => {
+  it("is the version a new hire gets, and cmo-v4 in everything but its strategy skill", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v5");
+    expect(CMO_SOKO_BOT_VERSION_IDS).toContain("cmo-v4");
+    expect(v5.systemPrompt).toBe(v4.systemPrompt);
+    expect(v5.capabilities).toEqual(v4.capabilities);
+    expect(v5.model).toBe(v4.model);
+    expect(v5.skills).toEqual(
+      v4.skills.map((id) =>
+        id === "cmo-strategy-patches" ? "cmo-strategy-every-network" : id,
+      ),
+    );
+  });
+
+  it("asks for the funnel in AIDA's four stages, with Cuso's part and the owner's", () => {
+    expect(CMO_AIDA_STAGES).toEqual([
+      "awareness",
+      "interest",
+      "desire",
+      "action",
+    ]);
+    expect(skill).toContain("always all four and in this order");
+    for (const name of CMO_AIDA_STAGES) expect(skill).toContain(`${name} (`);
+    expect(skill).toContain("cusoDoes");
+    expect(skill).toContain("youDo");
+    // The stages and the own names Cuso wrote before are gone from his skill.
+    expect(skill).not.toMatch(/consideration|conversion and|loyalty/);
+    expect(skill).not.toContain("name in the buyer's words");
+    expect(before).toContain("name in the buyer's words");
+  });
+
+  it("plans every live social network, with or without an account", () => {
+    expect(skill).toContain(
+      "every live social network in the menu is in the strategy, whether the business has an account there or not",
+    );
+    expect(skill).toContain("Never put a social network in proposals");
+    expect(skill).toContain("leftOut");
+    expect(skill).toContain(
+      "they wait finished until the account is connected",
+    );
+    // The rule it replaces: networks without an account, two at most.
+    expect(skill).not.toContain("at most two (LinkedIn");
+    expect(skill).not.toContain("a network with no profile in the Brand Brain");
+    expect(before).toContain("at most two (LinkedIn");
+  });
+
+  it("sends a talking video to every network that takes one, YouTube among them", () => {
+    expect(skill).toContain(
+      "list every other network in the strategy that takes a talking_video in its alsoOn",
+    );
+    expect(skill).toContain(
+      'YouTube and TikTok take only video: each is in channels with the cadence "1 a week"',
+    );
+  });
+
+  it("keeps cmo-v3's pace per network, its roles and its week by week saves", () => {
+    for (const kept of [
+      "all_in: three a day on X and two a day on LinkedIn, Facebook and Instagram",
+      "a side channel gets two or three a week whatever the pace",
+      "save week one with part calendar, then each later week with part patch",
+      "plan at most four a month",
+    ])
+      expect(skill).toContain(kept);
+  });
+
+  it("plans no ads until the owner said yes, and asks no question about them", () => {
+    const ads = skill.split("\n").find((line) => line.startsWith("- ads: "));
+    expect(ads).toContain(
+      "the owner decides, with a Yes or No on the strategy",
+    );
+    expect(ads).toContain(
+      "monthly is 0: there is no ads channel, no ad in the calendar and nothing about ads in the funnel",
+    );
+    expect(ads).toContain("suggest");
+    expect(skill).toContain("Never ask about ads or an ad budget");
+    // What it replaces: an amount recommended in every strategy, and a question about it.
+    expect(skill).not.toContain("so always recommend an amount");
+    expect(skill).not.toContain("Do you want to try Google Ads with about");
+    expect(before).toContain("so always recommend an amount");
+    const saved = plan([]);
+    expect(
+      marketingStrategyPlanSchema.parse({
+        ...saved,
+        ads: {
+          monthly: 0,
+          currency: "CHF",
+          expect: "20 to 40 clicks a month",
+          without: "Posts and search bring the calls",
+          suggest: { channel: "Google_Ads", monthly: 600 },
+        },
+      }).ads?.suggest,
+    ).toEqual({ channel: "google_ads", monthly: 600 });
+  });
+
+  it("never asks whether the owner can count or share something", () => {
+    expect(skill).toContain(
+      'never "Can you count new account starts each week?"',
+    );
+  });
+
+  it("shows everything Cuso does in the funnel, the weekly SEO work included", () => {
+    expect(skill).toContain(
+      "The funnel shows everything you do and nothing you do not",
+    );
+    expect(skill).toContain("one play with channel seo");
+    expect(skill).toContain("ads only once the owner said yes");
+  });
+
+  it("leaves a network out with its reason, on the saved strategy", () => {
+    const saved = plan([]);
+    expect(saved.leftOut).toEqual([]);
+    expect(
+      marketingStrategyPlanSchema.parse({
+        ...saved,
+        leftOut: [{ channel: "X", why: "Diners do not look for lunch on X." }],
+      }).leftOut,
+    ).toEqual([{ channel: "x", why: "Diners do not look for lunch on X." }]);
+  });
+
+  it("saves a stage with what Cuso does and what the owner does, without a name", () => {
+    const { funnel } = plan(
+      CMO_AIDA_STAGES.map((name) =>
+        stage(name, {
+          cusoDoes: "I post a launch story a day on LinkedIn.",
+          youDo: "You answer demo requests within a day.",
+        }),
+      ),
+    );
+    expect(funnel.map((item) => item.stage)).toEqual(CMO_AIDA_STAGES);
+    expect(funnel[0]).toMatchObject({
+      cusoDoes: "I post a launch story a day on LinkedIn.",
+      youDo: "You answer demo requests within a day.",
+    });
+    expect(funnel[0]?.name).toBeUndefined();
+  });
+
+  it("still reads a funnel saved before cmo-v5", () => {
+    const { funnel } = plan([
+      stage("awareness", { name: "Hear about us" }),
+      stage("consideration", { name: "Look closer" }),
+      stage("conversion", { name: "Start a trial" }),
+      stage("loyalty", { name: "Come back" }),
+    ]);
+    expect(funnel.map((item) => item.name)).toEqual([
+      "Hear about us",
+      "Look closer",
+      "Start a trial",
+      "Come back",
+    ]);
+  });
+});
