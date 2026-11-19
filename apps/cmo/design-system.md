@@ -74,7 +74,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 ## Elevation and motion
 
-- Hard shadows are the only elevation, in two sizes, and only on what you can act on. Every button, chip and input casts the 4px shadow, and so do the account card, a step you can go back to, the page you are on and every tab, filter, pace and plan of a set, picked or not. The 6px shadow marks the hire screen's button and the post that is open on the Calendar, which is a button. A post card on the Calendar takes the 4px shadow on hover. Every card that is not itself a button is flat, whatever it holds: the question card, the Launch accounts list, an approval waiting, a source or network not connected. Tags, badges, labels, pictures, Cuso's stage, sheets, report cards and info cards are flat too.
+- Hard shadows are the only elevation, in two sizes, and only on what you can act on. Every button, chip and input casts the 4px shadow, and so do the account card, the page you are on and every tab, filter, pace and plan of a set, picked or not. The 6px shadow marks the hire screen's button and the post that is open on the Calendar, which is a button. A post card on the Calendar takes the 4px shadow on hover. Every card that is not itself a button is flat, whatever it holds: the question card, the Launch accounts list, an approval waiting, a source or network not connected. Tags, badges, labels, pictures, Cuso's stage, sheets, report cards and info cards are flat too.
 - An inset 1px hairline (`inset 0 0 0 1px`) is a line, not a shadow, and is allowed where a border would shift layout.
 - **Pressed:** the shadowed element moves right and down by its own offset (4px, or 6px for the hire button) and drops its shadow, as if pushed flat.
 - Transitions are 150ms on colour and transform only, off under `prefers-reduced-motion`. Onboarding adds three entrances, transform and opacity only: each piece of a step settles in after the one above it (450ms), a sheet rises from the bottom (400ms), and Cuso pops in.
@@ -85,7 +85,7 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Header (onboarding).** Logo left, step markers centre, the site chip right (a pill: green 8px dot with a line edge, then the domain). A 3px ink line below, 14px 32px padding.
 
-**Step marker.** A pill, small 600, "1 Research". Current: Iris fill, 2px ink line, `aria-current="step"`; flat as a label. Done: check icon, 2px ink line, text colour. Any step that is a button (it goes back to that step) takes the 2px ink line and the 4px shadow. Not yet: no line, muted text. Five steps: Research, Brand, Plan, Subscribe, Launch.
+**Step marker.** One calm row, small 600, "1 Research". Only the current step is a pill: Iris fill, 2px ink line, `aria-current="step"`, flat as a label. Done and not yet are the same plain label with no line: a check and the text colour, or the number and muted text. A step that goes back to its screen is a link: its name underlined, a panel fill on hover, no line and no shadow, so it is never heavier than the step you are on. On a phone, where only the current step keeps its name, a step to go back to stands on the panel fill instead. Five steps: Research, Brand, Plan, Subscribe, Launch.
 
 **Buttons.** 44px high, 12px radius, body 600, 0 18px.
 
