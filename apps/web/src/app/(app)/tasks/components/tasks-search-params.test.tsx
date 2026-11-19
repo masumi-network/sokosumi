@@ -4,14 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { saveTasksViewMock, routerReplaceMock, searchParamsRef } = vi.hoisted(
   () => ({
-    saveTasksViewMock: vi.fn(async (_query: string) => undefined),
+    saveTasksViewMock: vi.fn(
+      async (_query: string, _organizationId: string | null) => undefined,
+    ),
     routerReplaceMock: vi.fn(),
     searchParamsRef: { current: new URLSearchParams() },
   }),
 );
 
 vi.mock("@/app/tasks/actions", () => ({
-  saveTasksView: (query: string) => saveTasksViewMock(query),
+  saveTasksView: (query: string, organizationId: string | null) =>
+    saveTasksViewMock(query, organizationId),
 }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParamsRef.current,
@@ -88,6 +91,7 @@ describe("replaceTasksQuery", () => {
     );
     expect(saveTasksViewMock).toHaveBeenCalledExactlyOnceWith(
       "scope=owned&stuck=1",
+      "org-c",
     );
   });
 

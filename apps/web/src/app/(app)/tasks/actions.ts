@@ -174,7 +174,16 @@ export async function loadMoreTasksList({
  * Saves the reader's Tasks view. Only the view keys reach Core, whatever
  * the client sent.
  */
-export async function saveTasksView(query: string): Promise<void> {
+export async function saveTasksView(
+  query: string,
+  pageOrganizationId: string | null,
+): Promise<void> {
+  // Core saves to the session's workspace. Another tab can switch it after
+  // this page loaded; then the view belongs to a different workspace.
+  const session = await getSession();
+  if ((session?.session.activeOrganizationId ?? null) !== pageOrganizationId) {
+    return;
+  }
   await taskService.saveTasksViewQuery(
     pickTasksViewQuery(new URLSearchParams(query)),
   );

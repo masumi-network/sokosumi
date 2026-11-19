@@ -12,6 +12,9 @@ const getTasksColumnPageMock = vi.fn(async (_params: { sort?: string }) => ({
   total: 0,
 }));
 
+const URL_PROJECT_ID = "33333333-3333-4333-8333-333333333333";
+const SAVED_PROJECT_ID = "44444444-4444-4444-8444-444444444444";
+
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 vi.mock("next/server", () => ({ connection: () => connectionMock() }));
@@ -25,7 +28,10 @@ vi.mock("@/lib/services/coworker.service", () => ({
 vi.mock("@/lib/services/project.service", () => ({
   projectService: {
     listProjects: async () => ({ projects: [] }),
-    getProjectById: async () => null,
+    getProjectById: async (id: string) =>
+      id === URL_PROJECT_ID || id === SAVED_PROJECT_ID
+        ? { id, name: "Project", logo: null, designMd: null }
+        : null,
   },
 }));
 vi.mock("@/lib/services/soko-bot.service", () => ({
@@ -137,17 +143,18 @@ describe("loadTasksPageData", () => {
   it("opens the saved view when the URL names none, and keeps the URL's project", async () => {
     getSessionResultMock.mockResolvedValue(ok(SESSION));
     getSavedTasksViewQueryMock.mockResolvedValue(
-      "status=READY&sort=priority&projectId=saved-project",
+      `status=READY&sort=priority&projectId=${SAVED_PROJECT_ID}`,
     );
 
     const data = await load("list", {
-      filterParams: { projectId: "url-project" },
+      filterParams: { projectId: URL_PROJECT_ID },
       restoreSavedView: true,
     });
 
     expect(data.activeFilters).toMatchObject({
       status: "READY",
       sort: "priority",
+      projectId: URL_PROJECT_ID,
     });
     expect(data.restoredQuery).toBe(
       "scope=workspace&sort=priority&status=READY",

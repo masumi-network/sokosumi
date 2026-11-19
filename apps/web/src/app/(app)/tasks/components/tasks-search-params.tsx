@@ -121,7 +121,7 @@ export function replaceTasksQuery(
     // Sent before the navigation: a navigation lets an action already sent
     // finish, but holds a later one back until the new board has loaded.
     // Server actions run one at a time, so the last change is the last save.
-    saveTasksView(viewQuery).catch((error: unknown) => {
+    saveTasksView(viewQuery, activeOrganizationId).catch((error: unknown) => {
       if (lastSavedViewByWorkspace.get(key) === viewQuery) {
         lastSavedViewByWorkspace.delete(key);
       }

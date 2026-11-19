@@ -8,6 +8,7 @@ const resolveEffectiveDesignMdMock = vi.fn();
 const getTasksColumnPageMock = vi.fn();
 const getTasksListPageMock = vi.fn();
 const getSessionMock = vi.fn();
+const saveTasksViewQueryMock = vi.fn(async (_query: string) => undefined);
 const listTaskAssigneeOptionsMock = vi.fn();
 const listTaskScheduleAssigneeOptionsMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
@@ -63,6 +64,12 @@ vi.mock("./utils/task-schedule-assignee-options", () => ({
   listTaskScheduleAssigneeOptions: () => listTaskScheduleAssigneeOptionsMock(),
 }));
 
+vi.mock("@/lib/services/task.service", () => ({
+  taskService: {
+    saveTasksViewQuery: (query: string) => saveTasksViewQueryMock(query),
+  },
+}));
+
 vi.mock("@/lib/helpers/project-filter-options", () => ({
   getProjectFilterOptions: (...args: unknown[]) =>
     getProjectFilterOptionsMock(...args),
@@ -76,6 +83,7 @@ import {
   loadNewTaskWizardOptions,
   loadTaskScheduleDialogOptions,
   previewTasksExport,
+  saveTasksView,
 } from "./actions";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
@@ -663,5 +671,28 @@ describe("exportTasks", () => {
     expect(rows.map((row) => row.name)).toEqual(["Task 0", "Task 1", "Task 2"]);
     expect(matched).toBe(1500);
     expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("saveTasksView", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+    });
+  });
+
+  it("saves only the view keys for the page's workspace", async () => {
+    await saveTasksView(`status=READY&projectId=${PROJECT_ID}`, "org-1");
+
+    expect(saveTasksViewQueryMock).toHaveBeenCalledExactlyOnceWith(
+      "status=READY",
+    );
+  });
+
+  it("drops the save after another tab switched the workspace", async () => {
+    await saveTasksView("status=READY", "org-2");
+
+    expect(saveTasksViewQueryMock).not.toHaveBeenCalled();
   });
 });

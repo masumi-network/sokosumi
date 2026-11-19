@@ -103,7 +103,8 @@ async function readTasksPageData(
     memberOptions,
   );
   // The saved view fills the view keys the URL left out; the project stays
-  // the URL's. The checks below drop whatever went stale since it was saved.
+  // the URL's. The checks below drop assignees and coworkers that went stale
+  // since it was saved. A deleted tag stays and shows as a removable chip.
   const filters = parseTasksFilters(
     savedView
       ? {
