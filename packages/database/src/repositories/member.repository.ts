@@ -224,8 +224,8 @@ export const memberRepository = {
         include: memberUserInclude,
         orderBy: [...memberOrderBy, { id: "asc" }],
         take: params.take,
-        skip: params.skip,
-        cursor: params.cursor ? { id: params.cursor } : undefined,
+        ...(params.skip !== undefined && { skip: params.skip }),
+        ...(params.cursor && { cursor: { id: params.cursor } }),
       }),
       tx.member.count({ where }),
     ]);

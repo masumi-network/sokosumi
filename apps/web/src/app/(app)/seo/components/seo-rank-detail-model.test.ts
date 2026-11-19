@@ -3,6 +3,7 @@ import {
   seoRankAbsentOthers,
   seoRankDetail,
   seoRankResult,
+  seoRankShownTop,
 } from "./seo-rank-detail-model";
 
 // The lines of a real check (battery-sensei.app, 2026-11-16).
@@ -111,6 +112,14 @@ describe("seoRankResult", () => {
       kind: "other",
       text: "no organic results",
     });
+  });
+});
+
+describe("seoRankShownTop", () => {
+  it("rounds the results read down to a step of five, never up", () => {
+    expect([9, 10, 14, 16, 18, 20, 23].map(seoRankShownTop)).toEqual([
+      9, 10, 10, 15, 15, 20, 20,
+    ]);
   });
 });
 

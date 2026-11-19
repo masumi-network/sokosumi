@@ -423,7 +423,7 @@ export async function leaseNextFileIndexJob(input: {
   const leaseOwner = randomUUID();
 
   const runnable = {
-    pipeline: input.pipeline,
+    ...(input.pipeline !== undefined && { pipeline: input.pipeline }),
     runAfter: { lte: now },
     OR: [
       { state: FileIndexJobState.QUEUED },

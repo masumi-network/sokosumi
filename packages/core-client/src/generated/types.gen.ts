@@ -1985,6 +1985,10 @@ export type Task = {
      */
     ancestors?: Array<TaskAncestor>;
     /**
+     * The SEO page of an SEO analysis Task: its audit (auditId, with the audit's Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.
+     */
+    seoAudit?: TaskSeoAudit | null;
+    /**
      * Statuses the requesting actor may move this task to right now, in display order and excluding the current one. Computed per actor: a user never sees coworker-set statuses such as INPUT_REQUIRED or APPROVAL_REQUIRED. POST /tasks/{id}/events rejects a user status outside this list.
      */
     selectableStatuses: Array<TaskStatus>;
@@ -2500,6 +2504,11 @@ export type TaskAncestor = {
     identifier: string | null;
     name: string;
     status: TaskStatus;
+};
+
+export type TaskSeoAudit = {
+    auditId: string | null;
+    projectId: string | null;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -11650,6 +11659,7 @@ export type ProjectImageStudioCaption = {
 };
 
 export type ProjectSeoWorkspace = {
+    searchConsolePropertyId?: string | null;
     sharing?: 'organization' | 'personal';
     projectId: string | null;
     auditId: string | null;
@@ -12265,6 +12275,8 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    searchConsolePropertyId?: string;
+    allowLimitedAudit?: true;
     setupGoal?: {
         pageId: string;
         expectedRevision: number;
@@ -15707,6 +15719,10 @@ export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof Task
 export type TaskScheduleSeoMonitor = {
     kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
     pageCount: number;
+    /**
+     * The saved audit the monitor owner can open to review a full audit Run.
+     */
+    auditId?: string;
 };
 
 export type TaskScheduleAssignees = {
@@ -15871,6 +15887,8 @@ export type CreateTaskScheduleRunRequest = {
      * Task Schedule revision observed by the caller
      */
     expectedRevision: number;
+    searchConsolePropertyId?: string;
+    allowLimitedAudit?: true;
 };
 
 export type UpdateTaskScheduleRunRequest = {

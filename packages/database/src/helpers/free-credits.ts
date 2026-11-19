@@ -97,7 +97,9 @@ export async function grantFreeCredits(
           amount,
           expiresAt: params.expiresAt,
           organizationId: params.organizationId,
-          projectId: params.projectId,
+          ...(params.projectId !== undefined && {
+            projectId: params.projectId,
+          }),
           referenceId,
           referenceNote: params.referenceNote,
           referenceType: params.referenceType ?? CreditBucketReferenceType.FREE,

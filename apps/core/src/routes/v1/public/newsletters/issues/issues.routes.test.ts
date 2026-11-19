@@ -119,7 +119,7 @@ describe("public newsletter archive", () => {
       where: { publicSlug: NEWSLETTER.publicSlug, ...NEWSLETTER_BETA_SCOPE },
       select: { id: true },
     });
-    expect(m.list).toHaveBeenCalledWith({
+    expect(m.list.mock.lastCall?.[0]).toStrictEqual({
       where: WHERE,
       select: {
         id: true,
@@ -130,8 +130,6 @@ describe("public newsletter archive", () => {
       },
       orderBy: [{ sentAt: "desc" }, { id: "desc" }],
       take: 21,
-      skip: undefined,
-      cursor: undefined,
     });
     expect(m.count).toHaveBeenCalledWith({ where: WHERE });
     expect(m.subscriber).not.toHaveBeenCalled();

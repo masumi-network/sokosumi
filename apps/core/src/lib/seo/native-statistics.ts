@@ -258,8 +258,14 @@ export function gscSearchAnalyticsArguments(
   query: NativeStatisticsQuery,
   dimensions: string[],
   rowLimit: number,
+  operator: "includingRegex" | "equals" = "includingRegex",
 ): Record<string, unknown> {
-  const expression = `^(?:${[...new Set(query.pageUrls)].map(escapeRegex).join("|")})$`;
+  if (operator === "equals" && query.pageUrls.length !== 1)
+    throw new Error("An exact page filter requires one URL");
+  const expression =
+    operator === "equals"
+      ? query.pageUrls[0]!
+      : `^(?:${[...new Set(query.pageUrls)].map(escapeRegex).join("|")})$`;
   if (expression.length > 4096)
     throw new Error("Select fewer pages for this Search Console query");
   return {
@@ -272,9 +278,7 @@ export function gscSearchAnalyticsArguments(
     dimension_filter_groups: [
       {
         groupType: "and",
-        filters: [
-          { dimension: "page", operator: "includingRegex", expression },
-        ],
+        filters: [{ dimension: "page", operator, expression }],
       },
     ],
     row_limit: rowLimit,

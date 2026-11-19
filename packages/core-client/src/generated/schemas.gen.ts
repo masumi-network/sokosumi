@@ -7739,6 +7739,18 @@ export const TaskSchema = {
             example: [],
             description: 'For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.'
         },
+        seoAudit: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskSeoAudit'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'The SEO page of an SEO analysis Task: its audit (auditId, with the audit\'s Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.'
+        },
         selectableStatuses: {
             type: 'array',
             items: {
@@ -9347,6 +9359,30 @@ export const TaskAncestorSchema = {
         'identifier',
         'name',
         'status'
+    ]
+} as const;
+
+export const TaskSeoAuditSchema = {
+    type: 'object',
+    properties: {
+        auditId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        }
+    },
+    required: [
+        'auditId',
+        'projectId'
     ]
 } as const;
 
@@ -43915,6 +43951,12 @@ export const ProjectImageStudioCaptionSchema = {
 export const ProjectSeoWorkspaceSchema = {
     type: 'object',
     properties: {
+        searchConsolePropertyId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         sharing: {
             type: 'string',
             enum: [
@@ -47322,6 +47364,17 @@ export const RequestProjectSeoAnalysisRequestSchema = {
             type: 'number',
             enum: [
                 750
+            ]
+        },
+        searchConsolePropertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        allowLimitedAudit: {
+            type: 'boolean',
+            enum: [
+                true
             ]
         },
         setupGoal: {
@@ -62237,6 +62290,11 @@ export const TaskScheduleSeoMonitorSchema = {
         pageCount: {
             type: 'integer',
             minimum: 0
+        },
+        auditId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The saved audit the monitor owner can open to review a full audit Run.'
         }
     },
     required: [
@@ -62665,6 +62723,17 @@ export const CreateTaskScheduleRunRequestSchema = {
             minimum: 0,
             description: 'Task Schedule revision observed by the caller',
             example: 3
+        },
+        searchConsolePropertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        allowLimitedAudit: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
         }
     },
     required: [

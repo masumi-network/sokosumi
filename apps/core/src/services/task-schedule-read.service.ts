@@ -46,6 +46,7 @@ import type {
   TaskScheduleListQuery,
   TaskScheduleRunListQuery,
 } from "@/schemas/task-schedule.schema";
+import type { TaskDomainActor } from "./task-domain.service";
 
 /**
  * Who reads or changes a schedule: a person, or a Coworker with a GRANTED
@@ -58,6 +59,17 @@ export type TaskScheduleReader =
 export type ScheduleActor = TaskScheduleReader & {
   workspace: WorkspaceContext;
 };
+
+export function toScheduleDomainActor(actor: ScheduleActor): TaskDomainActor {
+  return actor.kind === "user"
+    ? { kind: "user", userId: actor.userId }
+    : {
+        kind: "coworker",
+        coworkerId: actor.coworkerId,
+        vendorId: actor.vendorId,
+        enforceWorkspaceGrant: true,
+      };
+}
 
 export type RouteVars = EnvVariables["Variables"];
 
@@ -357,7 +369,7 @@ export function mapTaskSchedule(schedule: TaskScheduleView) {
       schedule.canWrite &&
       schedule.state !== TaskScheduleState.ENDED &&
       !isSeoMonitorDescription(schedule.description),
-    seoMonitor: seoMonitorSummary(schedule.description),
+    seoMonitor: seoMonitorSummary(schedule.description, schedule.readerIsOwner),
   };
 }
 

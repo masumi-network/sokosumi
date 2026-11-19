@@ -354,6 +354,7 @@ export async function findNeedsActionNotificationIds(
 
   const taskIds = referenceIdsFor(TASK_INPUT_REQUIRED_MESSAGE_KEY);
   const jobIds = referenceIdsFor(JOB_INPUT_REQUIRED_MESSAGE_KEY);
+  const projectWhere = projectId === undefined ? {} : { projectId };
   const grantIds = projectId
     ? []
     : referenceIdsFor(VENDOR_GRANT_PENDING_MESSAGE_KEY);
@@ -369,7 +370,7 @@ export async function findNeedsActionNotificationIds(
             where: {
               id: { in: taskIds },
               status: TaskStatus.INPUT_REQUIRED,
-              projectId,
+              ...projectWhere,
               ...(exceptTasksIn
                 ? { NOT: coveredTaskWhere(exceptTasksIn) }
                 : {}),
@@ -379,7 +380,7 @@ export async function findNeedsActionNotificationIds(
       jobIds.length === 0
         ? []
         : prisma.job.findMany({
-            where: { id: { in: jobIds }, projectId },
+            where: { id: { in: jobIds }, ...projectWhere },
             select: { id: true, ...jobForStatusComputeSelect },
           }),
       grantIds.length === 0

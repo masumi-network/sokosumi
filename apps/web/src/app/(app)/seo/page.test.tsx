@@ -185,6 +185,33 @@ describe("native SEO audit entry", () => {
     expect(m.coworkers).not.toHaveBeenCalled();
   });
 
+  it("loads a channel only on Traffic and drops a stale one from the URL", async () => {
+    m.getWorkspace.mockResolvedValue({
+      ...seoTestWorkspace(),
+      auditId: SEO_TEST_AUDIT,
+    });
+    const open = { auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT };
+    await expect(
+      SeoPage({ searchParams: Promise.resolve({ ...open, channel: "all" }) }),
+    ).rejects.toMatchObject({
+      digest: expect.stringContaining(
+        `/seo?auditId=${SEO_TEST_AUDIT}&projectId=${SEO_TEST_PROJECT};`,
+      ),
+    });
+    expect(m.getWorkspace).not.toHaveBeenCalled();
+    await SeoPage({
+      searchParams: Promise.resolve({
+        ...open,
+        tab: "traffic",
+        channel: "all",
+      }),
+    });
+    expect(m.getWorkspace).toHaveBeenCalledWith(
+      { kind: "audit", id: SEO_TEST_AUDIT },
+      { channel: "all" },
+    );
+  });
+
   it("loads a search type only on Traffic and drops a stale one from the URL", async () => {
     m.getWorkspace.mockResolvedValue({
       ...seoTestWorkspace(),

@@ -1947,6 +1947,8 @@
         "context": "Contexto",
         "subtasks": "Subtareas",
         "subtaskOf": "Subtarea de",
+        "openSeoAudit": "Abrir auditoría SEO",
+        "openSeoProjectWorkspace": "Abrir espacio SEO del proyecto",
         "copyIdentifier": "Copiar ID de la tarea",
         "identifierCopied": "{identifier} copiado",
         "identifierCopyError": "No se pudo copiar el ID de la tarea",
@@ -12414,16 +12416,16 @@
         "failedCheck": "<prefix>Problema:</prefix> {name}",
         "checkedOn": "Comprobado el",
         "diagnostics": "Detalles de la página",
-        "diagnosticsHelp": "Lo que la comprobación midió en tus páginas. Las notas y sugerencias no son errores.",
+        "diagnosticsHelp": "Lo que encontramos en tus páginas.",
         "rank": {
-          "absent": "Fuera del top {top}",
+          "title": "Posición en Google",
+          "absent": "Fuera del top {top} de Google",
           "position": "Posición {position}",
           "featuredSnippet": "Fragmento destacado, posición {position}",
           "forKeyword": "para «{keyword}»",
-          "source": "Mercado {country}, {language} · DataForSEO",
-          "aiNotCited": "Aparece una vista general de IA que no cita la página",
-          "aiCited": "La vista general de IA cita la página",
-          "othersAbsent": "{count, plural, one {# palabra clave más} other {# palabras clave más}}: ninguna en el top {top}",
+          "source": "Google · {country} · {language}",
+          "aiCited": "La vista general de IA de Google cita esta página como fuente",
+          "othersAbsent": "Tampoco en el top {top} para {count, plural, one {# palabra clave más} other {# palabras clave más}}",
           "searchConsole": "Posición media en Search Console: {position}",
           "serpRead": "Resultado de búsqueda leído:",
           "allDetails": "Todos los detalles",
@@ -12447,19 +12449,109 @@
         "pageMeasurements": "Mediciones",
         "pageNotes": "Notas ({count})",
         "references": "{count, plural, one {# fuente} other {# fuentes}}",
-        "noteRule": "La comprobación marcó «{name}»",
+        "noteRule": "La comprobación marcó esto en la página",
         "askAgent": "Preguntar por esta nota",
         "askAboutNote": "¿Qué significa «{name}» para mi página? ¿Debería cambiar algo?",
         "showAll": "Mostrar todo",
         "showLess": "Mostrar menos",
         "askAboutNoteOnPage": "¿Qué significa «{name}» para {url}? ¿Debería cambiar algo?",
-        "insideToolRanges": "{total, plural, one {dentro del rango de la herramienta} other {dentro de los # rangos de herramientas}}",
         "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
         "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
         "positionHint": "1 es el primer resultado",
-        "noteFound": "Encontrado: {found}",
         "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
-        "noteRuleName": "Comprobación: {name}",
+        "flaggedItems": {
+          "cameraFileName": "{count, plural, one {# nombre de archivo de cámara} other {# nombres de archivo de cámara}}",
+          "imgWithoutAlt": "{count, plural, one {# imagen sin texto alternativo} other {# imágenes sin texto alternativo}}",
+          "linkStatus": "{count, plural, one {# enlace} other {# enlaces}}"
+        },
+        "showMoreItems": "Mostrar {count} más",
+        "unlistedItems": "{count} más que la comprobación no listó",
+        "inlineImage": "imagen dentro de la página",
+        "plainNote": {
+          "cameraFileNames": {
+            "title": "Imágenes con nombre de archivo de cámara",
+            "found": "{found, plural, one {# de {total} imágenes tiene} other {# de {total} imágenes tienen}} un nombre de archivo de cámara",
+            "why": "Nombres como IMG_1234.jpg no dicen nada de la imagen. Google lee el nombre del archivo como una pequeña pista para la búsqueda de imágenes. Cuando vuelvas a subir una imagen, nómbrala según lo que muestra, por ejemplo puerto-al-atardecer.jpg."
+          },
+          "brokenLinks": {
+            "title": "Enlaces que llevan a un error",
+            "found": "{found, plural, one {# de {total} enlaces lleva} other {# de {total} enlaces llevan}} a un error",
+            "why": "Un enlace que responde con un número de error lleva a los visitantes y a Google a un callejón sin salida. Corrige o elimina cada enlace. El número después de un enlace es la respuesta del sitio: 404 significa que la página no existe. 429 es distinto: el sitio rechazó nuestra comprobación un momento, así que revisa ese enlace de nuevo antes de cambiarlo."
+          },
+          "xDefault": {
+            "title": "Sin versión de idioma x-default",
+            "why": "La página indica versiones para otros idiomas o regiones, pero ninguna está marcada como x-default. x-default indica a Google qué versión mostrar a quien habla un idioma que no está en la lista, por ejemplo una página para elegir idioma. Google lo recomienda, pero no lo exige."
+          },
+          "metaKeywords": {
+            "title": "La página tiene una etiqueta meta keywords",
+            "why": "Google no usa la etiqueta meta keywords. No tiene efecto en la Búsqueda de Google, así que puedes mantenerla o quitarla."
+          },
+          "twoWayFacts": {
+            "title": "Fechas u horas que se pueden leer de dos maneras",
+            "why": "Una fecha como 04/05/2026 significa 5 de abril en algunos países y 4 de mayo en otros. Un número como 1:30 puede significar 1 minuto 30 segundos, 1 hora 30 minutos o una hora del día. Escribe el mes con letras (5 de mayo de 2026) y las duraciones completas (1 minuto 30 segundos)."
+          },
+          "retiredMarkup": {
+            "title": "Marcado para una función de búsqueda que Google ya no muestra",
+            "why": "La página tiene datos estructurados, como FAQ o How-to, para un resultado enriquecido que Google retiró. Google dice que este marcado no causa problemas, así que quitarlo es opcional."
+          },
+          "titlePerDevice": {
+            "title": "Google muestra otro título en móvil y en ordenador",
+            "why": "Google puede mostrar otro título para la página según el dispositivo. Compara ambos títulos en los detalles. Si los dos describen bien la página, no hace falta cambiar nada. Un título que solo aparece más recortado en un dispositivo no es una diferencia real."
+          },
+          "noFieldData": {
+            "title": "Sin datos de velocidad de visitantes reales",
+            "why": "Chrome publica datos de velocidad de visitantes reales solo para páginas públicas (estado 200, sin noindex) con suficientes visitas, y Google no dice cuántas. Mientras tanto, usa la prueba de velocidad de laboratorio de esta auditoría."
+          },
+          "rawRenderedDiff": {
+            "title": "JavaScript cambia la página después de cargarla",
+            "why": "El HTML de la página y la página después de ejecutar JavaScript muestran valores distintos para el título, la descripción, el h1, los enlaces o el texto. Google lee la página después de JavaScript. Los rastreadores que no ejecutan JavaScript solo ven el HTML. Haz que el HTML coincida con lo que muestra JavaScript."
+          },
+          "googleExtended": {
+            "title": "robots.txt bloquea Google-Extended",
+            "why": "Esto impide que Google use tu contenido para entrenar y fundamentar Gemini. No quita la página de la Búsqueda de Google, de las vistas generales de IA ni del modo IA. Si eso es lo que quieres, no hace falta cambiar nada."
+          },
+          "canonicalTarget": {
+            "title": "El enlace canónico apunta a una página con un problema",
+            "why": "El enlace canónico indica a Google cuál es la dirección principal de esta página. Debe apuntar a una página activa, sin redirección y sin noindex. Haz que apunte a la dirección activa que quieres que Google muestre. Si el destino redirige, suele ser la dirección donde termina la redirección."
+          },
+          "siteName": {
+            "title": "La página de inicio no indica a Google el nombre del sitio",
+            "why": "Sin datos estructurados WebSite con un nombre en la página de inicio, Google toma el nombre del sitio de otras partes de la página, como el título. Añade a la página de inicio datos estructurados WebSite con el nombre de tu sitio."
+          },
+          "queryWords": {
+            "title": "Faltan palabras de búsqueda en el título y el encabezado principal",
+            "why": "Google mostró esta página en búsquedas con palabras que no están en su título ni en su h1. Google también reconoce palabras relacionadas, así que añade una palabra solo donde describa la página."
+          },
+          "shopping": {
+            "title": "Producto no encontrado en Google Shopping",
+            "why": "La comprobación no encontró este producto de tu sitio en Google Shopping. Puede aparecer con otro nombre. Google Merchant Center es la forma principal de mostrar un producto en la pestaña Shopping."
+          },
+          "authorship": {
+            "title": "Sin autor ni responsable claro",
+            "why": "Los lectores buscan quién escribió un artículo y quién gestiona el sitio. Indica el autor con un enlace a una página de perfil y enlaza una página Acerca de, Aviso legal o Contacto."
+          },
+          "sitemap": {
+            "title": "Página que falta en el sitemap",
+            "why": "La auditoría no encontró nada que impida a Google indexar esta página, pero no está en tu sitemap. Google encuentra las páginas enlazadas sin sitemap, así que es una señal débil. Añade la página al sitemap para darle a Google una forma más de encontrarla."
+          },
+          "moneyLinked": {
+            "title": "Página importante sin enlace desde tus otras páginas",
+            "why": "Ninguna de las otras páginas que leyó esta auditoría enlaza a esta página. Cada página importante necesita un enlace desde al menos otra página. Enlázala desde una página relacionada. La auditoría lee solo algunas páginas, así que puede haber un enlace en una página que no leyó."
+          },
+          "twoForKeyword": {
+            "title": "Varias de tus páginas posicionan para la misma búsqueda",
+            "why": "Google suele mostrar como mucho dos resultados de un mismo sitio arriba. Comprueba si cada una de estas páginas debe posicionar para esta búsqueda o si una sola debe cubrirla. Es un punto para revisar, no un error."
+          },
+          "noH1": {
+            "title": "Sin encabezado principal (h1)",
+            "why": "La página no tiene un encabezado h1. En una prueba de SEO en páginas de listados de viajes, cambiar el primer encabezado a h1 aumentó el tráfico de búsqueda un 4,5 %. Prueba un h1 que diga de qué trata la página y mide el efecto."
+          },
+          "aiSearchBots": {
+            "title": "robots.txt bloquea bots de búsqueda con IA",
+            "why": "robots.txt bloquea uno o más de los bots que las herramientas de búsqueda con IA (ChatGPT, Claude, Perplexity) usan para encontrar páginas, así que estas herramientas pueden no mostrar la página en sus respuestas. Si los bloqueas a propósito, no hace falta cambiar nada."
+          }
+        },
+        "checkFound": "Lo que encontró la comprobación",
         "suggestion": "Sugerencia:",
         "periodCompare": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous} ({change})",
         "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",
@@ -12510,7 +12602,7 @@
         "otherCode": "Otro código",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "Las mejores ideas primero. Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
+        "help": "Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
         "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
@@ -12538,9 +12630,20 @@
           "medium": "Media",
           "low": "Baja"
         },
+        "recommendation": {
+          "mix": "Primero aparecen las ideas con poca competencia que encajan bien con el objetivo de la página. Después se alternan los dos grupos mientras ambos tengan ideas. Abre una fila para ver el motivo.",
+          "both": "Recomendada por su baja competencia y su ajuste al objetivo",
+          "competition": "Recomendada por su baja competencia",
+          "goal": "Recomendada por su ajuste al objetivo",
+          "easeEvidence": "Dificultad {value, number}/100 (inferior a {limit}).",
+          "goalEvidence": "La auditoría estima una probabilidad alta de alcanzar el objetivo de la página.",
+          "legend": "Idea recomendada",
+          "page": "Página auditada",
+          "action": "Objetivo de la página: {action}",
+          "studio": "Redactar en Content Studio (próximamente)"
+        },
         "ideas": {
           "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
-          "why": "Por qué aparece",
           "source": {
             "gap": "De la competencia",
             "opportunity": "Búsqueda relacionada"
@@ -12572,11 +12675,14 @@
           "zoomOut": "Alejar",
           "zoomReset": "Mostrar todo el mapa",
           "yours": "Su palabra clave",
+          "preview": "{volume, number} búsquedas/mes · Dificultad {value, number}/100",
+          "estimatedGain": "Clics adicionales estimados al mes",
+          "rankGain": "Top {rank} {gain}",
           "gainShort": "Clics extra en el top 3",
           "contentTask": "Crear tarea de contenido",
           "ask": "Preguntar al agente SEO",
-          "brief": "Escribe contenido web{site, select, none {} other { para {site}}} que pueda posicionarse en Google para la búsqueda «{keyword}». La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { Destaca esta función del producto: {feature}.}}",
-          "question": "¿Cómo puede {site, select, none {mi sitio} other {{site}}} posicionarse en Google para la búsqueda «{keyword}»? La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { La función del producto que encaja: {feature}.}}",
+          "brief": "Escribe contenido web{site, select, none {} other { para {site}}} que pueda posicionarse en Google para la búsqueda «{keyword}».{measured, select, yes { La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).} other { Mercado: {market}.}}{feature, select, none {} other { Destaca esta función del producto: {feature}.}}",
+          "question": "¿Cómo puede {site, select, none {mi sitio} other {{site}}} posicionarse en Google para la búsqueda «{keyword}»?{measured, select, yes { La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).} other { Mercado: {market}.}}{feature, select, none {} other { La función del producto que encaja: {feature}.}}",
           "noGain": "Desconocido"
         },
         "historyShow": "Historial",
@@ -12677,6 +12783,8 @@
       },
       "actions": {
         "title": "Acciones",
+        "listTitle": "Acciones recomendadas",
+        "listHint": "Cambios que recomienda nuestro agente.",
         "empty": "No hay acciones recomendadas",
         "emptyBody": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Ejecuta una comprobación o pregunta al agente SEO qué hacer a continuación.",
         "emptyBodyOff": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Pregunta al agente SEO qué hacer a continuación.",
@@ -12774,6 +12882,23 @@
         "viewEachResult": "{count, plural, one {Mostrar # comprobación} other {Mostrar # comprobaciones}}"
       },
       "analysis": {
+        "unconfirmed": "Sokosumi no ha podido confirmar si la solicitud de auditoría anterior se completó. Reintenta esa solicitud antes de iniciar otra.",
+        "retryPrevious": "Reintentar la solicitud anterior",
+        "coverage": {
+          "title": "Cobertura de Search Console",
+          "audit": "La auditoría aún no ha comenzado. Los datos de Search Console solo aparecen en tu espacio de trabajo de SEO. Una auditoría limitada puede ejecutarse sin ellos.",
+          "monitor": "Aún no se ha creado la programación. Los datos de Search Console solo aparecen en tu espacio de trabajo de SEO. Las auditorías limitadas pueden ejecutarse sin ellos.",
+          "manualRun": "Esta auditoría adicional aún no ha comenzado. Los datos de Search Console solo aparecen en tu espacio de trabajo de SEO. El precio aprobado se aplica solo a esta ejecución limitada.",
+          "notConnected": "Conecta Search Console para comprobar la indexación y consultar las estadísticas de búsqueda de estas páginas.",
+          "reconnect": "Elige una cuenta de Google o vuelve a conectarla para usar Search Console con estas páginas.",
+          "property": "Elige una propiedad de Search Console autorizada que incluya todas las páginas seleccionadas.",
+          "unavailable": "Sokosumi no ha podido verificar el acceso a Search Console. Inténtalo de nuevo.",
+          "retry": "Volver a comprobar e iniciar la auditoría",
+          "retryMonitor": "Volver a comprobar y crear la programación",
+          "reviewMonitor": "Revisar en SEO",
+          "limited": "Iniciar auditoría limitada",
+          "limitedMonitor": "Programar auditorías limitadas"
+        },
         "title": "Iniciar comprobación",
         "description": "El agente empieza con estos ajustes. Los resultados existentes siguen disponibles mientras se ejecuta.",
         "options": "Cambiar opciones",

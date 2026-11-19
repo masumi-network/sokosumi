@@ -70,6 +70,9 @@ describe("getUserJobs", () => {
       tx,
     });
 
+    const query = vi.mocked(tx.job.findMany).mock.lastCall?.[0];
+    expect(query).not.toHaveProperty("skip");
+    expect(query).not.toHaveProperty("cursor");
     expect(tx.job.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {

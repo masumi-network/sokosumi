@@ -53,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userAuth = requireUserAuthContext(c.var.authContext);
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
 
     if (queryParams.coworkerId) {
       await requireOwnedCoworkerForFilter(
@@ -72,8 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.task.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         include: developerTaskListInclude,
       }),

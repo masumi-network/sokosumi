@@ -5,7 +5,11 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../../../messages/en.json";
-import { seoTestKeyword, seoTestWorkspace } from "./seo-test-fixture";
+import {
+  seoTestKeyword,
+  seoTestMetric,
+  seoTestWorkspace,
+} from "./seo-test-fixture";
 import { useSeoStatistics } from "./use-seo-statistics";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
@@ -151,6 +155,29 @@ describe("automatic Google statistics", () => {
         queryKey: ["seo-connection", "org", "owner", "search_console"],
       });
     });
+    await waitFor(() => expect(collect).toHaveBeenCalledOnce());
+  });
+
+  it("uses the viewer's selected property even when a shared metric names a different authorized property", async () => {
+    const prefix = "https://example.com/";
+    workspace.sharing = "organization";
+    workspace.searchConsolePropertyId = prefix;
+    workspace.metrics = [seoTestMetric()];
+    propertyRows.push({ id: prefix, name: "URL prefix" });
+    mount();
+    await waitFor(() => expect(collect).toHaveBeenCalledOnce());
+    expect(JSON.parse(collect.mock.calls[0][1].body).propertyId).toBe(prefix);
+  });
+
+  it("waits for a new property choice when a saved property no longer covers the pages", async () => {
+    workspace.searchConsolePropertyId = "https://example.com/old/";
+    const { result } = mount();
+    await waitFor(() =>
+      expect(result.current.form.properties.data?.status).toBe("available"),
+    );
+    expect(result.current.form.propertyId).toBe("");
+    expect(collect).not.toHaveBeenCalled();
+    act(() => result.current.form.setPropertyId(propertyRows[0].id));
     await waitFor(() => expect(collect).toHaveBeenCalledOnce());
   });
 
