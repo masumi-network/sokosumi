@@ -29,26 +29,6 @@ const SOURCE_ICONS = {
   shopify: ShoppingBag,
 } as const;
 
-/** The four parts of the strategy, under the sentence that joins them. */
-export function IdeaParts({ idea }: { idea: NonNullable<Strategy["idea"]> }) {
-  const parts: [string, string][] = [
-    ["Who", idea.who],
-    ["Positioned as", idea.position],
-    ["How they find you", idea.attract],
-    ["The offer", idea.offer],
-  ];
-  return (
-    <dl className="sc-parts">
-      {parts.map(([label, value]) => (
-        <div key={label}>
-          <dt>{label}</dt>
-          <dd>{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 /** The other strategies Cuso weighed; one tap asks him to switch. */
 export function Alternatives({
   alternatives,
@@ -57,7 +37,8 @@ export function Alternatives({
   alternatives: NonNullable<Strategy["alternatives"]>;
   onAsk?: (text: string, label?: string) => Promise<void>;
 }) {
-  // Plain state, not a transition, for the same reason as PacePicker.
+  // Plain state, not a transition: the host shows its re-planning screen at
+  // once, and a refusal stays here instead of throwing.
   const [picked, setPicked] = useState<string | null>(null);
   const switching = picked !== null;
   return (
@@ -380,60 +361,6 @@ export const PACES: { level: Pace; name: string; does: string }[] = [
     does: "Up to three a day on each network",
   },
 ];
-
-/** How hard the plan publishes: Cuso's pick, one tap to change. */
-export function PacePicker({
-  pace,
-  onAsk,
-}: {
-  pace: NonNullable<Strategy["pace"]>;
-  onAsk?: (text: string, label?: string) => Promise<void>;
-}) {
-  // Plain state, not a transition: the host shows its re-planning screen the
-  // moment this is tapped, and a refusal stays here instead of throwing.
-  const [asked, setAsked] = useState<Pace | null>(null);
-  const changing = asked !== null;
-  return (
-    <div className="sc-pace">
-      <div className="sc-pace-options" role="group" aria-label="Pace">
-        {PACES.map((option) => {
-          const current = option.level === pace.level;
-          return (
-            <button
-              key={option.level}
-              type="button"
-              className="sc-pace-option"
-              aria-pressed={current}
-              disabled={!onAsk || current || changing}
-              onClick={async () => {
-                setAsked(option.level);
-                try {
-                  await onAsk?.(
-                    `Change the pace to ${option.name} (${option.does.toLowerCase()}) and re-plan the calendar to match.`,
-                    `${option.name} pace`,
-                  );
-                } catch {
-                  // The host shows the refusal.
-                } finally {
-                  setAsked(null);
-                }
-              }}
-            >
-              <b>{option.name}</b>
-              <span>{option.does}</span>
-              {changing && asked === option.level ? (
-                <Loader2 size={14} className="spin" aria-hidden="true" />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-      <p className="note">
-        {pace.perWeek} posts a week. {pace.why}
-      </p>
-    </div>
-  );
-}
 
 export function money(amount: number, currency: string): string {
   try {

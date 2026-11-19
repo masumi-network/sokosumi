@@ -50,6 +50,7 @@ import type { TaskFormTagPrefill } from "./task-form-types";
 import {
   buildCreateRelatedOptions,
   buildTaskPickerOptions,
+  type CreateRelatedOption,
 } from "./task-link-action-options";
 import { type TaskLinkActionOption } from "./task-link-task-picker-dialog";
 import { type TaskScheduleBlueprintPrefill } from "./task-schedule-dialog";
@@ -152,7 +153,7 @@ export function useTaskDetailActions({
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
-  const [isMarkAsSectionOpen, setIsMarkAsSectionOpen] = useState(false);
+  const [isLinkToTaskSectionOpen, setIsLinkToTaskSectionOpen] = useState(false);
   const [isCreateRelatedSectionOpen, setIsCreateRelatedSectionOpen] =
     useState(false);
   const [isRemoveRelatedSectionOpen, setIsRemoveRelatedSectionOpen] =
@@ -160,7 +161,7 @@ export function useTaskDetailActions({
   const [selectedTaskPickerOption, setSelectedTaskPickerOption] =
     useState<TaskLinkActionOption | null>(null);
   const [selectedCreateRelatedOption, setSelectedCreateRelatedOption] =
-    useState<TaskLinkActionOption | null>(null);
+    useState<CreateRelatedOption | null>(null);
   const [isCreateRelatedOpen, setIsCreateRelatedOpen] = useState(false);
   const [isCreateRelatedDismissDisabled, setIsCreateRelatedDismissDisabled] =
     useState(false);
@@ -400,7 +401,7 @@ export function useTaskDetailActions({
   };
 
   const resetMobileSections = () => {
-    setIsMarkAsSectionOpen(false);
+    setIsLinkToTaskSectionOpen(false);
     setIsCreateRelatedSectionOpen(false);
     setIsRemoveRelatedSectionOpen(false);
   };
@@ -418,7 +419,7 @@ export function useTaskDetailActions({
     setIsTaskPickerOpen(true);
   };
 
-  const handleOpenCreateRelated = (option: TaskLinkActionOption) => {
+  const handleOpenCreateRelated = (option: CreateRelatedOption) => {
     setSelectedCreateRelatedOption(option);
     setIsCreateRelatedOpen(true);
   };
@@ -511,8 +512,8 @@ export function useTaskDetailActions({
     setIsMoveOpen,
     isTaskPickerOpen,
     setIsTaskPickerOpen,
-    isMarkAsSectionOpen,
-    setIsMarkAsSectionOpen,
+    isLinkToTaskSectionOpen,
+    setIsLinkToTaskSectionOpen,
     isCreateRelatedSectionOpen,
     setIsCreateRelatedSectionOpen,
     isRemoveRelatedSectionOpen,

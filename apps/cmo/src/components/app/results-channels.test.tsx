@@ -105,7 +105,7 @@ it("counts posts written for a network that is not connected as waiting, not as 
   expect(html).not.toContain("Drafts");
 });
 
-it("lists TikTok and sending the newsletter as soon, with no button to press", () => {
+it("lists sending the newsletter as soon, and TikTok once, only where it can be connected", () => {
   const html = renderToStaticMarkup(
     <ChannelsPage
       overview={cmoOverview()}
@@ -118,10 +118,7 @@ it("lists TikTok and sending the newsletter as soon, with no button to press", (
       connectSearchConsole={async () => ({ url: null, error: null })}
     />,
   );
-  const tiktok = html.slice(html.indexOf("<b>TikTok</b>"));
-  const row = tiktok.slice(0, tiktok.indexOf("</li>"));
-  expect(row).toContain('<span class="tag">Soon</span>');
-  expect(row).not.toContain("<button");
+  expect(html).not.toContain("<b>TikTok</b>");
   expect(text(html)).toContain("Send from here");
   // Where Core lets TikTok connect, the row is the real one, once.
   const enabled = renderToStaticMarkup(
@@ -137,6 +134,6 @@ it("lists TikTok and sending the newsletter as soon, with no button to press", (
     />,
   );
   expect(enabled.match(/<b>TikTok<\/b>/g)).toHaveLength(1);
-  expect(enabled).not.toContain("Posting opens once TikTok approves");
+  expect(text(enabled)).toContain("You confirm each video before it goes out.");
   expect(text(html)).not.toMatch(/coming soon/i);
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
+import { cmoMonthAtLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
@@ -20,7 +21,29 @@ type Pace = NonNullable<Strategy["pace"]>["level"];
 /** The plan each pace fits, by its place among the plans from cheapest up. */
 const PACE_PLAN: Record<Pace, number> = { steady: 0, active: 1, all_in: 2 };
 
-/** What each plan posts, as the landing page says it, from the cheapest up. */
+/**
+ * What a plan makes of this strategy a month: the month is written at the
+ * top volume, and each plan makes its share of it (Core makes the same).
+ */
+function planMakes(strategy: Strategy, tier: string) {
+  return cmoMonthAtLevel(
+    strategy.calendar,
+    strategy.channels,
+    cmoVolumeLevelForTier(tier),
+  );
+}
+
+function makesLine({
+  posts,
+  pictures,
+  videos,
+}: ReturnType<typeof planMakes>): string {
+  const counted = (count: number, one: string, many: string) =>
+    `${count} ${count === 1 ? one : many}`;
+  return `${counted(posts, "post", "posts")}, ${counted(pictures, "picture", "pictures")} and ${counted(videos, "video", "videos")} a month from your strategy`;
+}
+
+/** What each plan posts, as the landing page says it, when there is no strategy yet. */
 const PLAN_LINES = [
   "One post a day on each account you connect.",
   "Two posts a day on each account you connect.",
@@ -137,7 +160,18 @@ export function CheckoutStep({
     .filter((plan) => plan.interval === interval)
     .sort((a, b) => a.priceAmount - b.priceAmount);
   const pace = strategy?.pace?.level;
+  const makes = new Map(
+    strategy
+      ? offered.map((plan) => [plan.tier, planMakes(strategy, plan.tier)])
+      : [],
+  );
+  const most = Math.max(0, ...[...makes.values()].map((made) => made.posts));
+  // The smallest plan that makes the whole strategy; without one, the pace's.
+  const whole = strategy
+    ? offered.find((plan) => makes.get(plan.tier)?.posts === most)?.tier
+    : undefined;
   const fits =
+    whole ??
     offered[Math.min(pace ? PACE_PLAN[pace] : 0, offered.length - 1)]?.tier;
   // The plan that fits the pace until the person picks one; a pick carries
   // over to the other interval, which sells the same tiers.
@@ -247,7 +281,9 @@ export function CheckoutStep({
                 className="card ob-plan-option"
                 onClick={() => setPicked(plan.tier)}
               >
-                {plan.tier === fits && paceName ? (
+                {plan.tier === whole && offered.length > 1 ? (
+                  <span className="ob-plan-fit">Makes all of it</span>
+                ) : plan.tier === fits && paceName && !whole ? (
                   <span className="ob-plan-fit">Fits your {paceName} pace</span>
                 ) : null}
                 <span className="ob-plan-name">{tierName(plan.tier)}</span>
@@ -255,7 +291,13 @@ export function CheckoutStep({
                   {price(plan, interval === "year" ? 12 : 1)}{" "}
                   <span className="ob-small muted">a month</span>
                 </span>
-                {PLAN_LINES[place] ? (
+                {makes.get(plan.tier) ? (
+                  <span className="ob-small">
+                    {makesLine(
+                      makes.get(plan.tier) as ReturnType<typeof planMakes>,
+                    )}
+                  </span>
+                ) : PLAN_LINES[place] ? (
                   <span className="ob-small">{PLAN_LINES[place]}</span>
                 ) : null}
                 {place === PLAN_LINES.length - 1 ? (

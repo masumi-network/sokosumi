@@ -49,6 +49,7 @@ const noop = {
     approve: async () => null,
     decline: async () => null,
     edit: async () => null,
+    tikTokCreator: async () => ({ creator: null, error: null }),
   },
 };
 
@@ -201,6 +202,8 @@ describe("thread", () => {
           needPictures: 0,
           finishedAt: null,
           pillars: null,
+          level: "all_in",
+          beyondPlan: [],
         },
         updates: [
           round("r1", "2026-10-01T10:00:00Z"),
@@ -762,9 +765,8 @@ describe("pages", () => {
       return from.slice(0, from.indexOf("</li>"));
     };
     expect(row(page(true))).toContain("<button");
-    // Everywhere else TikTok is listed as soon, with nothing to press.
-    expect(row(page(false))).toContain('<span class="tag">Soon</span>');
-    expect(row(page(false))).not.toContain("<button");
+    // Where Core holds no key for it, there is no row to press.
+    expect(page(false)).not.toContain("<b>TikTok</b>");
   });
 
   it("offers ad accounts to everyone", () => {

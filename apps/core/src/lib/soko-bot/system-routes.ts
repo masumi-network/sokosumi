@@ -160,13 +160,15 @@ export function systemScheduleRoute(
  * A follow-up the bot wrote for itself runs with the tools of the turn that
  * wrote it, not a route Jev guesses from its prompt: "continue the CRM table
  * from March" must still be able to write rows. The writing turn had those
- * tools already, so the schedule grants nothing new.
+ * tools already, so the schedule grants nothing new. A schedule with no
+ * stored tools was written by a person before console schedules stored
+ * theirs, so it runs with a person's tools like one written today.
  */
 export function inheritedScheduleRoute(
   capabilityNames: readonly string[],
-): PresetRoute | undefined {
-  const capabilities = capabilityNames.filter(isSokoBotCapability);
-  if (!capabilities.length) return undefined;
+): PresetRoute {
+  const stored = capabilityNames.filter(isSokoBotCapability);
+  const capabilities = stored.length ? stored : PERSON_SCHEDULE_CAPABILITIES;
   return {
     route: "DELEGATE_TASK",
     reason: "Schedule run, with the tools of whoever wrote it.",

@@ -653,6 +653,27 @@ describe("TaskActivitySection", () => {
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
   });
 
+  it("names no origin when the app is unknown", () => {
+    const events: TaskEvent[] = [
+      createEvent("created-unknown", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: TaskEventStatus.CREATED,
+        channel: Channel.UNKNOWN,
+      }),
+      createEvent("status-unknown", {
+        createdAt: "2026-01-01T10:00:00.001Z",
+        status: TaskStatus.READY,
+        channel: Channel.UNKNOWN,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("created the task")).toBeInTheDocument();
+    expect(screen.queryByText("from Unknown")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("from Unknown")).not.toBeInTheDocument();
+  });
+
   it("uses created copy for CREATED events instead of a status update", () => {
     const events: TaskEvent[] = [
       createEvent("created-milestone", {

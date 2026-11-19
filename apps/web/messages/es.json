@@ -2028,7 +2028,25 @@
           "moveToWorkspaceCancel": "Cancelar",
           "moveToWorkspaceSuccess": "Tarea movida correctamente",
           "moveToWorkspaceError": "No se pudo mover la tarea",
-          "markAs": "Marcar como",
+          "linkToTask": "Vincular a tarea",
+          "linkPicker": {
+            "related": {
+              "title": "Vincular como relacionada",
+              "description": "Elige una tarea. Cada tarea muestra la otra en Relacionada."
+            },
+            "blocks": {
+              "title": "Vincular como bloqueando",
+              "description": "Elige la tarea que esta bloquea. Esta tarea la muestra en Bloqueando y la otra muestra esta en Bloqueada por."
+            },
+            "blockedBy": {
+              "title": "Vincular como bloqueada por",
+              "description": "Elige la tarea que esta espera. Esta tarea la muestra en Bloqueada por y la otra muestra esta en Bloqueando."
+            },
+            "duplicate": {
+              "title": "Vincular como duplicada",
+              "description": "Elige la tarea que esta repite. Cada tarea muestra la otra en Duplicada. No se copia nada."
+            }
+          },
           "createRelated": "Crear tarea relacionada",
           "removeRelated": "Quitar tarea relacionada",
           "removeRelatedSuccess": "Tarea relacionada quitada",
@@ -2036,8 +2054,6 @@
           "linkTaskSuccess": "Tarea vinculada",
           "linkTaskError": "No se pudo vincular la tarea",
           "createRelatedSuccess": "Tarea relacionada creada",
-          "taskPickerTitle": "Marcar como {relation}",
-          "taskPickerDescription": "Elige una tarea para vincularla con la tarea actual.",
           "taskPickerSearchPlaceholder": "Buscar tareas...",
           "taskPickerLoading": "Cargando tareas...",
           "taskPickerEmpty": "No se encontraron tareas.",
@@ -2060,7 +2076,7 @@
           "markComplete": "Marcar como completada",
           "repeat": "Repetir",
           "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo.",
-          "duplicate": "Duplicar como borrador",
+          "duplicate": "Copiar como borrador",
           "sendToChat": {
             "menuItem": "Enviar al chat",
             "title": "Enviar tarea al chat",
@@ -2255,7 +2271,7 @@
         "previewUse": "Usar esta tarea",
         "previewEmpty": "Aún no hay salida de ejemplo disponible.",
         "taskCreated": "Tarea creada",
-        "taskCreatedHint": "Todo está configurado y listo.",
+        "taskCreatedHint": "{status, select, DRAFT {Está como borrador en Pendiente. Nada empieza hasta que la pases a Listo.} QUEUED {Espera en Pendiente y empieza a la hora que elegiste.} other {Está en Por hacer, lista para empezar.}}",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
         "close": "Cerrar",
@@ -9967,6 +9983,7 @@
         "you": "Tú",
         "youNamed": "{name} (tú)",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
+        "composerPlaceholder": "Escríbete una nota",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       },
       "Signals": {
