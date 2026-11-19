@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import { COMPETITOR_SOURCE_STATUSES } from "@/services/competitor-check.service";
 
 export const projectCompetitorsParamsSchema = z.object({
@@ -42,8 +43,29 @@ const competitorFields = {
 };
 
 export const projectCompetitorCreateSchema = z
-  .object({ name: z.string().trim().min(1).max(80), ...competitorFields })
+  .object({
+    name: z.string().trim().min(1).max(80),
+    ...competitorFields,
+    suggested: z
+      .boolean()
+      .optional()
+      .describe(
+        "true when the member picked it from the suggestions and typed nothing: the weekly check then fills its pricing page and accounts from its homepage, as it never does for fields a member set.",
+      ),
+  })
   .openapi("ProjectCompetitorCreate");
+
+export const projectCompetitorSuggestionsSchema = z
+  .object({
+    suggestions: z.array(
+      z.object({
+        name: z.string(),
+        websiteUrl: z.string().describe("The company's homepage."),
+        why: z.string().describe("What it sells, in one line."),
+      }),
+    ),
+  })
+  .openapi("ProjectCompetitorSuggestions");
 
 export const projectCompetitorUpdateSchema = z
   .object({
@@ -228,7 +250,7 @@ export const projectCompetitorChecksSchema = z
     on: z
       .boolean()
       .describe(
-        "true turns the weekly check on: 3 credits per competitor a week, charged to the Project's organization (or the person, in a personal workspace). false turns it off and keeps what the checks found.",
+        `true turns the weekly check on: ${COMPETITOR_CHECK_CREDITS} credits per competitor a week, charged to the Project's organization (or the person, in a personal workspace). false turns it off and keeps what the checks found.`,
       ),
   })
   .openapi("ProjectCompetitorChecks");

@@ -101,3 +101,35 @@ export const runCompetitorCheck = competitorsAction(
   async ({ projectId }) =>
     (await competitorsService.runCheck(projectId)).outcome,
 );
+
+/** Finds competitors to pick from; the page changes only when some are added. */
+export const findCompetitors = competitorsAction(
+  z.object({ projectId: id }),
+  ({ projectId }) => competitorsService.suggest(projectId),
+);
+
+/**
+ * Adds the suggestions a member picked, in the order shown. Stops at the
+ * first one Core refuses, so its message names what went wrong.
+ */
+export const addSuggestedCompetitors = competitorsAction(
+  z.object({
+    projectId: id,
+    competitors: z
+      .array(
+        z.object({
+          name: z.string().trim().min(1).max(80),
+          websiteUrl: z.string().trim().max(500),
+        }),
+      )
+      .min(1)
+      .max(8),
+  }),
+  async ({ projectId, competitors }) => {
+    for (const competitor of competitors)
+      await competitorsService.add(projectId, {
+        ...competitor,
+        suggested: true,
+      });
+  },
+);

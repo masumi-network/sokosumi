@@ -31427,6 +31427,10 @@ export const ProjectCompetitorCreateSchema = {
             ],
             maxLength: 200,
             description: 'Its Facebook Page: the name in its address, or the address.'
+        },
+        suggested: {
+            type: 'boolean',
+            description: 'true when the member picked it from the suggestions and typed nothing: the weekly check then fills its pricing page and accounts from its homepage, as it never does for fields a member set.'
         }
     },
     required: [
@@ -31511,6 +31515,39 @@ export const ProjectCompetitorCheckRunSchema = {
     required: [
         'outcome',
         'competitors'
+    ]
+} as const;
+
+export const ProjectCompetitorSuggestionsSchema = {
+    type: 'object',
+    properties: {
+        suggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    websiteUrl: {
+                        type: 'string',
+                        description: 'The company\'s homepage.'
+                    },
+                    why: {
+                        type: 'string',
+                        description: 'What it sells, in one line.'
+                    }
+                },
+                required: [
+                    'name',
+                    'websiteUrl',
+                    'why'
+                ]
+            }
+        }
+    },
+    required: [
+        'suggestions'
     ]
 } as const;
 
@@ -56191,6 +56228,11 @@ export const CmoOnboardingRequestSchema = {
             minLength: 1,
             maxLength: 64,
             description: 'The owner\'s time zone, from their browser: Cuso\'s routines run at their local times in it. Without it he works on Europe/Berlin time.'
+        },
+        testCopyOfProjectId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Hire a test copy of this Project\'s Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy\'s Social connections are links to the source\'s connected accounts.'
         }
     },
     required: [

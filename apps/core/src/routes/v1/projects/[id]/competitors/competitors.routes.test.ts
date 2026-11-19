@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -17,6 +17,7 @@ const m = vi.hoisted(() => ({
   removeTrackedCompetitor: vi.fn(),
   setCompetitorChecks: vi.fn(),
   runProjectCompetitorCheck: vi.fn(),
+  suggestCompetitors: vi.fn(),
 }));
 
 vi.mock("@/lib/image-studio/access", () => ({
@@ -34,6 +35,9 @@ vi.mock("@/services/competitors.service", () => ({
   removeTrackedCompetitor: m.removeTrackedCompetitor,
   setCompetitorChecks: m.setCompetitorChecks,
 }));
+vi.mock("@/services/competitor-suggestions.service", () => ({
+  suggestCompetitors: m.suggestCompetitors,
+}));
 vi.mock("@/services/competitor-check.service", async (original) => ({
   ...(await original<typeof import("@/services/competitor-check.service")>()),
   runProjectCompetitorCheck: m.runProjectCompetitorCheck,
@@ -46,6 +50,7 @@ import mountRunCheck from "./check/post";
 import mountSetChecks from "./checks/put";
 import mountGet from "./get";
 import mountAdd from "./post";
+import mountSuggest from "./suggestions/post";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
 const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
@@ -114,6 +119,7 @@ function createApp() {
   mountRemove(projects);
   mountSetChecks(projects);
   mountRunCheck(projects);
+  mountSuggest(projects);
   app.route("/projects", projects);
   app.onError(errorHandler);
   return app;
@@ -252,6 +258,46 @@ describe("a Project's competitors", () => {
     const { data } = await response.json();
     expect(data.outcome).toBe("unfunded");
     expect(data.competitors.limit).toBe(5);
+  });
+
+  it("suggests competitors to pick from and adds none", async () => {
+    const suggestions = [
+      {
+        name: "Calendly",
+        websiteUrl: "https://calendly.com/",
+        why: "Scheduling links for teams.",
+      },
+    ];
+    m.suggestCompetitors.mockResolvedValue(suggestions);
+    const response = await send("POST", `${BASE}/suggestions`);
+    expect(response.status).toBe(200);
+    expect(m.suggestCompetitors).toHaveBeenCalledWith(PROJECT_ID);
+    expect((await response.json()).data).toEqual({ suggestions });
+    expect(m.addTrackedCompetitor).not.toHaveBeenCalled();
+  });
+
+  it("answers 422 with the service's words for a Project without a website", async () => {
+    m.suggestCompetitors.mockRejectedValue(
+      unprocessableEntity("Add the project's website first."),
+    );
+    const response = await send("POST", `${BASE}/suggestions`);
+    expect(response.status).toBe(422);
+    expect((await response.json()).message).toBe(
+      "Add the project's website first.",
+    );
+  });
+
+  it("passes a picked suggestion on as suggested", async () => {
+    await send("POST", BASE, {
+      name: "Calendly",
+      websiteUrl: "https://calendly.com/",
+      suggested: true,
+    });
+    expect(m.addTrackedCompetitor).toHaveBeenCalledWith(PROJECT_ID, {
+      name: "Calendly",
+      websiteUrl: "https://calendly.com/",
+      suggested: true,
+    });
   });
 
   it("stays readable and refuses every write on a CMO Project", async () => {

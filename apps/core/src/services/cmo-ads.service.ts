@@ -32,6 +32,10 @@ import {
   searchProjectAdLocations,
   updateProjectAdCampaign,
 } from "@/services/project-ad-accounts.service";
+import {
+  isTestCopyProject,
+  TEST_COPY_NOTHING_AT_ONCE,
+} from "@/services/project-test-copy";
 
 /**
  * Sokosumi Ads in CMO (the owner's Project ad accounts, ADR 0062): connect
@@ -41,10 +45,16 @@ import {
  * inside the approved plan's ad budget.
  */
 
-/** Cuso, for an owner or admin: only they connect or spend. */
+/**
+ * Cuso, for an owner or admin: only they connect or spend. A test copy has
+ * no ad account and never spends (ADR 0073).
+ */
 async function requireAdsOwner(target: CusoTarget): Promise<Cuso> {
   const { userId } = target;
   const cuso = await requireCuso(target);
+  if (await isTestCopyProject(cuso.projectId)) {
+    throw new CmoConflictError(TEST_COPY_NOTHING_AT_ONCE);
+  }
   const { organizationId } = await cmoPayer(cuso);
   const mayApprove = await mayApproveMarketingStrategy(userId, {
     id: cuso.workspaceId,

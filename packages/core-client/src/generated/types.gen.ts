@@ -8670,6 +8670,10 @@ export type ProjectCompetitorCreate = {
      * Its Facebook Page: the name in its address, or the address.
      */
     facebookHandle?: string | null;
+    /**
+     * true when the member picked it from the suggestions and typed nothing: the weekly check then fills its pricing page and accounts from its homepage, as it never does for fields a member set.
+     */
+    suggested?: boolean;
 };
 
 export type ProjectCompetitorUpdate = {
@@ -8705,6 +8709,20 @@ export type ProjectCompetitorCheckRun = {
      */
     outcome: 'checked' | 'not_due' | 'no_competitors' | 'paused' | 'unfunded';
     competitors: ProjectCompetitors;
+};
+
+export type ProjectCompetitorSuggestions = {
+    suggestions: Array<{
+        name: string;
+        /**
+         * The company's homepage.
+         */
+        websiteUrl: string;
+        /**
+         * What it sells, in one line.
+         */
+        why: string;
+    }>;
 };
 
 export type QuestionAnswerRequest = {
@@ -14083,6 +14101,10 @@ export type CmoOnboardingRequest = {
      * The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.
      */
     timeZone?: string;
+    /**
+     * Hire a test copy of this Project's Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy's Social connections are links to the source's connected accounts.
+     */
+    testCopyOfProjectId?: string;
 };
 
 export type CmoSubscriptionPlan = {
@@ -61112,6 +61134,140 @@ export type RunProjectCompetitorCheckResponses = {
 };
 
 export type RunProjectCompetitorCheckResponse = RunProjectCompetitorCheckResponses[keyof RunProjectCompetitorCheckResponses];
+
+export type SuggestProjectCompetitorsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/competitors/suggestions';
+};
+
+export type SuggestProjectCompetitorsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Project has no website, or the search is not available
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SuggestProjectCompetitorsError = SuggestProjectCompetitorsErrors[keyof SuggestProjectCompetitorsErrors];
+
+export type SuggestProjectCompetitorsResponses = {
+    /**
+     * Competitors to pick from
+     */
+    200: {
+        data: ProjectCompetitorSuggestions;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SuggestProjectCompetitorsResponse = SuggestProjectCompetitorsResponses[keyof SuggestProjectCompetitorsResponses];
 
 export type ConfirmProjectBrandBrainData = {
     body?: never;

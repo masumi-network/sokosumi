@@ -3,6 +3,7 @@ import { waitUntil } from "@vercel/functions";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
 import {
   type OpenAPIHonoWithAuth,
@@ -26,8 +27,7 @@ const route = withCoworkerContextHeaderParameters(
     path: "/{id}/competitors/checks",
     operationId: "setProjectCompetitorChecks",
     tags: ["Projects"],
-    description:
-      "A member turns the Project's weekly competitor check on or off. On, the first check starts at once and each tracked competitor is checked once a week (its website and pricing page, news, ads and Instagram) for 3 credits a competitor, charged to the Project's organization, or to the person in a personal workspace. Off keeps what the checks found.",
+    description: `A member turns the Project's weekly competitor check on or off. On, the first check starts at once and each tracked competitor is checked once a week (its website and pricing page, news, ads and Instagram) for ${COMPETITOR_CHECK_CREDITS} credits a competitor, charged to the Project's organization, or to the person in a personal workspace. Off keeps what the checks found.`,
     request: {
       params: projectCompetitorsParamsSchema,
       body: {

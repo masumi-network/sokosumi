@@ -109,6 +109,19 @@ describe("pre-hire Site", () => {
     expect(html).not.toContain('name="organizationId"');
   });
 
+  it("marks a test copy and leaves out where he goes: Core puts him beside his source", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        organizations={[{ id: "org-1", name: "Agency" }]}
+        testCopyOf="project-source"
+        onboard={async () => ({ attempt: 0, websiteUrl: "", errors: {} })}
+      />,
+    );
+    expect(html).toContain('name="testCopyOf" value="project-source"');
+    expect(html).toContain("Test copy.");
+    expect(html).not.toContain('name="organizationId"');
+  });
+
   it("asks where Cuso goes, with a new organization selected", () => {
     const html = renderToStaticMarkup(
       <Onboarding
@@ -452,6 +465,23 @@ describe("Plan", () => {
     expect(html).toContain("Your channels");
     expect(html).toContain("Choosing your idea, channels and pillars");
     expect(html).not.toContain("Approve strategy");
+  });
+
+  it("shows his steps while he plans, never his raw thinking", () => {
+    const html = plan(
+      draft({
+        strategy: null,
+        work: work("strategy"),
+        activity: {
+          step: "Planning",
+          reasoning: "I'm thinking about the save_strategy part patch.",
+        },
+      }),
+      "planning",
+    );
+    expect(html).toContain("Your channels");
+    expect(html).not.toContain("save_strategy");
+    expect(html).not.toContain("working-why");
   });
 
   it("shows the plan in the feed as Cuso saves it", () => {

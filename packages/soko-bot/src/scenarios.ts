@@ -1649,10 +1649,10 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     id: "cmo-competitor-feed",
     title: "Writes the competitor feed from stored signals only",
     intent:
-      "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the price change reaches the owner at once.",
+      "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the owner gets the week as one message with the price change called out.",
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
-      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning names the competitor and what it did and says what that changes for cal.com, from the Brand Brain; a meaning that would fit under any other move fails. Each has one concrete move about that competitor's move (which page, post or offer, and when); a post or ad is on a network under Connected channels in his packet, or the move says to connect the network first. Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
+      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning names the competitor and what it did and says what that changes for the owner's business (cal.com), from the Brand Brain, written to the owner (\"your Teams plan\"); a meaning that would fit under any other move fails. Each has one concrete move about that competitor's move (which page, post or offer, and when); a post or ad is on a network under Connected channels in his packet, or the move says to connect the network first. Writing \"Cuso\" in a meaning or a move fails. Core posts the week to the owner as one message, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
     expect: {
       // The label the classifier gives a Core-written brief; the real run
       // has a preset route.
@@ -1688,6 +1688,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
       "The only signal that reports an action is a university's notice to its staff that Zcal ends its Pro plan in December 2026 and moves customers to a new licence; the rest are Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed with one item for Zcal ending its Pro plan, its fact marked weak because the source is a customer's notice and not Zcal itself, with what Zcal ending the plan means for cal.com (a meaning that would fit any move fails) and one concrete move, on a connected network when it is a post. He answers exactly `Nothing to add.` Calling the week quiet, marking the fact strong, or adding why Zcal does it or what the new licence costs fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
+    },
+  },
+  {
+    id: "cmo-competitor-digest",
+    title: "Tells a noisy first week as one calm message",
+    intent:
+      "A first check full of second-hand and small signals becomes one message: one line per move, nothing called big, one competitor's prices told once, in plain words, to the owner.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      'The check stored only second-hand or small signals: a comparison blog and a deals site both report Calendly\'s Standard price ($12 per seat; 50% off the annual plan until November 20, $6 instead of $12 in the first year), SavvyCal\'s changelog says it overhauled roles and permissions, a launch directory lists a Zcal AI scheduling assistant, an outage tracker says SavvyCal fixed a calendar sync issue, and Zcal\'s Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed: Calendly\'s prices are one item whose facts agree (the list price and the sale on it), the SavvyCal roles change and the Zcal assistant are one item each, and the fixed outage and the Instagram counts are not items. Facts that rest on the blog, the deals site or the directory are marked weak. Each fact starts with the competitor and says what it did in plain, active words; "was detected", "was reported" or naming what a source leaves out ("the prior price unstated") fails. Meaning and move speak to the owner about their business ("your pricing page", "your LinkedIn"); writing "Cuso" or "Cuso\'s" fails. He answers exactly `Nothing to add.` Two items about Calendly\'s prices, a reason or a number no signal gives, or calling any of this week\'s moves urgent fails.',
     expect: {
       routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
       tools: ["check_competitors", "save_competitor_feed"],

@@ -1454,6 +1454,24 @@ describe("social post publisher service", () => {
     });
   });
 
+  it("never dispatches a test copy's post, whatever claimed it", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      testCopyOfProjectId: "22222222-2222-4222-8222-222222222222",
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      published: 0,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(socialPostUpdateManyMock.mock.lastCall?.[0].data).toMatchObject({
+      status: "FAILED",
+      lastError: "A test copy never publishes",
+    });
+  });
+
   it("does not requeue a transient failure after its Project closes", async () => {
     expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockImplementation(async () => {
@@ -1599,7 +1617,11 @@ describe("social post publisher service", () => {
           OR: [
             {
               status: "SCHEDULED",
-              project: { closingAt: null, closedAt: null },
+              project: {
+                closingAt: null,
+                closedAt: null,
+                testCopyOfProjectId: null,
+              },
               scheduledAt: { lte: NOW },
               OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
             },
@@ -2042,7 +2064,11 @@ describe("social post publisher service", () => {
             OR: [
               {
                 status: "SCHEDULED",
-                project: { closingAt: null, closedAt: null },
+                project: {
+                  closingAt: null,
+                  closedAt: null,
+                  testCopyOfProjectId: null,
+                },
                 scheduledAt: { lte: NOW },
                 OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
               },

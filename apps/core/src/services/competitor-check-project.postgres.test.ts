@@ -33,11 +33,9 @@ vi.mock("@/services/cmo-cuso.service", async (original) => ({
 
 import { creditBucketRepository } from "@sokosumi/database/repositories";
 
+import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import prisma from "@/lib/db/prisma";
-import {
-  COMPETITOR_CHECK_CREDITS,
-  runProjectCompetitorCheck,
-} from "@/services/competitor-check.service";
+import { runProjectCompetitorCheck } from "@/services/competitor-check.service";
 import { syncCompetitorChecks } from "@/services/competitor-check-sync.service";
 import {
   addTrackedCompetitor,

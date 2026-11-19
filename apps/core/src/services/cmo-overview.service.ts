@@ -342,11 +342,16 @@ export async function getCmoOverview(
         projectId: cuso.projectId,
         tx: prisma,
       }),
-      mayApproveMarketingStrategy(userId, {
-        id: cuso.workspaceId,
-        userId: null,
-        organizationId: payer.organizationId,
-      }),
+      mayApproveMarketingStrategy(
+        userId,
+        {
+          id: cuso.workspaceId,
+          userId: null,
+          organizationId: payer.organizationId,
+        },
+        prisma,
+        cuso.projectId,
+      ),
       readCmoBilling(cuso.projectId),
       maySkipCmoSubscription(userId, cuso.projectId),
     ]);

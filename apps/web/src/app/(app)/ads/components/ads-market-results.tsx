@@ -7,13 +7,16 @@ import { getTranslations } from "next-intl/server";
 import { Suspense, use } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
+import { RoutePoller } from "@/components/route-poller";
 import { type AdsLoad, settleAdsLoad } from "@/lib/ads/ads-load-error";
 import { adsService } from "@/lib/services/ads.service";
 import { AdsErrorState } from "./ads-error-state";
 import { AdsMarketAdGrid } from "./ads-market-ad-grid";
 import { AdsMarketKeywordList } from "./ads-market-keyword-list";
-import { AdsMarketPoller } from "./ads-market-poller";
 import { AdsCardsSkeleton } from "./ads-skeleton";
+
+/** How often the page asks whether Core has gathered the ads. */
+const GATHERING_POLL_MS = 20_000;
 
 interface AdsMarketResultsProps {
   projectId: string;
@@ -133,7 +136,7 @@ export function AdsMarketAds({
 
   return (
     <div aria-busy={gathering} aria-live="polite" data-testid="ads-market-live">
-      {gathering ? <AdsMarketPoller /> : null}
+      {gathering ? <RoutePoller everyMs={GATHERING_POLL_MS} /> : null}
       {ads.length > 0 ? (
         <AdsMarketAdGrid ads={ads} fetchedAt={fetchedAt} notice={notice} />
       ) : (

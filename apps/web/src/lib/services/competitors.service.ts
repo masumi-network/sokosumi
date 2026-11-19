@@ -3,6 +3,7 @@ import "server-only";
 import type {
   ProjectCompetitorCheckRun,
   ProjectCompetitorCreate,
+  ProjectCompetitorSuggestions,
   ProjectCompetitors,
   ProjectCompetitorUpdate,
 } from "@sokosumi/core-client";
@@ -41,5 +42,12 @@ export const competitorsService = {
   },
   async runCheck(projectId: string): Promise<ProjectCompetitorCheckRun> {
     return (await coreClient.runProjectCompetitorCheck(projectId)).data;
+  },
+  /** Competitors to pick from, found from the Project's website. Adds none. */
+  async suggest(
+    projectId: string,
+  ): Promise<ProjectCompetitorSuggestions["suggestions"]> {
+    return (await coreClient.suggestProjectCompetitors(projectId)).data
+      .suggestions;
   },
 };
