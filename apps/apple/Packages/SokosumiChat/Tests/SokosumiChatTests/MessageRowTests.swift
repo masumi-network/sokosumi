@@ -319,6 +319,14 @@ struct MessageRowTests {
     #expect(Self.row(started).body == [.thought(startedAt: Date(timeIntervalSince1970: 1_790_000_100), shellWorking: true)])
   }
 
+  @Test(arguments: [("ai_budget_exceeded", true), ("unknown", false)])
+  func aFailedShellIdentifiesUsageLimitFailures(kind: String, aiBudgetExceeded: Bool) throws {
+    let failed = try Self.coworkerShell([
+      "mention_id": "mention_1", "mention_failed": true, "mention_failure": ["kind": kind]
+    ])
+    #expect(Self.row(failed).body == [.failedMention(aiBudgetExceeded: aiBudgetExceeded)])
+  }
+
   /// A coworker's settled answer keeps its Thought header above the text, with no shell working.
   @Test func aCoworkersAnswerKeepsItsThoughtAboveTheText() throws {
     var answer = try Self.coworkerShell([:])

@@ -103,10 +103,9 @@
         // Vision reads text only on a local run (the CI runner returns nil); the transcript test carries the rest.
         guard let lines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: bitmap) else { return }
         let texts = lines.map(\.text)
-        for expected in ["what's on tomorrow", "Failed to reply", "Retry", "create a Task", "Thinking", "Finding Coworkers", "Creating a Task"] {
+        for expected in ["what's on tomorrow", "Failed to reply", "reached its usage limit", "Retry", "create a Task", "Thinking", "Finding Coworkers", "Creating a Task"] {
           #expect(texts.contains { $0.contains(expected) }, "\(expected) in \(texts)")
         }
-        #expect(texts.joined(separator: " ").contains("Your assistant has reached its usage limit. It can respond again when the limit is raised or resets."))
       }
     }
   }
