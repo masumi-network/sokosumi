@@ -148,6 +148,8 @@ export interface CmoOverview {
     /** The timezone "when" is in, so the next run reads the same way. */
     timezone: string | null;
   }[];
+  /** The time zone Cuso's routines run in. */
+  timeZone: string;
   roomId: string;
   /** The CMO subscription gate (`isCmoSubscribed`): false is paused. */
   subscriptionActive: boolean;
@@ -279,6 +281,7 @@ export async function getCmoOverview(
         workspaceId: true,
         status: true,
         sharedRoomId: true,
+        ingestTimezone: true,
         workspace: { select: { organizationId: true } },
       },
     }),
@@ -460,6 +463,7 @@ export async function getCmoOverview(
       project.presenterFileId && project.presenterConsentAt,
     ),
     routines,
+    timeZone: bot.ingestTimezone,
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,
     roomId: bot.sharedRoomId,
