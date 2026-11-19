@@ -119,15 +119,19 @@ function handle(
 }
 
 function memberFields(input: TrackedCompetitorInput) {
+  const websiteUrl = webAddress(input.websiteUrl, "The website");
+  const pricingUrl = webAddress(input.pricingUrl, "The pricing page");
+  const instagram = handle(
+    input.instagramHandle,
+    instagramHandle,
+    "an Instagram",
+  );
+  const facebook = handle(input.facebookHandle, facebookHandle, "a Facebook");
   return {
-    websiteUrl: webAddress(input.websiteUrl, "The website"),
-    pricingUrl: webAddress(input.pricingUrl, "The pricing page"),
-    instagramHandle: handle(
-      input.instagramHandle,
-      instagramHandle,
-      "an Instagram",
-    ),
-    facebookHandle: handle(input.facebookHandle, facebookHandle, "a Facebook"),
+    ...(websiteUrl !== undefined ? { websiteUrl } : {}),
+    ...(pricingUrl !== undefined ? { pricingUrl } : {}),
+    ...(instagram !== undefined ? { instagramHandle: instagram } : {}),
+    ...(facebook !== undefined ? { facebookHandle: facebook } : {}),
   };
 }
 

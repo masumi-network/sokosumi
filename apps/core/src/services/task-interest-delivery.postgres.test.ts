@@ -84,7 +84,7 @@ async function createTask(
       ownerId: users.owner,
       status: data.status ?? TaskStatus.RUNNING,
       visibility: data.visibility ?? TaskVisibility.PUBLIC,
-      dueOn: data.dueOn,
+      ...(data.dueOn !== undefined ? { dueOn: data.dueOn } : {}),
     },
   });
 }

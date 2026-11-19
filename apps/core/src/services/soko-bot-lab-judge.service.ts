@@ -434,8 +434,7 @@ export async function judgeSokoBotLabTurn(input: {
       passed: input.evaluation.passed,
       total: input.evaluation.total,
       checks: input.evaluation.checks,
-      judge: judge ?? undefined,
-      judgeModel: judge ? model : undefined,
+      ...(judge ? { judge, judgeModel: model } : {}),
     };
     await prisma.sokoBotLabRun.upsert({
       where: { turnId: input.turnId },

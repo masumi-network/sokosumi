@@ -213,7 +213,7 @@ export async function applyDecision(
                   action: "hire_agent",
                   outcome: "processing",
                   error: marker,
-                  followUp,
+                  ...(followUp !== undefined ? { followUp } : {}),
                 },
               });
             }

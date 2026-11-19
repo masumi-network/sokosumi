@@ -352,9 +352,11 @@ export async function updateTaskSchedule(
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, revision: input.expectedRevision },
       data: {
-        name: input.name,
-        description,
-        projectId: input.projectId,
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(input.projectId !== undefined
+          ? { projectId: input.projectId }
+          : {}),
         ...assignees,
         ...rule,
         revision: { increment: 1 },

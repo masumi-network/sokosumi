@@ -17,9 +17,9 @@ export async function recordStudioAdEvent(
       data: {
         workspaceId: input.workspaceId,
         assetId: input.assetId,
-        userId: input.userId,
+        ...(input.userId !== undefined ? { userId: input.userId } : {}),
         type: input.type,
-        meta: input.meta,
+        ...(input.meta !== undefined ? { meta: input.meta } : {}),
       },
     });
   } catch {

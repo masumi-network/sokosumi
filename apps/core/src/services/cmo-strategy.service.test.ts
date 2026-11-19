@@ -992,6 +992,9 @@ describe("saving versions", () => {
           }),
         }),
       });
+      const planning = postUpdate.mock.lastCall?.[0]?.data.planning;
+      expect(planning?.videoOf).toBe("tv");
+      expect(planning).not.toHaveProperty("alsoOn");
     });
 
     it.each([
@@ -1088,6 +1091,7 @@ describe("saving versions", () => {
       { turnId: "turn-1", now: new Date("2026-10-01T12:00:00Z") },
     );
     expect(plan(saved).summary).toBe("A sharper headline.");
+    expect(saved.plan).toStrictEqual(JSON.parse(JSON.stringify(saved.plan)));
     expect(plan(saved).goals).toEqual(strategy.goals);
     expect(plan(saved).calendar.map((entry) => entry.id)).toEqual(
       strategy.calendar.map((entry) => entry.id),

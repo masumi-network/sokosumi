@@ -126,33 +126,36 @@ export async function listNewsletterSubscribers(
   query: ListNewsletterSubscribersQuery,
 ) {
   const newsletter = await getNewsletter(scope);
-  const { cursor, take, skip } = parseCursorPagination(query);
+  const { cursor, take } = parseCursorPagination(query);
   const where: Prisma.NewsletterSubscriberWhereInput = {
     newsletterId: newsletter.id,
-    status: query.status,
-    OR: query.search
-      ? [
-          { email: { contains: query.search, mode: "insensitive" } },
-          {
-            contact: { name: { contains: query.search, mode: "insensitive" } },
-          },
-          // Contact merges flatten all tombstones to the surviving person.
-          {
-            contact: {
-              mergedInto: {
+    ...(query.status !== undefined ? { status: query.status } : {}),
+    ...(query.search
+      ? {
+          OR: [
+            { email: { contains: query.search, mode: "insensitive" } },
+            {
+              contact: {
                 name: { contains: query.search, mode: "insensitive" },
               },
             },
-          },
-        ]
-      : undefined,
+            // Contact merges flatten all tombstones to the surviving person.
+            {
+              contact: {
+                mergedInto: {
+                  name: { contains: query.search, mode: "insensitive" },
+                },
+              },
+            },
+          ],
+        }
+      : {}),
   };
   const [subscribers, total, counts] = await Promise.all([
     prisma.newsletterSubscriber.findMany({
       where,
-      cursor: cursor ? { id: cursor } : undefined,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       take: take + 1,
-      skip,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
     prisma.newsletterSubscriber.count({ where }),
@@ -266,7 +269,7 @@ export async function patchNewsletterSubscriber(
         ...(input.status ? { status: subscriber.status } : {}),
       },
       data: {
-        name: input.name,
+        ...(input.name !== undefined ? { name: input.name } : {}),
         ...(unsubscribed
           ? {
               status: "UNSUBSCRIBED",
@@ -631,7 +634,7 @@ async function createSubscriberChunk(
         if (!contact) throw notFound("Contact not found");
         return {
           email: subscriber.email,
-          name: subscriber.name,
+          ...(subscriber.name !== undefined ? { name: subscriber.name } : {}),
           newsletterId: newsletter.id,
           contactId: contact.id,
           status: consent === "ASK" ? "PENDING" : "ACTIVE",

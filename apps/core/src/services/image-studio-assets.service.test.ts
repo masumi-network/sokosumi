@@ -178,6 +178,9 @@ describe("image studio versions", () => {
 
     const jobs = await listJobs({ ...SCOPE, limit: 10 });
 
+    expect(jobFindManyMock.mock.lastCall?.[0]?.where).toStrictEqual({
+      projectId: SCOPE.projectId,
+    });
     expect(jobs[0]!.retryMayDuplicateCharge).toBe(true);
     expect(jobs[1]!.retryMayDuplicateCharge).toBe(false);
   });

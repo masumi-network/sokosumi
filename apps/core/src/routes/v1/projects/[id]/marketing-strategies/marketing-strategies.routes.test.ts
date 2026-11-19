@@ -224,6 +224,9 @@ describe("Marketing strategy routes", () => {
       total: 3,
     });
 
+    expect(m.strategyFindMany.mock.lastCall?.[0]).not.toHaveProperty("cursor");
+    expect(m.strategyFindMany.mock.lastCall?.[0]).not.toHaveProperty("skip");
+
     m.strategyFindMany.mockResolvedValue([older]);
     await createApp().request(`${BASE}?limit=1&cursor=${NEW_ID}`);
     expect(m.strategyFindMany).toHaveBeenLastCalledWith(
@@ -508,6 +511,28 @@ describe("Marketing strategy routes", () => {
         }),
       },
     });
+  });
+
+  it("clears the stored note when a strategy answer changes to yes", async () => {
+    m.strategyFindFirst.mockResolvedValue(
+      version(OLD_ID, null, {
+        ...PLAN,
+        questions: PLAN.questions.map((question) => ({
+          ...question,
+          answer: "no",
+          note: "Most come from referrals.",
+        })),
+      }),
+    );
+    const response = await post(`${OLD_ID}/answers`, {
+      questionId: "q1",
+      answer: "yes",
+    });
+
+    expect(response.status).toBe(200);
+    const [question] = m.strategyUpdate.mock.lastCall?.[0].data.plan.questions;
+    expect(question).toHaveProperty("answer", "yes");
+    expect(question).not.toHaveProperty("note");
   });
 
   it("is not found for a question the version does not have", async () => {

@@ -199,7 +199,7 @@ export async function listTaskSchedules(
   query: TaskScheduleListQuery,
 ) {
   const actor = await resolveScheduleActor(vars);
-  const { cursor, take, skip } = parseCursorPagination(query);
+  const { cursor, take } = parseCursorPagination(query);
   const where: Prisma.TaskScheduleWhereInput = {
     ...readableWhere(actor),
     ...(query.projectId ? { projectId: query.projectId } : {}),
@@ -210,8 +210,7 @@ export async function listTaskSchedules(
       where,
       include: SCHEDULE_ASSIGNEE_VENDOR,
       take: take + 1,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
     prisma.taskSchedule.count({ where }),
@@ -233,21 +232,24 @@ export async function listTaskScheduleRuns(
 ) {
   const actor = await resolveScheduleActor(vars);
   await findReadableSchedule(actor, id);
-  const { cursor, take, skip } = parseCursorPagination(query);
+  const { cursor, take } = parseCursorPagination(query);
   const where: Prisma.TaskScheduleRunWhereInput = {
     scheduleId: id,
-    effectiveScheduledAt: {
-      gte: query.from ? new Date(query.from) : undefined,
-      lt: query.to ? new Date(query.to) : undefined,
-    },
-    manual: query.manual === undefined ? undefined : query.manual === "true",
+    ...(query.from || query.to
+      ? {
+          effectiveScheduledAt: {
+            ...(query.from ? { gte: new Date(query.from) } : {}),
+            ...(query.to ? { lt: new Date(query.to) } : {}),
+          },
+        }
+      : {}),
+    ...(query.manual === undefined ? {} : { manual: query.manual === "true" }),
   };
   const [rows, total] = await Promise.all([
     prisma.taskScheduleRun.findMany({
       where,
       take: take + 1,
-      skip,
-      cursor: cursor ? { id: cursor } : undefined,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: [{ effectiveScheduledAt: "asc" }, { id: "asc" }],
     }),
     prisma.taskScheduleRun.count({ where }),
