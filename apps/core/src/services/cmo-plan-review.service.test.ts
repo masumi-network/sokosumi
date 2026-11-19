@@ -1324,6 +1324,26 @@ describe("ads and questions, for a Cuso on cmo-v5's strategy skill", () => {
     ).toEqual([]);
   });
 
+  it("refuses ad pieces in the calendar before the owner said yes", () => {
+    expect(
+      found(
+        plan({
+          channels: live,
+          calendar: [
+            entry("w1-ad1", "google_ads", "search_ad"),
+            {
+              ...entry("w1-ad2", "google_ads", "search_ad"),
+              status: "skipped",
+            },
+          ],
+        }),
+        /said yes to ads/,
+      ),
+    ).toEqual([
+      "the owner has not said yes to ads, but the calendar holds ads (w1-ad1); take ads out of channels, the calendar and the funnel, keep monthly 0, and say what you would start with in ads.suggest.",
+    ]);
+  });
+
   it("refuses a question about ads or a budget", () => {
     const asked = plan({
       channels: live,

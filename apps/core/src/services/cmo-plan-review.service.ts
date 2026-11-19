@@ -348,10 +348,18 @@ function unaskedAdProblems(strategy: MarketingStrategyPlan): string[] {
       stage.channels.some((channel) => AD_CHANNELS.includes(channel)) ||
       stage.plays.some((play) => AD_CHANNELS.includes(play.channel)),
   );
-  if (planned.length > 0 || inFunnel.length > 0)
+  const pieces = strategy.calendar.filter(
+    (entry) =>
+      AD_CHANNELS.includes(entry.channel.toLowerCase()) &&
+      entry.status !== "skipped",
+  );
+  if (planned.length > 0 || inFunnel.length > 0 || pieces.length > 0)
     problems.push(
       `the owner has not said yes to ads, but ${[
         planned.length > 0 ? `channels holds ${planned.join(", ")}` : "",
+        pieces.length > 0
+          ? `the calendar holds ads (${pieces.map((entry) => entry.id).join(", ")})`
+          : "",
         inFunnel.length > 0
           ? `the funnel names ads at ${inFunnel.map((stage) => stage.stage).join(", ")}`
           : "",
