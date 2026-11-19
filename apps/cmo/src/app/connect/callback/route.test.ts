@@ -17,9 +17,33 @@ describe("connect callback", () => {
     const response = await callback(
       "from=onboarding&project=project-2&status=success&connectedAccountId=ca_1&session_uri=s_1",
     );
-    expect(finalizeChannel).toHaveBeenCalledWith("project-2", "ca_1", "s_1");
+    expect(finalizeChannel).toHaveBeenCalledWith(
+      "project-2",
+      "ca_1",
+      "s_1",
+      null,
+    );
     expect(response.headers.get("location")).toBe(
       "http://localhost:3110/?step=connect&from=onboarding&project=project-2",
+    );
+  });
+
+  it("finishes TikTok with its one-use proof, back at /zernio/callback", async () => {
+    finalizeChannel.mockResolvedValue(true);
+    const { GET: zernio } = await import("../../zernio/callback/route");
+    const response = await zernio(
+      new NextRequest(
+        "http://localhost:3110/zernio/callback?project=project-2&from=app&connection=zernio:0123456789abcdef01234567&proof=one-use",
+      ),
+    );
+    expect(finalizeChannel).toHaveBeenCalledWith(
+      "project-2",
+      "zernio:0123456789abcdef01234567",
+      null,
+      "one-use",
+    );
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3110/?step=connect&from=app&project=project-2",
     );
   });
 

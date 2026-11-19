@@ -114,6 +114,7 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
       email="francis@acme.io"
       initialView={view}
       plans={cmoPlans}
+      mayHire
       actions={{
         ...actions,
         loadState: async () => data,

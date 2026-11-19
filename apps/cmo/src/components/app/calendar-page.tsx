@@ -7,9 +7,12 @@ import { type ReactNode, useMemo, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
+  connectedNetworks,
   formatDay,
   pieceMade,
   planWeeks,
+  waitsForNetwork,
+  wholeWords,
 } from "../../lib/calendar";
 import { formatHasImage, formatHasVideo, formatName } from "../../lib/channels";
 import { ChannelIcon } from "../channel-icon";
@@ -29,8 +32,25 @@ const STATUS: Record<Entry["status"], string> = {
   skipped: "Skipped",
 };
 
-/** Where a post stands, in words beside a small mark: never a pill. */
-function PieceState({ status }: { status: Entry["status"] }) {
+/**
+ * Where a post stands, in words beside a small mark: never a pill. A written
+ * post on a network that is not connected says what it waits for.
+ */
+export function PieceState({
+  status,
+  waitsFor = null,
+}: {
+  status: Entry["status"];
+  waitsFor?: string | null;
+}) {
+  if (waitsFor) {
+    return (
+      <span className="state">
+        <StatusDisc status="warn" decorative />
+        Waiting for {channelLabel(waitsFor)}
+      </span>
+    );
+  }
   return (
     <span className="state">
       {status === "published" ? (
@@ -52,11 +72,13 @@ function samePillar(named: string | undefined, pillar: string): boolean {
 /** The first words of a piece, without Markdown, for its card. */
 function excerpt(entry: Entry): string {
   const text = entry.draft ?? entry.brief ?? "";
-  return text
-    .replace(/[#*_>`[\]()]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160);
+  return wholeWords(
+    text
+      .replace(/[#*_>`[\]()]/g, "")
+      .replace(/\s+/g, " ")
+      .trim(),
+    320,
+  );
 }
 
 /**
@@ -70,10 +92,13 @@ export function CalendarPage({
   onAsk,
   loadText,
   pieceExtra,
+  onConnect,
 }: {
   overview: CmoOverview;
   /** Approve, decline or rewrite a post that waits for the owner. */
   drafts: DraftActions;
+  /** Opens Channels, where a network a post waits for is connected. */
+  onConnect?: () => void;
   onAsk: (text: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
   loadText?: (entryId: string) => Promise<string | null>;
@@ -144,6 +169,12 @@ export function CalendarPage({
   const mediaFor = (entry: Entry) =>
     overview.media.find((item) => item.entryId === entry.id);
   const made = (entry: Entry) => pieceMade(entry, Boolean(mediaFor(entry)));
+  const connected = connectedNetworks(overview.channels);
+  const waitingFor = [
+    ...new Set(
+      live.flatMap((entry) => waitsForNetwork(entry, connected) ?? []),
+    ),
+  ];
   const ready = live.filter(made).length;
   const readable = shown.filter(made);
   const index = readable.findIndex((entry) => entry.id === openId);
@@ -157,6 +188,31 @@ export function CalendarPage({
           {live.length} posts this month · {ready} ready
           {ready < live.length ? ` · ${live.length - ready} being made` : ""}
         </p>
+        {waitingFor.map((network) => {
+          const count = live.filter(
+            (entry) => waitsForNetwork(entry, connected) === network,
+          ).length;
+          return (
+            <p key={network} className="cal-waits">
+              <StatusDisc status="warn" decorative />
+              <span className="grow">
+                {count === 1 ? "1 post is" : `${count} posts are`} written and
+                {count === 1 ? " waits" : " wait"} for {channelLabel(network)}.
+                Connect it and {count === 1 ? "it goes" : "they go"} out on
+                schedule.
+              </span>
+              {onConnect ? (
+                <button
+                  type="button"
+                  className="button button-secondary button-small"
+                  onClick={onConnect}
+                >
+                  Connect {channelLabel(network)}
+                </button>
+              ) : null}
+            </p>
+          );
+        })}
         <div className="cal-filters" role="group" aria-label="Network">
           <button
             type="button"
@@ -237,6 +293,7 @@ export function CalendarPage({
                       media={mediaFor(entry)}
                       open={entry.id === openId}
                       onOpen={() => setOpenId(entry.id)}
+                      waitsFor={waitsForNetwork(entry, connected)}
                     />
                   ) : (
                     <PieceInMaking entry={entry} />
@@ -254,6 +311,23 @@ export function CalendarPage({
             key="sheet"
             entry={open}
             media={mediaFor(open)}
+            overview={overview}
+            state={
+              <PieceState
+                status={open.status}
+                waitsFor={waitsForNetwork(open, connected)}
+              />
+            }
+            onEdit={
+              editable(open, overview.postRevisions)
+                ? (text) =>
+                    drafts.edit(
+                      open.socialPostId ?? open.id,
+                      overview.postRevisions[open.socialPostId ?? open.id] ?? 0,
+                      text,
+                    )
+                : undefined
+            }
             onClose={() => setOpenId(null)}
             onAsk={onAsk}
             loadText={loadText}
@@ -273,6 +347,18 @@ export function CalendarPage({
         ) : null}
       </AnimatePresence>
     </div>
+  );
+}
+
+/** The owner may rewrite the words of a Social post that has not gone out. */
+function editable(
+  entry: Entry,
+  revisions: CmoOverview["postRevisions"],
+): boolean {
+  return (
+    Boolean(entry.socialPostId) &&
+    (entry.status === "draft" || entry.status === "scheduled") &&
+    revisions[entry.socialPostId ?? ""] !== undefined
   );
 }
 
@@ -310,11 +396,13 @@ function PieceCard({
   media,
   open,
   onOpen,
+  waitsFor,
 }: {
   entry: Entry;
   media?: Media;
   open: boolean;
   onOpen: () => void;
+  waitsFor: string | null;
 }) {
   const picture =
     media?.slides?.[0] ?? (media?.kind === "image" ? media.url : null);
@@ -332,7 +420,9 @@ function PieceCard({
       onClick={onOpen}
     >
       {!visual && words ? (
-        <span className="cal-thumb cal-words">{words}</span>
+        <span className="cal-thumb cal-words">
+          <span>{words}</span>
+        </span>
       ) : (
         <span className="cal-thumb">
           {picture ? (
@@ -370,7 +460,7 @@ function PieceCard({
         ) : null}
         <span className="cal-title">{entry.title}</span>
         {visual && words ? <span className="cal-excerpt">{words}</span> : null}
-        <PieceState status={entry.status} />
+        <PieceState status={entry.status} waitsFor={waitsFor} />
       </span>
     </button>
   );

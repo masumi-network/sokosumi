@@ -109,6 +109,19 @@ describe("pre-hire Site", () => {
     expect(html).not.toContain('name="organizationId"');
   });
 
+  it("marks a test copy and leaves out where he goes: Core puts him beside his source", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        organizations={[{ id: "org-1", name: "Agency" }]}
+        testCopyOf="project-source"
+        onboard={async () => ({ attempt: 0, websiteUrl: "", errors: {} })}
+      />,
+    );
+    expect(html).toContain('name="testCopyOf" value="project-source"');
+    expect(html).toContain("Test copy.");
+    expect(html).not.toContain('name="organizationId"');
+  });
+
   it("asks where Cuso goes, with a new organization selected", () => {
     const html = renderToStaticMarkup(
       <Onboarding
@@ -729,7 +742,7 @@ describe("Launch", () => {
     expect(strategySocialChannels(draft())).toEqual(["linkedin", "x"]);
   });
 
-  it("shows the plan's own ads as optional too", () => {
+  it("shows the month's own ads as planned, never as an optional extra", () => {
     const ad = {
       id: "ad-1",
       date: "2026-10-05",
@@ -739,11 +752,8 @@ describe("Launch", () => {
       status: "idea" as const,
     };
     const ads = feedScreens([ad]).find((screen) => screen.key === "ads");
-    expect(ads).toMatchObject({
-      optional: true,
-      perMonth: 1,
-      name: "Meta ads",
-    });
+    expect(ads).toMatchObject({ name: "Meta ads", ads: "meta_ads" });
+    expect(ads?.optional).toBeUndefined();
   });
 
   it("makes ads and proposed channels optional, and leaves the newsletter out", () => {

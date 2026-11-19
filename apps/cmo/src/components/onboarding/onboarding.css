@@ -296,31 +296,9 @@ body:has(.ob) .site-header {
   text-overflow: ellipsis;
 }
 
-/* The sidebar's scene: as wide as its column, shorter, a smaller label. */
-.ob-scene-compact {
-  width: auto;
-  height: 176px;
-}
-
-/* In the sidebar the stage is a picture, not an action: the line, no shadow. */
-.ob-scene-compact .ob-stage-art {
-  border-radius: var(--radius-card);
-}
-
-.ob-scene-compact .ob-scene-now {
-  bottom: 24px;
-  max-width: calc(100% - 16px);
-  padding: 4px 8px;
-  font-size: 0.75rem;
-}
-
 /* A label on the stage: he stands above it, so it never covers him. */
 .ob-scene:has(.ob-scene-now) .ob-stage-art {
   padding-bottom: 72px;
-}
-
-.ob-scene-compact:has(.ob-scene-now) .ob-stage-art {
-  padding-bottom: 56px;
 }
 
 /* He needs the owner: the label calls out on Iris. */

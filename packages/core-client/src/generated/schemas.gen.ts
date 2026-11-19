@@ -53216,6 +53216,13 @@ export const CmoOverviewSchema = {
             },
             description: 'The image or video Cuso attached to each calendar piece, by entry id.'
         },
+        postRevisions: {
+            type: 'object',
+            additionalProperties: {
+                type: 'integer'
+            },
+            description: 'The revision of each Social post of the month, by post id: what an owner\'s edit of its words names (PATCH drafts/{postId}).'
+        },
         strategyVersion: {
             anyOf: [
                 {
@@ -53274,6 +53281,10 @@ export const CmoOverviewSchema = {
         },
         connectChannelUrl: {
             type: 'string'
+        },
+        tiktokEnabled: {
+            type: 'boolean',
+            description: 'TikTok may be connected to this Cuso\'s Project. Cuso plans no TikTok posts yet.'
         },
         adProviders: {
             type: 'array',
@@ -53446,6 +53457,7 @@ export const CmoOverviewSchema = {
         'strategy',
         'approvedStrategy',
         'media',
+        'postRevisions',
         'strategyVersion',
         'strategyVersions',
         'hiredAt',
@@ -53454,6 +53466,7 @@ export const CmoOverviewSchema = {
         'channels',
         'upNext',
         'connectChannelUrl',
+        'tiktokEnabled',
         'adProviders',
         'measurement',
         'production',
@@ -56192,6 +56205,11 @@ export const CmoOnboardingRequestSchema = {
             minLength: 1,
             maxLength: 64,
             description: 'The owner\'s time zone, from their browser: Cuso\'s routines run at their local times in it. Without it he works on Europe/Berlin time.'
+        },
+        testCopyOfProjectId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Hire a test copy of this Project\'s Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy\'s Social connections are links to the source\'s connected accounts.'
         }
     },
     required: [
@@ -56824,6 +56842,108 @@ export const CmoCustomerPortalSchema = {
     ]
 } as const;
 
+export const CmoTestCopyCheckSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Project whose connected accounts the copy uses.'
+        },
+        tornDownAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        clean: {
+            type: 'boolean',
+            description: 'Nothing is left: no unsent post, linked account, run or Cuso.'
+        },
+        left: {
+            type: 'object',
+            properties: {
+                unsentPosts: {
+                    type: 'integer'
+                },
+                linkedAccounts: {
+                    type: 'integer'
+                },
+                activeTurns: {
+                    type: 'integer'
+                },
+                liveCuso: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'unsentPosts',
+                'linkedAccounts',
+                'activeTurns',
+                'liveCuso'
+            ]
+        },
+        publishedPosts: {
+            type: 'integer',
+            description: 'Posts of the copy that went out. Always 0.'
+        },
+        providerRevocations: {
+            type: 'integer',
+            description: 'Accounts ended at the provider through the copy. Always 0.'
+        }
+    },
+    required: [
+        'projectId',
+        'sourceProjectId',
+        'tornDownAt',
+        'clean',
+        'left',
+        'publishedPosts',
+        'providerRevocations'
+    ]
+} as const;
+
+export const CmoTestCopyTeardownSchema = {
+    type: 'object',
+    properties: {
+        removed: {
+            type: 'object',
+            properties: {
+                canceledPosts: {
+                    type: 'integer'
+                },
+                unlinkedAccounts: {
+                    type: 'integer'
+                },
+                stoppedTurns: {
+                    type: 'integer'
+                },
+                archivedCuso: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'canceledPosts',
+                'unlinkedAccounts',
+                'stoppedTurns',
+                'archivedCuso'
+            ]
+        },
+        check: {
+            $ref: '#/components/schemas/CmoTestCopyCheck'
+        }
+    },
+    required: [
+        'removed',
+        'check'
+    ]
+} as const;
+
 export const CmoTimeZoneSchema = {
     type: 'object',
     properties: {
@@ -56946,6 +57066,37 @@ export const CmoSeoAuditSchema = {
                 passed: {
                     type: 'integer'
                 },
+                failedChecks: {
+                    type: 'integer'
+                },
+                readingChecks: {
+                    type: 'integer'
+                },
+                readings: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            detail: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'title',
+                            'pageUrl',
+                            'detail'
+                        ]
+                    }
+                },
                 issues: {
                     type: 'array',
                     items: {
@@ -57011,6 +57162,9 @@ export const CmoSeoAuditSchema = {
                 'observedAt',
                 'checked',
                 'passed',
+                'failedChecks',
+                'readingChecks',
+                'readings',
                 'issues',
                 'fixes'
             ]

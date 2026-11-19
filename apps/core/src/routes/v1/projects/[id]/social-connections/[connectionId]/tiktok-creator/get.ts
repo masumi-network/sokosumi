@@ -24,7 +24,7 @@ import {
   projectSocialConnectionParamsSchema,
   tikTokCreatorInfoSchema,
 } from "@/schemas/project-social-connection.schema";
-import { projectExecutorUserId } from "@/services/project-social-connections.service";
+import { connectionExecutorUserId } from "@/services/project-social-connections.service";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -62,6 +62,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
         provider: "tiktok",
       },
       select: {
+        projectId: true,
+        executorProjectId: true,
         composioConnectedAccountId: true,
         project: { select: socialProviderProjectSelect },
       },
@@ -82,7 +84,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
     const sessionId = await createComposioToolSession({
       toolkitSlug: "tiktok",
       connectedAccountId: connection.composioConnectedAccountId,
-      executorUserId: projectExecutorUserId(projectId),
+      executorUserId: connectionExecutorUserId(connection),
       toolSlugs: [toolSlug],
       context: "read TikTok posting options",
     });
