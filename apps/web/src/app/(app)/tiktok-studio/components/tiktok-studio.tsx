@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useSocialProviderAvailability } from "@/contexts/social-provider-availability-context";
 import {
@@ -531,14 +532,7 @@ export function TikTokStudio({
                 value={presenter.id}
               >
                 <span className={tileClass(presenterId === presenter.id)}>
-                  <img
-                    alt=""
-                    className="size-full object-cover"
-                    height={160}
-                    loading="lazy"
-                    src={presenter.imageUrl}
-                    width={90}
-                  />
+                  <PresenterImage src={presenter.imageUrl} />
                 </span>
                 <span className="truncate text-xs">{presenter.name}</span>
               </RadioGroup.Item>
@@ -830,6 +824,35 @@ export function TikTokStudio({
         />
       ) : null}
     </div>
+  );
+}
+
+/** A presenter photo that pulses until it has loaded, then fades in. */
+function PresenterImage({ src }: { src: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <>
+      {loaded ? null : (
+        <Skeleton aria-hidden className="absolute inset-0 rounded-none" />
+      )}
+      <img
+        alt=""
+        className={cn(
+          "size-full object-cover transition-opacity duration-300 motion-reduce:transition-none",
+          loaded ? "opacity-100" : "opacity-0",
+        )}
+        height={160}
+        loading="lazy"
+        onError={() => setLoaded(true)}
+        onLoad={() => setLoaded(true)}
+        // A cached image can finish before hydration attaches onLoad.
+        ref={(img) => {
+          if (img?.complete) setLoaded(true);
+        }}
+        src={src}
+        width={90}
+      />
+    </>
   );
 }
 

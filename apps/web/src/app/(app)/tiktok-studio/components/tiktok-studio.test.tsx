@@ -349,6 +349,26 @@ describe("TikTokStudio", () => {
     });
   });
 
+  it("pulses a presenter's tile until their photo has loaded", () => {
+    // happy-dom treats every image as already loaded; a browser does not.
+    const complete = vi
+      .spyOn(HTMLImageElement.prototype, "complete", "get")
+      .mockReturnValue(false);
+    renderStudio();
+    complete.mockRestore();
+    const tile = screen.getByRole("radio", { name: "Maya" });
+    const photo = tile.querySelector("img");
+    if (!photo) throw new Error("Maya has no photo");
+
+    expect(tile.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    expect(photo).toHaveClass("opacity-0");
+
+    fireEvent.load(photo);
+
+    expect(tile.querySelector('[data-slot="skeleton"]')).toBeNull();
+    expect(photo).toHaveClass("opacity-100");
+  });
+
   it("speaks with the chosen presenter's own voice", async () => {
     startTalkingVideoMock.mockResolvedValue({ ok: false, message: "no" });
     renderStudio();
