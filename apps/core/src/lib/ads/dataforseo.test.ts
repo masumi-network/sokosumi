@@ -16,6 +16,7 @@ vi.mock("@/clients/composio.client", async (importOriginal) => ({
 
 import {
   competitorAds,
+  fetchComparisonSearches,
   fetchMarketKeywords,
   getTaskResult,
   mergeMarketAds,
@@ -246,6 +247,95 @@ describe("fetchMarketKeywords", () => {
     await expect(fetchMarketKeywords(query)).rejects.toThrow(
       "invalid response",
     );
+  });
+});
+
+describe("fetchComparisonSearches", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    m.getEnv.mockReturnValue({
+      COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
+    });
+  });
+
+  it("reads the searches that name the product beside a comparison word", async () => {
+    m.composioFetch.mockImplementation(async () =>
+      proxied(
+        task([
+          {
+            items: [
+              {
+                keyword: "calendly alternative",
+                keyword_info: {
+                  search_volume: 260,
+                  cpc: 12.18,
+                  competition_level: "MEDIUM",
+                  low_top_of_page_bid: 2.21,
+                  high_top_of_page_bid: 19.66,
+                },
+              },
+              { keyword: "calendly vs zcal", keyword_info: null },
+            ],
+          },
+        ]),
+      ),
+    );
+    const rows = await fetchComparisonSearches({
+      product: "calendly",
+      locationCode: 2840,
+      languageCode: "en",
+    });
+    const [request] = requests();
+    expect(request?.endpoint).toBe(
+      `${API}/dataforseo_labs/google/keyword_suggestions/live`,
+    );
+    expect(request?.body).toEqual([
+      {
+        keyword: "calendly",
+        location_code: 2840,
+        language_code: "en",
+        limit: 100,
+        filters: [
+          [
+            "keyword",
+            "regex",
+            "(alternative|competitor|\\bvs\\b|versus|compared|pricing|\\bprice|\\bcost)",
+          ],
+        ],
+        order_by: ["keyword_info.search_volume,desc"],
+      },
+    ]);
+    expect(rows).toEqual([
+      {
+        keyword: "calendly alternative",
+        searchVolume: 260,
+        cpc: 12.18,
+        lowTopOfPageBid: 2.21,
+        highTopOfPageBid: 19.66,
+        competition: "MEDIUM",
+      },
+      {
+        keyword: "calendly vs zcal",
+        searchVolume: null,
+        cpc: null,
+        lowTopOfPageBid: null,
+        highTopOfPageBid: null,
+        competition: null,
+      },
+    ]);
+  });
+
+  it("raises a refusal from DataForSEO", async () => {
+    m.composioFetch.mockImplementation(async () =>
+      proxied(task(null, 40501, "No Search Results.")),
+    );
+    await expect(
+      fetchComparisonSearches({
+        product: "nobody",
+        locationCode: 2840,
+        languageCode: "en",
+      }),
+    ).rejects.toBeInstanceOf(ComposioToolError);
   });
 });
 

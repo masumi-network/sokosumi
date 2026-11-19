@@ -230,18 +230,37 @@ export const cmoPieceTextSchema = z
   .object({ text: z.string() })
   .openapi("CmoPieceText");
 
+export const cmoChatTableSchema = z
+  .object({
+    columns: z.array(z.string()),
+    rows: z.array(z.array(z.string())),
+    total: z.number().int().describe("Every row the table holds."),
+  })
+  .openapi("CmoChatTable");
+
 export const cmoChatWorkItemSchema = z
   .object({
     id: z.string().describe("The tool call that started it."),
     kind: z
-      .enum(["image", "video", "audio", "file", "task", "agent"])
+      .enum([
+        "image",
+        "video",
+        "audio",
+        "file",
+        "task",
+        "agent",
+        "table",
+        "contacts",
+        "run",
+        "question",
+      ])
       .describe(
-        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).",
+        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, or a question to a Coworker.",
       ),
     state: z
-      .enum(["making", "waiting", "ready", "failed"])
+      .enum(["making", "waiting", "ready", "failed", "stopped"])
       .describe(
-        "making until it is done; waiting when handed work needs the owner; failed when it never will be done.",
+        "making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.",
       ),
     at: dateTimeSchema.describe("When Cuso started it."),
     title: z
@@ -266,8 +285,39 @@ export const cmoChatWorkItemSchema = z
     files: z
       .array(z.object({ name: z.string(), url: z.string() }))
       .describe("Files handed work came back with."),
+    table: z
+      .union([cmoChatTableSchema, z.null()])
+      .describe("A table's columns and first rows."),
+    people: z
+      .array(
+        z.object({
+          name: z.string(),
+          detail: z.union([z.string(), z.null()]),
+        }),
+      )
+      .describe("The first people of a contact list or a lookup."),
+    total: z
+      .union([z.number().int(), z.null()])
+      .describe("Everyone that list or lookup holds, shown or not."),
+    steps: z
+      .array(
+        z.object({
+          label: z.string(),
+          state: z.enum(["done", "now", "next"]),
+        }),
+      )
+      .describe("A running background run's plan."),
+    turnId: z
+      .union([z.string(), z.null()])
+      .describe(
+        "A background run's own turn: its report in the room is this card.",
+      ),
   })
   .openapi("CmoChatWorkItem");
+
+export const cmoChatWorkTableSchema = z
+  .object({ title: z.string(), table: cmoChatTableSchema })
+  .openapi("CmoChatWorkTable");
 
 export const cmoChatWorkSchema = z
   .object({ items: z.array(cmoChatWorkItemSchema) })

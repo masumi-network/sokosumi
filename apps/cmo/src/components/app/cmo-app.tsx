@@ -17,7 +17,7 @@ import {
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
-import type { ChatWork } from "../../lib/chat-work";
+import type { ChatTable, ChatWork } from "../../lib/chat-work";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
@@ -68,6 +68,8 @@ export interface CmoAppActions
   loadChatWork: () => Promise<ChatWork[]>;
   /** The full words of a file Cuso wrote or of work he handed on. */
   loadChatWorkText: (id: string) => Promise<string | null>;
+  /** All the rows of a table Cuso made or filled. */
+  loadChatWorkTable: (id: string) => Promise<ChatTable | null>;
   sendMessage: (content: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
   loadPieceText: (entryId: string) => Promise<string | null>;
@@ -442,6 +444,7 @@ export function CmoApp({
                     name={name || email}
                     openCalendar={() => go("calendar")}
                     loadText={actions.loadChatWorkText}
+                    loadTable={actions.loadChatWorkTable}
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
@@ -693,6 +696,7 @@ function ThreadEntry({
   name,
   openCalendar,
   loadText,
+  loadTable,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
@@ -700,6 +704,7 @@ function ThreadEntry({
   name: string;
   openCalendar: () => void;
   loadText: (id: string) => Promise<string | null>;
+  loadTable: (id: string) => Promise<ChatTable | null>;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
@@ -732,6 +737,7 @@ function ThreadEntry({
           work={item.work}
           compose={actions.compose}
           loadText={loadText}
+          loadTable={loadTable}
         />
       </CusoSays>
     );

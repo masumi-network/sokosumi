@@ -1,10 +1,13 @@
 import "server-only";
 
+import type { ProjectListItem } from "@sokosumi/core-client";
 import { cacheLife } from "next/cache";
 import { unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
 import {
+  PROJECTS_LIST_STATES,
   PROJECTS_PAGE_LIMIT,
+  type ProjectsListProject,
   type ProjectsListState,
   projectsListStateQuery,
 } from "@/app/projects/constants";
@@ -16,12 +19,67 @@ export interface ProjectsPageDataInput {
   state: ProjectsListState;
 }
 
+/**
+ * A closing card says what its close still owes. Closing projects are rare,
+ * so one status read per closing card on the page; a failed read leaves the
+ * card its badge alone.
+ */
+export async function withCloseStatus(
+  projects: ProjectListItem[],
+): Promise<ProjectsListProject[]> {
+  return Promise.all(
+    projects.map(async (project) => {
+      if (!project.closingAt || project.closedAt) return project;
+      const status = await projectService
+        .getProjectCloseStatus(project.id)
+        .catch((error: unknown) => {
+          unstable_rethrow(error);
+          return null;
+        });
+      return {
+        ...project,
+        closeStatus: status
+          ? {
+              state: status.state,
+              owedOccurrenceCount: status.owedOccurrenceCount,
+            }
+          : null,
+      };
+    }),
+  );
+}
+
 async function readProjectsPageData({ query, state }: ProjectsPageDataInput) {
-  const projectsPage = await projectService.listProjects({
+  const page = await projectService.listProjects({
     limit: PROJECTS_PAGE_LIMIT,
     query,
     ...projectsListStateQuery(state),
   });
+  const projectsPage = {
+    ...page,
+    projects: await withCloseStatus(page.projects),
+  };
+  // A filter that matches nothing here may match in another view; the empty
+  // state names those views instead of saying nothing matches.
+  const otherMatches: ProjectsListState[] =
+    query && page.projects.length === 0
+      ? (
+          await Promise.all(
+            PROJECTS_LIST_STATES.filter((other) => other !== state).map(
+              async (other) =>
+                (
+                  await projectService.listProjects({
+                    limit: 1,
+                    query,
+                    state: other,
+                  })
+                ).projects.length > 0
+                  ? other
+                  : null,
+            ),
+          )
+        ).filter((other) => other !== null)
+      : [];
   // An empty Open view reads "No projects yet" only when there is truly
   // nothing; one Closed project is enough to say "all closed" instead.
   const hasClosedProjects =
@@ -31,7 +89,7 @@ async function readProjectsPageData({ query, state }: ProjectsPageDataInput) {
     (await projectService.listProjects({ limit: 1, state: "closed" })).projects
       .length > 0;
 
-  return { projectsPage, hasClosedProjects };
+  return { projectsPage, hasClosedProjects, otherMatches };
 }
 
 type ProjectsPageData = Awaited<ReturnType<typeof readProjectsPageData>>;

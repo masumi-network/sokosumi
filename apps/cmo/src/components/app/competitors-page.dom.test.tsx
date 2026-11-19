@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { competitors } from "../../app/design-system/app/competitors-fixture";
 import { cmoOverview } from "../../test-fixtures/cmo";
 import {
+  COMPARING_SEARCHES_REQUEST,
   type CompetitorActions,
   CompetitorsPage,
   watchedMap,
@@ -248,6 +249,14 @@ describe("CompetitorsPage", () => {
     expect(compose.mock.calls[0]?.[0]).toContain("never copies");
   });
 
+  it("asks for search ads on the searches of people comparing competitors", async () => {
+    const compose = vi.fn();
+    await render(actions(), compose);
+    expect(text()).toContain("Nothing spends until you press Launch.");
+    await press("Ask Cuso for search ads");
+    expect(compose).toHaveBeenCalledWith(COMPARING_SEARCHES_REQUEST);
+  });
+
   it("adds, edits and removes a competitor", async () => {
     const addCompetitor = vi.fn(async () => ({ competitors, error: null }));
     const updateCompetitor = vi.fn(async () => ({ competitors, error: null }));
@@ -305,6 +314,7 @@ describe("CompetitorsPage", () => {
     // No table of nothing but empty cells.
     expect(container.querySelector(".comp-table")).toBeNull();
     expect(text()).not.toContain("What worked for them");
+    expect(text()).not.toContain("People comparing you");
     expect(text()).not.toContain("What the checks found");
   });
 

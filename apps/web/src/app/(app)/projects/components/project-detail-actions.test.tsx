@@ -247,6 +247,29 @@ describe("ProjectDetailActions", () => {
     });
   });
 
+  it("closes the menu behind the confirmation, so keeping the project open leaves no menu behind", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectDetailActions
+        projectId="project-1"
+        projectRevision={3}
+        labels={LABELS}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Close project" }));
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Keep project open" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More actions" })).toHaveFocus();
+  });
+
   it("does not offer close after closing has started", async () => {
     const user = userEvent.setup();
     render(
