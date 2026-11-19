@@ -200,6 +200,7 @@ async function readTasksPageData(
           ...getTaskTagQuery(activeFilters.tag),
           scope: tasksQueryScope(activeFilters.scope, activeFilters),
           ...(activeFilters.mentions ? { unansweredMention: true } : {}),
+          ...(activeFilters.subtasks ? { includeSubtasks: true } : {}),
           assigneeId: activeFilters.assigneeId ?? undefined,
           assigneeSokoBotId: activeFilters.assigneeSokoBotId ?? undefined,
           assigneeUserId: activeFilters.assigneeUserId ?? undefined,
