@@ -5875,12 +5875,12 @@ describe("SokoBotRuntimeService table actor", () => {
   it("lets a Project's shared bot work in its Project, for the member who asked", async () => {
     const { resolveTableActor } = await import("@/helpers/data-table");
     vi.mocked(resolveTableActor).mockReset();
-    botFindUniqueMock.mockResolvedValue({
+    botFindUniqueMock.mockResolvedValueOnce({
       userId: null,
       projectId: "project_1",
       workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
     });
-    workspaceFindFirstMock.mockResolvedValue({
+    workspaceFindFirstMock.mockResolvedValueOnce({
       id: SCOPE.workspaceId,
       organizationId: "org_1",
     });
@@ -5907,17 +5907,22 @@ describe("SokoBotRuntimeService table actor", () => {
   });
 
   it("refuses a shared bot's table work when the member left, or nobody asked", async () => {
-    botFindUniqueMock.mockResolvedValue({
+    botFindUniqueMock.mockResolvedValueOnce({
       userId: null,
       projectId: "project_1",
       workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
     });
     const service = new SokoBotRuntimeService();
-    workspaceFindFirstMock.mockResolvedValue(null);
+    workspaceFindFirstMock.mockResolvedValueOnce(null);
     await expect(
       service["tableActor"](authorized as never, {}),
     ).rejects.toThrow("Workspace access is no longer available");
 
+    botFindUniqueMock.mockResolvedValueOnce({
+      userId: null,
+      projectId: "project_1",
+      workspace: { id: SCOPE.workspaceId, organizationId: "org_1" },
+    });
     await expect(
       service["tableActor"](
         {
