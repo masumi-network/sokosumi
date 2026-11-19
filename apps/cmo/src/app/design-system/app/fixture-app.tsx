@@ -28,6 +28,7 @@ const actions: CmoAppActions = {
   loadPieceText: async (id) =>
     overview.strategy?.calendar.find((entry) => entry.id === id)?.draft ?? null,
   approveStrategy: async () => overview,
+  requestStrategy: async () => ({ overview, error: null }),
   setAdBudget: async () => ({ overview, error: null }),
   revertUpdate: async () => overview,
   saveBrandBrain: async () => overview,
