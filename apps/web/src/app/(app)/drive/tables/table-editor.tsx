@@ -45,6 +45,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import { DRIVE_SURFACE_PANEL_CLASS } from "@/app/drive/components/drive-view-layout";
 import { ColumnResizeHandle } from "@/components/data-grid/column-resize-handle";
 import {
@@ -99,6 +100,7 @@ import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { moveIdToSlot } from "@/lib/utils/move-id";
 import { TableCell, TableUpdatedCell } from "./table-cell";
 import { TableColumnDialog } from "./table-column-dialog";
+import { TableFindReplace } from "./table-find-replace";
 import { cellWrap, columnWidth } from "./table-layout";
 import { createTableMutations, isTableRejection } from "./table-mutations";
 import { archivePatch, hideRows, saveArchive } from "./table-row-archive";
@@ -339,6 +341,7 @@ function TableWorkspace({
   const [retrySlot, setRetrySlot] = useState<string>();
   const [pending, setPending] = useState(false);
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
+  const [findReplace, setFindReplace] = useState(false);
   const [dialog, setDialog] = useState<
     "views" | "history" | "enrich" | "rename" | "archive" | null
   >(null);
@@ -818,6 +821,11 @@ function TableWorkspace({
               >
                 {t("rename")}
               </DropdownMenuItem>
+              {!table.archivedAt && (
+                <DropdownMenuItem onClick={() => setFindReplace(true)}>
+                  {t("findReplace.title")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => void run(handleExport)}>
                 {t("exportCsv")}
               </DropdownMenuItem>
@@ -1490,6 +1498,25 @@ function TableWorkspace({
           column={column === "new" ? undefined : column}
           onClose={() => setColumn(null)}
           onSaved={() => void refresh()}
+        />
+      )}
+      {findReplace && (
+        <TableFindReplace
+          table={table}
+          onClose={() => setFindReplace(false)}
+          onDone={(count) => {
+            void refresh();
+            toast.success(t("findReplace.done", { count }), {
+              action: {
+                label: t("history"),
+                onClick: () => {
+                  setHistoryCursor(undefined);
+                  setHistoryCell({});
+                  setDialog("history");
+                },
+              },
+            });
+          }}
         />
       )}
       <Dialog
