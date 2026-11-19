@@ -49,7 +49,7 @@ The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the s
 
 ## Type
 
-PP Mori, through `--font-sans` (`mori-regular.woff2` and `mori-semibold.woff2` in `public/site/assets/fonts`, loaded in `src/app/layout.tsx`). Numbers that compare use `font-variant-numeric: tabular-nums`.
+PP Mori, through `--font-sans` (`mori-regular.woff2` and `mori-semibold.woff2` in `public/site/assets/fonts`, loaded in `src/app/layout.tsx`). The one other face on screen is content: the Brand Brain's "Your look" sets each of the brand's font names in that font where the device has it (`FontNames` in `brand-look.tsx`, the guard's one exception), and shows the brand's colours as discs, never as hex codes in a row. Numbers that compare use `font-variant-numeric: tabular-nums`.
 
 | Step      | Size / line | Weight     | Tracking | Use                                  |
 | --------- | ----------- | ---------- | -------- | ------------------------------------ |
@@ -109,6 +109,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 **Funnel (Strategy).** One card a stage, top to bottom, each a little narrower on a wide screen so the stack reads as a funnel: an ink count, the stage's classic name (h2) with what people do there, the stage's goal (value step), then the same three answers at every stage under a hairline, so they line up down the page: What Cuso does (one line a channel), What you do, and How we know it works (the number, today's value, and a green disc when it is measured or "Cuso's estimate" when it is not). The cards are flat and nothing folds: there is nothing to press. On a phone the three answers stack.
 
 **Number.** A count to read (Results, SEO) is a small muted label over the value step, with no box: an outlined box reads as a field to type in.
+
+**Post (Calendar sheet).** A social post as it will look on its network: a hairline card with the business's mark, name, handle and time, the network's mark at the right, the words, then the picture or video (Instagram: picture first). Flat. Under it, where the post stands (`.state`) on the left and "Edit text" (a small secondary button) on the right; editing swaps the words for an input and Save / Cancel.
 
 **Tile.** A row in one outlined gray group, hairlines between: label (small 500, muted), value (16px 500, one line), one line of detail (small, muted), chevron right. Tap opens the row's sheet, which carries the source.
 

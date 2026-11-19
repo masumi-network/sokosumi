@@ -53216,6 +53216,13 @@ export const CmoOverviewSchema = {
             },
             description: 'The image or video Cuso attached to each calendar piece, by entry id.'
         },
+        postRevisions: {
+            type: 'object',
+            additionalProperties: {
+                type: 'integer'
+            },
+            description: 'The revision of each Social post of the month, by post id: what an owner\'s edit of its words names (PATCH drafts/{postId}).'
+        },
         strategyVersion: {
             anyOf: [
                 {
@@ -53274,6 +53281,10 @@ export const CmoOverviewSchema = {
         },
         connectChannelUrl: {
             type: 'string'
+        },
+        tiktokEnabled: {
+            type: 'boolean',
+            description: 'TikTok may be connected to this Cuso\'s Project. Cuso plans no TikTok posts yet.'
         },
         adProviders: {
             type: 'array',
@@ -53449,6 +53460,7 @@ export const CmoOverviewSchema = {
         'strategy',
         'approvedStrategy',
         'media',
+        'postRevisions',
         'strategyVersion',
         'strategyVersions',
         'hiredAt',
@@ -53457,6 +53469,7 @@ export const CmoOverviewSchema = {
         'channels',
         'upNext',
         'connectChannelUrl',
+        'tiktokEnabled',
         'adProviders',
         'connectAdsUrl',
         'measurement',
@@ -57057,6 +57070,37 @@ export const CmoSeoAuditSchema = {
                 passed: {
                     type: 'integer'
                 },
+                failedChecks: {
+                    type: 'integer'
+                },
+                readingChecks: {
+                    type: 'integer'
+                },
+                readings: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            detail: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'title',
+                            'pageUrl',
+                            'detail'
+                        ]
+                    }
+                },
                 issues: {
                     type: 'array',
                     items: {
@@ -57122,6 +57166,9 @@ export const CmoSeoAuditSchema = {
                 'observedAt',
                 'checked',
                 'passed',
+                'failedChecks',
+                'readingChecks',
+                'readings',
                 'issues',
                 'fixes'
             ]

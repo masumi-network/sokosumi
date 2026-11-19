@@ -46,7 +46,9 @@ function actions(data: CmoSeo | null, patch: Partial<SeoActions> = {}) {
 }
 
 async function render(page: SeoActions) {
-  await act(async () => root.render(<SeoPage actions={page} />));
+  await act(async () =>
+    root.render(<SeoPage actions={page} timeZone="Europe/Berlin" />),
+  );
 }
 
 it("shows the weekly audit with its cost, the numbers behind each suggestion and their source", async () => {
@@ -74,11 +76,35 @@ it("says the audit's findings in plain words, without its check ids", async () =
   expect(text()).toContain(
     'did not pass the check "Script and style files for rendering load and are not blocked"',
   );
-  const detail = container.querySelector("details:not([open])");
-  expect(detail?.querySelector("summary")?.textContent).toBe("More detail");
+  const detail = [...container.querySelectorAll("details:not([open])")].find(
+    (fold) => fold.querySelector("summary")?.textContent === "More detail",
+  );
   expect(detail?.textContent).toContain(
     "update it to the current embed code from the HubSpot account",
   );
+});
+
+it("explains every check that did not pass, so the numbers add up", async () => {
+  await render(actions(seo));
+  const latest = seo.audit.latest;
+  if (!latest) throw new Error("The fixture has an audit");
+  expect(latest.passed + latest.failedChecks + latest.readingChecks).toBe(
+    latest.checked,
+  );
+  expect(text()).toContain("6 checks found what is listed to fix");
+  expect(text()).toContain("18 checks only took a reading");
+  expect(text()).toContain("A reading is not a problem.");
+  const readings = [...container.querySelectorAll("details")].find(
+    (fold) => fold.querySelector("summary")?.textContent === "See the readings",
+  );
+  expect(readings?.textContent).toContain("Title length");
+  expect(readings?.textContent).toContain("title 45 characters");
+  expect(text()).not.toContain("No issues found");
+});
+
+it("says when the next audit runs with its time, so it never reads as the weekly review's day", async () => {
+  await render(actions(seo));
+  expect(text()).toMatch(/Next audit: \w+ \d+ November at \d\d:\d\d\./);
 });
 
 it("says Not known for a keyword number that is missing", async () => {

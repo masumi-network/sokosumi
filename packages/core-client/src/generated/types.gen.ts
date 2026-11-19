@@ -13489,6 +13489,12 @@ export type CmoOverview = {
         slides?: Array<string>;
     }>;
     /**
+     * The revision of each Social post of the month, by post id: what an owner's edit of its words names (PATCH drafts/{postId}).
+     */
+    postRevisions: {
+        [key: string]: number;
+    };
+    /**
      * The newest Marketing strategy version, whose plan `strategy` shows: approved, or a draft waiting for an owner or admin.
      */
     strategyVersion: MarketingStrategyVersion | null;
@@ -13508,6 +13514,10 @@ export type CmoOverview = {
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
     connectChannelUrl: string;
+    /**
+     * TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.
+     */
+    tiktokEnabled: boolean;
     adProviders: Array<string>;
     connectAdsUrl: string;
     /**
@@ -14378,6 +14388,13 @@ export type CmoSeoAudit = {
         observedAt: Date;
         checked: number;
         passed: number;
+        failedChecks: number;
+        readingChecks: number;
+        readings: Array<{
+            title: string;
+            pageUrl: string;
+            detail: string | null;
+        }>;
         issues: Array<{
             title: string;
             pageUrl: string;

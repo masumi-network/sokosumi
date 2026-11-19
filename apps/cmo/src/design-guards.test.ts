@@ -122,6 +122,8 @@ describe("colours", () => {
   });
 });
 
+const BRAND_FONT_SAMPLE = "components/onboarding/brand-look.tsx";
+
 describe("typeface", () => {
   it("sets the face only through --font-sans (PP Mori)", () => {
     const stylesheet = FILES.find((file) => file.rel === STYLESHEET);
@@ -131,7 +133,12 @@ describe("typeface", () => {
       .filter(({ line }) => !/font-family\s*:\s*var\(--font-sans\)/.test(line))
       .map(({ line, index }) => `${STYLESHEET}:${index + 1}: ${line.trim()}`);
 
-    const inSource = findLines(SOURCE, /\bfontFamily\s*:/);
+    // One exception: the Brand Brain names the brand's own fonts in those
+    // fonts. That is the brand's look shown as content, not the app's face.
+    const inSource = findLines(
+      SOURCE.filter((file) => file.rel !== BRAND_FONT_SAMPLE),
+      /\bfontFamily\s*:/,
+    );
 
     expect(stylesheet?.text).toMatch(/--font-sans:\s*var\(--font-mori\)/);
     expect([...literalFamilies, ...inSource]).toEqual([]);

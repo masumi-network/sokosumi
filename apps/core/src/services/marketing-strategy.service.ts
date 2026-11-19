@@ -692,6 +692,8 @@ export interface MarketingStrategyPost {
   /** The plan's entry it was made from, if any. */
   entryId: string | null;
   media: SocialPostMediaRef[];
+  /** The post's revision, which an edit of its words names. */
+  revision: number;
 }
 
 const CALENDAR_STATUS: Record<SocialPostStatus, CmoCalendarEntry["status"]> = {
@@ -719,6 +721,7 @@ export async function listMarketingStrategyPosts(
       text: true,
       media: true,
       status: true,
+      revision: true,
       scheduledAt: true,
       createdAt: true,
       planning: true,
@@ -750,6 +753,7 @@ export async function listMarketingStrategyPosts(
       },
       entryId: planning?.id ?? null,
       media: parseSocialPostMedia(post.media, post.id),
+      revision: post.revision,
     };
   });
 }

@@ -152,6 +152,7 @@ function overview() {
     ],
     hiredAt: NOW,
     media: [],
+    postRevisions: { "post-1": 3 },
     botStatus: "IDLE",
     learning: "done",
     work: null,
@@ -183,6 +184,7 @@ function overview() {
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
+    tiktokEnabled: false,
     adProviders: [],
     connectAdsUrl: "http://web/ads?projectId=project-1",
     measurement: [],
@@ -424,6 +426,8 @@ describe("CMO routes", () => {
     expect(body.data.updates[0]).toMatchObject({ revertible: true });
     expect(body.data.updates[0].previousVersionId).toBeUndefined();
     expect(body.data.updates[0].versionId).toBeUndefined();
+    // Each month post's revision, so the owner's edit of its words names it.
+    expect(body.data.postRevisions).toEqual({ "post-1": 3 });
     expect(body.data.posts).toEqual({
       draft: 3,
       scheduled: 2,
