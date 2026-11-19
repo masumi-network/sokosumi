@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { jobInclude, type Prisma } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
-import { formatTaskIdentifier, type SocialPostMediaRef } from "@sokosumi/utils";
+import {
+  formatTaskIdentifier,
+  removeSeoTaskRequest,
+  type SocialPostMediaRef,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import { socialProviderProjectSelect } from "@/config/social-providers";
 import {
@@ -642,7 +646,9 @@ export async function resolveChatResultReference(
           tags: mapTaskTags(task),
         },
         status: task.status,
-        summary: task.description?.slice(0, 4000) ?? null,
+        summary: task.description
+          ? removeSeoTaskRequest(task.description).slice(0, 4000) || null
+          : null,
         sourceHref: `/tasks/${encodeURIComponent(task.id)}`,
         assignee:
           task.assignee?.name ??
