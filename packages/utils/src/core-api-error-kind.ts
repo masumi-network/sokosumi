@@ -57,6 +57,7 @@ export const CORE_API_ERROR_KINDS = {
   SEO_AUDIT_ACTIVE_CHECK: "seo_audit_active_check",
   SEO_AUDIT_ACTIVE_CHAT: "seo_audit_active_chat",
   SEO_AUDIT_RESUMABLE_MONITOR: "seo_audit_resumable_monitor",
+  SEO_AUDIT_TASK_SCOPE_CONFLICT: "seo_audit_task_scope_conflict",
   SEO_GSC_NOT_CONNECTED: "seo_gsc_not_connected",
   SEO_GSC_RECONNECT: "seo_gsc_reconnect",
   SEO_GSC_PROPERTY: "seo_gsc_property",

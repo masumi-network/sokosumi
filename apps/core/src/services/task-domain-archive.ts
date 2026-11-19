@@ -19,11 +19,12 @@ export async function archiveTaskRecord(
   tx: Prisma.TransactionClient,
   task: Task,
   options: {
+    archivedAt?: Date;
     expectedUpdatedAt?: Date;
     actor?: TaskDomainActor;
     effectEventId?: string;
   } = {},
-): Promise<void> {
+): Promise<string[]> {
   if (!canArchiveTaskStatus(task.status))
     throw unprocessableEntity(getTaskCannotArchiveMessage(task.status));
   // A generated Task is independent of its recurring parent (ADR 0041).
@@ -44,7 +45,7 @@ export async function archiveTaskRecord(
     throw conflict("Task changed; read it again");
   // Sub-tasks go with their Task, so none is left live under an archived one.
   const subtasks = await liveSubtasks(tx, task.id, options.actor);
-  const archivedAt = new Date();
+  const archivedAt = options.archivedAt ?? new Date();
   const result = await tx.task.updateMany({
     where: {
       id: task.id,
@@ -76,6 +77,7 @@ export async function archiveTaskRecord(
       },
     });
   }
+  return [task.id, ...subtasks.map(({ id }) => id)];
 }
 
 /** Statuses that come back unchanged; nothing runs from them. */
@@ -97,7 +99,7 @@ export async function restoreTaskRecord(
   tx: Prisma.TransactionClient,
   task: Task,
   actor: TaskDomainActor,
-): Promise<void> {
+): Promise<string[]> {
   if (task.parentTaskId) {
     // Lock, then write the parent row, as requireSubtaskParent does after
     // its Workspace and Project locks: no archive of the parent slips past
@@ -146,14 +148,51 @@ export async function restoreTaskRecord(
   });
   // Sub-tasks archived with it share its archivedAt; one archived on its own
   // before then stays archived.
+  const restoredIds = [task.id];
   if (task.archivedAt) {
     const subtasks = await tx.task.findMany({
       where: { parentTaskId: task.id, archivedAt: task.archivedAt },
     });
     for (const subtask of subtasks) {
-      await restoreTaskRecord(tx, subtask, actor);
+      restoredIds.push(...(await restoreTaskRecord(tx, subtask, actor)));
     }
   }
+  return restoredIds;
+}
+
+/**
+ * Batch historical Tasks after the caller has locked them and checked manage
+ * access. Terminal, top-level Tasks without children need only the archive flag
+ * and the normal restore event. Other Tasks use the full lifecycle above.
+ */
+export async function setTerminalRootTasksArchived(
+  tx: Prisma.TransactionClient,
+  taskIds: string[],
+  archived: boolean,
+  archivedAt: Date,
+  actor: TaskDomainActor,
+) {
+  const changed = await tx.task.updateManyAndReturn({
+    where: {
+      id: { in: taskIds },
+      archivedAt: archived ? null : archivedAt,
+      status: { in: [...SEO_INACTIVE_TASK_STATUSES] },
+      parentTaskId: null,
+      subtasks: { none: {} },
+    },
+    data: { archivedAt: archived ? archivedAt : null },
+    select: { id: true, ownerId: true, assigneeUserId: true },
+  });
+  if (!archived && changed.length) {
+    await tx.taskEvent.createMany({
+      data: changed.map(({ id }) => ({
+        taskId: id,
+        comment: TASK_RESTORED_COMMENT,
+        ...eventActorFields(actor),
+      })),
+    });
+  }
+  return changed;
 }
 
 /** Every live sub-task below a Task, at any depth. Refuses one that cannot be archived. */

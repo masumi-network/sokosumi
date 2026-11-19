@@ -11,6 +11,7 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   createSeoAuditSchema,
+  type seoAuditListQuerySchema,
   seoAuditSummarySchema,
   seoAuditWorkspaceMappingSchema,
 } from "@/schemas/seo-audit.schema";
@@ -24,7 +25,7 @@ import { requireScopedProject } from "./project-social-connections.service";
 
 export async function listSeoAudits(
   actor: SeoWorkspaceActor,
-  query: { cursor?: string; limit?: number; projectId?: string },
+  query: Partial<z.infer<typeof seoAuditListQuerySchema>>,
 ) {
   await requireSeoWorkspace(actor);
   if (query.projectId)
@@ -50,7 +51,11 @@ export async function listSeoAudits(
       })
     : null;
   if (cursor && !after) throw notFound("SEO audit cursor not found");
-  const where = { ...scope, deletedAt: null };
+  const where = {
+    ...scope,
+    deletedAt: null,
+    archivedAt: query.status === "archived" ? { not: null } : null,
+  };
   const [rows, total] = await Promise.all([
     prisma.seoAudit.findMany({
       where: {
@@ -66,7 +71,14 @@ export async function listSeoAudits(
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: take + 1,
-      include: { _count: { select: { pages: true } } },
+      select: {
+        id: true,
+        name: true,
+        projectId: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { pages: true } },
+      },
     }),
     prisma.seoAudit.count({ where }),
   ]);
@@ -74,7 +86,6 @@ export async function listSeoAudits(
     seoAuditSummarySchema.parse({
       ...row,
       pageCount: row._count.pages,
-      canDelete: row.createdById === actor.userId,
     }),
   );
   return {
@@ -105,6 +116,7 @@ export async function getSeoAuditWorkspaceMapping(
     where: {
       id: auditId,
       deletedAt: null,
+      archivedAt: null,
       workspace: {
         OR: [{ userId }, { organization: { members: { some: { userId } } } }],
       },

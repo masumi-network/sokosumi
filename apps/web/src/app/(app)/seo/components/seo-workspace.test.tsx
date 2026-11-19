@@ -19,6 +19,7 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as publicEnv from "@/config/env.public";
 import { createFormats } from "@/i18n/time-format";
+import { setSeoAuditArchivedAction } from "@/lib/actions/seo/set-audit-archived";
 import messages from "../../../../../messages/en.json";
 import { SeoAutomation } from "./seo-monitors";
 import {
@@ -52,6 +53,9 @@ vi.mock("next/navigation", async () => ({
   useRouter: () => ({ push }),
 }));
 vi.mock("@/lib/actions/seo/action", () => ({ mutateSeo: mutate }));
+vi.mock("@/lib/actions/seo/set-audit-archived", () => ({
+  setSeoAuditArchivedAction: vi.fn(),
+}));
 vi.mock("@/lib/actions/seo/save-brief", () => ({
   saveSeoBriefAction: saveGoal,
 }));
@@ -201,6 +205,144 @@ afterEach(() => {
   for (const client of clients.splice(0)) client.clear();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+describe("SEO report archiving", () => {
+  function renderReport({
+    auditId = SEO_TEST_AUDIT,
+    projectId = SEO_TEST_PROJECT,
+    sharing = "organization",
+    canEdit = true,
+  }: {
+    auditId?: string | null;
+    projectId?: string | null;
+    sharing?: ProjectSeoWorkspace["sharing"];
+    canEdit?: boolean;
+  }) {
+    const base = seoTestWorkspace();
+    const workspace = {
+      ...base,
+      auditId,
+      projectId,
+      sharing,
+      auditName: auditId ? "Battery audit" : null,
+      availableActions: { ...base.availableActions, canEdit },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    const { refreshViewer } = renderWorkspace(workspace);
+    const menu = screen.getByRole("button", { name: messages.App.Seo.manage });
+    return { menu, refreshViewer };
+  }
+
+  it("lets a teammate open and cancel archiving a shared audit by keyboard in a closed project", async () => {
+    const user = userEvent.setup();
+    viewer.userId = "teammate";
+    const { menu } = renderReport({ canEdit: false });
+    menu.focus();
+    await user.keyboard("{ArrowDown}");
+    const item = await screen.findByRole("menuitem", {
+      name: "Archive report",
+    });
+    expect(screen.queryByRole("menuitem", { name: /delete/i })).toBeNull();
+    await user.keyboard("{End}");
+    await waitFor(() => expect(item).toHaveFocus());
+    await user.keyboard("{Enter}");
+    const dialog = await screen.findByRole("alertdialog", {
+      name: /Battery audit/,
+    });
+    expect(dialog).toHaveAccessibleDescription(
+      messages.App.Seo.audits.archiveDescription,
+    );
+    await waitFor(() =>
+      expect(
+        within(dialog).getByRole("button", { name: "Cancel" }),
+      ).toHaveFocus(),
+    );
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(menu).toHaveFocus());
+    expect(setSeoAuditArchivedAction).not.toHaveBeenCalled();
+  });
+
+  it("omits archiving in the project's own workspace", async () => {
+    const user = userEvent.setup();
+    await user.click(renderReport({ auditId: null }).menu);
+    const menu = within(await screen.findByRole("menu"));
+    expect(menu.queryByRole("menuitem", { name: "Archive report" })).toBeNull();
+  });
+
+  it("clears the open confirmation when another member views the same report", async () => {
+    const user = userEvent.setup();
+    const { menu, refreshViewer } = renderReport({});
+    await user.click(menu);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Archive report" }),
+    );
+    expect(await screen.findByRole("alertdialog")).toBeVisible();
+    for (const reader of ["teammate", "owner"]) {
+      viewer.userId = reader;
+      refreshViewer();
+      expect(
+        await screen.findByRole("button", { name: messages.App.Seo.manage }),
+      ).toBeVisible();
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    }
+    expect(setSeoAuditArchivedAction).not.toHaveBeenCalled();
+  });
+
+  it("submits once, allows retry after a conflict, and stops when access is lost", async () => {
+    const user = userEvent.setup();
+    const pending =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof setSeoAuditArchivedAction>>
+      >();
+    vi.mocked(setSeoAuditArchivedAction)
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "FORBIDDEN", status: 403 },
+      });
+    await user.click(
+      renderReport({ projectId: null, sharing: "personal" }).menu,
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Archive report" }),
+    );
+    const dialog = within(await screen.findByRole("alertdialog"));
+    const confirm = dialog.getByRole("button", { name: "Archive report" });
+    await user.dblClick(confirm);
+    expect(setSeoAuditArchivedAction).toHaveBeenCalledExactlyOnceWith({
+      auditId: SEO_TEST_AUDIT,
+      projectId: null,
+      archived: true,
+    });
+    await user.keyboard("{Escape}");
+    expect(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
+
+    await act(async () =>
+      pending.resolve({
+        ok: false,
+        error: {
+          code: "CONFLICT",
+          status: 409,
+          kind: "seo_audit_resumable_monitor",
+        },
+      }),
+    );
+    expect(await dialog.findByRole("alert")).toHaveTextContent(
+      messages.App.Seo.audits.archiveScheduled,
+    );
+    await user.click(confirm);
+    await waitFor(() => expect(confirm).toBeDisabled());
+    expect(dialog.getByRole("alert")).toHaveTextContent(
+      messages.App.Seo.audits.archiveUnavailable,
+    );
+    expect(setSeoAuditArchivedAction).toHaveBeenCalledTimes(2);
+    await user.click(dialog.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
 });
 
 describe("SEO workspace integration", () => {
