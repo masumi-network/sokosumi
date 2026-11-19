@@ -13,6 +13,7 @@ import {
   isProjectSocialProvider,
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
+  requireOwnTikTokAppAllowed,
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
 } from "@/config/social-providers";
@@ -363,6 +364,9 @@ export async function initiateProjectSocialConnection(
   }
 
   requireSocialProviderEnabled(provider, project);
+  if (provider === "tiktok" && legacyTikTokReconnect) {
+    requireOwnTikTokAppAllowed(project);
+  }
   const useZernio = provider === "tiktok" && !legacyTikTokReconnect;
   const composioConfigId = useZernio
     ? null
