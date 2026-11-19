@@ -6,7 +6,7 @@
 
 1. Writes every piece on the calendar, in the strategy's mix and pillars, in the audience's language.
 2. Core makes each picture and video from the brand's own pictures; a slot that fails twice comes back to him for a new visual.
-3. Schedules each post on its connected network; a piece for a network that isn't connected waits.
+3. Schedules each post on its connected network. A piece for a network that isn't connected is made all the same (words, picture or video) and waits finished; it is scheduled once the owner connects the account. From cmo-v5 on the month holds every network CMO offers, so most owners have such pieces.
 4. Jev reads the month against the writing skills and the brand voice; one rewrite run fixes what misses.
 
 **The owner should see:** one progress card in chat, then a full Calendar where every made piece opens; nothing goes out that isn't on it.

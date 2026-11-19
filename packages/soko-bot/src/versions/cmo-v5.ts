@@ -1,24 +1,26 @@
-import { AIDA_STRATEGY_SKILL } from "./cmo-strategy-aida.js";
+import { EVERY_NETWORK_STRATEGY_SKILL } from "./cmo-strategy-every-network.js";
 import { cmoV4 } from "./cmo-v4.js";
 import type { SokoBotVersion } from "./types.js";
 
 /**
- * cmo-v4 with the funnel in the four classic stages (owner, 2026-11-18):
- * Awareness, Interest, Desire, Action, always all four and in that order,
- * each saying in one sentence what Cuso does there and what the owner does.
- * Cuso's own stage names are gone. Core's strategy review holds a Cuso on
- * this skill to it.
+ * cmo-v4 with a strategy on every network and a funnel the owner knows
+ * (owner, 2026-11-18 and 2026-11-19). Every live social network CMO offers
+ * is planned, with or without an account, at cmo-v3's pace per network and
+ * saved week by week; one that does not fit the buyer is left out with its
+ * reason. The funnel is always Awareness, Interest, Desire, Action, each
+ * saying in one sentence what Cuso does there and what the owner does.
+ * Core's strategy review holds a Cuso on this skill to both.
  */
 export const cmoV5: SokoBotVersion = {
   ...cmoV4,
   id: "cmo-v5",
-  name: "cmo-v5 · Cuso, the funnel in four classic stages",
-  createdAt: "2026-11-18",
+  name: "cmo-v5 · Cuso, every network and the classic funnel",
+  createdAt: "2026-11-19",
   summary:
-    "Cuso on cmo-v4, whose funnel is always Awareness, Interest, Desire and Action, each with what he does there and what the owner does.",
+    "Cuso on cmo-v4, who plans every live social network CMO offers at a pace per network, and whose funnel is always Awareness, Interest, Desire and Action with what he does and what the owner does.",
   releaseNote:
-    "Your funnel now has the four stages you know: Awareness, Interest, Desire, Action. For each one I say what I do and what you do.",
+    "I now plan every network we offer, also the ones you have no account on yet: those posts wait ready until you connect. And your funnel has the four stages you know: Awareness, Interest, Desire, Action.",
   skills: cmoV4.skills.map((skill) =>
-    skill === "cmo-strategy-patches" ? AIDA_STRATEGY_SKILL : skill,
+    skill === "cmo-strategy-patches" ? EVERY_NETWORK_STRATEGY_SKILL : skill,
   ),
 };

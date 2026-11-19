@@ -214,10 +214,30 @@ export const richPlan: Strategy = {
   why: "Founders read LinkedIn and X, and they trust named people over brands.",
   channels: [
     ...strategy.channels,
+    {
+      channel: "youtube",
+      cadence: "1 a week",
+      why: "New: you open the channel. Your talking videos go out here too.",
+    },
     { channel: "meta_ads", cadence: "2 a month" },
+  ],
+  leftOut: [
+    {
+      channel: "facebook",
+      why: "Product teams do not follow software vendors on Facebook.",
+    },
   ],
   calendar: [
     ...strategy.calendar,
+    {
+      id: "talk-1",
+      date: "2026-10-08",
+      channel: "linkedin",
+      format: "talking_video",
+      title: "Why launches slip, in thirty seconds",
+      status: "idea",
+      alsoOn: ["youtube"],
+    },
     {
       id: "meta-1",
       date: "2026-10-09",

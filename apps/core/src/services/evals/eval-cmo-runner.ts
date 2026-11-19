@@ -12,7 +12,7 @@ import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
-import { AIDA_STRATEGY_SKILL } from "@/services/cmo-plan-review.service";
+import { cmoStrategyRules } from "@/services/cmo-plan-review.service";
 import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
@@ -958,11 +958,13 @@ export async function pollCmoCase(
     };
   } else {
     const saved = await newestMarketingStrategy(projectId);
-    const { strategy, checks } = strategyChecks(evalCase.brand, saved?.plan, {
-      aida:
-        turn.versionId != null &&
-        getSokoBotVersion(turn.versionId).skills.includes(AIDA_STRATEGY_SKILL),
-    });
+    const { strategy, checks } = strategyChecks(
+      evalCase.brand,
+      saved?.plan,
+      turn.versionId
+        ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
+        : {},
+    );
     outcome = {
       checks: [completed, ...checks],
       output: {

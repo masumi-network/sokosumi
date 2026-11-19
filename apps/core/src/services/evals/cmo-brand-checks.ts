@@ -5,6 +5,7 @@ import type {
 } from "@sokosumi/soko-bot";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
+  CMO_LIVE_NETWORKS,
   cmoPlanProblems,
   cmoPlanRuleProblems,
   type PlanReviewOptions,
@@ -136,6 +137,7 @@ export function strategyChecks(
       actual: `${titles.length - other.length} of ${titles.length} titles${other.length ? `; not: ${other.slice(0, 4).join(" · ")}` : ""}`,
     });
   }
+  if (brand.websiteOnly) checks.push(...websiteOnlyChecks(strategy));
   const problems = [
     ...cmoPlanRuleProblems(strategy),
     ...cmoPlanProblems(strategy, options),
@@ -149,6 +151,45 @@ export function strategyChecks(
 }
 
 /** Failed checks as the lab's findings list. */
+/**
+ * A business with no profile anywhere: every live network is planned or left
+ * out with a reason, and each planned one says the owner opens the account.
+ */
+function websiteOnlyChecks(strategy: MarketingStrategyPlan): ScenarioCheck[] {
+  const planned = strategy.channels.filter((channel) =>
+    CMO_LIVE_NETWORKS.includes(channel.channel.toLowerCase()),
+  );
+  const leftOut = (strategy.leftOut ?? []).map((item) => item.channel);
+  const missing = CMO_LIVE_NETWORKS.filter(
+    (network) =>
+      !planned.some((channel) => channel.channel.toLowerCase() === network) &&
+      !leftOut.includes(network),
+  );
+  const notNew = planned.filter((channel) => !/^new:/i.test(channel.why ?? ""));
+  const proposed = strategy.proposals
+    .map((proposal) => proposal.channel)
+    .filter((channel) => CMO_LIVE_NETWORKS.includes(channel));
+  return [
+    {
+      label: "Every live network is planned or left out with a reason",
+      pass: missing.length === 0 && planned.length >= 3,
+      actual: `planned: ${planned.map((channel) => channel.channel).join(", ") || "none"}; left out: ${leftOut.join(", ") || "none"}${missing.length ? `; missing: ${missing.join(", ")}` : ""}`,
+    },
+    {
+      label: "Each planned network says the owner opens the account",
+      pass: notNew.length === 0,
+      actual: notNew.length
+        ? `no "New:" on ${notNew.map((channel) => channel.channel).join(", ")}`
+        : "all new",
+    },
+    {
+      label: "No social network is parked in proposals",
+      pass: proposed.length === 0,
+      actual: proposed.join(", ") || "none",
+    },
+  ];
+}
+
 export function findings(checks: readonly ScenarioCheck[]): string[] {
   return checks
     .filter((check) => !check.pass)

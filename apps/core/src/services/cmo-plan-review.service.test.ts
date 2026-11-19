@@ -27,6 +27,7 @@ import {
   cmoPlanRuleProblems,
   cmoReplySafety,
   cmoSideChannelFit,
+  cmoStrategyRules,
   mixProblems,
   pillarProblems,
 } from "./cmo-plan-review.service";
@@ -1079,5 +1080,150 @@ describe("the funnel of a Cuso on the AIDA strategy skill", () => {
         aida: true,
       }).filter((problem) => /funnel|stage/.test(problem)),
     ).toEqual([]);
+  });
+});
+
+describe("every live network, for a Cuso on cmo-v5's strategy skill", () => {
+  const channel = (
+    key: string,
+    patch: Partial<MarketingStrategyPlan["channels"][number]> = {},
+  ): MarketingStrategyPlan["channels"][number] =>
+    ({
+      channel: key,
+      cadence: "3 a week",
+      role: "side",
+      buyer: "Operations leads",
+      ...patch,
+    }) as MarketingStrategyPlan["channels"][number];
+  const everywhere = plan({
+    channels: ["linkedin", "x", "facebook", "instagram", "youtube"].map((key) =>
+      channel(key),
+    ),
+  });
+  const networkProblems = (strategy: MarketingStrategyPlan) =>
+    cmoPlanProblems(strategy, { everyNetwork: true }).filter((problem) =>
+      /leftOut|proposals/.test(problem),
+    );
+
+  it("reads the rules from the strategy skill a version carries", () => {
+    expect(cmoStrategyRules(["cmo-strategy-every-network"])).toEqual({
+      weekly: true,
+      aida: true,
+      everyNetwork: true,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-weekly"])).toEqual({
+      weekly: true,
+      aida: false,
+      everyNetwork: false,
+    });
+    expect(cmoStrategyRules(["cmo-strategy-patches"])).toEqual({
+      weekly: false,
+      aida: false,
+      everyNetwork: false,
+    });
+  });
+
+  it("passes a strategy with every live network in channels", () => {
+    expect(networkProblems(everywhere)).toEqual([]);
+  });
+
+  it("refuses a month on LinkedIn and X alone, and names what is missing", () => {
+    expect(
+      networkProblems(plan({ channels: [channel("linkedin"), channel("x")] })),
+    ).toEqual([
+      'facebook, instagram, youtube are in neither channels nor leftOut; plan every live network (one the business has no account on as a side channel whose why starts with "New:"), or name it in leftOut with why it does not fit this buyer.',
+    ]);
+  });
+
+  it("lets a network that does not fit the buyer stay out, with its reason", () => {
+    expect(
+      networkProblems(
+        plan({
+          channels: everywhere.channels.filter((c) => c.channel !== "x"),
+          leftOut: [
+            { channel: "x", why: "Diners do not look for lunch on X." },
+          ],
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses a social network in proposals, and one both planned and left out", () => {
+    const problems = networkProblems(
+      plan({
+        channels: everywhere.channels.filter((c) => c.channel !== "instagram"),
+        leftOut: [{ channel: "x", why: "No fit." }],
+        proposals: [
+          {
+            channel: "instagram",
+            what: "Reels of the kitchen",
+            why: "Diners look there",
+            perMonth: 8,
+          },
+          {
+            channel: "newsletter",
+            what: "A monthly issue",
+            why: "Regulars read email",
+            perMonth: 1,
+          },
+        ],
+      }),
+    );
+    expect(problems).toEqual([
+      'instagram is in neither channels nor leftOut; plan every live network (one the business has no account on as a side channel whose why starts with "New:"), or name it in leftOut with why it does not fit this buyer.',
+      "x is in channels and in leftOut; keep each in one.",
+      "instagram is in proposals; a social network is planned in channels or named in leftOut, never proposed.",
+    ]);
+  });
+
+  it("asks none of it of a Cuso on an earlier skill", () => {
+    expect(
+      cmoPlanProblems(plan({ channels: [channel("linkedin")] })).filter(
+        (problem) => /leftOut/.test(problem),
+      ),
+    ).toEqual([]);
+  });
+
+  it("counts a talking video on every network it also goes out on, and once as a video", () => {
+    const day = (week: number) =>
+      `2026-11-${String(2 + week * 7).padStart(2, "0")}`;
+    const videos = [0, 1, 2, 3].map((week) => ({
+      ...entry(`v${week}`, "linkedin", "talking_video"),
+      date: day(week),
+      title: `Video ${week}`,
+      story: "A customer cut their handoffs",
+      alsoOn: ["youtube", "facebook"],
+    }));
+    const month = plan({
+      channels: [
+        channel("linkedin", { cadence: "1 a week" }),
+        channel("youtube", { cadence: "1 a week" }),
+        channel("facebook", { cadence: "1 a week" }),
+      ],
+      calendar: videos,
+    });
+    const problems = cmoPlanProblems(month, { weekly: true }).join("\n");
+    // YouTube has no entry of its own and still meets "1 a week".
+    expect(problems).not.toMatch(/youtube has 0 calendar pieces/);
+    expect(problems).not.toMatch(/facebook has 0 calendar pieces/);
+    // Four shared videos are four videos, not twelve.
+    expect(problems).not.toMatch(/videos; plan at most/);
+    // And a side channel's three a week counts the shared ones.
+    const crowded = plan({
+      ...month,
+      calendar: [0, 1, 2, 3].flatMap((week) =>
+        [0, 1, 2, 3].map((n) => ({
+          ...entry(`p${week}-${n}`, "linkedin", "post"),
+          date: day(week),
+          title: `Post ${week} ${n}`,
+          story: "A customer cut their handoffs",
+          alsoOn: undefined,
+        })),
+      ),
+      channels: [channel("linkedin", { cadence: "4 a week" })],
+    });
+    expect(cmoPlanProblems(crowded, { weekly: true }).join("\n")).toMatch(
+      /linkedin is a side channel with 16 pieces over 4 weeks/,
+    );
   });
 });

@@ -8899,6 +8899,10 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 source?: string;
             };
         }>;
+        leftOut?: Array<{
+            channel: string;
+            why: string;
+        }>;
         proposals?: Array<{
             channel: string;
             why: string;
@@ -9212,6 +9216,10 @@ export type MarketingStrategyRequest = {
                 basis: 'measured' | 'estimated' | 'unknown';
                 source?: string;
             };
+        }>;
+        leftOut?: Array<{
+            channel: string;
+            why: string;
         }>;
         proposals?: Array<{
             channel: string;
@@ -13805,6 +13813,10 @@ export type CmoPlan = {
             basis: 'measured' | 'estimated' | 'unknown';
             source?: string;
         };
+    }>;
+    leftOut?: Array<{
+        channel: string;
+        why: string;
     }>;
     proposals?: Array<{
         channel: string;

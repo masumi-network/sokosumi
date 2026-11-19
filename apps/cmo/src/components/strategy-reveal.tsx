@@ -242,8 +242,20 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         GROUP_ORDER.indexOf(channelInfo(b.key)?.group ?? "social"),
     );
   const used = new Set(channels.map((channel) => channel.key));
+  // Networks Cuso left out because they do not fit the buyer, with his reason.
+  const leftOut = (strategy.leftOut ?? []).flatMap((item) => {
+    const key = channelKey(item.channel);
+    const info = key && !used.has(key) ? channelInfo(key) : null;
+    return key && info ? [{ key, name: info.name, why: item.why }] : [];
+  });
+  const skipped = new Set(leftOut.map((item) => item.key));
   const more = (Object.keys(CMO_CHANNELS) as (keyof typeof CMO_CHANNELS)[])
-    .filter((key) => CMO_CHANNELS[key].status === "live" && !used.has(key))
+    .filter(
+      (key) =>
+        CMO_CHANNELS[key].status === "live" &&
+        !used.has(key) &&
+        !skipped.has(key),
+    )
     .map((key) => CMO_CHANNELS[key].name);
   const soon = (Object.keys(CMO_CHANNELS) as (keyof typeof CMO_CHANNELS)[])
     .filter((key) => CMO_CHANNELS[key].status === "soon")
@@ -254,10 +266,14 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
         {channels.map((channel) => {
           const info = channelInfo(channel.key);
           if (!info) return null;
+          // A talking video counts on every network it also goes out on:
+          // YouTube's pieces are only those.
           const entries = strategy.calendar.filter(
             (entry) =>
-              channelKey(entry.channel) === channel.key &&
-              entry.status !== "skipped",
+              entry.status !== "skipped" &&
+              [entry.channel, ...(entry.alsoOn ?? [])].some(
+                (network) => channelKey(network) === channel.key,
+              ),
           );
           const formats = new Map<string, number>();
           for (const entry of entries) {
@@ -304,10 +320,26 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
           );
         })}
       </ul>
-      {more.length > 0 ? (
+      {leftOut.length > 0 ? (
+        <ul className="cw-left-out">
+          {leftOut.map((item) => (
+            <li key={item.key}>
+              <ChannelIcon channel={item.key} size={16} />
+              <span>
+                <b>Not on {item.name}.</b> {item.why}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {more.length > 0 || soon.length > 0 ? (
         <p className="note">
-          {AGENT_NAME} can also run {joinNames(more)}. Ask him to add one below.
-          {soon.length > 0 ? ` ${joinNames(soon)} is coming soon.` : ""}
+          {more.length > 0
+            ? `${AGENT_NAME} can also run ${joinNames(more)}. Ask him to add one below.`
+            : ""}
+          {soon.length > 0
+            ? `${more.length > 0 ? " " : ""}${joinNames(soon)} is coming soon.`
+            : ""}
         </p>
       ) : null}
     </>

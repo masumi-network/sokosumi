@@ -155,6 +155,7 @@ export function cmoPlanProblems(
     problems.push("mix is empty; give two to four approaches.");
   problems.push(...pillarListProblems(strategy.pillars));
   problems.push(...funnelProblems(strategy.funnel, options));
+  if (options.everyNetwork) problems.push(...networkProblems(strategy));
   if (!strategy.idea)
     problems.push(
       "idea is missing: who you target, how the business is positioned, how people are attracted, the offer, and the sentence that joins them.",
@@ -288,10 +289,71 @@ export interface PlanReviewOptions {
   weekly?: boolean;
   /** The Cuso writes the funnel in AIDA's four stages (cmo-v5's strategy skill). */
   aida?: boolean;
+  /** The Cuso plans every live social network CMO offers (cmo-v5's strategy skill). */
+  everyNetwork?: boolean;
 }
 
-/** The strategy skill whose Cuso writes the funnel as Awareness, Interest, Desire, Action. */
-export const AIDA_STRATEGY_SKILL = "cmo-strategy-aida";
+/**
+ * cmo-v5's strategy skill: cmo-v3's month per network, every live network
+ * planned, and the funnel as Awareness, Interest, Desire, Action.
+ */
+export const EVERY_NETWORK_STRATEGY_SKILL = "cmo-strategy-every-network";
+
+/** What the strategy review asks of a Cuso, from the strategy skill his version reads. */
+export function cmoStrategyRules(skills: readonly string[]): PlanReviewOptions {
+  const everyNetwork = skills.includes(EVERY_NETWORK_STRATEGY_SKILL);
+  return {
+    weekly: everyNetwork || skills.includes(WEEKLY_STRATEGY_SKILL),
+    aida: everyNetwork,
+    everyNetwork,
+  };
+}
+
+/** The social networks a strategy can post to today, in the menu's order. */
+export const CMO_LIVE_NETWORKS: readonly string[] = Object.entries(
+  CMO_CHANNELS as Record<string, { owner: string; status: string }>,
+)
+  .filter(
+    ([, channel]) => channel.owner === "connect" && channel.status === "live",
+  )
+  .map(([key]) => key);
+
+/**
+ * Every live network is planned or left out with a reason, never parked in
+ * proposals: a month once held only LinkedIn, X and Google Ads, because a
+ * network without an account was a proposal the owner never saw as posts.
+ */
+function networkProblems(strategy: MarketingStrategyPlan): string[] {
+  const planned = new Set(
+    strategy.channels.map((channel) => channel.channel.toLowerCase()),
+  );
+  const leftOut = new Set(
+    (strategy.leftOut ?? []).map((item) => item.channel.toLowerCase()),
+  );
+  const problems: string[] = [];
+  const missing = CMO_LIVE_NETWORKS.filter(
+    (network) => !planned.has(network) && !leftOut.has(network),
+  );
+  if (missing.length > 0)
+    problems.push(
+      `${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} in neither channels nor leftOut; plan every live network (one the business has no account on as a side channel whose why starts with "New:"), or name it in leftOut with why it does not fit this buyer.`,
+    );
+  const both = CMO_LIVE_NETWORKS.filter(
+    (network) => planned.has(network) && leftOut.has(network),
+  );
+  if (both.length > 0)
+    problems.push(
+      `${both.join(", ")} ${both.length === 1 ? "is" : "are"} in channels and in leftOut; keep each in one.`,
+    );
+  const proposed = strategy.proposals
+    .map((proposal) => proposal.channel.toLowerCase())
+    .filter((channel) => CMO_LIVE_NETWORKS.includes(channel));
+  if (proposed.length > 0)
+    problems.push(
+      `${proposed.join(", ")} ${proposed.length === 1 ? "is" : "are"} in proposals; a social network is planned in channels or named in leftOut, never proposed.`,
+    );
+  return problems;
+}
 
 /**
  * What a funnel breaks. A Cuso on the AIDA skill gives exactly the four
@@ -338,6 +400,22 @@ export const WEEKLY_STRATEGY_SKILL = "cmo-strategy-weekly";
  */
 export const CMO_WEEKLY_EXTRA_REVIEWS = 4;
 
+/**
+ * Whether a piece goes out on a network: its own, or one its talking video
+ * is also shown on. Counted there too, so a network that takes only video
+ * (YouTube) meets its cadence through the month's shared videos.
+ */
+function goesOutOn(
+  entry: MarketingStrategyPlan["calendar"][number],
+  channel: string,
+): boolean {
+  const key = channel.toLowerCase();
+  return (
+    entry.channel.toLowerCase() === key ||
+    (entry.alsoOn ?? []).some((network) => network.toLowerCase() === key)
+  );
+}
+
 /** Whole or started weeks from the calendar's first piece to its last. */
 function calendarWeeks(pieces: MarketingStrategyPlan["calendar"]): number {
   const days = pieces
@@ -380,8 +458,8 @@ function roleProblems(
       problems.push(
         `${channel.channel} is a side channel without a buyer; name the Brand Brain buyer its pieces are written for.`,
       );
-    const count = pieces.filter(
-      (entry) => entry.channel === channel.channel,
+    const count = pieces.filter((entry) =>
+      goesOutOn(entry, channel.channel),
     ).length;
     const most = CMO_SIDE_CHANNEL_PER_WEEK * weeks;
     if (count > most)
@@ -499,7 +577,8 @@ const MAX_PER_DAY_OTHER = 2;
 function crowdedNetworks(pieces: MarketingStrategyPlan["calendar"]): string[] {
   const counts = new Map<string, number>();
   for (const entry of pieces)
-    counts.set(entry.channel, (counts.get(entry.channel) ?? 0) + 1);
+    for (const network of [entry.channel, ...(entry.alsoOn ?? [])])
+      counts.set(network, (counts.get(network) ?? 0) + 1);
   return [...counts].flatMap(([channel, count]) => {
     const social =
       (CMO_CHANNELS as Record<string, { owner: string }>)[channel]?.owner ===
@@ -559,8 +638,8 @@ function cadenceProblems(
   return channels.flatMap((channel) => {
     const range = cadenceRange(channel.cadence);
     if (!range) return [];
-    const count = pieces.filter(
-      (entry) => entry.channel.toLowerCase() === channel.channel.toLowerCase(),
+    const count = pieces.filter((entry) =>
+      goesOutOn(entry, channel.channel),
     ).length;
     const [low, high] = range;
     if (count >= Math.floor(low * 0.6) && count <= Math.ceil(high * 1.4))

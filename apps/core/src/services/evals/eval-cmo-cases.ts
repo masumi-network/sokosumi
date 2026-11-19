@@ -27,6 +27,8 @@ export interface CmoEvalBrand {
   /** A social profile the site links to that the Brand Brain must list. */
   profile?: string;
   why?: string;
+  /** Research found a website and no profile on any network. */
+  websiteOnly?: boolean;
 }
 
 /** Real brands with what each sells: the CMO lab and the CMO eval cases share them. */
@@ -102,6 +104,32 @@ function brand(name: string): CmoEvalBrand {
 }
 
 const frozenBrains = brandBrains as Record<string, unknown>;
+
+/** The brand whose Brand Brain the website-only case strips of its profiles. */
+const WEBSITE_ONLY_BRAND = "utxo.ag";
+
+/**
+ * A Brand Brain as research leaves it for a business with a website and no
+ * profile anywhere: only the site in its channels, nothing posted today.
+ */
+export function websiteOnlyBrain(brain: unknown): unknown {
+  const whole = brain as {
+    channels?: { name: string }[];
+    marketingToday?: Record<string, unknown>;
+  };
+  return {
+    ...whole,
+    channels: (whole.channels ?? []).filter(
+      (channel) => channel.name === "Website",
+    ),
+    marketingToday: {
+      ...whole.marketingToday,
+      summary:
+        "No social profiles were found: the business markets through its website only. Paid advertising activity is unknown.",
+      channels: [],
+    },
+  };
+}
 const frozenPlans = monthPlans as Record<string, unknown>;
 
 /**
@@ -134,6 +162,21 @@ export const CMO_EVAL_CASES = [
     brand: brand(name),
     brandBrain: frozenBrains[name],
   })),
+  ...(frozenBrains[WEBSITE_ONLY_BRAND]
+    ? [
+        {
+          id: "cmo-strategy-website-only",
+          suite: "cmo" as const,
+          area: "Strategy",
+          title: "Plans every network for a business with only a website",
+          intent:
+            "A business with no profile anywhere still gets every fitting network planned, each as a new side channel, and none parked in proposals.",
+          kind: "cmo-strategy" as const,
+          brand: { ...brand(WEBSITE_ONLY_BRAND), websiteOnly: true },
+          brandBrain: websiteOnlyBrain(frozenBrains[WEBSITE_ONLY_BRAND]),
+        },
+      ]
+    : []),
   ...MONTH_BRANDS.filter((name) => frozenBrains[name] && frozenPlans[name]).map(
     (name) => ({
       id: `cmo-month-${slug(name)}`,

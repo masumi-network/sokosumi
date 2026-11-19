@@ -32507,6 +32507,30 @@ export const MarketingStrategySchema = {
                             maxItems: 4,
                             default: []
                         },
+                        leftOut: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'why'
+                                ]
+                            },
+                            maxItems: 6,
+                            default: []
+                        },
                         proposals: {
                             type: 'array',
                             items: {
@@ -34332,6 +34356,30 @@ export const MarketingStrategyRequestSchema = {
                         ]
                     },
                     maxItems: 4,
+                    default: []
+                },
+                leftOut: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            channel: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 40
+                            },
+                            why: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'channel',
+                            'why'
+                        ]
+                    },
+                    maxItems: 6,
                     default: []
                 },
                 proposals: {
@@ -54752,6 +54800,30 @@ export const CmoPlanSchema = {
                 ]
             },
             maxItems: 4,
+            default: []
+        },
+        leftOut: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    channel: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    why: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    }
+                },
+                required: [
+                    'channel',
+                    'why'
+                ]
+            },
+            maxItems: 6,
             default: []
         },
         proposals: {

@@ -45,7 +45,7 @@ import {
 } from "@/services/cmo-cuso.service";
 import {
   cmoPlanRulesBrokenSince,
-  WEEKLY_STRATEGY_SKILL,
+  cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
@@ -546,7 +546,7 @@ async function startStrategyTurn(
   });
   const savesWeekly =
     bot?.versionId != null &&
-    getSokoBotVersion(bot.versionId).skills.includes(WEEKLY_STRATEGY_SKILL);
+    cmoStrategyRules(getSokoBotVersion(bot.versionId).skills).weekly === true;
   // Named up front: a goal such as "More leads" once pulled whole plans onto
   // a side product or feature with the same word in it.
   const main = brain.offers?.[0];

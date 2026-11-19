@@ -804,6 +804,15 @@ const strategyPlanShape = {
     .max(4)
     .default([]),
   /**
+   * Live social networks this strategy leaves out because they clearly do
+   * not fit the buyer, each with its reason. Every other live network is in
+   * `channels` (cmo-v5).
+   */
+  leftOut: z
+    .array(z.object({ channel: channelKey, why: shortText }))
+    .max(6)
+    .default([]),
+  /**
    * Channels Cuso runs that this plan leaves out because the owner has no
    * account, list or budget there yet; each runs once the owner adds it.
    */

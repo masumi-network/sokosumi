@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
 import { brandBrainChecks, strategyChecks } from "./cmo-brand-checks";
-import { CMO_EVAL_BRANDS } from "./eval-cmo-cases";
+import {
+  CMO_EVAL_BRANDS,
+  CMO_EVAL_CASES,
+  websiteOnlyBrain,
+} from "./eval-cmo-cases";
 import brains from "./fixtures/cmo-brand-brains.json";
 
 function checks(name: string, patch: Partial<MarketingStrategyPlan> = {}) {
@@ -270,5 +274,85 @@ describe("Brand Brain checks for a brand's price and profile", () => {
       "Prices the main offer as published",
       "Lists its social profile",
     ]);
+  });
+});
+
+describe("a business with only a website", () => {
+  const websiteOnly = CMO_EVAL_CASES.find(
+    (evalCase) => evalCase.id === "cmo-strategy-website-only",
+  );
+  const brand = websiteOnly?.brand;
+  const strategy = (patch: object) => ({
+    month: "2026-11",
+    summary: "Show a clear path to getting started.",
+    goals: ["More customers"],
+    pillars: [],
+    calendar: [],
+    contentLanguage: "English",
+    ...patch,
+  });
+  const side = (channel: string, why = "New: you open the account.") => ({
+    channel,
+    cadence: "3 a week",
+    why,
+  });
+  const labelled = (saved: object) =>
+    Object.fromEntries(
+      (brand ? strategyChecks(brand, saved).checks : []).map((check) => [
+        check.label,
+        check.pass,
+      ]),
+    );
+
+  it("starts from a Brand Brain with no profile on any network", () => {
+    const stripped = websiteOnlyBrain(
+      (brains as Record<string, unknown>)["utxo.ag"],
+    ) as { channels: { name: string }[]; marketingToday: { channels: [] } };
+    expect(stripped.channels.map((channel) => channel.name)).toEqual([
+      "Website",
+    ]);
+    expect(stripped.marketingToday.channels).toEqual([]);
+    expect(
+      websiteOnly?.kind === "cmo-strategy" ? websiteOnly.brandBrain : null,
+    ).toEqual(stripped);
+  });
+
+  it("passes every live network planned as new, or left out with a reason", () => {
+    expect(
+      labelled(
+        strategy({
+          channels: ["linkedin", "facebook", "instagram", "youtube"].map(
+            (channel) => side(channel),
+          ),
+          leftOut: [{ channel: "x", why: "Its buyers are not on X." }],
+        }),
+      ),
+    ).toMatchObject({
+      "Every live network is planned or left out with a reason": true,
+      "Each planned network says the owner opens the account": true,
+      "No social network is parked in proposals": true,
+    });
+  });
+
+  it("fails a month on LinkedIn alone with the rest proposed", () => {
+    expect(
+      labelled(
+        strategy({
+          channels: [side("linkedin", "Where operations leads read.")],
+          proposals: [
+            {
+              channel: "instagram",
+              what: "Behind the scenes",
+              why: "Teams look there",
+              perMonth: 8,
+            },
+          ],
+        }),
+      ),
+    ).toMatchObject({
+      "Every live network is planned or left out with a reason": false,
+      "Each planned network says the owner opens the account": false,
+      "No social network is parked in proposals": false,
+    });
   });
 });

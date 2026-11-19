@@ -3027,6 +3027,28 @@ button.card-focus {
   font-size: 0.875rem;
 }
 
+/* The networks left out of the strategy, each with Cuso's reason. */
+.cw-left-out {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.cw-left-out li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  max-width: none;
+}
+
+.cw-left-out svg {
+  margin-top: 2px;
+}
+
 .bb-offers {
   display: grid;
   gap: 8px;

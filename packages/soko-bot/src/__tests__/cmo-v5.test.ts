@@ -12,8 +12,8 @@ import {
 
 const v4 = getSokoBotVersion("cmo-v4");
 const v5 = getSokoBotVersion("cmo-v5");
-const skill = getSokoBotSkill("cmo-strategy-aida")?.content ?? "";
-const before = getSokoBotSkill("cmo-strategy-patches")?.content ?? "";
+const skill = getSokoBotSkill("cmo-strategy-every-network")?.content ?? "";
+const before = getSokoBotSkill("cmo-strategy-weekly")?.content ?? "";
 
 const plan = (funnel: object[]) =>
   marketingStrategyPlanSchema.parse({
@@ -42,7 +42,7 @@ describe("cmo-v5", () => {
     expect(v5.model).toBe(v4.model);
     expect(v5.skills).toEqual(
       v4.skills.map((id) =>
-        id === "cmo-strategy-patches" ? "cmo-strategy-aida" : id,
+        id === "cmo-strategy-patches" ? "cmo-strategy-every-network" : id,
       ),
     );
   });
@@ -64,12 +64,47 @@ describe("cmo-v5", () => {
     expect(before).toContain("name in the buyer's words");
   });
 
-  it("changes nothing else in the strategy skill", () => {
-    const funnel = (text: string) => {
-      const from = text.indexOf("- funnel: the heart of the strategy");
-      return [text.slice(0, from), text.slice(text.indexOf("  - owner: cuso"))];
-    };
-    expect(funnel(skill)).toEqual(funnel(before));
+  it("plans every live social network, with or without an account", () => {
+    expect(skill).toContain(
+      "every live social network in the menu is in the strategy, whether the business has an account there or not",
+    );
+    expect(skill).toContain("Never put a social network in proposals");
+    expect(skill).toContain("leftOut");
+    expect(skill).toContain(
+      "they wait finished until the account is connected",
+    );
+    // The rule it replaces: networks without an account, two at most.
+    expect(skill).not.toContain("at most two (LinkedIn");
+    expect(skill).not.toContain("a network with no profile in the Brand Brain");
+    expect(before).toContain("at most two (LinkedIn");
+  });
+
+  it("sends a talking video to every network that takes one, YouTube among them", () => {
+    expect(skill).toContain(
+      "list every other network in the strategy that takes a talking_video in its alsoOn",
+    );
+    expect(skill).toContain('it is in channels with the cadence "1 a week"');
+  });
+
+  it("keeps cmo-v3's pace per network, its roles and its week by week saves", () => {
+    for (const kept of [
+      "all_in: three a day on X and two a day on LinkedIn, Facebook and Instagram",
+      "a side channel gets two or three a week whatever the pace",
+      "save week one with part calendar, then each later week with part patch",
+      "plan at most four a month",
+    ])
+      expect(skill).toContain(kept);
+  });
+
+  it("leaves a network out with its reason, on the saved strategy", () => {
+    const saved = plan([]);
+    expect(saved.leftOut).toEqual([]);
+    expect(
+      marketingStrategyPlanSchema.parse({
+        ...saved,
+        leftOut: [{ channel: "X", why: "Diners do not look for lunch on X." }],
+      }).leftOut,
+    ).toEqual([{ channel: "x", why: "Diners do not look for lunch on X." }]);
   });
 
   it("saves a stage with what Cuso does and what the owner does, without a name", () => {
