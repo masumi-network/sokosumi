@@ -43,8 +43,29 @@ const competitorFields = {
 };
 
 export const projectCompetitorCreateSchema = z
-  .object({ name: z.string().trim().min(1).max(80), ...competitorFields })
+  .object({
+    name: z.string().trim().min(1).max(80),
+    ...competitorFields,
+    suggested: z
+      .boolean()
+      .optional()
+      .describe(
+        "true when the member picked it from the suggestions and typed nothing: the weekly check then fills its pricing page and accounts from its homepage, as it never does for fields a member set.",
+      ),
+  })
   .openapi("ProjectCompetitorCreate");
+
+export const projectCompetitorSuggestionsSchema = z
+  .object({
+    suggestions: z.array(
+      z.object({
+        name: z.string(),
+        websiteUrl: z.string().describe("The company's homepage."),
+        why: z.string().describe("What it sells, in one line."),
+      }),
+    ),
+  })
+  .openapi("ProjectCompetitorSuggestions");
 
 export const projectCompetitorUpdateSchema = z
   .object({

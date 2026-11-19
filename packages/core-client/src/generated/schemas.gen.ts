@@ -31427,6 +31427,10 @@ export const ProjectCompetitorCreateSchema = {
             ],
             maxLength: 200,
             description: 'Its Facebook Page: the name in its address, or the address.'
+        },
+        suggested: {
+            type: 'boolean',
+            description: 'true when the member picked it from the suggestions and typed nothing: the weekly check then fills its pricing page and accounts from its homepage, as it never does for fields a member set.'
         }
     },
     required: [
@@ -31511,6 +31515,39 @@ export const ProjectCompetitorCheckRunSchema = {
     required: [
         'outcome',
         'competitors'
+    ]
+} as const;
+
+export const ProjectCompetitorSuggestionsSchema = {
+    type: 'object',
+    properties: {
+        suggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    websiteUrl: {
+                        type: 'string',
+                        description: 'The company\'s homepage.'
+                    },
+                    why: {
+                        type: 'string',
+                        description: 'What it sells, in one line.'
+                    }
+                },
+                required: [
+                    'name',
+                    'websiteUrl',
+                    'why'
+                ]
+            }
+        }
+    },
+    required: [
+        'suggestions'
     ]
 } as const;
 

@@ -5640,6 +5640,19 @@
         "save": "Speichern",
         "failed": "Das hat nicht geklappt. Versuche es erneut."
       },
+      "find": {
+        "title": "Wettbewerber finden",
+        "description": "Unternehmen, die verkaufen, was {project} verkauft, gefunden über die Website. Wähle aus, wen du beobachten willst.",
+        "searching": "Suche Unternehmen wie {project}…",
+        "none": "Über die Website wurden keine Wettbewerber gefunden. Füge sie von Hand hinzu.",
+        "room": "{count, plural, one {Du kannst noch # hinzufügen.} other {Du kannst noch # hinzufügen.}}",
+        "free": "Wettbewerber finden ist kostenlos.",
+        "add": "{count, plural, =0 {Hinzufügen} one {# Wettbewerber hinzufügen} other {# Wettbewerber hinzufügen}}",
+        "cancel": "Abbrechen",
+        "retry": "Erneut suchen",
+        "failed": "Das hat nicht geklappt. Versuch es noch einmal.",
+        "open": "Wettbewerber finden"
+      },
       "thisWeek": {
         "title": "Diese Woche",
         "checked": "Prüfung vom {date}",
