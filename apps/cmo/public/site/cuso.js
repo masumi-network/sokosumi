@@ -192,7 +192,7 @@ async function bringCusoToLife() {
     // knees give a little, and he lifts his hand into the wave.
     const turning = (t) => {
       poses.friendly.style.opacity = smooth(Math.min(1, t / 0.5));
-      poses.walk.style.opacity = 1 - smooth(Math.max(0, (t - 0.3) / 0.5));
+      poses.walk.style.opacity = 1 - smooth(Math.min(1, Math.max(0, (t - 0.3) / 0.5)));
       walkPose(0, 0, 22 * Math.sin(Math.PI * t));
       turn(rig.wave, WAVE_PIVOT, 26 * (1 - easeOut(t)));
     };
