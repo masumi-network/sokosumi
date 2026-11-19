@@ -1031,7 +1031,7 @@ export async function setAdCampaignStatus(
 export async function connectMeasurement(
   projectId: string,
   provider: CmoMeasurement["provider"],
-  from: "onboarding" | "app" | "seo",
+  from: "onboarding" | "launch" | "app" | "seo",
 ): Promise<{ url: string | null; error: string | null }> {
   const core = await requireCore();
   const { data, error } = await connectCmoMeasurementForProject({
