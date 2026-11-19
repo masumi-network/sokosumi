@@ -7,6 +7,7 @@ import {
   SOKO_BOT_CMO_RHYTHMS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
+import { isCmoOwnerConfirmedChannel } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -107,7 +108,9 @@ function usedElsewhere(
 /**
  * A finished piece: its words are written, its pictures are made when the
  * format has them, and on a connected network it is scheduled; on any other
- * network it waits for the connection as a finished draft.
+ * network it waits for the connection as a finished draft. On a network the
+ * owner confirms post by post (TikTok) it is finished once made: it waits for
+ * the owner, not for Cuso.
  */
 export function cmoPieceReady(
   piece: CmoPiece,
@@ -121,7 +124,11 @@ export function cmoPieceReady(
     new Set(piece.media).size < Math.max(1, cmoPieceSlides(piece))
   )
     return false;
-  return !connected.has(piece.channel) || piece.status === "scheduled";
+  return (
+    !connected.has(piece.channel) ||
+    piece.status === "scheduled" ||
+    isCmoOwnerConfirmedChannel(piece.channel)
+  );
 }
 
 /** How far each pass of a run got: words first, then pictures. */
