@@ -11,6 +11,8 @@ const actions: CmoAppActions = {
   // The same data every time, so the app's polling never changes the screen.
   loadState: async () => ({ overview, messages }),
   loadChatWork: async () => [],
+  loadChatWorkText: async () =>
+    "## Three trends\n\n- Loyalty passes replace one-off drops\n- Brands mint on their own site\n- Buyers pay by card",
   sendMessage: async () => {},
   skipSubscription: async () => ({ error: null }),
   loadPieceText: async (id) =>

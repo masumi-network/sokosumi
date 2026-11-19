@@ -372,6 +372,9 @@ export const messages: CusoMessage[] = [
   ),
 ];
 
+/** A picture, video or voice-over: nobody else works on it. */
+const media = { url: null, by: null, text: null, readable: false, files: [] };
+
 /**
  * The chat page's own state: a long German message, to check how the thread
  * wraps, and Cuso at work, so the typing row shows above the composer.
@@ -389,14 +392,15 @@ export const chat = {
     message(
       "m7",
       false,
-      "Make a picture, a short video and a voice-over for the launch.",
+      "Make a picture, a short video and a voice-over for the launch, write the brief, and get the research done.",
       "04T10:20:00",
     ),
     message("m8", true, "Started image.\n\nStarted video.", "04T10:20:01"),
   ],
-  // What Cuso makes in the chat, in each state it can be in.
+  // What Cuso makes and hands on in the chat, in each state it can be in.
   work: [
     {
+      ...media,
       id: "w1",
       kind: "image",
       state: "ready",
@@ -405,20 +409,61 @@ export const chat = {
       url: "/cuso/walking.png",
     },
     {
+      ...media,
       id: "w2",
       kind: "video",
       state: "making",
       at: new Date("2026-11-04T10:20:20Z"),
       title: "A walk through the launch",
-      url: null,
     },
     {
+      ...media,
       id: "w3",
       kind: "audio",
       state: "failed",
       at: new Date("2026-11-04T10:20:30Z"),
       title: "Launch day is here.",
-      url: null,
+    },
+    {
+      ...media,
+      id: "w4",
+      kind: "file",
+      state: "ready",
+      at: new Date("2026-11-04T10:21:00Z"),
+      title: "Launch brief.md",
+      url: "/cuso/walking.png",
+      readable: true,
+    },
+    {
+      ...media,
+      id: "w5",
+      kind: "task",
+      state: "making",
+      at: new Date("2026-11-04T10:22:00Z"),
+      title: "Research three launch trends",
+      by: "Hannah",
+    },
+    {
+      ...media,
+      id: "w6",
+      kind: "task",
+      state: "waiting",
+      at: new Date("2026-11-04T10:23:00Z"),
+      title: "Write the press note",
+      by: "Alex",
+      text: "Which date goes in the headline, the 12th or the 14th?",
+    },
+    {
+      ...media,
+      id: "w7",
+      kind: "agent",
+      state: "ready",
+      at: new Date("2026-11-04T10:24:00Z"),
+      title: "Market scan for product teams",
+      by: "Market Scout",
+      text: "Three trends stand out this quarter: loyalty passes replace one-off drops, brands mint on their own site, and buyers pay by card.",
+      readable: true,
+      files: [{ name: "market-scan.pdf", url: "/cuso/walking.png" }],
     },
   ] satisfies ChatWork[],
 };
