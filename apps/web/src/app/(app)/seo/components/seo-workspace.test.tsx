@@ -1123,6 +1123,12 @@ describe("SEO workspace integration", () => {
       within(row).getByRole("link", { name: "other.example/gone" }),
     ).toBeVisible();
     expect(row).toHaveTextContent("/segeln-mit-kindern/ → 429");
+    // A 404 is an error and gets the solid badge; a 429 only turned the check away, so its badge stays quiet.
+    expect(within(row).getByText("404")).toHaveClass(
+      "bg-semantic-destructive-solid",
+    );
+    for (const quiet of within(row).getAllByText("429"))
+      expect(quiet).not.toHaveClass("bg-semantic-destructive-solid");
     // The first three links always show; the rest of the list opens on request.
     expect(row).toHaveTextContent("/rund-ruegen-segeln/haefen/ → 429");
     expect(row).not.toHaveTextContent("segeltoern");

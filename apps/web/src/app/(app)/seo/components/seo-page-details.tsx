@@ -149,8 +149,8 @@ function PageDetail({
       className={cn(
         // Measures are one line each; a note has a heading, words and a list, so each sits in its own box.
         measure
-          ? "space-y-1 py-3 first:pt-0 last:pb-0"
-          : "border-border space-y-1.5 rounded-md border p-3",
+          ? "space-y-2 py-4 first:pt-0 last:pb-0"
+          : "border-border space-y-3 rounded-md border p-4",
       )}
     >
       {rank ? (
@@ -203,7 +203,7 @@ function PageDetail({
               an internal label and can read as the opposite, so it shows only when no finding fits a heading. */}
           <NoteHeading
             id={headingId}
-            className="text-sm font-medium break-words"
+            className="text-sm leading-snug font-semibold break-words"
           >
             {plain?.kind === "share" ? (
               t(`overview.plainNote.${plain.key}.found`, plain)
@@ -232,7 +232,7 @@ function PageDetail({
             </p>
           ) : null}
           {plain ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground max-w-prose text-sm leading-relaxed">
               {t(`overview.plainNote.${plain.key}.why`)}
             </p>
           ) : null}
@@ -256,10 +256,10 @@ function PageDetail({
         </details>
       ) : null}
       {groups.map((group) => (
-        <div key={group.label} className="space-y-0.5 text-xs">
+        <div key={group.label} className="space-y-1.5 text-xs">
           {/* A plain note's heading already says what the items are. */}
           {plain ? null : (
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground font-medium">
               {t(`overview.flaggedItems.${group.label}`, {
                 count: group.values.length + group.more,
               })}
@@ -274,7 +274,7 @@ function PageDetail({
       ))}
       {/* The check's own guidance: Google's rule, then what tools use. */}
       {guidance.length ? (
-        <ul className="text-muted-foreground space-y-0.5 text-xs">
+        <ul className="text-muted-foreground space-y-1 text-xs leading-relaxed">
           {guidance.map((line, index) => (
             <li key={`${index}:${line}`} className="break-words">
               {toolRangesList(line) === undefined
@@ -514,7 +514,7 @@ export function SeoPageDetails({
           )}
         />
       </summary>
-      <div className="border-border space-y-5 border-t p-4">
+      <div className="border-border space-y-6 border-t p-4 sm:p-5">
         {oneCheck ? (
           // The date of the tests tile, the check's row in the details of its day or its page card links its results.
           <p className="text-muted-foreground text-xs">
@@ -548,7 +548,7 @@ export function SeoPageDetails({
           </div>
         ))}
         {measures.length ? (
-          <section className="space-y-2">
+          <section className="space-y-3">
             <SectionHeading className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               {t("overview.pageMeasurements")}
             </SectionHeading>
@@ -571,12 +571,12 @@ export function SeoPageDetails({
           </section>
         ) : null}
         {notes.length ? (
-          <section className="space-y-2">
+          <section className="space-y-3">
             {/* Notes do not count toward the verdict; the summary counts them apart from suggestions. */}
             <SectionHeading className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               {t("overview.pageNotes", { count: notes.length })}
             </SectionHeading>
-            <ul className="space-y-2">
+            <ul className="space-y-3">
               {notes.map((finding) => (
                 <PageDetail
                   key={finding.id}
