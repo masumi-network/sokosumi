@@ -26,7 +26,7 @@ import { creatorFields } from "@/helpers/work-creator";
 import prisma from "@/lib/db/prisma";
 import {
   isSeoMonitorDescription,
-  requireSeoMonitorPriceForWrite,
+  requireSeoMonitorApprovalForWrite,
   seoMonitorDescriptionWithRule,
 } from "@/lib/seo/monitor-plan";
 import { type WorkspaceContext } from "@/middleware/workspace";
@@ -37,10 +37,7 @@ import type {
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
 } from "@/schemas/task-schedule.schema";
-import {
-  requireTaskReferences,
-  type TaskDomainActor,
-} from "@/services/task-domain.service";
+import { requireTaskReferences } from "@/services/task-domain.service";
 import {
   findReadableSchedule,
   type RouteVars,
@@ -51,6 +48,7 @@ import {
   type ScheduleActor,
   type ScheduleWithAssigneeVendor,
   type TaskScheduleView,
+  toScheduleDomainActor,
   toTaskScheduleView,
 } from "@/services/task-schedule-read.service";
 import {
@@ -68,6 +66,7 @@ import {
   requireOpenScheduleProjects,
 } from "@/services/task-schedule-scope";
 import { announceReleasedTasks } from "@/services/task-schedule-task.service";
+import { approveManualSeoRun } from "./project-seo-monitor.service";
 
 function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
   if (assigneeUserId != null) {
@@ -86,17 +85,6 @@ function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
  * schedules and on the private ones of the member they act for, and change
  * the ones they created or whose assignee is in their vendor family.
  */
-
-function toDomainActor(actor: ScheduleActor): TaskDomainActor {
-  return actor.kind === "user"
-    ? { kind: "user", userId: actor.userId }
-    : {
-        kind: "coworker",
-        coworkerId: actor.coworkerId,
-        vendorId: actor.vendorId,
-        enforceWorkspaceGrant: true,
-      };
-}
 
 /** Every new rule starts a new epoch of Runs. */
 function ruleColumns(rule: TaskScheduleRule, now: Date) {
@@ -147,15 +135,25 @@ export async function canCreateTaskSchedules(
 export async function createTaskSchedule(
   vars: RouteVars,
   input: CreateTaskScheduleRequest,
+  seoMonitor?: {
+    requestIdentity?: object;
+    saveApproval?: (
+      tx: Prisma.TransactionClient,
+      scheduleId: string,
+    ) => Promise<void>;
+  },
 ): Promise<TaskScheduleView> {
   const actor = await resolveScheduleActor(vars);
-  const domainActor = toDomainActor(actor);
+  const domainActor = toScheduleDomainActor(actor);
   const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
   const { operationId, ...request } = input;
   const replay = operationId
     ? createOperationReplay(actor.workspace.workspaceId, operationId, {
         ...creator,
         request,
+        ...(seoMonitor?.requestIdentity && {
+          seoApproval: seoMonitor.requestIdentity,
+        }),
       })
     : null;
   // A retry answers with the schedule it made, even if its rule or assignee
@@ -165,7 +163,7 @@ export async function createTaskSchedule(
     return toTaskScheduleView(actor, replayed);
   }
 
-  requireSeoMonitorPriceForWrite(input.description);
+  requireSeoMonitorApprovalForWrite(input.description, null, !!seoMonitor);
   requireScheduleAssignee(input.assigneeUserId);
   validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);
@@ -206,6 +204,7 @@ export async function createTaskSchedule(
         },
       });
       await replay?.record(tx, schedule.id);
+      await seoMonitor?.saveApproval?.(tx, schedule.id);
       return await tx.taskSchedule.update({
         where: { id: schedule.id },
         data: {
@@ -296,7 +295,7 @@ export async function updateTaskSchedule(
   return await prisma.$transaction(async (tx) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
-    requireSeoMonitorPriceForWrite(input.description, current.description);
+    requireSeoMonitorApprovalForWrite(input.description, current.description);
     requireSeoMonitorOwner(actor, current);
     // An SEO monitor keeps its approved pages and check: an edit replaces its rule only.
     const description = isSeoMonitorDescription(current.description)
@@ -340,7 +339,7 @@ export async function updateTaskSchedule(
             ? undefined
             : assignees?.assigneeSokoBotId,
         workspaceId: current.workspaceId,
-        actor: toDomainActor(actor),
+        actor: toScheduleDomainActor(actor),
       },
       tx,
     );
@@ -353,9 +352,11 @@ export async function updateTaskSchedule(
     const { count } = await tx.taskSchedule.updateMany({
       where: { id, revision: input.expectedRevision },
       data: {
-        name: input.name,
-        description,
-        projectId: input.projectId,
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(description !== undefined ? { description } : {}),
+        ...(input.projectId !== undefined
+          ? { projectId: input.projectId }
+          : {}),
         ...assignees,
         ...rule,
         revision: { increment: 1 },
@@ -661,23 +662,36 @@ export async function changeTaskScheduleRun(
 export async function runTaskScheduleNow(
   vars: RouteVars,
   id: string,
-  { expectedRevision }: CreateTaskScheduleRunRequest,
+  input: CreateTaskScheduleRunRequest,
+  origin: "interactive" | "cmo-subscription" = "interactive",
 ): Promise<{ revision: number; run: TaskScheduleRun }> {
+  const { expectedRevision } = input;
   const actor = await resolveScheduleActor(vars);
-
-  const { run, task } = await prisma.$transaction(async (tx) => {
+  const readCurrent = async (tx: Prisma.TransactionClient) => {
     const current = await findReadableSchedule(actor, id, tx);
     requireScheduleWriteAccess(actor, current);
     requireSeoMonitorOwner(actor, current);
     if (current.state === TaskScheduleState.ENDED) {
       throwStateConflict("An Ended Task Schedule cannot run");
     }
-    await requireOpenScheduleProjects(tx, current.workspaceId, [
-      current.projectId,
-    ]);
     if (current.revision !== expectedRevision) {
       throwRevisionConflict();
     }
+    return current;
+  };
+  const before = await readCurrent(prisma);
+  const approval = await approveManualSeoRun(before, input, origin);
+  const { run, task } = await prisma.$transaction(async (tx) => {
+    const current = await readCurrent(tx);
+    if (
+      current.description !== before.description ||
+      current.projectId !== before.projectId ||
+      current.organizationId !== before.organizationId
+    )
+      throwRevisionConflict();
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
     // Claimed first, so a concurrent edit or a second submit fails before any
     // Task. Every change bumps the revision, so a lost claim is a stale one.
     const { count } = await tx.taskSchedule.updateMany({
@@ -693,6 +707,7 @@ export async function runTaskScheduleNow(
         current,
         new Date(),
         actorColumns(actor),
+        approval,
       );
     } catch (error) {
       // The Run's time fell on a rule time to the millisecond.

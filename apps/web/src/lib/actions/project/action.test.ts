@@ -303,14 +303,15 @@ describe("project actions", () => {
   });
 
   it("returns a Core error when saving posting instructions fails", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to update project posting instructions CoreApiRequestError: forbidden",
+      "Failed to update project posting instructions",
     );
     const { updateProjectPostingInstructions } = await import("./action");
-    projectServiceMock.patchProject.mockRejectedValueOnce(
-      new CoreApiRequestError("forbidden", { status: 403 }),
-    );
+    const error = new CoreApiRequestError("forbidden", { status: 403 });
+    // Exercise Node's alternate error display without changing the error type.
+    Object.defineProperty(error, "constructor", { value: Error });
+    projectServiceMock.patchProject.mockRejectedValueOnce(error);
 
     const result = await updateProjectPostingInstructions({
       projectId: "project-1",
@@ -318,6 +319,12 @@ describe("project actions", () => {
     });
 
     expect(result.ok).toBe(false);
+    expect(errorCalls[0]?.[1]).toBeInstanceOf(CoreApiRequestError);
+    expect(errorCalls[0]?.[1]).toMatchObject({
+      name: "CoreApiRequestError",
+      message: "forbidden",
+      status: 403,
+    });
   });
 
   it("rejects a non-uuid projectId for site-icon resolution", async () => {

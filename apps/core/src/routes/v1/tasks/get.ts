@@ -304,7 +304,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const statusWhere = buildTaskListStatusWhere({
       statuses,
     });
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const searchFilter = q
       ? {
           name: {
@@ -535,8 +535,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.task.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         orderBy: [...orderBy],
         include: {
           ...taskListInclude,

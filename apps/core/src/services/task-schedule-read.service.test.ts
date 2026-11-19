@@ -112,6 +112,26 @@ describe("Task Schedule read projection", () => {
       PAGE_ID,
     ]);
   });
+  it("returns the audit repair destination only to the person who owns the full monitor", () => {
+    const auditId = randomUUID();
+    const plan = parseSeoMonitorPlan(monitorDescription())!;
+    const raw = schedule({
+      description:
+        SEO_MONITOR_MARKER +
+        JSON.stringify({
+          ...plan,
+          version: 2,
+          auditId,
+          analysis: { ...plan.analysis, kind: "audit_full" },
+        }),
+    });
+    const read = (userId: string) =>
+      taskScheduleSchema.parse(
+        mapTaskSchedule(toTaskScheduleView({ kind: "user", userId }, raw)),
+      );
+    expect(read(OWNER_ID).seoMonitor).toHaveProperty("auditId", auditId);
+    expect(read(randomUUID()).seoMonitor).not.toHaveProperty("auditId");
+  });
   it("keeps malformed reserved monitor packets closed without hiding ordinary prose", () => {
     const malformed = mapTaskSchedule(
       toTaskScheduleView(

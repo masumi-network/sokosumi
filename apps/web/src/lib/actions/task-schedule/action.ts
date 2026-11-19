@@ -20,6 +20,10 @@ import {
 } from "@/lib/actions/action-result";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
+import {
+  type SearchConsoleWarning,
+  seoSearchConsoleWarning,
+} from "@/lib/seo/search-console-warning";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import {
   type AuthenticatedRequest,
@@ -35,6 +39,7 @@ import {
 export interface TaskScheduleActionError {
   kind: "stale" | "invalid_time" | "failed";
   message: string;
+  coverage?: SearchConsoleWarning;
 }
 
 type TaskScheduleActionResult<T> = ActionResultDto<T, TaskScheduleActionError>;
@@ -76,7 +81,7 @@ interface DeleteTaskScheduleParameters extends AuthenticatedRequest {
 
 interface RunTaskScheduleNowParameters
   extends AuthenticatedRequest,
-    CreateTaskScheduleRunRequest {
+    Pick<CreateTaskScheduleRunRequest, "expectedRevision"> {
   scheduleId: string;
 }
 
@@ -92,6 +97,9 @@ const STALE_KINDS: ReadonlySet<string> = new Set([
 
 function toTaskScheduleActionError(error: unknown): TaskScheduleActionError {
   if (error instanceof CoreApiRequestError) {
+    const coverage = seoSearchConsoleWarning(error.kind);
+    if (coverage)
+      return { kind: "failed", message: "Review this Run in SEO.", coverage };
     return {
       kind:
         error.kind === CORE_API_ERROR_KINDS.SCHEDULE_RUN_TARGET_INVALID
@@ -171,9 +179,11 @@ export const deleteTaskSchedule = withSession<
 export const runTaskScheduleNow = withSession<
   RunTaskScheduleNowParameters,
   TaskScheduleActionResult<{ scheduleId: string; taskId: string }>
->(async ({ session: _session, scheduleId, ...body }) =>
+>(async ({ scheduleId, expectedRevision }) =>
   runTaskScheduleAction(async () => {
-    const { run } = await taskScheduleService.runNow(scheduleId, body);
+    const { run } = await taskScheduleService.runNow(scheduleId, {
+      expectedRevision,
+    });
     revalidateTaskSchedule(scheduleId);
     // A Run now Run is released with its Task (ADR 0047).
     if (!run.releasedTaskId) throw new Error("Run now created no Task");

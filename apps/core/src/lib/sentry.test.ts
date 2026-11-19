@@ -3,11 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   httpIntegrationMock,
   initMock,
+  nativeNodeFetchIntegrationMock,
   nodeProfilingIntegrationMock,
   requestDataIntegrationMock,
 } = vi.hoisted(() => ({
   httpIntegrationMock: vi.fn(() => ({ name: "Http" })),
   initMock: vi.fn(),
+  nativeNodeFetchIntegrationMock: vi.fn<
+    (options: { ignoreOutgoingRequests: (url: string) => boolean }) => {
+      name: string;
+    }
+  >(() => ({ name: "NodeFetch" })),
   nodeProfilingIntegrationMock: vi.fn(() => ({ name: "ProfilingNode" })),
   requestDataIntegrationMock: vi.fn(() => ({ name: "RequestData" })),
 }));
@@ -15,6 +21,7 @@ const {
 vi.mock("@sentry/node", () => ({
   httpIntegration: httpIntegrationMock,
   init: initMock,
+  nativeNodeFetchIntegration: nativeNodeFetchIntegrationMock,
   requestDataIntegration: requestDataIntegrationMock,
 }));
 
@@ -26,6 +33,7 @@ vi.mock("../config/env.js", () => ({
   getEnv: () => ({
     SENTRY_DSN: "https://public@o0.ingest.sentry.io/123",
     SENTRY_ENVIRONMENT: "test",
+    COMPOSIO_API_BASE_URL: "https://composio.example.test",
   }),
 }));
 
@@ -116,6 +124,28 @@ describe("initSentry", () => {
     expect(names).toContain("Http");
     expect(names).not.toContain("Hono");
     expect(names).not.toContain("Dedupe");
+  });
+
+  it("hides the connected account's ID from outgoing Sentry spans and breadcrumbs", () => {
+    resolveIntegrations();
+    const filter =
+      nativeNodeFetchIntegrationMock.mock.calls[0]?.[0].ignoreOutgoingRequests;
+    expect.assert(filter);
+    expect(
+      filter(
+        "https://composio.example.test/api/v3.1/connected_accounts/ca-private",
+      ),
+    ).toBe(true);
+    expect(
+      filter(
+        "https://composio.example.test/api/v3/tools/execute/GOOGLE_SEARCH_CONSOLE_LIST_SITES",
+      ),
+    ).toBe(false);
+    expect(
+      filter(
+        "https://elsewhere.example.test/api/v3.1/connected_accounts/ordinary",
+      ),
+    ).toBe(false);
   });
 
   it("keeps sentryMiddleware as the incoming-span owner by dropping 11.2 Hono auto-instrumentation", () => {

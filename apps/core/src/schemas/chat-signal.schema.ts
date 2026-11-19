@@ -1,10 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { CHAT_CATCH_UP_BUCKETS } from "@/lib/chat-signals/derive";
-import {
-  chatRoomMessageSchema,
-  chatSignalTagSchema,
-} from "@/schemas/chat-room.schema";
+import { chatSignalTagSchema } from "@/schemas/chat-room.schema";
 
 export const chatCatchUpBucketSchema = z
   .enum(CHAT_CATCH_UP_BUCKETS)
@@ -33,24 +30,6 @@ export const chatRoomCatchUpSchema = z
     ),
   })
   .openapi("ChatRoomCatchUp");
-
-const chatSignalRoomSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string(),
-  kind: z.enum(["channel", "direct"]),
-});
-
-export const chatSignalListItemSchema = z
-  .object({
-    kind: z.enum(["needsYou", "question", "decision", "commitment"]).openapi({
-      description:
-        "`needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.",
-    }),
-    room: chatSignalRoomSchema,
-    message: chatRoomMessageSchema,
-    dueAt: dateTimeSchema.nullable(),
-  })
-  .openapi("ChatSignalListItem");
 
 export const chatCatchUpItemSchema = z
   .object({

@@ -393,7 +393,7 @@ export async function assignTask(
         outcome: updated.status,
         lastSeenStatus: updated.status,
         taskId: updated.id,
-        followUp: input.followUp,
+        ...(input.followUp !== undefined ? { followUp: input.followUp } : {}),
       },
     });
     {

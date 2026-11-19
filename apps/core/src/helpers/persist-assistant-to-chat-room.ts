@@ -173,7 +173,7 @@ export async function persistAssistantToChatRoom(params: {
           senderCoworkerId,
           senderUserId: null,
           content: contentText,
-          metadata,
+          ...(metadata !== undefined && { metadata }),
           responsesApiResponseId: responseId,
           parentMessageId: parentMessageId ?? null,
         },
@@ -270,8 +270,6 @@ export async function persistUserMessageToChatRoom(params: {
     ...(metadata ?? {}),
     ...(clientId ? { client_message_id: clientId } : {}),
   };
-  const metadataToStore =
-    Object.keys(mergedMetadata).length > 0 ? mergedMetadata : undefined;
 
   try {
     const created = await prisma.$transaction(async (tx) => {
@@ -281,7 +279,9 @@ export async function persistUserMessageToChatRoom(params: {
           senderUserId,
           senderCoworkerId: null,
           content: contentText,
-          metadata: metadataToStore,
+          ...(Object.keys(mergedMetadata).length > 0 && {
+            metadata: mergedMetadata,
+          }),
           clientMessageId: clientId,
           parentMessageId: parentMessageId ?? null,
         },

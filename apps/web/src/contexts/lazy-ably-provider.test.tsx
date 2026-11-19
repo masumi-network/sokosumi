@@ -77,7 +77,7 @@ describe("LazyAblyProvider", () => {
       "@/contexts/lazy-ably-provider"
     );
 
-    expectConsole("error", "Error: Failed to load Ably provider");
+    const reactErrors = expectConsole("error", "");
 
     render(
       <TestErrorBoundary>
@@ -88,6 +88,11 @@ describe("LazyAblyProvider", () => {
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to load Ably provider",
+    );
+    expect(reactErrors[0]?.[1]).toBeInstanceOf(Error);
+    expect(reactErrors[0]?.[1]).toHaveProperty(
+      "message",
       "Failed to load Ably provider",
     );
     expect(screen.queryByText("realtime-child")).not.toBeInTheDocument();

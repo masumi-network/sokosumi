@@ -494,11 +494,12 @@ describe("image studio job submission", () => {
       data: expect.objectContaining({
         productId: "product-a",
         productName: "Clay mug",
-        templateId: undefined,
-        creativeDirection: undefined,
-        variationIndex: undefined,
       }),
     });
+    const data = jobCreateMock.mock.lastCall?.[0]?.data;
+    expect(data).not.toHaveProperty("templateId");
+    expect(data).not.toHaveProperty("creativeDirection");
+    expect(data).not.toHaveProperty("variationIndex");
   });
 
   const photoInput = {

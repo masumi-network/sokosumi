@@ -715,7 +715,7 @@ export class SokoBotEventsSyncService {
         where: { key: scan.key },
         data: {
           cursorId:
-            delegations.length === BATCH_SIZE ? delegations.at(-1)?.id : null,
+            delegations.length === BATCH_SIZE ? delegations.at(-1)!.id : null,
           lastSyncedAt: new Date(),
         },
       });
@@ -739,7 +739,9 @@ export class SokoBotEventsSyncService {
         data: {
           lastSeenStatus: item.status,
           lastSeenEventId: item.eventId ?? null,
-          lastSeenEventAt: item.eventAt,
+          ...(item.eventAt !== undefined
+            ? { lastSeenEventAt: item.eventAt }
+            : {}),
         },
       });
     }

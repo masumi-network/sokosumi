@@ -36,6 +36,7 @@ import {
   createProjectSeoActionTask,
   requestProjectSeoAnalysis,
 } from "@/services/project-seo-operations.service";
+import { latestSeoSearchConsoleProperty } from "@/services/seo-connections.service";
 import { createSeoBrandTermsRouter } from "./brand-terms";
 import { createSeoBriefRouter } from "./brief";
 import { createSeoPageChangesRouter } from "./page-changes";
@@ -81,7 +82,17 @@ export function createSeoWorkspaceRouter(ownerKind: "project" | "audit") {
         kind: ownerKind,
         id: c.req.valid("param").id,
       });
-      return ok(c, await getProjectSeoWorkspace(actor, c.req.valid("query")));
+      const workspace = await getProjectSeoWorkspace(
+        actor,
+        c.req.valid("query"),
+      );
+      // A shared statistics snapshot can belong to another member. Only this user's selected property guides setup.
+      return ok(c, {
+        ...workspace,
+        searchConsolePropertyId: workspace.scope.pageIds.length
+          ? await latestSeoSearchConsoleProperty(actor, workspace.scope.pageIds)
+          : null,
+      });
     },
   );
 

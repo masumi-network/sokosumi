@@ -615,6 +615,24 @@ describe("ContextPacketBuilder", () => {
     );
   });
 
+  it("reads the workspace membership without a user filter for a self-started turn", async () => {
+    const input = buildInput();
+    await new ContextPacketBuilder().build({
+      ...input,
+      userId: null,
+      sharedScope: {
+        sokoBotId: input.sokoBotId,
+        workspaceId: input.workspaceId,
+        projectId: null,
+      },
+    });
+
+    expect(
+      workspaceFindFirstMock.mock.lastCall?.[0].select.organization.select
+        .members,
+    ).toStrictEqual({ select: { role: true }, take: 1 });
+  });
+
   it("builds a shared bot's packet from its scope and never as OWNER", async () => {
     const sharedScope = {
       sokoBotId: buildInput().sokoBotId,
@@ -635,6 +653,10 @@ describe("ContextPacketBuilder", () => {
     expect(userFindUniqueMock).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "user-1" } }),
     );
+    expect(
+      workspaceFindFirstMock.mock.lastCall?.[0].select.organization.select
+        .members.where,
+    ).toStrictEqual({ userId: "user-1" });
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({

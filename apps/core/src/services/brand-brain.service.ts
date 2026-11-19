@@ -419,12 +419,13 @@ export async function answerBrandBrainQuestion(
     if (!brain || !question) {
       throw notFound("That question is not in the Brand Brain");
     }
-    const { corrected: _earlier, ...asked } = question;
+    const { corrected: _earlier, note: _previousNote, ...asked } = question;
+    const note = input.note?.trim();
     const answered: CmoBrandQuestion = {
       ...asked,
       answer: input.answer,
       // Any answer may carry the owner's details, not only a no.
-      note: input.note?.trim() || undefined,
+      ...(note ? { note } : {}),
       // A no stays open until its section says what is true instead.
       ...(input.answer === "no" ? { corrected: false } : {}),
     };
@@ -442,13 +443,14 @@ export async function answerBrandBrainQuestion(
         (candidate) => !earlier.includes(candidate.point),
       ),
     ].slice(0, 6);
+    const updatedSection = section
+      ? { ...section, findings }
+      : finding
+        ? { answer: finding.point, findings, openQuestions: [] }
+        : null;
     const profile = {
       ...brain.profile,
-      [question.section]: section
-        ? { ...section, findings }
-        : finding
-          ? { answer: finding.point, findings, openQuestions: [] }
-          : undefined,
+      ...(updatedSection ? { [question.section]: updatedSection } : {}),
     };
     await tx.brandBrain.update({
       where: { projectId },

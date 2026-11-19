@@ -48,12 +48,7 @@ const severity = (item: ProjectSeoAction): SeoIssueSeverity | null =>
 function view(actions: ProjectSeoAction[]) {
   return (
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-      <SeoActionWorklist
-        actions={actions}
-        severity={severity}
-        model={model}
-        tools={null}
-      />
+      <SeoActionWorklist actions={actions} severity={severity} model={model} />
     </NextIntlClientProvider>
   );
 }
@@ -144,7 +139,6 @@ describe("SEO action worklist", () => {
               setShownAction,
             } as unknown as SeoWorkspaceModel
           }
-          tools={null}
         />
       </NextIntlClientProvider>,
     );

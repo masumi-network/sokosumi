@@ -222,19 +222,22 @@ export function withoutUnaskedAds<T extends MarketingStrategyPlan>(plan: T): T {
   if (ads?.setByOwner && ads.monthly > 0) return plan;
   const isAd = (channel: string) => AD_CHANNELS.has(channel.toLowerCase());
   const firstAd = plan.channels.find((channel) => isAd(channel.channel));
+  const suggest =
+    ads?.suggest ??
+    (ads && ads.monthly > 0 && firstAd
+      ? { channel: firstAd.channel.toLowerCase(), monthly: ads.monthly }
+      : undefined);
   return {
     ...plan,
-    ads: ads
+    ...(ads
       ? {
-          ...ads,
-          monthly: 0,
-          suggest:
-            ads.suggest ??
-            (ads.monthly > 0 && firstAd
-              ? { channel: firstAd.channel.toLowerCase(), monthly: ads.monthly }
-              : undefined),
+          ads: {
+            ...ads,
+            monthly: 0,
+            ...(suggest !== undefined ? { suggest } : {}),
+          },
         }
-      : ads,
+      : {}),
     channels: plan.channels.filter((channel) => !isAd(channel.channel)),
     calendar: plan.calendar.map((entry) =>
       isAd(entry.channel) && entry.status !== "skipped"
@@ -800,11 +803,15 @@ export function keepCalendarWork(
   const withDrafts = incoming.map((entry) => {
     const old = before.get(entry.id);
     if (!old || !sameTitle(old.title, entry.title)) return entry;
+    const draft = entry.draft ?? old.draft;
+    const brief = entry.brief ?? old.brief;
+    const why = entry.why ?? old.why;
+    const hook = entry.hook ?? old.hook;
     const words = {
-      draft: entry.draft ?? old.draft,
-      brief: entry.brief ?? old.brief,
-      why: entry.why ?? old.why,
-      hook: entry.hook ?? old.hook,
+      ...(draft !== undefined ? { draft } : {}),
+      ...(brief !== undefined ? { brief } : {}),
+      ...(why !== undefined ? { why } : {}),
+      ...(hook !== undefined ? { hook } : {}),
     };
     // Moved to another channel or format, its post, files and ad belong to
     // the old piece: only the words come along.
@@ -895,18 +902,24 @@ async function keepFilePieces(
   const calendar = [
     ...plan.calendar.map((entry) => {
       const sentEntry = visuals.get(entry.id);
-      return sentEntry
-        ? {
-            ...entry,
-            visual: sentEntry.visual,
-            visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
-            styleReferenceId:
-              sentEntry.styleReferenceId ?? entry.styleReferenceId,
-            headline: sentEntry.headline ?? entry.headline,
-            slides: sentEntry.slides ?? entry.slides,
-            slideHeadlines: sentEntry.slideHeadlines ?? entry.slideHeadlines,
-          }
-        : entry;
+      if (!sentEntry?.visual) return entry;
+      return {
+        ...entry,
+        visual: sentEntry.visual,
+        ...(sentEntry.visualFileIds !== undefined
+          ? { visualFileIds: sentEntry.visualFileIds }
+          : {}),
+        ...(sentEntry.styleReferenceId !== undefined
+          ? { styleReferenceId: sentEntry.styleReferenceId }
+          : {}),
+        ...(sentEntry.headline !== undefined
+          ? { headline: sentEntry.headline }
+          : {}),
+        ...(sentEntry.slides !== undefined ? { slides: sentEntry.slides } : {}),
+        ...(sentEntry.slideHeadlines !== undefined
+          ? { slideHeadlines: sentEntry.slideHeadlines }
+          : {}),
+      };
     }),
     ...added.map(
       ({ draft: _draft, searchAd: _searchAd, adCampaign: _ad, ...entry }) =>
@@ -1195,23 +1208,24 @@ export async function saveCmoStrategy(
     // A change is refused only for a rule it breaks anew, measured against
     // the plan as it was before this turn, never a part this turn saved
     // unchecked.
-    const earlier = own
-      ? parseMarketingPlan(
-          (
-            await db.marketingStrategy.findFirst({
-              where: {
-                projectId: cuso.projectId,
-                OR: [
-                  { authorTurnId: null },
-                  { authorTurnId: { not: options.turnId } },
-                ],
-              },
-              orderBy: { createdAt: "desc" },
-              select: { plan: true },
-            })
-          )?.plan,
-        )
-      : before;
+    const earlier =
+      own && options.turnId
+        ? parseMarketingPlan(
+            (
+              await db.marketingStrategy.findFirst({
+                where: {
+                  projectId: cuso.projectId,
+                  OR: [
+                    { authorTurnId: null },
+                    { authorTurnId: { not: options.turnId } },
+                  ],
+                },
+                orderBy: { createdAt: "desc" },
+                select: { plan: true },
+              })
+            )?.plan,
+          )
+        : before;
     const broken = cmoPlanRulesBrokenSince(
       sendsCalendar ? stored : { ...stored, calendar: [] },
       earlier ?? null,

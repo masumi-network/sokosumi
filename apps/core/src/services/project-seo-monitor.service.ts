@@ -23,13 +23,21 @@ import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
+import type { CreateTaskScheduleRunRequest } from "@/schemas/task-schedule.schema";
 import { readSeoMonitorRuns } from "./project-seo-monitor-runs";
 import {
+  auditPageSelection,
   requestProjectSeoAnalysisInTransaction,
   seoTaskPacket,
   validateSeoAnalysis,
 } from "./project-seo-operations.service";
 import { requireSeoOwner, resolveSeoScope } from "./project-seo-store";
+import { checkAuditSearchConsole } from "./seo-audit-search-console";
+import {
+  type ManualSeoRunApproval,
+  readMonitorSearchConsoleApproval,
+  saveMonitorSearchConsoleApproval,
+} from "./seo-monitor-search-console";
 import { createTaskSchedule } from "./task-schedule.service";
 
 const SEO_MONITOR_LIST_LIMIT = 50;
@@ -47,6 +55,7 @@ export async function createProjectSeoMonitor(
   vars: EnvVariables["Variables"],
   actor: SeoActor,
   input: z.infer<typeof createSeoMonitorSchema>,
+  origin: "interactive" | "cmo-subscription" = "interactive",
 ) {
   if (actor.sokoBotId)
     throw forbidden("A person must approve recurring public SEO work");
@@ -80,7 +89,7 @@ export async function createProjectSeoMonitor(
         operationId: input.operationId,
       },
     },
-    select: { scheduleId: true },
+    select: { schedule: { select: { description: true } } },
   });
   if (!made) requireSeoFullAuditPriceApproval(preparedAnalysis);
   if (!made)
@@ -93,8 +102,23 @@ export async function createProjectSeoMonitor(
       },
       seoAnalysisMaxCredits(preparedAnalysis, pageUrls.length),
     );
+  const { searchConsolePropertyId, allowLimitedAudit, ...publicAnalysis } =
+    preparedAnalysis;
+  const approveCoverage =
+    origin === "interactive" &&
+    publicAnalysis.kind === "audit_full" &&
+    (!made ||
+      parsePacket(made.schedule.description)?.requiresApprovalRecord === true);
+  const access =
+    approveCoverage && !made && !allowLimitedAudit
+      ? await checkAuditSearchConsole(
+          actor,
+          scope.pages,
+          searchConsolePropertyId,
+        )
+      : null;
   const analysis = requestSeoAnalysisSchema.parse({
-    ...preparedAnalysis,
+    ...publicAnalysis,
     coworkerId: executor.coworkerId,
     scopeId: undefined,
     expectedScopeVersion: undefined,
@@ -105,36 +129,58 @@ export async function createProjectSeoMonitor(
     ...(actor.owner.kind === "audit"
       ? { version: 2, auditId: actor.owner.id }
       : { version: 1 }),
+    ...(approveCoverage && { requiresApprovalRecord: true as const }),
     rule: input.rule,
     scopeVersion: scope.version,
     analysis,
   });
-  return createTaskSchedule(vars, {
-    operationId: input.operationId,
-    name: `SEO ${analysis.kind.replaceAll("_", " ")}`,
-    description,
-    projectId: owner.projectId,
-    visibility: "PUBLIC",
-    assigneeId: analysis.coworkerId,
-    rule: {
-      ...input.rule,
-      targetRunCount: input.rule.targetRunCount ?? undefined,
+  return createTaskSchedule(
+    vars,
+    {
+      operationId: input.operationId,
+      name: `SEO ${analysis.kind.replaceAll("_", " ")}`,
+      description,
+      projectId: owner.projectId,
+      visibility: "PUBLIC",
+      assigneeId: analysis.coworkerId,
+      rule: {
+        ...input.rule,
+        targetRunCount: input.rule.targetRunCount ?? undefined,
+      },
     },
-  });
+    {
+      ...(approveCoverage && {
+        requestIdentity: { searchConsolePropertyId, allowLimitedAudit },
+        saveApproval: async (tx, scheduleId) => {
+          if (made)
+            throw conflict("The saved SEO monitor changed. Retry scheduling.");
+          const current = await resolveSeoScope(actor, input.analysis, tx);
+          if (
+            current.version !== scope.version ||
+            auditPageSelection(current.pages) !==
+              auditPageSelection(scope.pages)
+          )
+            throw conflict(
+              "The selected pages changed. Review the monitor again.",
+            );
+          await saveMonitorSearchConsoleApproval(
+            tx,
+            actor,
+            scheduleId,
+            scope.pageIds,
+            scope.version,
+            access,
+          );
+        },
+      }),
+    },
+  );
 }
 
-/**
- * Only the durable planned Run ledger, or a Run now that passed the schedule's write checks, may release this
- * packet. Each Run gets its own request ID.
- */
-export async function releaseSeoMonitorRun(
-  tx: Prisma.TransactionClient,
+function monitorRunActor(
   schedule: TaskSchedule,
-  runId: string,
-  manual = false,
-) {
-  const packet = parsePacket(schedule.description);
-  if (!packet) return null;
+  packet: NonNullable<ReturnType<typeof parsePacket>>,
+): SeoActor {
   if (
     !schedule.ownerId ||
     (packet.version === 1 && !schedule.projectId) ||
@@ -159,6 +205,79 @@ export async function releaseSeoMonitorRun(
     throw forbidden(
       "The SEO monitor no longer matches its approved public blueprint",
     );
+  return {
+    owner:
+      packet.version === 2
+        ? { kind: "audit", id: packet.auditId }
+        : { kind: "project", id: schedule.projectId! },
+    workspaceId: schedule.workspaceId,
+    userId: schedule.ownerId,
+    organizationId: schedule.organizationId,
+  };
+}
+
+/** A person approves only this extra Run. Background releases retain their existing plan. */
+export async function approveManualSeoRun(
+  schedule: TaskSchedule,
+  { searchConsolePropertyId, allowLimitedAudit }: CreateTaskScheduleRunRequest,
+  origin: "interactive" | "cmo-subscription",
+): Promise<ManualSeoRunApproval | undefined> {
+  const packet = parsePacket(schedule.description);
+  if (packet?.analysis.kind !== "audit_full") {
+    if (searchConsolePropertyId || allowLimitedAudit)
+      throw badRequest(
+        "Search Console coverage applies only to full audit Runs.",
+      );
+    return undefined;
+  }
+  const actor = monitorRunActor(schedule, packet);
+  if (origin === "cmo-subscription" && !packet.requiresApprovalRecord)
+    return origin;
+  const owner = await requireSeoOwner(actor, prisma, true);
+  if (owner.projectId !== schedule.projectId)
+    throw forbidden("The SEO monitor no longer matches its approved context");
+  const { pages } = await resolveSeoScope(actor, packet.analysis);
+  const saved =
+    packet.requiresApprovalRecord &&
+    !allowLimitedAudit &&
+    !searchConsolePropertyId
+      ? await readMonitorSearchConsoleApproval(prisma, actor, schedule.id)
+      : undefined;
+  // A fresh manual Run can verify the saved property on a new owner-authorized account. Its proof belongs to this Run only.
+  const access =
+    allowLimitedAudit || saved === null
+      ? null
+      : await checkAuditSearchConsole(
+          actor,
+          pages,
+          searchConsolePropertyId ?? saved?.propertyId,
+        );
+  return { pages: pages.map(({ id, url }) => ({ id, url })), access };
+}
+
+/**
+ * Only the durable planned Run ledger, or a Run now that passed the schedule's write checks, may release this
+ * packet. Each Run gets its own request ID.
+ */
+export async function releaseSeoMonitorRun(
+  tx: Prisma.TransactionClient,
+  schedule: TaskSchedule,
+  runId: string,
+  manual = false,
+  approval?: ManualSeoRunApproval,
+) {
+  const packet = parsePacket(schedule.description);
+  if (!packet) return null;
+  const actor = monitorRunActor(schedule, packet);
+  if (
+    manual &&
+    packet.analysis.kind === "audit_full" &&
+    (!approval ||
+      (approval === "cmo-subscription" && packet.requiresApprovalRecord))
+  )
+    throw conflict(
+      "Review this full audit in the SEO workspace before Run now.",
+    );
   // A Run now Run row is written after its Task, in the same transaction.
   const planned =
     manual ||
@@ -175,15 +294,6 @@ export async function releaseSeoMonitorRun(
     throw forbidden(
       "Request a one-off analysis instead of adding an unbudgeted monitor Run",
     );
-  const actor: SeoActor = {
-    owner:
-      packet.version === 2
-        ? { kind: "audit", id: packet.auditId }
-        : { kind: "project", id: schedule.projectId! },
-    workspaceId: schedule.workspaceId,
-    userId: schedule.ownerId,
-    organizationId: schedule.organizationId,
-  };
   // The request seam validates the locked ledger for a Run owed before Project close.
   // Run now retains the normal open-Project gate.
   const owner = await requireSeoOwner(actor, tx, manual);
@@ -193,14 +303,25 @@ export async function releaseSeoMonitorRun(
     ...packet.analysis,
     idempotencyKey: `seo-monitor:${schedule.id}:${runId}`,
   });
+  const manualApproval = typeof approval === "object" ? approval : undefined;
   const analysis = await requestProjectSeoAnalysisInTransaction(
     actor,
     input,
     tx,
     {},
-    packet.scopeVersion,
-    true,
-    manual ? undefined : { scheduleId: schedule.id, runId },
+    {
+      frozenScopeVersion: packet.scopeVersion,
+      requireScheduledExecutor: true,
+      plannedMonitorRun: manual
+        ? undefined
+        : { scheduleId: schedule.id, runId },
+      pages: manualApproval?.pages,
+      searchConsoleAccess: manualApproval
+        ? manualApproval.access
+        : packet.requiresApprovalRecord
+          ? await readMonitorSearchConsoleApproval(tx, actor, schedule.id)
+          : undefined,
+    },
   );
   if (!analysis.taskId)
     throw conflict("The monitor analysis did not create its Task");

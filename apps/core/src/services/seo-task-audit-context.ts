@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { canonicalJsonKey } from "@sokosumi/masumi/schemas";
+import { seoTaskRequestPacket } from "@sokosumi/utils";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { requireTaskWorkerContext } from "@/helpers/task-worker-context";
 import { originalSeoAuditPacket } from "@/lib/seo/related-page-selection";
@@ -21,6 +22,31 @@ const approvedRequestSchema = z
     pageUrls: z.array(seoUrlSchema).min(1).max(SEO_MAX_PAGES),
   })
   .refine((input) => new Set(input.pageUrls).size === input.pageUrls.length);
+
+/** Load only frozen seed URLs and keep their approved order for inspection. */
+export async function readApprovedSeoTaskPages(
+  tx: Prisma.TransactionClient,
+  actor: SeoActor,
+  analysis: { request: Prisma.JsonValue; pageIds: string[] },
+) {
+  const parsed = approvedRequestSchema.safeParse(analysis.request);
+  if (!parsed.success)
+    throw conflict("The approved SEO page scope is unavailable");
+  const { pageUrls } = parsed.data;
+  const pages = await tx.projectSeoPage.findMany({
+    where: { ...seoOwnerWhere(actor), id: { in: analysis.pageIds } },
+    select: { id: true, url: true },
+  });
+  const byUrl = new Map(pages.map((page) => [page.url, page]));
+  if (
+    pages.length !== pageUrls.length ||
+    analysis.pageIds.length !== pageUrls.length ||
+    pageUrls.some((url) => !byUrl.has(url))
+  )
+    throw conflict("The approved SEO pages changed");
+
+  return { pageUrls, pages: pageUrls.map((url) => byUrl.get(url)!) };
+}
 
 /** Lock and recheck the assigned worker, owner, audit and exact frozen pages before a Task-bound operation. */
 export async function requireSeoTaskAuditContext(
@@ -57,20 +83,7 @@ export async function requireSeoTaskAuditContext(
       : { kind: "project", id: analysis.projectId! },
   };
   await requireLockedSeoOwner(tx, actor, false);
-  const parsed = approvedRequestSchema.safeParse(analysis.request);
-  if (!parsed.success)
-    throw conflict("The approved SEO page scope is unavailable");
-  const pageUrls = parsed.data.pageUrls;
-  const pages = await tx.projectSeoPage.findMany({
-    where: { ...seoOwnerWhere(actor), id: { in: analysis.pageIds } },
-    select: { id: true, url: true },
-  });
-  if (
-    pages.length !== pageUrls.length ||
-    analysis.pageIds.length !== pageUrls.length ||
-    pages.some((page) => !pageUrls.includes(page.url))
-  )
-    throw conflict("The approved SEO pages changed");
+  const { pageUrls } = await readApprovedSeoTaskPages(tx, actor, analysis);
 
   if (
     z.object({ inspectRelated: z.literal(true) }).safeParse(analysis.request)
@@ -78,9 +91,7 @@ export async function requireSeoTaskAuditContext(
   ) {
     let currentPacket: unknown;
     try {
-      if (!task.description?.startsWith("seo_audit:"))
-        throw new Error("Missing packet");
-      currentPacket = JSON.parse(task.description.slice("seo_audit:".length));
+      currentPacket = seoTaskRequestPacket(task.description ?? "", "seo_audit");
     } catch {
       throw conflict("The approved audit Task request changed");
     }

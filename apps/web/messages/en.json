@@ -1944,6 +1944,8 @@
         "context": "Context",
         "subtasks": "Sub-tasks",
         "subtaskOf": "Sub-task of",
+        "openSeoAudit": "Open SEO audit",
+        "openSeoProjectWorkspace": "Open project SEO workspace",
         "copyIdentifier": "Copy task ID",
         "identifierCopied": "Copied {identifier}",
         "identifierCopyError": "Could not copy the task ID",
@@ -12411,16 +12413,17 @@
         "failedCheck": "<prefix>Issue:</prefix> {name}",
         "checkedOn": "Checked",
         "diagnostics": "Page details",
-        "diagnosticsHelp": "What the check measured on your pages. Notes and suggestions are not errors.",
+        "diagnosticsHelp": "What we found on your pages.",
         "rank": {
-          "absent": "Not in the top {top}",
+          "title": "Google ranking",
+          "absent": "Not in Google's top {top}",
           "position": "Position {position}",
           "featuredSnippet": "Featured snippet, position {position}",
-          "forKeyword": "for “{keyword}”",
-          "source": "Market {country}, {language} · DataForSEO",
-          "aiNotCited": "An AI Overview shows and does not cite the page",
-          "aiCited": "The AI Overview cites the page",
-          "othersAbsent": "{count, plural, one {# other keyword} other {# other keywords}}: none in the top {top}",
+          "forKeyword": "for “<k>{keyword}</k>”",
+          "source": "Google · {country} · {language}",
+          "aiCited": "Google's AI Overview cites this page as a source",
+          "otherKeywords": "Other keywords",
+          "othersAbsent": "Also not in the top {top} for {count, plural, one {# other keyword} other {# other keywords}}",
           "searchConsole": "Search Console average position {position}",
           "serpRead": "Search result read:",
           "allDetails": "All details",
@@ -12444,19 +12447,109 @@
         "pageMeasurements": "Measurements",
         "pageNotes": "Notes ({count})",
         "references": "{count, plural, one {# source} other {# sources}}",
-        "noteRule": "The check flagged “{name}”",
+        "noteRule": "The check flagged this on the page",
         "askAgent": "Ask about this note",
         "askAboutNote": "What does “{name}” mean for my page? Should I change anything?",
         "showAll": "Show all",
         "showLess": "Show less",
         "askAboutNoteOnPage": "What does “{name}” mean for {url}? Should I change anything?",
-        "insideToolRanges": "{total, plural, one {within the tool range} other {within all # tool ranges}}",
         "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "positionHint": "1 is the top result",
-        "noteFound": "Found: {found}",
         "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}",
-        "noteRuleName": "Check: {name}",
+        "flaggedItems": {
+          "cameraFileName": "{count, plural, one {# camera file name} other {# camera file names}}",
+          "imgWithoutAlt": "{count, plural, one {# image without alt text} other {# images without alt text}}",
+          "linkStatus": "{count, plural, one {# link} other {# links}}"
+        },
+        "showMoreItems": "Show {count} more",
+        "unlistedItems": "{count} more the check did not list",
+        "inlineImage": "image inside the page",
+        "plainNote": {
+          "cameraFileNames": {
+            "title": "Images with a camera file name",
+            "found": "{found, plural, one {# of {total} images has} other {# of {total} images have}} a camera file name",
+            "why": "Names like IMG_1234.jpg say nothing about the picture. Google reads a file name as a small hint for image search. When you upload an image again, name it after what it shows, for example harbor-at-sunset.jpg."
+          },
+          "brokenLinks": {
+            "title": "Links that lead to an error",
+            "found": "{found, plural, one {# of {total} links leads} other {# of {total} links lead}} to an error",
+            "why": "A link that answers with an error number leads visitors and Google to a dead end. Fix each link or remove it. The number after a link is the site's answer: 404 means the page does not exist. 429 is different: the site turned our check away for a moment, so check that link again before you change it."
+          },
+          "xDefault": {
+            "title": "No x-default language version",
+            "why": "The page lists versions for other languages or regions, but none is marked x-default. x-default tells Google which version to show people whose language is not on the list, for example a language picker page. Google suggests it but does not require it."
+          },
+          "metaKeywords": {
+            "title": "The page has a meta keywords tag",
+            "why": "Google does not use the meta keywords tag. It has no effect in Google Search, so you can keep it or remove it."
+          },
+          "twoWayFacts": {
+            "title": "Dates or times that can be read two ways",
+            "why": "A date like 04/05/2026 means 5 April in some countries and 4 May in others. A number like 1:30 can mean 1 minute 30 seconds, 1 hour 30 minutes or a time of day. Write the month as a word (5 May 2026) and write durations out (1 minute 30 seconds)."
+          },
+          "retiredMarkup": {
+            "title": "Markup for a search feature Google no longer shows",
+            "why": "The page has structured data, such as FAQ or How-to, for a rich result that Google retired. Google says this markup causes no problems, so removing it is optional."
+          },
+          "titlePerDevice": {
+            "title": "Google shows a different title on phones and computers",
+            "why": "Google can show a different title for the page by device. Compare both titles in the details. If both describe the page well, nothing needs to change. A title that is only cut shorter on one device is no real difference."
+          },
+          "noFieldData": {
+            "title": "No speed data from real visitors",
+            "why": "Chrome publishes speed data from real visitors only for public pages (status 200, no noindex) with enough visits, and Google does not say how many. Until then, use the lab speed test of this audit."
+          },
+          "rawRenderedDiff": {
+            "title": "JavaScript changes the page after it loads",
+            "why": "The page's HTML and the page after JavaScript runs show different values for the title, description, h1, links or text. Google reads the page after JavaScript runs. Crawlers that do not run JavaScript see only the HTML. Make the HTML match what JavaScript shows."
+          },
+          "googleExtended": {
+            "title": "robots.txt blocks Google-Extended",
+            "why": "This stops Google from using your content to train and ground Gemini. It does not remove the page from Google Search, AI Overviews or AI Mode. If that is what you want, nothing needs to change."
+          },
+          "canonicalTarget": {
+            "title": "The canonical link points to a page with a problem",
+            "why": "The canonical link tells Google which address is the main one for this page. It must point to a live page that does not redirect and has no noindex. Point it at the live address you want Google to show. If the target redirects, that is usually the address where the redirect ends."
+          },
+          "siteName": {
+            "title": "The home page does not give Google the site name",
+            "why": "Without WebSite structured data with a name on the home page, Google takes the site name in results from other parts of the page, such as the title. Add WebSite structured data with your site's name to the home page."
+          },
+          "queryWords": {
+            "title": "Search words missing from the title and main heading",
+            "why": "Google showed this page for searches with words that its title and h1 do not have. Google also matches related words, so add a word only where it describes the page."
+          },
+          "shopping": {
+            "title": "Product not found in Google Shopping",
+            "why": "The check did not find this product from your site in Google Shopping. It can still be listed under another name. Google Merchant Center is the main way to show a product in the Shopping tab."
+          },
+          "authorship": {
+            "title": "No clear author or site owner",
+            "why": "Readers look for who wrote an article and who runs the site. Name the author with a link to a profile page, and link to an About, Impressum or Contact page."
+          },
+          "sitemap": {
+            "title": "Page missing from the sitemap",
+            "why": "The audit found nothing that stops Google from indexing this page, but it is not in your sitemap. Google finds linked pages without a sitemap, so this is a weak signal. Add the page to the sitemap to give Google one more way to find it."
+          },
+          "moneyLinked": {
+            "title": "Important page without a link from your other pages",
+            "why": "None of the other pages this audit read link to this page. Each page you care about needs a link from at least one other page. Add a link to it from a related page. The audit reads only some pages, so a link can exist on a page it did not read."
+          },
+          "twoForKeyword": {
+            "title": "Several of your pages rank for the same search",
+            "why": "Google usually shows at most two results from one site at the top. Check that each of these pages should rank for this search, or let one page cover it. This is a point to review, not a fault."
+          },
+          "noH1": {
+            "title": "No main heading (h1)",
+            "why": "The page has no h1 heading. In one SEO test on travel listing pages, changing the first heading to an h1 raised search traffic by 4.5%. Try one h1 that says what the page is about, and measure the effect."
+          },
+          "aiSearchBots": {
+            "title": "robots.txt blocks AI search bots",
+            "why": "robots.txt blocks one or more of the bots that AI search tools such as ChatGPT, Claude or Perplexity use to find pages, so these tools may not show the page in their answers. If you block them on purpose, nothing needs to change."
+          }
+        },
+        "checkFound": "What the check found",
         "suggestion": "Suggestion:",
         "periodCompare": "Previous {days, plural, one {day} other {# days}}: {previous} ({change})",
         "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",
@@ -12507,7 +12600,7 @@
         "otherCode": "Other code",
         "target": "Target page",
         "anyPage": "No target page",
-        "help": "Best ideas first. Track one to see its Google position after every check. Tracking is free.",
+        "help": "Track one to see its Google position after every check. Tracking is free.",
         "dialogHelp": "Tracking a keyword is free. It does not start paid position checks.",
         "searchPlaceholder": "Filter queries and keywords",
         "searchConsoleAverage": "{position} avg. · {count, plural, one {# impression} other {# impressions}}",
@@ -12535,9 +12628,20 @@
           "medium": "Medium",
           "low": "Low"
         },
+        "recommendation": {
+          "mix": "Ideas that fit the page goal and face less competition come first. Then the two groups alternate while both have ideas. Open a row to see why.",
+          "both": "Recommended for lower competition and strong goal fit",
+          "competition": "Recommended for lower competition",
+          "goal": "Recommended for strong goal fit",
+          "easeEvidence": "Difficulty {value, number}/100 (below {limit}).",
+          "goalEvidence": "High estimated chance of reaching the page goal.",
+          "legend": "Recommended idea",
+          "page": "Audited page",
+          "action": "Page goal: {action}",
+          "studio": "Draft in Content Studio (coming soon)"
+        },
         "ideas": {
           "title": "{count, plural, one {# keyword idea} other {# keyword ideas}}",
-          "why": "Why it is listed",
           "source": {
             "gap": "From competitors",
             "opportunity": "Related search"
@@ -12569,11 +12673,14 @@
           "zoomOut": "Zoom out",
           "zoomReset": "Show the whole map",
           "yours": "Your keyword",
+          "preview": "{volume, number} searches/mo · Difficulty {value, number}/100",
+          "estimatedGain": "Estimated extra clicks/month",
+          "rankGain": "Top {rank} {gain}",
           "gainShort": "Extra clicks in top 3",
           "contentTask": "Create content task",
           "ask": "Ask the SEO agent",
-          "brief": "Write web content{site, select, none {} other { for {site}}} that can rank on Google for the search \"{keyword}\". The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { Lead with this product feature: {feature}.}}",
-          "question": "How can {site, select, none {my site} other {{site}}} rank on Google for the search \"{keyword}\"? The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).{feature, select, none {} other { The product feature it fits: {feature}.}}",
+          "brief": "Write web content{site, select, none {} other { for {site}}} that can rank on Google for the search \"{keyword}\".{measured, select, yes { The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).} other { Market: {market}.}}{feature, select, none {} other { Lead with this product feature: {feature}.}}",
+          "question": "How can {site, select, none {my site} other {{site}}} rank on Google for the search \"{keyword}\"?{measured, select, yes { The keyword has {volume, number} searches a month (market: {market}), and its difficulty is {difficulty} ({value} of 100).} other { Market: {market}.}}{feature, select, none {} other { The product feature it fits: {feature}.}}",
           "noGain": "Unknown"
         },
         "historyShow": "History",
@@ -12674,6 +12781,8 @@
       },
       "actions": {
         "title": "Actions",
+        "listTitle": "Recommended actions",
+        "listHint": "Changes our agent recommends.",
         "empty": "No recommended actions",
         "emptyBody": "Actions come from issues a check finds and from your Search Console searches. Run a check, or ask the SEO agent what to do next.",
         "emptyBodyOff": "Actions come from issues a check finds and from your Search Console searches. Ask the SEO agent what to do next.",
@@ -12771,6 +12880,23 @@
         "viewEachResult": "{count, plural, one {Show # check} other {Show # checks}}"
       },
       "analysis": {
+        "unconfirmed": "Sokosumi could not confirm whether the previous audit request succeeded. Retry that request before starting another.",
+        "retryPrevious": "Retry previous request",
+        "coverage": {
+          "title": "Search Console coverage",
+          "audit": "The audit has not started. Search Console evidence appears only in your SEO workspace. A limited audit can run without it.",
+          "monitor": "The schedule has not been created. Search Console evidence appears only in your SEO workspace. Limited audits can run without it.",
+          "manualRun": "This extra audit has not started. Search Console evidence appears only in your SEO workspace. A limited audit uses the approved price for this run only.",
+          "notConnected": "Connect Search Console to check indexing and read search statistics for these pages.",
+          "reconnect": "Choose or reconnect a Google account to use Search Console for these pages.",
+          "property": "Choose an authorized Search Console property that covers every selected page.",
+          "unavailable": "Sokosumi could not verify Search Console access. Try again.",
+          "retry": "Retry and start audit",
+          "retryMonitor": "Retry and create schedule",
+          "reviewMonitor": "Review in SEO",
+          "limited": "Start limited audit",
+          "limitedMonitor": "Schedule limited audits"
+        },
         "title": "Run a check",
         "description": "The agent starts with these settings. Existing results remain available while it runs.",
         "options": "Change options",
@@ -12969,16 +13095,26 @@
       },
       "historyLimited": "Showing the latest {limit} checks and the latest {limit} syncs for these pages. Earlier history is not included.",
       "audits": {
-        "moreOptions": "More options for {name}",
-        "delete": "Delete audit",
-        "deleteTitle": "Delete “{name}”?",
-        "deleteDescription": "This removes the audit and its results from this workspace. Its link will stop working.",
-        "deleteFailed": "Could not delete this audit. Try again.",
-        "deleteActiveCheck": "Wait for the current check to finish, or cancel its task. Then try again.",
-        "deleteActiveChat": "A chat reply is in progress. Wait for it to finish, then try again.",
-        "deleteScheduled": "End this audit’s scheduled checks, then try again.",
-        "deleteBlocked": "This audit changed. Try again.",
-        "deleteUnavailable": "You can no longer delete this audit.",
+        "archive": "Archive report",
+        "archiveTitle": "Archive “{name}”?",
+        "archiveDescription": "This report will be archived for everyone in this workspace, along with all its audit runs, results and related tasks. You can restore it from Archived reports. Tasks that were waiting to run return as unscheduled drafts.",
+        "archiveFailed": "Could not archive this report. Try again.",
+        "archiveTaskBlocked": "A related task cannot be archived in its current status. Finish or cancel it, then try again.",
+        "archiveActiveCheck": "Wait for the current check to finish, or cancel its task. Then try again.",
+        "archiveActiveChat": "A chat reply is in progress. Wait for it to finish, then try again.",
+        "archiveScheduled": "End this report’s scheduled checks, then try again.",
+        "restoreTaskScopeConflict": "A related task also belongs to another SEO report or project. Review its parent and subtasks in the archived task list before restoring this report.",
+        "taskScopeConflict": "A related task is linked to another SEO report or project. If tasks from different reports are nested, open the subtask in Tasks and choose “Remove from parent”. Then try again.",
+        "archiveBlocked": "The report or a related task cannot be archived right now. Check for work in progress and try again.",
+        "archiveUnavailable": "You can no longer archive this report.",
+        "listOptions": "Report list options",
+        "showArchived": "Show archived reports",
+        "showActive": "Show active reports",
+        "archived": "Archived reports",
+        "archivedEmpty": "No archived reports.",
+        "restore": "Restore",
+        "restoreLabel": "Restore {name}",
+        "restoreFailed": "Could not restore this report. Check your access to its related tasks and try again.",
         "continue": "Continue",
         "create": "Create audit",
         "saved": "Saved audits",

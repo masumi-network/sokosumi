@@ -103,8 +103,12 @@ describe.skipIf(!databaseUrl)(
           requestedByUserId: userId,
           workspaceId,
           source: chat ? "CHAT" : "SCHEDULE",
-          chatMentionId: chat?.mentionId,
-          chatResponseMessageId: chat?.responseMessageId,
+          ...(chat
+            ? {
+                chatMentionId: chat.mentionId,
+                chatResponseMessageId: chat.responseMessageId,
+              }
+            : {}),
           status: "COMPLETED",
           clientTurnId: randomUUID(),
           userMessage: "Fixture",

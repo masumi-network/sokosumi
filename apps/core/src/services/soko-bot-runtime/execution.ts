@@ -549,11 +549,15 @@ export async function executeTool(
         // A rolled-back local attempt is not an enduring semantic
         // reservation, and neither is an effect refused before it was sent.
         ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
-        disposition: ACTION_CAPABILITIES.has(input.capability)
-          ? EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) && !refusedUnsent
-            ? "UNKNOWN"
-            : "REJECTED"
-          : undefined,
+        ...(ACTION_CAPABILITIES.has(input.capability)
+          ? {
+              disposition:
+                EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) &&
+                !refusedUnsent
+                  ? "UNKNOWN"
+                  : "REJECTED",
+            }
+          : {}),
         errorKind: error instanceof Error ? error.name : "unknown",
         errorDetail: persistedErrorDetail(error),
       },

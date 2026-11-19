@@ -65,10 +65,10 @@ describe("userRepository.listUsersForAdminOverview", () => {
             { email: { contains: "ada", mode: "insensitive" } },
           ],
         },
-        cursor: undefined,
-        skip: undefined,
       }),
     );
+    expect(findManyMock.mock.lastCall?.[0]).not.toHaveProperty("cursor");
+    expect(findManyMock.mock.lastCall?.[0]).not.toHaveProperty("skip");
     expect(countMock).toHaveBeenCalledWith({
       where: {
         OR: [

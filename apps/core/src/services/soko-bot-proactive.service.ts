@@ -402,32 +402,26 @@ export async function stageSokoBotNudges(
       ["SUPPRESSED", "BLOCKED", "DEAD_LETTER", "PUBLISHED"].includes(
         delivered.status,
       );
+    const data = {
+      lastAt: at,
+      pendingTurnId: terminal ? null : turnId,
+      ...(published
+        ? { lastDeliveryId: delivered.id, lastDeliveredAt: delivered.updatedAt }
+        : {}),
+      ...(terminal && !published
+        ? { nextCheckAt: new Date(at.getTime() + 60_000) }
+        : {}),
+    };
     for (const key of keys) {
       await tx.sokoBotNudge.upsert({
         where: { sokoBotId_key: { sokoBotId, key } },
         create: {
           sokoBotId,
           key,
-          lastAt: at,
-          pendingTurnId: terminal ? null : turnId,
-          lastDeliveryId: published ? delivered.id : undefined,
-          lastDeliveredAt: published ? delivered.updatedAt : undefined,
-          nextCheckAt:
-            terminal && !published
-              ? new Date(at.getTime() + 60_000)
-              : undefined,
+          ...data,
           expiresAt: new Date(at.getTime() + 7 * 24 * HOUR_MS),
         },
-        update: {
-          lastAt: at,
-          pendingTurnId: terminal ? null : turnId,
-          lastDeliveryId: published ? delivered.id : undefined,
-          lastDeliveredAt: published ? delivered.updatedAt : undefined,
-          nextCheckAt:
-            terminal && !published
-              ? new Date(at.getTime() + 60_000)
-              : undefined,
-        },
+        update: data,
       });
     }
   }, "Reminder staging collided with delivery");
@@ -744,7 +738,7 @@ export async function manageSokoBotReminder(
           : input.action === "SNOOZE"
             ? "SNOOZED"
             : "CANCELLED",
-      acknowledgedAt: input.action === "ACKNOWLEDGE" ? now : undefined,
+      ...(input.action === "ACKNOWLEDGE" ? { acknowledgedAt: now } : {}),
       snoozedUntil: input.action === "SNOOZE" ? until : null,
       nextCheckAt: input.action === "SNOOZE" ? until : null,
       revision: { increment: 1 },

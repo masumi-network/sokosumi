@@ -19,6 +19,17 @@ describe("keepAnswers", () => {
   });
 });
 
+describe("keepAnswers without a note", () => {
+  it("keeps the stored answer and clears an incoming note", () => {
+    expect(
+      keepAnswers(
+        [{ id: "q1", note: "An incoming note" }],
+        [{ id: "q1", answer: "yes" }],
+      ),
+    ).toStrictEqual([{ id: "q1", answer: "yes" }]);
+  });
+});
+
 describe("answerNote", () => {
   it("keeps a trimmed note only for a no", () => {
     expect(answerNote("no", "  About 80  ")).toBe("About 80");

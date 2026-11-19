@@ -1985,6 +1985,10 @@ export type Task = {
      */
     ancestors?: Array<TaskAncestor>;
     /**
+     * The SEO page of an SEO analysis Task: its audit (auditId, with the audit's Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.
+     */
+    seoAudit?: TaskSeoAudit | null;
+    /**
      * Statuses the requesting actor may move this task to right now, in display order and excluding the current one. Computed per actor: a user never sees coworker-set statuses such as INPUT_REQUIRED or APPROVAL_REQUIRED. POST /tasks/{id}/events rejects a user status outside this list.
      */
     selectableStatuses: Array<TaskStatus>;
@@ -2500,6 +2504,11 @@ export type TaskAncestor = {
     identifier: string | null;
     name: string;
     status: TaskStatus;
+};
+
+export type TaskSeoAudit = {
+    auditId: string | null;
+    projectId: string | null;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -3977,20 +3986,6 @@ export type ChatSavedMessageMutation = {
      * Whether the message is now on the reader's Saved list.
      */
     saved: boolean;
-};
-
-export type ChatSignalListItem = {
-    /**
-     * `needsYou`: unread and asks the viewer something. Open loops: `question` / `decision` asked of the viewer and unanswered for a few hours, `commitment` the viewer made whose date passed.
-     */
-    kind: 'needsYou' | 'question' | 'decision' | 'commitment';
-    room: {
-        id: string;
-        name: string;
-        kind: 'channel' | 'direct';
-    };
-    message: ChatRoomMessage;
-    dueAt: Date | null;
 };
 
 export type ChatCatchUpItem = {
@@ -11650,6 +11645,7 @@ export type ProjectImageStudioCaption = {
 };
 
 export type ProjectSeoWorkspace = {
+    searchConsolePropertyId?: string | null;
     sharing?: 'organization' | 'personal';
     projectId: string | null;
     auditId: string | null;
@@ -12265,6 +12261,8 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    searchConsolePropertyId?: string;
+    allowLimitedAudit?: true;
     setupGoal?: {
         pageId: string;
         expectedRevision: number;
@@ -12439,7 +12437,6 @@ export type SeoAuditSummary = {
     name: string;
     projectId: string | null;
     pageCount: number;
-    canDelete?: boolean;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -12512,6 +12509,10 @@ export type SendSeoAuditChatRequest = {
         channel?: 'all' | 'organic' | 'ai_assistant';
         searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
+};
+
+export type SetSeoAuditArchivedRequest = {
+    archived: boolean;
 };
 
 export type SeoConnectionStatus = {
@@ -15707,6 +15708,10 @@ export type TaskScheduleEndsMode = typeof TaskScheduleEndsMode[keyof typeof Task
 export type TaskScheduleSeoMonitor = {
     kind: 'page_check' | 'rankings' | 'links' | 'audit_lite' | 'audit_full';
     pageCount: number;
+    /**
+     * The saved audit the monitor owner can open to review a full audit Run.
+     */
+    auditId?: string;
 };
 
 export type TaskScheduleAssignees = {
@@ -15871,6 +15876,8 @@ export type CreateTaskScheduleRunRequest = {
      * Task Schedule revision observed by the caller
      */
     expectedRevision: number;
+    searchConsolePropertyId?: string;
+    allowLimitedAudit?: true;
 };
 
 export type UpdateTaskScheduleRunRequest = {
@@ -33897,70 +33904,6 @@ export type GetChatsSignalsDecisionsResponses = {
 
 export type GetChatsSignalsDecisionsResponse = GetChatsSignalsDecisionsResponses[keyof GetChatsSignalsDecisionsResponses];
 
-export type GetChatsSignalsNeedsYouData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/signals/needs-you';
-};
-
-export type GetChatsSignalsNeedsYouErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsSignalsNeedsYouError = GetChatsSignalsNeedsYouErrors[keyof GetChatsSignalsNeedsYouErrors];
-
-export type GetChatsSignalsNeedsYouResponses = {
-    /**
-     * Unread messages that need the viewer
-     */
-    200: {
-        data: Array<ChatSignalListItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsSignalsNeedsYouResponse = GetChatsSignalsNeedsYouResponses[keyof GetChatsSignalsNeedsYouResponses];
-
 export type GetChatsSignalsImportantData = {
     body?: never;
     headers?: {
@@ -34024,70 +33967,6 @@ export type GetChatsSignalsImportantResponses = {
 };
 
 export type GetChatsSignalsImportantResponse = GetChatsSignalsImportantResponses[keyof GetChatsSignalsImportantResponses];
-
-export type GetChatsSignalsOpenLoopsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/chats/signals/open-loops';
-};
-
-export type GetChatsSignalsOpenLoopsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetChatsSignalsOpenLoopsError = GetChatsSignalsOpenLoopsErrors[keyof GetChatsSignalsOpenLoopsErrors];
-
-export type GetChatsSignalsOpenLoopsResponses = {
-    /**
-     * The viewer's open loops
-     */
-    200: {
-        data: Array<ChatSignalListItem>;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type GetChatsSignalsOpenLoopsResponse = GetChatsSignalsOpenLoopsResponses[keyof GetChatsSignalsOpenLoopsResponses];
 
 export type GetChatsSignalsSummaryData = {
     body?: never;
@@ -79738,6 +79617,7 @@ export type ListSeoAuditsData = {
          * Number of items to return (max 100)
          */
         limit?: number;
+        status?: 'active' | 'archived';
         projectId?: string;
     };
     url: '/seo/audits';
@@ -80371,110 +80251,6 @@ export type SendSeoAuditChatResponses = {
 
 export type SendSeoAuditChatResponse = SendSeoAuditChatResponses[keyof SendSeoAuditChatResponses];
 
-export type DeleteSeoAuditData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/seo/audits/{id}';
-};
-
-export type DeleteSeoAuditErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Concurrent edit
-     */
-    409: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Invalid SEO audit request
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteSeoAuditError = DeleteSeoAuditErrors[keyof DeleteSeoAuditErrors];
-
-export type DeleteSeoAuditResponses = {
-    /**
-     * Audit removed
-     */
-    204: void;
-};
-
-export type DeleteSeoAuditResponse = DeleteSeoAuditResponses[keyof DeleteSeoAuditResponses];
-
 export type GetSeoAuditWorkspaceData = {
     body?: never;
     headers?: {
@@ -80608,6 +80384,110 @@ export type GetSeoAuditWorkspaceResponses = {
 };
 
 export type GetSeoAuditWorkspaceResponse = GetSeoAuditWorkspaceResponses[keyof GetSeoAuditWorkspaceResponses];
+
+export type SetSeoAuditArchivedData = {
+    body: SetSeoAuditArchivedRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/seo/audits/{id}';
+};
+
+export type SetSeoAuditArchivedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent edit
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid SEO audit request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetSeoAuditArchivedError = SetSeoAuditArchivedErrors[keyof SetSeoAuditArchivedErrors];
+
+export type SetSeoAuditArchivedResponses = {
+    /**
+     * Archive state saved
+     */
+    204: void;
+};
+
+export type SetSeoAuditArchivedResponse = SetSeoAuditArchivedResponses[keyof SetSeoAuditArchivedResponses];
 
 export type AddSeoAuditPageData = {
     body: AddProjectSeoPageRequest;

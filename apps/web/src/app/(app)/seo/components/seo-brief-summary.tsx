@@ -198,7 +198,7 @@ export function SeoBriefFollowUp({
   const format = useFormatter();
   return (
     <section className="space-y-1.5 text-sm">
-      <h3 className="font-medium">{t("followUp")}</h3>
+      <h3 className="font-semibold">{t("followUp")}</h3>
       <p>{t(`followUps.${followUp.status}`)}</p>
       {followUp.changedAt && (
         <p className="text-muted-foreground">

@@ -58,7 +58,7 @@ export const seoPageQuerySchema = seoFilterQuerySchema.safeExtend({
   // On the audit list, opens the form for a new Audit.
   add: z.literal("1").optional(),
   // With `projectId`, opens the Project's own SEO workspace instead of its Audit list.
-  view: z.literal("project").optional(),
+  view: z.enum(["project", "archived"]).optional(),
   tab: z
     .string()
     .refine((value) => seoTab(value) !== null, "Unknown tab")

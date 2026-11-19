@@ -39,10 +39,10 @@ interface UpdateJobPurchaseData {
   errorNoteKey?: string | null;
 }
 
-function buildUpdateData(
+function definedPurchaseFields(
   data: UpdateJobPurchaseData,
-): Prisma.JobPurchaseUpdateInput {
-  const updateData: Prisma.JobPurchaseUpdateInput = {};
+): UpdateJobPurchaseData {
+  const updateData: UpdateJobPurchaseData = {};
 
   if (data.externalId !== undefined) {
     updateData.externalId = data.externalId;
@@ -85,17 +85,10 @@ export const jobPurchaseRepository = {
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.create({
       data: {
+        ...definedPurchaseFields(data),
         externalId: data.externalId,
         job: { connect: { id: data.jobId } },
-        onChainStatus: data.onChainStatus,
-        onChainTransactionHash: data.onChainTransactionHash,
-        onChainTransactionStatus: data.onChainTransactionStatus,
-        resultHash: data.resultHash,
         nextAction: data.nextAction ?? "NONE",
-        nextActionErrorType: data.nextActionErrorType,
-        nextActionErrorNote: data.nextActionErrorNote,
-        errorNote: data.errorNote,
-        errorNoteKey: data.errorNoteKey,
       },
     });
   },
@@ -107,7 +100,7 @@ export const jobPurchaseRepository = {
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.update({
       where: { jobId },
-      data: buildUpdateData(data),
+      data: definedPurchaseFields(data),
     });
   },
 
@@ -118,7 +111,7 @@ export const jobPurchaseRepository = {
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.update({
       where: { externalId },
-      data: buildUpdateData(data),
+      data: definedPurchaseFields(data),
     });
   },
 };
