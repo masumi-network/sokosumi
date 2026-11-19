@@ -3565,6 +3565,10 @@ button.cal-card:hover {
   overflow: auto;
 }
 
+.made-table th {
+  white-space: nowrap;
+}
+
 .made-people {
   display: flex;
   flex-direction: column;
