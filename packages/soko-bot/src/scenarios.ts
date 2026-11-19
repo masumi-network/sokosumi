@@ -1388,6 +1388,23 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-seo-skipped-idea",
+    title: "Does not re-add an article idea the owner skipped",
+    intent:
+      "When Core refuses an article the owner skipped earlier, Cuso says so and suggests other ideas instead of claiming it was added.",
+    prompt:
+      'Put an article idea for "calendly alternative" in the SEO tab, and two more ideas people really search for.',
+    rubric:
+      'The owner skipped an article on "calendly alternative" earlier, so Core refuses that one and says the owner skipped it. Cuso tells the owner in plain words that this idea was skipped before and was not added again, and saves other ideas built on keywords research_keywords returned. Claiming the "calendly alternative" article is now in the SEO tab fails; so does saving that keyword again after the refusal, inventing search numbers, saving to the strategy or calendar, or naming Sokosumi.',
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["research_keywords", "save_seo_suggestions"],
+      allowFailedTools: ["research_keywords", "save_seo_suggestions"],
+      forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
+      answerAvoids: "\\b(?:Sokosumi|Coworker)\\b",
+    },
+  },
+  {
     id: "cmo-seo-slow-check",
     title: "Answers honestly when the SEO check did not finish",
     intent:
