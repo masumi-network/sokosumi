@@ -62,13 +62,17 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
+/* A step to go back to is a link among labels: its name underlined, no
+   line and no shadow. A shadowed pill beside the current step read as a
+   second, heavier "current", and its shadow ran under its neighbour. */
 .ob-step > button {
-  border-color: var(--line);
-  box-shadow: var(--shadow);
   cursor: pointer;
-  transition:
-    background-color 150ms,
-    border-color 150ms;
+  transition: background-color 150ms;
+}
+
+.ob-step > button .ob-step-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .ob-step > button:hover {
@@ -80,9 +84,10 @@ body:has(.ob) .site-header {
   outline-offset: 2px;
 }
 
+/* Done and to come are the same plain label: a tick and the text colour,
+   or a number and the muted one. Only the current step is filled. */
 .ob-step.done > span,
 .ob-step.done > button {
-  border-color: var(--line);
   color: var(--foreground);
 }
 
@@ -518,8 +523,11 @@ body:has(.ob) .site-header {
 
 .ob-foot {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 0 32px 32px;
+  text-align: center;
 }
 
 /* ── Type ── */
@@ -2266,6 +2274,12 @@ body:has(.ob) .site-header {
     order: 3;
     grid-column: 1 / -1;
     justify-content: space-between;
+  }
+
+  /* Without its underlined name, a step to go back to stands on the panel
+     fill, so it still reads as the one to tap. */
+  .ob-step > button {
+    background: var(--surface);
   }
 
   /* Five labels are wider than a phone; the other steps keep their number or tick. */

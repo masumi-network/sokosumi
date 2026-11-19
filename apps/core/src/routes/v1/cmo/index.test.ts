@@ -28,13 +28,13 @@ const {
   brainMock: vi.fn(),
 }));
 
-const { approveDraftMock, declineDraftMock, editDraftMock } = vi.hoisted(
-  () => ({
+const { approveDraftMock, declineDraftMock, editDraftMock, tikTokCreatorMock } =
+  vi.hoisted(() => ({
     approveDraftMock: vi.fn(),
+    tikTokCreatorMock: vi.fn(),
     declineDraftMock: vi.fn(),
     editDraftMock: vi.fn(),
-  }),
-);
+  }));
 
 const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
   archiveMock: vi.fn(),
@@ -90,6 +90,7 @@ vi.mock("@/services/cmo-drafts.service", () => ({
   approveCmoDraft: approveDraftMock,
   declineCmoDraft: declineDraftMock,
   editCmoDraft: editDraftMock,
+  readCmoTikTokCreator: tikTokCreatorMock,
 }));
 vi.mock("@/services/cmo-overview.service", async (importOriginal) => {
   const actual =
@@ -717,6 +718,68 @@ describe("CMO routes", () => {
       },
     );
     expect(response.status).toBe(409);
+  });
+
+  it("passes the owner's TikTok confirmation on with the approval, and reads what TikTok allows", async () => {
+    approveDraftMock.mockResolvedValue(undefined);
+    const tikTokSettings = {
+      privacyLevel: "PUBLIC_TO_EVERYONE",
+      allowComment: true,
+      allowDuet: false,
+      allowStitch: false,
+      promotesOwnBrand: true,
+      acceptedMusicUsage: true,
+      previewConsent: true,
+    };
+    const approved = await createApp().request(
+      `/projects/${PROJECT_ID}/drafts/${REPORT_ID}/approve`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ revision: 2, tikTokSettings }),
+      },
+    );
+    expect(approved.status).toBe(200);
+    expect(approveDraftMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      postId: REPORT_ID,
+      revision: 2,
+      tikTokSettings,
+    });
+    // Consent cannot be sent as "not given".
+    const unconfirmed = await createApp().request(
+      `/projects/${PROJECT_ID}/drafts/${REPORT_ID}/approve`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          revision: 2,
+          tikTokSettings: { ...tikTokSettings, acceptedMusicUsage: false },
+        }),
+      },
+    );
+    expect(unconfirmed.status).toBe(422);
+
+    const creator = {
+      creator_nickname: "acme",
+      privacy_level_options: ["PUBLIC_TO_EVERYONE"],
+      comment_disabled: false,
+      duet_disabled: true,
+      stitch_disabled: true,
+      max_video_post_duration_sec: 600,
+    };
+    tikTokCreatorMock.mockResolvedValue(creator);
+    const read = await createApp().request(
+      `/projects/${PROJECT_ID}/drafts/${REPORT_ID}/tiktok`,
+    );
+    expect(read.status).toBe(200);
+    expect((await read.json()).data).toEqual(creator);
+    expect(tikTokCreatorMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: PROJECT_ID,
+      postId: REPORT_ID,
+    });
   });
 
   it("answers the checkout step and no plan for a Cuso nobody paid for", async () => {

@@ -12,7 +12,7 @@ import {
   record,
 } from "@/clients/composio.client";
 import { facebookInsightShareCount } from "@/clients/social-post-providers/facebook-shares";
-import { zernioTikTokMetrics } from "@/clients/social-post-providers/statistics";
+import { zernioPostMetrics } from "@/clients/social-post-providers/statistics";
 import {
   ComposioToolError,
   createComposioToolSession,
@@ -1166,11 +1166,14 @@ async function enrichMetaHistory(
     result.metricWarning = `${socialPostProviderLabel(context.provider)} published posts were imported, but some post insights are unavailable.`;
 }
 
-async function readZernioTikTokStatistics(
+/** A Zernio account is one identity: a TikTok creator, or the LinkedIn Page or profile picked at sign-in. */
+async function readZernioStatistics(
   context: SocialAccountStatisticsContext,
+  platform: "tiktok" | "linkedin",
   accountId: string,
   result: AccountPage,
 ) {
+  const label = socialPostProviderLabel(platform);
   if (context.includeProfile) {
     try {
       const data = record(
@@ -1180,20 +1183,23 @@ async function readZernioTikTokStatistics(
         ),
       );
       const account = objects(data?.accounts).find(
-        (entry) => entry._id === accountId && entry.platform === "tiktok",
+        (entry) => entry._id === accountId && entry.platform === platform,
       );
       if (!account) throw new Error("Account statistics unavailable");
       const stats = record(account.accountStats);
       result.accountMetrics = [
         metric("follower_count", counter(account.currentFollowers)),
-        metric("following_count", counter(stats?.followingCount)),
-        metric("likes_count", counter(stats?.likesCount)),
-        metric("video_count", counter(stats?.videoCount)),
+        ...(platform === "tiktok"
+          ? [
+              metric("following_count", counter(stats?.followingCount)),
+              metric("likes_count", counter(stats?.likesCount)),
+              metric("video_count", counter(stats?.videoCount)),
+            ]
+          : []),
       ];
     } catch {
       context.signal?.throwIfAborted();
-      result.accountError =
-        "TikTok account statistics are unavailable through Zernio.";
+      result.accountError = `${label} account statistics are unavailable through Zernio.`;
     }
   }
   try {
@@ -1201,7 +1207,7 @@ async function readZernioTikTokStatistics(
     if (!Number.isSafeInteger(page) || page < 1)
       throw new Error("Invalid history pagination");
     const query = new URLSearchParams({
-      platform: "tiktok",
+      platform,
       accountId,
       page: String(page),
       limit: "50",
@@ -1217,14 +1223,14 @@ async function readZernioTikTokStatistics(
       const platforms = objects(item.platforms);
       const entry = platforms.find(
         (entry) =>
-          entry.platform === "tiktok" &&
+          entry.platform === platform &&
           entry.accountId === accountId &&
           entry.status === "published",
       );
       if (
         !entry &&
         (platforms.length ||
-          item.platform !== "tiktok" ||
+          item.platform !== platform ||
           !date(item.publishedAt) ||
           (item.status != null && item.status !== "published"))
       )
@@ -1249,7 +1255,8 @@ async function readZernioTikTokStatistics(
             ? previewMedia(media.type, media.url, media.thumbnail)
             : [],
         );
-      imported.metrics = zernioTikTokMetrics(
+      imported.metrics = zernioPostMetrics(
+        platform,
         entry
           ? entry.syncStatus === "synced" && entry.analytics
           : item.analytics,
@@ -1259,8 +1266,7 @@ async function readZernioTikTokStatistics(
     result.nextCursor = page * 50 < total ? String(page + 1) : null;
   } catch {
     context.signal?.throwIfAborted();
-    result.historyError =
-      "TikTok published history is unavailable through Zernio.";
+    result.historyError = `${label} published history is unavailable through Zernio.`;
   }
   return result;
 }
@@ -1278,9 +1284,16 @@ export async function fetchSocialAccountStatisticsPage(
     metricWarning: null,
   };
   const accountId =
-    context.provider === "tiktok" &&
+    (context.provider === "tiktok" || context.provider === "linkedin") &&
     getZernioAccountId(context.connectedAccountId);
-  if (accountId) return readZernioTikTokStatistics(context, accountId, result);
+  if (accountId) {
+    return readZernioStatistics(
+      context,
+      context.provider === "linkedin" ? "linkedin" : "tiktok",
+      accountId,
+      result,
+    );
+  }
   const label = socialPostProviderLabel(context.provider);
   let sessionId: string | undefined;
   try {

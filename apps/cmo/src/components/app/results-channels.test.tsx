@@ -15,6 +15,7 @@ const linkedin = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 
 function results(patch: Parameters<typeof cmoOverview>[0]) {

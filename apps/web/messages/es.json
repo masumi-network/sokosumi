@@ -1323,7 +1323,7 @@
         },
         "Header": {
           "title": "Iniciar sesión",
-          "description": "Contrata Agents en nuestra plataforma",
+          "description": "Tu AI Coworker para marketing",
           "descriptionFor": "Inicia sesión con tu cuenta de Sokosumi para continuar a {client}",
           "titleCmo": "Inicia sesión en CMO.xyz",
           "descriptionCmo": "Cuso lleva tu marketing."
@@ -1383,7 +1383,7 @@
         "Header": {
           "title": "Crea tu cuenta",
           "viaInvitation": "(por invitación)",
-          "description": "Contrata Agents en nuestra plataforma",
+          "description": "Tu AI Coworker para marketing",
           "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}",
           "titleCmo": "Crea tu cuenta de CMO.xyz",
           "descriptionCmo": "Cuso lleva tu marketing."

@@ -29,6 +29,21 @@ describe("measure callback", () => {
     );
   });
 
+  it("returns to Launch when the connection started there", async () => {
+    finalizeMeasurement.mockResolvedValue(true);
+    const response = await callback(
+      "provider=shopify&from=launch&project=project-2&status=success",
+    );
+    expect(finalizeMeasurement).toHaveBeenCalledWith(
+      "project-2",
+      "shopify",
+      null,
+    );
+    expect(response.headers.get("location")).toBe(
+      "http://localhost:3110/?project=project-2",
+    );
+  });
+
   it("hands Composio's session on, so Cuso's bot redeems it", async () => {
     finalizeMeasurement.mockResolvedValue(true);
     await callback(
