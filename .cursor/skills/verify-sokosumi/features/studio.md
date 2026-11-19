@@ -4,6 +4,8 @@ Content Studio lets a signed-in user open `/studio` and generate images. With no
 
 ## Sub-features
 
+- `studio-advanced-picker`: **Advanced** popover in the composer. **Auto** (agent picks the model) is the default; picking a model there overrides it, **Auto** switches back.
+
 - `studio-open` loads `/studio` while authenticated.
 - `studio-workspace` shows the image studio with no `?projectId=` — heading **Create your first ad**, the floating ad preview canvas, the prompt composer with an **Ad templates** menu, **Choose what to make**, and a **Select project** button (`data-testid="studio-no-project"`). When the catalog includes video models, the composer also shows **Image** / **Video**. Fixture users with no projects land here. That button is not the headings **Pick a project** / **Choose a project**.
 - `studio-project-picker` is the same **Select project** control when `?projectId=` is present but Core returns 404 for that id (still `data-testid="studio-no-project"`). The `pickUnavailable` sentence is the selector's reason when **Select project** is used, not copy painted on the page. `ProjectScopeGuard` often then clears the unknown id and lands on `studio-workspace`. Invalid UUIDs error (422) rather than picker.
@@ -13,6 +15,11 @@ Content Studio lets a signed-in user open `/studio` and generate images. With no
 
 - Choose **Content Studio** in the desktop sidebar **Marketing** group (after the **Records** group, before **Social posts**; also on the You page).
 - Open `/studio` directly. A project-scoped URL is `/studio?projectId=…`.
+
+## Driving it with drive.mjs (recorded)
+
+- `node .cursor/skills/verify-sokosumi/bin/drive.mjs studio-composer` signs in, opens `/studio`, types a brief into **Describe the ad you want to create…**, opens **Advanced** (region **New images**) and checks **Auto** is `aria-pressed=true` with the model list under it, then opens **Choose what to make** (dialog **What do you want to make first?**). It never presses **Generate**.
+- Proof: screenshots `03-advanced-model-picker-open.png` (Auto ticked, models listed) and `04-choose-what-to-make-open.png` (nine choices), plus `video.webm`.
 
 ## Driving it with agent-browser
 
@@ -27,6 +34,8 @@ Preconditions:
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/studio` then screenshot + snapshot.
 
 ## Gotchas
+
+- On the fast-path local stack the gallery backdrop shows broken image tiles: sample ad images are not served locally. Not a bug.
 
 - The shell `h1` / tab title **Content Studio** is not a visible product headline; the visible empty-state heading is **Create your first ad**.
 - Bare `/studio` already shows **Select project** (`studio-no-project`). That is the scope button, not the headings **Pick a project** / **Choose a project**. Opening `/studio?projectId=<unknown-uuid>` may flash that same control, then `ProjectScopeGuard` `router.replace`s to `/studio`. A non-UUID `projectId` hits Core 422 and the Web error UI (**Try again**) before the guard rewrites.

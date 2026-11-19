@@ -1,13 +1,49 @@
 ---
 name: verify-sokosumi
-description: Drive the Sokosumi web app (and Core API) the way a user does — launch local web+core, doctor health, browser login via agent-browser, capture proof. Use when proving a UI/API change works, after feature work, or when a task needs end-to-end evidence beyond unit tests.
+description: Drive the Sokosumi web app (and Core API) the way a user does — start a self-contained local stack (bin/local-stack), sign in, run recorded journeys (bin/drive.mjs) for screenshots and video, or use the portless + agent-browser path. Use when proving a UI/API change works, after feature work, or when a task needs end-to-end evidence beyond unit tests.
 ---
 
 # Verify Sokosumi
 
+Start with the **Fast path** below. The portless and agent-browser sections after it are the cloud-agent path.
+
 Project-local verification for agents that have never seen this app. Primary surface is the **web UI** at the portless named HTTPS URL (`web_url=` from doctor). Secondary surface is the **Core API** (`core_url=` — OpenAPI / curl). Web never talks to Postgres directly — Core owns the DB.
 
 Read `features/README.md` before driving. Use a matching feature file as the recipe. Prefer `agent-browser` over inventing selectors.
+
+## Fast path: local stack + recorded drive (no secrets, no sudo)
+
+Works on any Mac or Linux box, including a worktree for a PR branch. Needs Node 26, `pnpm install` and Chrome (or `VERIFY_SOKOSUMI_CHANNEL=chromium`).
+
+```bash
+S=.cursor/skills/verify-sokosumi/bin
+$S/local-stack up        # PGlite DB + migrations + fixtures, Core :8788, Web :3100; prints web_url=
+$S/local-stack doctor    # require "doctor ok" (fixture_auth=ok)
+node $S/drive.mjs list   # journeys
+node $S/drive.mjs studio-composer          # sign in as alice, drive, record
+node $S/drive.mjs route --path /projects   # screenshot any route
+$S/local-stack down      # stops only what `up` started; evidence stays
+```
+
+- Evidence per run: `.cursor/verify-sokosumi-artifacts/<journey>/<timestamp>/` with `NN-step.png`, `video.webm` and `summary.json` (steps, notes, console errors, 5xx responses). Read the screenshots before claiming a result.
+- `up` refuses when a port is taken. Pick other ports with `VERIFY_LOCAL_WEB_PORT`, `VERIFY_LOCAL_CORE_PORT`, `VERIFY_LOCAL_PG_PORT`; never drive an instance you did not start.
+- The DB is empty apart from the auth fixtures: no projects, no generated ads, no provider keys. Journeys that need those report it in `summary.json`; see the feature files.
+- To verify a PR: `git worktree add ../sokosumi-wt-pr-<n> origin/<branch>`, `pnpm install`, then the same five commands there. One stack at a time.
+- Ad-hoc exploration: Codex and Claude Code have the `chrome-devtools` MCP (isolated headless Chrome). Use it to look around, then turn a repeatable path into a `drive.mjs` journey.
+
+### Random exploration (Bombadil)
+
+[Bombadil](https://github.com/antithesishq/bombadil) clicks, types, scrolls and navigates at random from a start page, signed in as alice, and stops at the first broken property: an uncaught exception, an unhandled rejection, a console error or a page load of 400 or more. The spec is `bombadil/sokosumi.spec.ts`; its `DEV_NOISE` list drops what the local stack logs on every page. Add to that list only what a user never meets.
+
+```bash
+node $S/explore.mjs --path /studio --time 3m   # needs the stack up and `bombadil` on PATH
+bombadil browser inspect <evidence dir>        # timeline of states, screenshots and the violation
+node $S/explore.mjs --path /studio --reproduce <evidence dir>
+```
+
+- Install (macOS arm64): `curl -L -o ~/.local/bin/bombadil https://github.com/antithesishq/bombadil/releases/download/v0.7.10/bombadil-aarch64-darwin && chmod +x ~/.local/bin/bombadil`.
+- Evidence: `.cursor/verify-sokosumi-artifacts/explore/<timestamp>/` with `trace.jsonl`, `screenshots/` and `log.txt` (session cookies stripped). The trace keeps each state's URL and action, not the console; open the reported page to read the full error.
+- `--keep-going` collects every violation in the time limit instead of stopping at the first. A violation is a lead: report it with the steps from the trace, then fix it in its own Task.
 
 ## Launch
 
@@ -150,6 +186,12 @@ Proof standards:
 - Capture **action + resulting state**, not only the final screen
 - Confirm side effects when the feature mutates (new row visible on reload, URL change, second view)
 - Chat may show an Ably error modal when keys are placeholders — that does **not** prove chat works; prove landing/redirect or non-realtime surfaces instead unless Ably is configured
+
+Proof in a PR (required for a UI change, see [delivery rules](../../../docs/agents/delivery.md)):
+
+- Copy the screenshots that show the change from the run's evidence dir to `apps/web/docs/images/<topic>/` and commit them on the PR's own branch. For a flow, add a GIF of the run: `bin/to-gif <run>/video.webm apps/web/docs/images/<topic>/<journey>.gif` (a committed `.webm` does not play in a PR body).
+- Embed each image and GIF in the PR body as `https://raw.githubusercontent.com/masumi-network/sokosumi/<sha>/apps/web/docs/images/<topic>/<file>`, and list the console errors and 5xx from `summary.json`.
+- Never push a separate branch to host images.
 
 ## Cleanup
 

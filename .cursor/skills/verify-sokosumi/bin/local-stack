@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# local-stack — self-contained local Sokosumi for verification: no Docker, no sudo,
+# no Neon key, no secrets. Throwaway Postgres (PGlite + pgvector/pg_trgm/unaccent),
+# migrations, auth fixtures (alice@sokosumi.test), Core and Web on plain localhost ports.
+#
+#   .cursor/skills/verify-sokosumi/bin/local-stack up       # start, wait until sign-in works
+#   .cursor/skills/verify-sokosumi/bin/local-stack doctor   # read-only health
+#   .cursor/skills/verify-sokosumi/bin/local-stack down     # stop only what `up` started, drop the DB
+#
+# Ports: VERIFY_LOCAL_WEB_PORT (3100), VERIFY_LOCAL_CORE_PORT (8788), VERIFY_LOCAL_PG_PORT (55439).
+# Generating images/video needs real provider keys and is out of scope here.
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+cd "$REPO_ROOT"
+WEB_PORT="${VERIFY_LOCAL_WEB_PORT:-3100}"
+CORE_PORT="${VERIFY_LOCAL_CORE_PORT:-8788}"
+PG_PORT="${VERIFY_LOCAL_PG_PORT:-55439}"
+STATE="$REPO_ROOT/.cursor/verify-sokosumi-artifacts/state/local"
+PGLITE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/verify-sokosumi/pglite"
+DB_URL="postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/postgres?schema=public&sslmode=disable"
+WEB_URL="http://localhost:${WEB_PORT}"
+CORE_URL="http://localhost:${CORE_PORT}"
+
+listening() { lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
+code() { curl -s -o /dev/null -w '%{http_code}' --max-time "${2:-10}" "$1" || true; }
+
+wait_for() { # name, check-command, seconds
+  local i
+  for ((i = 0; i < $3; i += 2)); do
+    if eval "$2"; then echo "ready $1"; return 0; fi
+    sleep 2
+  done
+  echo "timeout waiting for $1 (logs: $STATE/*.log)" >&2
+  return 1
+}
+
+start() { # name, command...  (own process group so `down` stops the whole tree)
+  local name="$1"; shift
+  ( set -m; nohup "$@" >"$STATE/$name.log" 2>&1 & echo $! >"$STATE/$name.pid" )
+}
+
+ensure_pglite() {
+  [[ -f "$PGLITE_HOME/pg-single-connection.cjs" ]] && return 0
+  mkdir -p "$PGLITE_HOME"
+  ( cd "$PGLITE_HOME" && [[ -f package.json ]] || npm init -y >/dev/null )
+  ( cd "$PGLITE_HOME" && npm i --silent @electric-sql/pglite @electric-sql/pglite-socket @electric-sql/pglite-pgvector >/dev/null )
+  cat >"$PGLITE_HOME/server.mjs" <<'JS'
+import { PGlite } from "@electric-sql/pglite";
+import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
+import { vector } from "@electric-sql/pglite-pgvector";
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
+import { unaccent } from "@electric-sql/pglite/contrib/unaccent";
+const db = await PGlite.create({ dataDir: process.env.PGLITE_DATA, extensions: { vector, pg_trgm, unaccent } });
+const server = new PGLiteSocketServer({ db, port: Number(process.env.PGPORT), host: "127.0.0.1", maxConnections: 50 });
+await server.start();
+console.log(`pglite ready on 127.0.0.1:${process.env.PGPORT}`);
+const stop = async () => { await server.stop(); await db.close(); process.exit(0); };
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);
+JS
+  # PGlite serves one session; its multiplexer interleaves prepared statements from
+  # parallel connections ("bind message supplies 1 parameters..."). Pin Core's pg Pool to one.
+  cat >"$PGLITE_HOME/pg-single-connection.cjs" <<'JS'
+const { createRequire } = require("node:module");
+const pg = createRequire(`${process.env.VERIFY_PG_FROM}/package.json`)("pg");
+const Base = pg.Pool;
+pg.Pool = class SingleConnectionPool extends Base {
+  constructor(options = {}) { super({ ...options, max: 1 }); }
+};
+JS
+}
+
+up() {
+  mkdir -p "$STATE"
+  for p in "$PG_PORT" "$CORE_PORT" "$WEB_PORT"; do
+    if listening "$p"; then
+      echo "port $p is already in use. Run 'local-stack doctor', or 'local-stack down' if it is ours; never drive someone else's instance." >&2
+      exit 1
+    fi
+  done
+  [[ -f apps/core/.env && -f apps/web/.env ]] || pnpm env:bootstrap >/dev/null
+  [[ -d node_modules ]] || pnpm install --frozen-lockfile >/dev/null
+  ensure_pglite
+  rm -rf "$STATE/pglite-data"
+  start pglite env PGLITE_DATA="$STATE/pglite-data" PGPORT="$PG_PORT" node "$PGLITE_HOME/server.mjs"
+  wait_for pglite "grep -q 'pglite ready' '$STATE/pglite.log'" 60
+  export DATABASE_URL="$DB_URL"
+  pnpm prisma:generate >"$STATE/prisma-generate.log" 2>&1
+  pnpm prisma:migrate:deploy >"$STATE/migrate.log" 2>&1 || { tail -20 "$STATE/migrate.log" >&2; exit 1; }
+  CLOUD_AGENT_DB_FORCE=1 pnpm agent-db:seed-auth >"$STATE/seed.log" 2>&1 || { tail -20 "$STATE/seed.log" >&2; exit 1; }
+  echo "seeded auth fixtures (alice/bob/admin/zero @sokosumi.test)"
+  # Process env wins over .env, so the checked-in-shaped .env files stay untouched.
+  start core env NODE_OPTIONS="--require $PGLITE_HOME/pg-single-connection.cjs" VERIFY_PG_FROM="$REPO_ROOT/apps/core" \
+    DATABASE_URL="$DB_URL" PORT="$CORE_PORT" WEB_APP_BASE_URL="$WEB_URL" \
+    BETTER_AUTH_URL="$CORE_URL" BETTER_AUTH_COOKIE_DOMAIN= pnpm --filter @sokosumi/core dev
+  wait_for core "[[ \$(code $CORE_URL/v1/openapi.json) == 200 ]]" 180
+  start web env CORE_APP_BASE_URL="$CORE_URL" PORT="$WEB_PORT" pnpm --filter web exec next dev -p "$WEB_PORT"
+  wait_for web "[[ \$(code $WEB_URL/signin 120) == 200 ]]" 300
+  echo "web_url=$WEB_URL"
+  echo "core_url=$CORE_URL"
+  echo "next: VERIFY_SOKOSUMI_WEB_URL=$WEB_URL node .cursor/skills/verify-sokosumi/bin/drive.mjs studio-composer"
+}
+
+doctor() {
+  local ok=1 name pid
+  for name in pglite core web; do
+    pid="$(cat "$STATE/$name.pid" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then echo "$name pid=$pid running"; else echo "$name not running (ours)"; ok=0; fi
+  done
+  echo "core_openapi=$(code "$CORE_URL/v1/openapi.json")"
+  echo "web_signin=$(code "$WEB_URL/signin" 60)"
+  local auth
+  auth="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$CORE_URL/auth/sign-in/email" \
+    -H 'content-type: application/json' -H "origin: $WEB_URL" -H 'x-captcha-response: XXXX.DUMMY.TOKEN.XXXX' \
+    -d '{"email":"alice@sokosumi.test","password":"Password123!"}' || true)"
+  echo "fixture_auth=$([[ "$auth" == 200 ]] && echo ok || echo "fail($auth)")"
+  [[ "$ok" == 1 && "$auth" == 200 ]] && echo "doctor ok" || { echo "doctor fail"; return 1; }
+}
+
+kill_tree() { # pid: stop the process group `start` created, then any stragglers
+  local pid="$1"
+  kill -TERM -- "-$pid" 2>/dev/null || true
+  local child
+  for child in $(pgrep -P "$pid" 2>/dev/null); do kill_tree "$child"; done
+  kill -TERM "$pid" 2>/dev/null || true
+}
+
+down() {
+  local name pid
+  for name in web core pglite; do
+    pid="$(cat "$STATE/$name.pid" 2>/dev/null || true)"
+    [[ -n "$pid" ]] && kill_tree "$pid"
+    rm -f "$STATE/$name.pid"
+  done
+  sleep 2
+  rm -rf "$STATE/pglite-data"
+  rm -f "$STATE"/../auth-"$WEB_PORT"-*.json # sessions die with the DB
+  echo "stopped local stack; evidence under .cursor/verify-sokosumi-artifacts/ kept"
+}
+
+case "${1:-}" in
+  up) up ;;
+  doctor) doctor ;;
+  down) down ;;
+  *) sed -n '2,13p' "$0"; exit 2 ;;
+esac

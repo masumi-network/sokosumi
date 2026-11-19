@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# to-gif — turn a run's video.webm into a GIF, which plays inline in a PR body
+# (a committed .webm does not). Uses ffmpeg from PATH, else a cached ffmpeg-static.
+#
+#   to-gif <video.webm> [out.gif]
+set -euo pipefail
+
+in=${1:?usage: to-gif <video.webm> [out.gif]}
+out=${2:-${in%.webm}.gif}
+
+ff=$(command -v ffmpeg || true)
+if [ -z "$ff" ]; then
+  cache=${XDG_CACHE_HOME:-$HOME/.cache}/verify-sokosumi/ffmpeg
+  ff=$cache/node_modules/ffmpeg-static/ffmpeg
+  [ -x "$ff" ] || npm install --silent --no-save --prefix "$cache" ffmpeg-static@5.2.0 >/dev/null
+fi
+
+# 5 fps at 720 px wide keeps a 15 s journey with a full Studio wall around 3 MB.
+"$ff" -y -loglevel error -i "$in" \
+  -vf "fps=5,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" \
+  "$out"
+echo "gif $out ($(du -h "$out" | cut -f1))"
