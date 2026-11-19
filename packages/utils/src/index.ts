@@ -518,6 +518,7 @@ export {
   seoInspectionEvidence,
 } from "./seo-index-verdict.js";
 export { normalizeSeoQuery } from "./seo-query.js";
+export { seoReportFileFormat } from "./seo-report-file.js";
 export {
   hasSeasonalDemandRise,
   seasonalUpdateHasPassed,

@@ -13047,6 +13047,24 @@
         "checkIncomplete": "comprobación incompleta",
         "home": "Página de inicio"
       },
+      "reportFiles": {
+        "title": "Archivos del informe",
+        "run": "Comprobación",
+        "version": "{checkType} · {date}",
+        "taskVersion": "{label} · Tarea {taskId}",
+        "loading": "Cargando archivos…",
+        "failed": "No se pudieron cargar los archivos de esta comprobación.",
+        "empty": "Esta comprobación no tiene archivos de informe disponibles.",
+        "pdf": "Abrir PDF",
+        "markdown": "Abrir Markdown",
+        "json": "Datos del informe (JSON)",
+        "import": "Importar informe en SEO",
+        "imported": "Informe importado",
+        "access": "No tienes acceso a los archivos del informe de esta comprobación.",
+        "refresh": "Actualizar archivos",
+        "historyLimit": "Esta lista muestra las comprobaciones recientes. Puedes abrir los informes anteriores desde sus tareas.",
+        "importHelp": "Importa este informe para añadir sus hallazgos a tus resultados de SEO."
+      },
       "timeline": {
         "statuses": {
           "requested": "Solicitada",

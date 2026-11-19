@@ -16,6 +16,8 @@ import {
   useSeoResultTranslations,
 } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
+import { SeoReportFiles } from "./seo-report-files";
+import { seoReportVersions } from "./seo-report-files-model";
 import { SeoRunCalendar } from "./seo-run-calendar";
 import { SeoRunDayDialog, SeoRunDayHover } from "./seo-run-day";
 import {
@@ -115,7 +117,16 @@ export function SeoRuns({
     else if (inner.right > outer.right)
       bar.scrollLeft += inner.right - outer.right;
   }, [pickedDay]);
-  if (!shown && !runButton) return null;
+  const versions =
+    model.invalidDates || model.updating
+      ? []
+      : seoReportVersions(model.data, model.filters);
+  const showReports =
+    versions.length > 0 ||
+    (model.updating &&
+      (model.data.observations.some((row) => row.sourceTaskId) ||
+        model.data.analyses.some((row) => row.taskId)));
+  if (!shown && !runButton && !showReports) return null;
   const dayOf = (at: Date, formatter = format) =>
     // The day of the filter: a run late in the evening west of UTC is on the next day.
     formatter.dateTime(at, { month: "short", day: "numeric", timeZone: "UTC" });
@@ -173,7 +184,18 @@ export function SeoRuns({
       <h3 id={titleId} className="px-2 py-1.5 text-sm font-semibold">
         {t("runs.label")}
       </h3>
-      {runButton ? <div className="ms-auto">{runButton}</div> : null}
+      {showReports || runButton ? (
+        <div className="ms-auto flex flex-wrap items-center gap-1">
+          {showReports ? (
+            <SeoReportFiles
+              key={model.viewerKey}
+              versions={versions}
+              model={model}
+            />
+          ) : null}
+          {runButton}
+        </div>
+      ) : null}
       {/* The date controls form one group, the run apart from it; the group adds no box of its own. */}
       <div
         role={shown ? "group" : undefined}

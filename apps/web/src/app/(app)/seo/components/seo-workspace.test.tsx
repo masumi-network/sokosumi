@@ -348,6 +348,30 @@ describe("SEO report archiving", () => {
 });
 
 describe("SEO workspace integration", () => {
+  it("offers report files for earlier imported runs without an analysis in the current window", async () => {
+    const workspace = seoTestWorkspace();
+    const history = seoTestObservation(workspace);
+    workspace.observations = [
+      { ...history, sourceTaskId: "historic-task" },
+      {
+        ...history,
+        id: "recent",
+        sourceTaskId: "recent-task",
+        observedAt: new Date("2026-11-05T12:00:00Z"),
+      },
+    ];
+    workspace.runs = runsOf(workspace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace, "to=2026-01-03");
+    await userEvent.click(screen.getByRole("button", { name: "Report files" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/Page check · Jan 3, 2026/)).toBeVisible();
+    expect(dialog.queryByText(/Nov 5, 2026/)).toBeNull();
+  });
+
   it("shows the audit timeline after a single completed audit", () => {
     const workspace = seoTestWorkspace();
     workspace.runs = [

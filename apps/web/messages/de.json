@@ -13047,6 +13047,24 @@
         "checkIncomplete": "Prüfung unvollständig",
         "home": "Startseite"
       },
+      "reportFiles": {
+        "title": "Berichtsdateien",
+        "run": "Prüfung",
+        "version": "{checkType} · {date}",
+        "taskVersion": "{label} · Aufgabe {taskId}",
+        "loading": "Dateien werden geladen…",
+        "failed": "Die Dateien für diese Prüfung konnten nicht geladen werden.",
+        "empty": "Für diese Prüfung sind keine Berichtsdateien verfügbar.",
+        "pdf": "PDF öffnen",
+        "markdown": "Markdown öffnen",
+        "json": "Berichtsdaten (JSON)",
+        "import": "Bericht in SEO importieren",
+        "imported": "Bericht importiert",
+        "access": "Du hast keinen Zugriff auf die Berichtsdateien für diese Prüfung.",
+        "refresh": "Dateien aktualisieren",
+        "historyLimit": "Diese Liste zeigt die letzten Prüfungen. Ältere Berichte kannst du in den zugehörigen Aufgaben öffnen.",
+        "importHelp": "Importiere diesen Bericht, um seine Befunde zu deinen SEO-Ergebnissen hinzuzufügen."
+      },
       "timeline": {
         "statuses": {
           "requested": "Angefordert",

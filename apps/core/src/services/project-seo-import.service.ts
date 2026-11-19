@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-import { isOwnedTaskFileUrl, isVercelBlobPublicHost } from "@sokosumi/utils";
+import {
+  isOwnedTaskFileUrl,
+  isVercelBlobPublicHost,
+  seoReportFileFormat,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import {
@@ -92,8 +96,7 @@ async function requireSourceFile(
     !file ||
     file.status !== "READY" ||
     file.uploadedByCoworkerId !== task.assigneeId ||
-    file.name !== `seo-report-${task.id}.json` ||
-    file.mimeType !== "application/json" ||
+    seoReportFileFormat(task.id, file.name, file.mimeType) !== "json" ||
     !file.fileUrl ||
     !isOwnedTaskFileUrl(file.fileUrl, task.id) ||
     !isVercelBlobPublicHost(new URL(file.fileUrl).hostname) ||

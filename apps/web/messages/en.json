@@ -13047,6 +13047,24 @@
         "checkIncomplete": "check incomplete",
         "home": "Home page"
       },
+      "reportFiles": {
+        "title": "Report files",
+        "run": "Check",
+        "version": "{checkType} · {date}",
+        "taskVersion": "{label} · Task {taskId}",
+        "loading": "Loading files…",
+        "failed": "Could not load the files for this run.",
+        "empty": "This run has no report files available.",
+        "pdf": "Open PDF",
+        "markdown": "Open Markdown",
+        "json": "Report data (JSON)",
+        "import": "Import report into SEO",
+        "imported": "Report imported",
+        "access": "You do not have access to the report files for this check.",
+        "refresh": "Refresh files",
+        "historyLimit": "This list shows recent checks. You can open older reports from their Tasks.",
+        "importHelp": "Import this report to add its findings to your SEO results."
+      },
       "timeline": {
         "statuses": {
           "requested": "Requested",
