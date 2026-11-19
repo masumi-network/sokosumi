@@ -73,3 +73,35 @@ it("retains only typed failed specialist stages from a bound report and counts o
     }),
   ).toEqual([]);
 });
+
+it("records the standalone exploration failure as an admin issue", () => {
+  expect(
+    failedSeoSpecialists({
+      specialistFailures: [
+        "exploration",
+        "searchInvestigation",
+        "provider details",
+      ],
+    }),
+  ).toEqual(["exploration"]);
+});
+
+it("keeps distinct editorial stage failures from eligible site pages and standalone audits", () => {
+  const page = {
+    specialistFailures: [
+      "editorialGemini",
+      "editorialValidation",
+      "private vendor details",
+    ],
+  };
+  expect(failedSeoSpecialists(page)).toEqual([
+    "editorialGemini",
+    "editorialValidation",
+  ]);
+  expect(
+    failedSeoSpecialists({
+      kind: "site",
+      pages: [page, page, { specialistFailures: ["editorialCodex"] }],
+    }),
+  ).toEqual(["editorialGemini", "editorialCodex", "editorialValidation"]);
+});

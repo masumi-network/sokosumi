@@ -7,10 +7,11 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
+import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../../../messages/en.json";
 import { SeoActionWorklist } from "./seo-action-worklist";
+import { seoActionsExport } from "./seo-export-model";
 import type { SeoIssueSeverity } from "./seo-overview-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
@@ -272,4 +273,118 @@ it("shows the alternative, evidence and next check for a strategy action", async
     ),
   );
   expect(detail.queryByText(/9 occurrences of sign_up/)).toBeNull();
+});
+
+it("shows the new observation on a completed recommendation while keeping its original Task", async () => {
+  const user = userEvent.setup();
+  const item: ProjectSeoAction = {
+    ...low,
+    status: "implemented",
+    taskId: "same-task",
+    followUpReview: {
+      kind: "rank_crosses",
+      keyword: "printed manuals",
+      before: 12,
+      after: 8,
+      baselineObservationId: "earlier",
+      baselineObservedAt: new Date("2026-09-01T00:00:00Z"),
+      observationId: "later",
+      observedAt: new Date("2026-11-01T00:00:00Z"),
+    },
+  };
+  render(view([item]));
+  expect(screen.getByText("Review again")).toBeVisible();
+  await user.click(
+    within(screen.getByRole("list", { name: "Actions" })).getByRole("button"),
+  );
+  expect(
+    screen.getByText(
+      /DataForSEO recorded “printed manuals” at position 12 on Sep 1, 2026 and 8 on Nov 1, 2026/,
+    ),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("link", { name: messages.App.Seo.openTask }),
+  ).toHaveAttribute("href", "/tasks/same-task");
+});
+
+it("puts a historical review first, filters it, and acknowledges without creating a task", async () => {
+  const user = userEvent.setup();
+  const acknowledgeReview = vi.fn();
+  const item: ProjectSeoAction = {
+    ...low,
+    kind: "opportunity",
+    status: "needs_review",
+    followUpReview: {
+      kind: "demand_returns",
+      keyword: "電池",
+      period: "2026-10",
+      before: 90,
+      after: 280,
+      observationId: "newer",
+      observedAt: new Date("2026-11-01T12:00:00Z"),
+      baselineObservationId: "earlier",
+      baselineObservedAt: new Date("2026-06-01T12:00:00Z"),
+    },
+  };
+  render(view([high, item], { ...model, acknowledgeReview }));
+  expect(titles()).toEqual([item.title, high.title]);
+  await user.click(screen.getByRole("button", { name: "Review again 1" }));
+  expect(titles()).toEqual([item.title]);
+  await user.click(screen.getByRole("button", { name: item.title }));
+  const dialog = within(screen.getByRole("dialog"));
+  expect(
+    dialog.getByText(
+      /DataForSEO estimated 280 searches for “電池” in October 2026/,
+    ),
+  ).toBeVisible();
+  expect(
+    dialog.queryByRole("button", { name: messages.App.Seo.actions.createTask }),
+  ).toBeNull();
+  await user.click(dialog.getByRole("button", { name: "Mark reviewed" }));
+  expect(acknowledgeReview).toHaveBeenCalledWith(item);
+});
+
+it("shows the private organic metric, periods and sample sizes in English without exporting the review", async () => {
+  const user = userEvent.setup();
+  const item: ProjectSeoAction = {
+    ...low,
+    status: "needs_review",
+    followUpReview: {
+      kind: "engagement_changed",
+      before: 40,
+      after: 25,
+      baselineObservationId: "base",
+      observationId: "later",
+      baselineObservedAt: new Date("2026-09-08"),
+      observedAt: new Date("2026-09-16"),
+      beforePeriod: {
+        from: new Date("2026-09-01"),
+        to: new Date("2026-09-07"),
+        sessions: 90,
+      },
+      afterPeriod: {
+        from: new Date("2026-09-09"),
+        to: new Date("2026-09-15"),
+        sessions: 100,
+      },
+    },
+  };
+  render(view([item]));
+  await user.click(
+    within(screen.getByRole("list", { name: "Actions" })).getByRole("button"),
+  );
+  expect(
+    screen.getByText(
+      /Your private GA4 data shows average engagement seconds per organic session changed from 40 to 25.*90 sessions.*100 sessions/,
+    ),
+  ).toBeVisible();
+  const t = createTranslator({
+    locale: "en",
+    messages,
+    namespace: "App.Seo",
+  }) as unknown as IntlTranslation<"App.Seo">;
+  expect(seoActionsExport([item], t).rows).toHaveLength(0);
+  const current = seoActionsExport([{ ...item, status: "implemented" }], t);
+  expect(current.rows).toHaveLength(1);
+  expect(current.header).not.toContain("Review again");
 });

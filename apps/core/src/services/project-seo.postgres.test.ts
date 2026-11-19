@@ -69,6 +69,7 @@ import {
   requestProjectSeoAnalysis,
 } from "./project-seo-operations.service";
 import { saveProjectSeoBrandTerms } from "./project-seo-settings.service";
+import { acknowledgeSeoReview } from "./seo-action-reviews";
 import { getSeoBrief } from "./seo-audit-brief.service";
 import {
   changeTaskScheduleState,
@@ -1940,6 +1941,309 @@ describe.skipIf(!enabled)(
         await getProjectSeoWorkspace(actor, { pageId: page.id })
       ).observations.map((row) => row.id);
       expect(ids).toContain(audit.id);
+    });
+
+    it("rechecks a completed recommendation across 101 focused checks and 101 private syncs outside the visible history", async () => {
+      const page = await addProjectSeoPage(actor, {
+        url: "https://example.test/returning-query",
+        relationship: "primary",
+      });
+      const raw = legacyReport(),
+        keyword = "manual repair";
+      const ranked = (
+        at: string,
+        pos: number,
+        hash: string,
+        trigger: boolean,
+        decisionId = "returning",
+      ) => {
+        const snapshotId = hash.repeat(64);
+        return parsePublicSeoArtifact({
+          ...raw,
+          request: { url: page.url },
+          snapshotId,
+          header: { ...raw.header, capturedAt: at },
+          rankingData: {
+            ...raw.rankingData,
+            source: "DataForSEO Labs and Backlinks API",
+            page: {
+              ...raw.rankingData.page,
+              rankedResult: "ok",
+              ranked: {
+                rows: [
+                  {
+                    url: page.url,
+                    keyword,
+                    position: pos,
+                    intent: null,
+                    volume: 120,
+                  },
+                ],
+              },
+            },
+          },
+          strategyDecisions: trigger
+            ? [
+                {
+                  id: decisionId,
+                  kind: "content_opportunity",
+                  targetUrl: page.url,
+                  action: "Review the repair instructions.",
+                  reason: "This page ranked near the top ten.",
+                  alternative: "Keep the existing instructions.",
+                  nextCheck: "Compare the page rank on the next audit.",
+                  evidence: [snapshotId, "rankingData.page.ranked"],
+                },
+              ]
+            : [],
+          rankReviewTriggers: trigger
+            ? [
+                {
+                  decisionId,
+                  kind: "rank_crosses",
+                  keyword,
+                  position: pos,
+                  boundary: 10,
+                },
+              ]
+            : [],
+        });
+      };
+      const origin = await storeResult(
+        page.id,
+        ranked("2026-08-01T12:00:00.000Z", 13, "a", true),
+      );
+      const initial = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      const action = initial.actions.find((a) => a.decision)!;
+      const task = await createProjectSeoActionTask(actor, {
+        observationId: origin.id,
+        actionId: action.id,
+        idempotencyKey: "buried-review",
+      });
+      const completedAt = new Date("2026-09-01T12:00:00.000Z");
+      await prisma.task.update({
+        where: { id: task.taskId },
+        data: {
+          status: "COMPLETED",
+          events: {
+            create: { status: "COMPLETED", userId, createdAt: completedAt },
+          },
+        },
+      });
+      const unlinked = await storeResult(
+        page.id,
+        ranked("2026-08-03T12:00:00.000Z", 13, "e", true, "unlinked"),
+      );
+      const stale = (
+        await getProjectSeoWorkspace(actor, { pageId: page.id })
+      ).actions.find((a) => a.decision && a.id !== action.id)!;
+      const check = parsePublicSeoArtifact({
+        ...focusedReport(),
+        scope: { ...focusedReport().scope, pageUrls: [page.url] },
+        checks: [],
+      });
+      const common = {
+        projectId,
+        pageIds: [page.id],
+        artifactHash: "review-noise",
+        observedAt: new Date("2026-10-01T12:00:00Z"),
+      };
+      await prisma.projectSeoObservation.createMany({
+        data: Array.from({ length: 101 }, (_, n) => [
+          {
+            ...common,
+            sourceKey: "review-check:" + n,
+            source: "seo_coworker",
+            kind: "page_check",
+            payload: check,
+          },
+          {
+            ...common,
+            sourceKey: "review-metric:" + n,
+            source: "ga4",
+            kind: "metrics",
+            ownerId: userId,
+            visibility: "PRIVATE" as const,
+            payload: metrics([page.url]),
+          },
+        ]).flat(),
+      });
+      const later = await storeResult(
+        page.id,
+        ranked("2026-11-01T12:00:00.000Z", 8, "b", false),
+      );
+      const workspace = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      expect(workspace.observations.map((o) => o.id)).not.toContain(origin.id);
+      expect(workspace.actions.filter((a) => a.id === action.id)).toMatchObject(
+        [
+          {
+            taskId: task.taskId,
+            status: "implemented",
+            observationId: origin.id,
+            followUpReview: {
+              baselineObservationId: origin.id,
+              observationId: later.id,
+              before: 13,
+              after: 8,
+              keyword,
+            },
+          },
+        ],
+      );
+      expect(workspace.actions.find((a) => a.id === stale.id)?.status).toBe(
+        "needs_review",
+      );
+      await expect(
+        createProjectSeoActionTask(actor, {
+          actionId: stale.id,
+          observationId: unlinked.id,
+          idempotencyKey: "stale-draft",
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      const staleReview = workspace.actions.find((a) => a.id === stale.id)!
+        .followUpReview!;
+      await acknowledgeSeoReview(actor, {
+        pageId: page.id,
+        actionId: stale.id,
+        kind: staleReview.kind,
+        baselineObservationId: staleReview.baselineObservationId,
+        observationId: staleReview.observationId,
+      });
+      const cleared = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      expect(cleared.actions.some((a) => a.id === stale.id)).toBe(false);
+      expect(
+        cleared.actions.find((a) => a.id === action.id)?.followUpReview,
+      ).toBeDefined();
+      expect(
+        await prisma.projectSeoActionTask.count({
+          where: { projectId, actionId: stale.id },
+        }),
+      ).toBe(0);
+      // Even a hundred more full audits cannot push an accepted origin out of the separate tracked set.
+      const otherFull = ranked("2026-10-15T12:00:00.000Z", 18, "c", false);
+      await prisma.projectSeoObservation.createMany({
+        data: Array.from({ length: 101 }, (_, n) => ({
+          ...common,
+          sourceKey: "review-full:" + n,
+          source: "seo_coworker",
+          kind: "audit_full",
+          payload: otherFull,
+          observedAt: new Date(Date.parse(otherFull.observedAt) + n * 60000),
+        })),
+      });
+      // A private owner's row cannot undo this public review with an apparently newer rank.
+      await storeResult(
+        page.id,
+        ranked("2026-11-03T12:00:00.000Z", 16, "d", false),
+        { ownerId: otherId },
+      );
+      const beyondFullLimit = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+      });
+      expect(
+        beyondFullLimit.actions.filter((a) => a.id === action.id),
+      ).toMatchObject([
+        {
+          taskId: task.taskId,
+          followUpReview: {
+            baselineObservationId: origin.id,
+            observationId: later.id,
+          },
+        },
+      ]);
+      const historical = await getProjectSeoWorkspace(actor, {
+        pageId: page.id,
+        to: "2026-10-15",
+      });
+      expect(historical.actions.some((a) => a.followUpReview)).toBe(false);
+      const review = beyondFullLimit.actions.find((a) => a.id === action.id)!
+        .followUpReview!;
+      const receipt = {
+        pageId: page.id,
+        actionId: action.id,
+        kind: review.kind,
+        baselineObservationId: origin.id,
+        observationId: later.id,
+      };
+      const wrongPage = await addProjectSeoPage(actor, {
+        url: "https://example.test/unrelated-review",
+        relationship: "primary",
+      });
+      await expect(
+        acknowledgeSeoReview(actor, { ...receipt, pageId: wrongPage.id }),
+      ).rejects.toThrow(/changed/);
+      await expect(
+        acknowledgeSeoReview(actor, { ...receipt, observationId: origin.id }),
+      ).rejects.toThrow(/changed/);
+      await expect(
+        acknowledgeSeoReview(
+          { ...actor, workspaceId: otherWorkspaceId, userId: otherId },
+          receipt,
+        ),
+      ).rejects.toThrow();
+      await Promise.all([
+        acknowledgeSeoReview(actor, receipt),
+        acknowledgeSeoReview(actor, receipt),
+      ]);
+      await storeResult(
+        page.id,
+        ranked("2026-11-02T12:00:00.000Z", 7, "1", false),
+      );
+      await acknowledgeSeoReview(actor, receipt);
+      const closed = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      const accepted = closed.actions.find((a) => a.id === action.id)!;
+      expect(accepted.followUpReview).toBeUndefined();
+      expect(accepted.taskId).toBe(task.taskId);
+      expect(
+        closed.observations.some((o) => o.kind === "recommendation_review"),
+      ).toBe(false);
+      expect(
+        await prisma.projectSeoObservation.count({
+          where: { projectId, kind: "recommendation_review" },
+        }),
+      ).toBe(2);
+      await storeResult(
+        page.id,
+        ranked("2026-11-04T12:00:00.000Z", 16, "e", false),
+      );
+      const fresh = await storeResult(
+        page.id,
+        ranked("2026-11-06T12:00:00.000Z", 7, "f", false),
+      );
+      await acknowledgeSeoReview(actor, receipt); // a replay cannot silence the later crossing.
+      const reopened = await getProjectSeoWorkspace(actor, { pageId: page.id });
+      expect(
+        reopened.actions.find((a) => a.id === action.id)?.followUpReview
+          ?.observationId,
+      ).toBe(fresh.id);
+      // The owner can review the exact episode shown by a past-date filter even after a later reversal.
+      await storeResult(
+        page.id,
+        ranked("2026-11-08T12:00:00.000Z", 15, "9", false),
+      );
+      const view = { pageId: page.id, to: "2026-11-06" };
+      const past = await getProjectSeoWorkspace(actor, view);
+      const episode = past.actions.find((a) => a.id === action.id)!
+        .followUpReview!;
+      expect(episode.observationId).toBe(fresh.id);
+      await acknowledgeSeoReview(actor, {
+        ...receipt,
+        baselineObservationId: episode.baselineObservationId,
+        observationId: fresh.id,
+        view,
+      });
+      expect(
+        (await getProjectSeoWorkspace(actor, view)).actions.find(
+          (a) => a.id === action.id,
+        )?.followUpReview,
+      ).toBeUndefined();
+      expect(
+        await prisma.projectSeoActionTask.count({
+          where: { projectId, actionId: action.id },
+        }),
+      ).toBe(1);
     });
 
     it("marks the history limited only when one load reaches its own cap", async () => {

@@ -433,3 +433,34 @@ it("withdraws an open seasonal offer when its last month ends while the owner is
     vi.useRealTimers();
   }
 });
+
+it("qualifies an unconfirmed market and shows the second measured year in English in a German workspace", async () => {
+  const user = userEvent.setup(),
+    previous = {
+      historicalPeriod: "2024-12",
+      historicalVolume: 55,
+      baselineMedian: 15,
+    };
+  render(
+    page(
+      [
+        {
+          ...winter,
+          marketBasis: "vendor_scenario",
+          windows: [{ ...winter.windows[0], earlierCycle: previous }],
+        },
+      ],
+      "",
+      new Date("2026-11-19"),
+      [],
+      "de",
+    ),
+  );
+  expect(screen.getByText(/This market is an estimate/)).toBeVisible();
+  await user.click(screen.getByText(german.App.Seo.keywords.seasonal.evidence));
+  expect(
+    screen.getByText(
+      /In December 2024, estimated searches reached 55 against a median of 15/,
+    ),
+  ).toBeVisible();
+});

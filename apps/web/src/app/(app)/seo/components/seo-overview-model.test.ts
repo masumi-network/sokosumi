@@ -830,6 +830,7 @@ describe("seoActionWorklist", () => {
       high: 2,
       low: 0,
       suggestions: 1,
+      reviews: 0,
     });
     expect(worklist.filters).toEqual(["all", "high", "suggestions"]);
     expect(worklist.rows("suggestions").map((action) => action.id)).toEqual([

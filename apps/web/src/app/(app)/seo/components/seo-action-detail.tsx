@@ -3,12 +3,14 @@
 import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import { DialogTitle } from "@/components/ui/dialog";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoCopyButton, useSeoActionInstructions } from "./seo-action-copy";
 import { SeoActionTaskButton, useSeoActionFinding } from "./seo-action-finding";
 import { SeoBriefFollowUp, SeoBriefPagePriority } from "./seo-brief-summary";
+import { seoFollowUpText } from "./seo-followup-review";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
   SEO_SEVERITY_MARK_CLASS,
@@ -89,7 +91,8 @@ export function SeoActionDetail({
               {report(`actions.kind.${action.kind}`)}
             </Chip>
           )}
-          {action.status !== "recommended" ? (
+          {action.status !== "recommended" &&
+          action.status !== "needs_review" ? (
             <Chip className="text-muted-foreground border">
               {report(`actions.${action.status}`)}
             </Chip>
@@ -155,6 +158,31 @@ export function SeoActionDetail({
         </p>
         {/* The change comes first after the finding: it is what the owner acts on. Before and after stack, so a
             long title reads on whole lines and the two boxes start at the same edge. */}
+        {action.followUpReview && (
+          <DetailPart title={report("actions.reviewAgain")}>
+            <p lang="en">{seoFollowUpText(action.followUpReview, report)}</p>
+            {!("beforePeriod" in action.followUpReview) &&
+              action.followUpReview.baselineObservationId !==
+                action.observationId && (
+                <SeoSource
+                  named
+                  observationId={action.followUpReview.baselineObservationId}
+                  workspace={model.data}
+                >
+                  {report("actions.originalMeasurement")}
+                </SeoSource>
+              )}
+            {!("beforePeriod" in action.followUpReview) && (
+              <SeoSource
+                named
+                observationId={action.followUpReview.observationId}
+                workspace={model.data}
+              >
+                {report("actions.laterMeasurement")}
+              </SeoSource>
+            )}
+          </DetailPart>
+        )}
         {action.edit ? (
           <DetailPart title={report("actions.change")}>
             <div className="space-y-3">
@@ -273,11 +301,24 @@ export function SeoActionDetail({
       {/* On a phone the buttons fill the width, the main one on top; from sm they sit at the end of one line, the
           main one last. The order in the DOM is the order on a phone, so the focus order matches what shows. */}
       <div className="bg-senary flex flex-col gap-2 border-t px-6 py-4 sm:flex-row-reverse sm:justify-start">
+        {action.followUpReview && model.data.availableActions.canEdit && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            loading={model.pending}
+            onClick={() => void model.acknowledgeReview(action)}
+          >
+            {t("actions.markReviewed")}
+          </Button>
+        )}
         <SeoActionTaskButton action={action} model={model} />
-        <SeoCopyButton
-          text={instructions}
-          label={t("actions.copyInstructions")}
-        />
+        {action.status !== "needs_review" && (
+          <SeoCopyButton
+            text={instructions}
+            label={t("actions.copyInstructions")}
+          />
+        )}
       </div>
     </>
   );

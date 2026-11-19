@@ -15,7 +15,7 @@ interface Counts {
   views: number;
 }
 
-function completeWindow(source: LandingSource) {
+export function completeLandingWindow(source: LandingSource) {
   const { data } = source;
   const landing = data.landingPages;
   if (
@@ -84,7 +84,7 @@ function completeWindow(source: LandingSource) {
   };
 }
 
-type Window = NonNullable<ReturnType<typeof completeWindow>>;
+type Window = NonNullable<ReturnType<typeof completeLandingWindow>>;
 
 function rateChange(
   before: Window,
@@ -127,7 +127,7 @@ export function landingEngagementChange(
   );
   if (!current) return;
   const { data } = current;
-  const after = completeWindow(current);
+  const after = completeLandingWindow(current);
   if (!after) return;
   const priorPeriod = previousSeoPeriod(data.from, data.to);
   const evidence = data.landingEngagementEvidence;
@@ -151,7 +151,7 @@ export function landingEngagementChange(
     );
   }
   if (!prior || prior.data.timeZone !== data.timeZone) return;
-  const before = completeWindow(prior);
+  const before = completeLandingWindow(prior);
   if (
     !before ||
     before.rows.size !== after.rows.size ||

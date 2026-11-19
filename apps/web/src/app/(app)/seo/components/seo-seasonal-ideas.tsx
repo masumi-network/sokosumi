@@ -114,6 +114,11 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                   date: day(idea.asOf),
                 })}
               </p>
+              {idea.marketBasis && (
+                <p lang="en" className="text-sm">
+                  {t("marketScenario")}
+                </p>
+              )}
               {idea.event && (
                 <>
                   <p lang="en" className="text-sm font-medium">
@@ -199,6 +204,42 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                       })}
                     </p>
                   ))}
+                  {idea.windows.flatMap((w) =>
+                    w.earlierCycle
+                      ? [
+                          <p key={w.earlierCycle.historicalPeriod}>
+                            {t("earlierWindow", {
+                              month: month(w.earlierCycle.historicalPeriod),
+                              volume: w.earlierCycle.historicalVolume,
+                              baseline: w.earlierCycle.baselineMedian,
+                            })}
+                          </p>,
+                        ]
+                      : [],
+                  )}
+                  {comparison?.earlierEdition && (
+                    <p>
+                      {t("earlierEvent", {
+                        date: day(comparison.earlierEdition.previousEventDate),
+                        baseline: comparison.earlierEdition.baselineMedian,
+                        counts: seoResultFormat.list(
+                          [
+                            comparison.earlierEdition.leadMonth,
+                            comparison.earlierEdition.eventMonth,
+                          ].flatMap((r) =>
+                            r.volume === null
+                              ? []
+                              : [
+                                  t("count", {
+                                    month: month(r.period),
+                                    volume: r.volume,
+                                  }),
+                                ],
+                          ),
+                        ),
+                      })}
+                    </p>
+                  )}
                   {counts.length > 0 && !hasComparison && (
                     <p>
                       {t("incompleteComparison", {

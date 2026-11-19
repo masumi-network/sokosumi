@@ -53,8 +53,12 @@ import {
   seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
+import { pendingSeoActionReviews } from "./seo-action-review-store";
 import { SEO_LANDING_OUTCOMES_KIND } from "./seo-brief-landing-outcomes";
 import { projectLegacyIndexingProvenance } from "./seo-indexing-provenance";
+import { loadPrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
+import { privateTopicQueries } from "./seo-private-topic-queries";
+import { loadSeoReviewHistory } from "./seo-recommendation-history";
 
 export async function addProjectSeoPage(
   actor: SeoActor,
@@ -332,7 +336,9 @@ export async function recordNativeSeoMetrics(
           })
         : null;
     const pageIds = pages.map((p) => p.id).sort();
-    let stored: PrivateLandingOutcomes | typeof selection = named;
+    let stored: PrivateLandingOutcomes | typeof selection = named
+      ? { ...named, metricObservationId: result.id }
+      : null;
     if (!stored && selection) {
       const previous = await client.projectSeoObservation.findFirst({
         where: {
@@ -459,7 +465,10 @@ async function loadSeoWorkspaceObservations(
 export async function getProjectSeoWorkspace(
   actor: SeoActor,
   query: SeoWorkspaceQuery = {},
-  options: { includePrivateIndexing?: boolean } = {},
+  options: {
+    includePrivateIndexing?: boolean;
+    includePrivateReviews?: boolean;
+  } = {},
 ) {
   await requireSeoOwner(actor);
   const scope = await resolveSeoScope(actor, query);
@@ -554,6 +563,33 @@ export async function getProjectSeoWorkspace(
     status: task.status,
     completedAt: task.events[0]?.createdAt ?? null,
   }));
+  const visibleTasks = new Set(tasks.map((task) => task.id));
+  const origins = actionTasks
+    .filter(
+      (link) =>
+        visibleTasks.has(link.taskId) &&
+        (link.actionId.startsWith("decision:") ||
+          link.actionId.startsWith("seasonal:")),
+    )
+    .map((link) => link.observationId);
+  const reviewHistory = evidenceLimited
+    ? await loadSeoReviewHistory(actor, scope.pageIds, query, observations, [
+        ...new Set(origins),
+      ])
+    : [];
+  const hasStrategy = [...observations, ...reviewHistory].some(
+    (row) =>
+      row.ownerId === null &&
+      typeof row.payload === "object" &&
+      row.payload &&
+      "strategyDecisions" in row.payload &&
+      Array.isArray(row.payload.strategyDecisions) &&
+      row.payload.strategyDecisions.length,
+  );
+  const privateReviews =
+    options.includePrivateReviews && privateMetricsAllowed && hasStrategy
+      ? await loadPrivateRecommendationReviews(actor, scope.pages, query)
+      : undefined;
   const currentOwner = await requireSeoOwner(actor);
   const monitorOfTask = await seoMonitorOfTasks(
     actor.workspaceId,
@@ -569,6 +605,8 @@ export async function getProjectSeoWorkspace(
     observations,
     historyLimited,
     evidenceLimited,
+    reviewHistory,
+    privateReviews,
     keywords,
     competitors,
     analyses,
@@ -580,11 +618,22 @@ export async function getProjectSeoWorkspace(
     canSchedule: executor?.canSchedule === true,
     monitors,
   });
+  const actions = await pendingSeoActionReviews(
+    actor,
+    workspace,
+    privateReviews,
+  );
   const sourceTask = new Map(
     observations.map((row) => [row.id, row.sourceTaskId]),
   );
+  const topicQueries =
+    options.includePrivateReviews && privateMetricsAllowed
+      ? privateTopicQueries(actor, workspace.topicLaunches, observations, query)
+      : undefined;
   const monitored = {
     ...workspace,
+    ...(topicQueries && { privateTopicQueries: topicQueries }),
+    actions,
     runs: workspace.runs?.map((run) => ({
       ...run,
       monitorId:

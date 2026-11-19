@@ -52,6 +52,11 @@ import {
 } from "./project-seo-store";
 import { SeoAuditDecisions } from "./seo-audit-decisions";
 import { landingEngagementChange } from "./seo-landing-engagement";
+import type { PrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
+import {
+  type DecisionObservation,
+  projectSeoReviewHistory,
+} from "./seo-recommendation-history";
 
 interface ProjectionInput {
   sharing?: "organization" | "personal";
@@ -75,6 +80,8 @@ interface ProjectionInput {
   pages: ProjectSeoPage[];
   scopes: ProjectSeoScope[];
   observations: ProjectSeoObservation[];
+  reviewHistory?: DecisionObservation[];
+  privateReviews?: PrivateRecommendationReviews;
   /** True when the evidence or the metrics load reached its own row cap. */
   historyLimited: boolean;
   /** True when the evidence load (checks and page changes) reached its row cap: an older check can be cut. */
@@ -151,8 +158,10 @@ export function projectSeoProjection(
     actionTasks,
     taskStatuses,
     now,
+    input.tasks,
+    input.privateReviews,
   );
-  const seasonalIdeas = decisions.seasonal;
+  projectSeoReviewHistory(decisions, input, selectedIds);
   const searchSources: SearchEvidenceSource[] = [];
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   const metricRows: SeoMetricsProjection = {
@@ -244,8 +253,6 @@ export function projectSeoProjection(
           : ""),
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
-    if (row.kind === "audit_full" && data.kind === "audit_full")
-      decisions.append(row.id, data);
     // Rows come newest first, so the first strategy is the newest site audit's.
     if (data.strategy && !strategy) {
       const {
@@ -703,7 +710,7 @@ export function projectSeoProjection(
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     indexTriage: indexing.triage,
     strategy,
-    ...(seasonalIdeas.length && { seasonalIdeas }),
+    ...decisions.workspaceEvidence,
     metricsStatus: !metrics.length
       ? "unavailable"
       : metrics.some((metric) => metric.coverage !== "complete")

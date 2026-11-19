@@ -4732,11 +4732,52 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     if (data.strategy) {
         data.strategy = projectSeoStrategySchemaResponseTransformer(data.strategy);
     }
+    if (data.articleDates) {
+        data.articleDates = data.articleDates.map((item: any) => {
+            item.publishedOn = new Date(item.publishedOn);
+            if (item.revisedOn) {
+                item.revisedOn = new Date(item.revisedOn);
+            }
+            return item;
+        });
+    }
+    if (data.topicLaunches) {
+        data.topicLaunches = data.topicLaunches.map((item: any) => {
+            item.publishedFrom = new Date(item.publishedFrom);
+            item.publishedThrough = new Date(item.publishedThrough);
+            item.pages = item.pages.map((item: any) => {
+                item.publishedOn = new Date(item.publishedOn);
+                if (item.revisedOn) {
+                    item.revisedOn = new Date(item.revisedOn);
+                }
+                return item;
+            });
+            if (item.earlierArticle) {
+                item.earlierArticle.publishedOn = new Date(item.earlierArticle.publishedOn);
+                if (item.earlierArticle.revisedOn) {
+                    item.earlierArticle.revisedOn = new Date(item.earlierArticle.revisedOn);
+                }
+            }
+            return item;
+        });
+    }
+    if (data.privateTopicQueries) {
+        data.privateTopicQueries = data.privateTopicQueries.map((item: any) => {
+            item.from = new Date(item.from);
+            item.to = new Date(item.to);
+            return item;
+        });
+    }
     if (data.seasonalIdeas) {
         data.seasonalIdeas = data.seasonalIdeas.map((item: any) => {
             item.asOf = new Date(item.asOf);
             if (item.event) {
                 item.event.date = new Date(item.event.date);
+            }
+            if (item.comparison) {
+                if (item.comparison.earlierEdition) {
+                    item.comparison.earlierEdition.previousEventDate = new Date(item.comparison.earlierEdition.previousEventDate);
+                }
             }
             return item;
         });
@@ -5630,8 +5671,16 @@ const cmoSeoSuggestionSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const cmoKeywordIdeaSchemaResponseTransformer = (data: any) => {
+    if (data.measuredAt) {
+        data.measuredAt = new Date(data.measuredAt);
+    }
+    return data;
+};
+
 const cmoKeywordSearchSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
+    data.ideas = data.ideas.map((item: any) => cmoKeywordIdeaSchemaResponseTransformer(item));
     return data;
 };
 

@@ -107,6 +107,38 @@ it("says when the next audit runs with its time, so it never reads as the weekly
   expect(text()).toMatch(/Next audit: \w+ \d+ November at \d\d:\d\d\./);
 });
 
+it("shows the original observation date on a related editorial pick", async () => {
+  const search = seo.keywordSearches[0];
+  await render(
+    actions({
+      ...seo,
+      keywordSearches: [
+        {
+          ...search,
+          ideas: [
+            {
+              ...search.ideas[0],
+              editorial: true,
+              measuredAt: new Date("2026-11-14T09:00:00Z"),
+            },
+            {
+              ...search.ideas[1],
+              measuredAt: new Date("2026-11-13T09:00:00Z"),
+            },
+            ...search.ideas.slice(2),
+          ],
+        },
+      ],
+    }),
+  );
+  const cells = [...container.querySelectorAll(".seo-table tbody tr")].map(
+    (row) => row.querySelector("td")?.textContent,
+  );
+  expect(cells[0]).toContain("Editorial pick · Measured 14 Nov 2026");
+  expect(cells[1]).toContain("Measured 13 Nov 2026");
+  expect(cells[1]).not.toContain("Editorial pick");
+});
+
 it("says Not known for a keyword number that is missing", async () => {
   await render(actions(seo));
   const cells = [...container.querySelectorAll(".seo-table tbody tr")].map(
