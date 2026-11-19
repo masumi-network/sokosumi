@@ -696,6 +696,7 @@ export const seo: CmoSeo = {
       body: "Replace the page title.",
       newText: "Team Booking Software for Sales and Support | Acme",
       draft: null,
+      sources: [],
       evidence: [
         {
           metric: "position",
@@ -730,6 +731,7 @@ export const seo: CmoSeo = {
       body: "Once the script loads correctly, the page's render is complete and any HubSpot chat or tracking behavior works as intended for visitors and for Googlebot's render of the page. This removes the render error itself; no rank or traffic change can be forecast from it.",
       newText: null,
       draft: null,
+      sources: [],
       evidence: [
         {
           metric: "auditIssue",
@@ -759,6 +761,7 @@ export const seo: CmoSeo = {
       body: "## Who needs an alternative\n## Acme and Calendly side by side\n## How to switch in a day",
       newText: null,
       draft: null,
+      sources: [],
       evidence: [
         {
           metric: "searchVolume",
@@ -779,6 +782,42 @@ export const seo: CmoSeo = {
       ],
       status: "open",
       createdAt: seoAt("2026-11-17T09:00:00Z"),
+      doneAt: null,
+      verifiedAt: null,
+    },
+  ],
+  landingPages: [
+    {
+      id: "0198c0de-0000-7000-8000-000000000009",
+      kind: "landing_page",
+      source: "cuso",
+      title: "Calendly alternative for teams that want their own booking page",
+      keyword: "calendly alternative",
+      pageUrl: null,
+      why: "880 people a month search this while they choose, and your search ad for it has no page that answers them.",
+      body: "",
+      newText: null,
+      draft:
+        "# Calendly alternative for teams that want their own booking page\n\nLooking for a Calendly alternative? Acme gives every teammate a booking page on your own domain, free for one person.\n\n## What you get\n\n- A booking page on your domain\n- Round-robin for the whole team\n\n## Acme and Calendly side by side\n\nCalendly's Standard plan costs $12 per seat a month, billed yearly. Acme is free for one person.\n\nIf you only need one meeting type, Calendly's free plan may be all you need.",
+      sources: [
+        {
+          text: "Calendly's Standard plan costs $12 per seat a month, billed yearly.",
+          sourceUrl: "https://calendly.com/pricing",
+          quote: "Standard $12 /seat/mo billed yearly",
+        },
+      ],
+      evidence: [
+        {
+          metric: "searchVolume",
+          keyword: "calendly alternative",
+          pageUrl: null,
+          value: "880",
+          source: "keyword_research",
+          observedAt: seoAt("2026-11-19T09:00:00Z"),
+        },
+      ],
+      status: "open",
+      createdAt: seoAt("2026-11-19T09:00:00Z"),
       doneAt: null,
       verifiedAt: null,
     },

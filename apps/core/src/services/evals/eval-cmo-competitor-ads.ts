@@ -2,8 +2,10 @@ import type { ScenarioCheck } from "@sokosumi/soko-bot";
 
 import type { ComparisonSearch } from "@/lib/ads/dataforseo";
 import prisma from "@/lib/db/prisma";
+import { flat, pageOpening } from "@/lib/seo/landing-page-check";
 import { COMPARISON_SEARCHES_KIND } from "@/services/cmo-competitor-keywords.service";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
+import { landingPageSources } from "@/services/cmo-seo-landing-pages.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { competitorNameKey } from "@/services/competitors.service";
 import type { EvalLaneRecord } from "@/services/evals/eval-lanes.service";
@@ -14,6 +16,8 @@ import {
 } from "@/services/marketing-strategy.service";
 
 export const COMPETITOR_ADS_CASE_ID = "cmo-competitor-search-ads";
+export const COMPETITOR_LANDING_PAGE_CASE_ID = "cmo-competitor-landing-page";
+const LANDING_PAGE_SEARCH = "calendly alternatives";
 
 /**
  * 20 a day: two search ads may each pay 3.33 a click, enough for "calendly
@@ -62,12 +66,6 @@ const SEARCHES: Record<string, ComparisonSearch[]> = {
   Zcal: [],
 };
 
-const flat = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
-
 /**
  * The lane's Cuso runs an approved month with an ad budget, and the search
  * data for his three competitors is stored, so the case pays for no read.
@@ -82,6 +80,9 @@ export async function prepareCompetitorAdsCase(
   const market = await cmoSeoMarket(cuso);
   await prisma.projectSeoResearch.deleteMany({
     where: { projectId, kind: COMPARISON_SEARCHES_KIND },
+  });
+  await prisma.projectSeoSuggestion.deleteMany({
+    where: { projectId, kind: "landing_page" },
   });
   await prisma.projectSeoResearch.createMany({
     data: Object.entries(SEARCHES).map(([name, searches]) => ({
@@ -173,6 +174,44 @@ export async function competitorAdChecks(
       label: "Puts each ad in the calendar, where the owner launches it",
       pass: ads.length > 0 && unplanned.length === 0,
       actual: `${ads.length - unplanned.length} of ${ads.length} planned`,
+    },
+  ];
+}
+
+/** The landing page the case left in the SEO tab. */
+export async function competitorLandingPageChecks(
+  lane: EvalLaneRecord,
+): Promise<ScenarioCheck[]> {
+  const page = await prisma.projectSeoSuggestion.findFirst({
+    where: { projectId: lane.cusoProjectId, kind: "landing_page" },
+    orderBy: { updatedAt: "desc" },
+    select: { keyword: true, title: true, draft: true, body: true },
+  });
+  const sources = page ? landingPageSources(page.body) : [];
+  const { firstParagraph } = pageOpening(page?.draft ?? "");
+  return [
+    {
+      label: "Saves the landing page to the SEO tab",
+      pass: page !== null,
+      actual: page ? page.title : "no landing page",
+    },
+    {
+      label: `Writes it for the search "${LANDING_PAGE_SEARCH}"`,
+      pass: flat(page?.keyword ?? "") === LANDING_PAGE_SEARCH,
+      actual: page?.keyword ?? "none",
+    },
+    {
+      label: "Holds the search in the H1 and the first paragraph",
+      pass:
+        flat(page?.title ?? "").includes(LANDING_PAGE_SEARCH) &&
+        flat(firstParagraph ?? "").includes(LANDING_PAGE_SEARCH),
+      actual: `${page?.title ?? "no H1"} / ${firstParagraph?.slice(0, 120) ?? "no paragraph"}`,
+    },
+    {
+      label: "Cites the competitor's own words for what it says about it",
+      pass: sources.length > 0,
+      actual:
+        sources.map((source) => `"${source.quote}"`).join("; ") || "no sources",
     },
   ];
 }

@@ -46,6 +46,7 @@ import {
   listCmoAdChoicesForProject,
   listCmoCusos,
   listCmoPlans,
+  markCmoLandingPageLiveForProject,
   openCmoCustomerPortalForProject,
   type ProjectCompetitorCreate,
   pauseCmoCalendarEntryForProject,
@@ -1256,6 +1257,44 @@ export async function setSeoSuggestionStatus(
     body: { status },
   });
   return error ? errorText(error, "Could not save that") : null;
+}
+
+/**
+ * Records where the owner published a landing page. The note says what
+ * happened to the search ads on its search.
+ */
+export async function markLandingPageLive(
+  projectId: string,
+  id: string,
+  url: string,
+): Promise<{ note: string | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await markCmoLandingPageLiveForProject({
+    ...core,
+    path: { projectId, id },
+    body: { url },
+  });
+  if (!data)
+    return { note: null, error: errorText(error, "Could not save that") };
+  const { adsUpdated, adsLaunched } = data.data;
+  const ads = (count: number) =>
+    count === 1 ? "1 search ad" : `${count} search ads`;
+  return {
+    error: null,
+    note: [
+      adsUpdated > 0
+        ? `${ads(adsUpdated)} for this search now ${adsUpdated === 1 ? "sends" : "send"} people to the page.`
+        : null,
+      adsLaunched > 0
+        ? `${ads(adsLaunched)} already launched ${adsLaunched === 1 ? "keeps its" : "keep their"} address: pause it and ask ${AGENT_NAME} to write it again for the page.`
+        : null,
+      adsUpdated + adsLaunched === 0
+        ? `Saved. There is no search ad for this search yet; ask ${AGENT_NAME} for one and it will send people here.`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  };
 }
 
 /** "More article ideas" (no id) or "Write the article" (its id): Cuso starts, his answer lands in the chat. */

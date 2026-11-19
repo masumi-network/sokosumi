@@ -38,6 +38,7 @@ function actions(data: CmoSeo | null, patch: Partial<SeoActions> = {}) {
     loadSeo: vi.fn(async () => data),
     searchKeywords: vi.fn(async () => ({ search: null, error: null })),
     setSeoSuggestionStatus: vi.fn(async () => null),
+    markLandingPageLive: vi.fn(async () => ({ note: null, error: null })),
     askCusoForArticles: vi.fn(async () => null),
     connectSearchConsole: vi.fn(async () => ({ url: null, error: null })),
     ...patch,
@@ -129,4 +130,62 @@ it("says plainly when a week was skipped for credits and offers Search Console w
     "Skipped on 23 Nov 2026: your credits could not cover the 750 an audit costs.",
   );
   expect(button("Connect")).toBeTruthy();
+});
+
+it("shows a landing page with its sources and says where it is live", async () => {
+  const markLandingPageLive = vi.fn(async () => ({
+    note: "1 search ad for this search now sends people to the page.",
+    error: null,
+  }));
+  const page = actions(seo, { markLandingPageLive });
+  await render(page);
+  expect(text()).toContain("Landing pages");
+  expect(text()).toContain(
+    "Calendly alternative for teams that want their own booking page",
+  );
+  expect(text()).toContain(
+    '"Standard $12 /seat/mo billed yearly" (calendly.com)',
+  );
+  const source = container.querySelector<HTMLAnchorElement>(
+    'a[href="https://calendly.com/pricing"]',
+  );
+  expect(source?.rel).toBe("noreferrer");
+
+  const input = container.querySelector<HTMLInputElement>('input[name="url"]');
+  if (!input) throw new Error("No address field");
+  await act(async () => {
+    input.value = "https://acme.io/calendly-alternative";
+    button("It's live").click();
+  });
+  expect(markLandingPageLive).toHaveBeenCalledWith(
+    seo.landingPages[0].id,
+    "https://acme.io/calendly-alternative",
+  );
+  expect(text()).toContain(
+    "1 search ad for this search now sends people to the page.",
+  );
+});
+
+it("shows a landing page that is live with its address, and no address field", async () => {
+  const [landing] = seo.landingPages;
+  await render(
+    actions({
+      ...seo,
+      landingPages: [
+        {
+          ...landing,
+          status: "done",
+          pageUrl: "https://acme.io/calendly-alternative",
+        },
+      ],
+    }),
+  );
+  expect(text()).toContain("Live");
+  expect(text()).toContain("/calendly-alternative");
+  expect(container.querySelector('input[name="url"]')).toBeNull();
+});
+
+it("leaves the landing pages out while there are none", async () => {
+  await render(actions({ ...seo, landingPages: [] }));
+  expect(text()).not.toContain("Landing pages");
 });
