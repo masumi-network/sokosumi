@@ -14081,6 +14081,14 @@ export type CmoProduction = {
         }>;
         rewriting: boolean;
     } | null;
+    /**
+     * How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.
+     */
+    level: 'steady' | 'active' | 'all_in';
+    /**
+     * Calendar entries the plan bought does not make. A bigger plan makes them.
+     */
+    beyondPlan: Array<string>;
 };
 
 export type CmoOnboardingConflictError = {
