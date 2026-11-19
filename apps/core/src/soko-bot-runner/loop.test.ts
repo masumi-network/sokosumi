@@ -206,6 +206,39 @@ describe("runTurnLoop", () => {
     expect(model.doStreamCalls).toHaveLength(1);
   });
 
+  it.each([
+    ["google/gemini-2.5-flash-lite", undefined],
+    ["google/gemini-3.6-flash", { thinkingConfig: { includeThoughts: true } }],
+  ])(
+    "sends the Google reasoning summary options for %s",
+    async (modelId, google) => {
+      const model = new MockLanguageModelV3({
+        modelId,
+        doStream: async () =>
+          streamOf({
+            content: [{ type: "text", text: "Hi." }],
+            finishReason: { unified: "stop", raw: "stop" },
+            warnings: [],
+            usage,
+          }),
+      });
+
+      await runTurnLoop({
+        model,
+        system: "You are a bot.",
+        message: "hi",
+        tools: {},
+        maxSteps: 1,
+        background: false,
+        deadline: MINUTE,
+        stopped: new AbortController().signal,
+        now: () => 0,
+      });
+
+      expect(model.doStreamCalls[0]?.providerOptions?.google).toEqual(google);
+    },
+  );
+
   it("reports each step's reasoning summary as the step ends", async () => {
     let call = 0;
     const model = new MockLanguageModelV3({
