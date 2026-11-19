@@ -23,6 +23,7 @@ import {
 } from "./cmo-seo.service";
 import {
   keepCmoSeoAudit,
+  listCmoSeoAuditRuns,
   pauseCmoSeoAuditsWithoutCuso,
   verifyCmoSeoChanges,
 } from "./cmo-seo-audit.service";
@@ -672,6 +673,83 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         where: { projectId, key: { endsWith: ":0" } },
       }),
     ).toBe(0);
+  });
+
+  it("lists the weekly audits with where each stands, for the chat", async () => {
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { projectId, kind: "audit_full" },
+    });
+    const now = new Date("2026-11-23T09:00:00Z");
+    const audit = (key: string, hoursAgo: number, rest: object = {}) =>
+      prisma.projectSeoAnalysis.create({
+        data: {
+          projectId,
+          idempotencyKey: `test-audit-${key}`,
+          requestHash: key,
+          kind: "audit_full",
+          request: {},
+          requestedBy: userId,
+          createdAt: new Date(now.getTime() - hoursAgo * 3_600_000),
+          ...rest,
+        },
+        select: { id: true },
+      });
+    // An audit's Task, free again now that its audit row is gone.
+    const taken = await prisma.projectSeoAnalysis.findMany({
+      where: { projectId, taskId: { not: null } },
+      select: { taskId: true },
+    });
+    const task = await prisma.task.findFirstOrThrow({
+      where: {
+        workspaceId,
+        id: { notIn: taken.flatMap((row) => row.taskId ?? []) },
+      },
+      select: { id: true },
+    });
+    const running = await audit("running", 0);
+    const stuck = await audit("stuck", 4);
+    const failed = await audit("failed", 30, { status: "failed" });
+    const done = await audit("done", 170, {
+      status: "completed",
+      taskId: task.id,
+    });
+    await prisma.projectSeoObservation.create({
+      data: {
+        projectId,
+        kind: "audit_full",
+        source: "seo_coworker",
+        sourceKey: `test:${randomUUID()}`,
+        sourceTaskId: task.id,
+        pageIds: [],
+        artifactHash: randomUUID(),
+        payload: report as object,
+        observedAt: new Date(now.getTime() - 169 * 3_600_000),
+      },
+    });
+
+    const runs = await listCmoSeoAuditRuns(
+      projectId,
+      new Date(now.getTime() - 30 * 86_400_000),
+      now,
+    );
+
+    expect(runs.map((run) => [run.id, run.state])).toEqual([
+      [running.id, "running"],
+      [stuck.id, "failed"],
+      [failed.id, "failed"],
+      [done.id, "done"],
+    ]);
+    expect(runs[3]?.found?.checked).toBeGreaterThan(0);
+    expect(runs[3]?.found?.passed).toBeLessThan(runs[3]!.found!.checked);
+    expect(runs[3]?.found?.fixes).toBe(Math.min(report.actions.length, 5));
+    // An audit before the window is left out.
+    expect(
+      await listCmoSeoAuditRuns(
+        projectId,
+        new Date(now.getTime() - 86_400_000),
+        now,
+      ),
+    ).toHaveLength(2);
   });
 
   it("pauses the weekly audit of a Cuso that was let go, but not a monitor a person made", async () => {
