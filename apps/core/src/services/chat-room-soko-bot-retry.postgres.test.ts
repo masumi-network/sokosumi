@@ -1486,6 +1486,55 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     });
   }
 
+  it("clears a delivered usage-limit notice when Retry finds the bot archived", async () => {
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
+    );
+    const m = await staleMention();
+    const turn = await turnFor(m, "FAILED");
+    await db.sokoBotTurn.update({
+      where: { id: turn.id },
+      data: { errorKind: "ai_budget_exceeded" },
+    });
+    const delivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId: turn.id },
+    });
+    expect(await deliverSokoBotDelivery(delivery.id)).toBe(true);
+    expect((await replyRow(m.mention.id)).metadata).toMatchObject({
+      mention_failure: { kind: "ai_budget_exceeded" },
+    });
+
+    await db.sokoBot.update({
+      where: { id: botId },
+      data: { archivedAt: new Date() },
+    });
+    try {
+      expect((await retryRoute(m)).status).toBe(200);
+      expect(startTurn).not.toHaveBeenCalled();
+      expect(
+        await db.sokoBotTurn.findUniqueOrThrow({ where: { id: turn.id } }),
+      ).toMatchObject({
+        chatMentionId: null,
+      });
+      expect(
+        await db.chatRoomMention.findUniqueOrThrow({
+          where: { id: m.mention.id },
+        }),
+      ).toMatchObject({
+        status: "failed",
+        error: "This Soko Bot is no longer active",
+      });
+      const reply = await replyRow(m.mention.id);
+      expect(reply.metadata).toMatchObject({ mention_failed: true });
+      expect(reply.metadata).not.toHaveProperty("mention_failure");
+    } finally {
+      await db.sokoBot.update({
+        where: { id: botId },
+        data: { archivedAt: null },
+      });
+    }
+  });
+
   it("fails, without starting, a Retry whose open failed before committing, and keeps the next answer over the old failure", async () => {
     expectCoreLog("error", "Could not open the Soko Bot's thinking reply");
     const { isStaleSokoBotReply, readSokoBotAttemptAt } = await import(

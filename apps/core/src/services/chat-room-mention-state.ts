@@ -412,7 +412,9 @@ export async function failSokoBotReplyIfOwned(params: {
     const mentionFailure =
       holder?.status === "CANCELLED"
         ? { kind: "turn_cancelled" }
-        : previousFailure;
+        : holder
+          ? previousFailure
+          : undefined;
     const metadata = {
       in_reply_to_message_id: mention.messageId,
       mention_id: mentionId,
