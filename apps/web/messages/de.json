@@ -9967,6 +9967,7 @@
         "you": "Du",
         "youNamed": "{name} (du)",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
+        "composerPlaceholder": "Schreibe dir eine Notiz",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       },
       "Signals": {

@@ -115,6 +115,8 @@ export interface DirectDraftTarget {
   key: string;
   id: string;
   name: string;
+  /** Whose initials the avatar falls back to, when `name` is a label. */
+  initialsName?: string;
   detail: string;
   image: string | null;
   kind: "self" | "human" | "coworker" | "sokoBot";
@@ -218,7 +220,7 @@ export function DirectDraftTargetRow({
       <Avatar className="size-7 shrink-0">
         <AvatarImage src={target.image ?? undefined} alt="" />
         <AvatarFallback className="text-2xs">
-          {getInitials(target.name)}
+          {getInitials(target.initialsName ?? target.name)}
         </AvatarFallback>
       </Avatar>
       <span className="min-w-0 flex-1">
