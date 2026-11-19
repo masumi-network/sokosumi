@@ -330,11 +330,17 @@ function MadeWords({
             Stop it
           </button>
         ) : null}
-        {work.state === "failed" && !file ? (
+        {work.state === "failed" && !file && work.kind !== "audit" ? (
           <button
             type="button"
             className="button button-secondary button-small"
-            onClick={() => compose(`Try "${work.title}" again`)}
+            onClick={() =>
+              compose(
+                work.kind === "seo"
+                  ? `Check again: ${work.title.toLowerCase()}`
+                  : `Try "${work.title}" again`,
+              )
+            }
           >
             Ask {AGENT_NAME} to try again
           </button>
