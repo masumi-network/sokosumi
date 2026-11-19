@@ -2626,6 +2626,11 @@
         "label": "Zeit in diesem Status:",
         "stuck": "Hängt",
         "since": "In diesem Status seit"
+      },
+      "SimilarTasks": {
+        "title": "Offene Aufgaben mit ähnlichem Titel",
+        "hint": "Schon angefragt? Öffne die Aufgabe, statt ein Duplikat anzulegen.",
+        "opensInNewTab": "(öffnet in einem neuen Tab)"
       }
     },
     "Projects": {

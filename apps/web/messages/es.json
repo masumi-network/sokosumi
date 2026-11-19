@@ -2626,6 +2626,11 @@
         "label": "Tiempo en este estado:",
         "stuck": "Atascada",
         "since": "En este estado desde"
+      },
+      "SimilarTasks": {
+        "title": "Tareas abiertas con títulos parecidos",
+        "hint": "¿Ya se pidió? Abre la tarea en lugar de crear un duplicado.",
+        "opensInNewTab": "(se abre en una pestaña nueva)"
       }
     },
     "Projects": {
