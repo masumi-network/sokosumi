@@ -180,6 +180,8 @@ export async function exportTasks(
 ): Promise<{ rows: TaskCsvRow[]; truncated: boolean }> {
   const pageFilters = await loadSanitizedTasksPageFilters(filters);
   const rows: TaskCsvRow[] = [];
+  // Last updated moves a Task between pages when it changes mid-export.
+  const seenIds = new Set<string>();
   let cursor: string | null = null;
   do {
     const page = await getTasksListPage({
@@ -191,7 +193,11 @@ export async function exportTasks(
         TASKS_EXPORT_LIMIT + 1 - rows.length,
       ),
     });
-    rows.push(...page.tasks.map(toTaskCsvRow));
+    for (const task of page.tasks) {
+      if (seenIds.has(task.id)) continue;
+      seenIds.add(task.id);
+      rows.push(toTaskCsvRow(task));
+    }
     cursor = page.nextCursor;
   } while (cursor && rows.length <= TASKS_EXPORT_LIMIT);
 

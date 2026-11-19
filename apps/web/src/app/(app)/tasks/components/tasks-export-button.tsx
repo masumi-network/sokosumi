@@ -26,7 +26,8 @@ function download(csv: string) {
   link.href = url;
   link.download = `tasks-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
-  URL.revokeObjectURL(url);
+  // Safari cancels a download whose URL is revoked in the same task.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /**

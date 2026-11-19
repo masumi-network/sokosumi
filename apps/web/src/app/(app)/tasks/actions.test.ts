@@ -621,6 +621,28 @@ describe("exportTasks", () => {
     expect(truncated).toBe(false);
   });
 
+  it("lists a Task once when it moves to a later page mid-export", async () => {
+    getTasksListPageMock
+      .mockResolvedValueOnce({
+        tasks: [
+          { id: "a", name: "A" },
+          { id: "b", name: "B" },
+        ],
+        nextCursor: "b",
+      })
+      .mockResolvedValueOnce({
+        tasks: [
+          { id: "a", name: "A" },
+          { id: "c", name: "C" },
+        ],
+        nextCursor: null,
+      });
+
+    const { rows } = await exportTasks(filters);
+
+    expect(rows.map((row) => row.name)).toEqual(["A", "B", "C"]);
+  });
+
   it("exports a short list in one request", async () => {
     serveTasks(30);
 
