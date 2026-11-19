@@ -71,7 +71,7 @@ function host(url: URL): string {
   return bareHost(url.hostname);
 }
 
-function onDomain(hostname: string, domain: string): boolean {
+export function onDomain(hostname: string, domain: string): boolean {
   return hostname === domain || hostname.endsWith(`.${domain}`);
 }
 

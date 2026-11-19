@@ -32,6 +32,7 @@ import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
   type CardActions,
+  CompetitorWeekCard,
   ConnectCard,
   LearningCard,
   StrategyCard,
@@ -718,6 +719,13 @@ function ThreadEntry({
             <p className="txt">{item.message.content}</p>
           </div>
         </div>
+      );
+    }
+    if (item.message.week) {
+      return (
+        <CusoSays at={item.at}>
+          <CompetitorWeekCard week={item.message.week} actions={actions} />
+        </CusoSays>
       );
     }
     return (

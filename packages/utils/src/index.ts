@@ -164,6 +164,13 @@ export {
   isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
+export {
+  CMO_COMPETITOR_WEEK_KEY,
+  type CmoCompetitorWeek,
+  type CmoCompetitorWeekMove,
+  cmoCompetitorWeekText,
+  readCmoCompetitorWeek,
+} from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
   CONTACT_CHANNEL_SOURCES,

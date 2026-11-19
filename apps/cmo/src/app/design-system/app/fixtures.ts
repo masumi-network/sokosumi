@@ -368,6 +368,49 @@ export const messages: CusoMessage[] = [
     },
   },
   message("m4", false, "Great. Keep X posts short.", "04T10:03:00"),
+  {
+    ...message(
+      "week",
+      true,
+      "What your competitors did this week",
+      "04T10:02:00",
+    ),
+    week: {
+      checkDay: "2026-11-04",
+      moves: [
+        {
+          competitor: "Calendly",
+          text: "Calendly raised Standard from $10 to $12 per seat a month.",
+          source: {
+            label: "Calendly",
+            url: "https://calendly.com/pricing",
+          },
+          big: true,
+          meaning:
+            "Calendly's rise leaves your Teams plan the cheaper one for small teams.",
+          move: "Lead your pricing page with the price per seat this week.",
+        },
+        {
+          competitor: "SavvyCal",
+          text: "SavvyCal added round-robin scheduling for teams.",
+          source: {
+            label: "savvycal.com",
+            url: "https://savvycal.com/blog/round-robin",
+          },
+          big: false,
+        },
+        {
+          competitor: "Zcal",
+          text: "Zcal ends its Pro plan in December 2026.",
+          source: {
+            label: "it.example.edu",
+            url: "https://it.example.edu/notices/zcal",
+          },
+          big: false,
+        },
+      ],
+    },
+  },
   message(
     "m5",
     true,

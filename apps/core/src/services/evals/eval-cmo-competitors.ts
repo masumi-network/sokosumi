@@ -251,7 +251,7 @@ export async function competitorFeedChecks(
     prisma.chatRoomMessage.findMany({
       where: {
         senderSokoBotId: lane.cusoBotId,
-        clientMessageId: { startsWith: "cmo:competitor-move:" },
+        clientMessageId: { startsWith: "cmo:competitor-week:" },
         createdAt: { gte: startedAt },
       },
       select: { content: true },
@@ -278,6 +278,15 @@ export async function competitorFeedChecks(
           facts.length > 0 && facts.every((fact) => fact.support === "weak"),
         actual: facts.map((fact) => fact.support).join(", ") || "no facts",
       },
+      {
+        label:
+          "Tells the owner in one message, and calls nothing out that only a customer's notice reports",
+        pass:
+          messages.length === 1 &&
+          items.every((item) => !item.big) &&
+          !messages[0]?.content.includes("Suggested move"),
+        actual: `${messages.length} messages, ${items.filter((item) => item.big).length} big`,
+      },
     ];
   }
   if (scenarioId === QUIET_WEEK_ID)
@@ -294,7 +303,7 @@ export async function competitorFeedChecks(
         actual: `${messages.length} messages`,
       },
     ];
-  const price = messages.find((message) => /\$\s?12\b/.test(message.content));
+  const [week] = messages;
   return [
     saved,
     {
@@ -318,16 +327,23 @@ export async function competitorFeedChecks(
     },
     {
       label:
-        "Tells the owner about the price change at once, with source, date, quote and what it means",
+        "Tells the owner about the week in one message: the price change with its source and what it means",
       pass:
-        price !== undefined &&
-        linkedUrls(price.content).some((url) => url === PRICING_PAGE) &&
-        price.content.includes("Standard $12 /seat/mo billed yearly") &&
-        /\d{4}-\d{2}-\d{2}/.test(price.content) &&
-        price.content.includes("What this means for you"),
-      actual: price
-        ? price.content.slice(0, 200)
-        : `${messages.length} messages, none about $12`,
+        messages.length === 1 &&
+        week !== undefined &&
+        /\$\s?12\b/.test(week.content) &&
+        linkedUrls(week.content).some((url) => url === PRICING_PAGE) &&
+        week.content.includes("What this means for you"),
+      actual: week
+        ? `${messages.length} messages: ${week.content.slice(0, 200)}`
+        : "no message",
+    },
+    {
+      label: "Keeps the page's raw words out of the chat",
+      pass:
+        week !== undefined &&
+        !week.content.includes("Standard $12 /seat/mo billed yearly"),
+      actual: week ? "checked" : "no message",
     },
   ];
 }
