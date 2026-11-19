@@ -522,6 +522,25 @@ export async function retryCmoOnboarding(
 const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
 
 /**
+ * The owner's time zone for this Cuso: his routines keep their local times
+ * ("every day at 09:00") and move to the new zone, next runs included.
+ */
+export async function setCmoTimeZone(
+  target: CusoTarget,
+  timeZone: string,
+): Promise<void> {
+  const cuso = await requireCuso(target);
+  await prisma.sokoBot.updateMany({
+    where: { id: cuso.sokoBotId },
+    data: { ingestTimezone: timeZone },
+  });
+  const { retimeSystemSchedules } = await import(
+    "@/services/soko-bot-proactive.service"
+  );
+  await retimeSystemSchedules(cuso.sokoBotId, timeZone);
+}
+
+/**
  * Lets this person hire Cuso again for another website: the Cuso they work
  * with is archived (his running work stops) and his posts that have not gone
  * out are canceled. His organization, Project and Files stay in Sokosumi.
@@ -793,6 +812,8 @@ export async function startCmoOnboarding(input: {
   userId: string;
   websiteUrl: string;
   organizationId?: string | undefined;
+  /** The owner's time zone, from their browser. */
+  timeZone?: string | undefined;
 }): Promise<Cuso> {
   // shortcut: two racing submits can hire twice, in two organizations or in
   // one; the start form submits once. Add a per-person lock if duplicates
@@ -841,6 +862,7 @@ export async function startCmoOnboarding(input: {
       projectId: project.id,
       name: CUSO_NAME,
       versionId: CMO_SOKO_BOT_VERSION_ID,
+      ...(input.timeZone ? { timezone: input.timeZone } : {}),
     });
     sharedRoomId = bot.sharedRoomId;
     const cuso = await findCusoForBot(bot.id);

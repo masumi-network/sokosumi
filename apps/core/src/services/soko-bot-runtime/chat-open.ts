@@ -182,33 +182,36 @@ export async function openDirectChat(
 }
 
 /**
- * Asks Coworkers something in a private channel of the owner, the bot and
+ * Asks Coworkers something in a channel of the person who asked, the bot and
  * them, before the bot commits work to them. The question is an ordinary
  * mention, so each Coworker answers in the room through the dispatch a
- * person's mention uses, and the bot reads the answer with `read_chat`.
+ * person's mention uses, and the bot waits for the answer with `wait_for`.
+ *
+ * A personal bot asks for its owner alone, in a private channel. A shared
+ * bot has no owner (ADR 0057): it asks for the member whose own chat request
+ * this turn is, in a public channel, as everything a shared bot does is the
+ * organization's to read.
  */
 export async function askCoworker(
   runtime: RuntimeOperations,
   authorized: AuthorizedSokoBotRuntime,
   input: { coworkerIds: string[]; question: string; toolCallId: string },
 ) {
-  const ownerUserId = authorized.turn.actingUserId;
-  // The owner is in the room and reads the answer; a teammate or another
-  // assistant asking would put the owner's bot in a room they never see.
+  const memberUserId = authorized.turn.actingUserId;
+  const shared = Boolean(authorized.reader.sharedScope);
+  // The person is in the room and reads the answer. On a personal bot a
+  // teammate asking would put the owner's bot in a room they never see.
   if (
     authorized.turn.source !== "CHAT" ||
     authorized.turn.chainDepth > 0 ||
-    authorized.askedByKind === "TEAMMATE" ||
+    (!shared && authorized.askedByKind === "TEAMMATE") ||
     authorized.askedByKind === "ASSISTANT" ||
-    !ownerUserId
+    !memberUserId
   ) {
     throw new SokoBotRuntimeAuthorizationError(
-      "Asking a Coworker is for your owner's own requests. Tell them who you would ask and what.",
-    );
-  }
-  if (authorized.reader.sharedScope) {
-    throw new SokoBotRuntimeValidationError(
-      "A shared Soko Bot has no owner to ask Coworkers with. Create a DRAFT Task with the question instead.",
+      shared
+        ? "Asking a Coworker is for a member's own request in chat. Say who you would ask and what."
+        : "Asking a Coworker is for your owner's own requests. Tell them who you would ask and what.",
     );
   }
   const asked = await prisma.sokoBotToolCall.count({
@@ -262,9 +265,10 @@ export async function askCoworker(
     );
     const room = await createOrGetCoworkerQuestionRoom(tx, {
       organizationId,
-      ownerUserId,
+      memberUserId,
       sokoBotId: authorized.turn.sokoBotId,
       coworkers,
+      discoverability: shared ? "public" : "private",
     });
     return runtime.postChat(
       authorized,

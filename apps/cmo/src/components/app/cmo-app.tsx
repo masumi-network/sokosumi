@@ -17,6 +17,7 @@ import {
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
+import type { ChatWork } from "../../lib/chat-work";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
@@ -36,6 +37,7 @@ import {
   StrategyCard,
   UpdateCard,
 } from "./cards";
+import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
 import type { DraftActions, DraftResult } from "./draft-post";
 import {
@@ -61,6 +63,8 @@ export interface CmoAppActions
     overview: CmoOverview | null;
     messages: CusoMessage[];
   }>;
+  /** What Cuso made, or is making, in the chat, as it stands now. */
+  loadChatWork: () => Promise<ChatWork[]>;
   sendMessage: (content: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
   loadPieceText: (entryId: string) => Promise<string | null>;
@@ -96,6 +100,8 @@ export interface CmoAppActions
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** Moves Cuso's routines to this time zone; a refusal comes back as text. */
+  setTimeZone: (timeZone: string) => Promise<string | null>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
   /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
@@ -111,6 +117,8 @@ export interface CmoAppActions
 interface CmoAppProps {
   overview: CmoOverview;
   messages: CusoMessage[];
+  /** The pictures, videos and voice-overs Cuso started in the chat. */
+  work?: ChatWork[];
   name: string;
   email: string;
   /** Where a redirect (a channel connection) returns to. */
@@ -200,6 +208,7 @@ function suggestions(overview: CmoOverview): string[] {
 export function CmoApp({
   overview: initialOverview,
   messages: initialMessages,
+  work: initialWork = [],
   name,
   email,
   initialView = "chat",
@@ -210,6 +219,7 @@ export function CmoApp({
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
+  const [work, setWork] = useState(initialWork);
   const [view, setView] = useState<View>(initialView);
   // Each page has its own address, so reload, Back and new tabs land on it.
   const go = useCallback((next: View) => {
@@ -237,7 +247,12 @@ export function CmoApp({
   }, [initialView]);
 
   const refresh = useCallback(async () => {
-    const state = await actions.loadState().catch(() => null);
+    // On its own: the chat still shows when one of the two reads fails.
+    const [state, made] = await Promise.all([
+      actions.loadState().catch(() => null),
+      actions.loadChatWork().catch(() => null),
+    ]);
+    if (made) setWork(made);
     if (!state?.overview) return;
     setOverview(state.overview);
     setMessages(state.messages);
@@ -255,7 +270,7 @@ export function CmoApp({
     };
   }, [refresh]);
 
-  const thread = buildThread(overview, messages);
+  const thread = buildThread(overview, messages, work);
   const threadLength = thread.length;
   // What Cuso is doing sits under the thread, so it scrolls into view too.
   const working =
@@ -591,6 +606,7 @@ export function CmoApp({
                   name={name}
                   email={email}
                   startOver={actions.startOver}
+                  setTimeZone={actions.setTimeZone}
                   signOut={actions.signOut}
                   topUp={topUp}
                   plans={plans}
@@ -662,6 +678,7 @@ function PauseButton({ pause }: { pause: () => Promise<void> }) {
 function threadKey(item: ThreadItem): string {
   if (item.kind === "message") return `m-${item.message.id}`;
   if (item.kind === "update") return `u-${item.update.id}`;
+  if (item.kind === "work") return `w-${item.work.id}`;
   return item.kind;
 }
 
@@ -698,6 +715,13 @@ function ThreadEntry({
           {renderInline(item.message.content, webOriginOf(overview))}
         </p>
         {item.message.trace ? <HowIGotHere trace={item.message.trace} /> : null}
+      </CusoSays>
+    );
+  }
+  if (item.kind === "work") {
+    return (
+      <CusoSays at={item.at}>
+        <MadeInChat work={item.work} retry={actions.compose} />
       </CusoSays>
     );
   }

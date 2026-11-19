@@ -2,7 +2,9 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
+  Bot,
   CalendarDays,
+  Clapperboard,
   Code2,
   Coins,
   HardDrive,
@@ -17,14 +19,17 @@ import {
   SearchCheck,
   Share2,
   ShieldCheck,
+  Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactElement } from "react";
+import { type ComponentProps, type ReactElement } from "react";
+import { withYouEntry } from "@/app/components/mobile-app-chrome";
 import {
   MobileStackedMenuGroup,
   MobileStackedMenuLink,
 } from "@/app/components/mobile-stacked-menu/mobile-stacked-menu";
+import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { getAccountNavItems } from "@/app/components/sidebar/components/account-menu-config";
 import type {
   AccountAdminSettingsChrome,
@@ -45,6 +50,9 @@ import { useSelfPresence } from "@/hooks/use-self-presence";
 import { getInitials } from "@/lib/utils/text";
 
 const ADMIN_HREF = "/admin";
+const AGENTS_HREF = "/agents";
+const CONTACTS_HREF = "/contacts";
+const TIKTOK_STUDIO_HREF = "/tiktok-studio";
 const DRIVE_HREF = "/drive";
 const HISTORY_HREF = "/history";
 const STUDIO_HREF = "/studio";
@@ -78,6 +86,7 @@ export function YouPageClient({
   const { showLogoutModal } = useGlobalModalsContext();
   const router = useRouter();
   const presence = useSelfPresence();
+  const { hrefFor } = useProjectScope();
 
   const displayName = resolveAccountDisplayName(
     sessionUser.name,
@@ -95,13 +104,12 @@ export function YouPageClient({
   }
 
   function getAccountItemLabel(translationKey: string): string {
+    // The header bell is the inbox, "Notifications"; this row opens settings.
+    if (translationKey === "notifications") {
+      return tCredit("notificationSettings");
+    }
     return tCredit(
-      translationKey as
-        | "account"
-        | "billing"
-        | "connections"
-        | "notifications"
-        | "organization",
+      translationKey as "account" | "billing" | "connections" | "organization",
     );
   }
 
@@ -167,7 +175,7 @@ export function YouPageClient({
 
         <nav aria-label={tYou("title")} className="space-y-6">
           <MobileStackedMenuGroup>
-            <MobileStackedMenuLink
+            <YouRowLink
               href={HISTORY_HREF}
               icon={<History className="size-4 shrink-0" aria-hidden />}
               label={tMenu("history")}
@@ -176,54 +184,74 @@ export function YouPageClient({
           </MobileStackedMenuGroup>
 
           <MobileStackedMenuGroup>
-            <MobileStackedMenuLink
+            {/* The sidebar's Agents, TikTok Studio and Contacts rows: phones
+                have no other way in. */}
+            <YouRowLink
+              href={AGENTS_HREF}
+              icon={<Bot className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("exploreAgents")}
+              testId="you-agents"
+            />
+            <YouRowLink
               href={TASK_SCHEDULES_PATH}
               icon={<Repeat className="size-4 shrink-0" aria-hidden />}
               label={tMenu("schedules")}
               testId="you-schedules"
             />
             {/* The sidebar's Calendar row: phones have no other way in. */}
-            <MobileStackedMenuLink
+            <YouRowLink
               href="/calendar"
               icon={<CalendarDays className="size-4 shrink-0" aria-hidden />}
               label={tMenu("calendar")}
               testId="you-calendar"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={STUDIO_HREF}
               icon={<ImagePlus className="size-4 shrink-0" aria-hidden />}
               label={tMenu("contentStudio")}
               testId="you-studio"
             />
+            <YouRowLink
+              href={hrefFor(TIKTOK_STUDIO_HREF)}
+              icon={<Clapperboard className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("tiktokStudio")}
+              testId="you-tiktok-studio"
+            />
             {/* The sidebar's Social, SEO and Ads rows, for phones, where the
                 You page is the menu. */}
-            <MobileStackedMenuLink
+            <YouRowLink
               href={SOCIAL_HREF}
               icon={<Share2 className="size-4 shrink-0" aria-hidden />}
               label={tMenu("social")}
               testId="you-social"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={SEO_HREF}
               icon={<SearchCheck className="size-4 shrink-0" aria-hidden />}
               label={tMenu("seo")}
               testId="you-seo"
             />
-            <MobileStackedMenuLink
+            <YouRowLink
               href={ADS_HREF}
               icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
               label={tMenu("ads")}
               testId="you-ads"
             />
             {newsletterEnabled ? (
-              <MobileStackedMenuLink
+              <YouRowLink
                 href="/newsletter"
                 icon={<Mail className="size-4 shrink-0" />}
                 label={tMenu("newsletter")}
                 testId="you-newsletter"
               />
             ) : null}
-            <MobileStackedMenuLink
+            <YouRowLink
+              href={CONTACTS_HREF}
+              icon={<Users className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("contacts")}
+              testId="you-contacts"
+            />
+            <YouRowLink
               href={DRIVE_HREF}
               icon={<HardDrive className="size-4 shrink-0" aria-hidden />}
               label={tMenu("drive")}
@@ -290,6 +318,14 @@ export function YouPageClient({
       </div>
     </div>
   );
+}
+
+/** A destination row: the page it opens keeps You on phones. */
+function YouRowLink({
+  href,
+  ...props
+}: ComponentProps<typeof MobileStackedMenuLink>) {
+  return <MobileStackedMenuLink {...props} href={withYouEntry(href)} />;
 }
 
 function YouPageAvatar({
