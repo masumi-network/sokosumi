@@ -604,17 +604,53 @@ const PAGE_SECTIONS = 6;
 const HOMEPAGE_FILES = ["home.jpg", "home-mobile.jpg"];
 const capturing = new Set<string>();
 
+/** A file a capture could not save, twice: what it was and why. */
+interface SaveFailure {
+  folder: string;
+  bytes: number;
+  failure: ReturnType<typeof messageSafeErrorFields>;
+}
+
+/**
+ * Saves one file of a capture, trying once more when it fails. A file that
+ * cannot be saved is left out and noted in `failures`: it never ends the
+ * capture, which is best effort file by file.
+ */
+async function saveFile(
+  drive: CusoDrive,
+  target: { folder: string; filename: string },
+  body: Buffer,
+  contentType: string,
+  failures?: SaveFailure[],
+): Promise<string | null> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await saveCusoProjectFile(drive, target, body, contentType);
+    } catch (error) {
+      if (attempt < 2) continue;
+      failures?.push({
+        folder: target.folder,
+        bytes: body.byteLength,
+        failure: messageSafeErrorFields(error),
+      });
+      return null;
+    }
+  }
+}
+
 function saveShot(
   drive: CusoDrive,
   folder: string,
   name: string,
   screenshot: Buffer,
+  failures?: SaveFailure[],
 ): Promise<string | null> {
-  return saveCusoProjectFile(
+  return saveFile(
     drive,
     { folder, filename: `${slug(name)}.jpg` },
     screenshot,
     "image/jpeg",
+    failures,
   );
 }
 
@@ -766,6 +802,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   const deadline = Date.now() + CAPTURE_BUDGET_MS;
   const inTime = () => Date.now() < deadline;
   const index: BrandIndex = { pages: [], sections: [] };
+  const failures: SaveFailure[] = [];
 
   /**
    * Saves what one page of the brand gave, each file as it is ready. False
@@ -776,13 +813,20 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     if (index.pages.some((page) => page.url === capture.url)) return false;
     const name = slug(label);
     index.pages.push({ name, url: capture.url, title: capture.title });
-    await saveShot(drive, CMO_BRAND_MEDIA_FOLDER, name, capture.screenshot);
+    await saveShot(
+      drive,
+      CMO_BRAND_MEDIA_FOLDER,
+      name,
+      capture.screenshot,
+      failures,
+    );
     if (capture.fullPage) {
       await saveShot(
         drive,
         `${CMO_BRAND_MEDIA_FOLDER}/Full pages`,
         name,
         capture.fullPage,
+        failures,
       );
     }
     for (const [position, section] of capture.sections.entries()) {
@@ -805,6 +849,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
         `${CMO_BRAND_MEDIA_FOLDER}/Sections`,
         file,
         section.screenshot,
+        failures,
       );
     }
     return true;
@@ -852,6 +897,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
             CMO_BRAND_MEDIA_FOLDER,
             `${page.name}${MOBILE_SUFFIX}`,
             phone.screenshot,
+            failures,
           );
         }
       });
@@ -864,6 +910,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
             `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
             page.name,
             capture.screenshot,
+            failures,
           );
         }
       });
@@ -891,23 +938,45 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
       const filename = image.alt.trim()
         ? `${slot}-${slug(image.alt)}.jpg`
         : `picture-${slot}.jpg`;
-      await saveCusoProjectFile(
+      await saveFile(
         drive,
         { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
         body,
         "image/jpeg",
+        failures,
       );
     }
   } finally {
     await logo;
     // Written last and always, also after a capture that threw: it marks
     // the Project as indexed, so the backfill moves on to the next Cuso.
-    await saveCusoProjectFile(
+    await saveFile(
       drive,
       { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
       Buffer.from(JSON.stringify(index, null, 2)),
       "application/json",
+      failures,
     );
+    if (failures.length > 0) {
+      const first = failures[0] as SaveFailure;
+      emitCoreWarning(
+        {
+          operation: "cmo_brand_media_save",
+          sokoBot: { id: sokoBotId },
+          brandMedia: {
+            failed: failures.length,
+            folder: first.folder.replace(CMO_BRAND_MEDIA_FOLDER, "") || "/",
+            bytes: first.bytes,
+          },
+          failure: first.failure,
+        },
+        {
+          message: "Some of the brand's research files could not be saved",
+          why: "Saving a capture file to the Project's Files failed twice",
+          fix: "The capture kept every other file. If it repeats, look up the error name and code under failure and the file size under brandMedia.",
+        },
+      );
+    }
   }
   nudgeFileIndexing();
 }
