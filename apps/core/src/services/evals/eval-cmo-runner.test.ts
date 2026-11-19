@@ -17,6 +17,7 @@ const prisma = vi.hoisted(() => {
     dataTable: { deleteMany: ok() },
     contactList: { deleteMany: ok() },
     sokoBotSchedule: { deleteMany: ok() },
+    fileProjectLink: { deleteMany: ok() },
     socialComment: {
       deleteMany: ok(),
       create: vi.fn().mockResolvedValue({ id: "comment-1" }),
@@ -80,6 +81,16 @@ describe("strategy eval cases", () => {
   const evalCase = CMO_EVAL_CASES.find(
     (item) => item.id === "cmo-strategy-mailchimp",
   )!;
+
+  it("drops the last brand's page screenshots when a lane gets a new brand", async () => {
+    await prepareCmoChatCase(lane as never, "cmo-brand");
+    expect(prisma.fileProjectLink.deleteMany).toHaveBeenCalledWith({
+      where: {
+        projectId: lane.cusoProjectId,
+        resource: { sourceId: { contains: "/Brand research/" } },
+      },
+    });
+  });
 
   it("passes the frozen site language into fresh strategy generation", async () => {
     await startCmoCase(evalCase, lane, context);
