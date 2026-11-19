@@ -57757,6 +57757,29 @@ export const CmoTopUpCheckoutSchema = {
     ]
 } as const;
 
+export const CmoDraftApproveSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CmoDraftRevision'
+        },
+        {
+            type: 'object',
+            properties: {
+                tikTokSettings: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/TikTokPostSettings'
+                        },
+                        {
+                            description: 'A TikTok video only: who sees it, what viewers may do, and the owner\'s confirmation of this video (`previewConsent`) and of TikTok\'s Music Usage Confirmation. Required for TikTok, which posts the video at once.'
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} as const;
+
 export const CmoDraftRevisionSchema = {
     type: 'object',
     properties: {
@@ -57767,6 +57790,42 @@ export const CmoDraftRevisionSchema = {
     },
     required: [
         'revision'
+    ]
+} as const;
+
+export const CmoTikTokCreatorSchema = {
+    type: 'object',
+    properties: {
+        creator_nickname: {
+            type: 'string'
+        },
+        privacy_level_options: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The audiences TikTok allows now. Empty: no post is possible right now.'
+        },
+        comment_disabled: {
+            type: 'boolean'
+        },
+        duet_disabled: {
+            type: 'boolean'
+        },
+        stitch_disabled: {
+            type: 'boolean'
+        },
+        max_video_post_duration_sec: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'creator_nickname',
+        'privacy_level_options',
+        'comment_disabled',
+        'duet_disabled',
+        'stitch_disabled',
+        'max_video_post_duration_sec'
     ]
 } as const;
 

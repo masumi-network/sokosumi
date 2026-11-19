@@ -14528,11 +14528,27 @@ export type CmoTopUpCheckout = {
     url: string;
 };
 
+export type CmoDraftApprove = CmoDraftRevision & {
+    tikTokSettings?: TikTokPostSettings & unknown;
+};
+
 export type CmoDraftRevision = {
     /**
      * The draft's revision as shown; a changed draft is refused.
      */
     revision: number;
+};
+
+export type CmoTikTokCreator = {
+    creator_nickname: string;
+    /**
+     * The audiences TikTok allows now. Empty: no post is possible right now.
+     */
+    privacy_level_options: Array<string>;
+    comment_disabled: boolean;
+    duet_disabled: boolean;
+    stitch_disabled: boolean;
+    max_video_post_duration_sec: number;
 };
 
 export type CmoDraftEdit = CmoDraftRevision & {
@@ -91065,7 +91081,7 @@ export type RevertCmoUpdateForProjectResponses = {
 export type RevertCmoUpdateForProjectResponse = RevertCmoUpdateForProjectResponses[keyof RevertCmoUpdateForProjectResponses];
 
 export type ApproveCmoDraftForProjectData = {
-    body: CmoDraftRevision;
+    body: CmoDraftApprove;
     path: {
         projectId: string;
         postId: string;
@@ -91169,6 +91185,97 @@ export type ApproveCmoDraftForProjectResponses = {
 };
 
 export type ApproveCmoDraftForProjectResponse = ApproveCmoDraftForProjectResponses[keyof ApproveCmoDraftForProjectResponses];
+
+export type ReadCmoTikTokCreatorForDraftData = {
+    body?: never;
+    path: {
+        projectId: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/drafts/{postId}/tiktok';
+};
+
+export type ReadCmoTikTokCreatorForDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such TikTok post
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * TikTok is not connected, or needs connecting again
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * TikTok could not be read right now
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReadCmoTikTokCreatorForDraftError = ReadCmoTikTokCreatorForDraftErrors[keyof ReadCmoTikTokCreatorForDraftErrors];
+
+export type ReadCmoTikTokCreatorForDraftResponses = {
+    /**
+     * The creator's options
+     */
+    200: {
+        data: CmoTikTokCreator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReadCmoTikTokCreatorForDraftResponse = ReadCmoTikTokCreatorForDraftResponses[keyof ReadCmoTikTokCreatorForDraftResponses];
 
 export type DeclineCmoDraftForProjectData = {
     body: CmoDraftRevision;

@@ -30,6 +30,7 @@ import mountAddCmoCompetitorForProject from "./projects/[projectId]/competitors/
 import mountApproveCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/approve/post.js";
 import mountDeclineCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/decline/post.js";
 import mountEditCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/patch.js";
+import mountReadCmoTikTokCreatorForDraft from "./projects/[projectId]/drafts/[postId]/tiktok/get.js";
 import mountGetCmoOverviewForProject from "./projects/[projectId]/get.js";
 import mountAnswerCmoMarketingStrategyQuestionForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/answers/post.js";
 import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/approve/post.js";
@@ -116,6 +117,7 @@ mountRequestCmoStrategyForProject(app);
 mountStartCmoTopUpForProject(app);
 mountRevertCmoUpdateForProject(app);
 mountApproveCmoDraftForProject(app);
+mountReadCmoTikTokCreatorForDraft(app);
 mountDeclineCmoDraftForProject(app);
 mountEditCmoDraftForProject(app);
 

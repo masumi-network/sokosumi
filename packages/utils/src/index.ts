@@ -160,8 +160,10 @@ export {
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
 export {
   CMO_CHANNELS,
+  CMO_OWNER_CONFIRMED_CHANNELS,
   type CmoChannelKey,
   isCmoChannelFormat,
+  isCmoOwnerConfirmedChannel,
   isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";

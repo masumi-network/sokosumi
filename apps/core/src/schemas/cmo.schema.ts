@@ -9,6 +9,7 @@ import {
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
+import { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
 /** An IANA time zone this server knows, such as "America/New_York". */
@@ -425,6 +426,31 @@ export const cmoDraftRevisionSchema = z
       .describe("The draft's revision as shown; a changed draft is refused."),
   })
   .openapi("CmoDraftRevision");
+
+export const cmoDraftApproveSchema = cmoDraftRevisionSchema
+  .extend({
+    tikTokSettings: tikTokPostSettingsSchema
+      .optional()
+      .describe(
+        "A TikTok video only: who sees it, what viewers may do, and the owner's confirmation of this video (`previewConsent`) and of TikTok's Music Usage Confirmation. Required for TikTok, which posts the video at once.",
+      ),
+  })
+  .openapi("CmoDraftApprove");
+
+export const cmoTikTokCreatorSchema = z
+  .object({
+    creator_nickname: z.string(),
+    privacy_level_options: z
+      .array(z.string())
+      .describe(
+        "The audiences TikTok allows now. Empty: no post is possible right now.",
+      ),
+    comment_disabled: z.boolean(),
+    duet_disabled: z.boolean(),
+    stitch_disabled: z.boolean(),
+    max_video_post_duration_sec: z.number().int(),
+  })
+  .openapi("CmoTikTokCreator");
 
 export const cmoDraftEditSchema = cmoDraftRevisionSchema
   .extend({ text: z.string().trim().min(1).max(25_000) })
