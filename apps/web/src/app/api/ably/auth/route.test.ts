@@ -14,6 +14,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
 }));
 
 import { expectConsole } from "@sokosumi/utils/test-console";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { POST } from "./route";
 
 function createRequest() {
@@ -93,15 +94,20 @@ describe("POST /api/ably/auth", () => {
   it.each([403, 429, 500, 503])(
     "keeps Core %i retryable instead of reporting session loss",
     async (status) => {
-      expectConsole(
+      const errorCalls = expectConsole(
         "error",
-        "Failed to mint Ably token via Core: CoreApiRequestError: Core Ably token mint failed",
+        "Failed to mint Ably token via Core:",
       );
       fetchMock.mockResolvedValue(new Response("Core error", { status }));
 
       const response = await POST(createRequest());
 
       expect(response.status).toBe(502);
+      expect(errorCalls[0]?.[1]).toBeInstanceOf(CoreApiRequestError);
+      expect(errorCalls[0]?.[1]).toMatchObject({
+        message: `Core Ably token mint failed (${status}): Core error`,
+        status,
+      });
     },
   );
 
