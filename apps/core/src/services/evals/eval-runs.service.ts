@@ -256,11 +256,12 @@ async function finish(
   outcome: CaseOutcome,
   startedAt: Date | null,
 ) {
+  const turnId = outcome.turnIds.at(0);
   await prisma.evalResult.update({
     where: { id: resultId },
     data: {
       ...outcomeData(outcome, startedAt),
-      turnId: outcome.turnIds[0] ?? undefined,
+      ...(turnId !== undefined ? { turnId } : {}),
       costUsdMicros: await turnsCost(outcome.turnIds),
     },
   });
