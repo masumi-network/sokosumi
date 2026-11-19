@@ -6,6 +6,9 @@ import {
   noteFinding,
   pageDetailGuidance,
   pageDetailGuidanceRows,
+  pageDetailItemHref,
+  pageDetailItemName,
+  pageDetailItems,
   pageDetailReferences,
   seoActionBucket,
   seoActionWorklist,
@@ -563,6 +566,66 @@ describe("tool ranges", () => {
     expect(withoutRuleCodes(description[1])).toBe(
       "vendor tools: Ahrefs under 160; Screaming Frog 70 to 155; Moz 55 to 300; Yoast 120 to 156",
     );
+  });
+});
+
+describe("page detail items", () => {
+  it("lifts a note's flagged files out of its guidance and names each by its file", () => {
+    const { groups, guidance } = pageDetailItems([
+      "camera file name: https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1",
+      "camera file name: DSC01234.JPG",
+      "+3 more",
+      "vendor tools: Ahrefs under 70 (N1-246)",
+    ]);
+    expect(groups).toEqual([
+      {
+        label: "cameraFileName",
+        values: [
+          "https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1",
+          "DSC01234.JPG",
+        ],
+        // The bot's count of the files past its first ten stays with them, not with the rule's guidance.
+        more: 3,
+      },
+    ]);
+    expect(guidance).toEqual(["vendor tools: Ahrefs under 70 (N1-246)"]);
+    expect(pageDetailItemName(groups[0].values[0])).toBe("img_2696-1.jpg");
+    expect(pageDetailItemName("/u/caf%C3%A9%20au%20lait.jpg?w=5")).toBe(
+      "café au lait.jpg",
+    );
+    expect(pageDetailItemName("data:image/gif;base64,R0lGODlh")).toBeNull();
+  });
+
+  it("gives a +N more after guidance to the guidance, not to the list above it", () => {
+    const { groups, guidance } = pageDetailItems([
+      "img without alt: https://example.com/a.png",
+      "Google: describe the image",
+      "+4 more",
+    ]);
+    expect(groups[0].more).toBe(0);
+    expect(guidance).toEqual(["Google: describe the image", "+4 more"]);
+  });
+
+  it("keeps other rows' label lines as they are: they are page facts, not lists", () => {
+    const lines = [
+      "indexing: BLOCKED_BY_META_TAG",
+      "robots.txt: DISALLOWED",
+      "page fetch: SOFT_404",
+      "version: https://example.com/de/",
+    ];
+    expect(pageDetailItems(lines)).toEqual({ groups: [], guidance: lines });
+  });
+
+  it("links only whole web addresses", () => {
+    expect(pageDetailItemHref("https://example.com/a.jpg")).toBe(
+      "https://example.com/a.jpg",
+    );
+    expect(pageDetailItemHref("javascript:alert(1)")).toBeUndefined();
+    expect(pageDetailItemHref("DSC01234.JPG")).toBeUndefined();
+    // The bot cut this line at its length cap: the address is not the file's.
+    expect(
+      pageDetailItemHref("https://example.com/very-long-na…"),
+    ).toBeUndefined();
   });
 });
 

@@ -318,6 +318,97 @@ export function pageDetailGuidance(evidence: readonly string[]) {
 }
 
 /**
+ * A line naming one flagged image, e.g. "camera file name: https://example.com/img_1631.jpg" (seo-bot O-21, O-18).
+ * Only these labels: other rows write "label: value" lines that are page facts, not lists.
+ */
+const ITEM_LINE = /^(camera file name|img without alt): (.+)$/;
+/** The message key of each item label, so the list's caption is in the reader's language. */
+export const ITEM_LABEL_KEYS = {
+  "camera file name": "cameraFileName",
+  "img without alt": "imgWithoutAlt",
+} as const;
+/** The bot's count of the items it left out after its first ten, e.g. "+2 more". */
+const MORE_LINE = /^\+(\d+) more$/;
+
+/**
+ * A row's later lines split into the items the check flagged, grouped by their label, and its guidance.
+ * Items belong to their page, so they show on every row; guidance shows once per rule.
+ */
+export function pageDetailItems(lines: readonly string[]) {
+  const groups = new Map<string, { values: string[]; more: number }>();
+  const guidance: string[] = [];
+  let last: { values: string[]; more: number } | undefined;
+  for (const line of lines) {
+    const item = ITEM_LINE.exec(line);
+    const more = MORE_LINE.exec(line);
+    if (item) {
+      last = groups.get(item[1]) ?? { values: [], more: 0 };
+      last.values.push(item[2]);
+      groups.set(item[1], last);
+    } else if (more && last) last.more += Number(more[1]);
+    else {
+      // A "+N more" after guidance is not the list's.
+      last = undefined;
+      guidance.push(line);
+    }
+  }
+  return {
+    groups: [...groups].map(([label, group]) => ({
+      label: ITEM_LABEL_KEYS[label as keyof typeof ITEM_LABEL_KEYS],
+      ...group,
+    })),
+    guidance,
+  };
+}
+
+function decoded(text: string) {
+  try {
+    return decodeURIComponent(text);
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * An item as people scan it: a URL's file name, e.g. "img_1631-1.jpg", not its host and query.
+ * Null for an image written into the page (a data: URL), which has no name.
+ */
+export function pageDetailItemName(value: string) {
+  if (value.startsWith("data:")) return null;
+  const path = URL.canParse(value)
+    ? new URL(value).pathname
+    : value.split(/[?#]/)[0];
+  const last = path.split("/").filter(Boolean).pop();
+  return last ? decoded(last) : value;
+}
+
+/**
+ * An item's link: only a web address, never another scheme such as javascript:.
+ * None for a value the bot cut at its line length ("…"): that address is not the file's.
+ */
+export function pageDetailItemHref(value: string) {
+  if (value.endsWith("…")) return undefined;
+  const url = URL.canParse(value) ? new URL(value) : null;
+  return url && (url.protocol === "https:" || url.protocol === "http:")
+    ? url.href
+    : undefined;
+}
+
+/** The share line of a multi-item note, e.g. "6 of 23 image file names": how many items failed of how many. */
+export function noteShare(line: string) {
+  const share = /^(\d+) of (\d+) /.exec(line);
+  return share ? { found: Number(share[1]), total: Number(share[2]) } : null;
+}
+
+/**
+ * The rule IDs whose note gets its own plain words: their share line alone ("6 of 23 image file names")
+ * does not say what is wrong or why it matters.
+ */
+export const PLAIN_NOTE_COPY: Readonly<Record<string, "cameraFileNames">> = {
+  "O-21": "cameraFileNames",
+};
+
+/**
  * The rows that show their guidance: the first row with each rule's lines.
  * The same lines on another page would repeat; different lines still show.
  */
@@ -326,7 +417,7 @@ export function pageDetailGuidanceRows(
 ) {
   const first = new Map<string, string>();
   for (const row of rows) {
-    const guidance = pageDetailGuidance(row.evidence);
+    const { guidance } = pageDetailItems(pageDetailGuidance(row.evidence));
     const key = [row.name, ...guidance].join("\n");
     if (guidance.length && !first.has(key)) first.set(key, row.id);
   }

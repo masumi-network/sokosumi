@@ -12403,14 +12403,15 @@
         "checkedOn": "Geprüft am",
         "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
         "rank": {
-          "absent": "Nicht in den Top {top}",
+          "title": "Google-Ranking",
+          "absent": "Nicht in Googles Top {top}",
           "position": "Position {position}",
           "featuredSnippet": "Featured Snippet, Position {position}",
           "forKeyword": "für „{keyword}“",
-          "source": "Markt {country}, {language} · DataForSEO",
-          "aiNotCited": "Eine KI-Übersicht erscheint und zitiert die Seite nicht",
-          "aiCited": "Die KI-Übersicht zitiert die Seite",
-          "othersAbsent": "{count, plural, one {# weiteres Keyword} other {# weitere Keywords}}: keines in den Top {top}",
+          "source": "Google · {country} · {language}",
+          "aiNotCited": "Google zeigt für diese Suche eine KI-Übersicht. Sie nennt diese Seite nicht als Quelle.",
+          "aiCited": "Googles KI-Übersicht für diese Suche nennt diese Seite als Quelle.",
+          "othersAbsent": "Auch nicht in den Top {top} für {count, plural, one {# weiteres Keyword} other {# weitere Keywords}}",
           "searchConsole": "Durchschnittliche Position in der Search Console: {position}",
           "serpRead": "Gelesenes Suchergebnis:",
           "allDetails": "Alle Details",
@@ -12447,6 +12448,18 @@
         "noteFound": "Gefunden: {found}",
         "suggestionCount": "{count, plural, one {# Vorschlag} other {# Vorschläge}}",
         "noteRuleName": "Regel: „{name}“",
+        "flaggedItems": {
+          "cameraFileName": "{count, plural, one {# Kamera-Dateiname} other {# Kamera-Dateinamen}}",
+          "imgWithoutAlt": "{count, plural, one {# Bild ohne Alt-Text} other {# Bilder ohne Alt-Text}}"
+        },
+        "moreItems": "+{count} weitere",
+        "inlineImage": "Bild in der Seite",
+        "plainNote": {
+          "cameraFileNames": {
+            "found": "{found, plural, one {# von {total} Bildern hat} other {# von {total} Bildern haben}} einen Kamera-Dateinamen",
+            "why": "Namen wie IMG_1234.jpg sagen nichts über das Bild. Google liest einen Dateinamen als kleinen Hinweis für die Bildersuche. Wenn du ein Bild neu hochlädst, benenne es nach seinem Inhalt, zum Beispiel hafen-bei-sonnenuntergang.jpg."
+          }
+        },
         "suggestion": "Vorschlag:",
         "periodCompare": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous} ({change})",
         "periodBetter": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt besser",

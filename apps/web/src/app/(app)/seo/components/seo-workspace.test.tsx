@@ -829,16 +829,20 @@ describe("SEO workspace integration", () => {
         name: "Title, description and other page details",
       }),
     );
-    const row = screen.getByText("Organic position per device").closest("li");
+    const row = screen.getByText("Google ranking").closest("li");
     if (!row) throw new Error("no position row");
     // The result leads; the other keywords are one line; the rule and the raw head wait in the fold.
     expect(row).toHaveTextContent(
-      "Not in the top 16 for “macbook charge limit”",
+      "Not in Google's top 16 for “macbook charge limit”",
+    );
+    // The Market reads as a country and a language, not as codes.
+    expect(row).toHaveTextContent("Google · United States · English");
+    expect(row).toHaveTextContent(
+      "Google shows an AI Overview for this search. It does not list this page as a source.",
     );
     expect(row).toHaveTextContent(
-      "An AI Overview shows and does not cite the page",
+      "Also not in the top 15 for 2 other keywords",
     );
-    expect(row).toHaveTextContent("2 other keywords: none in the top 15");
     const rule = within(row).getByText(/^position rule:/);
     expect(rule).not.toBeVisible();
     await user.click(within(row).getByText("All details"));
@@ -849,6 +853,104 @@ describe("SEO workspace integration", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("says in plain words what a camera file name note found and lists the files by name", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const file =
+      "https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1";
+    workspace.findings.push({
+      id: "camera-names",
+      observationId: "check-images",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-21",
+      title: "Image file names",
+      severity: "note",
+      evidence: [
+        "2 of 23 image file names",
+        `camera file name: ${file}`,
+        "camera file name: javascript:alert(1)",
+      ],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    workspace.findings.push({
+      id: "alt-missing",
+      observationId: "check-images",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-18",
+      title: "Image alt text",
+      severity: "note",
+      evidence: [
+        "1 of 23 images",
+        "img without alt: https://example.com/a.png",
+        "+2 more",
+      ],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Title, description and other page details",
+      }),
+    );
+    const heading = screen.getByRole("heading", {
+      name: "2 of 23 images have a camera file name",
+    });
+    const row = heading.closest("li");
+    if (!row) throw new Error("no note row");
+    expect(row).toHaveTextContent("Rule: “Image file names”");
+    expect(row).toHaveTextContent("for example harbor-at-sunset.jpg");
+    // Each file shows by its name and opens the full address; a non-web value is text, not a link.
+    expect(
+      within(row).getByRole("link", { name: "img_2696-1.jpg" }),
+    ).toHaveAttribute("href", file);
+    expect(within(row).getByText("alert(1)")).not.toHaveAttribute("href");
+    expect(row).not.toHaveTextContent("Found:");
+    expect(row).not.toHaveTextContent("camera file name:");
+    // Another rule's list says in words what its items are, counting the ones the bot left out.
+    expect(screen.getByText("3 images without alt text")).toBeVisible();
+    expect(screen.getByText("+2 more")).toBeVisible();
+  });
+
+  it("keeps the found line of a camera file name note without a share line", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "camera-names-old",
+      observationId: "check-images-old",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-21",
+      title: "Image file names",
+      severity: "note",
+      evidence: ["camera file name: https://example.com/IMG_0001.jpg"],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    await user.click(
+      screen.getByRole("heading", {
+        name: "Title, description and other page details",
+      }),
+    );
+    // No count to put in plain words: the row keeps what the check wrote.
+    expect(
+      screen.getByRole("heading", { name: "Found: camera file name" }),
+    ).toBeVisible();
+    expect(screen.getByText("https://example.com/IMG_0001.jpg")).toBeVisible();
   });
 
   it("splits page details into measurements and notes and folds their references", async () => {

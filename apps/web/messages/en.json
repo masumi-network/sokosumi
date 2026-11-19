@@ -12403,14 +12403,15 @@
         "checkedOn": "Checked",
         "diagnostics": "Title, description and other page details",
         "rank": {
-          "absent": "Not in the top {top}",
+          "title": "Google ranking",
+          "absent": "Not in Google's top {top}",
           "position": "Position {position}",
           "featuredSnippet": "Featured snippet, position {position}",
           "forKeyword": "for “{keyword}”",
-          "source": "Market {country}, {language} · DataForSEO",
-          "aiNotCited": "An AI Overview shows and does not cite the page",
-          "aiCited": "The AI Overview cites the page",
-          "othersAbsent": "{count, plural, one {# other keyword} other {# other keywords}}: none in the top {top}",
+          "source": "Google · {country} · {language}",
+          "aiNotCited": "Google shows an AI Overview for this search. It does not list this page as a source.",
+          "aiCited": "Google's AI Overview for this search lists this page as a source.",
+          "othersAbsent": "Also not in the top {top} for {count, plural, one {# other keyword} other {# other keywords}}",
           "searchConsole": "Search Console average position {position}",
           "serpRead": "Search result read:",
           "allDetails": "All details",
@@ -12447,6 +12448,18 @@
         "noteFound": "Found: {found}",
         "suggestionCount": "{count, plural, one {# suggestion} other {# suggestions}}",
         "noteRuleName": "Rule: “{name}”",
+        "flaggedItems": {
+          "cameraFileName": "{count, plural, one {# camera file name} other {# camera file names}}",
+          "imgWithoutAlt": "{count, plural, one {# image without alt text} other {# images without alt text}}"
+        },
+        "moreItems": "+{count} more",
+        "inlineImage": "image inside the page",
+        "plainNote": {
+          "cameraFileNames": {
+            "found": "{found, plural, one {# of {total} images has} other {# of {total} images have}} a camera file name",
+            "why": "Names like IMG_1234.jpg say nothing about the picture. Google reads a file name as a small hint for image search. When you upload an image again, name it after what it shows, for example harbor-at-sunset.jpg."
+          }
+        },
         "suggestion": "Suggestion:",
         "periodCompare": "Previous {days, plural, one {day} other {# days}}: {previous} ({change})",
         "periodBetter": "Previous {days, plural, one {day} other {# days}}: {previous}, better now",

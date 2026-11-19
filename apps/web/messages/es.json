@@ -12403,14 +12403,15 @@
         "checkedOn": "Comprobado el",
         "diagnostics": "Título, descripción y otros detalles de la página",
         "rank": {
-          "absent": "Fuera del top {top}",
+          "title": "Posición en Google",
+          "absent": "Fuera del top {top} de Google",
           "position": "Posición {position}",
           "featuredSnippet": "Fragmento destacado, posición {position}",
           "forKeyword": "para «{keyword}»",
-          "source": "Mercado {country}, {language} · DataForSEO",
-          "aiNotCited": "Aparece una vista general de IA que no cita la página",
-          "aiCited": "La vista general de IA cita la página",
-          "othersAbsent": "{count, plural, one {# palabra clave más} other {# palabras clave más}}: ninguna en el top {top}",
+          "source": "Google · {country} · {language}",
+          "aiNotCited": "Google muestra una vista general de IA para esta búsqueda. No incluye esta página como fuente.",
+          "aiCited": "La vista general de IA de Google para esta búsqueda incluye esta página como fuente.",
+          "othersAbsent": "Tampoco en el top {top} para {count, plural, one {# palabra clave más} other {# palabras clave más}}",
           "searchConsole": "Posición media en Search Console: {position}",
           "serpRead": "Resultado de búsqueda leído:",
           "allDetails": "Todos los detalles",
@@ -12447,6 +12448,18 @@
         "noteFound": "Encontrado: {found}",
         "suggestionCount": "{count, plural, one {# sugerencia} other {# sugerencias}}",
         "noteRuleName": "Regla: «{name}»",
+        "flaggedItems": {
+          "cameraFileName": "{count, plural, one {# nombre de archivo de cámara} other {# nombres de archivo de cámara}}",
+          "imgWithoutAlt": "{count, plural, one {# imagen sin texto alternativo} other {# imágenes sin texto alternativo}}"
+        },
+        "moreItems": "+{count} más",
+        "inlineImage": "imagen dentro de la página",
+        "plainNote": {
+          "cameraFileNames": {
+            "found": "{found, plural, one {# de {total} imágenes tiene} other {# de {total} imágenes tienen}} un nombre de archivo de cámara",
+            "why": "Nombres como IMG_1234.jpg no dicen nada de la imagen. Google lee el nombre del archivo como una pequeña pista para la búsqueda de imágenes. Cuando vuelvas a subir una imagen, nómbrala según lo que muestra, por ejemplo puerto-al-atardecer.jpg."
+          }
+        },
         "suggestion": "Sugerencia:",
         "periodCompare": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous} ({change})",
         "periodBetter": "{days, plural, one {Día anterior} other {# días anteriores}}: {previous}, ahora mejor",

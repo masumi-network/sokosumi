@@ -14,8 +14,13 @@ import {
   measuresOutsideToolRanges,
   measureValue,
   noteFinding,
+  noteShare,
+  PLAIN_NOTE_COPY,
   pageDetailGuidance,
   pageDetailGuidanceRows,
+  pageDetailItemHref,
+  pageDetailItemName,
+  pageDetailItems,
   pageDetailReferences,
   seoCheckedAt,
   seoOverviewModel,
@@ -89,8 +94,15 @@ function PageDetail({
   const measure = finding.severity === "measure";
   // The position measure is a short row of its own; its lines stay in a fold there.
   const rank = measure ? seoRankDetail(finding.evidence) : null;
-  const guidance =
-    showGuidance && !rank ? pageDetailGuidance(finding.evidence) : [];
+  // Items the check flagged (a file per line) belong to this page; the rule's guidance shows once.
+  const later = rank
+    ? { groups: [], guidance: [] }
+    : pageDetailItems(pageDetailGuidance(finding.evidence));
+  const guidance = showGuidance ? later.guidance : [];
+  // A note whose share line alone does not say what is wrong gets its own words.
+  const plainKey = measure ? undefined : PLAIN_NOTE_COPY[finding.rowId];
+  const share = plainKey && first !== undefined ? noteShare(first) : null;
+  const plain = plainKey && share ? { key: plainKey, ...share } : null;
   const value = measure && first ? measureValue(name, first) : undefined;
   // Each page's value gets its own fit, though only the first row shows the ranges.
   const fit = value
@@ -99,10 +111,10 @@ function PageDetail({
   // A note leads with what the check found on the page; its rule name can read as the opposite.
   // A long finding stays a foldable value under the rule, not a heading.
   const split =
-    !measure && first !== undefined ? noteFinding(first) : undefined;
+    !measure && !plain && first !== undefined ? noteFinding(first) : undefined;
   const note =
     split && split.found.length <= NOTE_VALUE_FOLD_CHARS ? split : undefined;
-  const detail = note ? note.detail : measure ? undefined : first;
+  const detail = note ? note.detail : measure || plain ? undefined : first;
   const foldable =
     detail !== undefined && detail.length > NOTE_VALUE_FOLD_CHARS;
   // With one page there is nothing to tell apart, unless the row is for a page removed since.
@@ -134,7 +146,6 @@ function PageDetail({
     <li className="space-y-1 py-3 first:pt-0 last:pb-0">
       {rank ? (
         <SeoRankDetailRow
-          name={name}
           headingId={headingId}
           detail={rank}
           evidence={finding.evidence}
@@ -184,11 +195,13 @@ function PageDetail({
             id={headingId}
             className="text-sm font-medium break-words"
           >
-            {note
-              ? t("overview.noteFound", { found: note.found })
-              : t("overview.noteRule", { name })}
+            {plain
+              ? t(`overview.plainNote.${plain.key}.found`, plain)
+              : note
+                ? t("overview.noteFound", { found: note.found })
+                : t("overview.noteRule", { name })}
           </NoteHeading>
-          {note ? (
+          {note || plain ? (
             <p className="text-muted-foreground text-xs">
               {t("overview.noteRuleName", { name })}
             </p>
@@ -205,8 +218,49 @@ function PageDetail({
               {detail}
             </p>
           ) : null}
+          {plain ? (
+            <p className="text-muted-foreground text-sm">
+              {t(`overview.plainNote.${plain.key}.why`)}
+            </p>
+          ) : null}
         </>
       )}
+      {later.groups.map((group) => (
+        <div key={group.label} className="space-y-0.5 text-xs">
+          {/* A plain note's heading already says what the items are. */}
+          {plain ? null : (
+            <p className="text-muted-foreground">
+              {t(`overview.flaggedItems.${group.label}`, {
+                count: group.values.length + group.more,
+              })}
+            </p>
+          )}
+          <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {group.values.map((value, index) => (
+              <li key={`${index}:${value}`} className="min-w-0 break-all">
+                {pageDetailItemHref(value) ? (
+                  <a
+                    href={pageDetailItemHref(value)}
+                    title={value}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline underline-offset-4"
+                  >
+                    {pageDetailItemName(value)}
+                  </a>
+                ) : (
+                  (pageDetailItemName(value) ?? t("overview.inlineImage"))
+                )}
+              </li>
+            ))}
+            {group.more ? (
+              <li className="text-muted-foreground">
+                {t("overview.moreItems", { count: group.more })}
+              </li>
+            ) : null}
+          </ul>
+        </div>
+      ))}
       {/* The check's own guidance: Google's rule, then what tools use. */}
       {guidance.length ? (
         <ul className="text-muted-foreground space-y-0.5 text-xs">

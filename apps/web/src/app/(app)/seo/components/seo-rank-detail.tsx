@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
   type SeoRankDetail,
@@ -12,6 +12,19 @@ import { SeoDate, SeoFoldSummary } from "./seo-shared";
 
 /** Orange marks an AI Overview that leaves the page out; grey one that cites it. */
 const AI_OVERVIEW_MARK = { cites: "bg-chart-5", leavesOut: "bg-chart-2" };
+
+/** A region or language code in the reader's words, e.g. "DE" as "Germany"; the code when the browser has no name. */
+function displayName(
+  locale: string,
+  type: "region" | "language",
+  code: string,
+) {
+  try {
+    return new Intl.DisplayNames([locale], { type }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
 
 function RankResult({ result }: { result: SeoRankResult }) {
   const t = useTranslations("App.Seo.overview.rank");
@@ -32,19 +45,18 @@ function RankResult({ result }: { result: SeoRankResult }) {
  * Overview and the other keywords in one line. Every line the check wrote stays in a fold under it.
  */
 export function SeoRankDetailRow({
-  name,
   headingId,
   detail,
   evidence,
   onShowRankings,
 }: {
-  name: string;
   headingId: string;
   detail: SeoRankDetail;
   evidence: readonly string[];
   onShowRankings?: () => void;
 }) {
   const t = useTranslations("App.Seo");
+  const locale = useLocale();
   const absentOthers = seoRankAbsentOthers(detail.others);
   // Each other keyword the page is not simply absent for gets its own line: a position, or what the read says.
   const listedOthers = detail.others.filter(
@@ -53,8 +65,9 @@ export function SeoRankDetailRow({
   return (
     <div className="space-y-1">
       <p className="text-sm break-words">
+        {/* The check's own name ("Organic position per device") stays in the fold's lines. */}
         <span id={headingId} className="font-medium">
-          {name}
+          {t("overview.rank.title")}
         </span>
         <span className="text-muted-foreground">
           {" · "}
@@ -77,8 +90,8 @@ export function SeoRankDetailRow({
       ) : null}
       <p className="text-muted-foreground text-xs">
         {t("overview.rank.source", {
-          country: detail.country,
-          language: detail.language,
+          country: displayName(locale, "region", detail.country),
+          language: displayName(locale, "language", detail.language),
         })}
         {detail.readAt ? (
           <>
