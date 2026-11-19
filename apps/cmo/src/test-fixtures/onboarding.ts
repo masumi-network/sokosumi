@@ -191,6 +191,11 @@ export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
   ],
   competitors: [{ ...shot("/cuso/searching.png"), name: "Moonshot" }],
   pictures: [],
+  logos: {
+    logo: { url: "/logo/cmo-xyz-lockup-stacked-text-black.svg", fileId: null },
+    dark: { url: "/logo/cmo-xyz-lockup-stacked-text-white.svg", fileId: null },
+    mark: { url: "/icon.svg", fileId: null },
+  },
 };
 
 /** A Brand Brain filled enough to render every Brand tile. */

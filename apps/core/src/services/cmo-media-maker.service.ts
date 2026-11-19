@@ -29,7 +29,10 @@ import {
 import { DEFAULT_ANIMATE_MODEL_ID } from "@/lib/image-studio/video-model";
 import { checkStyledPicture } from "@/lib/reference-library/style-check";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
-import { listCmoBrandPictures } from "@/services/cmo-brand-media.service";
+import {
+  listCmoBrandPictures,
+  readCmoBrandLogo,
+} from "@/services/cmo-brand-media.service";
 import { cmoBrandVisual } from "@/services/cmo-brand-visual.service";
 import type { Cuso } from "@/services/cmo-cuso.service";
 import { talkingVideoPresenter } from "@/services/cmo-presenter.service";
@@ -623,8 +626,13 @@ interface MediaContext {
 /** The brand a styled picture is made and finished with. */
 interface StyleBrand {
   colours: string[];
-  /** The Project's logo, placed on every styled picture. */
+  /**
+   * The logo placed on every styled picture: the full logo research saved,
+   * else the Project's icon.
+   */
   logo: Uint8Array | null;
+  /** The full logo for a dark background, when the site has one. */
+  darkLogo: Uint8Array | null;
 }
 
 /** The brand's colours (DESIGN.md) and logo bytes, read once per run. */
@@ -634,14 +642,49 @@ export async function loadStyleBrand(projectId: string): Promise<StyleBrand> {
     select: { logo: true, designMdUrl: true },
   });
   const visual = project ? await cmoBrandVisual(project, []) : null;
-  let logo: Uint8Array | null = null;
-  if (project?.logo) {
+  const saved = await readCmoBrandLogo(projectId);
+  let logo = saved.logo;
+  if (!logo && project?.logo) {
     const response = await fetch(project.logo, {
       signal: AbortSignal.timeout(15_000),
     }).catch(() => null);
     if (response?.ok) logo = new Uint8Array(await response.arrayBuffer());
   }
-  return { colours: visual?.colors ?? [], logo };
+  return { colours: visual?.colors ?? [], logo, darkLogo: saved.dark };
+}
+
+/** Below this average brightness (0 to 255) a corner takes the light logo. */
+const DARK_CORNER = 110;
+
+/**
+ * The logo for a picture: the dark-background one when the corner it goes
+ * into is dark, so a black logo never lands on a black picture.
+ */
+export async function logoForPicture(
+  picture: Uint8Array,
+  style: Pick<StyleBrand, "logo" | "darkLogo">,
+): Promise<Uint8Array | null> {
+  if (!style.logo || !style.darkLogo) return style.logo;
+  try {
+    const { width = 0, height = 0 } = await sharp(picture).metadata();
+    const corner = {
+      width: Math.max(1, Math.round(width * 0.26)),
+      height: Math.max(1, Math.round(height * 0.19)),
+    };
+    const { channels } = await sharp(picture)
+      .extract({
+        left: width - corner.width,
+        top: height - corner.height,
+        ...corner,
+      })
+      .greyscale()
+      .stats();
+    return (channels[0]?.mean ?? 255) < DARK_CORNER
+      ? style.darkLogo
+      : style.logo;
+  } catch {
+    return style.logo;
+  }
 }
 
 /**
@@ -1029,11 +1072,12 @@ async function checkAndBrand(
     });
     return "rejected";
   }
-  if (!style.logo) {
+  const logo = await logoForPicture(picture, style);
+  if (!logo) {
     return { bytes: Buffer.from(picture), contentType: asset.contentType };
   }
   const png = await renderStudioPng(picture, {
-    logo: { bytes: style.logo, position: "bottom-right" },
+    logo: { bytes: logo, position: "bottom-right" },
   });
   return asset.contentType === "image/png"
     ? { bytes: png, contentType: "image/png" }

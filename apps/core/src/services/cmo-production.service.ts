@@ -26,6 +26,7 @@ import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
+import { scheduleMissingCmoBrandIndex } from "@/services/cmo-brand-media.service";
 import {
   type Cuso,
   cmoRunnerUserId,
@@ -963,6 +964,8 @@ export async function syncCmoProduction(
 ): Promise<{ checked: number }> {
   await pauseSeoAuditsOfEndedCusos();
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
+  // In the background from the start, so it has the whole run.
+  await scheduleMissingCmoBrandIndex(hires).catch(() => undefined);
   let checked = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;

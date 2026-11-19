@@ -652,6 +652,15 @@ export const cmoBrandMediaSchema = z
       .describe(
         "The large pictures on the brand's pages: products, screens, people.",
       ),
+    logos: z
+      .object({
+        logo: z.union([cmoMediaFileSchema, z.null()]),
+        dark: z.union([cmoMediaFileSchema, z.null()]),
+        mark: z.union([cmoMediaFileSchema, z.null()]),
+      })
+      .describe(
+        "The brand's logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.",
+      ),
   })
   .openapi("CmoBrandMedia");
 export type CmoBrandMedia = z.infer<typeof cmoBrandMediaSchema>;

@@ -418,6 +418,11 @@ describe("Brand", () => {
           ],
           competitors: [],
           pictures: [],
+          logos: {
+            logo: { url: "/logo.png", fileId: null },
+            dark: null,
+            mark: { url: "/mark.png", fileId: null },
+          },
         },
         brandVisual: {
           logoUrl: null,
@@ -434,6 +439,9 @@ describe("Brand", () => {
     expect(html).toContain("acme.io on a phone");
     // The pages Cuso read and what he cut from them, under one fold.
     expect(html).toContain("What I found on your site");
+    expect(html).toContain('alt="Your logo"');
+    expect(html).toContain('alt="Your mark"');
+    expect(html).not.toContain("on a dark background");
     expect(html).toContain('href="https://acme.io/plans"');
     expect(html).toContain(
       "Pricing on the Pricing page: Plans for every launch",

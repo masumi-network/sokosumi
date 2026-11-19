@@ -76,6 +76,7 @@ const SECTION_NAMES: Record<Section["kind"], string> = {
 /** How many things research kept from the site, for the fold's count. */
 export function siteFinds(media: CmoBrandMedia): number {
   return (
+    Object.values(media.logos).filter(Boolean).length +
     media.pages.filter((page) => page.device === "desktop").length +
     media.sections.length +
     media.pictures.length
@@ -91,8 +92,35 @@ export function siteFinds(media: CmoBrandMedia): number {
 export function SiteGallery({ media }: { media: CmoBrandMedia }) {
   const pages = media.pages.filter((page) => page.device === "desktop");
   if (siteFinds(media) === 0) return null;
+  const { logo, dark, mark } = media.logos;
   return (
     <div className="bm-gallery">
+      {logo || mark ? (
+        <section>
+          <h3>Your logo</h3>
+          <ul className="bm-logos">
+            {logo ? (
+              <li>
+                <img src={logo.url} alt="Your logo" loading="lazy" />
+              </li>
+            ) : null}
+            {dark ? (
+              <li className="bm-logo-dark">
+                <img
+                  src={dark.url}
+                  alt="Your logo on a dark background"
+                  loading="lazy"
+                />
+              </li>
+            ) : null}
+            {mark ? (
+              <li className="bm-logo-mark">
+                <img src={mark.url} alt="Your mark" loading="lazy" />
+              </li>
+            ) : null}
+          </ul>
+        </section>
+      ) : null}
       {pages.length > 0 ? (
         <section>
           <h3>Pages I read</h3>
