@@ -97,6 +97,23 @@
         }
       }
     },
+    "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets." : {
+      "comment" : "Below a failed assistant reply when the assistant has hit its usage limit.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu asistente ha alcanzado su límite de uso. Podrá volver a responder cuando se aumente o se restablezca el límite."
+          }
+        }
+      }
+    },
     "Weekly wrap" : {
       "comment" : "Above a message the Soko Bot sent from its weekly wrap schedule.",
       "extractionState" : "manual",
