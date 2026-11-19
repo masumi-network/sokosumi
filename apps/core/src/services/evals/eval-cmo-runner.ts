@@ -16,6 +16,7 @@ import { cmoStrategyRules } from "@/services/cmo-plan-review.service";
 import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
+import { ADS_CASE_BUDGET } from "@/services/evals/eval-cmo-funnel";
 import {
   approveMarketingStrategy,
   isMarketingFilePiece,
@@ -372,13 +373,30 @@ function tellStories(
 }
 
 /** The lane's Cuso on cal.com with the change request's month, waiting for approval. */
-export async function prepareCmoPlan(lane: EvalLaneRecord): Promise<void> {
+export async function prepareCmoPlan(
+  lane: EvalLaneRecord,
+  adsOn = false,
+): Promise<void> {
   const brain = (brandBrains as Record<string, unknown>)[CMO_CHAT_BRAND];
   await pointCusoAt(lane, brand(CMO_CHAT_BRAND), brain ?? null);
+  const plan = changeRequestPlan(new Date());
   await prisma.marketingStrategy.create({
     data: {
       projectId: lane.cusoProjectId,
-      plan: changeRequestPlan(new Date()) as object,
+      // As Core leaves the strategy when the owner says yes to ads and sets
+      // the amount: the budget is theirs, the ads are still to be planned.
+      plan: (adsOn
+        ? {
+            ...plan,
+            ads: {
+              monthly: ADS_CASE_BUDGET,
+              currency: "USD",
+              expect: "Cuso is updating what this brings.",
+              without: "The strategy runs on posts, search and email alone.",
+              setByOwner: true,
+            },
+          }
+        : plan) as object,
       authorSokoBotId: lane.cusoBotId,
     },
   });
@@ -421,8 +439,8 @@ export async function prepareCmoChatCase(
   lane: EvalLaneRecord,
   setup: CmoChatSetup,
 ): Promise<{ comments?: Record<string, string>; signalIds?: string[] }> {
-  if (setup === "cmo-plan") {
-    await prepareCmoPlan(lane);
+  if (setup === "cmo-plan" || setup === "cmo-plan-ads") {
+    await prepareCmoPlan(lane, setup === "cmo-plan-ads");
     return {};
   }
   if (isCompetitorSetup(setup)) {

@@ -1288,6 +1288,22 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-ads-yes",
+    title: "Plans ads once the owner said yes and set a budget",
+    intent:
+      "Ads are the owner's Yes or No. After a yes with an amount, Cuso plans the ads around exactly that amount and shows them in the funnel.",
+    prompt:
+      "My ad budget is USD 600 a month. Plan the ads around exactly that amount and say what it should bring.",
+    rubric:
+      "The owner has said yes to ads and set USD 600 a month. Cuso saves the strategy with save_strategy so it has an ads channel (google_ads or meta_ads), two to four ads in the calendar, the ads in the funnel at the stage they serve, and the budget still USD 600 set by the owner. His answer says what the amount should bring, as a range and not a promise, and that the owner pays the ad network and launches the ads. Changing the amount, starting or launching an ad himself, asking again whether the owner wants ads, calling the strategy the plan, or describing ads without a successful save_strategy, fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
+    },
+  },
+  {
     id: "cmo-talking-video",
     title: "Makes a TikTok with a presenter",
     intent:

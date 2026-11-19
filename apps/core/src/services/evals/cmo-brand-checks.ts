@@ -138,6 +138,7 @@ export function strategyChecks(
     });
   }
   if (brand.websiteOnly) checks.push(...websiteOnlyChecks(strategy));
+  if (options.everyNetwork) checks.push(firstStrategyAdsCheck(strategy));
   const problems = [
     ...cmoPlanRuleProblems(strategy),
     ...cmoPlanProblems(strategy, options),
@@ -188,6 +189,35 @@ function websiteOnlyChecks(strategy: MarketingStrategyPlan): ScenarioCheck[] {
       actual: proposed.join(", ") || "none",
     },
   ];
+}
+
+/** A first strategy plans no ads: they wait for the owner's yes. */
+function firstStrategyAdsCheck(strategy: MarketingStrategyPlan): ScenarioCheck {
+  const ads = ["google_ads", "meta_ads"];
+  const planned = [
+    ...strategy.channels
+      .filter((channel) => ads.includes(channel.channel))
+      .map((channel) => `channel ${channel.channel}`),
+    ...strategy.calendar
+      .filter(
+        (entry) => ads.includes(entry.channel) && entry.status !== "skipped",
+      )
+      .map((entry) => `piece ${entry.id}`),
+    ...strategy.questions
+      .filter((question) =>
+        /\bads?\b|advertis|ad budget/i.test(question.question),
+      )
+      .map((question) => `question "${question.question}"`),
+  ];
+  return {
+    label: "Plans no ads and asks nothing about them before the owner's yes",
+    pass: planned.length === 0 && (strategy.ads?.monthly ?? 0) === 0,
+    actual:
+      planned.slice(0, 5).join(" · ") ||
+      (strategy.ads?.monthly
+        ? `monthly ${strategy.ads.monthly}`
+        : `no ads; would start with ${strategy.ads?.suggest ? `${strategy.ads.suggest.channel} at ${strategy.ads.suggest.monthly}` : "nothing"}`),
+  };
 }
 
 export function findings(checks: readonly ScenarioCheck[]): string[] {

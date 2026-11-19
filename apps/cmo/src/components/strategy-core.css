@@ -372,6 +372,10 @@
   margin: 0;
 }
 
+.sc-ads-question {
+  font-weight: 600;
+}
+
 .sc-ads-amount b {
   font-size: 1.75rem;
   font-weight: 600;

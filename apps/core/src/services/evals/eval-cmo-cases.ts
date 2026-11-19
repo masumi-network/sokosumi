@@ -202,6 +202,8 @@ export type CmoChatSetup =
   | "cmo-seo-skipped"
   /** cal.com's month waiting for approval, for the change request. */
   | "cmo-plan"
+  /** The same month, after the owner said yes to ads and set a budget. */
+  | "cmo-plan-ads"
   /** cal.com's competitors after a check: a week with moves, or a quiet one. */
   | "cmo-competitors"
   | "cmo-competitors-quiet"

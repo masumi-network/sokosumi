@@ -309,6 +309,7 @@ export const richPlan: Strategy = {
     currency: "EUR",
     expect: "About 40 trial starts",
     without: "Organic only",
+    setByOwner: true,
   },
   pillars: [
     { name: "Launch stories", share: 60 },
@@ -362,6 +363,10 @@ export const richPlan: Strategy = {
           channel: "newsletter",
           what: "The month's launches, with what each one changed",
           cadence: "Monthly",
+        },
+        {
+          channel: "seo",
+          what: "A weekly audit of your site with page fixes, and articles when you ask",
         },
       ],
       metric: "Site visits",

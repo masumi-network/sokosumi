@@ -319,6 +319,25 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
             </li>
           );
         })}
+        {/* SEO runs beside the strategy, never on its calendar, so it is said here. */}
+        <li className="cw-card">
+          <div className="cw-head">
+            <span className="cw-icon">
+              <ChannelIcon channel="seo" size={22} />
+            </span>
+            <div>
+              <p className="cw-name">Your website and Google search</p>
+              <p className="note">Every week, on the SEO page</p>
+            </div>
+          </div>
+          <p className="cw-makes">
+            A weekly audit of your site, page fixes, and articles for the
+            searches your buyers make when you ask
+          </p>
+          <p className="cw-you">
+            {AGENT_NAME} writes them. You put them on your site.
+          </p>
+        </li>
       </ul>
       {leftOut.length > 0 ? (
         <ul className="cw-left-out">

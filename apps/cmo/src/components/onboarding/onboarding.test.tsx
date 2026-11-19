@@ -734,8 +734,34 @@ describe("Plan", () => {
       },
     });
     expect(html).toContain("Active");
-    expect(html).toContain("€200 a month for ads");
+    expect(html).toContain("Do you want ads?");
+    expect(html).toContain("Ads are extra to your plan");
+    // The strategy has ads: Yes is picked and the amount can be changed.
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Yes</);
+    expect(html).toContain('value="200"');
     expect(html).not.toContain("OK for ads");
+  });
+
+  it("starts at No for ads, with Cuso's suggestion one tap away and no amount shown", () => {
+    const html = plan({
+      ...draft(),
+      strategy: {
+        ...strategy,
+        ads: {
+          monthly: 0,
+          currency: "CHF",
+          expect: "20 to 40 clicks a month",
+          without: "Posts and search bring the calls.",
+          suggest: { channel: "google_ads", monthly: 600 },
+        },
+      },
+    });
+    expect(html).toContain("Do you want ads?");
+    expect(html).toMatch(/aria-pressed="true"[^>]*>No</);
+    expect(html).toContain("No ads. Posts and search bring the calls.");
+    // The budget only shows after a Yes.
+    expect(html).not.toContain("Monthly ad budget");
+    expect(html).not.toContain("600");
   });
 });
 

@@ -772,18 +772,28 @@ it("swaps the plan for a re-planning screen the moment a pace is tapped", async 
 it("re-plans on a new ad budget at once, and keeps the amount when it is refused", async () => {
   const core = pending();
   await renderPlan(async () => null, core.call);
-  await press("Change");
-  await press("Set your own budget");
+  // The strategy has ads, so Yes is picked and the amount shows.
+  expect(button("Yes").getAttribute("aria-pressed")).toBe("true");
   const amount = 'input[aria-label="Monthly ad budget in EUR"]';
-  expect(container.querySelector(amount)).not.toBeNull();
-  await press("Set budget");
+  typeInto(container.querySelector<HTMLInputElement>(amount), "450");
+  await press("Change budget");
 
-  expect(core.call).toHaveBeenCalledWith(300, "EUR");
+  expect(core.call).toHaveBeenCalledWith(450, "EUR");
   expect(replanning()).toBe(true);
 
   await act(async () => core.answer("Not enough credits"));
   expect(replanning()).toBe(false);
   expect(container.querySelector(amount)).not.toBeNull();
+});
+
+it("takes the ads out the moment the owner says No", async () => {
+  const core = pending();
+  await renderPlan(async () => null, core.call);
+  await press("No");
+
+  expect(core.call).toHaveBeenCalledWith(0, "EUR");
+  expect(replanning()).toBe(true);
+  await act(async () => core.answer(null));
 });
 
 it("shows the re-planning screen for a written change before Core answers", async () => {

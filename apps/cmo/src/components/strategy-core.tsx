@@ -467,54 +467,84 @@ export function money(amount: number, currency: string): string {
 }
 
 /**
- * Paid ads, the only part that costs more: Cuso's amount and what it should
- * bring, what happens without it, and the owner's own figure.
+ * Ads cost the owner money on top of their plan, so they are a Yes or No of
+ * their own: No until the owner says otherwise, and the budget only after a
+ * Yes. Cuso's suggestion fills the amount in; saving it asks him to plan the
+ * ads, and No takes them out again.
  */
-export function AdBudget({
+export function AdsChoice({
   ads,
   onSetAds,
 }: {
   ads: NonNullable<Strategy["ads"]>;
   onSetAds?: (monthly: number, currency: string) => Promise<void>;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [amount, setAmount] = useState(String(ads.monthly));
+  const on = ads.monthly > 0;
+  const [wants, setWants] = useState(on);
+  const [amount, setAmount] = useState(
+    String(on ? ads.monthly : (ads.suggest?.monthly ?? "")),
+  );
   const [saving, setSaving] = useState(false);
   const value = Number(amount.replace(/[^\d.]/g, ""));
+  const suggested = ads.suggest;
+
+  async function save(monthly: number) {
+    if (!onSetAds) return;
+    setSaving(true);
+    try {
+      await onSetAds(monthly, ads.currency);
+    } catch {
+      // The host shows the refusal; the choice stays to try again.
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="sc-ads">
-      <p className="sc-ads-amount">
-        <b className="num">{money(ads.monthly, ads.currency)}</b>
-        <span className="note">
-          a month
-          {ads.setByOwner ? ", your budget" : `, ${AGENT_NAME}'s suggestion`}
-        </span>
-      </p>
-      <p>{ads.monthly > 0 ? ads.expect : ads.without}</p>
-      {ads.monthly > 0 ? (
-        <p className="note">Without ads: {ads.without}</p>
-      ) : null}
+      <p className="sc-ads-question">Do you want ads?</p>
       <p className="note">
-        Ads are the only extra cost. You pay the ad networks directly;{" "}
-        {AGENT_NAME}
-        never spends more than this.
+        Ads are extra to your plan: you pay the ad network directly, and{" "}
+        {AGENT_NAME} never spends more than the budget you set.
       </p>
-      {onSetAds ? (
-        editing ? (
+      <div className="ob-tabs" role="group" aria-label="Ads">
+        <button
+          type="button"
+          aria-pressed={wants}
+          disabled={!onSetAds || saving}
+          onClick={() => setWants(true)}
+        >
+          Yes
+        </button>
+        <button
+          type="button"
+          aria-pressed={!wants}
+          disabled={!onSetAds || saving}
+          onClick={() => {
+            setWants(false);
+            if (on) void save(0);
+          }}
+        >
+          No
+        </button>
+      </div>
+      {wants ? (
+        <>
+          {suggested && !ads.setByOwner ? (
+            <p className="note">
+              {AGENT_NAME} would start with{" "}
+              {money(suggested.monthly, ads.currency)} a month on{" "}
+              {channelLabel(suggested.channel)}. {ads.expect}
+            </p>
+          ) : on ? (
+            <p className="note">{ads.expect}</p>
+          ) : null}
           <form
             className="sc-ads-form"
-            onSubmit={async (event) => {
+            onSubmit={(event) => {
               event.preventDefault();
-              if (!Number.isFinite(value) || value < 0) return;
-              setSaving(true);
-              try {
-                await onSetAds(value, ads.currency);
-                setEditing(false);
-              } catch {
-                // The host shows the refusal; the amount stays to try again.
-              } finally {
-                setSaving(false);
-              }
+              if (!Number.isFinite(value) || value <= 0) return;
+              void save(value);
             }}
           >
             <label className="sc-ads-input">
@@ -524,33 +554,22 @@ export function AdBudget({
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 aria-label={`Monthly ad budget in ${ads.currency}`}
+                disabled={!onSetAds}
               />
+              <span className="note">a month</span>
             </label>
             <button
               type="submit"
               className="button button-secondary button-small"
-              disabled={saving}
+              disabled={!onSetAds || saving || (on && value === ads.monthly)}
             >
-              {saving ? "Saving…" : "Set budget"}
-            </button>
-            <button
-              type="button"
-              className="button button-ghost button-small"
-              onClick={() => setEditing(false)}
-            >
-              Cancel
+              {saving ? "Saving…" : on ? "Change budget" : "Set budget"}
             </button>
           </form>
-        ) : (
-          <button
-            type="button"
-            className="sc-link"
-            onClick={() => setEditing(true)}
-          >
-            Set your own budget
-          </button>
-        )
-      ) : null}
+        </>
+      ) : (
+        <p className="note">No ads. {ads.without}</p>
+      )}
     </div>
   );
 }

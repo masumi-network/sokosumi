@@ -43,3 +43,49 @@ export async function funnelChecks(
     },
   ];
 }
+
+/** The monthly ad budget the owner sets in the ads case, in USD. */
+export const ADS_CASE_BUDGET = 600;
+
+/** The owner said yes to ads and set a budget; Cuso plans the ads around it. */
+export const CMO_ADS_CASE_ID = "cmo-ads-yes";
+
+const AD_CHANNELS = ["google_ads", "meta_ads"];
+
+/** The saved strategy after the turn: ads planned at the owner's amount, and in the funnel. */
+export async function adsChecks(
+  lane: EvalLaneRecord,
+): Promise<ScenarioCheck[]> {
+  const saved = await newestMarketingStrategy(lane.cusoProjectId);
+  const plan = parseMarketingPlan(saved?.plan) as MarketingStrategyPlan | null;
+  const channels = (plan?.channels ?? [])
+    .map((channel) => channel.channel)
+    .filter((channel) => AD_CHANNELS.includes(channel));
+  const ads = (plan?.calendar ?? []).filter(
+    (entry) =>
+      AD_CHANNELS.includes(entry.channel) && entry.status !== "skipped",
+  );
+  const stages = (plan?.funnel ?? []).filter((stage) =>
+    stage.plays.some((play) => AD_CHANNELS.includes(play.channel)),
+  );
+  return [
+    {
+      label: "Keeps the owner's ad budget",
+      pass:
+        plan?.ads?.monthly === ADS_CASE_BUDGET && plan.ads.setByOwner === true,
+      actual: plan?.ads
+        ? `${plan.ads.currency} ${plan.ads.monthly}${plan.ads.setByOwner ? "" : ", no longer the owner's"}`
+        : "no ads",
+    },
+    {
+      label: "Plans an ads channel with ads in the calendar",
+      pass: channels.length > 0 && ads.length >= 2,
+      actual: `channels: ${channels.join(", ") || "none"}; ${ads.length} ads`,
+    },
+    {
+      label: "Shows the ads in the funnel",
+      pass: stages.length > 0,
+      actual: stages.map((stage) => stage.stage).join(", ") || "no stage",
+    },
+  ];
+}
