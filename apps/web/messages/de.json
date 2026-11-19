@@ -2028,7 +2028,25 @@
           "moveToWorkspaceCancel": "Abbrechen",
           "moveToWorkspaceSuccess": "Task wurde verschoben",
           "moveToWorkspaceError": "Task konnte nicht verschoben werden",
-          "markAs": "Markieren als",
+          "linkToTask": "Mit Task verknüpfen",
+          "linkPicker": {
+            "related": {
+              "title": "Als zugehörig verknüpfen",
+              "description": "Wählen Sie einen Task. Beide Tasks zeigen ihn unter Zugehörig."
+            },
+            "blocks": {
+              "title": "Als blockierend verknüpfen",
+              "description": "Wählen Sie den Task, den dieser blockiert. Dieser Task zeigt ihn unter Blockiert, der andere zeigt diesen unter Blockiert durch."
+            },
+            "blockedBy": {
+              "title": "Als blockiert durch verknüpfen",
+              "description": "Wählen Sie den Task, auf den dieser wartet. Dieser Task zeigt ihn unter Blockiert durch, der andere zeigt diesen unter Blockiert."
+            },
+            "duplicate": {
+              "title": "Als Duplikat verknüpfen",
+              "description": "Wählen Sie den Task, den dieser wiederholt. Beide Tasks zeigen ihn unter Duplikat. Es wird nichts kopiert."
+            }
+          },
           "createRelated": "Verknüpften Task erstellen",
           "removeRelated": "Verknüpften Task entfernen",
           "removeRelatedSuccess": "Verknüpfter Task entfernt",
@@ -2036,8 +2054,6 @@
           "linkTaskSuccess": "Task verknüpft",
           "linkTaskError": "Task konnte nicht verknüpft werden",
           "createRelatedSuccess": "Verknüpfter Task erstellt",
-          "taskPickerTitle": "Markieren als {relation}",
-          "taskPickerDescription": "Wählen Sie einen Task aus, den Sie mit dem aktuellen Task verknüpfen möchten.",
           "taskPickerSearchPlaceholder": "Tasks suchen...",
           "taskPickerLoading": "Tasks werden geladen...",
           "taskPickerEmpty": "Keine Tasks gefunden.",
@@ -2060,7 +2076,7 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren",
+          "duplicate": "Als Entwurf kopieren",
           "sendToChat": {
             "menuItem": "In Chat senden",
             "title": "Aufgabe in Chat senden",
