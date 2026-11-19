@@ -93,6 +93,9 @@ describe("social conversion through the generated Core client", () => {
     await expect(utmService.claimSignUpConversion()).resolves.toBe("google");
     expect(await requests[0].json()).toEqual({});
     expect(errorCalls[0]?.[1]).toBeInstanceOf(SyntaxError);
+    expect(errorCalls[0]?.[1]).toMatchObject({
+      message: expect.stringContaining('"invalid-json"'),
+    });
   });
 
   it("bounds an unresponsive Core request", async () => {

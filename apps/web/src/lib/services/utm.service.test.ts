@@ -125,5 +125,8 @@ describe("utmService.handleUTMConversion", () => {
     expect(postUsersByIdUtmAttributionMock).not.toHaveBeenCalled();
     expect(deleteMock).toHaveBeenCalledWith(UTM_COOKIE_NAME);
     expect(errorCalls[0]?.[1]).toBeInstanceOf(SyntaxError);
+    expect(errorCalls[0]?.[1]).toMatchObject({
+      message: expect.stringContaining('"not-json"'),
+    });
   });
 });

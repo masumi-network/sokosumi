@@ -10,6 +10,7 @@ import { defaultOrbSeed } from "@/lib/aurora-orb";
 async function submitCommentWithHappyDomError() {
   const errorCalls = expectConsole("error", "");
   await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+  expect(errorCalls[0]?.[0]).toBeInstanceOf(DOMException);
   expect(errorCalls[0]?.[0]).toMatchObject({
     name: "NotFoundError",
     message: "The specified element is not owned by this form element",
