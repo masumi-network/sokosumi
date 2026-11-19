@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import {
+  pickTasksViewQuery,
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
@@ -20,6 +21,7 @@ import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { taskService } from "@/lib/services/task.service";
 import {
   type TaskSchedulesPage,
   taskScheduleService,
@@ -166,6 +168,16 @@ export async function loadMoreTasksList({
     tasks: page.tasks,
     nextCursor: page.nextCursor,
   };
+}
+
+/**
+ * Saves the reader's Tasks view. Only the view keys reach Core, whatever
+ * the client sent.
+ */
+export async function saveTasksView(query: string): Promise<void> {
+  await taskService.saveTasksViewQuery(
+    pickTasksViewQuery(new URLSearchParams(query)),
+  );
 }
 
 /** Core's largest page. */

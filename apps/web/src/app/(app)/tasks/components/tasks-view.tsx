@@ -44,6 +44,7 @@ import { ShowOpenSubtasksContext } from "./task-open-subtasks";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
+import { replaceTasksQuery } from "./tasks-search-params";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
 import { TasksKeyboard } from "./use-board-keyboard";
@@ -256,22 +257,28 @@ export function TasksView(props: TasksViewProps) {
     patch: Partial<TasksFilters>,
     navigator: { replace: (href: string) => void } = router,
   ) => {
-    const nextQuery = buildTasksFiltersSearchParams(
-      searchParams,
-      { ...routeFilters, ...patch },
+    replaceTasksQuery(
+      navigator,
+      pathname,
+      buildTasksFiltersSearchParams(searchParams, {
+        ...routeFilters,
+        ...patch,
+      }),
       activeOrganizationId,
-    ).toString();
-    navigator.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    );
   };
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const handleClearFilters = () => {
-    const nextQuery = buildTasksFiltersSearchParams(
-      searchParams,
-      clearTasksFilters(routeFilters, activeOrganizationId),
+    replaceTasksQuery(
+      router,
+      pathname,
+      buildTasksFiltersSearchParams(
+        searchParams,
+        clearTasksFilters(routeFilters, activeOrganizationId),
+      ),
       activeOrganizationId,
-    ).toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    );
     focusToolbarControl(toolbarRef.current);
   };
 

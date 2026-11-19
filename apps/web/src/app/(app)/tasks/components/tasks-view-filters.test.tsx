@@ -8,6 +8,10 @@ import { workspaceTagsQueryKey } from "@/queries/workspace-tags";
 const WORKSPACE_TAG_ID = "11223344-55aa-7111-8123-456789012345";
 const filterDropdownMenuMock = vi.fn();
 
+vi.mock("@/app/tasks/actions", () => ({
+  saveTasksView: vi.fn(async () => undefined),
+}));
+
 vi.mock("@/components/common/filter-dropdown-menu", () => ({
   FilterDropdownMenu: (props: unknown) => {
     filterDropdownMenuMock(props);
@@ -132,7 +136,9 @@ describe("TasksViewFilters", () => {
 
     await userEvent.click(screen.getByRole("radio", { name: "My tasks" }));
 
-    expect(replaceMock).toHaveBeenCalledWith("/tasks?assigneeUserId=user-1");
+    expect(replaceMock).toHaveBeenCalledWith(
+      "/tasks?scope=workspace&assigneeUserId=user-1",
+    );
   });
 
   it("shows one view at a time: switching leaves My tasks", async () => {
@@ -145,7 +151,9 @@ describe("TasksViewFilters", () => {
     expect(screen.queryByRole("list", { name: "activeFilters" })).toBeNull();
     await userEvent.click(screen.getByRole("radio", { name: "needsMe" }));
 
-    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?needsMe=1");
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?scope=workspace&needsMe=1",
+    );
     window.history.replaceState(null, "", "/");
   });
 
@@ -162,7 +170,7 @@ describe("TasksViewFilters", () => {
     await userEvent.click(screen.getByRole("radio", { name: "All" }));
 
     expect(replaceMock).toHaveBeenLastCalledWith(
-      "/tasks?assigneeId=coworker-1",
+      "/tasks?assigneeId=coworker-1&scope=workspace",
     );
     window.history.replaceState(null, "", "/");
   });
@@ -225,9 +233,9 @@ describe("TasksViewFilters", () => {
     expect(screen.queryByRole("button", { name: /stuck/ })).toBeNull();
     expect(stuck?.value).toBeNull();
     stuck?.onChange(stuck.options[0]?.value ?? null);
-    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?stuck=1");
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=owned&stuck=1");
     stuck?.onChange(null);
-    expect(replaceMock).toHaveBeenLastCalledWith("/tasks");
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=owned");
   });
 
   it("hides My tasks when the viewer is not an assignee option", () => {
@@ -293,12 +301,14 @@ describe("TasksViewFilters", () => {
     );
     tag?.onChange(WORKSPACE_TAG_ID);
     expect(replaceMock).toHaveBeenLastCalledWith(
-      `/tasks?tag=${WORKSPACE_TAG_ID}`,
+      `/tasks?scope=workspace&tag=${WORKSPACE_TAG_ID}`,
     );
     tag?.onChange("research");
-    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?tag=research");
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?scope=workspace&tag=research",
+    );
     tag?.onChange(null);
-    expect(replaceMock).toHaveBeenLastCalledWith("/tasks");
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=workspace");
   });
 
   it("groups every status under its board column, Done holding the finished ones", () => {
@@ -334,7 +344,7 @@ describe("TasksViewFilters", () => {
     expect(props.resetAction?.label).toBe("clear");
     props.resetAction?.onReset();
 
-    expect(replaceMock).toHaveBeenLastCalledWith("/tasks");
+    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=workspace");
     window.history.replaceState(null, "", "/");
   });
 
@@ -347,7 +357,9 @@ describe("TasksViewFilters", () => {
     searchParams = new URLSearchParams(window.location.search);
     renderTasksViewFilters("org-1", "user-1").resetAction?.onReset();
 
-    expect(replaceMock).toHaveBeenLastCalledWith("/tasks?needsMe=1");
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?needsMe=1&scope=workspace",
+    );
     window.history.replaceState(null, "", "/");
   });
 

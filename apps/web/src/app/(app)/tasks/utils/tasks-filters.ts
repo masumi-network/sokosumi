@@ -116,6 +116,37 @@ export const TASKS_FILTER_PARAM_KEYS = {
   sort: "sort",
 } as const;
 
+/**
+ * The keys a saved Tasks view holds: every filter, the sort and sub-tasks.
+ * Not the project: the project switcher owns it.
+ */
+const TASKS_VIEW_PARAM_KEYS: readonly string[] = Object.values(
+  TASKS_FILTER_PARAM_KEYS,
+).filter((key) => key !== TASKS_FILTER_PARAM_KEYS.projectId);
+
+/**
+ * True when the URL names a view. The toolbar always writes `scope`, so only
+ * a plain entry (the sidebar, a project link) names none and opens the saved view.
+ */
+export function hasTasksViewParams(
+  params: URLSearchParams | Record<string, unknown>,
+): boolean {
+  return TASKS_VIEW_PARAM_KEYS.some((key) =>
+    params instanceof URLSearchParams
+      ? params.has(key)
+      : params[key] !== undefined,
+  );
+}
+
+/** The view part of a Tasks URL, as a query string to save. */
+export function pickTasksViewQuery(params: URLSearchParams): string {
+  const picked = new URLSearchParams();
+  for (const [key, value] of params) {
+    if (TASKS_VIEW_PARAM_KEYS.includes(key)) picked.append(key, value);
+  }
+  return picked.toString();
+}
+
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -387,16 +418,11 @@ export function sanitizeTasksStuckInput(raw: unknown): boolean {
 export function buildTasksFiltersSearchParams(
   currentSearchParams: URLSearchParams | SearchParamsLike,
   filters: TasksFilters,
-  activeOrganizationId: string | null,
 ): URLSearchParams {
   const nextSearchParams = new URLSearchParams(currentSearchParams.toString());
-  const defaultScope = getDefaultTasksScope(activeOrganizationId);
-
-  if (filters.scope === defaultScope) {
-    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.scope);
-  } else {
-    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.scope, filters.scope);
-  }
+  // Written even when it is the default: a URL the toolbar wrote names a
+  // view, so the saved view does not replace it (see hasTasksViewParams).
+  nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.scope, filters.scope);
 
   // Always drop the legacy key when writing so URLs migrate forward.
   nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.coworkerId);

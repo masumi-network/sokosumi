@@ -138,6 +138,7 @@ vi.mock("@/app/tasks/actions", () => ({
   loadMoreTasksList: vi.fn(),
   exportTasks: vi.fn(),
   previewTasksExport: vi.fn(async () => ({ rows: [], matched: 0 })),
+  saveTasksView: vi.fn(async () => undefined),
 }));
 
 vi.mock("./create-task-modal", () => ({
@@ -869,7 +870,9 @@ describe("TasksView filtered empty state", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Filters.clear" }),
     );
-    expect(replaceMock).toHaveBeenCalledWith(`/tasks?projectId=${PROJECT_ID}`);
+    expect(replaceMock).toHaveBeenCalledWith(
+      `/tasks?projectId=${PROJECT_ID}&scope=owned`,
+    );
   });
 
   it("keeps the plain board when nothing is filtered", () => {
