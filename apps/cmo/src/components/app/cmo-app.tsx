@@ -40,6 +40,7 @@ import {
 import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
 import type { DraftActions, DraftResult } from "./draft-post";
+import { MessageText } from "./message-text";
 import {
   type AddMailingList,
   BrandBrainPage,
@@ -705,7 +706,7 @@ function ThreadEntry({
       return (
         <div className="msg">
           <span className="mav user" aria-hidden="true">
-            {initial(name)}
+            {initial(item.message.author || name)}
           </span>
           <div className="mbody">
             <MessageMeta author={item.message.author || name} at={item.at} />
@@ -716,9 +717,10 @@ function ThreadEntry({
     }
     return (
       <CusoSays at={item.at}>
-        <p className="txt">
-          {renderInline(item.message.content, webOriginOf(overview))}
-        </p>
+        <MessageText
+          content={item.message.content}
+          inline={(text) => renderInline(text, webOriginOf(overview))}
+        />
         {item.message.trace ? <HowIGotHere trace={item.message.trace} /> : null}
       </CusoSays>
     );
