@@ -34,6 +34,7 @@ vi.mock("@/services/cmo-cuso.service", async (original) => ({
   startCmoTurn: readers.startCmoTurn,
 }));
 
+import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import prisma from "@/lib/db/prisma";
 import {
   keepCusoFirstCompetitorCheck,
@@ -41,7 +42,6 @@ import {
   syncTrackedCompetitorsFromBrandBrain,
   watchedMapPlayers,
 } from "@/services/cmo-competitors.service";
-import { COMPETITOR_CHECK_CREDITS } from "@/services/competitor-check.service";
 import {
   addTrackedCompetitor,
   listTrackedCompetitors,
@@ -286,6 +286,30 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
       websiteUrl: "https://a1.example/",
       source: "MEMBER",
     });
+  });
+
+  it("leaves a picked suggestion open for the check to fill, unlike a typed one", async () => {
+    const cuso = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, {
+      name: "Picked",
+      websiteUrl: "picked.example",
+      suggested: true,
+    });
+    await addTrackedCompetitor(cuso.projectId, {
+      name: "Typed",
+      websiteUrl: "typed.example",
+    });
+    const rows = await listTrackedCompetitors(cuso.projectId);
+    expect(
+      rows.map(({ name, source, memberEditedAt }) => ({
+        name,
+        source,
+        open: memberEditedAt === null,
+      })),
+    ).toEqual([
+      { name: "Picked", source: "MEMBER", open: true },
+      { name: "Typed", source: "MEMBER", open: false },
+    ]);
   });
 
   it("refuses a rename onto a tracked name and frees a removed one", async () => {

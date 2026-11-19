@@ -114,8 +114,8 @@ export async function dispatchCompetitorTools(
     return {
       saved: saved.saved,
       bigMoves: saved.bigMoves,
-      // Core told the owner about the big moves in Cuso's room.
-      postedToChat: cuso !== null && saved.bigMoves.length > 0,
+      // Core told the owner about the week in Cuso's room, as one message.
+      postedToChat: cuso !== null && saved.saved > 0,
     };
   } catch (error) {
     if (error instanceof CompetitorFeedRefusedError) {
@@ -127,7 +127,10 @@ export async function dispatchCompetitorTools(
 }
 
 /** Jev's reading is overhead like routing: on the turn's total. */
-async function addOverhead(turnId: string, costUsd: number): Promise<void> {
+export async function addOverhead(
+  turnId: string,
+  costUsd: number,
+): Promise<void> {
   if (costUsd <= 0) return;
   await prisma.sokoBotTurn.update({
     where: { id: turnId },

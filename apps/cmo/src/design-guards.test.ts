@@ -319,7 +319,7 @@ const CASTS_SHADOW = [
   /\.button(?:-small|-secondary)?(?![\w-])/,
   /\[aria-(?:pressed|selected)/,
   // Classes that are only ever set on a <button>.
-  /^\.(?:chip|who-button|ob-who-button|ob-side-close|sc-pace-option)(?![\w-])/,
+  /^\.(?:chip|who-button|ob-who-button|ob-side-close|sc-pace-option|cal-filter|ob-plan-option)(?![\w-])/,
   // The chat's composer: the frame around its textarea.
   /^\.composer$/,
   /^\.ob-who-menu$/,
@@ -394,6 +394,84 @@ describe("shadows mean action", () => {
       ),
     ).toEqual([]);
     expect(passiveShadows(".tag { box-shadow: none; }")).toEqual([]);
+  });
+});
+
+/**
+ * A set to pick from (tabs, filters, paces, plans): every one is a button, so
+ * every one casts the shadow at rest and only the fill says which is picked. A
+ * flat outline beside a shadowed Iris pill reads as a label.
+ */
+const PICKED = /\[aria-(?:pressed|selected)="true"\](?=(?::not\([^)]*\))?$)/;
+/** Shared button classes, which cast their shadow in their own rule. */
+const SHARED_BUTTON = /^\.(?:button(?:-small|-secondary)?|chip)(?![\w-])/;
+
+function rulesOf(css: string): { selector: string; body: string }[] {
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  return [...rules.matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(
+    ([, list = "", body = ""]) =>
+      selectors(list).map((selector) => ({ selector, body })),
+  );
+}
+
+/** The sets whose picked one is styled while the rest lie flat. */
+function flatChoices(css: string): string[] {
+  const rules = rulesOf(css);
+  const casts = new Set(
+    rules
+      .filter(({ body }) => /box-shadow:\s*var\(--shadow\)/.test(body))
+      .map(({ selector }) => selector),
+  );
+  const bases = rules
+    .filter(({ selector }) => PICKED.test(selector))
+    .map(({ selector }) => selector.replace(PICKED, ""));
+  return [...new Set(bases)].filter(
+    (base) => !casts.has(base) && !SHARED_BUTTON.test(base),
+  );
+}
+
+describe("every choice reads as a button", () => {
+  const css = STYLED.filter((file) => file.rel.endsWith(".css"))
+    .map((file) => file.text)
+    .join("\n");
+
+  it("casts the shadow from every one of a set, picked or not", () => {
+    expect(flatChoices(css)).toEqual([]);
+  });
+
+  it("casts it from the shared buttons and a step you can go back to", () => {
+    const casts = rulesOf(css)
+      .filter(({ body }) => /box-shadow:\s*var\(--shadow\)/.test(body))
+      .map(({ selector }) => selector);
+    expect(casts).toEqual(
+      expect.arrayContaining([
+        ".button",
+        ".button-small",
+        ".chip",
+        ".ob-step > button",
+      ]),
+    );
+  });
+
+  it("flags a set that shadows only its picked one and passes one that shadows all", () => {
+    const picked =
+      '.tabs button[aria-selected="true"] { background: var(--primary); box-shadow: var(--shadow); }';
+    expect(flatChoices(`.tabs button { cursor: pointer; } ${picked}`)).toEqual([
+      ".tabs button",
+    ]);
+    expect(
+      flatChoices(`.tabs button { box-shadow: var(--shadow); } ${picked}`),
+    ).toEqual([]);
+    expect(
+      flatChoices(
+        '.button-small[aria-pressed="true"]:not(.button-ghost) { background: var(--primary); }',
+      ),
+    ).toEqual([]);
+    expect(
+      flatChoices(
+        '[aria-pressed="true"] > .count { background: var(--card); }',
+      ),
+    ).toEqual([]);
   });
 });
 

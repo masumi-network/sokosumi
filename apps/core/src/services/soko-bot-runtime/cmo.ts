@@ -26,9 +26,14 @@ import {
   saveBrandBrain,
 } from "@/services/brand-brain.service";
 import { scheduleCmoBrandMedia } from "@/services/cmo-brand-media.service";
+import {
+  COMPETITOR_SEARCHES_CAMPAIGN,
+  unreadCompetitorAdKeywords,
+} from "@/services/cmo-competitor-keywords.service";
 import { syncTrackedCompetitorsFromBrandBrain } from "@/services/cmo-competitors.service";
 import {
   CmoNotFoundError,
+  requireCuso,
   startCmoProduction,
 } from "@/services/cmo-cuso.service";
 import {
@@ -436,6 +441,16 @@ export async function saveCmoRecord(
           select: { source: true, clientTurnId: true },
         });
         const executing = turn ? cmoTurnExecutesPlan(turn) : false;
+        if (pieces) {
+          const unread = await unreadCompetitorAdKeywords(
+            (await requireCuso(where)).projectId,
+            sent.calendar ?? [],
+          );
+          if (unread.length > 0)
+            throw new SokoBotRuntimeValidationError(
+              `save_strategy saved nothing: an ad on competitor searches takes only keywords research_competitor_keywords returned (the search and its alsoSearchedAs, spelled the same). Not among them: ${unread.join(", ")}. Take them out, or give a general ad its own entry without campaignId "${COMPETITOR_SEARCHES_CAMPAIGN}".`,
+            );
+        }
         const saved = await write((tx) =>
           saveCmoStrategy(
             where,

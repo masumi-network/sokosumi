@@ -57,6 +57,10 @@ const calendar: Entry[] = [
   entry(11, "x", "What a slipped launch costs", { status: "draft" }),
   entry(13, "linkedin", "How we plan a launch window", { status: "draft" }),
   entry(16, "facebook", "Meet the crew", { imageFileId: "f6" }),
+  entry(17, "instagram", "Why launches slip", {
+    format: "talking_video",
+    alsoOn: ["youtube", "facebook"],
+  }),
   entry(18, "x", "Ask us anything", { status: "idea", draft: undefined }),
   entry(20, "linkedin", "Customer story: Moonshot", { status: "idea" }),
   entry(24, "newsletter", "November launches", {
@@ -364,6 +368,49 @@ export const messages: CusoMessage[] = [
     },
   },
   message("m4", false, "Great. Keep X posts short.", "04T10:03:00"),
+  {
+    ...message(
+      "week",
+      true,
+      "What your competitors did this week",
+      "04T10:02:00",
+    ),
+    week: {
+      checkDay: "2026-11-04",
+      moves: [
+        {
+          competitor: "Calendly",
+          text: "Calendly raised Standard from $10 to $12 per seat a month.",
+          source: {
+            label: "Calendly",
+            url: "https://calendly.com/pricing",
+          },
+          big: true,
+          meaning:
+            "Calendly's rise leaves your Teams plan the cheaper one for small teams.",
+          move: "Lead your pricing page with the price per seat this week.",
+        },
+        {
+          competitor: "SavvyCal",
+          text: "SavvyCal added round-robin scheduling for teams.",
+          source: {
+            label: "savvycal.com",
+            url: "https://savvycal.com/blog/round-robin",
+          },
+          big: false,
+        },
+        {
+          competitor: "Zcal",
+          text: "Zcal ends its Pro plan in December 2026.",
+          source: {
+            label: "it.example.edu",
+            url: "https://it.example.edu/notices/zcal",
+          },
+          big: false,
+        },
+      ],
+    },
+  },
   message(
     "m5",
     true,
@@ -531,6 +578,36 @@ export const chat = {
       by: "Hannah",
       text: "About two hours. I need your three main competitors and the market you sell in.",
     },
+    {
+      ...media,
+      id: "w12",
+      kind: "seo",
+      state: "making",
+      at: new Date("2026-11-04T10:29:00Z"),
+      title: 'Where you rank on Google for "nft checkout", "mint on your site"',
+      by: "The SEO specialist",
+    },
+    {
+      ...media,
+      id: "w13",
+      kind: "seo",
+      state: "ready",
+      at: new Date("2026-11-04T10:30:00Z"),
+      title: 'Where you rank on Google for "nft minting platform"',
+      by: "The SEO specialist",
+      text: 'The SEO specialist checked Google on 2026-11-04 for https://nmkr.io/: "nft minting platform" (mobile, US): position 7, 1,300 searches a month. Top results: 1. opensea.io; 2. thirdweb.com',
+      readable: true,
+    },
+    {
+      ...media,
+      id: "audit-1",
+      kind: "audit",
+      state: "ready",
+      at: new Date("2026-11-04T10:31:00Z"),
+      title: "Weekly audit of your site",
+      by: "The SEO specialist",
+      text: "86 of 110 checks passed. 5 things to fix are in your SEO tab.",
+    },
   ] satisfies ChatWork[],
 };
 
@@ -619,6 +696,7 @@ export const seo: CmoSeo = {
       body: "Replace the page title.",
       newText: "Team Booking Software for Sales and Support | Acme",
       draft: null,
+      sources: [],
       evidence: [
         {
           metric: "position",
@@ -653,6 +731,7 @@ export const seo: CmoSeo = {
       body: "Once the script loads correctly, the page's render is complete and any HubSpot chat or tracking behavior works as intended for visitors and for Googlebot's render of the page. This removes the render error itself; no rank or traffic change can be forecast from it.",
       newText: null,
       draft: null,
+      sources: [],
       evidence: [
         {
           metric: "auditIssue",
@@ -682,6 +761,7 @@ export const seo: CmoSeo = {
       body: "## Who needs an alternative\n## Acme and Calendly side by side\n## How to switch in a day",
       newText: null,
       draft: null,
+      sources: [],
       evidence: [
         {
           metric: "searchVolume",
@@ -702,6 +782,42 @@ export const seo: CmoSeo = {
       ],
       status: "open",
       createdAt: seoAt("2026-11-17T09:00:00Z"),
+      doneAt: null,
+      verifiedAt: null,
+    },
+  ],
+  landingPages: [
+    {
+      id: "0198c0de-0000-7000-8000-000000000009",
+      kind: "landing_page",
+      source: "cuso",
+      title: "Calendly alternative for teams that want their own booking page",
+      keyword: "calendly alternative",
+      pageUrl: null,
+      why: "880 people a month search this while they choose, and your search ad for it has no page that answers them.",
+      body: "",
+      newText: null,
+      draft:
+        "# Calendly alternative for teams that want their own booking page\n\nLooking for a Calendly alternative? Acme gives every teammate a booking page on your own domain, free for one person.\n\n## What you get\n\n- A booking page on your domain\n- Round-robin for the whole team\n\n## Acme and Calendly side by side\n\nCalendly's Standard plan costs $12 per seat a month, billed yearly. Acme is free for one person.\n\nIf you only need one meeting type, Calendly's free plan may be all you need.",
+      sources: [
+        {
+          text: "Calendly's Standard plan costs $12 per seat a month, billed yearly.",
+          sourceUrl: "https://calendly.com/pricing",
+          quote: "Standard $12 /seat/mo billed yearly",
+        },
+      ],
+      evidence: [
+        {
+          metric: "searchVolume",
+          keyword: "calendly alternative",
+          pageUrl: null,
+          value: "880",
+          source: "keyword_research",
+          observedAt: seoAt("2026-11-19T09:00:00Z"),
+        },
+      ],
+      status: "open",
+      createdAt: seoAt("2026-11-19T09:00:00Z"),
       doneAt: null,
       verifiedAt: null,
     },

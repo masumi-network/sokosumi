@@ -49,6 +49,7 @@ import {
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
+  cmoAlsoOnProblem,
   cmoChangeKind,
   isMarketingFilePiece,
   newestMarketingStrategy,
@@ -889,6 +890,10 @@ export async function saveCmoStrategy(
   const cuso = await requireCuso(where, db);
   // What the last patch changed is Core's to say.
   const { patched, ...strategy } = save;
+  const alsoOn = (strategy.calendar ?? [])
+    .map((entry) => cmoAlsoOnProblem(entry))
+    .find((problem) => problem !== null);
+  if (alsoOn && options.turnId) throw unprocessableEntity(alsoOn);
   if (options.part === "pieces") {
     // Pieces write the approved version's Social posts and never a plan.
     const approved = await approvedMarketingStrategy(cuso.projectId, db);

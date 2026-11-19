@@ -1321,6 +1321,29 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-talking-video-networks",
+    title: "Puts one talking video on several networks",
+    intent:
+      "Asked for the same talking video as a Reel and a Short, Cuso plans one video and lists the other networks on it.",
+    prompt:
+      "Make one of next week's Instagram pieces a talking video: someone explaining in a few seconds why a booking link beats emailing back and forth. Put the same video on YouTube Shorts and Facebook too.",
+    rubric:
+      "Cuso saved the change with save_strategy: exactly one calendar entry with format talking_video for this message, on one of Instagram, YouTube or Facebook, whose alsoOn lists the other two, with a script (spoken words only, hook first, one point, one next step, in the brand's voice and never as a customer), a presenter and a voice. He tells the owner it is one video that goes out on all three networks. Two or three separate talking_video entries for the same message, leaving a requested network out, calling generate_talking_video or generate_video in place of the save, or claiming the change without a successful save_strategy fails.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      // The lane's month is a draft: a pieces save is refused, a calendar save works.
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: [
+        "generate_talking_video",
+        "generate_video",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "cmo-picture-style",
     title: "Gives a picture the look of an old print",
     intent:
@@ -1608,10 +1631,10 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     id: "cmo-competitor-feed",
     title: "Writes the competitor feed from stored signals only",
     intent:
-      "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the price change reaches the owner at once.",
+      "After the weekly check, Cuso writes This week from the stored signals, cites them, invents nothing, and the owner gets the week as one message with the price change called out.",
     prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
     rubric:
-      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning names the competitor and what it did and says what that changes for cal.com, from the Brand Brain; a meaning that would fit under any other move fails. Each has one concrete move about that competitor's move (which page, post or offer, and when); a post or ad is on a network under Connected channels in his packet, or the move says to connect the network first. Core posts the big moves to the owner, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
+      "The check stored: Calendly's Standard plan went from $10 to $12 per seat a month (its pricing page); SavvyCal launched round-robin scheduling for teams (its blog); Calendly published a guide to taking meeting notes (not a move); Zcal's Instagram counts. Cuso calls check_competitors, then saves a feed with save_competitor_feed with one item for the Calendly price change, saying it went from $10 to $12, and one for the SavvyCal launch, each fact saying only what its signals say; the guide and the Instagram counts are not items. Each item's meaning names the competitor and what it did and says what that changes for the owner's business (cal.com), from the Brand Brain, written to the owner (\"your Teams plan\"); a meaning that would fit under any other move fails. Each has one concrete move about that competitor's move (which page, post or offer, and when); a post or ad is on a network under Connected channels in his packet, or the move says to connect the network first. Writing \"Cuso\" in a meaning or a move fails. Core posts the week to the owner as one message, so his own answer is exactly `Nothing to add.` A reason, a number or a customer reaction no signal gives, naming Sokosumi, or claiming a saved feed without a successful save_competitor_feed fails.",
     expect: {
       // The label the classifier gives a Core-written brief; the real run
       // has a preset route.
@@ -1655,6 +1678,21 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-competitor-digest",
+    title: "Tells a noisy first week as one calm message",
+    intent:
+      "A first check full of second-hand and small signals becomes one message: one line per move, nothing called big, one competitor's prices told once, in plain words, to the owner.",
+    prompt: cmoCompetitorWatchBrief(["Calendly", "SavvyCal", "Zcal"]),
+    rubric:
+      'The check stored only second-hand or small signals: a comparison blog and a deals site both report Calendly\'s Standard price ($12 per seat; 50% off the annual plan until November 20, $6 instead of $12 in the first year), SavvyCal\'s changelog says it overhauled roles and permissions, a launch directory lists a Zcal AI scheduling assistant, an outage tracker says SavvyCal fixed a calendar sync issue, and Zcal\'s Instagram counts. Cuso calls check_competitors and saves a feed with save_competitor_feed: Calendly\'s prices are one item whose facts agree (the list price and the sale on it), the SavvyCal roles change and the Zcal assistant are one item each, and the fixed outage and the Instagram counts are not items. Facts that rest on the blog, the deals site or the directory are marked weak. Each fact starts with the competitor and says what it did in plain, active words; "was detected", "was reported" or naming what a source leaves out ("the prior price unstated") fails. Meaning and move speak to the owner about their business ("your pricing page", "your LinkedIn"); writing "Cuso" or "Cuso\'s" fails. He answers exactly `Nothing to add.` Two items about Calendly\'s prices, a reason or a number no signal gives, or calling any of this week\'s moves urgent fails.',
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED", "DIRECT_RESPONSE", "CLARIFY"],
+      tools: ["check_competitors", "save_competitor_feed"],
+      allowFailedTools: ["save_competitor_feed"],
+      answerMatches: "nothing to add",
+    },
+  },
+  {
     id: "cmo-competitor-search-ads",
     title: "Turns the competitors' searches into search ads the owner launches",
     intent:
@@ -1670,6 +1708,24 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       allowFailedTools: ["save_strategy"],
       forbiddenTools: ["create_task", "hire_agent", "save_seo_suggestions"],
       answerAvoids: CMO_PLACEHOLDER_PATTERN,
+    },
+  },
+  {
+    id: "cmo-competitor-landing-page",
+    title: "Writes a landing page for a competitor search from sourced facts",
+    intent:
+      "Asked for the page a search ad opens, Cuso writes it with the search in its H1 and first paragraph, says about the competitor only what its own words say, and saves it for the owner to publish.",
+    prompt:
+      'Write the landing page for the search "calendly alternatives", so our ad for it opens a page that answers it. I will publish it on our site.',
+    rubric:
+      'Cuso saved a landing page with save_seo_suggestions landingPages for the search "calendly alternatives" and the competitor Calendly. Its first line is an H1 that holds "calendly alternatives" word for word, and so does its first paragraph. Most of the page is about what cal.com offers, from the Brand Brain. What it says about Calendly comes only from Calendly\'s own words: the signal check_competitors returned (Standard plan $12 per seat a month, billed yearly, on its pricing page) or a page of calendly.com he read, each given as a claim with its source and quote. It makes no judgement of Calendly ("expensive", "limited", "better than"). His answer says the page is in the SEO tab under Landing pages, that the owner publishes it and then presses "It\'s live" there with its address, and that the ad for that search sends people there from then on. A save Core refused and he fixed is fine. A fact about Calendly with no source, a page saved to the strategy or calendar, publishing or hosting it himself, or claiming it is saved without a successful save_seo_suggestions fails.',
+    expect: {
+      // Writing a page reads as an answer to the classifier; the tool calls decide.
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED"],
+      tools: ["save_seo_suggestions"],
+      // Core refuses a quote that is not on the page; he fixes it and saves again.
+      allowFailedTools: ["save_seo_suggestions", "web_fetch"],
+      forbiddenTools: ["create_task", "hire_agent", "save_strategy"],
     },
   },
 ];

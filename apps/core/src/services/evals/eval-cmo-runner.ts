@@ -428,8 +428,17 @@ export async function prepareCmoChatCase(
     return prepareCompetitorCase(lane, setup);
   }
   await prepareCmoChat(lane, setup !== "cmo-new-client");
-  if (setup === "cmo-competitor-ads") {
-    await prepareCompetitorCase(lane, "cmo-competitors-quiet");
+  if (
+    setup === "cmo-competitor-ads" ||
+    setup === "cmo-competitor-landing-page"
+  ) {
+    // The landing page cites what the week's check stored of the competitors.
+    await prepareCompetitorCase(
+      lane,
+      setup === "cmo-competitor-ads"
+        ? "cmo-competitors-quiet"
+        : "cmo-competitors",
+    );
     await prepareCompetitorAdsCase(lane);
     return {};
   }

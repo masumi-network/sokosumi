@@ -20,6 +20,11 @@ import {
   readCmoChatTable,
 } from "@/services/cmo-chat-records.service";
 import {
+  type CmoChatSeoWork,
+  listCmoChatSeoWork,
+  readCmoChatSeoText,
+} from "@/services/cmo-chat-seo.service";
+import {
   CmoNotFoundError,
   type CusoTarget,
   requireCuso,
@@ -60,7 +65,8 @@ export interface CmoChatWorkItem {
     | "file"
     | "task"
     | "agent"
-    | CmoChatRecord["kind"];
+    | CmoChatRecord["kind"]
+    | CmoChatSeoWork["kind"];
   /**
    * `waiting` is handed work that needs the owner before it goes on;
    * `stopped` is a background run somebody called off.
@@ -71,7 +77,7 @@ export interface CmoChatWorkItem {
   title: string;
   /** Where the finished file plays or downloads from; null otherwise. */
   url: string | null;
-  /** Who does handed work: the Coworker or the Agent. */
+  /** Who does handed work: the Coworker, the Agent or the SEO specialist. */
   by: string | null;
   /** Handed work: what is asked while it waits, the result's start once done. */
   text: string | null;
@@ -362,9 +368,19 @@ export async function listCmoChatWork(
     take: CMO_CHAT_WORK_SHOWN,
     select: CALL_SELECT,
   });
-  const records = (await listCmoChatRecords(cuso)).map(
-    (record): CmoChatWorkItem => ({ ...record, url: null, files: [] }),
-  );
+  const records = [
+    ...(await listCmoChatRecords(cuso)).map(
+      (record): CmoChatWorkItem => ({ ...record, url: null, files: [] }),
+    ),
+    ...(await listCmoChatSeoWork(cuso)).map(
+      (work): CmoChatWorkItem => ({
+        ...work,
+        ...NO_RECORD,
+        url: null,
+        files: [],
+      }),
+    ),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
   if (calls.length === 0) return records;
   const drive = await driveOf(cuso, input.userId);
   const keyOf = (call: WorkCall) =>
@@ -581,7 +597,8 @@ export async function readCmoChatWorkText(
   });
   const text = call
     ? await wordsOf(call, cuso, input.userId)
-    : await readCmoChatRecordText(cuso, input.id);
+    : ((await readCmoChatRecordText(cuso, input.id)) ??
+      (await readCmoChatSeoText(cuso, input.id)));
   if (!text) throw new CmoNotFoundError("There is nothing to read here yet");
   return text;
 }

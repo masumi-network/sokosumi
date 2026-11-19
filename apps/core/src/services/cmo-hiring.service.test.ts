@@ -334,7 +334,7 @@ describe("activity", () => {
   it("never names a tool: one without its own words reads as working", async () => {
     turnFindFirst.mockResolvedValue(running);
     toolCallFindFirst.mockResolvedValue({
-      capability: "create_task",
+      capability: "link_tasks",
       input: {},
     });
     eventFindFirst.mockResolvedValue(null);

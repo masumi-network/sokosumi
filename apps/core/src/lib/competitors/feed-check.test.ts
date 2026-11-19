@@ -28,6 +28,7 @@ function signal(overrides: Partial<CitableSignal>): CitableSignal {
     quote: "$12 per seat/month",
     sourceTitle: "Calendly pricing",
     sourcePublisher: "Calendly",
+    sourceUrl: "https://calendly.com/pricing",
     observedAt: new Date("2026-11-16T09:00:00Z"),
     raw: { prices: { before: ["$10"], after: ["$12"] } },
     ...overrides,
@@ -103,6 +104,51 @@ describe("feedProblems", () => {
         "",
       ),
     ).toEqual([]);
+  });
+
+  // CMO.XYZ's Cuso, 18 Nov 2026: a $99 entry plan and a $49.50 sale on it
+  // reached the owner as two moves that read like two prices.
+  it("refuses two items about one competitor's prices, and takes them as one", () => {
+    const SALE = "bbbbbbbb-bbbb-4bbb-8bbb-000000000009";
+    const signals = new Map(SIGNALS).set(
+      SALE,
+      signal({
+        id: SALE,
+        kind: "NEWS",
+        summary: "Calendly offers 50% off Standard: $6 instead of $12",
+        quote: "$6 instead of $12 per seat",
+        sourceUrl: "https://i4u.business/en/news/calendly-sale",
+        raw: { event: "pricing" },
+      }),
+    );
+    const list = {
+      text: "Calendly's Standard plan costs $12 per seat.",
+      signalIds: [PRICE],
+      support: "strong" as const,
+    };
+    const sale = {
+      text: "Calendly sells Standard at $6 instead of $12 in a sale.",
+      signalIds: [SALE],
+      support: "weak" as const,
+    };
+    const [first] = feed([list]).items;
+    const [second] = feed([sale]).items;
+    if (!first || !second) throw new Error("no items");
+    expect(
+      feedProblems(
+        { items: [first, second], openQuestions: [] },
+        signals,
+        COMPETITORS,
+        "",
+      ),
+    ).toEqual([
+      expect.stringMatching(
+        /^Items 1 and 2 are both about Calendly's prices\. Make them one item/,
+      ),
+    ]);
+    expect(feedProblems(feed([list, sale]), signals, COMPETITORS, "")).toEqual(
+      [],
+    );
   });
 
   it("refuses an invented number, a foreign id and another competitor's signal", () => {
@@ -257,60 +303,83 @@ describe("feedProblems on meaning and move", () => {
   });
 });
 
+const OWNER = { name: "Calendly", websiteUrl: "https://calendly.com/" };
+
+function news(event: string, sourceUrl: string): CitableSignal {
+  return signal({ kind: "NEWS", summary: "x", raw: { event }, sourceUrl });
+}
+
 describe("isBigMove", () => {
   it.each([
-    ["a price change", [signal({})], true],
+    ["a price change on its own pricing page", [signal({})], true],
     [
-      "a launch in the news",
-      [
-        signal({
-          kind: "NEWS",
-          summary: "Calendly launched an AI notetaker",
-          raw: { event: "launch" },
-        }),
-      ],
+      "a launch on its own blog",
+      [news("launch", "https://calendly.com/blog/ai-notetaker")],
       true,
+    ],
+    [
+      "a launch a newsroom reports",
+      [news("launch", "https://techcrunch.com/2026/11/16/calendly-notetaker")],
+      true,
+    ],
+    [
+      "funding on a press wire",
+      [news("funding", "https://www.prnewswire.com/news/calendly-series-c")],
+      true,
+    ],
+    [
+      "an acquisition a newsroom reports",
+      [news("acquisition", "https://www.reuters.com/technology/calendly")],
+      true,
+    ],
+    [
+      "a plan ending it announced itself",
+      [news("pricing", "https://help.calendly.com/pro-plan-ends")],
+      true,
+    ],
+    [
+      "a price a comparison blog reports",
+      [news("pricing", "https://saascompared.com/blog/saas-price-changes")],
+      false,
+    ],
+    [
+      "a sale a deals site reports",
+      [news("pricing", "https://i4u.business/en/news/calendly-sale")],
+      false,
+    ],
+    [
+      "a launch on a competitor tracker",
+      [news("launch", "https://rivalsense.co/intel/calendly")],
+      false,
+    ],
+    [
+      "a launch on a launch directory",
+      [news("launch", "https://peerpush.com/p/calendly")],
+      false,
+    ],
+    [
+      "a changelog entry labelled a launch",
+      [news("launch", "https://calendly.com/changelog/roles-permissions")],
+      false,
+    ],
+    [
+      "a new feature it announced",
+      [news("feature", "https://calendly.com/blog/roles")],
+      false,
+    ],
+    [
+      "a campaign it launched",
+      [news("campaign", "https://calendly.com/blog/vote")],
+      false,
     ],
     [
       "an ad burst",
       [signal({ kind: "AD", summary: "4 new ads", raw: { count: 4 } })],
-      true,
-    ],
-    [
-      "one new ad",
-      [signal({ kind: "AD", summary: "1 new ad", raw: { count: 1 } })],
       false,
     ],
     [
-      "a new product on the site",
+      "new features on its homepage",
       [signal({ kind: "WEBSITE_CHANGE", raw: { about: "product" } })],
-      true,
-    ],
-    [
-      "a reworded headline",
-      [signal({ kind: "WEBSITE_CHANGE", raw: { about: "positioning" } })],
-      false,
-    ],
-    [
-      "a plan ending in the news",
-      [
-        signal({
-          kind: "NEWS",
-          summary: "Doodle ends its Pro plan",
-          raw: { event: "pricing" },
-        }),
-      ],
-      true,
-    ],
-    [
-      "a campaign someone launched",
-      [
-        signal({
-          kind: "NEWS",
-          summary: "Stumptown launched a voter campaign",
-          raw: { event: "campaign" },
-        }),
-      ],
       false,
     ],
     [
@@ -319,33 +388,45 @@ describe("isBigMove", () => {
       false,
     ],
   ])("reads %s as big: %s", (_label, signals, big) => {
-    expect(isBigMove(signals)).toBe(big);
+    expect(isBigMove(signals, OWNER)).toBe(big);
+  });
+
+  it("knows a competitor without a website by a domain named like it", () => {
+    const buffer = { name: "Buffer", websiteUrl: null };
+    expect(
+      isBigMove([news("launch", "https://buffer.com/resources/new")], buffer),
+    ).toBe(true);
+    expect(
+      isBigMove([news("launch", "https://outagedb.com/status/buffer")], buffer),
+    ).toBe(false);
+  });
+
+  it("takes one first-hand signal beside second-hand ones", () => {
+    expect(
+      isBigMove(
+        [
+          news("launch", "https://peerpush.com/p/calendly"),
+          news("launch", "https://calendly.com/blog/ai-notetaker"),
+        ],
+        OWNER,
+      ),
+    ).toBe(true);
   });
 });
 
 describe("moveRank", () => {
-  it("ranks a price change above a launch above an ad burst", () => {
-    const launch = signal({
-      kind: "NEWS",
-      summary: "Zcal launched team pages",
-      raw: { event: "launch" },
-    });
-    const ads = signal({ kind: "AD", summary: "5 new ads", raw: { count: 5 } });
-    expect(moveRank([launch, signal({})])).toBe(0);
-    expect(moveRank([ads, launch])).toBe(1);
+  it("ranks a price change above a launch, and the rest not at all", () => {
+    const launch = news("launch", "https://calendly.com/blog/ai-notetaker");
+    expect(moveRank([launch, signal({})], OWNER)).toBe(0);
+    expect(moveRank([launch], OWNER)).toBe(1);
     expect(
-      moveRank([
-        launch,
-        signal({
-          kind: "NEWS",
-          summary: "Zcal ends Pro",
-          raw: { event: "pricing" },
-        }),
-      ]),
+      moveRank(
+        [launch, news("pricing", "https://calendly.com/blog/pro-ends")],
+        OWNER,
+      ),
     ).toBe(0);
-    expect(moveRank([ads])).toBe(2);
     expect(
-      moveRank([signal({ kind: "SOCIAL", summary: "3 posts" })]),
+      moveRank([signal({ kind: "SOCIAL", summary: "3 posts" })], OWNER),
     ).toBeNull();
   });
 });

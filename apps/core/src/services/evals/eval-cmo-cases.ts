@@ -163,8 +163,11 @@ export type CmoChatSetup =
   | "cmo-competitors"
   | "cmo-competitors-quiet"
   | "cmo-competitors-second-hand"
+  | "cmo-competitors-busy"
   /** An approved month with an ad budget and the competitors' searches read. */
-  | "cmo-competitor-ads";
+  | "cmo-competitor-ads"
+  /** The same, after a check that stored what the competitors say of themselves. */
+  | "cmo-competitor-landing-page";
 
 /** The brand Cuso's chat and replies cases run for, and the comments it answers. */
 export const CMO_CHAT_BRAND = "cal.com";

@@ -8670,6 +8670,10 @@ export type ProjectCompetitorCreate = {
      * Its Facebook Page: the name in its address, or the address.
      */
     facebookHandle?: string | null;
+    /**
+     * true when the member picked it from the suggestions and typed nothing: the weekly check then fills its pricing page and accounts from its homepage, as it never does for fields a member set.
+     */
+    suggested?: boolean;
 };
 
 export type ProjectCompetitorUpdate = {
@@ -8705,6 +8709,20 @@ export type ProjectCompetitorCheckRun = {
      */
     outcome: 'checked' | 'not_due' | 'no_competitors' | 'paused' | 'unfunded';
     competitors: ProjectCompetitors;
+};
+
+export type ProjectCompetitorSuggestions = {
+    suggestions: Array<{
+        name: string;
+        /**
+         * The company's homepage.
+         */
+        websiteUrl: string;
+        /**
+         * What it sells, in one line.
+         */
+        why: string;
+    }>;
 };
 
 export type QuestionAnswerRequest = {
@@ -8951,6 +8969,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             presenter?: string;
             voice?: string;
             languageCode?: string;
+            alsoOn?: Array<string>;
+            videoOf?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -9008,6 +9028,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 presenter?: string;
                 voice?: string;
                 languageCode?: string;
+                alsoOn?: Array<string>;
+                videoOf?: string;
                 story?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
@@ -9259,6 +9281,8 @@ export type MarketingStrategyRequest = {
             presenter?: string;
             voice?: string;
             languageCode?: string;
+            alsoOn?: Array<string>;
+            videoOf?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -9316,6 +9340,8 @@ export type MarketingStrategyRequest = {
                 presenter?: string;
                 voice?: string;
                 languageCode?: string;
+                alsoOn?: Array<string>;
+                videoOf?: string;
                 story?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
@@ -11001,6 +11027,8 @@ export type SocialPost = {
         presenter?: string;
         voice?: string;
         languageCode?: string;
+        alsoOn?: Array<string>;
+        videoOf?: string;
         story?: string;
     } | null;
     createdAt: Date;
@@ -13844,6 +13872,8 @@ export type CmoPlan = {
         presenter?: string;
         voice?: string;
         languageCode?: string;
+        alsoOn?: Array<string>;
+        videoOf?: string;
         story?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
@@ -13901,6 +13931,8 @@ export type CmoPlan = {
             presenter?: string;
             voice?: string;
             languageCode?: string;
+            alsoOn?: Array<string>;
+            videoOf?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -14116,13 +14148,13 @@ export type CmoChatWork = {
 
 export type CmoChatWorkItem = {
     /**
-     * The tool call that started it.
+     * The tool call that started it; a weekly audit's own id.
      */
     id: string;
     /**
-     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, or a question to a Coworker.
+     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).
      */
-    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question';
+    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question' | 'seo' | 'audit';
     /**
      * making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.
      */
@@ -14289,6 +14321,7 @@ export type CmoSeo = {
     searchConsole: CmoSearchConsole;
     articles: Array<CmoSeoSuggestion>;
     pageChanges: Array<CmoSeoSuggestion>;
+    landingPages: Array<CmoSeoSuggestion>;
     keywordSearches: Array<CmoKeywordSearch>;
     keywordSearchesLeft: number;
 };
@@ -14351,7 +14384,7 @@ export type CmoSearchConsole = {
 
 export type CmoSeoSuggestion = {
     id: string;
-    kind: 'article' | 'page_change';
+    kind: 'article' | 'page_change' | 'landing_page';
     source: 'audit' | 'cuso';
     title: string;
     keyword: string | null;
@@ -14360,6 +14393,11 @@ export type CmoSeoSuggestion = {
     body: string;
     newText: string | null;
     draft: string | null;
+    sources: Array<{
+        text: string;
+        sourceUrl: string;
+        quote: string;
+    }>;
     evidence: Array<CmoSeoEvidence>;
     status: 'open' | 'done' | 'verified' | 'dismissed';
     createdAt: Date;
@@ -14399,6 +14437,16 @@ export type CmoKeywordSearchRequest = {
 
 export type CmoSeoSuggestionStatusRequest = {
     status: 'open' | 'done' | 'dismissed';
+};
+
+export type CmoLandingPageLive = {
+    page: CmoSeoSuggestion;
+    adsUpdated: number;
+    adsLaunched: number;
+};
+
+export type CmoLandingPageLiveRequest = {
+    url: string;
 };
 
 export type CmoPresenterPhoto = {
@@ -61077,6 +61125,140 @@ export type RunProjectCompetitorCheckResponses = {
 
 export type RunProjectCompetitorCheckResponse = RunProjectCompetitorCheckResponses[keyof RunProjectCompetitorCheckResponses];
 
+export type SuggestProjectCompetitorsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/competitors/suggestions';
+};
+
+export type SuggestProjectCompetitorsErrors = {
+    /**
+     * Bad Request - invalid coworker context headers, or `context_organization_required`: the context user has no personal workspace, so send `X-Context-Organization-Id`
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * CMO project is read-only
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Project has no website, or the search is not available
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SuggestProjectCompetitorsError = SuggestProjectCompetitorsErrors[keyof SuggestProjectCompetitorsErrors];
+
+export type SuggestProjectCompetitorsResponses = {
+    /**
+     * Competitors to pick from
+     */
+    200: {
+        data: ProjectCompetitorSuggestions;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SuggestProjectCompetitorsResponse = SuggestProjectCompetitorsResponses[keyof SuggestProjectCompetitorsResponses];
+
 export type ConfirmProjectBrandBrainData = {
     body?: never;
     headers?: {
@@ -89868,6 +90050,97 @@ export type SetCmoSeoSuggestionStatusForProjectResponses = {
 };
 
 export type SetCmoSeoSuggestionStatusForProjectResponse = SetCmoSeoSuggestionStatusForProjectResponses[keyof SetCmoSeoSuggestionStatusForProjectResponses];
+
+export type MarkCmoLandingPageLiveForProjectData = {
+    body: CmoLandingPageLiveRequest;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/live';
+};
+
+export type MarkCmoLandingPageLiveForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such landing page
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The address is not on the business's site
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MarkCmoLandingPageLiveForProjectError = MarkCmoLandingPageLiveForProjectErrors[keyof MarkCmoLandingPageLiveForProjectErrors];
+
+export type MarkCmoLandingPageLiveForProjectResponses = {
+    /**
+     * The page, and the search ads that changed
+     */
+    200: {
+        data: CmoLandingPageLive;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type MarkCmoLandingPageLiveForProjectResponse = MarkCmoLandingPageLiveForProjectResponses[keyof MarkCmoLandingPageLiveForProjectResponses];
 
 export type SkipCmoSubscriptionForProjectData = {
     body?: never;

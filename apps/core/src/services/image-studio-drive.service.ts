@@ -357,28 +357,54 @@ export async function moveLegacyStudioFolderTasks(
   return { moved, failed };
 }
 
+/** Facebook takes a Reel of 3 to 90 seconds. */
+const REEL_SECONDS = { min: 3, max: 90 };
+
 /**
- * Whether a post's media includes a talking video's copy in Files. Core names
- * that copy itself (`studioAssetFileName`): the Content Studio folder, and the
+ * What Content Studio made the post's video as: a talking video (a generated
+ * presenter, labelled AI-made where the network can), and whether it is a
+ * vertical short video a network shows as a Reel (a video's asset holds no
+ * size, so its job's ratio or the still it animates says). Core names a video's copy
+ * in Files itself (`studioAssetFileName`): the Content Studio folder, and the
  * job id's last eight hex digits before the extension.
  */
-export async function isTalkingVideoMedia(
+export async function studioVideoOfMedia(
   projectId: string,
   media: readonly { pathname: string; name: string; kind: string }[],
-): Promise<boolean> {
+): Promise<{ talking: boolean; reel: boolean }> {
   const suffixes = media.flatMap((item) => {
     if (item.kind !== "video") return [];
     if (!item.pathname.includes(`/${IMAGE_STUDIO_DRIVE_FOLDER}/`)) return [];
     const match = /-([0-9a-f]{8})\.[a-z0-9]+$/.exec(item.name);
     return match?.[1] ? [match[1]] : [];
   });
-  if (suffixes.length === 0) return false;
-  const rows = await prisma.$queryRaw<{ found: boolean }[]>`
-    select exists (
-      select 1 from project_image_job
-      where "projectId" = ${projectId}::uuid
-        and kind = 'TALKING_VIDEO'
-        and right(replace(id::text, '-', ''), 8) = any(${suffixes})
-    ) as found`;
-  return rows[0]?.found ?? false;
+  if (suffixes.length === 0) return { talking: false, reel: false };
+  const rows = await prisma.$queryRaw<
+    { talking: boolean; vertical: boolean; seconds: number | null }[]
+  >`
+    select job.kind = 'TALKING_VIDEO' as talking,
+      (
+        job.settings->>'aspectRatio' = '9:16'
+        or exists (
+          select 1 from project_image_asset still
+          where still.id = any(job."referenceAssetIds")
+            and still.height > still.width
+        )
+      ) as vertical,
+      asset."durationSeconds" as seconds
+    from project_image_job job
+    join project_image_asset asset on asset."jobId" = job.id
+    where job."projectId" = ${projectId}::uuid
+      and asset."mediaType" = 'VIDEO'
+      and right(replace(job.id::text, '-', ''), 8) = any(${suffixes})`;
+  return {
+    talking: rows.some((row) => row.talking),
+    reel: rows.some(
+      (row) =>
+        row.vertical &&
+        row.seconds !== null &&
+        row.seconds >= REEL_SECONDS.min &&
+        row.seconds <= REEL_SECONDS.max,
+    ),
+  };
 }

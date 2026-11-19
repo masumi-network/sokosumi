@@ -193,7 +193,7 @@ describe("Cuso's competitor tools", () => {
     expect(m.projectFindFirst).not.toHaveBeenCalled();
   });
 
-  it("post his big moves to his room and say so", async () => {
+  it("post the week to his room and say so", async () => {
     await expect(
       call("save_competitor_feed", { projectId: OTHER, items: [] }),
     ).resolves.toEqual({ ...SAVED, postedToChat: true });
@@ -201,5 +201,16 @@ describe("Cuso's competitor tools", () => {
       expect.objectContaining({ projectId: PROJECT, sokoBotId: "bot-1" }),
     );
     expect(m.saveCompetitorFeed).not.toHaveBeenCalled();
+  });
+
+  it("say nothing was posted for a quiet week", async () => {
+    m.saveCusoCompetitorFeed.mockResolvedValue({
+      saved: 0,
+      bigMoves: [],
+      costUsd: 0,
+    });
+    await expect(
+      call("save_competitor_feed", { items: [], openQuestions: ["?"] }),
+    ).resolves.toMatchObject({ postedToChat: false });
   });
 });

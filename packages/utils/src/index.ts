@@ -164,6 +164,13 @@ export {
   isCmoTalkingFormat,
   normalizeCmoChannelFormat,
 } from "./cmo-channels.js";
+export {
+  CMO_COMPETITOR_WEEK_KEY,
+  type CmoCompetitorWeek,
+  type CmoCompetitorWeekMove,
+  cmoCompetitorWeekText,
+  readCmoCompetitorWeek,
+} from "./cmo-competitor-week.js";
 export { withoutSokosumiLinks } from "./cmo-links.js";
 export {
   CONTACT_CHANNEL_SOURCES,
@@ -471,6 +478,7 @@ export {
   type SeoCapabilityUnlock,
 } from "./seo-capabilities.js";
 export {
+  PAID_DATA_MARKUP_PERCENT,
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_FULL_AUDIT_CREDITS,
   SEO_FULL_AUDIT_MAX_PROVIDER_USD,

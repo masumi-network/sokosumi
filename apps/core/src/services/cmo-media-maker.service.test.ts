@@ -8,6 +8,7 @@ const {
   fileUpdateMany,
   createImageJob,
   createVideoJob,
+  createTalkingVideoJob,
   ensureDriveFile,
   updateSocialPost,
   scheduleSocialPost,
@@ -19,6 +20,7 @@ const {
   fileUpdateMany: vi.fn(),
   createImageJob: vi.fn(),
   createVideoJob: vi.fn(),
+  createTalkingVideoJob: vi.fn(),
   ensureDriveFile: vi.fn(),
   updateSocialPost: vi.fn(),
   scheduleSocialPost: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob,
   createVideoJob,
+  createTalkingVideoJob,
   DEFAULT_SETTINGS: {
     aspectRatio: "1:1",
     resolution: "1K",
@@ -58,6 +61,9 @@ vi.mock("@/services/image-studio-drive.service", () => ({
 vi.mock("@/services/social-posts.service", () => ({
   updateSocialPost,
   scheduleSocialPost,
+}));
+vi.mock("@/services/cmo-presenter.service", () => ({
+  talkingVideoPresenter: async () => ({ kind: "stock", id: "maya" }),
 }));
 vi.mock("@/services/cmo-brand-media.service", () => ({
   listCmoBrandPictures: brandPictures,
@@ -564,6 +570,101 @@ describe("advanceCmoMedia", () => {
         job({ visualKey: key, slot: 2 }),
       ]),
     ).toBe("failed");
+  });
+
+  describe("a talking video on several networks", () => {
+    const script =
+      "Stop emailing back and forth. Send one booking link and let people pick a time. Try it on your next call.";
+    const reel = piece({
+      id: "reel",
+      socialPostId: "reel",
+      channel: "instagram",
+      format: "talking_video",
+      visual: undefined,
+      script,
+      presenter: "maya",
+      voice: "Sarah",
+    });
+    const short = {
+      ...reel,
+      id: "short",
+      socialPostId: "short",
+      channel: "youtube",
+    };
+    const key = cmoVisualKey(reel);
+
+    it("is made once for all its posts", async () => {
+      jobFindMany.mockResolvedValue([]);
+      await advanceCmoMedia(context, [reel, short]);
+      expect(createTalkingVideoJob).toHaveBeenCalledTimes(1);
+      expect(createTalkingVideoJob.mock.calls[0]?.[0]).toMatchObject({
+        script,
+        music: true,
+        broll: true,
+        idempotencyKey: `cmo-media:version-1:video:0:talking:${key}:1`,
+      });
+    });
+
+    it("waits on every post while the one job runs", async () => {
+      jobFindMany.mockResolvedValue([
+        {
+          id: "job-1",
+          idempotencyKey: `cmo-media:version-1:video:0:talking:${key}:1`,
+          status: "RUNNING",
+          prompt: script,
+          asset: null,
+        },
+      ]);
+      await advanceCmoMedia(context, [reel, short]);
+      expect(createTalkingVideoJob).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["the shared job", "video"],
+      ["a job started for one post before posts shared it", "reel"],
+    ])("goes on every post from %s", async (_name, pieceId) => {
+      jobFindMany.mockResolvedValue([
+        {
+          id: "job-1",
+          idempotencyKey: `cmo-media:version-1:${pieceId}:0:talking:${key}:1`,
+          status: "SUCCEEDED",
+          prompt: script,
+          asset: { id: "asset-1" },
+        },
+      ]);
+      ensureDriveFile.mockResolvedValue({
+        id: "file-1",
+        name: "booking-link.mp4",
+        pathname: "drive/booking-link.mp4",
+        mimeType: "video/mp4",
+        size: 10,
+      });
+      postFindUnique.mockImplementation(async ({ where }) => ({
+        id: where.id,
+        provider: where.id === "reel" ? "instagram" : "youtube",
+        text: "One link instead of five emails.",
+        media: [],
+        revision: 1,
+        status: "DRAFT",
+        scheduledAt: null,
+        planning: { title: "Booking link" },
+      }));
+      updateSocialPost.mockResolvedValue({
+        media: [{ pathname: "drive/booking-link.mp4" }],
+        revision: 2,
+      });
+      await advanceCmoMedia(context, [reel, short]);
+      expect(createTalkingVideoJob).not.toHaveBeenCalled();
+      expect(
+        updateSocialPost.mock.calls.map(([input]) => input.postId),
+      ).toEqual(["reel", "short"]);
+      expect(updateSocialPost.mock.calls[1]?.[0].media).toEqual([
+        expect.objectContaining({
+          pathname: "drive/booking-link.mp4",
+          kind: "video",
+        }),
+      ]);
+    });
   });
 
   it("puts a finished picture on its post and schedules it on a connected network", async () => {
