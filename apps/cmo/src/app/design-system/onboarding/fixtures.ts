@@ -31,6 +31,82 @@ export const SCREENS = [
 
 export type Screen = (typeof SCREENS)[number];
 
+type Strategy = NonNullable<CmoOverview["strategy"]>;
+
+const fixtureDay = (index: number) =>
+  new Date(Date.UTC(2026, 9, 5 + index)).toISOString().slice(0, 10);
+
+/**
+ * A month as cmo-v5 writes it, at the top volume: three X posts a day (every
+ * third with a picture), LinkedIn and Instagram three times a week, and a
+ * talking video a week shown on YouTube too. Each plan makes its share.
+ */
+const fullMonth: Strategy = {
+  ...richPlan,
+  channels: [
+    { channel: "x", cadence: "3 a day", role: "main" },
+    {
+      channel: "linkedin",
+      cadence: "3 a week",
+      role: "side",
+      buyer: "Founders",
+    },
+    {
+      channel: "instagram",
+      cadence: "3 a week",
+      role: "side",
+      buyer: "Founders",
+    },
+    {
+      channel: "youtube",
+      cadence: "1 a week",
+      role: "side",
+      buyer: "Founders",
+    },
+  ],
+  calendar: [
+    ...Array.from({ length: 28 }, (_, day) =>
+      ["a", "b", "c"].map((slot, place) => ({
+        id: `x-${day}-${slot}`,
+        date: fixtureDay(day),
+        channel: "x",
+        format: place === 2 ? "image" : "post",
+        title: `Launch lesson ${day + 1}${slot}`,
+        status: "idea" as const,
+      })),
+    ).flat(),
+    ...[0, 1, 2, 3].flatMap((week) =>
+      [0, 2, 4].flatMap((offset) => [
+        {
+          id: `li-${week}-${offset}`,
+          date: fixtureDay(week * 7 + offset),
+          channel: "linkedin",
+          format: "post",
+          title: `Launch story ${week}-${offset}`,
+          status: "idea" as const,
+        },
+        {
+          id: `ig-${week}-${offset}`,
+          date: fixtureDay(week * 7 + offset + 1),
+          channel: "instagram",
+          format: "image",
+          title: `Behind the build ${week}-${offset}`,
+          status: "idea" as const,
+        },
+      ]),
+    ),
+    ...[0, 1, 2, 3].map((week) => ({
+      id: `talk-${week}`,
+      date: fixtureDay(week * 7 + 6),
+      channel: "instagram",
+      format: "talking_video",
+      title: `Why launches slip, part ${week + 1}`,
+      status: "idea" as const,
+      alsoOn: ["youtube"],
+    })),
+  ],
+};
+
 export function isScreen(value: string): value is Screen {
   return (SCREENS as readonly string[]).includes(value);
 }
@@ -158,7 +234,7 @@ export function screenOverview(screen: Screen): CmoOverview {
         ...cmoStrategyVersion(new Date("2026-10-05T09:10:00Z")),
         onboardingStep: "checkout",
         brandBrain: richBrain,
-        strategy: richPlan,
+        strategy: fullMonth,
       });
     // A no on a check that the strategy does not show yet.
     case "plan-unfitted":

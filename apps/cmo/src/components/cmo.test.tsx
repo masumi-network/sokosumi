@@ -202,6 +202,8 @@ describe("thread", () => {
           needPictures: 0,
           finishedAt: null,
           pillars: null,
+          level: "all_in",
+          beyondPlan: [],
         },
         updates: [
           round("r1", "2026-10-01T10:00:00Z"),

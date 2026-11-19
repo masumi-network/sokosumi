@@ -35,6 +35,8 @@ const production = (
   needPictures: 0,
   finishedAt: null,
   pillars: null,
+  level: "all_in" as const,
+  beyondPlan: [],
   ...patch,
 });
 

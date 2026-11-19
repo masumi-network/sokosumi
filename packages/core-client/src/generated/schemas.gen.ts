@@ -56166,6 +56166,22 @@ export const CmoProductionSchema = {
                 }
             ],
             description: 'Once the made month was read: each pillar\'s planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.'
+        },
+        level: {
+            type: 'string',
+            enum: [
+                'steady',
+                'active',
+                'all_in'
+            ],
+            description: 'How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.'
+        },
+        beyondPlan: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Calendar entries the plan bought does not make. A bigger plan makes them.'
         }
     },
     required: [
@@ -56176,7 +56192,9 @@ export const CmoProductionSchema = {
         'pictured',
         'needPictures',
         'finishedAt',
-        'pillars'
+        'pillars',
+        'level',
+        'beyondPlan'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
