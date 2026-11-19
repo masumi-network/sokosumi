@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import {
@@ -21,11 +21,7 @@ import {
   SeoDifficultyCell,
 } from "./seo-keyword-difficulty";
 import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
-import { recommendation } from "./seo-keyword-recommendations";
-import {
-  SEO_IDEA_SOURCES,
-  type SeoKeywordGroup,
-} from "./seo-keyword-rows-model";
+import { type SeoKeywordGroup } from "./seo-keyword-rows-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
   SeoBarNumber,
@@ -47,15 +43,12 @@ export function SeoKeywordIdeas({
   ideas: SeoKeywordGroup[];
 }) {
   const t = useTranslations("App.Seo");
-  const locale = useLocale();
   const [expanded, setExpanded] = useState(false);
   if (!ideas.length) return null;
   // A search already narrows the list; it shows every match.
   const visible = seoFoldCount(ideas.length);
   const rows =
     expanded || model.keywordSearch ? ideas : ideas.slice(0, visible);
-  const reasonsOf = (sources: string[]) =>
-    SEO_IDEA_SOURCES.filter((source) => sources.includes(source));
   const shown = {
     volume: ideas.some((group) => group.volume !== null),
     // Only a check that reads keyword difficulty fills the column.
@@ -131,84 +124,17 @@ export function SeoKeywordIdeas({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((group) => {
-              const { lead, volume, sources, conversion, feature, difficulty } =
-                group;
-              return (
-                <TableRow key={lead.id}>
-                  <TableCell className="min-w-48 whitespace-normal">
-                    <SeoIdeaReason
-                      group={group}
-                      model={model}
-                      reasons={reasonsOf(sources)}
-                    />
-                    {manyMarkets ? (
-                      <p className="text-muted-foreground text-xs">
-                        {seoMarketName(
-                          locale,
-                          lead.countryCode,
-                          lead.languageCode,
-                        )}
-                      </p>
-                    ) : null}
-                    {manyPages && lead.pageUrl ? (
-                      <SeoPageText
-                        url={lead.pageUrl}
-                        workspace={model.data}
-                        skipPrimary
-                        oneLine
-                      />
-                    ) : null}
-                  </TableCell>
-                  {shown.volume ? (
-                    <TableCell
-                      className="text-right tabular-nums"
-                      // No number, no unit: the label names the empty value.
-                      data-label={
-                        volume === null ? t("keywords.volume") : undefined
-                      }
-                    >
-                      {volume === null ? (
-                        <span className="text-muted-foreground">
-                          {t("none")}
-                        </span>
-                      ) : (
-                        <SeoBarNumber
-                          value={volume}
-                          max={mostSearched}
-                          unit={t("keywords.volumeUnit", { count: volume })}
-                        />
-                      )}
-                    </TableCell>
-                  ) : null}
-                  {shown.difficulty ? (
-                    <SeoDifficultyCell difficulty={difficulty} />
-                  ) : null}
-                  {shown.conversion ? (
-                    <SeoConversionCell
-                      conversion={conversion}
-                      feature={feature}
-                    />
-                  ) : null}
-                  <TableCell>
-                    {model.data.availableActions.canEdit ? (
-                      <div className="flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={model.pending}
-                          onClick={() => {
-                            void model.toggleKeyword(lead);
-                          }}
-                        >
-                          {t("keywords.save")}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {rows.map((group) => (
+              <SeoIdeaRow
+                key={group.lead.id}
+                group={group}
+                model={model}
+                shown={shown}
+                manyMarkets={manyMarkets}
+                manyPages={manyPages}
+                mostSearched={mostSearched}
+              />
+            ))}
           </TableBody>
         </Table>
         {shown.conversion ? <SeoConversionNote /> : null}
@@ -230,57 +156,136 @@ export function SeoKeywordIdeas({
  * The keyword with a small info button: a click opens why the idea is listed under it, a second click closes it.
  * A line on every row made the list busy (owner, 2026-11-13).
  */
-function SeoIdeaReason({
+function SeoIdeaRow({
   group,
   model,
-  reasons,
+  shown,
+  manyMarkets,
+  manyPages,
+  mostSearched,
 }: {
   group: SeoKeywordGroup;
   model: SeoWorkspaceModel;
-  reasons: (typeof SEO_IDEA_SOURCES)[number][];
+  shown: { volume: boolean; difficulty: boolean; conversion: boolean };
+  manyMarkets: boolean;
+  manyPages: boolean;
+  mostSearched: number;
 }) {
   const t = useTranslations("App.Seo");
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
+  const toggle = useRef<HTMLButtonElement>(null);
   const id = useId();
-  const reason = recommendation(group);
+  const { lead, volume, conversion, feature, difficulty } = group;
   return (
     <>
-      <p className="flex items-center gap-1 font-medium break-words">
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={open ? id : undefined}
-          onClick={() => setOpen((value) => !value)}
-          // 32 px to hit around a 14 px icon, pulled back so the row keeps its height.
-          className="focus-visible:ring-ring inline-flex min-h-8 items-center gap-1 rounded-sm text-start hover:underline focus-visible:ring-2"
-        >
-          <bdi>{group.lead.keyword}</bdi>
-          <ChevronDown
-            className={
-              open ? "size-3.5 shrink-0 rotate-180" : "size-3.5 shrink-0"
+      <TableRow
+        data-state={open ? "selected" : undefined}
+        className="cursor-pointer"
+        onClick={(event) => {
+          if (
+            event.target instanceof Element &&
+            event.target.closest("button, a")
+          )
+            return;
+          if (window.getSelection()?.toString()) return;
+          setOpen((value) => !value);
+        }}
+      >
+        <TableCell className="min-w-48 whitespace-normal">
+          <button
+            ref={toggle}
+            type="button"
+            aria-expanded={open}
+            aria-controls={open ? id : undefined}
+            onClick={() => setOpen((value) => !value)}
+            // 32 px to hit around a 14 px icon, pulled back so the row keeps its height.
+            className="focus-visible:ring-ring inline-flex min-h-8 items-center gap-2 rounded-sm text-start font-medium focus-visible:ring-2"
+          >
+            <ChevronDown
+              aria-hidden
+              className={
+                open ? "size-3.5 shrink-0" : "size-3.5 shrink-0 -rotate-90"
+              }
+            />
+            <bdi>{lead.keyword}</bdi>
+          </button>
+          {manyMarkets ? (
+            <p className="text-muted-foreground text-xs">
+              {seoMarketName(locale, lead.countryCode, lead.languageCode)}
+            </p>
+          ) : null}
+          {manyPages && lead.pageUrl ? (
+            <SeoPageText
+              url={lead.pageUrl}
+              workspace={model.data}
+              skipPrimary
+              oneLine
+            />
+          ) : null}
+        </TableCell>
+        {shown.volume ? (
+          <TableCell
+            className="text-right tabular-nums"
+            // No number, no unit: the label names the empty value.
+            data-label={volume === null ? t("keywords.volume") : undefined}
+          >
+            {volume === null ? (
+              <span className="text-muted-foreground">{t("none")}</span>
+            ) : (
+              <SeoBarNumber
+                value={volume}
+                max={mostSearched}
+                unit={t("keywords.volumeUnit", { count: volume })}
+              />
+            )}
+          </TableCell>
+        ) : null}
+        {shown.difficulty ? (
+          <SeoDifficultyCell difficulty={difficulty} />
+        ) : null}
+        {shown.conversion ? (
+          <SeoConversionCell conversion={conversion} feature={feature} />
+        ) : null}
+        <TableCell>
+          {model.data.availableActions.canEdit ? (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={model.pending}
+                onClick={() => {
+                  void model.toggleKeyword(lead);
+                }}
+              >
+                {t("keywords.save")}
+              </Button>
+            </div>
+          ) : null}
+        </TableCell>
+      </TableRow>
+      {open && (
+        <TableRow className="bg-muted hover:bg-muted">
+          <TableCell
+            id={id}
+            colSpan={
+              2 +
+              Number(shown.volume) +
+              Number(shown.difficulty) +
+              Number(shown.conversion)
             }
-            aria-hidden
-          />
-        </button>
-      </p>
-      {reason && (
-        <p className="text-xs font-medium">
-          {t(`keywords.recommendation.${reason}`)}
-        </p>
+            className="whitespace-normal"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setOpen(false);
+                toggle.current?.focus();
+              }
+            }}
+          >
+            <SeoKeywordDraftDetails group={group} model={model} />
+          </TableCell>
+        </TableRow>
       )}
-      {open ? (
-        <div id={id} className="space-y-2 py-2">
-          <SeoKeywordDraftDetails group={group} model={model} />
-          <p className="text-muted-foreground text-xs">
-            {reasons.map((source, index) => (
-              <span key={source}>
-                {index ? " · " : null}
-                <span>{t(`keywords.ideas.source.${source}`)}</span>
-              </span>
-            ))}
-          </p>
-        </div>
-      ) : null}
     </>
   );
 }

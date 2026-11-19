@@ -466,6 +466,8 @@ export function SeoKeywordMap({
                       // The picked dot sits over a neighbour it touches.
                       (index === active || point === opened) && "z-[1]",
                       reasonOf(point) && "rotate-45 rounded-xs",
+                      point === opened &&
+                        "ring-foreground ring-offset-background ring-offset-2",
                       point.checked
                         ? index === active || point === opened
                           ? "bg-foreground"
@@ -510,7 +512,7 @@ export function SeoKeywordMap({
                 <div
                   aria-hidden
                   data-testid="seo-keyword-card"
-                  className="bg-popover text-popover-foreground pointer-events-none absolute z-10 w-max max-w-[min(14rem,100%)] rounded-md border px-3 py-2 text-xs shadow-md"
+                  className="bg-popover text-popover-foreground pointer-events-none absolute z-10 w-max max-w-[min(20rem,100%)] rounded-md border px-3 py-2 text-xs shadow-md"
                   // In the other half of the frame from the dot: it never covers the dot or leaves the screen.
                   style={{
                     ...((measured ? toX(focus.x) / size.width : focus.x / 100) >
@@ -525,16 +527,14 @@ export function SeoKeywordMap({
                   }}
                 >
                   <p className="font-medium break-words">
-                    {focus.group.lead.keyword}
+                    <bdi>{focus.group.lead.keyword}</bdi>
                   </p>
-                  {details(focus).map((line) => (
-                    <p
-                      key={line}
-                      className="text-muted-foreground tabular-nums"
-                    >
-                      {line}
-                    </p>
-                  ))}
+                  <p className="text-muted-foreground tabular-nums">
+                    {t("map.preview", {
+                      volume: focus.volume,
+                      value: Math.round(focus.difficulty),
+                    })}
+                  </p>
                 </div>
               ) : null}
             </div>
