@@ -194,7 +194,7 @@ Readers outside CP, WD and AUTH that decide on a turn's times use PostgreSQL tim
 Readers that still compare a turn's `createdAt` or `deadlineAt` with another clock. They are follow-ups: each error is as large as the skew, and none decides ownership.
 
 - `services/evals/eval-cmo-runner.ts` lists a month case's result turns with `createdAt >= context.startedAt`, a host time from `services/evals/eval-runs.service.ts`. Its elapsed-time checks stay on that host clock.
-- Context windows: `lib/soko-bot/mail-triage.ts` (flagged posts, host `Date.now()`), `lib/soko-bot/turn-loop.ts` (`latestExchange`, 24 h), and the CMO feed's `occurredAt >= createdAt` reasoning filter (`cmoActivity` in `services/cmo-hiring.service.ts`).
+- Context windows: `lib/soko-bot/mail-triage.ts` (flagged posts, host `Date.now()`), `lib/soko-bot/turn-model-context.ts` (`latestExchange`, 24 h), and the CMO feed's `occurredAt >= createdAt` reasoning filter (`cmoActivity` in `services/cmo-hiring.service.ts`).
 - The sandbox runner's own budget (`soko-bot-runner/index.ts:427-435`) compares `deadlineAt` with the VM's clock, outside this change.
 - Stats and display windows (`soko-bot-stats`, `soko-bot-quality`, `soko-bot-activity-stats`, `soko-bot-rhythms` dreaming, `cmo-spend`, chat thought timing) bucket or show `createdAt` against host time.
 

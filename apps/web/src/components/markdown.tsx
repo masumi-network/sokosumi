@@ -7,6 +7,8 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkBreaks from "remark-breaks";
 import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
+import { ContactMentionCard } from "@/components/contact-mention-card";
+import { contactMentionTarget } from "@/components/contact-mention-target";
 import { rehypeSearchTermHighlight } from "@/components/markdown-highlight";
 import { markdownHighlightThemeCss } from "@/components/markdown-highlight-theme";
 import { rehypeMarkdownCodeHighlight } from "@/components/markdown-highlighter";
@@ -207,15 +209,12 @@ export default function Markdown({
             <ConnectLinkButton target={connect}>{children}</ConnectLinkButton>
           );
         }
-        if (isInternalAppPath(href)) {
-          return (
-            <Link href={href} className={classNames} {...props}>
-              {children}
-            </Link>
-          );
-        }
         const sameTab = isSokosumiLink(href);
-        return (
+        const link = isInternalAppPath(href) ? (
+          <Link href={href} className={classNames} {...props}>
+            {children}
+          </Link>
+        ) : (
           <a
             href={href}
             {...props}
@@ -226,6 +225,14 @@ export default function Markdown({
           >
             {children}
           </a>
+        );
+        const contact = contactMentionTarget(href);
+        return contact ? (
+          <ContactMentionCard target={contact} fallback={link}>
+            {children}
+          </ContactMentionCard>
+        ) : (
+          link
         );
       },
       img: ({ src, alt, ...props }) => {

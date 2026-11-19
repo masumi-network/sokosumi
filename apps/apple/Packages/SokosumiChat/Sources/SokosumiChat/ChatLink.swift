@@ -6,12 +6,18 @@ public enum ChatLink: Equatable, Sendable {
   case room(id: String, messageId: String?)
   case invitation(id: String)
   case guestJoin(token: String)
+  /// Only a Markdown mention presents this contact in chat. The explicit Open in Contacts action goes to web.
+  case contact(ContactMention)
 
   public init?(url: URL, webBaseURL: URL) {
     guard let target = URLComponents(url: url, resolvingAgainstBaseURL: true),
           let base = URLComponents(url: webBaseURL, resolvingAgainstBaseURL: true),
           target.scheme?.lowercased() == base.scheme?.lowercased(), target.host?.lowercased() == base.host?.lowercased(), target.port == base.port,
           target.user == nil, target.password == nil else { return nil }
+    if let mention = ContactMention(target) {
+      self = .contact(mention)
+      return
+    }
     let path = target.path.hasSuffix("/") ? String(target.path.dropLast()) : target.path
     let parts = path.split(separator: "/", omittingEmptySubsequences: false)
     guard parts.count == 4, parts[0].isEmpty, parts[1] == "chat", !parts[3].isEmpty else { return nil }

@@ -1,5 +1,12 @@
 {
   "Components": {
+    "ContactMention": {
+      "merged": "This contact has been merged.",
+      "loading": "Loading contact…",
+      "unavailable": "Contact details are unavailable.",
+      "otherWorkspace": "This contact is in another workspace.",
+      "open": "Open in Contacts"
+    },
     "SokoBotTurnFailure": {
       "aiBudgetExceeded": "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
       "generic": "Something went wrong on our side. Try again. If it keeps happening, contact support.",
@@ -9480,6 +9487,7 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
+      "aiAgentSender": "{name} (AI agent)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Personal assistant",
       "openDirectMessage": "Message",
@@ -11679,6 +11687,10 @@
       "searching": "Searching projects..."
     },
     "Contacts": {
+      "workspaceSwitch": {
+        "title": "This contact is in another workspace",
+        "description": "Switch to {account} to open this contact."
+      },
       "Metadata": {
         "title": "Contacts",
         "description": "Everyone your team knows, with every way to reach them."

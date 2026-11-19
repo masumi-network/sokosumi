@@ -67,6 +67,27 @@ describe("action lines the owner reads", () => {
     vi.resetAllMocks();
   });
 
+  it("links a calendar mailbox to its saved card without linking the name from the question", async () => {
+    const email = "studio@cerise.example";
+    const link =
+      "/contacts?contact=019aaa01-0000-7000-8000-000000000001&workspace=019aaa01-0000-7000-8000-000000000002";
+    const event = "[Calendar event](https://calendar.example/events/proof)";
+    const text = `I cannot confirm Micah. The invite lists Cerise Desk, using ${email}. ${event}`;
+    const calendarRead = receipt({
+      capability: "list_calendar_events",
+      disposition: null,
+      result: { events: [{ contactReferences: [{ email, link }] }] },
+    });
+    db.sokoBotToolCall.findMany.mockImplementation(async ({ where }) =>
+      where.capability.in.includes("list_calendar_events")
+        ? [calendarRead]
+        : [],
+    );
+    const result = await buildActionResponse(prisma, "turn-current", text);
+    expect(result.answerText).toBe(text.replace(email, `[${email}](${link})`));
+    expect(result.appliedReceiptIds).toEqual([]);
+  });
+
   it("links a verified newsletter draft to the editor for human review", async () => {
     const projectId = "11111111-1111-4111-8111-111111111111";
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
@@ -530,7 +551,7 @@ describe("authoritative action responses", () => {
     expect(db.sokoBotToolCall.findMany).toHaveBeenCalledWith({
       where: {
         turnId: "turn-current",
-        capability: { in: [...ACTION_CAPABILITIES] },
+        capability: { in: [...ACTION_CAPABILITIES, "list_calendar_events"] },
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });

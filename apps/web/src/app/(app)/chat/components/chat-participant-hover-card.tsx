@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { Bot, MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   Children,
@@ -31,7 +31,10 @@ import { getInitials } from "@/lib/utils/text";
 
 import { canShowOpenDirect } from "./open-direct-with-participant";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import { type ChatParticipantHoverProfile } from "./room-helpers";
+import type {
+  ChatParticipantHoverProfile,
+  MessageSenderProfile,
+} from "./room-helpers";
 
 interface ChatParticipantHoverCardProps {
   profile: ChatParticipantHoverProfile | null | undefined;
@@ -61,6 +64,37 @@ interface ChatParticipantHoverCardProps {
   active?: boolean;
   openDelay?: number;
   closeDelay?: number;
+}
+
+export function ChatMessageSenderName({
+  sender,
+  ...hoverProps
+}: Omit<ChatParticipantHoverCardProps, "profile" | "children"> & {
+  sender: MessageSenderProfile;
+}) {
+  const t = useTranslations("App.Channels");
+  const isAgent = sender.kind === "coworker" || sender.kind === "sokoBot";
+  return (
+    <ChatParticipantHoverCard
+      {...hoverProps}
+      profile={sender.kind === "unknown" ? null : sender}
+      side="top"
+      align="start"
+      className="w-fit min-w-0 max-w-full"
+    >
+      <span
+        className="inline-flex min-w-0 items-center gap-1 text-base font-semibold md:text-sm"
+        aria-label={
+          isAgent ? t("aiAgentSender", { name: sender.name }) : undefined
+        }
+      >
+        {isAgent ? (
+          <Bot className="text-muted-foreground size-3.5 shrink-0" />
+        ) : null}
+        <span className="truncate">{sender.name}</span>
+      </span>
+    </ChatParticipantHoverCard>
+  );
 }
 
 interface TriggerChildProps {

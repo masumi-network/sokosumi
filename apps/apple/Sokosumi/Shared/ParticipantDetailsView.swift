@@ -17,7 +17,7 @@ struct ParticipantDetailsView: View {
         VStack(alignment: .leading, spacing: 4) {
           Text(profile.name).font(.headline)
           // Web names the kind of an AI member only (its labelled bot mark); a person's card has no kind line.
-          if let kind = Self.aiKindLabel(profile.recipient) {
+          if let kind = profile.recipient.aiKindLabel {
             Text(kind).font(.caption).foregroundStyle(.secondary)
           }
           // Web's hover card writes availability out for humans only; AI members
@@ -50,10 +50,12 @@ struct ParticipantDetailsView: View {
     .padding()
     .frame(minWidth: 240, idealWidth: 280, maxWidth: 360, alignment: .leading)
   }
+}
 
+extension DirectRecipient {
   /// Web `coworkerBadge` / `personalAssistantBadge`; nil for a person, whose card names no kind.
-  private static func aiKindLabel(_ recipient: DirectRecipient) -> String? {
-    switch recipient {
+  var aiKindLabel: String? {
+    switch self {
     case .human: nil
     case .coworker: "AI coworker"
     case .sokoBot: "Personal assistant"

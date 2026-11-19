@@ -887,7 +887,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       "Searches Contacts for the people at a company before answering, and invents nobody.",
     prompt: "Do we know anyone at Acme Ventures? Who and what do they do?",
     rubric:
-      "The bot called search_contacts (or count_contacts) and answered from its results: Ryan Patel, partner, if he was saved, or plainly that nobody was found. Naming people no tool returned fails. It changes nothing.",
+      "The bot called search_contacts (or count_contacts) and answered from its results: Ryan Patel, partner, if he was saved, or plainly that nobody was found. When it names a returned contact, the name links to that contact’s supplied Contacts URL. Naming people no tool returned fails. It changes nothing.",
     expect: {
       routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "CLARIFY"],
       anyTools: ["search_contacts", "count_contacts", "get_contact"],

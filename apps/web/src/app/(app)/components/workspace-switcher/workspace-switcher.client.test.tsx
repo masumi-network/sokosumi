@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceSwitcherProvider } from "@/app/components/workspace-switcher/workspace-switcher.client";
 import WorkspaceSwitcherMenu from "@/app/components/workspace-switcher/workspace-switcher-menu.client";
+import { useContactLinkWorkspaces } from "@/app/contacts/components/contact-link-workspace";
 
 const mocks = vi.hoisted(() => ({
   useSession: vi.fn(),
@@ -213,6 +214,38 @@ describe("WorkspaceSwitcherProvider", () => {
     renderChrome("org-b");
 
     expect(trigger("sidebar")).toHaveAccessibleName("Org B");
+  });
+
+  it("withdraws contact card access when the live session signs out", () => {
+    function ContactAccess() {
+      const scope = useContactLinkWorkspaces();
+      return (
+        <output>
+          {[scope?.active, ...(scope?.available ?? [])]
+            .filter(Boolean)
+            .join(",")}
+        </output>
+      );
+    }
+    const frame = () => (
+      <WorkspaceSwitcherProvider
+        sessionUser={sessionUser}
+        workspaces={workspaces}
+        activeOrganizationId="org-a"
+      >
+        <ContactAccess />
+      </WorkspaceSwitcherProvider>
+    );
+    mocks.useSession.mockReturnValue({
+      data: { user: sessionUser, session: { activeOrganizationId: "org-a" } },
+    });
+    const { rerender } = render(frame());
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "ws-org-a,ws-org-a,ws-org-b",
+    );
+    mocks.useSession.mockReturnValue({ data: null });
+    rerender(frame());
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
   it("keeps the server's active organization while a switch is pending", () => {

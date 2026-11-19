@@ -3,6 +3,7 @@ import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
+import { contactDetailHref } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
@@ -158,7 +159,7 @@ export async function runContactTool(
       return {
         ...detail,
         people: detail.people.map((person) =>
-          compactContact(person, new Set()),
+          compactContact(person, new Set(), actor.workspaceId),
         ),
       };
     }
@@ -202,7 +203,9 @@ export async function runContactTool(
       });
       const extra = new Set<string>(fields ?? []);
       return {
-        contacts: page.items.map((contact) => compactContact(contact, extra)),
+        contacts: page.items.map((contact) =>
+          compactContact(contact, extra, actor.workspaceId),
+        ),
         total: page.total,
         nextCursor: page.nextCursor,
       };
@@ -220,11 +223,16 @@ export async function runContactTool(
         top,
       });
     }
-    case "get_contact":
-      return getContactDetail(
+    case "get_contact": {
+      const contact = await getContactDetail(
         actor,
         SOKO_BOT_TOOL_INPUT_SCHEMAS.get_contact.parse(rawInput).contactId,
       );
+      return {
+        ...contact,
+        link: contactDetailHref(contact.id, actor.workspaceId),
+      };
+    }
     case "list_contact_lists":
       return { lists: await listContactLists(actor) };
     case "find_contact_duplicates":
@@ -358,12 +366,17 @@ async function manageContactLists(
  * them, plus the `extra` fields asked for. Thousands of full contacts would
  * flood a turn; get_contact reads one in full.
  */
-function compactContact(contact: ContactDto, extra: ReadonlySet<string>) {
+function compactContact(
+  contact: ContactDto,
+  extra: ReadonlySet<string>,
+  workspaceId: string,
+) {
   const pick = <K extends keyof ContactDto>(key: K) =>
     extra.has(key) ? { [key]: contact[key] } : {};
   return {
     id: contact.id,
     name: contact.name,
+    link: contactDetailHref(contact.id, workspaceId),
     kind: contact.kind,
     organization: contact.organization,
     role: contact.role,

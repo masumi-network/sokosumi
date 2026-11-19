@@ -2,8 +2,9 @@ import {
   CMO_SCENARIOS,
   SEO_SCENARIOS,
   SOKO_BOT_SCENARIOS,
-  type SokoBotScenario,
 } from "@sokosumi/soko-bot";
+import type { LabScenario } from "@/services/soko-bot-lab-scenario.service";
+import { CHAT_IDENTITY_SCENARIO } from "./eval-chat-identity";
 import {
   CMO_COMMENT_SCENARIO,
   CMO_EVAL_CASES,
@@ -19,6 +20,7 @@ import {
   isCompetitorEvalCase,
 } from "./eval-cmo-competitors";
 import { CMO_ADS_CASE_ID, CMO_FUNNEL_CASE_ID } from "./eval-cmo-funnel";
+import { MEETING_PREP_SCENARIO } from "./eval-meeting-prep";
 
 export const EVAL_SUITES = ["soko-bot", "cmo"] as const;
 export type EvalSuite = (typeof EVAL_SUITES)[number];
@@ -40,7 +42,7 @@ export type EvalCase =
       kind: "scenario";
       /** The lane's personal Soko Bot, or its Cuso. */
       bot: "soko-bot" | "cuso";
-      scenario: SokoBotScenario;
+      scenario: LabScenario;
       /** What a Cuso case finds in its lane before the turn. */
       prepare?: CmoChatSetup;
     })
@@ -121,7 +123,7 @@ const NEEDS_MAILBOX = new Set([
 ]);
 
 function scenarioCase(
-  scenario: SokoBotScenario,
+  scenario: LabScenario,
   suite: EvalSuite,
   area: string,
   prepare?: CmoChatSetup,
@@ -144,6 +146,8 @@ export const EVAL_CASES: readonly EvalCase[] = [
   ...SOKO_BOT_SCENARIOS.map((scenario) =>
     scenarioCase(scenario, "soko-bot", SOKO_BOT_AREAS[scenario.id] ?? "Other"),
   ),
+  scenarioCase(MEETING_PREP_SCENARIO, "soko-bot", "Mail and calendar"),
+  scenarioCase(CHAT_IDENTITY_SCENARIO, "soko-bot", "Chat"),
   ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
   ...CMO_EVAL_CASES,
   ...CMO_SCENARIOS.map((scenario) =>

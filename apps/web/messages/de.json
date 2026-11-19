@@ -1,5 +1,12 @@
 {
   "Components": {
+    "ContactMention": {
+      "merged": "Dieser Kontakt wurde zusammengeführt.",
+      "loading": "Kontakt wird geladen…",
+      "unavailable": "Kontaktdaten sind nicht verfügbar.",
+      "otherWorkspace": "Dieser Kontakt ist in einem anderen Workspace.",
+      "open": "In Kontakten öffnen"
+    },
     "SokoBotTurnFailure": {
       "aiBudgetExceeded": "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird.",
       "generic": "Bei uns ist etwas schiefgelaufen. Versuch es erneut. Wenn das Problem weiterhin auftritt, wende dich an den Support.",
@@ -9480,6 +9487,7 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
+      "aiAgentSender": "{name} (KI-Agent)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Persönlicher Assistent",
       "openDirectMessage": "Nachricht",
@@ -11679,6 +11687,10 @@
       "searching": "Projekte werden gesucht..."
     },
     "Contacts": {
+      "workspaceSwitch": {
+        "title": "Dieser Kontakt ist in einem anderen Arbeitsbereich",
+        "description": "Wechsle zu {account}, um diesen Kontakt zu öffnen."
+      },
       "Metadata": {
         "title": "Kontakte",
         "description": "Alle, die dein Team kennt, mit jedem Weg, sie zu erreichen."

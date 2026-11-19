@@ -149,12 +149,14 @@ import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
-import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
+import {
+  ChatMessageSenderName,
+  ChatParticipantHoverCard,
+} from "./chat-participant-hover-card";
 import { MessageClampToggle } from "./message-clamp-toggle";
 import { MessageEditComposer } from "./message-edit-composer";
 import { participantDirectKey } from "./open-direct-with-participant";
 import { OutboundPendingSpinner } from "./outbound-pending-spinner";
-import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatRoomComposerTooLongFailure,
@@ -2862,7 +2864,6 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               live={liveFace}
               streaming={liveFaceStreaming}
             />
-            {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
           </span>
         </ChatParticipantHoverCard>
       )}
@@ -2882,22 +2883,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           ) : null
         ) : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <ChatParticipantHoverCard
-              profile={hoverProfile}
-              side="top"
-              align="start"
-              className="w-fit min-w-0 max-w-full"
+            <ChatMessageSenderName
+              sender={sender}
               currentUserId={currentUserId}
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirect={onOpenDirectMessage}
               isOpeningDirect={isOpeningDirect}
               isDirectActionBusy={isDirectActionBusy}
               active={interacted}
-            >
-              <span className="truncate text-base font-semibold md:text-sm">
-                {sender.name}
-              </span>
-            </ChatParticipantHoverCard>
+            />
             <MessageTimeOrOutboundStatus
               createdAt={message.createdAt}
               outboundStatus={outboundStatus}

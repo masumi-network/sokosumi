@@ -232,8 +232,8 @@ export function writeContact(cache: QueryClient, contact: Contact) {
         })),
       },
   );
-  cache.setQueryData<ContactDetail>(
-    contactKey(contact.id),
+  cache.setQueriesData<ContactDetail>(
+    { queryKey: contactKey(contact.id) },
     (detail) => detail && { ...detail, ...contact },
   );
 }
