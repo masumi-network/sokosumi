@@ -44,6 +44,11 @@ const noop = {
   compose: () => {},
   open: () => {},
   topUp: null,
+  drafts: {
+    approve: async () => null,
+    decline: async () => null,
+    edit: async () => null,
+  },
 };
 
 describe("Onboarding", () => {
@@ -145,6 +150,8 @@ describe("thread", () => {
       changes: [],
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     };
     const thread = buildThread(overview({ updates: [update] }), messages);
     expect(thread.map((item) => item.kind)).toEqual([
@@ -178,6 +185,8 @@ describe("thread", () => {
       changes: [],
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     });
     const thread = buildThread(
       overview({
@@ -303,6 +312,8 @@ describe("cards", () => {
       changes: [],
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     };
     const before = renderToStaticMarkup(
       <UpdateCard update={update} actions={noop} approved={false} />,
@@ -332,6 +343,8 @@ describe("cards", () => {
           changes: [],
           revertible: false,
           revertedAt: null,
+          posts: [],
+          media: [],
         }}
         actions={noop}
         approved
@@ -361,6 +374,8 @@ describe("cards", () => {
       upNext: [],
       changes: ["Two LinkedIn posts a week instead of three"],
       revertedAt: null,
+      posts: [],
+      media: [],
     };
     const monthly = renderToStaticMarkup(
       <UpdateCard
@@ -432,6 +447,8 @@ describe("cards", () => {
       results: "No provider metrics yet.",
       revertible: true,
       revertedAt: null,
+      posts: [],
+      media: [],
     };
     expect(
       renderToStaticMarkup(
@@ -873,7 +890,11 @@ describe("start over", () => {
 describe("calendar", () => {
   it("shows every piece as a card by week, with its words and state", () => {
     const html = renderToStaticMarkup(
-      <CalendarPage overview={overview()} onAsk={async () => {}} />,
+      <CalendarPage
+        overview={overview()}
+        drafts={noop.drafts}
+        onAsk={async () => {}}
+      />,
     );
     const live = strategy.calendar.filter(
       (entry) => entry.status !== "skipped",

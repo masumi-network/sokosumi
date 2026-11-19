@@ -30,6 +30,12 @@ import {
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
 import {
+  type CmoDraft,
+  type CmoReportAttachments,
+  cmoReportAttachments,
+  listCmoDrafts,
+} from "@/services/cmo-drafts.service";
+import {
   type CmoActivity,
   type CmoWork,
   cmoActivity,
@@ -160,7 +166,9 @@ export interface CmoOverview {
   /** When a plan was first approved; a later approval does not move it. */
   hiredAt: Date | null;
   botStatus: string;
-  updates: CmoUpdateRecord[];
+  updates: (CmoUpdateRecord & CmoReportAttachments)[];
+  /** Social posts that wait for the owner's approval, newest first. */
+  drafts: CmoDraft[];
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
   upNext: CmoUpNextItem[];
   connectChannelUrl: string;
@@ -342,6 +350,17 @@ export async function getCmoOverview(
       maySkipCmoSubscription(userId, cuso.projectId),
     ]);
   const subscribed = await isCmoSubscribed(cuso);
+  const updates = await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN);
+  const [drafts, attachments] = await Promise.all([
+    listCmoDrafts(cuso.projectId),
+    cmoReportAttachments({
+      reports: updates,
+      projectId: cuso.projectId,
+      workspaceId: bot.workspaceId,
+      organizationId: bot.workspace.organizationId,
+      userId,
+    }),
+  ]);
   const mediaOf = (plan: typeof strategy) =>
     cmoCalendarMedia({
       strategy: plan,
@@ -452,7 +471,12 @@ export async function getCmoOverview(
     strategyVersions,
     hiredAt,
     botStatus: bot.status,
-    updates: await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN),
+    updates: updates.map((update) => ({
+      ...update,
+      posts: attachments.get(update.id)?.posts ?? [],
+      media: attachments.get(update.id)?.media ?? [],
+    })),
+    drafts,
     channels,
     upNext: cmoUpNext(
       running,

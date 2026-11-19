@@ -20,6 +20,8 @@ const report = (at: string) => ({
   at: new Date(at),
   revertible: false,
   revertedAt: null,
+  posts: [],
+  media: [],
 });
 const production = (
   patch: Partial<ReturnType<typeof cmoOverview>["production"]>,

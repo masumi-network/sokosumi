@@ -210,12 +210,65 @@ export const cmoPieceTextSchema = z
 /** A report is its card's message in Cuso's shared room. */
 export const cmoReportIdParamsSchema = z.object({ id: z.string().uuid() });
 
+export const cmoMediaItemSchema = z
+  .object({
+    kind: z.enum(["image", "video"]),
+    url: z.string(),
+    name: z.string(),
+  })
+  .openapi("CmoMediaItem");
+
+export const cmoDraftSchema = z
+  .object({
+    id: z.string(),
+    provider: z.string(),
+    text: z.string(),
+    status: z
+      .string()
+      .describe(
+        "The Social post's status. NEEDS_APPROVAL waits for the owner; SCHEDULED goes out at scheduledAt.",
+      ),
+    revision: z.number().int(),
+    scheduledAt: z.union([dateTimeSchema, z.null()]),
+    publishedUrl: z.union([z.string(), z.null()]),
+    media: z.array(cmoMediaItemSchema),
+  })
+  .openapi("CmoDraft");
+
+export const cmoDraftParamsSchema = cmoProjectParamsSchema.extend({
+  postId: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "postId", in: "path" } }),
+});
+
+export const cmoDraftRevisionSchema = z
+  .object({
+    revision: z
+      .number()
+      .int()
+      .describe("The draft's revision as shown; a changed draft is refused."),
+  })
+  .openapi("CmoDraftRevision");
+
+export const cmoDraftEditSchema = cmoDraftRevisionSchema
+  .extend({ text: z.string().trim().min(1).max(25_000) })
+  .openapi("CmoDraftEdit");
+
 export const cmoUpdateSchema = cmoReportUpdateInputSchema
   .extend({
     id: z.string(),
     at: dateTimeSchema,
     revertible: z.boolean(),
     revertedAt: z.union([dateTimeSchema, z.null()]),
+    posts: z
+      .array(cmoDraftSchema)
+      .describe("The Social posts the report's turn made, as they are now."),
+    media: z
+      .array(cmoMediaItemSchema)
+      .describe(
+        "Pictures and videos the report's turn made that are on none of its posts.",
+      ),
   })
   .openapi("CmoUpdate");
 
@@ -440,6 +493,11 @@ export const cmoOverviewSchema = z
         "When a plan was first approved, so hiring ended. Unlike the approved version's approvedAt, a later approval does not move it.",
       ),
     updates: z.array(cmoUpdateSchema),
+    drafts: z
+      .array(cmoDraftSchema)
+      .describe(
+        "Social posts Cuso made that wait for the owner's approval, newest first.",
+      ),
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),
     connectChannelUrl: z.string(),

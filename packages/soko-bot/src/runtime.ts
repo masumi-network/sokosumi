@@ -95,6 +95,8 @@ export interface RuntimeTurnInput extends SokoBotActorContext {
   sessionId: string | null;
   turnId: string;
   message: string;
+  /** The launch lease that Core may exchange for a fresh drain lease at close. */
+  reconciliationLeaseToken?: string;
 }
 
 export interface RuntimeTurnRef extends RuntimeSessionRef {
@@ -128,6 +130,8 @@ export interface RuntimeEventStreamInput {
   sessionId: string;
   startIndex: number;
   signal?: AbortSignal;
+  /** Lets a stored-event stream release its owner's heartbeat when idle. */
+  reconciliation?: { turnId: string; leaseToken: string };
 }
 
 export interface RuntimeCancelInput {
