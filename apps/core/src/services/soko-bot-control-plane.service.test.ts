@@ -1908,7 +1908,13 @@ describe("SokoBotControlPlane lifecycle", () => {
       name: "Fresh",
     });
 
-    expect(botCreateMock).toHaveBeenCalled();
+    expect(botCreateMock).toHaveBeenCalledOnce();
+    const data = botCreateMock.mock.lastCall?.[0]?.data;
+    expect(data).not.toHaveProperty("ingestTimezone");
+    expect(data).not.toHaveProperty("avatarSeed");
+    expect(data).not.toHaveProperty("personalityTone");
+    expect(data).not.toHaveProperty("personalityDetail");
+    expect(data).not.toHaveProperty("personalityStyle");
     expect(coworkerCreateMock).not.toHaveBeenCalled();
   });
 
@@ -1948,14 +1954,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       name: "Soko",
     });
 
-    expect(botUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          archivedAt: undefined,
-          status: undefined,
-        }),
-      }),
-    );
+    expect(botUpdateMock.mock.lastCall?.[0]).toStrictEqual({
+      where: { id: BOT_ID },
+      data: { name: "Soko" },
+    });
   });
 
   it("cursor-paginates user turns with a stable ID cursor", async () => {
@@ -2114,14 +2116,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       name: "Soko",
     });
 
-    expect(botUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          archivedAt: null,
-          status: undefined,
-        }),
-      }),
-    );
+    expect(botUpdateMock.mock.lastCall?.[0]).toStrictEqual({
+      where: { id: BOT_ID },
+      data: { archivedAt: null, name: "Soko" },
+    });
   });
 
   it("refuses a turn whenever durable administrator pause is set", async () => {
@@ -2727,6 +2725,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       backgroundTitle: "Gmail CRM",
       destinationRoomId: "room-owner",
     });
+    expect(data).not.toHaveProperty("chatMentionId");
+    expect(data).not.toHaveProperty("chatResponseMessageId");
     expect(data.deadlineAt.getTime() - Date.now()).toBeGreaterThan(
       5 * 60 * 60 * 1_000,
     );
@@ -4235,6 +4235,11 @@ describe("SokoBotControlPlane lifecycle", () => {
         }),
       }),
     );
+    expect(adminActionCreateMock).toHaveBeenCalledTimes(2);
+    for (const [{ data }] of adminActionCreateMock.mock.calls) {
+      expect(data).toHaveProperty("requestId", "request-transport-1");
+      expect(data).not.toHaveProperty("traceId");
+    }
   });
 
   it("refuses resume while a session-reset outbox entry is unfinished", async () => {
@@ -5149,6 +5154,10 @@ describe("SokoBotControlPlane lifecycle", () => {
     const settled = await new SokoBotControlPlane().expireTurn("turn_1");
 
     expect(settled).toBe(true);
+    expect(turnFindFirstMock.mock.calls[0]?.[0]?.where).toStrictEqual({
+      id: "turn_1",
+      status: { in: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"] },
+    });
     expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: "Serializable",
     });
