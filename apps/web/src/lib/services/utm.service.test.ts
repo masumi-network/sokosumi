@@ -116,10 +116,7 @@ describe("utmService.handleUTMConversion", () => {
   });
 
   it("does not call core when the cookie is malformed", async () => {
-    expectConsole(
-      "error",
-      "Failed to parse UTM cookie SyntaxError: Unexpected token 'o', \"not-json\" is not valid JSON",
-    );
+    const errorCalls = expectConsole("error", "Failed to parse UTM cookie");
     const { store, deleteMock } = createCookieStore("not-json");
     cookiesMock.mockResolvedValue(store);
 
@@ -127,5 +124,9 @@ describe("utmService.handleUTMConversion", () => {
 
     expect(postUsersByIdUtmAttributionMock).not.toHaveBeenCalled();
     expect(deleteMock).toHaveBeenCalledWith(UTM_COOKIE_NAME);
+    expect(errorCalls[0]?.[1]).toBeInstanceOf(SyntaxError);
+    expect(errorCalls[0]?.[1]).toMatchObject({
+      message: expect.stringContaining('"not-json"'),
+    });
   });
 });

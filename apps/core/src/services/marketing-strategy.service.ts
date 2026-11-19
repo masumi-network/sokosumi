@@ -127,8 +127,8 @@ export async function listMarketingStrategies(
       orderBy: [...NEWEST_FIRST],
       select: MARKETING_STRATEGY_VERSION_SELECT,
       take: page.take,
-      skip: page.skip,
-      cursor: page.cursor ? { id: page.cursor } : undefined,
+      ...(page.skip !== undefined ? { skip: page.skip } : {}),
+      ...(page.cursor ? { cursor: { id: page.cursor } } : {}),
     }),
     prisma.marketingStrategy.count({ where: { projectId } }),
   ]);
@@ -590,20 +590,22 @@ export async function planMarketingStrategyPosts(
     const post = byEntry.get(entry.id);
     const stored = parseSocialPostPlanning(post?.planning);
     const planning = {
-      ...stored,
-      ...withoutUndefined(socialPostPlanningSchema.parse(entry)),
-      // What a copy speaks is its entry's: a save of the copy changes its
-      // own caption and plan only.
-      ...(stored?.videoOf && !copies.has(entry)
-        ? {
-            script: stored.script,
-            presenter: stored.presenter,
-            voice: stored.voice,
-            languageCode: stored.languageCode,
-            alsoOn: undefined,
-            videoOf: stored.videoOf,
-          }
-        : {}),
+      ...withoutUndefined({
+        ...stored,
+        ...withoutUndefined(socialPostPlanningSchema.parse(entry)),
+        // What a copy speaks is its entry's: a save of the copy changes its
+        // own caption and plan only.
+        ...(stored?.videoOf && !copies.has(entry)
+          ? {
+              script: stored.script,
+              presenter: stored.presenter,
+              voice: stored.voice,
+              languageCode: stored.languageCode,
+              alsoOn: undefined,
+              videoOf: stored.videoOf,
+            }
+          : {}),
+      }),
       id: stored?.id ?? entry.id,
     };
     if (!planning.videoOf) {
@@ -934,11 +936,15 @@ export async function answerMarketingStrategyQuestion(input: {
             answer: input.answer,
             note,
           }),
-          questions: plan.questions.map((question) =>
-            question.id === input.questionId
-              ? { ...question, answer: input.answer, note }
-              : question,
-          ),
+          questions: plan.questions.map((question) => {
+            if (question.id !== input.questionId) return question;
+            const { note: _previousNote, ...fields } = question;
+            return {
+              ...fields,
+              answer: input.answer,
+              ...(note !== undefined ? { note } : {}),
+            };
+          }),
         },
       },
     });

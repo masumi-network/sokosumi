@@ -411,7 +411,7 @@ export class SokoBotSchedulesSyncService {
         },
         data: {
           status: completed ? "COMPLETED" : "FAILED",
-          turnId: turnId ?? undefined,
+          ...(turnId != null ? { turnId } : {}),
           completedAt: new Date(),
           leaseToken: null,
           leaseExpiresAt: null,

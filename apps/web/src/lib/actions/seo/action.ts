@@ -9,7 +9,7 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { SeoCommand } from "@/lib/actions/seo/types";
+import { type SeoCommand, seoReviewIdentity } from "@/lib/actions/seo/types";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -37,6 +37,8 @@ const monitorCommandSchema = z.discriminatedUnion("kind", [
       kind: z.literal("monitor_run_now"),
       monitorId: z.uuid(),
       expectedRevision: scheduleRevision,
+      allowLimitedAudit: z.literal(true).optional(),
+      searchConsolePropertyId: z.string().min(1).max(500).optional(),
     })
     .strict(),
   z
@@ -73,12 +75,12 @@ export const mutateSeo = withSession<
   ) {
     return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
+  const reviewIdentity = seoReviewIdentity(command);
   if (
-    command.kind === "request_analysis" &&
-    (command.body?.sharedBrief || command.body?.setupGoal) &&
+    reviewIdentity &&
     (!briefViewer ||
       briefViewer.userId !== session.user.id ||
-      (command.body.setupGoal && !briefViewer.sessionId) ||
+      (reviewIdentity === "session" && !briefViewer.sessionId) ||
       (briefViewer.sessionId !== undefined &&
         briefViewer.sessionId !== session.session.id) ||
       briefViewer.organizationId !==
@@ -129,6 +131,10 @@ export const mutateSeo = withSession<
       case "monitor_run_now":
         await taskScheduleService.runNow(command.monitorId, {
           expectedRevision: command.expectedRevision,
+          ...(command.allowLimitedAudit && { allowLimitedAudit: true }),
+          ...(command.searchConsolePropertyId && {
+            searchConsolePropertyId: command.searchConsolePropertyId,
+          }),
         });
         break;
       case "monitor_update":
@@ -167,10 +173,17 @@ export const mutateSeo = withSession<
   } catch (error) {
     const refusal = toCoreApiActionError(error);
     if (
-      command.kind === "request_analysis" &&
-      error instanceof CoreApiRequestError
+      command.kind === "request_analysis" ||
+      command.kind === "create_monitor" ||
+      command.kind === "monitor_run_now"
     )
-      refusal.status = error.status;
+      return toActionResult(
+        err({
+          code: refusal.code,
+          kind: refusal.kind,
+          ...(error instanceof CoreApiRequestError && { status: error.status }),
+        }),
+      );
     return toActionResult(err(refusal));
   }
 });

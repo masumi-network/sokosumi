@@ -218,7 +218,7 @@ export class SokoBotTaskboardSyncService {
       await prisma.syncMetadata.update({
         where: { key: scan.key },
         data: {
-          cursorId: bots.length === 50 ? bots.at(-1)?.id : null,
+          cursorId: bots.length === 50 ? bots.at(-1)!.id : null,
           lastSyncedAt: new Date(),
         },
       });
@@ -477,7 +477,7 @@ export class SokoBotTaskboardSyncService {
       await prisma.syncMetadata.update({
         where: { key: scan.key },
         data: {
-          cursorId: tasks.length === 50 ? tasks.at(-1)?.id : null,
+          cursorId: tasks.length === 50 ? tasks.at(-1)!.id : null,
           lastSyncedAt: now,
         },
       });

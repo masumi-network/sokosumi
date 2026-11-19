@@ -76,7 +76,8 @@ export function selectSeoRelatedPages(
 
 /** Indexing evidence metadata never changes the original Task packet, report scope or approved price. */
 export function originalSeoAuditPacket(value: unknown) {
-  const request = requestObject.parse(value);
+  const { searchConsoleAccess: _access, ...request } =
+    requestObject.parse(value);
   if (request.relatedIndexingSelection === undefined) return request;
   const selection = seoRelatedIndexingSelectionSchema.safeParse(
     request.relatedIndexingSelection,

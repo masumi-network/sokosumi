@@ -21,13 +21,14 @@ import {
   seoAuditListQuerySchema,
   seoAuditSummarySchema,
   seoAuditWorkspaceMappingSchema,
+  setSeoAuditArchivedSchema,
 } from "@/schemas/seo-audit.schema";
 import {
   createSeoAudit,
   getSeoAuditWorkspaceMapping,
   listSeoAudits,
 } from "@/services/seo-audit.service";
-import { deleteSeoAudit } from "@/services/seo-audit-deletion";
+import { setSeoAuditArchived } from "@/services/seo-audit-archive";
 import { createSeoWorkspaceRouter } from "../../projects/[id]/seo";
 import chat from "./chat";
 
@@ -128,20 +129,29 @@ app.route("/:id/chat", chat);
 app.openapi(
   withOrganizationSlugHeaderParameter(
     createRoute({
-      method: "delete",
+      method: "patch",
       path: "/{id}",
-      operationId: "deleteSeoAudit",
+      operationId: "setSeoAuditArchived",
       tags: ["SEO"],
       description:
-        "Remove a saved SEO audit created by the current user from this workspace.",
-      request: { params: seoProjectParamsSchema },
-      responses: { 204: { description: "Audit removed" }, ...errors },
+        "Archive or restore a saved SEO audit and its related Tasks in the active workspace.",
+      request: {
+        params: seoProjectParamsSchema,
+        body: {
+          content: {
+            "application/json": { schema: setSeoAuditArchivedSchema },
+          },
+          required: true,
+        },
+      },
+      responses: { 204: { description: "Archive state saved" }, ...errors },
     }),
   ),
   async (c) => {
-    await deleteSeoAudit(
+    await setSeoAuditArchived(
       requireSeoWorkspaceRouteActor(c.var),
       c.req.valid("param").id,
+      c.req.valid("json").archived,
     );
     return c.body(null, 204);
   },

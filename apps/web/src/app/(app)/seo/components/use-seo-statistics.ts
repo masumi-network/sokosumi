@@ -13,6 +13,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function useSeoStatistics(
   model: SeoWorkspaceModel,
   provider: SeoStatisticsProvider,
+  selectionContext?: string,
 ) {
   const workspace = model.data;
   // No choice for the reader: Search Console counts Google search only, and for Google Analytics
@@ -28,7 +29,12 @@ export function useSeoStatistics(
   const connected =
     useSeoConnectionStatus(provider).status.data?.status === "connected";
   // The reader's choice, then the property of the last sync, then the one that names the site.
-  const choices = useSeoStatisticsProperties(workspace, provider, connected);
+  const choices = useSeoStatisticsProperties(
+    workspace,
+    provider,
+    connected,
+    selectionContext,
+  );
   return {
     ...choices,
     provider,

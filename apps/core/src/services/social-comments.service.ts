@@ -154,7 +154,7 @@ async function repliesLeftToday(
   const sent = await prisma.socialComment.count({
     where: {
       projectId,
-      id: exceptCommentId ? { not: exceptCommentId } : undefined,
+      ...(exceptCommentId ? { id: { not: exceptCommentId } } : {}),
       status: "REPLIED",
       handledAt: { gte: new Date(now.getTime() - DAY_MS) },
     },

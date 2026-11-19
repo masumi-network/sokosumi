@@ -49,9 +49,12 @@ export function freezeSeoTaskRelatedIndexing(
     )
       throw conflict("The approved audit seed pages or Task request changed");
     const stored = z
-      .object({ relatedIndexingSelection: seoRelatedIndexingSelectionSchema })
-      .safeParse(analysis.request);
-    if (stored.success)
+      .object({
+        relatedIndexingSelection: seoRelatedIndexingSelectionSchema.optional(),
+        searchConsoleAccess: z.json().optional(),
+      })
+      .parse(analysis.request);
+    if (stored.relatedIndexingSelection)
       return {
         version: 1 as const,
         taskId,
@@ -76,6 +79,9 @@ export function freezeSeoTaskRelatedIndexing(
       data: {
         request: {
           ...original,
+          ...(stored.searchConsoleAccess !== undefined && {
+            searchConsoleAccess: stored.searchConsoleAccess,
+          }),
           relatedIndexingSelection: {
             version: 1,
             seedPageUrls: pageUrls,

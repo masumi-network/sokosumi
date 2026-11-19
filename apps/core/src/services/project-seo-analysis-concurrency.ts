@@ -21,7 +21,7 @@ export async function requireNoActiveSeoAnalysis(
   // concurrent dispatch, including the scheduler's Read Committed transaction, before inspecting active Tasks.
   if (actor.owner.kind === "audit") {
     const activeAudit = await tx.$executeRaw`
-      UPDATE "seo_audit" SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid AND "deletedAt" IS NULL
+      UPDATE "seo_audit" SET "updatedAt" = "updatedAt" WHERE id = ${actor.owner.id}::uuid AND "deletedAt" IS NULL AND "archivedAt" IS NULL
     `;
     if (!activeAudit) throw notFound("SEO audit not found");
   } else

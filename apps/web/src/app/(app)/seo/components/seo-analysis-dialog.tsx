@@ -2,7 +2,7 @@
 
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { TaskScheduleWhen } from "@/app/tasks/components/task-schedule-when";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +37,7 @@ import {
   SEO_MAX_PAGES,
   seoAnalysisMaxCredits,
 } from "./seo-form-model";
+import { SeoSearchConsoleWarning } from "./seo-search-console-warning";
 import { useSeoAnalysisForm } from "./use-seo-analysis";
 import { useSeoAnalysisMarket } from "./use-seo-analysis-market";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
@@ -59,6 +60,7 @@ export function SeoAnalysisDialog({
 }) {
   const t = useTranslations("App.Seo");
   const form = useSeoAnalysisForm(model, monitor);
+  const formElement = useRef<HTMLFormElement>(null);
   const [editingBrief, setEditingBrief] = useState(false);
   const [keepSetupSelection, setKeepSetupSelection] = useState(true);
   const full = form.kind === "audit_full";
@@ -77,6 +79,18 @@ export function SeoAnalysisDialog({
         ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
         : { kind: "free" };
   const maxCredits = seoAnalysisMaxCredits(limits);
+  const price = maxCredits
+    ? t(
+        full
+          ? monitor
+            ? "analysis.fixedCreditsPerRun"
+            : "analysis.fixedCredits"
+          : monitor
+            ? "analysis.maxCreditsPerRun"
+            : "analysis.maxCredits",
+        { credits: maxCredits },
+      )
+    : null;
   return (
     <Dialog
       open
@@ -102,6 +116,7 @@ export function SeoAnalysisDialog({
           </DialogDescription>
         </DialogHeader>
         <form
+          ref={formElement}
           className="space-y-6"
           // A closed field the browser refuses cannot take focus: open the fields so its message shows.
           onInvalidCapture={() => form.setOptionsOpen(true)}
@@ -355,6 +370,11 @@ export function SeoAnalysisDialog({
               </p>
             </div>
           ) : null}
+          {form.selectingProperty ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {t("statistics.propertiesLoading")}
+            </p>
+          ) : null}
           {form.staleGoal ? (
             <p role="alert" className="text-destructive text-sm">
               {t("setup.goal.reviewChanged")}
@@ -376,9 +396,10 @@ export function SeoAnalysisDialog({
             <Button
               type="submit"
               variant="primary"
-              loading={model.pending}
+              loading={model.pending || form.selectingProperty}
               disabled={
                 noService ||
+                form.selectingProperty ||
                 form.staleGoal ||
                 model.pending ||
                 (monitor && !form.rule) ||
@@ -396,21 +417,26 @@ export function SeoAnalysisDialog({
               className="text-muted-foreground text-sm empty:hidden max-sm:text-center sm:order-first sm:mr-auto"
               aria-live="polite"
             >
-              {maxCredits
-                ? t(
-                    full
-                      ? monitor
-                        ? "analysis.fixedCreditsPerRun"
-                        : "analysis.fixedCredits"
-                      : monitor
-                        ? "analysis.maxCreditsPerRun"
-                        : "analysis.maxCredits",
-                    { credits: maxCredits },
-                  )
-                : null}
+              {price}
             </p>
           </DialogFooter>
         </form>
+        {form.warning ? (
+          <SeoSearchConsoleWarning
+            reason={form.warning}
+            model={model}
+            mode={monitor ? "monitor" : "audit"}
+            price={price}
+            selectingProperty={form.selectingProperty}
+            disabled={form.staleGoal}
+            onClose={() => model.setDialog(null)}
+            onRetry={() => formElement.current?.requestSubmit()}
+            onLimited={() => {
+              if (formElement.current?.reportValidity())
+                void form.submit(new FormData(formElement.current), true);
+            }}
+          />
+        ) : null}
         {editingBrief ? (
           <SeoBriefDialog
             key={model.viewerKey}

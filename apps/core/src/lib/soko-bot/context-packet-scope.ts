@@ -64,9 +64,9 @@ export interface ContextPacketScope {
   memoryWhere: Prisma.SokoBotMemoryRevisionWhereInput;
 }
 
-const SETTLED_TURN_STATUSES: Prisma.SokoBotTurnWhereInput["status"] = {
+const SETTLED_TURN_STATUSES = {
   in: ["COMPLETED", "FAILED", "CANCELLED"],
-};
+} satisfies Prisma.SokoBotTurnWhereInput["status"];
 
 /** Matches no row: Prisma reads an empty `in` as false. */
 const NO_ASSIGNMENT: Prisma.CoworkerAssignmentWhereInput = { id: { in: [] } };

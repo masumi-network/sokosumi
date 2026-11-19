@@ -63,6 +63,9 @@ describe("jobEventRepository.createJobEventForJobId", () => {
     );
 
     const data = (createCall as { data: Record<string, unknown> }).data;
-    assert.equal(data.statusHash, undefined);
+    assert.deepEqual(data, {
+      job: { connect: { id: "job-1" } },
+      status: AgentJobStatus.RUNNING,
+    });
   });
 });

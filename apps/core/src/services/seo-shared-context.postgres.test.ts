@@ -12,8 +12,10 @@ import {
 } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { createSeoWorkspaceRouter } from "@/routes/v1/projects/[id]/seo";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
+import { createTaskScheduleTestApp } from "@/test-fixtures/task-schedule-app";
 import {
   addProjectSeoPage,
   getProjectSeoWorkspace,
@@ -26,7 +28,7 @@ import {
   getSeoAuditWorkspaceMapping,
   listSeoAudits,
 } from "./seo-audit.service";
-import { deleteSeoAudit } from "./seo-audit-deletion";
+import { setSeoAuditArchived } from "./seo-audit-archive";
 import { listSeoChat, sendSeoChat } from "./seo-chat.service";
 import { disconnectSeoConnection } from "./seo-connection-oauth.service";
 import {
@@ -42,6 +44,11 @@ const boundary = vi.hoisted(() => ({
   read: vi.fn(async () => {
     throw new Error("Unexpected provider data request");
   }),
+}));
+vi.mock("@/middleware/auth", async (original) => ({
+  ...(await original<typeof import("@/middleware/auth")>()),
+  authMiddleware: (await import("@/test-fixtures/auth-middleware"))
+    .stubAuthMiddleware,
 }));
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
@@ -331,23 +338,95 @@ describe.skipIf(!enabled)(
       await prisma.$disconnect();
     });
 
-    it("limits removal of a workspace audit to the member who created it", async () => {
-      const { actor, other } = await audit("Creator deletion");
+    it("lets a teammate archive and restore the same report with its history", async () => {
+      const { workspace, actor, other } = await audit("Shared archive");
       const id = actor.owner.id;
-      const summary = (await listSeoAudits(other, {})).audits.find(
-        (item) => item.id === id,
-      );
-      expect(summary?.canDelete).toBe(false);
-      await expect(deleteSeoAudit(other, id)).rejects.toMatchObject({
-        status: 403,
+      const observation = await recordNativeSeoMetrics(actor, metrics(14));
+      const turn = await sendSeoChat(actor, question("Keep this history"), {
+        generate: async () => modelReply,
       });
-      await expect(deleteSeoAudit(outsider, id)).rejects.toMatchObject({
+      await expect(
+        setSeoAuditArchived(outsider, id, true),
+      ).rejects.toMatchObject({ status: 404 });
+      await setSeoAuditArchived(other, id, true);
+      await expect(getProjectSeoWorkspace(actor)).rejects.toMatchObject({
         status: 404,
       });
-      await deleteSeoAudit(actor, id);
       await expect(
         getSeoAuditWorkspaceMapping(other.userId, id),
       ).rejects.toMatchObject({ status: 404 });
+      expect(
+        (await listSeoAudits(other, { status: "archived" })).audits.map(
+          (row) => row.id,
+        ),
+      ).toContain(id);
+      await expect(
+        setSeoAuditArchived(outsider, id, false),
+      ).rejects.toMatchObject({ status: 404 });
+      await setSeoAuditArchived(other, id, false);
+      const restored = await getProjectSeoWorkspace(other);
+      expect(restored.scope.pageIds).toEqual(workspace.scope.pageIds);
+      expect(restored.metrics).toMatchObject([{ value: 14 }]);
+      expect(
+        await prisma.projectSeoObservation.findUnique({
+          where: { id: observation.id },
+        }),
+      ).toMatchObject({ auditId: id });
+      expect((await listSeoChat(other)).turns.map((row) => row.id)).toContain(
+        turn.id,
+      );
+    });
+
+    it("keeps legacy deleted reports out of the archive and refuses their restoration", async () => {
+      const { actor, other } = await audit("Previously deleted");
+      const id = actor.owner.id;
+      await prisma.seoAudit.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      expect(
+        (await listSeoAudits(other, { status: "archived" })).audits.map(
+          (row) => row.id,
+        ),
+      ).not.toContain(id);
+      await expect(setSeoAuditArchived(other, id, false)).rejects.toMatchObject(
+        { status: 404 },
+      );
+      await expect(setSeoAuditArchived(actor, id, true)).rejects.toMatchObject({
+        status: 404,
+      });
+    });
+
+    it("returns the viewer's own Search Console selection when a colleague synced the same pages", async () => {
+      const { actor, other } = await audit("Shared Search Console pages");
+      const property = "sc-domain:example.test";
+      await recordNativeSeoMetrics(actor, {
+        ...metrics(0),
+        provider: "search_console",
+        propertyId: property,
+        channel: "organic",
+        metrics: [],
+      });
+      async function readSelection(viewer: SeoActor) {
+        const app = createTaskScheduleTestApp(
+          (root) =>
+            root.route("/audits/:id", createSeoWorkspaceRouter("audit")),
+          {
+            actor: "user",
+            userId: viewer.userId,
+            role: "user",
+            organizationId,
+          },
+          { userId: viewer.userId, workspaceId, organizationId },
+        );
+        const response = await app.request(
+          `http://localhost/audits/${viewer.owner.id}`,
+        );
+        expect(response.status).toBe(200);
+        return (await response.json()).data.searchConsolePropertyId;
+      }
+      expect(await readSelection(other)).toBeNull();
+      expect(await readSelection(actor)).toBe(property);
     });
 
     it("shares new organization measurements and authored chat across current members without transferring account access", async () => {
@@ -608,6 +687,9 @@ describe.skipIf(!enabled)(
           status: 404,
         });
         await expect(listSeoChat(other)).rejects.toMatchObject({ status: 404 });
+        await expect(
+          setSeoAuditArchived(other, actor.owner.id, true),
+        ).rejects.toMatchObject({ status: 404 });
         await expect(
           sendSeoChat(other, question("Revoked read"), {
             generate: deniedGenerate,

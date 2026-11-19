@@ -1,6 +1,7 @@
 import type { Task } from "@sokosumi/core-client";
 import {
   isTaskEditableStatus,
+  removeSeoTaskRequest,
   removeTaskContextAttachmentLinks,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
@@ -149,6 +150,11 @@ export async function TaskDetailView({
               // own board is not the likely next page there.
               loadBoardOnMount={!forceReadOnly}
               calendarBackLabel={t("backToCalendar")}
+              seoAudit={task.seoAudit}
+              seoAuditLabels={{
+                audit: t("openSeoAudit"),
+                project: t("openSeoProjectWorkspace"),
+              }}
               parentLink={
                 task.ancestors?.length ? (
                   <nav
@@ -430,7 +436,7 @@ async function TaskDescriptionSection({
     getTranslations("App.Tasks.Detail"),
   ]);
   const descriptionBody = task.description
-    ? removeTaskContextAttachmentLinks(task.description)
+    ? removeSeoTaskRequest(removeTaskContextAttachmentLinks(task.description))
     : null;
 
   return (

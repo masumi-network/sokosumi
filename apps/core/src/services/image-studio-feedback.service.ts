@@ -138,6 +138,7 @@ export async function setStudioAssetFeedback(
         data: feedback,
       });
     } else {
+      const batchId = asset.job.batchId ?? asset.job.batchSlot?.batchId;
       try {
         await prisma.adFeedback.create({
           data: {
@@ -147,7 +148,7 @@ export async function setStudioAssetFeedback(
             workspaceId: input.workspaceId,
             projectId: input.projectId,
             kind: AdFeedbackKind.THUMB,
-            batchId: asset.job.batchId ?? asset.job.batchSlot?.batchId,
+            ...(batchId !== undefined ? { batchId } : {}),
           },
         });
       } catch (error) {
