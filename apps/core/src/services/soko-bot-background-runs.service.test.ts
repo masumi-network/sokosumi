@@ -54,9 +54,11 @@ const authorized = {
 const ownerParent = {
   source: "CHAT",
   parentTurnId: null,
+  requestedByUserId: "owner",
   askedByUserId: null,
   chainDepth: 0,
   destinationRoomId: "room-owner",
+  sokoBot: { sharedRoomId: null },
 };
 
 describe("background runs", () => {
@@ -117,22 +119,118 @@ describe("background runs", () => {
     expect(startTurn).not.toHaveBeenCalled();
   });
 
-  it("refuses a shared bot with a reason of its own", async () => {
+  describe("on a shared bot", () => {
     const shared = {
       ...authorized,
+      askedByKind: "TEAMMATE",
+      turn: {
+        ...authorized.turn,
+        actingUserId: "ada",
+        requestedByUserId: "ada",
+      },
       reader: {
         sharedScope: {
           sokoBotId: "bot",
           workspaceId: "workspace",
-          projectId: null,
+          projectId: "project",
         },
       },
     } as unknown as AuthorizedSokoBotRuntime;
-    await expect(
-      startBackgroundRun(shared, { title: "t", brief: "b" }),
-    ).rejects.toThrow("A shared Soko Bot cannot start background runs");
-    expect(findUniqueOrThrow).not.toHaveBeenCalled();
-    expect(startTurn).not.toHaveBeenCalled();
+    /** Ada asked the bot in a channel; the bot's own room is elsewhere. */
+    const memberParent = {
+      source: "CHAT",
+      parentTurnId: null,
+      requestedByUserId: "ada",
+      askedByUserId: "ada",
+      chainDepth: 0,
+      destinationRoomId: "room-channel",
+      sokoBot: { sharedRoomId: "room-shared" },
+    };
+    const start = (of: AuthorizedSokoBotRuntime = shared) =>
+      startBackgroundRun(of, { title: "Outreach list", brief: "Build it." });
+
+    beforeEach(() => {
+      findFirst.mockResolvedValue(null);
+      startTurn.mockResolvedValue({ turnId: "run-1", status: "RUNNING" });
+    });
+
+    it("starts the member's run, asked as them, reporting in the bot's own room", async () => {
+      findUniqueOrThrow.mockResolvedValue(memberParent);
+
+      await expect(start()).resolves.toMatchObject({ runId: "run-1" });
+      const input = startTurn.mock.calls[0][0];
+      expect(input).toMatchObject({
+        userId: "ada",
+        workspaceId: "workspace",
+        sokoBotId: "bot",
+        source: "CHAT",
+        chat: { askedByUserId: "ada" },
+        background: {
+          parentTurnId: "parent-turn",
+          title: "Outreach list",
+          destinationRoomId: "room-shared",
+        },
+      });
+      expect(input.presetRoute.capabilities).not.toContain(
+        "start_background_run",
+      );
+      expect(input.message).toContain("beside the chat you were asked in");
+      expect(input.message).not.toContain("owner");
+    });
+
+    it.each([
+      ["the bot's own rhythm", { source: "SCHEDULE" }, {}],
+      ["an event", { source: "EVENT" }, {}],
+      ["another bot's message", { chainDepth: 1 }, {}],
+      ["a turn asked for someone else", { askedByUserId: "bob" }, {}],
+      ["an assistant", {}, { askedByKind: "ASSISTANT" }],
+      [
+        "a turn nobody asked for",
+        { requestedByUserId: null, askedByUserId: null },
+        { turn: { ...shared.turn, actingUserId: null } },
+      ],
+    ])("refuses a run from %s", async (_label, parent, turn) => {
+      findUniqueOrThrow.mockResolvedValue({ ...memberParent, ...parent });
+
+      await expect(
+        start({ ...shared, ...turn } as AuthorizedSokoBotRuntime),
+      ).rejects.toThrow("Only a member's own request in chat");
+      expect(startTurn).not.toHaveBeenCalled();
+    });
+
+    it("runs one at a time", async () => {
+      findUniqueOrThrow.mockResolvedValue(memberParent);
+      findFirst.mockResolvedValue({
+        id: "run-0",
+        backgroundTitle: "Results log",
+      });
+
+      await expect(start()).rejects.toThrow(
+        '"Results log" is still running (runId run-0). One background run at a time',
+      );
+      expect(findFirst.mock.calls[0][0].where).toMatchObject({
+        sokoBotId: "bot",
+        parentTurnId: { not: null },
+        clientTurnId: { startsWith: "background:" },
+      });
+      expect(startTurn).not.toHaveBeenCalled();
+    });
+
+    it("tells the bot who may stop a run that is not this member's", async () => {
+      const { HTTPException } = await import("hono/http-exception");
+      findFirst.mockResolvedValue({ id: "run-1", status: "RUNNING" });
+      cancelTurn.mockRejectedValueOnce(
+        new HTTPException(403, {
+          message:
+            "Only the member who asked, or an organization owner or admin, can act on this turn",
+        }),
+      );
+
+      await expect(stopBackgroundRun(shared, "run-1")).rejects.toThrow(
+        "Only the member who asked, or an organization owner or admin",
+      );
+      expect(cancelTurn).toHaveBeenCalledWith("ada", "run-1");
+    });
   });
 
   it("lists runs with their latest plan", async () => {
