@@ -81,6 +81,8 @@ export const CMO_PRODUCTION_RUNS_PER_DAY = 4;
 const DAY_MS = 24 * 60 * 60 * 1_000;
 /** Pieces one run is given; a longer month continues in the next run. */
 const PIECES_PER_RUN = 40;
+/** How long a month may wait for its next run before the owner is told. */
+export const CMO_PRODUCTION_START_GRACE_MS = 30 * 60 * 1_000;
 
 const RUN_ACTIVE = new Set<SokoBotTurnStatus>([
   "STARTING",
@@ -219,9 +221,10 @@ export interface CmoProductionStatus {
   /**
    * waiting: not approved and paid yet; starting: approved, no run working
    * yet (the next sync starts one); running: a run is making pieces; ready:
-   * every piece is made; stuck: today's runs ended with pieces missing.
+   * every piece is made; stuck: today's runs ended with pieces missing;
+   * blocked: starting, but no run could start for half an hour.
    */
-  state: "waiting" | "starting" | "running" | "ready" | "stuck";
+  state: "waiting" | "starting" | "running" | "ready" | "stuck" | "blocked";
   ready: number;
   total: number;
   /** Pieces whose words are written: the first pass of a run. */
@@ -743,6 +746,11 @@ export async function readCmoProduction(
     ready.size <= lastReady;
   if (today.length >= CMO_PRODUCTION_RUNS_PER_DAY || stalled)
     return read("stuck", runs);
+  // Every sync tries to start a run; one that has not started in half an
+  // hour keeps failing, and the owner should not read "about to start".
+  const since = last?.completedAt ?? last?.createdAt ?? approvedAt;
+  if (runsNow.getTime() - since.getTime() > CMO_PRODUCTION_START_GRACE_MS)
+    return read("blocked", runs);
   return read("starting", runs);
 }
 
@@ -814,7 +822,8 @@ export async function advanceCmoProduction(
     });
     return current;
   }
-  if (current.state !== "starting") return current;
+  if (current.state !== "starting" && current.state !== "blocked")
+    return current;
   const attempt = runs.length + 1;
   await startProductionRun(
     cuso,
