@@ -28,7 +28,6 @@ import {
   socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
-
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -45,6 +44,10 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import {
+  socialPostConnectionSelect,
+  socialPostConnectionSummary,
+} from "@/helpers/project-social-connection-summary";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   flagSocialPostQuotes,
@@ -138,17 +141,7 @@ const socialPostInclude = {
   threadParts: { orderBy: { position: "asc" } },
   quotedPost: { select: socialPostQuoteSelect },
   project: { select: socialProviderProjectSelect },
-  socialConnection: {
-    select: {
-      id: true,
-      provider: true,
-      externalHandle: true,
-      displayName: true,
-      avatarUrl: true,
-      subscriptionType: true,
-      status: true,
-    },
-  },
+  socialConnection: { select: socialPostConnectionSelect },
   creatorUser: { select: { id: true, name: true } },
   creatorCoworker: { select: { id: true, name: true } },
   creatorSokoBot: { select: { id: true, name: true } },
@@ -213,6 +206,7 @@ export interface SocialPostSummary {
     avatarUrl: string | null;
     subscriptionType: string | null;
     status: string;
+    personalProfile: boolean;
   } | null;
   creator: SocialPostCreator;
   scheduledByUserId: string | null;
@@ -453,7 +447,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
-    socialConnection: record.socialConnection,
+    socialConnection: socialPostConnectionSummary(record.socialConnection),
     creator: mapCreator(record),
     scheduledByUserId: record.scheduledByUserId,
     scheduledByCoworkerId: record.scheduledByCoworkerId,

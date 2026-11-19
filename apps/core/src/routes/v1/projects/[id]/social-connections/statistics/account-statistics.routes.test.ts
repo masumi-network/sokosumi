@@ -60,6 +60,7 @@ const account = {
   status: "active",
   connectedAt: null,
   disconnectedAt: null,
+  personalProfile: false,
   statistics: null,
   postCount: 0,
 };

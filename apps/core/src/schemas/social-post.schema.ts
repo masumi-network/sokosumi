@@ -183,6 +183,7 @@ export const socialPostSocialConnectionSchema = z
     avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
     subscriptionType: projectSocialConnectionSchema.shape.subscriptionType,
     status: projectSocialConnectionSchema.shape.status,
+    personalProfile: projectSocialConnectionSchema.shape.personalProfile,
   })
   .openapi("SocialPostSocialConnection");
 

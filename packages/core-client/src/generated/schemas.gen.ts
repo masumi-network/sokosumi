@@ -38210,6 +38210,10 @@ export const ProjectSocialConnectionSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -38221,7 +38225,8 @@ export const ProjectSocialConnectionSchema = {
         'avatarUrl',
         'status',
         'connectedAt',
-        'disconnectedAt'
+        'disconnectedAt',
+        'personalProfile'
     ]
 } as const;
 
@@ -39027,6 +39032,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39053,6 +39062,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39079,6 +39092,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -39086,6 +39103,54 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 'socialConnectionId'
             ]
         }
+    ]
+} as const;
+
+export const SocialAccountChoicesSchema = {
+    type: 'object',
+    properties: {
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountChoice'
+            },
+            minItems: 2
+        }
+    },
+    required: [
+        'choices'
+    ]
+} as const;
+
+export const SocialAccountChoiceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Names this account within this sign-in only; send it back as `accountChoiceId`.'
+        },
+        name: {
+            type: 'string'
+        },
+        handle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page',
+                'profile'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'handle',
+        'kind'
     ]
 } as const;
 
@@ -39102,6 +39167,28 @@ export const FinalizeProjectSocialConnectionRequestSchema = {
             type: 'string',
             minLength: 1,
             example: 'ca_123'
+        },
+        pendingDataToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: names the Pages it reaches.'
+        },
+        connectToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4096,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: lets Core finish it.'
+        },
+        accountChoiceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The `id` of the account the person picked among the sign-in\'s accounts (`SocialAccountChoices`).'
+        },
+        offerChoice: {
+            type: 'boolean',
+            description: 'Answer 200 with the accounts to pick from when the sign-in reaches several and none is picked. Without it such a sign-in is refused, or LinkedIn connects the person\'s profile.'
         }
     },
     required: [
@@ -41812,6 +41899,10 @@ export const SocialPostSocialConnectionSchema = {
                 'disconnected'
             ],
             example: 'active'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -41820,7 +41911,8 @@ export const SocialPostSocialConnectionSchema = {
         'displayName',
         'avatarUrl',
         'subscriptionType',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -58011,79 +58103,13 @@ export const CmoSocialConnectionFinalizedSchema = {
         choices: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/CmoSocialAccountChoice'
+                $ref: '#/components/schemas/SocialAccountChoice'
             }
         }
     },
     required: [
         'state',
         'choices'
-    ]
-} as const;
-
-export const CmoSocialAccountChoiceSchema = {
-    type: 'object',
-    properties: {
-        externalAccountId: {
-            type: 'string'
-        },
-        name: {
-            type: 'string'
-        },
-        handle: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'page',
-                'profile'
-            ]
-        }
-    },
-    required: [
-        'externalAccountId',
-        'name',
-        'handle',
-        'kind'
-    ]
-} as const;
-
-export const CmoFinalizeSocialConnectionRequestSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/FinalizeProjectSocialConnectionRequest'
-        },
-        {
-            type: 'object',
-            properties: {
-                pendingDataToken: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 512,
-                    description: 'Returned with a LinkedIn sign-in: names the Pages it reaches.'
-                },
-                connectToken: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 4096,
-                    description: 'Returned with a LinkedIn sign-in: lets Core finish it.'
-                },
-                externalAccountId: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 256,
-                    description: 'The Page or profile the owner picked among the sign-in\'s accounts.'
-                }
-            }
-        }
     ]
 } as const;
 

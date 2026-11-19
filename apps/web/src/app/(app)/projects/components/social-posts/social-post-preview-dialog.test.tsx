@@ -58,6 +58,7 @@ const POST: SocialPost = {
   scheduledAt: null,
   timezone: null,
   socialConnection: {
+    personalProfile: false,
     id: "connection-1",
     externalHandle: "sokosumi",
     displayName: "Sokosumi",

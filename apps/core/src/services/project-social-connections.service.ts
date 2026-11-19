@@ -23,6 +23,11 @@ import { composioHandoffUrl } from "@/helpers/composio-handoff";
 import { conflict, integrationNotConfigured, notFound } from "@/helpers/error";
 import { linkedInPersonId, linkedInPersonUrn } from "@/helpers/linkedin-person";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import {
+  type ProjectSocialConnectionSummary,
+  projectSocialConnectionSummary,
+} from "@/helpers/project-social-connection-summary";
+import type { SocialAccountPick } from "@/helpers/social-account-choice";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { emitCoreWarning } from "@/lib/evlog";
@@ -35,23 +40,13 @@ import {
   createZernioIntent,
   deleteZernioProfile,
   getZernioAuthUrl,
-  getZernioTikTokIdentity,
+  getZernioProfileIdentity,
   zernioProofDigest,
 } from "./zernio-tiktok-connection.service";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
 
-export interface ProjectSocialConnectionSummary {
-  id: string;
-  provider: ProjectSocialProvider;
-  externalHandle: string | null;
-  displayName: string | null;
-  avatarUrl: string | null;
-  subscriptionType: string | null;
-  status: string;
-  connectedAt: Date | null;
-  disconnectedAt: Date | null;
-}
+export type { ProjectSocialConnectionSummary };
 
 export type InitiateProjectSocialConnectionInput = {
   projectId: string;
@@ -88,8 +83,8 @@ export interface FinalizeProjectSocialConnectionInput {
   /** Zernio's handle on a LinkedIn sign-in that waits for its account. */
   pendingDataToken?: string;
   connectToken?: string;
-  /** The Page or profile the owner picked among the sign-in's accounts. */
-  externalAccountId?: string;
+  /** The `SocialAccountChoice.id` the owner picked among the sign-in's accounts. */
+  accountChoiceId?: string;
   /**
    * Throw `SocialAccountChoiceRequiredError` when the sign-in reaches several
    * accounts and none is picked, instead of refusing or taking the profile.
@@ -185,20 +180,9 @@ function isSameExternalAccount(
 function mapProjectSocialConnection(
   connection: ProjectSocialConnectionRecord,
 ): ProjectSocialConnectionSummary {
-  if (!isProjectSocialProvider(connection.provider)) {
-    throw notFound("Unsupported social connection provider");
-  }
-  return {
-    id: connection.id,
-    provider: connection.provider,
-    externalHandle: connection.externalHandle,
-    displayName: connection.displayName,
-    avatarUrl: connection.avatarUrl,
-    subscriptionType: connection.subscriptionType,
-    status: connection.status,
-    connectedAt: connection.connectedAt,
-    disconnectedAt: connection.disconnectedAt,
-  };
+  const summary = projectSocialConnectionSummary(connection);
+  if (!summary) throw notFound("Unsupported social connection provider");
+  return summary;
 }
 
 function requireProjectSocialAuthConfigId(
@@ -495,13 +479,38 @@ export async function initiateProjectSocialConnection(
   };
 }
 
+/** The owner's pick, else the account a reconnect keeps, else whether to ask. */
+async function accountPick(
+  input: FinalizeProjectSocialConnectionInput,
+  intent: ProjectSocialConnectionIntentClaim,
+): Promise<SocialAccountPick> {
+  return {
+    choiceId: input.accountChoiceId,
+    externalAccountId: input.accountChoiceId
+      ? undefined
+      : await reconnectedAccountId(intent),
+    offerChoice: input.offerChoice,
+  };
+}
+
+/** A Facebook login's pick, only when there is one to make or to ask for. */
+async function facebookPick(
+  input: FinalizeProjectSocialConnectionInput,
+  intent: ProjectSocialConnectionIntentClaim,
+): Promise<{ pick: SocialAccountPick } | null> {
+  const pick = await accountPick(input, intent);
+  return pick.choiceId || pick.externalAccountId || pick.offerChoice
+    ? { pick }
+    : null;
+}
+
 /** A reconnect signs in to the account the row already holds: nothing to pick. */
 async function reconnectedAccountId(
   intent: ProjectSocialConnectionIntentClaim,
 ): Promise<string | undefined> {
   if (intent.action !== "reconnect" || !intent.socialConnectionId) return;
-  const target = await prisma.projectSocialConnection.findUnique({
-    where: { id: intent.socialConnectionId },
+  const target = await prisma.projectSocialConnection.findFirst({
+    where: { id: intent.socialConnectionId, projectId: intent.projectId },
     select: { externalAccountId: true },
   });
   return target?.externalAccountId;
@@ -530,14 +539,7 @@ async function getClaimedComposioIdentity(
     provider: intent.provider,
     connectedAccountId: input.connectionId,
     executorUserId: projectExecutorUserId(input.projectId),
-    ...(intent.provider === "facebook" &&
-      (input.externalAccountId || input.offerChoice) && {
-        pick: {
-          externalAccountId:
-            input.externalAccountId ?? (await reconnectedAccountId(intent)),
-          offerChoice: input.offerChoice,
-        },
-      }),
+    ...(intent.provider === "facebook" && (await facebookPick(input, intent))),
   });
   return { identity, connectedAccountId: input.connectionId };
 }
@@ -547,17 +549,19 @@ async function getZernioIdentity(
   intent: ProjectSocialConnectionIntentClaim,
   profileId: string,
 ) {
-  if (intent.provider !== "linkedin") return getZernioTikTokIdentity(profileId);
-  if (!input.pendingDataToken || !input.connectToken) {
-    throw notFound("Unknown or expired connection");
+  if (intent.provider !== "linkedin") {
+    return getZernioProfileIdentity(profileId, "tiktok");
   }
+  // A sign-in with nothing to pick comes back with the account already kept.
+  if (!input.pendingDataToken) {
+    return getZernioProfileIdentity(profileId, "linkedin");
+  }
+  if (!input.connectToken) throw notFound("Unknown or expired connection");
   return connectZernioLinkedInAccount({
     profileId,
     pendingDataToken: input.pendingDataToken,
     connectToken: input.connectToken,
-    externalAccountId:
-      input.externalAccountId ?? (await reconnectedAccountId(intent)),
-    offerChoice: input.offerChoice,
+    pick: await accountPick(input, intent),
   });
 }
 

@@ -94,15 +94,24 @@ async function zernioProfileAccounts(profileId: string, signal?: AbortSignal) {
   return accounts;
 }
 
-export async function getZernioTikTokIdentity(profileId: string) {
+/**
+ * The one account a sign-in left on its profile: a TikTok creator, or a
+ * LinkedIn member whose sign-in reached no Page, so Zernio kept it at once.
+ */
+export async function getZernioProfileIdentity(
+  profileId: string,
+  platform: "tiktok" | "linkedin",
+) {
   const [entry] = await zernioProfileAccounts(profileId);
   if (
-    entry?.platform !== "tiktok" ||
+    entry?.platform !== platform ||
     !entry.isActive ||
     entry.needsReconnection ||
     !entry.platformUserId
   ) {
-    throw conflict("TikTok connection is not active");
+    throw conflict(
+      `${platform === "tiktok" ? "TikTok" : "LinkedIn"} connection is not active`,
+    );
   }
   return {
     connectedAccountId: `zernio:${entry._id}`,
