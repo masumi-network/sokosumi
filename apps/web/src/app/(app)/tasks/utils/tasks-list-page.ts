@@ -44,6 +44,8 @@ interface GetTasksListPageParams {
 interface GetTasksListPageResult {
   tasks: TaskWithCoworker[];
   nextCursor: ListCursor;
+  /** How many Tasks match these filters across all pages. */
+  total: number;
 }
 
 export async function getTasksListPage({
@@ -78,7 +80,7 @@ export async function getTasksListPage({
       : status;
   // A status that cannot wait, under Stuck: nothing to list.
   if (Array.isArray(statuses) && statuses.length === 0) {
-    return { tasks: [], nextCursor: null };
+    return { tasks: [], nextCursor: null, total: 0 };
   }
   const result = await taskService.listTasks({
     status: statuses ?? undefined,
@@ -110,5 +112,6 @@ export async function getTasksListPage({
   return {
     tasks,
     nextCursor: result.pagination?.nextCursor ?? null,
+    total: result.pagination?.total ?? tasks.length,
   };
 }

@@ -1,14 +1,14 @@
 "use client";
 
-import { Archive } from "lucide-react";
+import { Archive, Download } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { ComponentProps } from "react";
+import { type ComponentProps, useState } from "react";
 import type { exportTasks } from "@/app/tasks/actions";
 import { Button } from "@/components/ui/button";
 import { PopoverClose } from "@/components/ui/popover";
 
-import { TasksExportButton } from "./tasks-export-button";
+import { TasksExportDialog } from "./tasks-export-dialog";
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch, type ViewModeSwitchProps } from "./view-mode-switch";
 
@@ -31,27 +31,48 @@ export function TasksViewToolbarActions({
   exportFilters,
 }: TasksViewToolbarActionsProps) {
   const t = useTranslations("App.Tasks.Archived");
+  const tExport = useTranslations("App.Tasks.Export");
+  // Outside the menu: closing the menu must not close the dialog.
+  const [exportOpen, setExportOpen] = useState(false);
 
   return (
     <TasksViewFilters
       {...filters}
-      display={
-        <ViewModeSwitch {...display}>
-          <TasksExportButton filters={exportFilters} />
-          <PopoverClose asChild>
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 px-2"
-              asChild
-            >
-              <Link href="/tasks/archived">
-                <Archive className="size-4" aria-hidden />
-                {t("link")}
-              </Link>
-            </Button>
-          </PopoverClose>
-        </ViewModeSwitch>
-      }
+      display={(activeFilters) => (
+        <>
+          <ViewModeSwitch {...display}>
+            <PopoverClose asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2 px-2"
+                onClick={() => setExportOpen(true)}
+              >
+                <Download className="size-4" aria-hidden />
+                {tExport("button")}
+              </Button>
+            </PopoverClose>
+            <PopoverClose asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2 px-2"
+                asChild
+              >
+                <Link href="/tasks/archived">
+                  <Archive className="size-4" aria-hidden />
+                  {t("link")}
+                </Link>
+              </Button>
+            </PopoverClose>
+          </ViewModeSwitch>
+          <TasksExportDialog
+            open={exportOpen}
+            onOpenChange={setExportOpen}
+            filters={exportFilters}
+            activeFilters={activeFilters}
+            sortLabel={display.labels.sortOptions[display.sort]}
+          />
+        </>
+      )}
     />
   );
 }

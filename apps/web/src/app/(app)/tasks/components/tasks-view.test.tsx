@@ -155,12 +155,16 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
   ).focusToolbarControl,
   // The filter row places the view options menu after Filters, so the stub
   // does too.
-  TasksViewFilters: ({ display }: { display?: React.ReactNode }) => (
+  TasksViewFilters: ({
+    display,
+  }: {
+    display?: React.ReactNode | ((activeFilters: string[]) => React.ReactNode);
+  }) => (
     <>
       <span data-filters-menu>
         <button type="button">Filters</button>
       </span>
-      {display}
+      {typeof display === "function" ? display([]) : display}
     </>
   ),
 }));

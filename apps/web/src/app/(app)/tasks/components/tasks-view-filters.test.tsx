@@ -76,6 +76,7 @@ const labels = {
 function renderTasksViewFilters(
   activeOrganizationId: string | null,
   userId: string | null = null,
+  display?: (activeFilters: string[]) => React.ReactNode,
 ) {
   const queryClient = new QueryClient();
   queryClient.setQueryData(workspaceTagsQueryKey(activeOrganizationId), [
@@ -107,6 +108,7 @@ function renderTasksViewFilters(
           },
         ]}
         labels={labels}
+        display={display}
       />
     </QueryClientProvider>,
   );
@@ -180,6 +182,25 @@ describe("TasksViewFilters", () => {
         .getAllByRole("listitem")
         .map((chip) => chip.textContent),
     ).toEqual(["chip(Coworker, Me)"]);
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("names the view, project and every chip for the view options menu", () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/tasks?needsMe=1&assigneeUserId=user-1&status=READY&projectId=33333333-3333-4333-8333-333333333333",
+    );
+    searchParams = new URLSearchParams(window.location.search);
+    const display = vi.fn((_activeFilters: string[]) => null);
+    renderTasksViewFilters("org-1", "user-1", display);
+
+    expect(display.mock.calls.at(-1)?.[0]).toEqual([
+      "needsMe",
+      "chip(projectLabel, Research)",
+      "chip(Coworker, Me)",
+      "chip(Status, Ready)",
+    ]);
     window.history.replaceState(null, "", "/");
   });
 
