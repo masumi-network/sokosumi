@@ -10,7 +10,8 @@ import {
   type SocialCommentContext,
 } from "@/clients/social-post-providers/comments";
 import prisma from "@/lib/db/prisma";
-import { projectExecutorUserId } from "@/services/project-social-connections.service";
+import { connectionExecutorUserId } from "@/services/project-social-connections.service";
+import { TEST_COPY_NOTHING_AT_ONCE } from "@/services/project-test-copy";
 
 const DAY_MS = 86_400_000;
 /** Posts younger than this are checked for new comments. */
@@ -42,7 +43,7 @@ async function contextFor(
   return {
     provider,
     connectedAccountId: connection.composioConnectedAccountId,
-    executorUserId: projectExecutorUserId(projectId),
+    executorUserId: connectionExecutorUserId(connection),
     externalAccountId: connection.externalAccountId,
   };
 }
@@ -178,7 +179,13 @@ export async function handleSocialComment(input: {
   const comment = await prisma.socialComment.findFirst({
     where: { id: input.commentId, projectId: input.projectId },
     include: {
-      socialPost: { select: { socialConnectionId: true, provider: true } },
+      socialPost: {
+        select: {
+          socialConnectionId: true,
+          provider: true,
+          project: { select: { testCopyOfProjectId: true } },
+        },
+      },
     },
   });
   if (!comment) throw new SocialCommentRefusedError("No such comment.");
@@ -205,6 +212,9 @@ export async function handleSocialComment(input: {
     throw new SocialCommentRefusedError(
       `Write a reply of 1 to ${SOCIAL_COMMENT_REPLY_MAX} characters.`,
     );
+  // A reply goes out at once, on a real post (ADR 0073).
+  if (comment.socialPost.project?.testCopyOfProjectId)
+    throw new SocialCommentRefusedError(TEST_COPY_NOTHING_AT_ONCE);
   if ((await claim({ status: "REPLIED", reply })).count === 0) throw handled();
   let replyExternalId: string | null;
   try {

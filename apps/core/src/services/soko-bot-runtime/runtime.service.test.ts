@@ -11350,6 +11350,22 @@ describe("Content Studio image tools", () => {
       expect(result).not.toHaveProperty("studioUrl");
     });
 
+    it("refuses an allowance that would not cover the dearest remake", async () => {
+      // The first try costs 1 credit; a remake on a stronger model 21.
+      images.credits.mockReturnValueOnce(1).mockReturnValue(21);
+      await expect(
+        generate(
+          cusoChat,
+          { ...request, maxCredits: 2, styleReferenceId: STYLE },
+          "call-s1",
+        ),
+      ).rejects.toThrow(
+        "costs 1 credits, and up to 21 when a stronger model has to make it again",
+      );
+      expect(images.create).not.toHaveBeenCalled();
+      images.credits.mockReturnValue(4);
+    });
+
     it("refuses a reference the library does not hold", async () => {
       images.referenceFindUnique.mockResolvedValue(null);
       await expect(
@@ -11392,7 +11408,7 @@ describe("Content Studio image tools", () => {
       expect(images.create).not.toHaveBeenCalled();
     });
 
-    it("makes a picture the check turned down again on the next model, three tries in all", async () => {
+    it("makes a picture the check turned down again on the next model, until the models run out", async () => {
       images.getJob.mockResolvedValue({
         id: "job-s1",
         status: "SUCCEEDED",

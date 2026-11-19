@@ -12,6 +12,7 @@ export default async function CompetitorsLoading() {
     <WorkspacePageShell title={t("title")}>
       <div aria-busy="true" aria-live="polite" role="status">
         <span className="sr-only">{t("loading")}</span>
+        <Skeleton aria-hidden className="mb-4 h-16 w-full rounded-xl" />
         <div aria-hidden className="grid items-start gap-4 xl:grid-cols-3">
           <div
             className={cn(HOLDER_CLASS, "flex flex-col gap-2 xl:col-span-2")}
@@ -21,7 +22,7 @@ export default async function CompetitorsLoading() {
             <Skeleton className="h-24 w-full" />
           </div>
           <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
-            <Skeleton className="h-32 w-full" />
+            <Skeleton className="h-14 w-full" />
             <Skeleton className="h-14 w-full" />
             <Skeleton className="h-14 w-full" />
           </div>

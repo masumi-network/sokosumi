@@ -37,6 +37,7 @@ import {
   zonedDateTimeLocalToUtc,
 } from "@/helpers/task-schedule";
 import prisma from "@/lib/db/prisma";
+import { madeTestCopy } from "@/services/project-test-copy";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -161,7 +162,9 @@ export async function getMarketingStrategy(
 
 /**
  * Approving commits the business: the Workspace's organization owners and
- * admins, or a personal Workspace's owner.
+ * admins, or a personal Workspace's owner. A CMO test copy commits nothing
+ * (it never publishes or spends), so whoever made it approves its strategy
+ * too (ADR 0073); pass `testCopyProjectId` where that applies.
  */
 export async function mayApproveMarketingStrategy(
   userId: string,
@@ -171,10 +174,15 @@ export async function mayApproveMarketingStrategy(
     organizationId: string | null;
   },
   db: Prisma.TransactionClient = prisma,
+  testCopyProjectId?: string,
 ): Promise<boolean> {
   if (!workspace.organizationId) return workspace.userId === userId;
   const role = await organizationRoleInWorkspace(userId, workspace.id, db);
-  return role !== null && isOrganizationOwnerOrAdmin(role);
+  if (role !== null && isOrganizationOwnerOrAdmin(role)) return true;
+  return (
+    testCopyProjectId !== undefined &&
+    (await madeTestCopy(userId, testCopyProjectId, db))
+  );
 }
 
 /** A strategy turn of the Project's bot still running: its version is not done. */
@@ -206,7 +214,14 @@ async function requireApprover(input: VersionChange): Promise<void> {
     },
   });
   if (!project) throw notFound("Project not found");
-  if (!(await mayApproveMarketingStrategy(input.userId, project.workspace))) {
+  if (
+    !(await mayApproveMarketingStrategy(
+      input.userId,
+      project.workspace,
+      prisma,
+      input.projectId,
+    ))
+  ) {
     throw forbidden(
       "Only the Workspace's owners and admins approve a Marketing strategy",
     );
@@ -677,6 +692,8 @@ export interface MarketingStrategyPost {
   /** The plan's entry it was made from, if any. */
   entryId: string | null;
   media: SocialPostMediaRef[];
+  /** The post's revision, which an edit of its words names. */
+  revision: number;
 }
 
 const CALENDAR_STATUS: Record<SocialPostStatus, CmoCalendarEntry["status"]> = {
@@ -704,6 +721,7 @@ export async function listMarketingStrategyPosts(
       text: true,
       media: true,
       status: true,
+      revision: true,
       scheduledAt: true,
       createdAt: true,
       planning: true,
@@ -735,6 +753,7 @@ export async function listMarketingStrategyPosts(
       },
       entryId: planning?.id ?? null,
       media: parseSocialPostMedia(post.media, post.id),
+      revision: post.revision,
     };
   });
 }

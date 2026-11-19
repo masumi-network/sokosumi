@@ -67,6 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         workspaceId,
         userId,
         ...input,
+        accountChoice: true,
       });
       return created(
         c,

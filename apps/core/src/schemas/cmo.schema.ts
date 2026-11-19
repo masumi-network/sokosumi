@@ -9,6 +9,8 @@ import {
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
+import { finalizeProjectSocialConnectionRequestSchema } from "@/schemas/project-social-connection.schema";
+import { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
 /** An IANA time zone this server knows, such as "America/New_York". */
@@ -48,6 +50,12 @@ export const cmoOnboardingRequestSchema = z
       .optional()
       .describe(
         "The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.",
+      ),
+    testCopyOfProjectId: z
+      .uuid()
+      .optional()
+      .describe(
+        "Hire a test copy of this Project's Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy's Social connections are links to the source's connected accounts.",
       ),
   })
   .openapi("CmoOnboardingRequest");
@@ -214,6 +222,48 @@ export const cmoBrandFixStartedSchema = z
   .openapi("CmoBrandFixStarted");
 
 /** A version of the plan of the Cuso a CMO route acts on. */
+export const cmoTestCopyCheckSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    sourceProjectId: z
+      .string()
+      .uuid()
+      .describe("The Project whose connected accounts the copy uses."),
+    tornDownAt: z.date().nullable(),
+    clean: z
+      .boolean()
+      .describe(
+        "Nothing is left: no unsent post, linked account, run or Cuso.",
+      ),
+    left: z.object({
+      unsentPosts: z.number().int(),
+      linkedAccounts: z.number().int(),
+      activeTurns: z.number().int(),
+      liveCuso: z.boolean(),
+    }),
+    publishedPosts: z
+      .number()
+      .int()
+      .describe("Posts of the copy that went out. Always 0."),
+    providerRevocations: z
+      .number()
+      .int()
+      .describe("Accounts ended at the provider through the copy. Always 0."),
+  })
+  .openapi("CmoTestCopyCheck");
+
+export const cmoTestCopyTeardownSchema = z
+  .object({
+    removed: z.object({
+      canceledPosts: z.number().int(),
+      unlinkedAccounts: z.number().int(),
+      stoppedTurns: z.number().int(),
+      archivedCuso: z.boolean(),
+    }),
+    check: cmoTestCopyCheckSchema,
+  })
+  .openapi("CmoTestCopyTeardown");
+
 export const cmoStrategyParamsSchema = cmoProjectParamsSchema.extend({
   strategyId: z
     .string()
@@ -378,6 +428,31 @@ export const cmoDraftRevisionSchema = z
   })
   .openapi("CmoDraftRevision");
 
+export const cmoDraftApproveSchema = cmoDraftRevisionSchema
+  .extend({
+    tikTokSettings: tikTokPostSettingsSchema
+      .optional()
+      .describe(
+        "A TikTok video only: who sees it, what viewers may do, and the owner's confirmation of this video (`previewConsent`) and of TikTok's Music Usage Confirmation. Required for TikTok, which posts the video at once.",
+      ),
+  })
+  .openapi("CmoDraftApprove");
+
+export const cmoTikTokCreatorSchema = z
+  .object({
+    creator_nickname: z.string(),
+    privacy_level_options: z
+      .array(z.string())
+      .describe(
+        "The audiences TikTok allows now. Empty: no post is possible right now.",
+      ),
+    comment_disabled: z.boolean(),
+    duet_disabled: z.boolean(),
+    stitch_disabled: z.boolean(),
+    max_video_post_duration_sec: z.number().int(),
+  })
+  .openapi("CmoTikTokCreator");
+
 export const cmoDraftEditSchema = cmoDraftRevisionSchema
   .extend({ text: z.string().trim().min(1).max(25_000) })
   .openapi("CmoDraftEdit");
@@ -406,8 +481,50 @@ export const cmoChannelSchema = z
     handle: z.union([z.string(), z.null()]),
     displayName: z.union([z.string(), z.null()]),
     status: z.string(),
+    personalProfile: z
+      .boolean()
+      .describe(
+        "A LinkedIn connection that posts as the person, not as a company Page.",
+      ),
   })
   .openapi("CmoChannel");
+
+export const cmoFinalizeSocialConnectionRequestSchema =
+  finalizeProjectSocialConnectionRequestSchema
+    .extend({
+      pendingDataToken: z.string().min(1).max(512).optional().openapi({
+        description:
+          "Returned with a LinkedIn sign-in: names the Pages it reaches.",
+      }),
+      connectToken: z.string().min(1).max(4096).optional().openapi({
+        description: "Returned with a LinkedIn sign-in: lets Core finish it.",
+      }),
+      externalAccountId: z.string().min(1).max(256).optional().openapi({
+        description:
+          "The Page or profile the owner picked among the sign-in's accounts.",
+      }),
+    })
+    .openapi("CmoFinalizeSocialConnectionRequest");
+
+export const cmoSocialAccountChoiceSchema = z
+  .object({
+    externalAccountId: z.string(),
+    name: z.string(),
+    handle: z.union([z.string(), z.null()]),
+    kind: z.enum(["page", "profile"]),
+  })
+  .openapi("CmoSocialAccountChoice");
+
+export const cmoSocialConnectionFinalizedSchema = z
+  .object({
+    state: z
+      .enum(["connected", "choose"])
+      .describe(
+        "`choose`: the sign-in reaches several accounts; finalize again with the owner's pick.",
+      ),
+    choices: z.array(cmoSocialAccountChoiceSchema),
+  })
+  .openapi("CmoSocialConnectionFinalized");
 
 export const cmoUpNextItemSchema = z
   .object({
@@ -607,6 +724,11 @@ export const cmoOverviewSchema = z
       .describe(
         "The image or video Cuso attached to each calendar piece, by entry id.",
       ),
+    postRevisions: z
+      .record(z.string(), z.number().int())
+      .describe(
+        "The revision of each Social post of the month, by post id: what an owner's edit of its words names (PATCH drafts/{postId}).",
+      ),
     strategyVersion: z
       .union([marketingStrategyVersionSchema, z.null()])
       .describe(
@@ -631,8 +753,12 @@ export const cmoOverviewSchema = z
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),
     connectChannelUrl: z.string(),
+    tiktokEnabled: z
+      .boolean()
+      .describe(
+        "TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.",
+      ),
     adProviders: z.array(z.string()),
-    connectAdsUrl: z.string(),
     measurement: z
       .array(cmoMeasurementSchema)
       .describe(

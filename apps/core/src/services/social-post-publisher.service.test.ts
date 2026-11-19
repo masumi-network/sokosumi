@@ -1454,6 +1454,24 @@ describe("social post publisher service", () => {
     });
   });
 
+  it("never dispatches a test copy's post, whatever claimed it", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      testCopyOfProjectId: "22222222-2222-4222-8222-222222222222",
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      published: 0,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(socialPostUpdateManyMock.mock.lastCall?.[0].data).toMatchObject({
+      status: "FAILED",
+      lastError: "A test copy never publishes",
+    });
+  });
+
   it("does not requeue a transient failure after its Project closes", async () => {
     expectCoreLog("warn", "A Social post publish attempt failed");
     publishXPostMock.mockImplementation(async () => {
@@ -1599,7 +1617,11 @@ describe("social post publisher service", () => {
           OR: [
             {
               status: "SCHEDULED",
-              project: { closingAt: null, closedAt: null },
+              project: {
+                closingAt: null,
+                closedAt: null,
+                testCopyOfProjectId: null,
+              },
               scheduledAt: { lte: NOW },
               OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
             },
@@ -1923,6 +1945,35 @@ describe("social post publisher service", () => {
     },
   );
 
+  it("fails a due post on our own TikTok app outside utxo's workspace, unsent", async () => {
+    vi.stubEnv("ZERNIO_API_KEY", "configured");
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({
+        ...duePost,
+        provider: "tiktok",
+        socialConnection: {
+          ...activeConnection,
+          provider: "tiktok",
+          composioConnectedAccountId: "ca_own_app",
+        },
+      })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    expect(await publishDueSocialPosts(syncContext)).toMatchObject({
+      failed: 1,
+      published: 0,
+    });
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      lastError:
+        "This TikTok connection is no longer supported. Connect the account again.",
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
+  });
+
   it.each(DISABLED_PROVIDERS)(
     "keeps a due %s post and fails it with the coming-soon reason",
     async (provider, label) => {
@@ -2042,7 +2093,11 @@ describe("social post publisher service", () => {
             OR: [
               {
                 status: "SCHEDULED",
-                project: { closingAt: null, closedAt: null },
+                project: {
+                  closingAt: null,
+                  closedAt: null,
+                  testCopyOfProjectId: null,
+                },
                 scheduledAt: { lte: NOW },
                 OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: NOW } }],
               },

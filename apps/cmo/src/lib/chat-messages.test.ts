@@ -31,6 +31,33 @@ describe("toCusoMessages", () => {
     expect(fromCoworker).toMatchObject({ author: "Hannah", fromCuso: false });
     expect(fromNobody?.author).toBe("Team");
   });
+
+  it("reads the week's competitor moves from Cuso's message, and from nobody else's", () => {
+    const metadata = {
+      cmo_competitor_week: {
+        checkDay: "2026-11-16",
+        moves: [
+          {
+            competitor: "Zcal",
+            text: "Zcal added team pages.",
+            source: null,
+            big: false,
+          },
+        ],
+      },
+    };
+    const [fromCuso, fromOwner] = toCusoMessages([
+      cmoChatMessage({ id: "w1", metadata }),
+      cmoChatMessage({
+        id: "w2",
+        metadata,
+        createdAt: new Date("2026-10-01T09:04:00Z"),
+        sender: { type: "unknown" },
+      }),
+    ]);
+    expect(fromCuso?.week?.moves).toHaveLength(1);
+    expect(fromOwner?.week).toBeNull();
+  });
 });
 
 describe("cusoText", () => {

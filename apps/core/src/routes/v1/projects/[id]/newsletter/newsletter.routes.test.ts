@@ -360,6 +360,7 @@ describe("Project newsletter access", () => {
         id: true,
         closingAt: true,
         closedAt: true,
+        testCopyOfProjectId: true,
         workspace: {
           select: { id: true, organization: { select: { slug: true } } },
         },

@@ -36,6 +36,7 @@ import {
   checkCmoLandingPage,
   landingPageSources,
 } from "@/services/cmo-seo-landing-pages.service";
+import { testCopySourceBotId } from "@/services/cmo-test-copy.service";
 import {
   type ComposioIntegrationAccount,
   composioEntityId,
@@ -142,8 +143,10 @@ const gscRowsSchema = z.object({
 // ---------------------------------------------------------------------------
 
 async function searchConsoleAccount(
-  sokoBotId: string,
+  cusoBotId: string,
 ): Promise<ComposioIntegrationAccount | null> {
+  // A test copy reads its source's Search Console (ADR 0073).
+  const sokoBotId = (await testCopySourceBotId(cusoBotId)) ?? cusoBotId;
   const row = await prisma.sokoBotIntegration.findUnique({
     where: { sokoBotId_provider: { sokoBotId, provider: GSC_PROVIDER } },
     select: { status: true, composioAccountId: true },

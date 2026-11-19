@@ -4,8 +4,15 @@ import {
   cmoCompetitorWatchBrief,
 } from "@sokosumi/soko-bot";
 
+import {
+  CMO_COMPETITOR_WEEK_KEY,
+  type CmoCompetitorWeekMove,
+  cmoCompetitorWeekText,
+} from "@sokosumi/utils";
+
 import { notifyCusoLowCreditsAfterCharge } from "@/helpers/cuso-low-credit-notification";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import type { CitableSignal } from "@/lib/competitors/feed-check";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import { recordCoreWarning } from "@/lib/evlog";
@@ -27,7 +34,6 @@ import {
   runCompetitorCheck,
 } from "@/services/competitor-check.service";
 import {
-  type CitedSignal,
   CompetitorFeedRefusedError,
   feedItemsJson,
   lockCompetitorFeed,
@@ -48,17 +54,13 @@ import { chargeSokoBotCredits } from "@/services/soko-bot-billing.service";
  * (`competitors.service`, `competitor-check.service`,
  * `competitor-feed.service`): Cuso's list is filled from his Brand Brain,
  * his check runs while he is paid for and is charged to his payer, he
- * writes the week's feed after each check, the big moves go to his room,
- * and a move can be sent to the strategy.
+ * writes the week's feed after each check, the week goes to his room as one
+ * message, and a move can be sent to the strategy.
  */
 
 /** How long after a check its watch run may still start. */
 const WATCH_RUN_WINDOW_MS = 2 * 86_400_000;
 const FEED_RUN_PREFIX = "cmo:competitors:";
-
-function day(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
 
 function homepage(url: string | undefined): string | null {
   const parsed = url ? URL.parse(url) : null;
@@ -320,47 +322,37 @@ export async function startCusoWatchRun(
   );
 }
 
-function sourceLine(signal: CitedSignal) {
-  const title = signal.sourceTitle ?? signal.sourcePublisher ?? "Source";
-  const link = signal.sourceUrl ? `[${title}](${signal.sourceUrl})` : title;
-  const publisher =
-    signal.sourcePublisher && signal.sourcePublisher !== title
-      ? `, ${signal.sourcePublisher}`
-      : "";
-  const quote = signal.quote ? `"${signal.quote}" ` : "";
-  return `> ${quote}${link}${publisher}, ${day(signal.observedAt)}`;
-}
-
 /**
- * What the owner reads in chat for a big move, from the checked feed alone:
- * each fact with its sources (title, publisher, date, link and their own
- * words) and how far they back it, what it means for them and the move.
+ * A move as the week's message shows it, from the checked feed alone: what
+ * happened, and the first page it was read on as a small link. Only a big
+ * move carries what it means and the move; the rest is on the Competitors
+ * tab.
  */
-export function bigMoveMessage(
+function weekMove(
   item: CompetitorFeedItem,
   competitor: string,
-  signals: ReadonlyMap<string, CitedSignal>,
-): string {
-  const facts = item.facts.flatMap((fact) => [
-    fact.support === "weak"
-      ? `${fact.text} (the sources back this only in part)`
-      : fact.text,
-    ...fact.signalIds.flatMap((id) => {
-      const signal = signals.get(id);
-      return signal ? [sourceLine(signal)] : [];
-    }),
-  ]);
-  return [
-    `**${competitor}**`,
-    ...facts,
-    `**What this means for you:** ${item.meaning}`,
-    `**Suggested move:** ${item.move}`,
-  ].join("\n\n");
+  signals: ReadonlyMap<string, CitableSignal>,
+): CmoCompetitorWeekMove {
+  const source = item.facts
+    .flatMap((fact) => fact.signalIds.flatMap((id) => signals.get(id) ?? []))
+    .find((signal) => signal.sourceUrl);
+  return {
+    competitor,
+    text: item.facts.map((fact) => fact.text).join(" "),
+    source: source?.sourceUrl
+      ? {
+          label: source.sourcePublisher ?? source.sourceTitle ?? "Source",
+          url: source.sourceUrl,
+        }
+      : null,
+    big: item.big,
+    ...(item.big ? { meaning: item.meaning, move: item.move } : {}),
+  };
 }
 
 /**
- * Saves Cuso's feed once Core checked it, then posts each big move to his
- * room once, from the checked feed.
+ * Saves Cuso's feed once Core checked it, then tells the owner about the
+ * week in his room: one message per check, however many moves it has.
  */
 export async function saveCusoCompetitorFeed(
   input: Parameters<typeof saveCompetitorFeed>[0] & { sokoBotId: string },
@@ -380,60 +372,56 @@ export async function saveCusoCompetitorFeed(
   );
   if (problems.length > 0) throw new CompetitorFeedRefusedError(problems);
   const saved = await saveCompetitorFeed(input);
-  await postBigMoves(
-    input.sokoBotId,
-    saved.items,
-    saved.competitorNames,
-    saved.signals,
-    input.turnId,
-  );
+  await postCompetitorWeek(input.sokoBotId, input.turnId, {
+    checkDay: saved.checkDay,
+    moves: saved.items.map((item) =>
+      weekMove(
+        item,
+        saved.competitorNames.get(item.competitorId) ?? "A competitor",
+        saved.signals,
+      ),
+    ),
+  });
   return saved;
 }
 
+const WEEK_MESSAGE_PREFIX = "cmo:competitor-week:";
+
 /**
- * Tells the owner about each big move in Cuso's room, once per move: a move
- * already posted (the same id after a rewrite) is not posted again.
+ * The week's moves as one message in Cuso's room: every move in a line, the
+ * big ones called out. A quiet week posts nothing, and saving the same
+ * check's feed again rewrites its message instead of adding one.
  */
-async function postBigMoves(
+async function postCompetitorWeek(
   sokoBotId: string,
-  items: readonly CompetitorFeedItem[],
-  names: ReadonlyMap<string, string>,
-  signals: ReadonlyMap<string, CitedSignal>,
   turnId: string | null,
+  week: { checkDay: string; moves: CmoCompetitorWeekMove[] },
 ): Promise<void> {
-  const big = items.filter((item) => item.big);
-  if (big.length === 0) return;
+  if (week.moves.length === 0) return;
   const bot = await prisma.sokoBot.findUnique({
     where: { id: sokoBotId },
     select: { sharedRoomId: true },
   });
   const roomId = bot?.sharedRoomId;
   if (!roomId) return;
-  for (const item of big) {
-    const clientMessageId = `${BIG_MOVE_MESSAGE_PREFIX}${item.id}`;
-    await prisma.chatRoomMessage.upsert({
-      where: { roomId_clientMessageId: { roomId, clientMessageId } },
-      create: {
-        roomId,
-        clientMessageId,
-        senderSokoBotId: sokoBotId,
-        content: bigMoveMessage(
-          item,
-          names.get(item.competitorId) ?? "A competitor",
-          signals,
-        ),
-        metadata: turnId ? { soko_bot: { turn_id: turnId } } : {},
-      },
-      update: {},
-    });
-  }
+  const clientMessageId = `${WEEK_MESSAGE_PREFIX}${week.checkDay}`;
+  const message = {
+    content: cmoCompetitorWeekText(week),
+    metadata: {
+      ...(turnId ? { soko_bot: { turn_id: turnId } } : {}),
+      [CMO_COMPETITOR_WEEK_KEY]: week,
+    },
+  };
+  await prisma.chatRoomMessage.upsert({
+    where: { roomId_clientMessageId: { roomId, clientMessageId } },
+    create: { roomId, clientMessageId, senderSokoBotId: sokoBotId, ...message },
+    update: message,
+  });
   await prisma.chatRoom.update({
     where: { id: roomId },
     data: { updatedAt: new Date() },
   });
 }
-
-const BIG_MOVE_MESSAGE_PREFIX = "cmo:competitor-move:";
 
 /**
  * Starts Cuso's competitor watch after a check: he reads the new signals and

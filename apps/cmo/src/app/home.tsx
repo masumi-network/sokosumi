@@ -7,7 +7,6 @@ import {
 } from "@sokosumi/core-client";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
 import { NameSetup } from "../components/name-setup";
@@ -15,6 +14,7 @@ import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
+import { connectReturnError } from "../lib/connect-return";
 import { asSignedInPersonInPage } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
@@ -32,6 +32,7 @@ import {
   approveDraft,
   approveStrategy,
   askCusoForArticles,
+  changeChannel,
   changePlan,
   clearPresenter,
   connectAds,
@@ -186,6 +187,8 @@ export interface HomeSearchParams {
   cusos?: string | string[];
   /** "Hire a new Cuso" and Start over: the hire form. */
   hire?: string | string[];
+  /** With `hire`: the Project of the Cuso to hire a test copy of. */
+  testCopyOf?: string | string[];
   connect?: string | string[];
   from?: string | string[];
 }
@@ -280,6 +283,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         organizations={organizations}
         signOut={signOut}
         cusoPicker={opened.cusoPicker}
+        testCopyOf={first(params.testCopyOf) || undefined}
         onboard={onboard}
       />
     );
@@ -348,17 +352,18 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   // "Your Cusos" leads somewhere only when there is another Cuso to open.
-  const [messages, work, manyCusos] = await Promise.all([
+  const [messages, work, { manyCusos, mayHire }] = await Promise.all([
     loadMessages(projectId).catch(() => []),
     loadChatWork(projectId).catch(() => []),
     loadCusos()
-      .then(({ cusos }) => cusos.length > 1)
-      .catch(() => false),
+      .then(({ cusos, mayHire }) => ({ manyCusos: cusos.length > 1, mayHire }))
+      .catch(() => ({ manyCusos: false, mayHire: false })),
   ]);
   return (
     <CmoApp
       overview={overview}
       manyCusos={manyCusos}
+      mayHire={mayHire}
       plans={
         overview.billing.viewerCanManage && overview.billing.tier
           ? await loadPlans().catch(() => [])
@@ -369,7 +374,11 @@ export async function Home({ searchParams, view }: HomeProps) {
       name={session.user.name}
       email={session.user.email}
       initialView={step === "connect" ? "channels" : view}
-      connectFailed={step === "connect" && first(params.connect) === "failed"}
+      connectError={
+        step === "connect"
+          ? connectReturnError(first(params.connect) ?? null)
+          : null
+      }
       actions={{
         loadState: loadState.bind(null, projectId),
         loadChatWork: loadChatWork.bind(null, projectId),
@@ -399,6 +408,7 @@ export async function Home({ searchParams, view }: HomeProps) {
           addMoveToStrategy: addCompetitorMoveToStrategy.bind(null, projectId),
         },
         connectChannel: connectChannel.bind(null, projectId),
+        changeChannel: changeChannel.bind(null, projectId),
         addMailingList: addMailingList.bind(null, projectId),
         connectMeasurement: connectMeasurement.bind(null, projectId),
         connectAds: connectAds.bind(null, projectId),

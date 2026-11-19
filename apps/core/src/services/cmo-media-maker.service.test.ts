@@ -5,6 +5,7 @@ const {
   jobFindMany,
   jobCount,
   postFindUnique,
+  postUpdateMany,
   fileUpdateMany,
   createImageJob,
   createVideoJob,
@@ -17,6 +18,7 @@ const {
   jobFindMany: vi.fn(),
   jobCount: vi.fn(),
   postFindUnique: vi.fn(),
+  postUpdateMany: vi.fn(),
   fileUpdateMany: vi.fn(),
   createImageJob: vi.fn(),
   createVideoJob: vi.fn(),
@@ -31,7 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findUnique: async () => null },
     projectImageJob: { findMany: jobFindMany, count: jobCount },
-    socialPost: { findUnique: postFindUnique },
+    socialPost: { findUnique: postFindUnique, updateMany: postUpdateMany },
     marketingStrategyFile: { updateMany: fileUpdateMany },
   },
 }));
@@ -395,6 +397,35 @@ describe("advanceCmoMedia", () => {
     });
   });
 
+  it("makes a styled picture on Muse Image twice before the dearer models", async () => {
+    const styled = piece({
+      styleReferenceId: "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9",
+      headline: "Mint in minutes",
+    });
+    const models: string[] = [];
+    for (let tried = 0; tried < REFERENCE_STYLE_MODELS.length; tried += 1) {
+      createImageJob.mockClear();
+      jobFindMany.mockResolvedValue(
+        Array.from({ length: tried }, (_, at) => ({
+          id: `job-${at}`,
+          idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(styled)}:${at + 1}`,
+          status: "SUCCEEDED",
+          prompt: "prompt",
+          error: "Style check: extra words",
+          asset: { id: `asset-${at}` },
+        })),
+      );
+      await advanceCmoMedia(context, [styled]);
+      models.push(createImageJob.mock.calls[0]?.[0].modelId);
+    }
+    expect(models).toEqual([
+      "muse-image",
+      "muse-image",
+      "gpt-image-2-6",
+      "nano-banana-2-1",
+    ]);
+  });
+
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
     const warnings = expectCoreLogWhys(
       "warn",
@@ -537,6 +568,27 @@ describe("advanceCmoMedia", () => {
       }),
     );
     expect(createImageJob).not.toHaveBeenCalled();
+  });
+
+  it("hands a finished TikTok video to the owner instead of scheduling it", async () => {
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "tiktok",
+      text: "Three things nobody tells you about minting.",
+      revision: 4,
+      status: "DRAFT",
+      scheduledAt: new Date(Date.now() + 86_400_000),
+      planning: { title: "Minting myths" },
+    });
+    await advanceCmoMedia(
+      { ...context, connected: new Set([...context.connected, "tiktok"]) },
+      [piece({ channel: "tiktok", format: "video", media: ["file-1"] })],
+    );
+    expect(scheduleSocialPost).not.toHaveBeenCalled();
+    expect(postUpdateMany).toHaveBeenCalledWith({
+      where: { id: "post-1", status: "DRAFT", revision: 4 },
+      data: { status: "NEEDS_APPROVAL", revision: { increment: 1 } },
+    });
   });
 
   it("puts slides on in order and hands back a carousel whose cover failed twice", async () => {
