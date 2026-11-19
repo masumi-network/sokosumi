@@ -18,6 +18,8 @@ const smooth = (t) => t * t * (3 - 2 * t);
 const wrap = (p) => ((p % 1) + 1) % 1;
 const lerp = (a, b, t) => a + (b - a) * t;
 const easeOut = (t) => 1 - (1 - t) ** 3;
+// A damped spring: starts at 1, rings f times a second and dies out at rate k.
+const ring = (t, f, k) => Math.exp(-k * t) * Math.cos(2 * Math.PI * f * t);
 
 // A foot at phase p of its cycle: offset from its hip, height, shoe angle (+ is toe down).
 // It stays planted while the hip passes over it and rolls heel to toe, then swings forward.
@@ -61,7 +63,7 @@ async function bringCusoToLife() {
   const rig = { armL: part("armL"), armR: part("armR"), body: part("body"), wave: part("wave"), near: legEl("near"), far: legEl("far") };
   const unit = () => cuso.clientWidth / poses.walk.viewBox.baseVal.width; // px per walking-pose unit
 
-  const st = { x: 0, y: 0, gy: 0, rot: 0, scale: 1, alpha: 1, breathe: 1 }; // gy: where his ground is
+  const st = { x: 0, y: 0, gy: 0, rot: 0, scale: 1, squash: 0, alpha: 1, breathe: 1 }; // gy: where his ground is
   let idle = false;
   let token = 0;
   let next = 0;
@@ -69,7 +71,8 @@ async function bringCusoToLife() {
   new IntersectionObserver(([entry]) => (onScreen = entry.isIntersecting)).observe(cuso);
 
   function render() {
-    fig.style.transform = `translate(${st.x}px, ${st.gy + st.y}px) rotate(${st.rot}deg) scale(${st.scale * st.breathe})`;
+    const s = st.scale * st.breathe;
+    fig.style.transform = `translate(${st.x}px, ${st.gy + st.y}px) rotate(${st.rot}deg) scale(${s * (1 + 0.5 * st.squash)}, ${s * (1 - st.squash)})`;
     fig.style.opacity = st.alpha;
     const lift = Math.min(1, Math.max(0, -st.y / 140));
     shadow.style.transform = `translate(${st.x}px, ${st.gy}px) scale(${st.scale * (1 - 0.45 * lift)})`;
@@ -78,10 +81,7 @@ async function bringCusoToLife() {
   let pose = "";
   const show = (k) => {
     pose = k;
-    Object.entries(poses).forEach(([n, el]) => {
-      el.style.visibility = n === k ? "visible" : "hidden";
-      el.style.opacity = "";
-    });
+    Object.entries(poses).forEach(([n, el]) => (el.style.visibility = n === k ? "visible" : "hidden"));
   };
   const turn = (el, pivot, deg, pre = "") => el.setAttribute("transform", `${pre}rotate(${deg.toFixed(2)} ${pivot[0]} ${pivot[1]})`);
 
@@ -163,7 +163,7 @@ async function bringCusoToLife() {
     // and ground height all follow 1/depth, so they change together; his feet cover ground at
     // his current size, so his speed on screen shrinks with him and planted feet never slide.
     const speed = (GAIT.S / (GAIT.stance * GAIT.T)) * unit();
-    Object.assign(st, { x: 0, y: 0, gy: 0, rot: 0, scale: 1, alpha: 0 });
+    Object.assign(st, { x: 0, y: 0, gy: 0, rot: 0, scale: 1, squash: 0, alpha: 0 });
     render();
     const settle = speed * GAIT.T * 0.5; // the last half step brings his feet together
     const X0 = -Math.max(settle * 3, Math.min(320, cuso.getBoundingClientRect().left + 40));
@@ -188,19 +188,16 @@ async function bringCusoToLife() {
     const from = { x, phase };
     if (!(await tween(GAIT.T * 520, (t) => { depth(lerp(from.x, 0, t)); walkPose(from.phase + 0.42 * t, 1 - t); }, easeOut))) return;
     Object.assign(st, { x: 0, gy: 0, scale: 1, alpha: 1 });
-    // He turns to us: the walking drawing fades into the friendly one (drawn on top) while his
-    // knees give a little, and he lifts his hand into the wave.
-    const turning = (t) => {
-      poses.friendly.style.opacity = smooth(Math.min(1, t / 0.5));
-      poses.walk.style.opacity = 1 - smooth(Math.min(1, Math.max(0, (t - 0.3) / 0.5)));
-      walkPose(0, 0, 22 * Math.sin(Math.PI * t));
-      turn(rig.wave, WAVE_PIVOT, 26 * (1 - easeOut(t)));
-    };
+    // He turns to us on a squash and stretch: he sinks into his knees, the drawing changes at the
+    // bottom, where the motion hides the cut, and he springs up lifting his hand into the wave.
+    if (!(await tween(110, (t) => { st.squash = 0.07 * t; walkPose(0, 0, 22 * t); }, easeOut))) return;
+    turn(rig.wave, WAVE_PIVOT, 30); // before the next paint, or the raised hand flashes first
     show("friendly");
-    poses.walk.style.visibility = "visible";
-    turning(0); // before the next paint, or the friendly pose flashes in at full strength
-    const turned = await tween(240, turning);
-    show("friendly");
+    const turned = await tween(420, (t, r) => {
+      st.squash = 0.07 * ring(r * 0.42, 3, 5);
+      turn(rig.wave, WAVE_PIVOT, 30 * (1 - easeOut(r)));
+    });
+    st.squash = 0;
     if (!turned) return;
     idle = true;
     if (mine === token) await wave(2.5);
@@ -210,7 +207,7 @@ async function bringCusoToLife() {
   async function react() {
     const mine = ++token;
     idle = false;
-    Object.assign(st, { x: 0, gy: 0, alpha: 1 }); // pressed mid walk-in: he is at his spot
+    Object.assign(st, { x: 0, gy: 0, squash: 0, alpha: 1 }); // pressed mid walk-in: he is at his spot
     turn(rig.wave, WAVE_PIVOT, 0);
     show(REACTIONS[next++ % REACTIONS.length]);
     if (!(await tween(900, (t, r) => {
