@@ -5,6 +5,7 @@ import {
   normalizeHex,
 } from "@sokosumi/utils";
 import { DomUtils, parseDocument } from "htmlparser2";
+import pTimeout from "p-timeout";
 
 import { badGateway, conflict, unprocessableEntity } from "@/helpers/error";
 import { readBrandVisual } from "@/lib/brand-visual";
@@ -122,30 +123,87 @@ export function buildStudioLetteringPrompt(
 }
 
 export async function loadStudioBrand(projectId: string): Promise<StudioBrand> {
+  const brand: StudioBrand = { ...NO_BRAND };
   try {
     const project = await prisma.project.findUnique({
       where: { id: projectId },
       select: {
         designMdUrl: true,
+        websiteUrl: true,
         studioBrandLook: true,
         contextMd: true,
         brandBrain: { select: { body: true } },
       },
     });
     if (!project) return NO_BRAND;
+    brand.memory = clipBrandText(project.contextMd);
+    const savedLook = studioBrandLookSchema.safeParse(project.studioBrandLook);
+    if (savedLook.success) brand.look = studioPromptLook(savedLook.data);
     const brain = parseBrandBrain(project.brandBrain?.body);
+    brand.brandBrain = brandBrainText(brain);
     const approvedLines = clipBrandText(brain?.voice.examples.join("\n"));
-    const look = studioBrandLookSchema.safeParse(project.studioBrandLook);
-    return {
-      designMd: await readDesignMd(project.designMdUrl),
-      memory: clipBrandText(project.contextMd),
-      brandBrain: brandBrainText(brain),
-      ...(approvedLines ? { approvedLines } : {}),
-      ...(look.success ? { look: look.data } : {}),
-    };
-  } catch {
-    return NO_BRAND;
+    if (approvedLines) brand.approvedLines = approvedLines;
+
+    try {
+      const design = await readDesignMdContent(project.designMdUrl);
+      brand.designMd = clipBrandText(design);
+      if (project.designMdUrl && design === null) {
+        console.warn("[image-studio] Could not read DESIGN.md", {
+          projectId,
+          detail: "unknown",
+        });
+      }
+      if (!brand.look && design) {
+        const look = studioPromptLook(designMdBrandLook(design));
+        if (look.colors.length || look.fonts.length) brand.look = look;
+      }
+    } catch (error) {
+      console.warn("[image-studio] Could not read DESIGN.md", {
+        projectId,
+        detail: error instanceof Error ? error.message : "unknown",
+      });
+    }
+
+    if (!brand.look && project.websiteUrl) {
+      try {
+        const visual = await pTimeout(
+          readBrandVisual(project.websiteUrl, {
+            includeDeclaredNeutrals: true,
+          }),
+          { milliseconds: 9_000, message: "Website visual timed out" },
+        );
+        const look = studioPromptLook(visual);
+        if (look.colors.length || look.fonts.length) {
+          brand.look = look;
+        } else {
+          console.warn("[image-studio] Website visual has no colors or fonts", {
+            projectId,
+            detail: "unknown",
+          });
+        }
+      } catch (error) {
+        console.warn("[image-studio] Could not read website visual", {
+          projectId,
+          detail: error instanceof Error ? error.message : "unknown",
+        });
+      }
+    }
+  } catch (error) {
+    console.warn("[image-studio] Could not load project brand", {
+      projectId,
+      detail: error instanceof Error ? error.message : "unknown",
+    });
   }
+  return brand;
+}
+
+function studioPromptLook(look: NonNullable<StudioBrand["look"]>) {
+  return {
+    colors: look.colors
+      .slice(0, 8)
+      .map((color) => normalizeHex(color) ?? color),
+    fonts: look.fonts.filter((font) => font.length <= 80).slice(0, 4),
+  };
 }
 
 export async function readStudioBrandKit(projectId: string) {
@@ -366,21 +424,4 @@ function clipBrandText(value: string | null | undefined): string | null {
   return trimmed.length > BRAND_BLOCK_MAX_CHARS
     ? trimmed.slice(0, BRAND_BLOCK_MAX_CHARS)
     : trimmed;
-}
-
-async function readDesignMd(url: string | null): Promise<string | null> {
-  const content = (await readDesignMdContent(url))?.trim();
-  if (!content || content.length <= BRAND_BLOCK_MAX_CHARS) {
-    return content || null;
-  }
-  const { colors, fonts } = designMdBrandLook(content);
-  return clipBrandText(
-    [
-      colors.length ? `Brand colors: ${colors.join(", ")}` : "",
-      fonts.length ? `Brand fonts: ${fonts.join(", ")}` : "",
-      content,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  );
 }
