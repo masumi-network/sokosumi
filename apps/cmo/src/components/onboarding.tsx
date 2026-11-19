@@ -3,7 +3,7 @@
 import "./onboarding/onboarding.css";
 
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
@@ -47,6 +47,12 @@ export function Onboarding({
   });
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
+  // The owner's time zone, so Cuso's routines run at their local times. Read
+  // after mount: the server does not know it.
+  const [timeZone, setTimeZone] = useState("");
+  useEffect(() => {
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone ?? "");
+  }, []);
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
   return (
     <div className="ob">
@@ -71,6 +77,7 @@ export function Onboarding({
           action={formAction}
           className="ob-hire"
         >
+          <input type="hidden" name="timeZone" value={timeZone} />
           <div className="ob-stage">
             <img
               className="ob-stage-art"

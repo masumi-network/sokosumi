@@ -1396,6 +1396,32 @@ button.card-focus {
   gap: 8px;
 }
 
+/* A post Cuso made outside the month: flat, its buttons carry the shadow. */
+.draft {
+  width: 100%;
+  max-width: 480px;
+}
+
+.draft .ch {
+  min-height: 44px;
+}
+
+.draft textarea {
+  width: 100%;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+.draft-media {
+  display: block;
+  align-self: flex-start;
+  max-width: 100%;
+  max-height: 440px;
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  object-fit: contain;
+}
+
 /* Month calendar */
 .cal {
   display: grid;
@@ -1540,6 +1566,24 @@ button.card-focus {
   display: flex;
   gap: 2px;
   margin-left: auto;
+}
+
+/* Settings: the time zone, with its one-tap suggestion and the full list. */
+.time-zone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-zone select {
+  max-width: 100%;
+  font: inherit;
+  padding: 6px 10px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--card);
+  color: var(--foreground);
 }
 
 .list.reverted .grow {
@@ -3191,6 +3235,13 @@ button.card-focus {
 .cal-week {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+}
+
+.cal-waiting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 12px;
 }
 

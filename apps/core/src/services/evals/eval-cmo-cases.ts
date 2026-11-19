@@ -155,6 +155,8 @@ export type CmoChatSetup =
   | "cmo-brand"
   | "cmo-new-client"
   | "cmo-comments"
+  /** An article idea on "calendly alternative" the owner skipped earlier. */
+  | "cmo-seo-skipped"
   /** cal.com's month waiting for approval, for the change request. */
   | "cmo-plan"
   /** cal.com's competitors after a check: a week with moves, or a quiet one. */

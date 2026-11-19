@@ -200,10 +200,38 @@ describe("saveBrandBrain", () => {
         }),
       );
       await saveBrandBrain(PROJECT_ID, {
-        questions: [question, { ...question, id: "q2" }],
+        questions: [
+          question,
+          { ...question, id: "q2", question: "Do you sell to founders?" },
+        ],
       });
       const saved = brainUpsert.mock.calls[0]?.[0].update.body;
       expect(saved.summary).toBe("Acme sells rockets.");
+      expect(saved.questions.map((q: { id: string }) => q.id)).toEqual([
+        "q1",
+        "q2",
+      ]);
+      expect(saved.questions[0].answer).toBe("yes");
+    });
+
+    it("keeps an answered question when Cuso saves other questions, and never asks it again", async () => {
+      brainFindUnique.mockResolvedValue(
+        storedEssentials({
+          questions: [{ ...question, answer: "yes" as const }],
+        }),
+      );
+      await saveBrandBrain(PROJECT_ID, {
+        questions: [
+          // The answered one again, in other words and under a new id.
+          {
+            ...question,
+            id: "google",
+            question: "Do your customers come from Google search?",
+          },
+          { ...question, id: "q2", question: "Do you sell to founders?" },
+        ],
+      });
+      const saved = brainUpsert.mock.calls[0]?.[0].update.body;
       expect(saved.questions.map((q: { id: string }) => q.id)).toEqual([
         "q1",
         "q2",

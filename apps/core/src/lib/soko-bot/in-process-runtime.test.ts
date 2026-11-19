@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const pendingTurns: Promise<unknown>[] = [];
 
 const {
-  reconcileTurnMock,
+  reconcileRuntimeCompletionMock,
   authorizeMock,
   createEventMock,
   executeToolMock,
@@ -18,7 +18,7 @@ const {
   waitUntilMock,
 } = vi.hoisted(() => ({
   cmoTurnPartsMock: vi.fn(),
-  reconcileTurnMock: vi.fn(),
+  reconcileRuntimeCompletionMock: vi.fn(),
   authorizeMock: vi.fn(),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
@@ -88,7 +88,9 @@ vi.mock("./active-background-runs", () => ({
   withActiveBackgroundRuns: async (_turnId: string, text: string) => text,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
+  sokoBotControlPlane: {
+    reconcileRuntimeCompletion: reconcileRuntimeCompletionMock,
+  },
 }));
 vi.mock("@/services/cmo-hiring.service", () => ({
   cmoTurnParts: cmoTurnPartsMock,
@@ -609,6 +611,7 @@ describe("InProcessSokoBotRuntime", () => {
     await new InProcessSokoBotRuntime().createSession({
       sessionId: null,
       turnId: TURN_ID,
+      reconciliationLeaseToken: "launch-lease",
       message: "Plan the launch",
       userId: "user_1",
       sokoBotId: "bot_1",
@@ -617,7 +620,11 @@ describe("InProcessSokoBotRuntime", () => {
 
     await Promise.all(pendingTurns);
 
-    expect(reconcileTurnMock).toHaveBeenCalledWith(TURN_ID);
+    expect(reconcileRuntimeCompletionMock).toHaveBeenCalledWith(
+      TURN_ID,
+      expect.any(String),
+      "launch-lease",
+    );
   });
 
   it("still settles a failed turn so it cannot hang on Thinking", async () => {
@@ -626,6 +633,7 @@ describe("InProcessSokoBotRuntime", () => {
     await new InProcessSokoBotRuntime().createSession({
       sessionId: null,
       turnId: TURN_ID,
+      reconciliationLeaseToken: "launch-lease",
       message: "Plan the launch",
       userId: "user_1",
       sokoBotId: "bot_1",
@@ -634,7 +642,11 @@ describe("InProcessSokoBotRuntime", () => {
 
     await Promise.all(pendingTurns);
 
-    expect(reconcileTurnMock).toHaveBeenCalledWith(TURN_ID);
+    expect(reconcileRuntimeCompletionMock).toHaveBeenCalledWith(
+      TURN_ID,
+      expect.any(String),
+      "launch-lease",
+    );
   });
 
   it("offers only the capabilities the turn granted", async () => {

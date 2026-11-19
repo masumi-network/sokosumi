@@ -1,7 +1,6 @@
 "use client";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
-
 import { Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
@@ -31,6 +30,7 @@ import {
   type OpenPortal,
   SubscriptionCard,
 } from "./subscription-card";
+import { type SetTimeZone, TimeZoneSetting } from "./time-zone";
 
 interface PageProps {
   overview: CmoOverview;
@@ -510,6 +510,7 @@ export function SettingsPage({
   name,
   email,
   startOver,
+  setTimeZone,
   signOut,
   topUp,
   plans,
@@ -520,6 +521,7 @@ export function SettingsPage({
   name: string;
   email: string;
   startOver: () => Promise<string | null>;
+  setTimeZone: SetTimeZone;
   signOut: () => Promise<void>;
   /** The top-up checkout, or null when this Cuso may not top up. */
   topUp: StartTopUp | null;
@@ -569,6 +571,10 @@ export function SettingsPage({
           Everything here works from your strategy and starts once you approve
           it. The nightly learning runs from day one.
         </p>
+        <TimeZoneSetting
+          timeZone={overview.timeZone}
+          setTimeZone={setTimeZone}
+        />
         <ul className="list">
           {overview.routines.map((routine) => (
             <li key={routine.key} className="li routine">

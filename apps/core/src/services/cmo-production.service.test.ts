@@ -78,6 +78,10 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   listCmoChannels,
 }));
 vi.mock("@/services/cmo-billing.service", () => ({ isCmoSubscribed }));
+const keepCusoFirstCompetitorCheck = vi.hoisted(() => vi.fn());
+vi.mock("@/services/cmo-competitors.service", () => ({
+  keepCusoFirstCompetitorCheck,
+}));
 vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/services/marketing-strategy.service")
@@ -984,6 +988,24 @@ describe("syncCmoProduction", () => {
       }),
       data: { requestedByUserId: "owner-2" },
     });
+  });
+
+  it("keeps each Cuso's first competitor check, beside his month", async () => {
+    const cuso = {
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+      workspaceId: "ws-1",
+      websiteUrl: "https://acme.io",
+      businessName: "acme.io",
+    };
+    listCusos.mockResolvedValue([cuso]);
+    cmoRunnerUserId.mockResolvedValue("owner-1");
+    scheduleUpdateMany.mockResolvedValue({ count: 0 });
+    const now = new Date("2026-11-18T21:00:00Z");
+    await expect(syncCmoProduction(() => true, now)).resolves.toEqual({
+      checked: 1,
+    });
+    expect(keepCusoFirstCompetitorCheck).toHaveBeenCalledWith(cuso, now);
   });
 
   it("logs each Cuso it skipped as its own event, without the error text", async () => {

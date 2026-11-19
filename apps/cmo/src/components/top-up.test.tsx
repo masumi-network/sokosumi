@@ -119,6 +119,7 @@ describe("Settings", () => {
         name="Ada"
         email="ada@example.com"
         startOver={async () => null}
+        setTimeZone={async () => null}
         signOut={async () => {}}
         topUp={topUp}
         plans={[]}

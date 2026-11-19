@@ -16,6 +16,11 @@ import {
 
 const BATCH_SIZE = 20;
 
+interface TurnLeaseClaim {
+  id: string;
+  leaseToken: string;
+}
+
 export interface SokoBotTurnsSyncInput {
   abortSignal: AbortSignal;
   shouldContinue: () => boolean;
@@ -94,6 +99,7 @@ export class SokoBotTurnsSyncService {
           ...scope,
           status: SokoBotTurnStatus.CANCEL_REQUESTED,
           eveSessionId: null,
+          ...staleTurnLeaseWhere(now),
         },
         select: { id: true },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
@@ -129,23 +135,50 @@ export class SokoBotTurnsSyncService {
         sokoBotControlPlane.recoverStartingTurn(turn.id),
       ),
     );
+    const recoveredClaims: TurnLeaseClaim[] = [];
     for (const [index, outcome] of recoveredStarts.entries()) {
       if (outcome.status === "fulfilled") {
-        if (outcome.value) {
-          result.claimed += 1;
-          result.reconciled += 1;
+        if (outcome.value?.reconciliationLeaseToken) {
+          recoveredClaims.push({
+            id: outcome.value.turnId,
+            leaseToken: outcome.value.reconciliationLeaseToken,
+          });
         }
         continue;
       }
+      const turnId = startsToRecover[index]?.id;
+      if (
+        turnId &&
+        reportSokoBotReconciliationLeaseLoss(turnId, outcome.reason)
+      )
+        continue;
       result.interrupted += 1;
-      logInterrupted(startsToRecover[index]?.id, outcome.reason, {
+      logInterrupted(turnId, outcome.reason, {
         message: "Could not recover a Soko Bot turn whose start was abandoned",
         why: "Recovering the start threw",
       });
     }
 
-    if (!input.shouldContinue()) return result;
+    const recoveredDrain = this.drainClaims(
+      recoveredClaims,
+      input.abortSignal,
+      result,
+    );
+    try {
+      if (input.shouldContinue()) {
+        const staleClaims = await this.claimStaleTurns(scope, input);
+        await this.drainClaims(staleClaims, input.abortSignal, result);
+      }
+    } finally {
+      await recoveredDrain;
+    }
+    return result;
+  }
 
+  private async claimStaleTurns(
+    scope: { sokoBotId?: { in: string[] } },
+    input: SokoBotTurnsSyncInput,
+  ): Promise<TurnLeaseClaim[]> {
     const drainScanAt = await databaseNow();
     const stale = await prisma.sokoBotTurn.findMany({
       where: {
@@ -165,7 +198,7 @@ export class SokoBotTurnsSyncService {
       take: BATCH_SIZE,
     });
 
-    const claimed: { id: string; leaseToken: string }[] = [];
+    const claimed: TurnLeaseClaim[] = [];
     for (const turn of stale) {
       if (!input.shouldContinue()) break;
       const leaseToken = randomUUID();
@@ -192,12 +225,19 @@ export class SokoBotTurnsSyncService {
       if (updated.count === 0) continue;
       claimed.push({ id: turn.id, leaseToken });
     }
+    return claimed;
+  }
+
+  private async drainClaims(
+    claimed: TurnLeaseClaim[],
+    abortSignal: AbortSignal,
+    result: SokoBotTurnsSyncResult,
+  ): Promise<void> {
     result.claimed += claimed.length;
-    if (claimed.length === 0) return result;
 
     const outcomes = await Promise.allSettled(
       claimed.map(({ id, leaseToken }) =>
-        sokoBotControlPlane.reconcileTurn(id, input.abortSignal, leaseToken),
+        sokoBotControlPlane.reconcileTurn(id, abortSignal, leaseToken),
       ),
     );
     for (const [index, outcome] of outcomes.entries()) {
@@ -217,8 +257,6 @@ export class SokoBotTurnsSyncService {
         why: "Turn reconciliation threw",
       });
     }
-
-    return result;
   }
 
   private async expireTurns(turns: Array<{ id: string }>): Promise<number> {

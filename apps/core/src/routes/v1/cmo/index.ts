@@ -26,6 +26,9 @@ import mountUpdateCmoCompetitorForProject from "./projects/[projectId]/competito
 import mountAddCmoCompetitorMoveToStrategyForProject from "./projects/[projectId]/competitors/feed/[itemId]/strategy/post.js";
 import mountGetCmoCompetitorsForProject from "./projects/[projectId]/competitors/get.js";
 import mountAddCmoCompetitorForProject from "./projects/[projectId]/competitors/post.js";
+import mountApproveCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/approve/post.js";
+import mountDeclineCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/decline/post.js";
+import mountEditCmoDraftForProject from "./projects/[projectId]/drafts/[postId]/patch.js";
 import mountGetCmoOverviewForProject from "./projects/[projectId]/get.js";
 import mountAnswerCmoMarketingStrategyQuestionForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/answers/post.js";
 import mountApproveCmoMarketingStrategyForProject from "./projects/[projectId]/marketing-strategies/[strategyId]/approve/post.js";
@@ -48,6 +51,7 @@ import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.
 import mountSetCmoAdBudgetForProject from "./projects/[projectId]/strategy/ads/post.js";
 import mountApplyCmoPlanAnswersForProject from "./projects/[projectId]/strategy/answers/apply/post.js";
 import mountRequestCmoStrategyForProject from "./projects/[projectId]/strategy/post.js";
+import mountSetCmoTimeZoneForProject from "./projects/[projectId]/time-zone/put.js";
 import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
 
@@ -89,6 +93,7 @@ mountRetryCmoOnboardingForProject(app);
 mountChangeCmoPlanForProject(app);
 mountOpenCmoCustomerPortalForProject(app);
 mountStartCmoOverForProject(app);
+mountSetCmoTimeZoneForProject(app);
 mountGetCmoSeoForProject(app);
 mountSearchCmoKeywordsForProject(app);
 mountRequestCmoArticleIdeasForProject(app);
@@ -102,6 +107,9 @@ mountApplyCmoPlanAnswersForProject(app);
 mountRequestCmoStrategyForProject(app);
 mountStartCmoTopUpForProject(app);
 mountRevertCmoUpdateForProject(app);
+mountApproveCmoDraftForProject(app);
+mountDeclineCmoDraftForProject(app);
+mountEditCmoDraftForProject(app);
 
 // Writes CMO made on the shared Project routes (ADR 0066); those stay too.
 mountUpdateCmoBrandBrainForProject(app);
