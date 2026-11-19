@@ -180,9 +180,9 @@ describe("learning state", () => {
   it("is running while the turn keeps making progress", async () => {
     turnFindFirst.mockResolvedValue(turn("RUNNING", 2));
     eventFindFirst.mockResolvedValue({
-      occurredAt: new Date(now.getTime() - 10_000),
+      createdAt: new Date(now.getTime() - 10_000),
     });
-    expect(await cmoLearningState(workspace, now)).toBe("running");
+    expect(await cmoLearningState(workspace)).toBe("running");
     expect(expireTurn).not.toHaveBeenCalled();
   });
 
@@ -190,17 +190,17 @@ describe("learning state", () => {
     // Its run died with the process that ran it: last event 7 minutes ago.
     turnFindFirst.mockResolvedValue(turn("RUNNING", 8));
     eventFindFirst.mockResolvedValue({
-      occurredAt: new Date(now.getTime() - 7 * 60_000),
+      createdAt: new Date(now.getTime() - 7 * 60_000),
     });
-    expect(await cmoLearningState(workspace, now)).toBe("failed");
+    expect(await cmoLearningState(workspace)).toBe("failed");
     expect(expireTurn).toHaveBeenCalledWith("turn-1");
   });
 
   it("reports a failed turn, and done when Cuso finished with questions", async () => {
     turnFindFirst.mockResolvedValueOnce(turn("FAILED", 3));
-    expect(await cmoLearningState(workspace, now)).toBe("failed");
+    expect(await cmoLearningState(workspace)).toBe("failed");
     turnFindFirst.mockResolvedValueOnce(turn("COMPLETED", 3));
-    expect(await cmoLearningState(workspace, now)).toBe("done");
+    expect(await cmoLearningState(workspace)).toBe("done");
   });
 
   it("retries only after a failure, with a fresh turn id", async () => {
@@ -208,10 +208,7 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("FAILED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding(
-        { projectId: "project-1", userId: "user-1" },
-        now,
-      ),
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -221,9 +218,9 @@ describe("learning state", () => {
     expect(input.sokoBotId).toBe("bot-1");
 
     turnFindFirst.mockResolvedValue(turn("RUNNING", 1));
-    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("still learning");
   });
 
@@ -231,13 +228,10 @@ describe("learning state", () => {
     cusoFind.mockResolvedValue(workspace);
     // Still making progress, but 15 minutes in: the usual is 7.
     turnFindFirst.mockResolvedValue(turn("RUNNING", 15));
-    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding(
-        { projectId: "project-1", userId: "user-1" },
-        now,
-      ),
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -247,9 +241,9 @@ describe("learning state", () => {
   it("keeps research running under twice the usual time", async () => {
     cusoFind.mockResolvedValue(workspace);
     turnFindFirst.mockResolvedValue(turn("RUNNING", 13));
-    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    eventFindFirst.mockResolvedValue({ createdAt: now });
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("still learning");
     expect(expireTurn).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
@@ -263,10 +257,7 @@ describe("learning state", () => {
     turnFindFirst.mockResolvedValue(turn("COMPLETED", 3));
     startTurn.mockResolvedValue({ turnId: "turn-2" });
     expect(
-      await retryCmoOnboarding(
-        { projectId: "project-1", userId: "user-1" },
-        now,
-      ),
+      await retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).toEqual({
       turnId: "turn-2",
     });
@@ -294,7 +285,7 @@ describe("learning state", () => {
       new funding.BillingError("no"),
     );
     await expect(
-      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }, now),
+      retryCmoOnboarding({ projectId: "project-1", userId: "user-1" }),
     ).rejects.toThrow("out of credits");
     expect(startTurn).not.toHaveBeenCalled();
   });
@@ -332,7 +323,7 @@ describe("activity", () => {
         where: {
           sessionId: "sess-1",
           type: "reasoning.completed",
-          occurredAt: { gte: running.createdAt },
+          turnId: running.id,
         },
       }),
     );

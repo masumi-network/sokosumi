@@ -76,7 +76,11 @@ vi.mock("@/lib/db/prisma", () => {
       ...client,
       // The event log's locked append: the same models, plus the lock.
       $transaction: async (operation: (tx: unknown) => Promise<unknown>) => {
-        const result = await operation({ ...client, $executeRaw: vi.fn() });
+        const result = await operation({
+          ...client,
+          $executeRaw: vi.fn(),
+          $queryRaw: async () => [{ now: new Date() }],
+        });
         const waiting = afterCommit.next;
         afterCommit.next = null;
         await waiting?.();

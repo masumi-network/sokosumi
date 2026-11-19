@@ -4,6 +4,7 @@ import {
   Prisma,
 } from "@sokosumi/database";
 import { jsonInput } from "@/helpers/prisma-json";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   countOutcomes,
@@ -220,16 +221,22 @@ async function startNextRun() {
   });
 }
 
-function outcomeData(outcome: CaseOutcome, startedAt: Date | null) {
+function outcomeData(
+  outcome: CaseOutcome,
+  startedAt: Date | null,
+  finishedAt: Date,
+) {
   return {
     status: outcome.status,
-    finishedAt: new Date(),
+    finishedAt,
     checks: jsonInput(outcome.checks),
     judge: outcome.judge ? jsonInput(outcome.judge) : Prisma.DbNull,
     judgeModel: outcome.judgeModel ?? null,
     output: jsonInput(outcome.output),
     error: outcome.error ?? null,
-    durationMs: startedAt ? Date.now() - startedAt.getTime() : null,
+    durationMs: startedAt
+      ? Math.max(0, finishedAt.getTime() - startedAt.getTime())
+      : null,
   };
 }
 
@@ -261,7 +268,7 @@ async function finish(
   await prisma.evalResult.update({
     where: { id: resultId },
     data: {
-      ...outcomeData(outcome, startedAt),
+      ...outcomeData(outcome, startedAt, await databaseNow()),
       ...(turnId !== undefined ? { turnId } : {}),
       costUsdMicros: await turnsCost(outcome.turnIds),
     },
@@ -337,7 +344,7 @@ async function startNextCase(
       position: { lt: next.position },
     },
   });
-  const startedAt = new Date();
+  const startedAt = await databaseNow();
   const context = {
     resultId: next.id,
     firstOfSuite: earlier === 0,

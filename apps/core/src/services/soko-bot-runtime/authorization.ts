@@ -251,27 +251,6 @@ export async function requireMutationAuthority(
 ) {
   if (approved && authorized.confirmationTurnId) {
     await tx.$queryRaw`SELECT "id" FROM "soko_bot_turn" WHERE "id" = ${authorized.confirmationTurnId}::uuid FOR UPDATE`;
-    // Sampled after the lock, so a lease that ends during the wait counts.
-    const now = await databaseNow(tx);
-    const confirmation = await tx.sokoBotTurn.findFirst({
-      where: {
-        id: authorized.confirmationTurnId,
-        sokoBotId: authorized.turn.sokoBotId,
-        requestedByUserId: authorized.turn.requestedByUserId,
-        workspaceId: authorized.turn.workspaceId,
-        source: "CHAT",
-        chainDepth: 0,
-        status: { in: ["STARTING", "RUNNING"] },
-        deadlineAt: { gt: now },
-        leaseExpiresAt: { gt: now },
-        cancellationRequestedAt: null,
-      },
-      select: { id: true },
-    });
-    if (!confirmation)
-      throw new SokoBotRuntimeAuthorizationError(
-        "Confirmation turn is no longer writable",
-      );
   }
   if (approved) {
     // Serialize approved decisions with administrator PAUSE. Whichever
@@ -318,6 +297,29 @@ export async function requireMutationAuthority(
     if (!intent)
       throw new SokoBotRuntimeAuthorizationError(
         "Intent is expired, cancelled or superseded",
+      );
+  }
+  if (approved && authorized.confirmationTurnId) {
+    // Sampled after the confirmation, bot and intent locks, so a lease that ends during the wait counts.
+    const now = await databaseNow(tx);
+    const confirmation = await tx.sokoBotTurn.findFirst({
+      where: {
+        id: authorized.confirmationTurnId,
+        sokoBotId: authorized.turn.sokoBotId,
+        requestedByUserId: authorized.turn.requestedByUserId,
+        workspaceId: authorized.turn.workspaceId,
+        source: "CHAT",
+        chainDepth: 0,
+        status: { in: ["STARTING", "RUNNING"] },
+        deadlineAt: { gt: now },
+        leaseExpiresAt: { gt: now },
+        cancellationRequestedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!confirmation)
+      throw new SokoBotRuntimeAuthorizationError(
+        "Confirmation turn is no longer writable",
       );
   }
   const workspace = await requireSokoBotWorkspaceAccess(

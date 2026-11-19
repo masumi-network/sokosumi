@@ -17,7 +17,7 @@ What Cuso does without being asked, per channel, and what the owner should see c
 | [Newsletter](newsletter.md)                     | Email                             | Writing only; no sending from CMO                               |
 | [Competitors](competitors.md)                   | All                               | Works; ads need the Ad Library token                            |
 | [Measurement](measurement.md)                   | Analytics, Search Console         | Works once connected                                            |
-| [Reviews and learning](reviews-and-learning.md) | All                               | Weekly works; month handoff not automatic                       |
+| [Reviews and learning](reviews-and-learning.md) | All                               | Weekly works. Nightly window fixed. Partial month handoff.      |
 | [Handing work on](handing-work-on.md)           | Coworkers, Agents, SEO specialist | Works                                                           |
 | [Asking the owner](asking-the-owner.md)         | Chat                              | Partly: safe failure notices. No single "waiting for you" list. |
 

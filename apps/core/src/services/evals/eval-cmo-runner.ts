@@ -888,7 +888,9 @@ async function pollMonth(
     },
     select: { approvedAt: true },
   });
-  const timedOut = Date.now() - context.startedAt.getTime() >= MONTH_TIMEOUT_MS;
+  const timedOut =
+    (await databaseNow()).getTime() - context.startedAt.getTime() >=
+    MONTH_TIMEOUT_MS;
   if (approval.approvedAt) {
     // Production IDs bind retries to the current approval, including rewrites.
     const prefix = `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`;
@@ -1057,7 +1059,10 @@ export async function pollCmoCase(
     };
   const turn = await settledTurn(result.turnId);
   if (!SETTLED_TURN_STATUSES.includes(turn.status)) {
-    if (Date.now() - context.startedAt.getTime() < CMO_TURN_TIMEOUT_MS)
+    if (
+      (await databaseNow()).getTime() - context.startedAt.getTime() <
+      CMO_TURN_TIMEOUT_MS
+    )
       return { kind: "waiting" };
     await endTurn(result.turnId);
     return {

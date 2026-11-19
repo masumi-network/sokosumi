@@ -23,6 +23,7 @@ const boundary = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $queryRaw: async () => [{ now: new Date() }],
     marketingStrategy: { findUniqueOrThrow: boundary.strategy },
     sokoBotTurn: { findMany: boundary.turns },
     socialPost: { updateMany: boundary.cancelPosts },

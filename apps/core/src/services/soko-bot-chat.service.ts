@@ -20,6 +20,7 @@ import {
   AI_BUDGET_EXCEEDED,
   AI_BUDGET_EXCEEDED_MESSAGE,
 } from "@/lib/ai-gateway-budget";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
 import { cmoCapabilityLabel } from "@/lib/soko-bot/cmo-step-labels";
@@ -504,8 +505,6 @@ export async function persistSokoBotChatTurn(
     return;
   }
   const attemptAt = await readReplyAttemptAt(responseMessageId, tx);
-  const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
-  const endedAtMs = (turn.completedAt ?? new Date()).getTime();
 
   if (succeeded) {
     const claimed = await tx.chatRoomMention.updateMany({
@@ -515,6 +514,8 @@ export async function persistSokoBotChatTurn(
     // The transition timestamp is the response's unread clock. Losing or
     // repeated finalizers must preserve both that clock and the response.
     if (claimed.count !== 1) return;
+    const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
+    const endedAtMs = (turn.completedAt ?? (await databaseNow(tx))).getTime();
     const snapshots = await collectTurnResultSnapshots(turn.id, tx);
     await tx.chatRoomMessage.update({
       where: { id: responseMessageId },

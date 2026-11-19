@@ -404,8 +404,8 @@ export async function getCmoOverview(
     subscribed,
     now,
   });
-  const learning = await cmoLearningState(cuso, now);
-  const work = await cmoWork(cuso, now);
+  const learning = await cmoLearningState(cuso);
+  const work = await cmoWork(cuso);
   const activity = await cmoActivity(cuso);
   const brandBrain = parseBrandBrain(cuso.brandBrain);
   // Blob storage not answering leaves the research out, not the page.

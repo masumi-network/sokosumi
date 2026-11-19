@@ -10,6 +10,7 @@ import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
@@ -532,7 +533,7 @@ export class SokoBotSchedulesSyncService {
               now:
                 schedule.systemKey === "meeting-prep"
                   ? new Date(scheduledFor)
-                  : new Date(),
+                  : await databaseNow(),
             });
             // Nothing to brief on (no external meeting, no mail waiting):
             // the occurrence is done without a turn or a cent spent.

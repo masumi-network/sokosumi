@@ -2,6 +2,7 @@ import type { SokoBotTurnSource } from "@sokosumi/database";
 import { isSokoBotSilentAnswer, SOKO_BOT_VERSIONS } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { DAY_MS } from "@/config/constants";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 
 const receiptIdSchema = z.uuid();
@@ -67,7 +68,8 @@ function isProactiveTurn(turn: {
 export async function getSokoBotQualityOverview(
   options: SokoBotQualityOverviewOptions = {},
 ): Promise<SokoBotQualityOverview> {
-  const since = new Date(Date.now() - DAYS * DAY_MS);
+  const now = (await databaseNow()).getTime();
+  const since = new Date(now - DAYS * DAY_MS);
   const candidateTurns = await prisma.sokoBotTurn.findMany({
     where: {
       status: { in: ["COMPLETED", "FAILED"] },
@@ -148,7 +150,7 @@ export async function getSokoBotQualityOverview(
   }
   const daily: SokoBotQualityOverview["daily"] = [];
   for (let i = DAYS - 1; i >= 0; i -= 1) {
-    const date = new Date(Date.now() - i * DAY_MS).toISOString().slice(0, 10);
+    const date = new Date(now - i * DAY_MS).toISOString().slice(0, 10);
     daily.push({
       date,
       turns: turnsByDay.get(date) ?? 0,

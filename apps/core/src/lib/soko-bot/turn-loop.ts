@@ -13,6 +13,7 @@ import {
   sokoBotToolDescription,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -162,6 +163,7 @@ export class RuntimeEventLog {
           eventId: event.meta.id,
           type: event.type,
           data: { ...event.data },
+          createdAt: await databaseNow(tx),
           occurredAt: new Date(event.meta.at),
         },
       });
@@ -279,7 +281,7 @@ const latestTurnSchema = z.object({
 /** Posts the bot made on its own since the owner last wrote, oldest first. */
 const MAX_OWN_POSTS = 5;
 
-export function latestExchange(packet: unknown, now = Date.now()): string[] {
+export function latestExchange(packet: unknown, now: number): string[] {
   const parsed = z
     .object({ recentTurns: z.array(z.unknown()) })
     .safeParse(packet);
@@ -320,7 +322,7 @@ export function latestExchange(packet: unknown, now = Date.now()): string[] {
 export function contextBlock(
   packet: unknown,
   renderedPacket: string,
-  now = Date.now(),
+  now: number,
 ): string[] {
   return [
     "",
@@ -412,6 +414,7 @@ export async function prepareTurn(
     ...contextBlock(
       context.packet,
       JSON.stringify(evaluationContext(context.packet)),
+      (await databaseNow()).getTime(),
     ),
   ].join("\n");
   // Only a Cuso's first read has parts today (SOKD-167).

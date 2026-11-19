@@ -374,6 +374,7 @@ function adminBot(overrides: Record<string, unknown> = {}) {
     eveSessionId: null,
     memoryVersion: 1,
     runtimeVersion: "eve-test",
+    ingestTimezone: "Europe/Berlin",
     versionId: null as string | null,
     turns: [],
     ...overrides,
