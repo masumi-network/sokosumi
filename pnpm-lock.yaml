@@ -406,6 +406,9 @@ importers:
       jszip:
         specifier: 3.10.2
         version: 3.10.2
+      mdast-util-from-markdown:
+        specifier: 2.0.3
+        version: 2.0.3(supports-color@8.1.1)
       neverthrow:
         specifier: 8.2.0
         version: 8.2.0

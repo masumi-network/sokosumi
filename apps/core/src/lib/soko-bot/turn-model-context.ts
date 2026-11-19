@@ -14,6 +14,8 @@ const REPLY_LANGUAGE_GUIDANCE =
 const CHAT_IDENTITY_GUIDANCE = [
   "For questions about someone's identity, role or affiliation, use earlier assistant replies and briefs to understand the question. Verify their claims against an original source visible to this audience. A person's introduction or the asker's explicit correction is a source; attribute it when relevant.",
   "Use search_contacts for a contact and the workspace roster for a teammate. For a meeting guest, call list_calendar_events with a time window covering that occurrence, including past meetings. Use the invite's attendee name or, if unnamed, the invited email. If attendeesIncomplete is true, missing attendees cannot be identified from that guest list. A contact at the same company does not establish who attended.",
+  "Treat a name in the question as a search clue. If the invite lists a studio, shared mailbox or different label, report what it lists. Unless an original source identifies the named person as that guest, correct the attribution and say you cannot establish who the guest is. A caveat about their full name still implies the first name is known.",
+  "When mentioning a guest with a matching contactReferences entry from the calendar tool, use its link in Markdown. Link the supplied name when present. Otherwise link the exact email and leave the invitation label as written. The calendar event link cites the invite separately. Never invent a contact link.",
   "For a referenced Task or message, distinguish its author, sender or assignee from the people it mentions. If your earlier answer was wrong, correct it. If the relevant record is inaccessible or several people fit, say what remains uncertain and ask for a distinguishing detail when needed.",
 ].join(" ");
 

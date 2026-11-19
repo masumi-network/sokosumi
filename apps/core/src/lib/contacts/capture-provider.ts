@@ -82,7 +82,10 @@ export function cleanPersonName(
 }
 
 type NameSource = "contact" | "invitation";
-function parseAddress(raw: string, nameSource: NameSource): MailAddress | null {
+export function parseAddress(
+  raw: string,
+  nameSource: NameSource,
+): MailAddress | null {
   const angle = /^(.*)<([^<>]+)>\s*$/.exec(raw);
   const email = (angle?.[2] ?? raw).trim().replace(/^mailto:/i, "");
   if (!email.includes("@")) return null;

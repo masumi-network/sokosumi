@@ -45,6 +45,7 @@ describe("modelContextBlock", () => {
     expect(chat).toMatch(/search_contacts/);
     expect(chat).toMatch(/list_calendar_events/);
     expect(chat).toContain("attendeesIncomplete");
+    expect(chat).toContain("contactReferences");
     const meeting = modelContextBlock(packet, true).join("\n");
     expect(meeting).not.toContain(staleClaim);
     expect(meeting).not.toMatch(/search_contacts|list_calendar_events/);

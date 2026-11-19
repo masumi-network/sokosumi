@@ -179,6 +179,8 @@ export interface SokoBotCalendarEvent {
   /** The provider omitted invitees or the list was shortened for this response. */
   attendeesIncomplete?: boolean;
   organizer: string | null;
+  /** Authorized chat tool evidence. The link identifies a saved mailbox. A name requires agreement with the invite. */
+  contactReferences?: { email: string; link: string; name?: string }[];
   description: string | null;
   link: string | null;
 }

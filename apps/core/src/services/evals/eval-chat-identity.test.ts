@@ -1,38 +1,43 @@
 import { evaluateScenario } from "@sokosumi/soko-bot";
+import { contactDetailHref } from "@sokosumi/utils";
 import { expect, it } from "vitest";
 import { selectEvalCases } from "./eval-cases";
 
-it("rejects a person identified only by an earlier assistant reply, even after a calendar read", () => {
-  const [entry] = selectEvalCases({
-    suites: ["soko-bot"],
-    caseIds: ["chat-identity-from-brief"],
+const [entry] = selectEvalCases({
+  suites: ["soko-bot"],
+  caseIds: ["chat-identity-from-brief"],
+});
+if (entry?.kind !== "scenario") throw new Error("Missing chat identity case");
+const { scenario } = entry;
+
+function score(finalAnswer: string, calendarResult?: unknown) {
+  const result = evaluateScenario(scenario, {
+    status: "COMPLETED",
+    route: "DIRECT_RESPONSE",
+    userMessage: scenario.prompt,
+    finalAnswer,
+    toolCalls: calendarResult
+      ? [
+          {
+            capability: "list_calendar_events",
+            status: "SUCCEEDED",
+            result: calendarResult,
+          },
+        ]
+      : [],
+    events: [],
+    delegations: [],
+    decisions: [],
   });
-  if (entry?.kind !== "scenario") throw new Error("Missing chat identity case");
+  return result.passed === result.total;
+}
+
+it("rejects a person identified only by an earlier assistant reply, even after a calendar read", () => {
   expect(entry.requires).toBeUndefined();
-  expect(entry.scenario.preparedSchedule).toBeUndefined();
-  const score = (finalAnswer: string, consultedCalendar: boolean) => {
-    const result = evaluateScenario(entry.scenario, {
-      status: "COMPLETED",
-      route: "DIRECT_RESPONSE",
-      userMessage: entry.scenario.prompt,
-      finalAnswer,
-      toolCalls: consultedCalendar
-        ? [
-            {
-              capability: "list_calendar_events",
-              status: "SUCCEEDED",
-              result: {
-                events: [],
-                coverage: { availability: "DISCONNECTED" },
-              },
-            },
-          ]
-        : [],
-      events: [],
-      delegations: [],
-      decisions: [],
-    });
-    return result.passed === result.total;
+  expect(scenario.preparedSchedule).toBeUndefined();
+  const disconnected = {
+    events: [],
+    coverage: { availability: "DISCONNECTED" },
   };
   const grounded =
     "My earlier brief mentioned Micah, but I cannot verify the attendee without the invite.";
@@ -58,9 +63,37 @@ it("rejects a person identified only by an earlier assistant reply, even after a
     ["Micah? Send me what you have.", false],
   ] as const;
   for (const [answer, expected] of answers) {
-    expect.soft(score(answer, true), answer).toBe(expected);
+    expect.soft(score(answer, disconnected), answer).toBe(expected);
   }
-  expect(score(grounded, false)).toBe(false);
-  expect(score(stale, true)).toBe(false);
-  expect(score(stale, false)).toBe(false);
+  expect(score(grounded)).toBe(false);
+  expect(score(stale, disconnected)).toBe(false);
+  expect(score(stale)).toBe(false);
+});
+
+it("a real invite label, contact card and event citation cannot establish the person behind a shared mailbox", () => {
+  const email = "proof@cerise.example";
+  const link = contactDetailHref(
+    "01960001-0001-7001-8001-000000000110",
+    "01960001-0001-7001-8001-000000000111",
+  );
+  const event = {
+    title: "Proof review",
+    attendees: [`Cerise Desk <${email}>`],
+    contactReferences: [{ email, link }],
+    link: "https://calendar.example/events/proof",
+  };
+  const calendar = { coverage: { availability: "AVAILABLE" }, events: [event] };
+  const citations = `[${email}](${link}). [Calendar event](${event.link})`;
+  expect(
+    score(
+      `The invite lists Cerise Desk, ${citations} I cannot confirm whether Micah was invited.`,
+      calendar,
+    ),
+  ).toBe(true);
+  expect(
+    score(
+      `Micah is the attendee listed as Cerise Desk, ${citations} I cannot confirm whether the invite gives a fuller name.`,
+      calendar,
+    ),
+  ).toBe(false);
 });

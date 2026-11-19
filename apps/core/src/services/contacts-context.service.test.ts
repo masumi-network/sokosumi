@@ -96,14 +96,25 @@ describe("confirmedMeetingContacts", () => {
       { value: "office@unknown.example", contact: { ...nina, kind: "PERSON" } },
       { value: "nina@acme.com", contact: { ...nina, kind: "PERSON" } },
       {
+        value: "press@studio.example",
+        contact: { ...nina, name: "Studio", kind: "ORGANIZATION" },
+      },
+      {
         value: "alex@other.example",
-        contact: { id: "c-2", name: "Alex", role: null, organization: null },
+        contact: {
+          id: "c-2",
+          kind: "PERSON",
+          name: "Alex",
+          role: null,
+          organization: null,
+        },
       },
     ]);
     const matches = await confirmedMeetingContacts("ws-1", [
       { email: "team@studio.example", name: "Avery" },
       { email: "office@unknown.example", name: null },
       { email: "nina@acme.com", name: "Nina Keller" },
+      { email: "press@studio.example", name: "Studio" },
       { email: "alex@other.example", name: "Alex" },
     ]);
     expect([...matches]).toEqual([
