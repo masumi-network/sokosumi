@@ -446,18 +446,30 @@ describe("every choice reads as a button", () => {
     expect(flatChoices(css)).toEqual([]);
   });
 
-  it("casts it from the shared buttons and a step you can go back to", () => {
+  it("casts it from the shared buttons", () => {
     const casts = rulesOf(css)
       .filter(({ body }) => /box-shadow:\s*var\(--shadow\)/.test(body))
       .map(({ selector }) => selector);
     expect(casts).toEqual(
-      expect.arrayContaining([
-        ".button",
-        ".button-small",
-        ".chip",
-        ".ob-step > button",
-      ]),
+      expect.arrayContaining([".button", ".button-small", ".chip"]),
     );
+  });
+
+  it("keeps the step bar calm: no step casts a shadow or draws a line of its own but the current one", () => {
+    const steps = rulesOf(css).filter(({ selector }) =>
+      selector.startsWith(".ob-step"),
+    );
+    expect(steps.length).toBeGreaterThan(0);
+    expect(
+      steps
+        .filter(({ body }) => /box-shadow:\s*var\(--shadow/.test(body))
+        .map(({ selector }) => selector),
+    ).toEqual([]);
+    expect(
+      steps
+        .filter(({ body }) => /border-color:\s*var\(--line\)/.test(body))
+        .map(({ selector }) => selector),
+    ).toEqual([".ob-step.now > span", ".ob-step.now > button"]);
   });
 
   it("flags a set that shadows only its picked one and passes one that shadows all", () => {
