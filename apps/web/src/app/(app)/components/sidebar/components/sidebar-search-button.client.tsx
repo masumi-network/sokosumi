@@ -34,7 +34,9 @@ export function SidebarSearchButton() {
           size="icon"
           aria-label={t("open")}
           aria-keyshortcuts="Meta+K Control+K"
-          onClick={historySearch.openHistorySearch}
+          onClick={(event) =>
+            historySearch.openHistorySearch(event.currentTarget)
+          }
           className="hidden size-10 shrink-0 md:inline-flex md:size-8"
         >
           <Search aria-hidden />
