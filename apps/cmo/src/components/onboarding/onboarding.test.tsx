@@ -396,8 +396,25 @@ describe("Brand", () => {
         brandMedia: {
           capturedAt: "2026-10-05T09:02:00Z",
           pages: [
-            { ...shot, label: "Home", device: "desktop" },
-            { ...shot, label: "Home", device: "mobile" },
+            { ...shot, label: "Home", device: "desktop", fullUrl: null },
+            { ...shot, label: "Home", device: "mobile", fullUrl: null },
+            {
+              ...shot,
+              url: "/pricing.jpg",
+              label: "Pricing",
+              pageUrl: "https://acme.io/plans",
+              device: "desktop",
+              fullUrl: null,
+            },
+          ],
+          sections: [
+            {
+              ...shot,
+              url: "/plans.jpg",
+              kind: "pricing",
+              title: "Plans for every launch",
+              pageLabel: "Pricing",
+            },
           ],
           competitors: [],
           pictures: [],
@@ -415,6 +432,12 @@ describe("Brand", () => {
     expect(html).toContain("Your site");
     expect(html).toContain("acme.io homepage");
     expect(html).toContain("acme.io on a phone");
+    // The pages Cuso read and what he cut from them, under one fold.
+    expect(html).toContain("What I found on your site");
+    expect(html).toContain('href="https://acme.io/plans"');
+    expect(html).toContain(
+      "Pricing on the Pricing page: Plans for every launch",
+    );
     expect(html.match(/ob-swatches/g)).toHaveLength(1);
     expect(html.match(/<li style="background:/g)).toHaveLength(5);
     expect(render(draft())).not.toContain("Your site");

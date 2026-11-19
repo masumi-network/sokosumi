@@ -13637,7 +13637,7 @@ export type CmoRoutine = {
 export type CmoBrandMedia = {
     capturedAt: string;
     /**
-     * The brand's own pages, home first, then home on a phone.
+     * The brand's own pages Cuso read, home first, each on a desktop and then on a phone.
      */
     pages: Array<{
         url: string;
@@ -13645,6 +13645,21 @@ export type CmoBrandMedia = {
         label: string;
         pageUrl: string;
         device: 'desktop' | 'mobile';
+        /**
+         * The page from the top, several screens down.
+         */
+        fullUrl: string | null;
+    }>;
+    /**
+     * Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.
+     */
+    sections: Array<{
+        url: string;
+        fileId: string | null;
+        kind: 'hero' | 'pricing' | 'testimonials' | 'customers' | 'faq' | 'product' | 'features' | 'cta' | 'section';
+        title: string;
+        pageLabel: string;
+        pageUrl: string;
     }>;
     /**
      * Each competitor's homepage, in the Brand Brain's order.

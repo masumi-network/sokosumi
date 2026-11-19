@@ -12,6 +12,38 @@ export interface PageCapture {
   screenshot: Buffer;
   /** Large pictures on the page, biggest first. */
   images: SiteImage[];
+  /** Where the page's header and footer lead on its own site. */
+  links: SiteLink[];
+  /** JPEG of the page from the top, when `fullScreens` asked for it. */
+  fullPage?: Buffer;
+  /** The page cut into its sections, top to bottom, when `sections` asked. */
+  sections: SiteSection[];
+}
+
+export interface SiteLink {
+  url: string;
+  text: string;
+  place: "header" | "footer";
+}
+
+/** What a section of a page is for, read from its markup and words. */
+export type SiteSectionKind =
+  | "hero"
+  | "pricing"
+  | "testimonials"
+  | "customers"
+  | "faq"
+  | "product"
+  | "features"
+  | "cta"
+  | "section";
+
+export interface SiteSection {
+  kind: SiteSectionKind;
+  /** Its heading, or its first words. */
+  title: string;
+  /** JPEG of the section alone. */
+  screenshot: Buffer;
 }
 
 export interface SiteImage {
@@ -32,6 +64,10 @@ export interface CaptureViewport {
   scale?: number;
   /** How many screens down the screenshot reaches; 1 when omitted. */
   screens?: number;
+  /** Also keep the page from the top, this many screens at most. */
+  fullScreens?: number;
+  /** Also cut the page into its sections, this many at most. */
+  sections?: number;
 }
 
 const NAVIGATION_TIMEOUT_MS = 20_000;
@@ -127,6 +163,9 @@ async function capture(
   try {
     const { width, height, scale = 1, screens = 1 } = viewport;
     await page.setViewport({ width, height, deviceScaleFactor: scale });
+    // The bundler wraps named functions in `__name(...)`, which a function
+    // sent into the page would not find there.
+    await page.evaluateOnNewDocument("globalThis.__name = (fn) => fn");
     await page.setRequestInterception(true);
     page.on("request", (request) => {
       void guardRequest(request, abort.signal);
@@ -178,11 +217,19 @@ async function capture(
       }),
     );
     if (!clip) await scrollThrough();
+    const fullPage = viewport.fullScreens
+      ? await fullPageShot(page, width, height * viewport.fullScreens)
+      : undefined;
     return {
       url: page.url(),
       title: (await page.title()).slice(0, 200),
       screenshot,
       images: await largeImages(page),
+      links: await siteLinks(page),
+      ...(fullPage ? { fullPage } : {}),
+      sections: viewport.sections
+        ? await pageSections(page, viewport.sections)
+        : [],
     };
   } catch {
     return null;
@@ -388,4 +435,254 @@ async function largeImages(page: Page): Promise<SiteImage[]> {
     })
     .sort((a, b) => b.width * b.height - a.width * a.height)
     .slice(0, MAX_IMAGES);
+}
+
+/** The page from the top down to `maxHeight`, lazy content already loaded. */
+async function fullPageShot(
+  page: Page,
+  width: number,
+  maxHeight: number,
+): Promise<Buffer | undefined> {
+  try {
+    const pageHeight = await page.evaluate(() => {
+      window.scrollTo(0, 0);
+      return document.documentElement.scrollHeight;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    return Buffer.from(
+      await page.screenshot({
+        type: "jpeg",
+        quality: JPEG_QUALITY,
+        clip: { x: 0, y: 0, width, height: Math.min(pageHeight, maxHeight) },
+      }),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+const MAX_LINKS = 80;
+
+/** Links in the page's header and footer that stay on its site. */
+async function siteLinks(page: Page): Promise<SiteLink[]> {
+  const found = await page
+    .evaluate(() => {
+      const host = (name: string) => name.replace(/^www\./, "");
+      return [...document.querySelectorAll<HTMLAnchorElement>("a[href]")]
+        .map((anchor) => {
+          const place = anchor.closest("footer, [role=contentinfo]")
+            ? ("footer" as const)
+            : anchor.closest("header, nav, [role=banner], [role=navigation]")
+              ? ("header" as const)
+              : null;
+          return { anchor, place };
+        })
+        .filter(
+          (
+            link,
+          ): link is {
+            anchor: HTMLAnchorElement;
+            place: "header" | "footer";
+          } =>
+            link.place !== null &&
+            /^https?:$/.test(link.anchor.protocol) &&
+            host(link.anchor.hostname) === host(location.hostname),
+        )
+        .map(({ anchor, place }) => ({
+          url: `${anchor.origin}${anchor.pathname}`,
+          text: (anchor.textContent ?? "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 80),
+          place,
+        }));
+    })
+    .catch(() => [] as SiteLink[]);
+  const seen = new Set<string>();
+  return found
+    .filter((link) => (seen.has(link.url) ? false : (seen.add(link.url), true)))
+    .slice(0, MAX_LINKS);
+}
+
+interface SectionBox {
+  kind: SiteSectionKind;
+  title: string;
+  y: number;
+  height: number;
+}
+
+/** A section shorter than this is a divider or a strip, not material. */
+const MIN_SECTION_HEIGHT = 220;
+/** How long a section gets to finish fading in before its screenshot. */
+const SECTION_SETTLE_MS = 600;
+/** A JPEG this small for its size is an empty block. */
+const MIN_BYTES_PER_PIXEL = 0.012;
+
+/**
+ * The page's sections, each as its own screenshot with what it is for: the
+ * hero, pricing cards, testimonials, a wall of customer logos, a product
+ * shot, a feature grid, questions, the closing call to action.
+ */
+async function pageSections(page: Page, limit: number): Promise<SiteSection[]> {
+  const viewport = page.viewport();
+  if (!viewport) return [];
+  const boxes = await page
+    .evaluate(findSections, MIN_SECTION_HEIGHT, limit)
+    .catch(() => [] as SectionBox[]);
+  // A header that follows the scroll would sit on top of every section.
+  await page
+    .evaluate(() => {
+      for (const element of document.querySelectorAll<HTMLElement>("body *")) {
+        const position = getComputedStyle(element).position;
+        if (position === "fixed" || position === "sticky")
+          element.style.setProperty("visibility", "hidden", "important");
+      }
+    })
+    .catch(() => undefined);
+  const sections: SiteSection[] = [];
+  for (const box of boxes) {
+    try {
+      // Blocks fade in once they are on screen, and some fade out again at
+      // its top edge, so the section is brought to the middle.
+      await page.evaluate(
+        (y: number, height: number) =>
+          window.scrollTo(
+            0,
+            y - Math.max(0, (window.innerHeight - height) / 2),
+          ),
+        box.y,
+        box.height,
+      );
+      await new Promise((resolve) => setTimeout(resolve, SECTION_SETTLE_MS));
+      const screenshot = Buffer.from(
+        await page.screenshot({
+          type: "jpeg",
+          quality: JPEG_QUALITY,
+          clip: { x: 0, y: box.y, width: viewport.width, height: box.height },
+        }),
+      );
+      if (
+        screenshot.byteLength <
+        viewport.width * box.height * MIN_BYTES_PER_PIXEL
+      )
+        continue;
+      sections.push({ kind: box.kind, title: box.title, screenshot });
+    } catch {
+      // One section that cannot be drawn does not lose the rest.
+    }
+  }
+  return sections;
+}
+
+/**
+ * Runs in the page. Walks down from the body: a wide block of about a
+ * screen is a section, a taller one is opened for the sections inside it.
+ */
+function findSections(minHeight: number, limit: number): SectionBox[] {
+  const screen = window.innerHeight;
+  const maxHeight = screen * 1.6;
+  const pageWidth = document.documentElement.clientWidth;
+  const found: { element: Element; y: number; height: number }[] = [];
+  const visit = (element: Element, depth: number) => {
+    for (const child of element.children) {
+      if (
+        /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|HEADER|NAV|FOOTER|ASIDE)$/.test(
+          child.tagName,
+        )
+      )
+        continue;
+      const style = getComputedStyle(child);
+      if (
+        style.display === "none" ||
+        style.visibility === "hidden" ||
+        style.position === "fixed" ||
+        style.position === "sticky" ||
+        child.closest("[role=banner], [role=contentinfo], [role=dialog]") ||
+        /footer|cookie|consent/i.test(`${child.id} ${child.className}`)
+      )
+        continue;
+      const rect = child.getBoundingClientRect();
+      if (rect.width < pageWidth * 0.6 || rect.height < minHeight) continue;
+      const before = found.length;
+      if (rect.height > maxHeight && depth < 6) visit(child, depth + 1);
+      if (found.length > before) continue;
+      found.push({
+        element: child,
+        y: Math.max(0, Math.round(rect.top + window.scrollY)),
+        height: Math.round(Math.min(rect.height, maxHeight)),
+      });
+    }
+  };
+  visit(document.body, 0);
+
+  const words = (element: Element) =>
+    ((element as HTMLElement).innerText ?? "").replace(/\s+/g, " ").trim();
+  const last = found.length - 1;
+  return found
+    .sort((a, b) => a.y - b.y)
+    .map(({ element, y, height }, index) => {
+      const text = words(element);
+      const lower = text.toLowerCase();
+      const names = `${element.id} ${element.className}`.toLowerCase();
+      const heading = element.querySelector("h1, h2, h3");
+      const pictures = [
+        ...element.querySelectorAll("img, svg, video, canvas, picture"),
+      ].map((picture) => picture.getBoundingClientRect());
+      const smallPictures = pictures.filter(
+        (rect) => rect.height > 12 && rect.height <= 90 && rect.width <= 260,
+      ).length;
+      const biggest = Math.max(
+        0,
+        ...pictures.map((rect) => rect.width * rect.height),
+      );
+      const prices = lower.match(
+        /[$€£]\s?\d|\d\s?(€|usd|eur|chf)\b|\/\s?(mo|month|monat|year|jahr)\b|per (month|seat|user)/g,
+      );
+      let kind: SectionBox["kind"] = "section";
+      if (index === 0 && element.querySelector("h1")) kind = "hero";
+      else if ((prices?.length ?? 0) >= 3 || /pricing|preise/.test(names))
+        kind = "pricing";
+      else if (
+        element.querySelector("blockquote") ||
+        /testimonial|review|quote/.test(names) ||
+        /what (our )?(customers|clients|users|people) (say|think)|loved by|kundenstimmen/.test(
+          lower,
+        )
+      )
+        kind = "testimonials";
+      else if (
+        (smallPictures >= 5 && text.length < 240) ||
+        /trusted by|used by|backed by|as seen (in|on)|our (customers|clients|partners)|logos?\b/.test(
+          `${lower.slice(0, 160)} ${names}`,
+        )
+      )
+        kind = "customers";
+      else if (
+        element.querySelectorAll("details").length >= 3 ||
+        /\bfaq\b|frequently asked|häufige fragen/.test(
+          `${lower.slice(0, 200)} ${names}`,
+        )
+      )
+        kind = "faq";
+      else if (biggest >= rect(element).width * height * 0.3) kind = "product";
+      else if (element.querySelectorAll("h3, h4").length >= 3)
+        kind = "features";
+      else if (
+        index >= last - 1 &&
+        text.length < 320 &&
+        element.querySelector("a[href], button")
+      )
+        kind = "cta";
+      return {
+        kind,
+        title: (heading ? words(heading) : text).slice(0, 90),
+        y,
+        height,
+      };
+    })
+    .slice(0, limit);
+
+  function rect(element: Element): DOMRect {
+    return element.getBoundingClientRect();
+  }
 }
