@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 
 import { sokoBotEventsSyncService } from "@/services/soko-bot-events-sync.service";
-import { adoptCoworkerSubtasks } from "@/services/soko-bot-subtask-adoption.service";
+import { adoptCoworkerSpawnedTasks } from "@/services/soko-bot-spawned-task-adoption.service";
 import { sokoBotTaskboardSyncService } from "@/services/soko-bot-taskboard-sync.service";
 
 import { syncSokoBotWatches } from "@/services/soko-bot-watches.service";
@@ -19,7 +19,7 @@ export default function mount(app: Hono) {
         // The tick's own minute, not the minute the Task interest step
         // reaches: its overdue sweep runs on quarter-hour ticks.
         const tickStartedAt = new Date();
-        const adopted = await adoptCoworkerSubtasks();
+        const adopted = await adoptCoworkerSpawnedTasks();
         context.log.set({ result: { adopted } });
         const watches = await syncSokoBotWatches({
           shouldContinue: context.shouldContinue,

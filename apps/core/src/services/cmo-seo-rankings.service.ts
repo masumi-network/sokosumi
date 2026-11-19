@@ -35,7 +35,8 @@ function requestKeywords(request: unknown): string[] {
  * Asks the SEO specialist (the SEO check service, through a Core-approved
  * rankings check on the brand's homepage, mobile) where the site ranks for up
  * to five searches. The same searches checked in the last day are not paid
- * for again: a running check is followed, a finished one is answered at once.
+ * for again: a running check is followed, a finished one is answered at once,
+ * and a failed one runs again.
  */
 export async function checkCmoSearchRankings(
   cuso: Cuso,
@@ -54,14 +55,21 @@ export async function checkCmoSearchRankings(
       projectId: cuso.projectId,
       kind: "rankings",
       createdAt: { gte: new Date(now.getTime() - REUSE_MS) },
-      status: { in: ["requested", "completed"] },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, status: true, request: true },
+    select: { id: true, status: true, request: true, taskId: true },
   });
-  const same = recent.find(
+  const sameSearches = recent.filter(
     (row) => requestKeywords(row.request).join("|") === keywords.join("|"),
   );
+  const stopped = await stoppedTaskIds(
+    sameSearches.flatMap((row) => (row.taskId ? [row.taskId] : [])),
+  );
+  // A check that failed is neither followed nor answered: it runs again.
+  const failed = sameSearches.filter(
+    (row) => row.status === "failed" || (row.taskId && stopped.has(row.taskId)),
+  );
+  const same = sameSearches.find((row) => !failed.includes(row));
   if (same?.status === "completed") {
     const outcome = await seoCheckOutcome(same.id);
     if (outcome) return { status: "done", analysisId: same.id, outcome };
@@ -77,7 +85,10 @@ export async function checkCmoSearchRankings(
   const market = await cmoSeoMarket(cuso);
   const day = now.toISOString().slice(0, 10);
   const idempotencyKey = `cmo-rankings:${createHash("sha256")
-    .update(`${day}|${keywords.join("|")}`)
+    // Each failed try gets a key of its own, or the failed row would answer.
+    .update(
+      `${day}|${keywords.join("|")}${failed.length > 0 ? `|retry-${failed.length}` : ""}`,
+    )
     .digest("hex")
     .slice(0, 40)}`;
   try {
@@ -118,6 +129,21 @@ export async function checkCmoSearchRankings(
   }
 }
 
+/** The Tasks among these that failed or were canceled. */
+async function stoppedTaskIds(taskIds: string[]): Promise<Set<string>> {
+  if (taskIds.length === 0) return new Set();
+  const tasks = await prisma.task.findMany({
+    where: { id: { in: taskIds }, status: { in: ["FAILED", "CANCELED"] } },
+    select: { id: true },
+  });
+  return new Set(tasks.map((task) => task.id));
+}
+
+/** Where a position check stands: still running, or what came of it. */
+export type SeoCheckRead =
+  | { state: "running" }
+  | { state: "done" | "failed"; outcome: string };
+
 /**
  * Where a position check stands, for the follow-up that answers the owner:
  * null while it runs, else what it found or why it failed.
@@ -125,11 +151,21 @@ export async function checkCmoSearchRankings(
 export async function seoCheckOutcome(
   analysisId: string,
 ): Promise<string | null> {
+  const read = await readSeoCheck(analysisId);
+  return read.state === "running" ? null : read.outcome;
+}
+
+/** Where a position check stands, and what it found or why it failed. */
+export async function readSeoCheck(analysisId: string): Promise<SeoCheckRead> {
+  const failed = (outcome: string): SeoCheckRead => ({
+    state: "failed",
+    outcome,
+  });
   const analysis = await prisma.projectSeoAnalysis.findUnique({
     where: { id: analysisId },
     select: { status: true, taskId: true, failureReason: true, request: true },
   });
-  if (!analysis) return "The SEO check no longer exists.";
+  if (!analysis) return failed("The SEO check no longer exists.");
   const task = analysis.taskId
     ? await prisma.task.findUnique({
         where: { id: analysis.taskId },
@@ -141,8 +177,11 @@ export async function seoCheckOutcome(
     task?.status === "FAILED" ||
     task?.status === "CANCELED"
   )
-    return `The SEO specialist's check failed${analysis.failureReason ? `: ${analysis.failureReason}` : ""}. Nothing was charged for it.`;
-  if (analysis.status !== "completed" || !analysis.taskId) return null;
+    return failed(
+      `The SEO specialist's check failed${analysis.failureReason ? `: ${analysis.failureReason}` : ""}. Nothing was charged for it.`,
+    );
+  if (analysis.status !== "completed" || !analysis.taskId)
+    return { state: "running" };
   const observation = await prisma.projectSeoObservation.findFirst({
     where: { sourceTaskId: analysis.taskId, ownerId: null },
     orderBy: { observedAt: "desc" },
@@ -152,7 +191,9 @@ export async function seoCheckOutcome(
     ? publicSeoPayloadSchema.safeParse(observation.payload)
     : null;
   if (!parsed?.success)
-    return "The SEO specialist finished, but its result could not be read.";
+    return failed(
+      "The SEO specialist finished, but its result could not be read.",
+    );
   const date = observation!.observedAt.toISOString().slice(0, 10);
   const lines = requestKeywords(analysis.request).map((keyword) => {
     const row = parsed.data.keywords.find(
@@ -173,8 +214,11 @@ export async function seoCheckOutcome(
       .join("; ");
     return `- "${keyword}" (${row?.device ?? "mobile"}, ${parsed.data.countryCode}): ${where}${row?.volume != null ? `, ${row.volume} searches a month` : ""}${above ? `. Top results: ${above}` : ""}`;
   });
-  return [
-    `The SEO specialist checked Google on ${date} for ${parsed.data.pageUrls[0]}:`,
-    ...lines,
-  ].join("\n");
+  return {
+    state: "done",
+    outcome: [
+      `The SEO specialist checked Google on ${date} for ${parsed.data.pageUrls[0]}:`,
+      ...lines,
+    ].join("\n"),
+  };
 }

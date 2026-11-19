@@ -273,6 +273,21 @@ it("keeps a finished Site on screen until See your brand", async () => {
   expect(text()).toContain("Looks like us");
 });
 
+it("tells the founder they can close the page and come back", async () => {
+  await act(async () =>
+    root.render(
+      <OnboardingFlow
+        overview={asking()}
+        messages={[]}
+        actions={actionsFor()}
+      />,
+    ),
+  );
+  expect(text()).toContain(
+    "You can close this page and come back any time to continue.",
+  );
+});
+
 it("moves to the next question before the save returns", async () => {
   const actions = actionsFor({
     answerBrandQuestion: vi.fn(() => new Promise<CmoOverview>(() => {})),
@@ -736,22 +751,13 @@ it("keeps the plan on screen and says Cuso is changing it while a brand fix patc
   expect(text()).toContain("Cuso is changing it");
 });
 
-it("swaps the plan for a re-planning screen the moment a pace is tapped", async () => {
-  const core = pending();
-  await renderPlan(core.call, async () => null);
-  await press("All-in");
-
-  expect(core.call).toHaveBeenCalledWith(
-    expect.stringContaining("Change the pace to All-in"),
+it("leaves the volume to the plan: no pace to tap on the strategy", async () => {
+  await renderPlan(
+    async () => null,
+    async () => null,
   );
-  expect(replanning()).toBe(true);
-  expect(text()).toContain("All-in pace.");
-  expect(planHidden()).toBe(true);
-
-  await act(async () => core.answer("Not enough credits"));
-  expect(replanning()).toBe(false);
-  expect(planHidden()).toBe(false);
-  expect(text()).toContain("You're out of credits.");
+  expect(() => button("All-in")).toThrow();
+  expect(text()).toContain("This month is written at the most a plan makes.");
 });
 
 it("re-plans on a new ad budget at once, and keeps the amount when it is refused", async () => {
@@ -1093,6 +1099,7 @@ const active = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 
 it("celebrates on Launch without a failure in between, then opens the app on Go to Today", async () => {
@@ -1132,7 +1139,7 @@ it("celebrates on Launch without a failure in between, then opens the app on Go 
   expect(container.querySelector('[role="alert"]')).toBeNull();
   expect(text()).not.toContain("Could not launch");
   expect(text()).toContain("Cuso is on it.");
-  expect(text()).toContain("Active, 7 posts a week");
+  expect(text()).not.toContain("posts a week");
   expect(text()).toContain("€200 a month");
   expect(text()).toContain("posts on your strategy's schedule");
   expect(text()).not.toContain("Nothing posts until");

@@ -824,7 +824,7 @@ function CloudflareOption({ projectId }: { projectId: string }) {
               ? "newsletter-cloudflare-token-error newsletter-cloudflare-token-hint"
               : "newsletter-cloudflare-token-hint"
           }
-          className="bg-background min-w-0 flex-1 basis-56"
+          className="bg-background dark:bg-background min-w-0 flex-1 basis-56"
         />
         <Button type="submit" variant="outline" loading={pending}>
           {t("cloudflare.submit")}

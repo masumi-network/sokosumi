@@ -93,7 +93,11 @@ const actors = {
   }),
 };
 
-async function createTask(ws: Workspace, authContext: AuthenticationContext) {
+async function createTask(
+  ws: Workspace,
+  authContext: AuthenticationContext,
+  extra: Record<string, unknown> = {},
+) {
   const app = new OpenAPIHonoWithAuth();
   app.use("*", async (c, next) => {
     c.set("requestId", "task-creator-owner");
@@ -112,7 +116,7 @@ async function createTask(ws: Workspace, authContext: AuthenticationContext) {
   const response = await app.request("http://localhost/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "Prepare the board pack" }),
+    body: JSON.stringify({ name: "Prepare the board pack", ...extra }),
   });
   const body = await response.json();
   expect(response.status, JSON.stringify(body)).toBe(201);
@@ -255,6 +259,20 @@ describe.skipIf(!enabled)(
       expect(await matches("research")).toBe(false);
       expect(await matches("design")).toBe(false);
       expect(await matches("writing")).toBe(true);
+    });
+
+    it("stores the due date given at create", async () => {
+      const ws = workspaces[0];
+      const task = await createTask(ws, actors.person(ws), {
+        dueOn: "2026-11-20",
+      });
+
+      expect(task.dueOn).toBe("2026-11-20");
+      const row = await prisma.task.findUniqueOrThrow({
+        where: { id: task.id },
+        select: { dueOn: true },
+      });
+      expect(row.dueOn?.toISOString()).toBe("2026-11-20T00:00:00.000Z");
     });
 
     describe.each(workspaces)("in a $kind workspace", (ws) => {

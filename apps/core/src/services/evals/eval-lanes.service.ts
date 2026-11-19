@@ -10,6 +10,7 @@ import {
   EVAL_CONNECTED_ACCOUNT_PREFIX,
   forgetEvalWorkspaces,
 } from "@/lib/evals/eval-guard";
+import { seedEvalMcpServer } from "@/lib/evals/eval-mcp-server";
 import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { freeCreditAdminService } from "@/services/free-credit-admin.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
@@ -477,4 +478,5 @@ export async function resetEvalLaneForSokoBot(
   await prisma.newsletterIssue.deleteMany({ where: { workspaceId } });
   await prisma.contact.deleteMany({ where: { workspaceId } });
   await sokoBotControlPlane.resetMemory(lane.userId, workspaceId);
+  await seedEvalMcpServer(lane);
 }

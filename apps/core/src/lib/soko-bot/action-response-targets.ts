@@ -68,6 +68,7 @@ export const TASK_TARGET_CAPABILITIES = new Set([
   "assign_task",
   "reply_to_task",
   "update_assigned_task",
+  "set_task_parent",
 ]);
 
 interface TaskLabel {

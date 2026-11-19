@@ -456,6 +456,11 @@ jobs:
       - name: Run Biome checks
         run: biome check .
 
+      # Required here because `Test CI config` is advisory. Plain Node, no
+      # install. Apple-only PRs get the same rule from SwiftLint.
+      - name: Check for sparkle icons
+        run: node --test scripts/ci/__tests__/no-sparkles.test.mjs
+
   typecheck:
     name: Typecheck
     needs: changes

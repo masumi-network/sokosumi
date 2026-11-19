@@ -1,4 +1,7 @@
-import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
+import {
+  getSokoBotVersion,
+  SOKO_BOT_TOOL_INPUT_SCHEMAS,
+} from "@sokosumi/soko-bot";
 import {
   createDataTableSchema,
   tableBatchSchema,
@@ -89,8 +92,12 @@ export async function dispatchTablesTools(
               },
             },
           });
+          // Cuso's owner reads CMO, where the table itself shows in the
+          // chat and a link into Sokosumi leads nowhere.
+          const linksInChat =
+            getSokoBotVersion(authorized.turn.versionId).profile !== "cmo";
           const publications = [
-            ...(turn?.chatMention
+            ...(turn?.chatMention && linksInChat
               ? [
                   {
                     capability: "post_chat" as const,

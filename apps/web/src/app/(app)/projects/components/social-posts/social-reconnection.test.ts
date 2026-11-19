@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { getSocialReconnections } from "./social-reconnection";
 
 const connection: ProjectSocialConnection = {
+  personalProfile: false,
   id: "account-1",
   provider: "x",
   status: "active",

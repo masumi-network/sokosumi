@@ -8,6 +8,7 @@ import { mountSokoBotEventRoutes } from "./events.js";
 import { sokoBotRouteGate } from "./helpers.js";
 import { mountSokoBotIntegrationAuthRoutes } from "./integration-auth.js";
 import mountGetIntegrationsCatalog from "./integrations/catalog/get.js";
+import { mountSokoBotMcpServerRoutes } from "./mcp-servers.js";
 import mountGetMySokoBotActivity, {
   mountById as mountGetSokoBotActivity,
 } from "./me/activity/get.js";
@@ -78,6 +79,7 @@ import mountUpdateMySokoBotVersion, {
 import mountCreateSokoBot, {
   mountById as mountReactivateSokoBot,
 } from "./post.js";
+import { mountSokoBotSecretRoutes } from "./secrets.js";
 import mountBrowseSokoBotSkills from "./skills/browse/get.js";
 import mountSearchSokoBotSkills from "./skills/search/get.js";
 import mountGetSokoBotTeam from "./team/get.js";
@@ -155,5 +157,7 @@ mountUpdateSokoBotVersion(app);
 mountReactivateSokoBot(app);
 mountSokoBotIntegrationByIdRoutes(app);
 mountSokoBotScheduleByIdRoutes(app);
+mountSokoBotSecretRoutes(app);
+mountSokoBotMcpServerRoutes(app);
 
 export default app;

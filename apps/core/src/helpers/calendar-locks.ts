@@ -59,24 +59,25 @@ export async function lockCalendarScope(
   return true;
 }
 
+/**
+ * Locks Task rows in id order, in one query. False when a row is gone.
+ * COLLATE "C" sorts by byte, whatever the database collation, so every
+ * caller takes the rows in the same order.
+ */
 export async function lockTaskRows(
   tx: CalendarLockClient,
   taskIds: string[],
 ): Promise<boolean> {
-  const uniqueTaskIds = [...new Set(taskIds)].sort();
-  for (const taskId of uniqueTaskIds) {
-    const task = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT id
-      FROM "task"
-      WHERE id = ${taskId}
-      FOR UPDATE
-    `;
-    if (task.length === 0) {
-      return false;
-    }
-  }
-
-  return true;
+  const uniqueTaskIds = [...new Set(taskIds)];
+  if (uniqueTaskIds.length === 0) return true;
+  const tasks = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT id
+    FROM "task"
+    WHERE id = ANY(${uniqueTaskIds}::text[])
+    ORDER BY id COLLATE "C"
+    FOR UPDATE
+  `;
+  return tasks.length === uniqueTaskIds.length;
 }
 
 export async function requireOpenCalendarProject(

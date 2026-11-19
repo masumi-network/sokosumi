@@ -13,6 +13,10 @@ interface FetchTasksOptions {
   coworkerId?: string;
   assigneeUserId?: string;
   projectId?: string;
+  /** Only this Task's sub-tasks, in checklist order. */
+  parentTaskId?: string;
+  /** Core hides sub-tasks from the list unless asked. */
+  includeSubtasks?: boolean;
   sort?: string;
   /** Total Tasks to return; omitted fetches every page. */
   take?: number;
@@ -28,10 +32,15 @@ export interface TaskFields {
   assigneeUserId?: string;
   projectId?: string | null;
   priority?: string;
+  /** The day the Task should be done by, YYYY-MM-DD. */
+  dueOn?: string;
 }
 
 interface CreateTaskData extends TaskFields {
   status?: string;
+  /** Creates a sub-task of this Task, last unless `afterTaskId` is set. */
+  parentTaskId?: string;
+  afterTaskId?: string;
 }
 
 interface CreateTaskLinkData {
@@ -79,6 +88,8 @@ function tasksPath(
   if (options.projectId) params.set("projectId", options.projectId.trim());
   if (options.assigneeUserId)
     params.set("assigneeUserId", options.assigneeUserId.trim());
+  if (options.parentTaskId) params.set("parentTaskId", options.parentTaskId);
+  if (options.includeSubtasks) params.set("includeSubtasks", "true");
   if (options.sort) params.set("sort", options.sort);
   for (const status of values(options.status)) params.append("status", status);
   if (cursor) params.set("cursor", cursor);
@@ -110,6 +121,33 @@ export async function createTask(
   const payload = taskPayload(data);
   const response = parseApiResponse(
     await client.post<unknown>(TASKS_PATH, payload, signal),
+  );
+  return { response, task: parseTask(response.data) };
+}
+
+interface MoveTaskData {
+  /** A Task attaches or re-parents; null detaches; omitted keeps the parent. */
+  parentTaskId?: string | null;
+  /** The sibling to go after; null puts it first; omitted keeps the order, or puts it last under a new parent. */
+  afterTaskId?: string | null;
+}
+
+/** Moves a Task in the sub-task tree: reorder, attach, re-parent, or detach. */
+export async function moveTask(
+  client: CoreHttpClient,
+  taskId: string,
+  data: MoveTaskData,
+  signal?: AbortSignal,
+): Promise<{ response: ApiResponse<unknown>; task: Task }> {
+  requireId(taskId, "taskId");
+  const response = parseApiResponse(
+    await client.post<unknown>(
+      `${TASKS_PATH}/${encodeURIComponent(taskId)}/move`,
+      Object.fromEntries(
+        Object.entries(data).filter(([, value]) => value !== undefined),
+      ),
+      signal,
+    ),
   );
   return { response, task: parseTask(response.data) };
 }

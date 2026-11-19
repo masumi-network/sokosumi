@@ -17,6 +17,7 @@ import {
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
+import type { ChatTable, ChatWork } from "../../lib/chat-work";
 import { productionShare, productionSteps } from "../../lib/production";
 import { strategyApproved } from "../../lib/strategy";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
@@ -24,18 +25,23 @@ import { VIEW_PATHS, type View, viewFromPath } from "../../lib/views";
 import { type AdActions, SearchAdControl } from "../ads";
 import { CusoAvatar, type Pose } from "../cuso";
 import { HowIGotHere, Working } from "../cuso-trace";
+import { LocalStamp } from "../local-day";
 import { StatusText } from "../status";
 import { type StartTopUp, skipOffer, TopUpButton, topUpOffer } from "../top-up";
 import { CalendarPage } from "./calendar-page";
 import {
   BrandBrainCard,
   type CardActions,
+  CompetitorWeekCard,
   ConnectCard,
   LearningCard,
   StrategyCard,
   UpdateCard,
 } from "./cards";
+import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
+import type { DraftActions, DraftResult, TikTokSettings } from "./draft-post";
+import { MessageText } from "./message-text";
 import {
   type AddMailingList,
   BrandBrainPage,
@@ -59,6 +65,12 @@ export interface CmoAppActions
     overview: CmoOverview | null;
     messages: CusoMessage[];
   }>;
+  /** What Cuso made, or is making, in the chat, as it stands now. */
+  loadChatWork: () => Promise<ChatWork[]>;
+  /** The full words of a file Cuso wrote or of work he handed on. */
+  loadChatWorkText: (id: string) => Promise<string | null>;
+  /** All the rows of a table Cuso made or filled. */
+  loadChatWorkTable: (id: string) => Promise<ChatTable | null>;
   sendMessage: (content: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
   loadPieceText: (entryId: string) => Promise<string | null>;
@@ -77,8 +89,23 @@ export interface CmoAppActions
     error: string | null;
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
+  /** Approve, decline or rewrite a post Cuso made outside the month. */
+  approveDraft: (
+    postId: string,
+    revision: number,
+    tikTokSettings?: TikTokSettings,
+  ) => Promise<DraftResult>;
+  readTikTokCreator: DraftActions["tikTokCreator"];
+  declineDraft: (postId: string, revision: number) => Promise<DraftResult>;
+  editDraft: (
+    postId: string,
+    revision: number,
+    text: string,
+  ) => Promise<DraftResult>;
   competitors: CompetitorActions;
   connectChannel: ConnectChannel;
+  /** Signs in again to put another account in a connection's place. */
+  changeChannel?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   addMailingList: AddMailingList;
   connectMeasurement: (
     provider: CmoOverview["measurement"][number]["provider"],
@@ -86,6 +113,8 @@ export interface CmoAppActions
   ) => Promise<{ url: string | null; error: string | null }>;
   /** Archives this Cuso and opens the hiring form; a refusal comes back as text. */
   startOver: () => Promise<string | null>;
+  /** Moves Cuso's routines to this time zone; a refusal comes back as text. */
+  setTimeZone: (timeZone: string) => Promise<string | null>;
   /** Starts the checkout for a Project top-up of this Cuso. */
   startTopUp: StartTopUp;
   /** Starts the CMO plan checkout, for a paused Cuso or from Settings. */
@@ -101,16 +130,20 @@ export interface CmoAppActions
 interface CmoAppProps {
   overview: CmoOverview;
   messages: CusoMessage[];
+  /** The pictures, videos and voice-overs Cuso started in the chat. */
+  work?: ChatWork[];
   name: string;
   email: string;
   /** Where a redirect (a channel connection) returns to. */
   initialView?: View;
-  /** The channel connection that sent the founder back did not finish. */
-  connectFailed?: boolean;
+  /** Why the channel connection that sent the founder back did not finish. */
+  connectError?: string | null;
   /** The CMO plans, for Settings' plan change; empty unless the viewer manages billing. */
   plans?: CmoSubscriptionPlan[];
   /** The person has another Cuso, for the sidebar's "Your Cusos". */
   manyCusos?: boolean;
+  /** The person may hire another Cuso (CMO is invite-only for now). */
+  mayHire?: boolean;
   actions: CmoAppActions;
 }
 
@@ -190,16 +223,19 @@ function suggestions(overview: CmoOverview): string[] {
 export function CmoApp({
   overview: initialOverview,
   messages: initialMessages,
+  work: initialWork = [],
   name,
   email,
   initialView = "chat",
-  connectFailed = false,
+  connectError = null,
   plans = [],
   manyCusos = false,
+  mayHire = false,
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
+  const [work, setWork] = useState(initialWork);
   const [view, setView] = useState<View>(initialView);
   // Each page has its own address, so reload, Back and new tabs land on it.
   const go = useCallback((next: View) => {
@@ -227,7 +263,12 @@ export function CmoApp({
   }, [initialView]);
 
   const refresh = useCallback(async () => {
-    const state = await actions.loadState().catch(() => null);
+    // On its own: the chat still shows when one of the two reads fails.
+    const [state, made] = await Promise.all([
+      actions.loadState().catch(() => null),
+      actions.loadChatWork().catch(() => null),
+    ]);
+    if (made) setWork(made);
     if (!state?.overview) return;
     setOverview(state.overview);
     setMessages(state.messages);
@@ -245,7 +286,7 @@ export function CmoApp({
     };
   }, [refresh]);
 
-  const thread = buildThread(overview, messages);
+  const thread = buildThread(overview, messages, work);
   const threadLength = thread.length;
   // What Cuso is doing sits under the thread, so it scrolls into view too.
   const working =
@@ -283,6 +324,22 @@ export function CmoApp({
     if (!error) await refresh();
     return error;
   });
+  // A refused change (the draft moved on meanwhile) shows the draft as it is now.
+  const settleDraft = async (change: Promise<DraftResult>) => {
+    const { overview: next, error } = await change;
+    if (next) setOverview(next);
+    else await refresh();
+    return error;
+  };
+  const draftActions: DraftActions = {
+    approve: (postId, revision, tikTokSettings) =>
+      settleDraft(actions.approveDraft(postId, revision, tikTokSettings)),
+    tikTokCreator: actions.readTikTokCreator,
+    decline: (postId, revision) =>
+      settleDraft(actions.declineDraft(postId, revision)),
+    edit: (postId, revision, text) =>
+      settleDraft(actions.editDraft(postId, revision, text)),
+  };
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
     revert: async (id) => setOverview(await actions.revertUpdate(id)),
@@ -294,6 +351,7 @@ export function CmoApp({
     compose,
     open: (target) => go(target),
     topUp,
+    drafts: draftActions,
   };
 
   function send(event: React.FormEvent) {
@@ -397,6 +455,8 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
+                    loadText={actions.loadChatWorkText}
+                    loadTable={actions.loadChatWorkTable}
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
@@ -447,12 +507,9 @@ export function CmoApp({
             </div>
           </>
         ) : (
-          <div className="scroll">
-            <div
-              className={
-                view === "strategy" || view === "brain" ? undefined : "page"
-              }
-            >
+          // A new element per page, so each page opens at its top.
+          <div className="scroll" key={view}>
+            <div className={view === "strategy" ? undefined : "page"}>
               {PAGE_LEADS[view] ? (
                 <PageLead
                   title={PAGE_LEADS[view].title}
@@ -468,6 +525,8 @@ export function CmoApp({
               {view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
+                  drafts={draftActions}
+                  onConnect={() => go("channels")}
                   loadText={actions.loadPieceText}
                   pieceExtra={(entry) => (
                     <>
@@ -504,6 +563,7 @@ export function CmoApp({
                 />
               ) : view === "seo" ? (
                 <SeoPage
+                  timeZone={overview.timeZone}
                   actions={{
                     ...actions,
                     connectSearchConsole: () =>
@@ -551,7 +611,8 @@ export function CmoApp({
                   connectAds={actions.connectAds}
                   addMailingList={actions.addMailingList}
                   onChange={setOverview}
-                  connectFailed={connectFailed}
+                  connectError={connectError}
+                  change={actions.changeChannel}
                   openSeo={() => go("seo")}
                   connectSearchConsole={() =>
                     actions.connectMeasurement("google_search_console", "seo")
@@ -564,6 +625,8 @@ export function CmoApp({
                   name={name}
                   email={email}
                   startOver={actions.startOver}
+                  mayHire={mayHire}
+                  setTimeZone={actions.setTimeZone}
                   signOut={actions.signOut}
                   topUp={topUp}
                   plans={plans}
@@ -635,6 +698,7 @@ function PauseButton({ pause }: { pause: () => Promise<void> }) {
 function threadKey(item: ThreadItem): string {
   if (item.kind === "message") return `m-${item.message.id}`;
   if (item.kind === "update") return `u-${item.update.id}`;
+  if (item.kind === "work") return `w-${item.work.id}`;
   return item.kind;
 }
 
@@ -644,19 +708,23 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
+  loadText,
+  loadTable,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
   openCalendar: () => void;
+  loadText: (id: string) => Promise<string | null>;
+  loadTable: (id: string) => Promise<ChatTable | null>;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
       return (
         <div className="msg">
           <span className="mav user" aria-hidden="true">
-            {initial(name)}
+            {initial(item.message.author || name)}
           </span>
           <div className="mbody">
             <MessageMeta author={item.message.author || name} at={item.at} />
@@ -665,12 +733,32 @@ function ThreadEntry({
         </div>
       );
     }
+    if (item.message.week) {
+      return (
+        <CusoSays at={item.at}>
+          <CompetitorWeekCard week={item.message.week} actions={actions} />
+        </CusoSays>
+      );
+    }
     return (
       <CusoSays at={item.at}>
-        <p className="txt">
-          {renderInline(item.message.content, webOriginOf(overview))}
-        </p>
+        <MessageText
+          content={item.message.content}
+          inline={(text) => renderInline(text, webOriginOf(overview))}
+        />
         {item.message.trace ? <HowIGotHere trace={item.message.trace} /> : null}
+      </CusoSays>
+    );
+  }
+  if (item.kind === "work") {
+    return (
+      <CusoSays at={item.at}>
+        <MadeInChat
+          work={item.work}
+          compose={actions.compose}
+          loadText={loadText}
+          loadTable={loadTable}
+        />
       </CusoSays>
     );
   }
@@ -855,27 +943,7 @@ function MessageMeta({ author, at }: { author: string; at?: string }) {
   return (
     <span className="meta">
       <b>{author}</b>
-      {at ? (
-        <time dateTime={at} suppressHydrationWarning>
-          {stamp(at)}
-        </time>
-      ) : null}
+      {at ? <LocalStamp at={at} /> : null}
     </span>
   );
-}
-
-/** "14:02" today, "Mon 5 Oct, 14:02" before. */
-function stamp(at: string): string {
-  const date = new Date(at);
-  const time = date.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (date.toDateString() === new Date().toDateString()) return time;
-  const day = date.toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  return `${day}, ${time}`;
 }

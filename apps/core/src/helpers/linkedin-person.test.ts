@@ -33,3 +33,16 @@ describe("linkedInPersonUrn", () => {
     );
   });
 });
+
+describe("linkedInAuthorUrn", () => {
+  it("posts as the Page a connection holds, and as the person otherwise", async () => {
+    const { linkedInAuthorUrn, isLinkedInPage } = await import(
+      "./linkedin-person"
+    );
+    expect(linkedInAuthorUrn("urn:li:organization:42")).toBe(
+      "urn:li:organization:42",
+    );
+    expect(linkedInAuthorUrn("9Acyt0wAkf")).toBe("urn:li:person:9Acyt0wAkf");
+    expect(isLinkedInPage("urn:li:person:9Acyt0wAkf")).toBe(false);
+  });
+});

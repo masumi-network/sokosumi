@@ -143,7 +143,7 @@ export function projectSeoProjection(
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   const metricRows: SeoMetricsProjection = {
     metrics,
-    timeline,
+    collections: new Map(),
     searchSources,
     indexSources,
     seenGroups: seenMetricGroups,
@@ -229,18 +229,40 @@ export function projectSeoProjection(
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
     // Rows come newest first, so the first strategy is the newest site audit's.
-    if (data.strategy && !strategy)
+    if (data.strategy && !strategy) {
+      const {
+        purposeOpportunity,
+        demandByIntent,
+        missingDemandByIntent,
+        ...site
+      } = data.strategy;
+      const groups = site.groups.filter(
+        (group) =>
+          !group.pageUrl || selectedUrls.has(normalizeSeoUrl(group.pageUrl)),
+      );
+      const wholeReport = data.pageUrls.every((url) =>
+        selectedUrls.has(normalizeSeoUrl(url)),
+      );
       strategy = {
-        ...data.strategy,
-        groups: data.strategy.groups.filter(
-          (group) =>
-            !group.pageUrl || selectedUrls.has(normalizeSeoUrl(group.pageUrl)),
-        ),
+        ...site,
+        groups,
+        ...(purposeOpportunity &&
+          selectedUrls.has(purposeOpportunity.pageUrl) &&
+          groups.some(
+            (group) =>
+              group.pageUrl &&
+              normalizeSeoUrl(group.pageUrl) === purposeOpportunity.pageUrl &&
+              group.lead === purposeOpportunity.keyword &&
+              group.reach === purposeOpportunity.reach,
+          ) && { purposeOpportunity }),
+        ...(wholeReport && demandByIntent && { demandByIntent }),
+        ...(wholeReport && missingDemandByIntent && { missingDemandByIntent }),
         observationId: row.id,
         observedAt: row.observedAt.toISOString(),
         countryCode: data.countryCode || null,
         languageCode: data.languageCode || null,
       };
+    }
     observations.push({
       id: row.id,
       kind: row.kind,
@@ -622,6 +644,7 @@ export function projectSeoProjection(
         status: analysis.status,
         detail: "The requested scope is frozen for this analysis.",
       });
+  timeline.push(...metricRows.collections.values());
   timeline.sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id));
   const editable = !project.closedAt && !project.closingAt;
   const indexing = indexAuditFindings(

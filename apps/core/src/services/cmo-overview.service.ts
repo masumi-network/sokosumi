@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
+import { socialProviderWorkspace } from "@/config/social-providers";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
@@ -29,6 +30,12 @@ import {
   findCusoForProject,
   listCmoChannels,
 } from "@/services/cmo-cuso.service";
+import {
+  type CmoDraft,
+  type CmoReportAttachments,
+  cmoReportAttachments,
+  listCmoDrafts,
+} from "@/services/cmo-drafts.service";
 import {
   type CmoActivity,
   type CmoWork,
@@ -116,6 +123,8 @@ export interface CmoOverview {
   onboardingStep: CmoOnboardingStep;
   /** The image or video attached to each calendar piece, viewable by URL. */
   media: CmoCalendarMedia[];
+  /** Each month post's revision by post id, for an owner's edit of its words. */
+  postRevisions: Record<string, number>;
   /** Cuso's Workspace's organization, when it is not a personal one. */
   organizationSlug: string | null;
   projectName: string;
@@ -142,6 +151,8 @@ export interface CmoOverview {
     /** The timezone "when" is in, so the next run reads the same way. */
     timezone: string | null;
   }[];
+  /** The time zone Cuso's routines run in. */
+  timeZone: string;
   roomId: string;
   /** The CMO subscription gate (`isCmoSubscribed`): false is paused. */
   subscriptionActive: boolean;
@@ -160,14 +171,16 @@ export interface CmoOverview {
   /** When a plan was first approved; a later approval does not move it. */
   hiredAt: Date | null;
   botStatus: string;
-  updates: CmoUpdateRecord[];
+  updates: (CmoUpdateRecord & CmoReportAttachments)[];
+  /** Social posts that wait for the owner's approval, newest first. */
+  drafts: CmoDraft[];
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
   upNext: CmoUpNextItem[];
   connectChannelUrl: string;
+  /** TikTok may be connected to this Cuso's Project (`socialProviderWorkspace`). */
+  tiktokEnabled: boolean;
   /** Ad providers with an active connection on Cuso's Project. */
   adProviders: string[];
-  /** Sokosumi's Ads page for Cuso's Project, where ad accounts connect. */
-  connectAdsUrl: string;
   /** Google Analytics, Search Console and Shopify, as connected to Cuso. */
   measurement: CmoMeasurementStatus[];
   /** The month's production after approval: how many pieces are made. */
@@ -271,6 +284,7 @@ export async function getCmoOverview(
         workspaceId: true,
         status: true,
         sharedRoomId: true,
+        ingestTimezone: true,
         workspace: { select: { organizationId: true } },
       },
     }),
@@ -333,15 +347,31 @@ export async function getCmoOverview(
         projectId: cuso.projectId,
         tx: prisma,
       }),
-      mayApproveMarketingStrategy(userId, {
-        id: cuso.workspaceId,
-        userId: null,
-        organizationId: payer.organizationId,
-      }),
+      mayApproveMarketingStrategy(
+        userId,
+        {
+          id: cuso.workspaceId,
+          userId: null,
+          organizationId: payer.organizationId,
+        },
+        prisma,
+        cuso.projectId,
+      ),
       readCmoBilling(cuso.projectId),
       maySkipCmoSubscription(userId, cuso.projectId),
     ]);
   const subscribed = await isCmoSubscribed(cuso);
+  const updates = await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN);
+  const [drafts, attachments] = await Promise.all([
+    listCmoDrafts(cuso.projectId),
+    cmoReportAttachments({
+      reports: updates,
+      projectId: cuso.projectId,
+      workspaceId: bot.workspaceId,
+      organizationId: bot.workspace.organizationId,
+      userId,
+    }),
+  ]);
   const mediaOf = (plan: typeof strategy) =>
     cmoCalendarMedia({
       strategy: plan,
@@ -431,6 +461,9 @@ export async function getCmoOverview(
       hasTesterCredits: billing.hasTesterCredits,
     }),
     media,
+    postRevisions: Object.fromEntries(
+      posts.map((post) => [post.entry.id, post.revision]),
+    ),
     learning,
     work,
     activity,
@@ -441,6 +474,7 @@ export async function getCmoOverview(
       project.presenterFileId && project.presenterConsentAt,
     ),
     routines,
+    timeZone: bot.ingestTimezone,
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,
     roomId: bot.sharedRoomId,
@@ -452,7 +486,12 @@ export async function getCmoOverview(
     strategyVersions,
     hiredAt,
     botStatus: bot.status,
-    updates: await listCmoReports(cuso.sokoBotId, CMO_REPORTS_SHOWN),
+    updates: updates.map((update) => ({
+      ...update,
+      posts: attachments.get(update.id)?.posts ?? [],
+      media: attachments.get(update.id)?.media ?? [],
+    })),
+    drafts,
     channels,
     upNext: cmoUpNext(
       running,
@@ -463,8 +502,10 @@ export async function getCmoOverview(
     ),
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
     connectChannelUrl: `${web}/social?projectId=${cuso.projectId}`,
+    tiktokEnabled:
+      socialProviderWorkspace(organization?.slug ?? null, cuso.workspaceId)
+        .tiktokEnabled === true,
     adProviders: [...new Set(adConnections.map((row) => row.provider))],
-    connectAdsUrl: `${web}/ads?projectId=${cuso.projectId}`,
     measurement,
     production: production.status,
     mailingListSize,

@@ -18,7 +18,9 @@ import type {
   SocialPostPublishContext,
   SocialPostPublishResult,
 } from "@/clients/social-post-providers/types";
-import { linkedInPersonUrn } from "@/helpers/linkedin-person";
+import { publishZernioPost } from "@/clients/social-post-providers/zernio-post";
+import { getZernioAccountId } from "@/clients/zernio.client";
+import { linkedInAuthorUrn } from "@/helpers/linkedin-person";
 import { downloadSocialPostMedia } from "@/helpers/social-post-media";
 import { recordCoreWarning } from "@/lib/evlog";
 import { knownKeyPaths } from "@/lib/known-key-paths";
@@ -207,6 +209,43 @@ async function registerLinkedInImage(input: {
   return assetUrn;
 }
 
+export const ZERNIO_LINKEDIN_CREATE_POST = "ZERNIO_LINKEDIN_CREATE_POST";
+
+/**
+ * Publishes as the Page or profile the owner picked at sign-in: the Zernio
+ * account is that one identity. LinkedIn takes one video or up to twenty images.
+ */
+async function publishZernioLinkedInPost(
+  context: SocialPostPublishContext,
+  accountId: string,
+): Promise<SocialPostPublishResult> {
+  const video = context.media.find((ref) => ref.kind === "video");
+  const media = video ? [video] : context.media;
+  const firstComment = context.firstComment?.trim();
+  const published = await publishZernioPost({
+    context,
+    accountId,
+    platform: "linkedin",
+    urlHost: /(^|\.)linkedin\.com$/i,
+    toolSlug: ZERNIO_LINKEDIN_CREATE_POST,
+    refused: "LinkedIn refused the post",
+    body: {
+      content: context.text,
+      ...(media.length > 0 && {
+        mediaItems: media.map((ref) => ({ type: ref.kind, url: ref.fileUrl })),
+      }),
+      platforms: [
+        {
+          platform: "linkedin",
+          accountId,
+          ...(firstComment && { platformSpecificData: { firstComment } }),
+        },
+      ],
+    },
+  });
+  return { ...published, firstCommentIncluded: Boolean(firstComment) };
+}
+
 /**
  * Publishes a LinkedIn post through a restricted tool-router session pinned to
  * the connected person. Images are registered and uploaded as assets; a video
@@ -216,6 +255,9 @@ export async function publishLinkedInPost(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("linkedin");
+  const zernioAccountId = getZernioAccountId(context.connectedAccountId);
+  if (zernioAccountId)
+    return publishZernioLinkedInPost(context, zernioAccountId);
   const sessionId = await createComposioToolSession({
     toolkitSlug: "linkedin",
     connectedAccountId: context.connectedAccountId,
@@ -224,7 +266,7 @@ export async function publishLinkedInPost(
     context: "create Project LinkedIn publish session",
     signal: context.signal,
   });
-  const author = linkedInPersonUrn(context.externalAccountId);
+  const author = linkedInAuthorUrn(context.externalAccountId);
   try {
     const video = context.media.find((ref) => ref.kind === "video");
     let response: Record<string, unknown> | null;

@@ -2196,7 +2196,8 @@ function SenderFace({
         avatarCode={sender.avatarCode}
         avatarState={streaming ? "working" : "idle"}
         avatarSize={orbSize / 2}
-        className={cn("ring-border ring-1", className)}
+        // A live avatar is a picture, never the orb, so it gets no ring.
+        className={className}
       />
     );
   }
@@ -2256,7 +2257,7 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-foreground press underline underline-offset-4 -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-foreground press underline-offset-4 -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
         // second mark to a row that already carries reactions. The rule
@@ -2302,13 +2303,18 @@ function ThreadReplyBar({
           })}
         </span>
       ) : null}
-      <span>{countLabel}</span>
+      {/* Underline on the count and age only: on the button it ran under
+          the "·" too, which read as a third link. */}
+      <span className="underline">{countLabel}</span>
       {message.threadLastReplyAt ? (
         <>
           <span aria-hidden className="text-muted-foreground font-normal">
             ·
           </span>
-          <span id={ageId} className="text-muted-foreground font-normal">
+          <span
+            id={ageId}
+            className="text-muted-foreground font-normal underline"
+          >
             {format.relativeTime(message.threadLastReplyAt, {
               now,
               style: "narrow",
@@ -2362,9 +2368,9 @@ function MessageMetaFooter({
                       reaction.reactedByCurrentUser &&
                         "border-border bg-muted text-foreground",
                     )}
-                    aria-label={t("Reactions.toggle", {
-                      emoji: reaction.emoji,
-                    })}
+                    // Named by what it shows (emoji and count); pressed
+                    // when tapping it again takes the reader's reaction back.
+                    aria-pressed={reaction.reactedByCurrentUser}
                   >
                     <span className="text-sm leading-none">
                       {reaction.emoji}

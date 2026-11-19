@@ -156,8 +156,38 @@ const shot = (url: string) => ({
 export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
   capturedAt: "2026-10-05T09:02:00Z",
   pages: [
-    { ...shot("/cuso/walking.png"), label: "Home", device: "desktop" },
-    { ...shot("/cuso/walking.png"), label: "Home", device: "mobile" },
+    {
+      ...shot("/cuso/walking.png"),
+      label: "Home",
+      device: "desktop",
+      fullUrl: null,
+    },
+    {
+      ...shot("/cuso/walking.png"),
+      label: "Home",
+      device: "mobile",
+      fullUrl: null,
+    },
+    {
+      ...shot("/cuso/thinking.png"),
+      label: "Pricing",
+      device: "desktop",
+      fullUrl: null,
+    },
+  ],
+  sections: [
+    {
+      ...shot("/cuso/pointing.png"),
+      kind: "pricing",
+      title: "Plans for every launch",
+      pageLabel: "Pricing",
+    },
+    {
+      ...shot("/cuso/thumbs-up.png"),
+      kind: "testimonials",
+      title: "What mission leads say",
+      pageLabel: "Home",
+    },
   ],
   competitors: [{ ...shot("/cuso/searching.png"), name: "Moonshot" }],
   pictures: [],
@@ -306,21 +336,62 @@ export const richPlan: Strategy = {
     {
       stage: "awareness",
       name: "Hear about us",
-      goal: "Teams see a launch story",
-      channels: ["linkedin"],
+      goal: "Product teams see a real launch story",
+      channels: ["linkedin", "x"],
+      owner: "cuso",
+      plays: [
+        {
+          channel: "linkedin",
+          what: "Launch stories told by the engineers who shipped them",
+          cadence: "3 a week",
+        },
+        {
+          channel: "x",
+          what: "One launch lesson a day, in a short thread",
+          cadence: "Daily",
+        },
+      ],
       metric: "Profile visits",
+      measure: { value: "About 400 a month", basis: "estimated" },
     },
     {
       stage: "consideration",
       name: "Look closer",
-      goal: "Teams read how it works",
-      channels: ["linkedin", "x"],
+      goal: "They read how a brief becomes a launch",
+      channels: ["linkedin", "newsletter"],
+      owner: "cuso",
+      plays: [
+        {
+          channel: "linkedin",
+          what: "Walk through one launch from brief to release",
+          cadence: "Weekly",
+        },
+        {
+          channel: "newsletter",
+          what: "The month's launches, with what each one changed",
+          cadence: "Monthly",
+        },
+      ],
       metric: "Site visits",
+      measure: {
+        value: "1,240 a month",
+        basis: "measured",
+        source: "Google Analytics",
+      },
     },
     {
       stage: "conversion",
       name: "Start a trial",
-      goal: "Teams try it",
+      goal: "They start the 14-day trial",
+      channels: ["meta_ads"],
+      owner: "shared",
+      plays: [
+        {
+          channel: "meta_ads",
+          what: "Trial ads to people who read a launch story",
+          cadence: "Always on",
+        },
+      ],
       metric: "Trial starts",
       target: "20 a month",
     },

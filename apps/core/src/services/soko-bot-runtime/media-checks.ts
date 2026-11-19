@@ -36,11 +36,15 @@ import {
   validateVideoSettings,
 } from "@/lib/image-studio/video-model";
 import { sokoBotProjectRefusal } from "@/lib/soko-bot/write-scope";
-import { REFERENCE_STYLE_MODELS } from "@/services/cmo-media-maker.service";
+import {
+  MAX_STYLE_BRAND_PICTURES,
+  REFERENCE_STYLE_MODELS,
+} from "@/services/cmo-media-maker.service";
 import { getJob } from "@/services/image-studio-assets.service";
 import {
   DEFAULT_SETTINGS,
   type ImageJobSettings,
+  talkingVideoShowsSite,
 } from "@/services/image-studio-jobs.service";
 import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import {
@@ -160,26 +164,37 @@ export async function checkImageRequest(
     ...(model.outputFormats.includes("jpeg") ? { outputFormat: "jpeg" } : {}),
     ...(aspectRatio.data ? { aspectRatio: aspectRatio.data } : {}),
   };
+  // A styled picture sends its reference before the brand's own pictures.
+  const references = referenceFileIds.length + (style ? 1 : 0);
   let credits: number;
+  // A picture the style check turns down is made again on a dearer model
+  // without another question, so the allowance has to cover that try too.
+  let dearestTry: number;
   try {
     credits = creditsPerImage(
       model,
-      resolveImageSettings(
-        model.id,
-        settings,
-        style ? 1 : referenceFileIds.length,
-      ),
+      resolveImageSettings(model.id, settings, references),
     );
+    dearestTry = style
+      ? Math.max(
+          ...REFERENCE_STYLE_MODELS.map((id) =>
+            creditsPerImage(
+              botImageModel(id),
+              resolveImageSettings(id, settings, references),
+            ),
+          ),
+        )
+      : credits;
   } catch (error) {
     throw new SokoBotRuntimeValidationError(
       error instanceof Error ? error.message : "Invalid image settings",
     );
   }
-  if (credits > input.maxCredits)
+  if (dearestTry > input.maxCredits)
     throw new SokoBotRuntimeValidationError(
       style
         ? // The owner asked for the picture, and a month's pictures cost the same.
-          `A picture in a library style costs ${credits} credits a try, more than the ${input.maxCredits} allowed. Call generate_image again with maxCredits ${Math.ceil(credits)}.`
+          `A picture in a library style costs ${credits} credits, and up to ${dearestTry} when a stronger model has to make it again, more than the ${input.maxCredits} allowed. Call generate_image again with maxCredits ${Math.ceil(dearestTry)}.`
         : `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
     );
   return { input, model, settings, credits, referenceFileIds, style };
@@ -188,8 +203,9 @@ export async function checkImageRequest(
 /**
  * The reference library style of a picture Cuso makes in chat. A picture
  * for a post or an ad goes the way a month's pictures do: in the look of a
- * reference, checked, with the brand's logo. Cuso leaves the style out only
- * for the owner's own photo (referenceFileIds) or a model the owner named.
+ * reference, checked, with the brand's logo; the brand's own page, screen or
+ * product (referenceFileIds) is set inside the style. Cuso leaves the style
+ * out only for a model the owner named.
  * No other bot has styles, and nothing changes where there is no library.
  */
 async function cmoPictureStyle(
@@ -203,14 +219,9 @@ async function cmoPictureStyle(
       throw new SokoBotRuntimeValidationError(
         "headline belongs to a styled picture: pass styleReferenceId with it, or leave it out.",
       );
-    if (
-      cuso &&
-      referenceLibraryAvailable() &&
-      referenceFileIds.length === 0 &&
-      !input.model
-    )
+    if (cuso && referenceLibraryAvailable() && !input.model)
       throw new SokoBotRuntimeValidationError(
-        "A picture for a post or an ad takes the look of an old print. Call find_style_references with what the picture is about, then generate_image again with styleReferenceId (an id it returned) and, when the picture should carry words, headline (at most six). Only for the owner's own photo or a real product shot pass referenceFileIds instead; only when the owner asked for a plain picture or named a model pass model.",
+        "A picture for a post or an ad takes the look of an old print. Call find_style_references with what the picture is about, then generate_image again with styleReferenceId (an id it returned) and, when the picture should carry words, headline (at most six). When the picture shows the brand's real page, screen, product or the owner's photo, keep that picture in referenceFileIds: Core sets it inside the style. Only when the owner asked for a plain picture or named a model pass model.",
       );
     return null;
   }
@@ -222,9 +233,13 @@ async function cmoPictureStyle(
     throw new SokoBotRuntimeValidationError(
       "The reference library is not set up here: leave styleReferenceId and headline out.",
     );
-  if (referenceFileIds.length > 0 || input.model)
+  if (input.model)
     throw new SokoBotRuntimeValidationError(
-      "A styled picture takes no referenceFileIds and no model: Core makes it from the style reference alone. Leave them out, or leave styleReferenceId out.",
+      "A styled picture takes no model: Core picks it. Leave model out, or leave styleReferenceId out.",
+    );
+  if (referenceFileIds.length > MAX_STYLE_BRAND_PICTURES)
+    throw new SokoBotRuntimeValidationError(
+      `A styled picture shows at most ${MAX_STYLE_BRAND_PICTURES} of the brand's own pictures: pass only the page, screen or product it must show.`,
     );
   const reference = await prisma.referenceImage.findUnique({
     where: { id: input.styleReferenceId },
@@ -395,12 +410,17 @@ export async function checkTalkingVideoRequest(
   if (posesAsCustomerTestimonial(input.script))
     throw new SokoBotRuntimeValidationError(TALKING_VIDEO_TESTIMONIAL_MESSAGE);
   const model = talkingVideoModel();
-  const credits = creditsPerTalkingVideo(model, input.script);
+  const extras = {
+    siteShots: await talkingVideoShowsSite(input.projectId),
+    broll: input.broll === true,
+    music: input.music === true,
+  };
+  const credits = creditsPerTalkingVideo(model, input.script, extras);
   if (credits > input.maxCredits) {
     let fits = input.script.length;
     while (
       fits > 0 &&
-      creditsPerTalkingVideo(model, "x".repeat(fits)) > input.maxCredits
+      creditsPerTalkingVideo(model, "x".repeat(fits), extras) > input.maxCredits
     )
       fits--;
     throw new SokoBotRuntimeValidationError(

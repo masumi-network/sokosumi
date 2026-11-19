@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
-import type { Prisma } from "@sokosumi/database";
+import { Prisma } from "@sokosumi/database";
+import { cmoSearchAdSchema } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { fetchKeywordIdeas, type KeywordIdea } from "@/lib/ads/dataforseo";
 import prisma from "@/lib/db/prisma";
+import { pageOpening } from "@/lib/seo/landing-page-check";
 import { gscPropertyCovers } from "@/lib/seo/native-gsc-property";
 import {
   GSC_STATS_TOOL,
@@ -20,6 +22,7 @@ import {
   type CmoSeoSuggestion,
   cmoSeoEvidenceSchema,
 } from "@/schemas/cmo-seo.schema";
+import { comparisonSearchVolume } from "@/services/cmo-competitor-keywords.service";
 import {
   CmoConflictError,
   CmoNotFoundError,
@@ -29,9 +32,16 @@ import {
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
+  type CmoSeoLandingPageInput,
+  checkCmoLandingPage,
+  landingPageSources,
+} from "@/services/cmo-seo-landing-pages.service";
+import { testCopySourceBotId } from "@/services/cmo-test-copy.service";
+import {
   type ComposioIntegrationAccount,
   composioEntityId,
 } from "@/services/composio-integration-tools.service";
+import { approvedMarketingStrategy } from "@/services/marketing-strategy.service";
 import {
   propertyChoices,
   readNativeSeoTool,
@@ -133,8 +143,10 @@ const gscRowsSchema = z.object({
 // ---------------------------------------------------------------------------
 
 async function searchConsoleAccount(
-  sokoBotId: string,
+  cusoBotId: string,
 ): Promise<ComposioIntegrationAccount | null> {
+  // A test copy reads its source's Search Console (ADR 0073).
+  const sokoBotId = (await testCopySourceBotId(cusoBotId)) ?? cusoBotId;
   const row = await prisma.sokoBotIntegration.findUnique({
     where: { sokoBotId_provider: { sokoBotId, provider: GSC_PROVIDER } },
     select: { status: true, composioAccountId: true },
@@ -538,12 +550,24 @@ async function keywordEvidence(
         observedAt: at,
       });
   }
+  // A search that names a competitor is read with the competitors' searches.
+  const compared = idea
+    ? null
+    : await comparisonSearchVolume(projectId, keyword);
+  if (compared)
+    evidence.push({
+      ...base,
+      metric: "searchVolume",
+      value: intOf(compared.searchVolume),
+      source: "keyword_research",
+      observedAt: compared.observedAt.toISOString(),
+    });
   const audited = audit?.payload.keywords.find(
     (item) => normalizeKeyword(item.keyword) === wanted,
   );
   if (audit && audited) {
     const at = audit.observedAt.toISOString();
-    if (!idea && audited.volume != null)
+    if (!idea && !compared && audited.volume != null)
       evidence.push({
         ...base,
         metric: "searchVolume",
@@ -671,8 +695,13 @@ async function seedAuditPageChanges(projectId: string): Promise<void> {
   const audit = await latestCmoSeoAudit(projectId);
   if (!audit) return;
   const at = audit.observedAt.toISOString();
+  const rowIdOf = new Map(
+    audit.payload.findings.map((finding) => [finding.id, finding.rowId]),
+  );
   for (const action of audit.payload.actions) {
-    const rowIds = action.findingIds.map((id) => id.split(":")[0]);
+    // A report of several pages prefixes its finding ids with the page's index.
+    const rowIds = action.findingIds.flatMap((id) => rowIdOf.get(id) ?? []);
+    if (rowIds.length === 0) continue;
     const key = auditSuggestionKey(action.pageUrl, rowIds);
     const findings = audit.payload.findings.filter(
       (finding) =>
@@ -717,7 +746,10 @@ function toSuggestion(
   const evidence = z.array(cmoSeoEvidenceSchema).safeParse(row.evidence);
   return {
     id: row.id,
-    kind: row.kind === "article" ? "article" : "page_change",
+    kind:
+      row.kind === "article" || row.kind === "landing_page"
+        ? row.kind
+        : "page_change",
     source: row.source === "audit" ? "audit" : "cuso",
     title: row.title,
     keyword: row.keyword,
@@ -726,6 +758,7 @@ function toSuggestion(
     body: row.body,
     newText: row.newText,
     draft: row.draft,
+    sources: row.kind === "landing_page" ? landingPageSources(row.body) : [],
     evidence: evidence.success ? evidence.data : [],
     status: (["open", "done", "verified", "dismissed"] as const).find(
       (status) => status === row.status,
@@ -774,10 +807,18 @@ export async function saveCmoSeoSuggestions(
   input: {
     articles?: z.infer<typeof cmoSeoArticleInputSchema>[];
     pageChanges?: z.infer<typeof cmoSeoPageChangeInputSchema>[];
+    landingPages?: CmoSeoLandingPageInput[];
   },
-): Promise<{ saved: Array<{ id: string; title: string }>; refused: string[] }> {
+): Promise<{
+  saved: Array<{ id: string; title: string }>;
+  refused: string[];
+  /** What checking the landing pages cost. */
+  costUsd: number;
+}> {
   const articles = input.articles ?? [];
   const pageChanges = input.pageChanges ?? [];
+  const landingPages = input.landingPages ?? [];
+  let costUsd = 0;
   if (articles.length + pageChanges.length > CMO_SEO_SUGGESTIONS_PER_SAVE)
     throw new CmoConflictError(
       `Save at most ${CMO_SEO_SUGGESTIONS_PER_SAVE} suggestions at once.`,
@@ -787,13 +828,41 @@ export async function saveCmoSeoSuggestions(
   });
   const saved: Array<{ id: string; title: string }> = [];
   const refused: string[] = [];
-  const existing = async (id: string | undefined, kind: string) =>
-    id
-      ? prisma.projectSeoSuggestion.findFirst({
-          where: { id, projectId: cuso.projectId, kind },
-          select: { id: true },
-        })
-      : null;
+  let added = 0;
+  /**
+   * Where a suggestion goes: the row Cuso named or the one with its key, a
+   * new row, or nowhere, with the reason for Cuso.
+   */
+  const place = async (
+    suggestion: { id?: string; title: string },
+    kind: string,
+    key: string,
+  ): Promise<{ id: string | null } | { refusal: string }> => {
+    const select = { id: true, status: true } as const;
+    const row =
+      (suggestion.id
+        ? await prisma.projectSeoSuggestion.findFirst({
+            where: { id: suggestion.id, projectId: cuso.projectId, kind },
+            select,
+          })
+        : null) ??
+      (await prisma.projectSeoSuggestion.findUnique({
+        where: { projectId_key: { projectId: cuso.projectId, key } },
+        select,
+      }));
+    // read_seo hides what the owner skipped, so Cuso cannot know.
+    if (row?.status === "dismissed")
+      return {
+        refusal: `"${suggestion.title}": the owner skipped this one, so it was not saved. Suggest something else.`,
+      };
+    if (row) return { id: row.id };
+    if (open + added >= OPEN_SUGGESTIONS_MAX)
+      return {
+        refusal: `"${suggestion.title}": the list already holds ${OPEN_SUGGESTIONS_MAX} open suggestions.`,
+      };
+    added += 1;
+    return { id: null };
+  };
   for (const article of articles) {
     const evidence = await keywordEvidence(cuso.projectId, article.keyword);
     if (!evidence.some((item) => item.metric !== "intent")) {
@@ -810,29 +879,25 @@ export async function saveCmoSeoSuggestions(
       evidence,
       ...(article.draft ? { draft: article.draft } : {}),
     };
-    const update = await existing(article.id, "article");
-    if (!update && open + saved.length >= OPEN_SUGGESTIONS_MAX) {
-      refused.push(
-        `"${article.title}": the list already holds ${OPEN_SUGGESTIONS_MAX} open suggestions.`,
-      );
+    const key = `article:${normalizeKeyword(article.keyword)}`;
+    const placed = await place(article, "article", key);
+    if ("refusal" in placed) {
+      refused.push(placed.refusal);
       continue;
     }
-    const key = `article:${normalizeKeyword(article.keyword)}`;
-    const row = update
+    const row = placed.id
       ? await prisma.projectSeoSuggestion.update({
-          where: { id: update.id },
+          where: { id: placed.id },
           data,
         })
-      : await prisma.projectSeoSuggestion.upsert({
-          where: { projectId_key: { projectId: cuso.projectId, key } },
-          create: {
+      : await prisma.projectSeoSuggestion.create({
+          data: {
             projectId: cuso.projectId,
             kind: "article",
             key,
             source: "cuso",
             ...data,
           },
-          update: data,
         });
     saved.push({ id: row.id, title: row.title });
   }
@@ -864,27 +929,140 @@ export async function saveCmoSeoSuggestions(
       keyword: change.keyword ?? null,
       evidence,
     };
-    const update = await existing(change.id, "page_change");
     const key = `page:${normalizeSeoUrl(change.pageUrl)}:${hash(normalizeKeyword(change.title))}`;
-    const row = update
+    const placed = await place(change, "page_change", key);
+    if ("refusal" in placed) {
+      refused.push(placed.refusal);
+      continue;
+    }
+    const row = placed.id
       ? await prisma.projectSeoSuggestion.update({
-          where: { id: update.id },
+          where: { id: placed.id },
           data,
         })
-      : await prisma.projectSeoSuggestion.upsert({
-          where: { projectId_key: { projectId: cuso.projectId, key } },
-          create: {
+      : await prisma.projectSeoSuggestion.create({
+          data: {
             projectId: cuso.projectId,
             kind: "page_change",
             key,
             source: "cuso",
             ...data,
           },
-          update: data,
         });
     saved.push({ id: row.id, title: row.title });
   }
-  return { saved, refused };
+  for (const page of landingPages) {
+    const title = pageOpening(page.draft).heading ?? page.keyword;
+    const evidence = await keywordEvidence(cuso.projectId, page.keyword);
+    if (!evidence.some((item) => item.metric === "searchVolume")) {
+      refused.push(
+        `"${title}": no measured searches for "${page.keyword}". Use a search research_competitor_keywords returned, spelled the same.`,
+      );
+      continue;
+    }
+    const checked = await checkCmoLandingPage(cuso, page);
+    costUsd += checked.costUsd;
+    if (checked.problems.length > 0) {
+      refused.push(`"${title}": ${checked.problems.join(" ")}`);
+      continue;
+    }
+    const data = {
+      title,
+      keyword: page.keyword,
+      why: page.why,
+      body: JSON.stringify(page.claims),
+      draft: page.draft,
+      evidence,
+    };
+    const key = `landing:${normalizeKeyword(page.keyword)}`;
+    const placed = await place({ id: page.id, title }, "landing_page", key);
+    if ("refusal" in placed) {
+      refused.push(placed.refusal);
+      continue;
+    }
+    const row = placed.id
+      ? await prisma.projectSeoSuggestion.update({
+          where: { id: placed.id },
+          data,
+        })
+      : await prisma.projectSeoSuggestion.create({
+          data: {
+            projectId: cuso.projectId,
+            kind: "landing_page",
+            key,
+            source: "cuso",
+            ...data,
+          },
+        });
+    saved.push({ id: row.id, title: row.title });
+  }
+  return { saved, refused, costUsd };
+}
+
+/**
+ * The owner published a landing page: it is done at that address, and every
+ * search ad on its search that is not launched yet sends people there. A
+ * launched ad keeps its address; changing a running campaign stays a
+ * deliberate step.
+ */
+export async function markCmoLandingPageLive(
+  target: CusoTarget,
+  id: string,
+  url: string,
+  now: Date = new Date(),
+): Promise<{
+  page: CmoSeoSuggestion;
+  adsUpdated: number;
+  adsLaunched: number;
+}> {
+  const cuso = await requireCuso(target);
+  const row = await prisma.projectSeoSuggestion.findFirst({
+    where: { id, projectId: cuso.projectId, kind: "landing_page" },
+  });
+  if (!row) throw new CmoNotFoundError("Landing page not found");
+  if (!sameHost(url, cuso.websiteUrl))
+    throw new CmoConflictError(
+      `That address is not on ${new URL(cuso.websiteUrl).hostname}. Paste the page's address on your own site.`,
+    );
+  const search = normalizeKeyword(row.keyword ?? "");
+  const approved = await approvedMarketingStrategy(cuso.projectId);
+  const ads = approved
+    ? (
+        await prisma.marketingStrategyFile.findMany({
+          where: {
+            marketingStrategyId: approved.id,
+            searchAd: { not: Prisma.DbNull },
+          },
+          select: { id: true, searchAd: true, adCampaignId: true },
+        })
+      ).flatMap((file) => {
+        const ad = cmoSearchAdSchema.safeParse(file.searchAd);
+        return ad.success &&
+          ad.data.keywords.some(
+            (keyword) => normalizeKeyword(keyword) === search,
+          )
+          ? [{ ...file, ad: ad.data }]
+          : [];
+      })
+    : [];
+  const waiting = ads.filter((file) => !file.adCampaignId);
+  const [page] = await prisma.$transaction([
+    prisma.projectSeoSuggestion.update({
+      where: { id },
+      data: { pageUrl: url, status: "done", doneAt: now },
+    }),
+    ...waiting.map((file) =>
+      prisma.marketingStrategyFile.update({
+        where: { id: file.id },
+        data: { searchAd: { ...file.ad, finalUrl: url } },
+      }),
+    ),
+  ]);
+  return {
+    page: toSuggestion(page),
+    adsUpdated: waiting.length,
+    adsLaunched: ads.length - waiting.length,
+  };
 }
 
 export async function setCmoSeoSuggestionStatus(
@@ -944,6 +1122,7 @@ export async function readCmoSeo(
     searchConsole,
     articles: all.filter((item) => item.kind === "article"),
     pageChanges: all.filter((item) => item.kind === "page_change"),
+    landingPages: all.filter((item) => item.kind === "landing_page"),
     keywordSearches: searches.map((search) => ({
       topic: search.topic,
       countryCode: search.countryCode,

@@ -197,6 +197,18 @@ describe("thread reply bar", () => {
     ).toEqual(["G", "A", "L"]);
   });
 
+  // An underline on the button runs under every child, the "·" included, and
+  // reads as three links. Only the count and the age carry it.
+  it("underlines the count and the age but not the dot between them", () => {
+    renderRow({ threadReplyCount: 1, threadUnreadReplyCount: 0 });
+
+    const bar = screen.getByRole("button", { name: "1 reply" });
+    expect(bar).not.toHaveClass("underline");
+    expect(within(bar).getByText("1 reply")).toHaveClass("underline");
+    expect(within(bar).getByText("4m ago")).toHaveClass("underline");
+    expect(within(bar).getByText("·")).not.toHaveClass("underline");
+  });
+
   // The parent author is on the row already; the faces are who replied.
   it("leaves the parent author out until they reply", () => {
     renderRow({

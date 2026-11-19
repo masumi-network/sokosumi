@@ -23,10 +23,12 @@ import {
   type Cuso,
   cmoPayer,
   cmoRunnerUserId,
+  LIVE_CUSO_WHERE,
 } from "@/services/cmo-cuso.service";
 import { addProjectSeoPage } from "@/services/project-seo.service";
 import { createProjectSeoMonitor } from "@/services/project-seo-monitor.service";
 import { normalizeSeoUrl } from "@/services/project-seo-store";
+import { testCopyFamilyProjectIds } from "@/services/project-test-copy";
 import {
   changeTaskScheduleRun,
   changeTaskScheduleState,
@@ -48,8 +50,13 @@ const WEEKLY_AUDIT_RULE = {
 const SKIP_WINDOW_MS = 60 * 60 * 1000;
 /** A new Cuso gets his first audit at once unless the weekly Run is this close. */
 const FIRST_AUDIT_GAP_MS = 2 * 24 * 60 * 60 * 1000;
+/** A test copy starts no audit while its family had one this recently (ADR 0073). */
+const TEST_COPY_AUDIT_GAP_MS = 7 * 24 * 60 * 60 * 1000;
+/** Monitors `cmoSeoMonitors` reads per Project, so the generations a Project can have. */
+const MONITORS_READ = 20;
 const ISSUE_SEVERITIES = ["critical", "major", "minor"] as const;
 const TOP_ISSUES = 6;
+const TOP_READINGS = 12;
 const TOP_FIXES = 5;
 const PAGE_BYTES = 2 * 1024 * 1024;
 
@@ -64,7 +71,7 @@ async function cmoSeoMonitors(projectId: string) {
       description: { startsWith: "seo_monitor: " },
     },
     orderBy: { createdAt: "desc" },
-    take: 20,
+    take: MONITORS_READ,
   });
   return schedules.filter(
     (schedule) =>
@@ -155,6 +162,9 @@ export async function keepCmoSeoAudit(
     return;
   }
   if (!live) {
+    // A daily test copy audits the same site as its source: one audit a week
+    // for all of them, and the copy reads that one (`latestCmoSeoAudit`).
+    if (await testCopyAuditedSince(cuso.projectId, now)) return;
     const page = await cmoSeoHomePage(cuso, actor);
     const market = await cmoSeoMarket(cuso);
     // Short of 750 credits: no monitor yet; a later sync starts it once they cover a week.
@@ -196,12 +206,81 @@ export async function keepCmoSeoAudit(
   await skipUnaffordableWeek(live, actor, vars, now);
 }
 
+/**
+ * Whether the Project is a test copy whose source, or another copy of it,
+ * had a full audit in the last week that did not fail.
+ */
+async function testCopyAuditedSince(
+  projectId: string,
+  now: Date,
+): Promise<boolean> {
+  const family = await testCopyFamilyProjectIds(projectId);
+  if (!family) return false;
+  const audit = await prisma.projectSeoAnalysis.findFirst({
+    where: {
+      projectId: { in: family },
+      kind: "audit_full",
+      status: { not: "failed" },
+      createdAt: { gte: new Date(now.getTime() - TEST_COPY_AUDIT_GAP_MS) },
+    },
+    select: { id: true },
+  });
+  return audit !== null;
+}
+
 /** A stable UUID per Project and monitor generation, so a retried sync makes one monitor. */
 function operationIdFor(projectId: string, generation: number): string {
   const hex = createHash("sha256")
     .update(`cmo-seo-weekly:${projectId}:${generation}`)
     .digest("hex");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-8${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * A Cuso that was let go (archived or deleted) leaves the production sync, so
+ * `keepCmoSeoAudit` never pauses his weekly audit and it would go on charging
+ * the organization 750 credits a week. This pauses the monitors CMO made
+ * (known by their operation id) in Projects without a live Cuso; a monitor a
+ * person made in the same Project stays theirs. A Cuso hired again for the
+ * Project resumes it.
+ */
+export async function pauseCmoSeoAuditsWithoutCuso(): Promise<number> {
+  const { executor } = getSeoAnalysisExecution();
+  if (!executor) return 0;
+  const orphans = await prisma.taskSchedule.findMany({
+    where: {
+      state: "ACTIVE",
+      assigneeId: executor.coworkerId,
+      description: { startsWith: "seo_monitor: " },
+      ownerId: { not: null },
+      organizationId: { not: null },
+      project: { sokoBots: { none: LIVE_CUSO_WHERE } },
+    },
+    select: {
+      id: true,
+      projectId: true,
+      workspaceId: true,
+      ownerId: true,
+      organizationId: true,
+      createOperation: { select: { operationId: true } },
+    },
+  });
+  let paused = 0;
+  for (const schedule of orphans) {
+    const { projectId, ownerId, organizationId, createOperation } = schedule;
+    if (!projectId || !ownerId || !organizationId || !createOperation) continue;
+    const madeByCmo = Array.from({ length: MONITORS_READ }, (_, generation) =>
+      operationIdFor(projectId, generation),
+    ).includes(createOperation.operationId);
+    if (!madeByCmo) continue;
+    await changeTaskScheduleState(
+      runnerVars(schedule.workspaceId, ownerId, organizationId),
+      schedule.id,
+      "pause",
+    );
+    paused += 1;
+  }
+  return paused;
 }
 
 async function skipUnaffordableWeek(
@@ -243,12 +322,20 @@ async function skipUnaffordableWeek(
   });
 }
 
-/** The latest weekly audit of the Project, as its stored report. */
+/**
+ * The latest weekly audit of the Project, as its stored report. A test copy
+ * reads the latest of its family: the same site, audited once a week.
+ */
 export async function latestCmoSeoAudit(
   projectId: string,
 ): Promise<{ id: string; observedAt: Date; payload: PublicSeoPayload } | null> {
+  const family = await testCopyFamilyProjectIds(projectId);
   const row = await prisma.projectSeoObservation.findFirst({
-    where: { projectId, kind: "audit_full", ownerId: null },
+    where: {
+      projectId: family ? { in: family } : projectId,
+      kind: "audit_full",
+      ownerId: null,
+    },
     orderBy: { observedAt: "desc" },
     select: { id: true, observedAt: true, payload: true },
   });
@@ -264,21 +351,34 @@ export function cmoAuditSummary(
   observedAt: Date,
   payload: PublicSeoPayload,
 ): NonNullable<CmoSeoAudit["latest"]> {
-  const seen = new Set<string>();
-  const issues = payload.findings
+  const findingKey = (finding: { rowId: string; pageUrl: string }) =>
+    `${finding.rowId}|${normalizeSeoUrl(finding.pageUrl)}`;
+  const isIssue = (severity: string) =>
+    ISSUE_SEVERITIES.some((known) => known === severity);
+  // One rule on a phone and on a desktop is one thing to read.
+  const once = (findings: PublicSeoPayload["findings"]) => {
+    const seen = new Set<string>();
+    return findings.filter((finding) => {
+      const key = findingKey(finding);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const found = payload.findings.filter((finding) => isIssue(finding.severity));
+  const issues = once(found)
     .flatMap((finding) => {
       const severity = ISSUE_SEVERITIES.find((s) => s === finding.severity);
-      const key = `${finding.rowId}|${normalizeSeoUrl(finding.pageUrl)}`;
-      if (!severity || seen.has(key)) return [];
-      seen.add(key);
-      return [
-        {
-          title: finding.title,
-          pageUrl: finding.pageUrl,
-          severity,
-          detail: finding.evidence[0] ?? null,
-        },
-      ];
+      return severity
+        ? [
+            {
+              title: finding.title,
+              pageUrl: finding.pageUrl,
+              severity,
+              detail: finding.evidence[0] ?? null,
+            },
+          ]
+        : [];
     })
     .sort(
       (a, b) =>
@@ -289,11 +389,29 @@ export function cmoAuditSummary(
   const ran = payload.checks.filter(
     (check) => check.result === "pass" || check.result === "fired",
   );
+  // A check that did not pass either found something to fix or only recorded
+  // a value (a title's length, a position): the second kind is no problem.
+  const issueKeys = new Set(found.map(findingKey));
+  const fired = ran.filter((check) => check.result === "fired");
+  const failedChecks = fired.filter((check) =>
+    issueKeys.has(findingKey(check)),
+  ).length;
   return {
     observedAt: observedAt.toISOString(),
     checked: ran.length,
-    passed: ran.filter((check) => check.result === "pass").length,
+    passed: ran.length - fired.length,
+    failedChecks,
+    readingChecks: fired.length - failedChecks,
     issues,
+    readings: once(
+      payload.findings.filter((finding) => !isIssue(finding.severity)),
+    )
+      .slice(0, TOP_READINGS)
+      .map((finding) => ({
+        title: finding.title,
+        pageUrl: finding.pageUrl,
+        detail: finding.evidence[0] ?? null,
+      })),
     fixes: payload.actions.slice(0, TOP_FIXES).map((action) => ({
       title: action.title,
       why: action.why,
@@ -359,6 +477,86 @@ export async function readCmoSeoAudit(cuso: Cuso): Promise<CmoSeoAudit> {
   };
 }
 
+/** An audit takes about ten minutes; one still running after this never ends. */
+const AUDIT_GIVE_UP_MS = 3 * 60 * 60 * 1000;
+
+/** One weekly audit as the chat shows it: when it started and where it stands. */
+export interface CmoSeoAuditRun {
+  id: string;
+  startedAt: Date;
+  state: "running" | "done" | "failed";
+  /** What it found, once done: checks passed of those run, and things to fix. */
+  found: { checked: number; passed: number; fixes: number } | null;
+}
+
+/** The Project's weekly audits since `since`, newest first. */
+export async function listCmoSeoAuditRuns(
+  projectId: string,
+  since: Date,
+  now: Date = new Date(),
+): Promise<CmoSeoAuditRun[]> {
+  const analyses = await prisma.projectSeoAnalysis.findMany({
+    where: { projectId, kind: "audit_full", createdAt: { gte: since } },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+    select: { id: true, status: true, createdAt: true, taskId: true },
+  });
+  const taskIds = analyses.flatMap((row) => (row.taskId ? [row.taskId] : []));
+  const [tasks, reports] = await Promise.all([
+    taskIds.length
+      ? prisma.task.findMany({
+          where: { id: { in: taskIds } },
+          select: { id: true, status: true },
+        })
+      : [],
+    taskIds.length
+      ? prisma.projectSeoObservation.findMany({
+          where: {
+            projectId,
+            kind: "audit_full",
+            ownerId: null,
+            sourceTaskId: { in: taskIds },
+          },
+          select: { sourceTaskId: true, observedAt: true, payload: true },
+        })
+      : [],
+  ]);
+  return analyses.map((analysis) => {
+    const task = tasks.find((row) => row.id === analysis.taskId);
+    const report = reports.find((row) => row.sourceTaskId === analysis.taskId);
+    const parsed = report
+      ? publicSeoPayloadSchema.safeParse(report.payload)
+      : null;
+    const summary = parsed?.success
+      ? cmoAuditSummary(report!.observedAt, parsed.data)
+      : null;
+    const failed =
+      analysis.status === "failed" ||
+      task?.status === "FAILED" ||
+      task?.status === "CANCELED" ||
+      (analysis.status === "completed" && !summary) ||
+      (analysis.status !== "completed" &&
+        now.getTime() - analysis.createdAt.getTime() > AUDIT_GIVE_UP_MS);
+    return {
+      id: analysis.id,
+      startedAt: analysis.createdAt,
+      state: failed
+        ? "failed"
+        : analysis.status === "completed"
+          ? "done"
+          : "running",
+      found:
+        !failed && summary
+          ? {
+              checked: summary.checked,
+              passed: summary.passed,
+              fixes: summary.fixes.length,
+            }
+          : null,
+    };
+  });
+}
+
 const UNSEEN_TAGS = new Set(["script", "style", "noscript", "template"]);
 const flat = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
 
@@ -407,8 +605,9 @@ export async function pageShowsText(
 
 /**
  * After each weekly audit, the page changes the owner marked done are
- * checked: an audit's own finding counts as fixed once the audit no longer
- * finds it; a change Cuso wrote counts once its new text is on the page.
+ * checked: an audit's own finding counts as fixed once the audit ran its
+ * check on the page and it passed (a check it could not run confirms
+ * nothing); a change Cuso wrote counts once its new text is on the page.
  */
 export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
   const latest = await latestCmoSeoAudit(cuso.projectId);
@@ -427,6 +626,12 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
       (finding) => `${finding.rowId}|${normalizeSeoUrl(finding.pageUrl)}`,
     ),
   );
+  const passed = new Set<string>();
+  for (const check of latest.payload.checks) {
+    const key = `${check.rowId}|${normalizeSeoUrl(check.pageUrl)}`;
+    if (check.result === "pass") passed.add(key);
+    else if (check.result === "fired") firing.add(key);
+  }
   for (const suggestion of done) {
     let fixed = false;
     try {
@@ -435,10 +640,10 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
         fixed =
           !!suggestion.pageUrl &&
           rowIds.length > 0 &&
-          rowIds.every(
-            (rowId) =>
-              !firing.has(`${rowId}|${normalizeSeoUrl(suggestion.pageUrl!)}`),
-          );
+          rowIds.every((rowId) => {
+            const key = `${rowId}|${normalizeSeoUrl(suggestion.pageUrl!)}`;
+            return passed.has(key) && !firing.has(key);
+          });
       } else if (suggestion.pageUrl && suggestion.newText) {
         fixed = await pageShowsText(suggestion.pageUrl, suggestion.newText);
       }
@@ -452,7 +657,6 @@ export async function verifyCmoSeoChanges(cuso: Cuso): Promise<void> {
         },
         { failure: messageSafeErrorFields(error) },
       );
-      continue;
     }
     await prisma.projectSeoSuggestion.update({
       where: { id: suggestion.id },

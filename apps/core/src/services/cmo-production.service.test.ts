@@ -34,6 +34,7 @@ const {
   listMediaJobs,
   advanceMedia,
   turnCount,
+  subscriptionFindFirst,
 } = vi.hoisted(() => ({
   listMediaJobs: vi.fn(),
   advanceMedia: vi.fn(),
@@ -52,6 +53,7 @@ const {
   startTurn: vi.fn(),
   isCmoSubscribed: vi.fn(),
   listCmoChannels: vi.fn(),
+  subscriptionFindFirst: vi.fn(),
 }));
 
 // PostgreSQL's clock: the test clock, or the time a test sets.
@@ -68,6 +70,7 @@ vi.mock("@/lib/db/prisma", () => ({
       count: turnCount,
     },
     sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
+    polarSubscription: { findFirst: subscriptionFindFirst },
   },
 }));
 
@@ -78,6 +81,10 @@ vi.mock("@/services/cmo-cuso.service", () => ({
   listCmoChannels,
 }));
 vi.mock("@/services/cmo-billing.service", () => ({ isCmoSubscribed }));
+const keepCusoFirstCompetitorCheck = vi.hoisted(() => vi.fn());
+vi.mock("@/services/cmo-competitors.service", () => ({
+  keepCusoFirstCompetitorCheck,
+}));
 vi.mock("@/services/marketing-strategy.service", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/services/marketing-strategy.service")
@@ -159,6 +166,7 @@ function post(
   return {
     entry: { ...made, socialPostId: made.id },
     entryId: made.id,
+    revision: 1,
     media: media.map((pathname) => ({
       pathname,
       fileUrl: `https://blob.example/${pathname}`,
@@ -274,6 +282,15 @@ describe("cmoPieceReady", () => {
     ).toBe(true);
   });
 
+  it("counts a TikTok video as made once it has its words and video: it waits for the owner, not for Cuso", () => {
+    const tiktok = { channel: "tiktok", format: "video", draft: "Words" };
+    const withTikTok = new Set(["tiktok"]);
+    expect(cmoPieceReady(piece(tiktok), withTikTok)).toBe(false);
+    expect(cmoPieceReady(piece(tiktok, ["drive/a.mp4"]), withTikTok)).toBe(
+      true,
+    );
+  });
+
   it("counts published and skipped pieces as done", () => {
     expect(cmoPieceReady(piece({ status: "published" }), connected)).toBe(true);
     expect(cmoPieceReady(piece({ status: "skipped" }), connected)).toBe(true);
@@ -342,6 +359,21 @@ describe("cmoReadyPieceIds", () => {
     expect([...ready]).toEqual(["a", "c", "d"]);
   });
 
+  it("finishes every post of one talking video, which share its file", () => {
+    const talking = { format: "talking_video", draft: "Caption" };
+    const pieces = [
+      piece({ ...talking, id: "reel", channel: "instagram" }, ["drive/v.mp4"]),
+      piece({ ...talking, id: "short", channel: "youtube", videoOf: "tv" }, [
+        "drive/v.mp4",
+      ]),
+    ];
+    expect([...cmoReadyPieceIds(pieces, new Set())]).toEqual(["reel", "short"]);
+    expect(cmoProductionSteps(pieces)).toMatchObject({
+      pictured: 2,
+      needPictures: 2,
+    });
+  });
+
   it("finishes a carousel only with its slides, none shared with another piece", () => {
     const carousel = {
       channel: "instagram",
@@ -394,7 +426,7 @@ describe("cmoProductionMessage", () => {
     );
   });
 
-  it("asks for picture styles only where the reference library is set up and a piece has a picture", () => {
+  it("asks for a style on every picture, slides included, only where the reference library is set up", () => {
     const withPicture = [entry({ id: "a", format: "image" })];
     const input = {
       businessName: "Acme",
@@ -404,14 +436,25 @@ describe("cmoProductionMessage", () => {
       attempt: 1,
       topUp: false,
     };
-    expect(cmoProductionMessage({ ...input, styles: true })).toContain(
-      "call find_style_references",
-    );
+    const brief = cmoProductionMessage({ ...input, styles: true });
+    expect(brief).toContain("every piece with a picture takes the look");
+    expect(brief).toContain("send visualFileIds as an empty list");
     expect(cmoProductionMessage(input)).not.toContain("find_style_references");
-    // Text has no picture; a carousel's slides each carry their own words.
+    const carousel = [
+      entry({ id: "c", channel: "instagram", format: "carousel" }),
+    ];
+    expect(
+      cmoProductionMessage({
+        ...input,
+        strategy: strategy(carousel),
+        pending: carousel.map((item) => piece(item)),
+        styles: true,
+      }),
+    ).toContain("slideHeadlines: one entry per slide");
+    // Text has no picture, and a video is animated from a plain still.
     for (const patch of [
       { id: "b" },
-      { id: "c", channel: "instagram", format: "carousel" },
+      { id: "v", channel: "tiktok", format: "video" },
     ]) {
       const other = [entry(patch)];
       expect(
@@ -463,6 +506,31 @@ describe("cmoProductionMessage", () => {
     });
     expect(message).toContain("The month is made.");
     expect(message).toContain("Connected networks: none yet");
+  });
+
+  it("asks a talking video for its script, and its posts on other networks for a caption only", () => {
+    const talking = { channel: "instagram", format: "talking_video" };
+    const message = cmoProductionMessage({
+      businessName: "Acme",
+      strategy: strategy([]),
+      pending: [
+        piece({ ...talking, id: "tv" }),
+        piece({
+          ...talking,
+          id: "written",
+          script: "Stop emailing back and forth.",
+        }),
+        piece({ ...talking, id: "yt", channel: "youtube", videoOf: "tv" }),
+      ],
+      connected: new Set(),
+      attempt: 1,
+      topUp: false,
+    });
+    expect(message).toContain("(write its script)");
+    expect(message).toContain(
+      "(the talking video of tv on youtube: write only this post's own caption for youtube; its script stays on tv)",
+    );
+    expect(message).not.toContain("(write its visual)");
   });
 
   it("asks for a visual and names the proof, and leaves the media to Core", () => {
@@ -986,6 +1054,24 @@ describe("syncCmoProduction", () => {
     });
   });
 
+  it("keeps each Cuso's first competitor check, beside his month", async () => {
+    const cuso = {
+      sokoBotId: "bot-1",
+      projectId: "project-1",
+      workspaceId: "ws-1",
+      websiteUrl: "https://acme.io",
+      businessName: "acme.io",
+    };
+    listCusos.mockResolvedValue([cuso]);
+    cmoRunnerUserId.mockResolvedValue("owner-1");
+    scheduleUpdateMany.mockResolvedValue({ count: 0 });
+    const now = new Date("2026-11-18T21:00:00Z");
+    await expect(syncCmoProduction(() => true, now)).resolves.toEqual({
+      checked: 1,
+    });
+    expect(keepCusoFirstCompetitorCheck).toHaveBeenCalledWith(cuso, now);
+  });
+
   it("logs each Cuso it skipped as its own event, without the error text", async () => {
     const warnings = expectCoreLogWhys(
       "warn",
@@ -1011,5 +1097,74 @@ describe("syncCmoProduction", () => {
       expect.arrayContaining([{ id: "bot-1" }, { id: "bot-2" }]),
     );
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PLAN");
+  });
+});
+
+describe("the month the plan bought", () => {
+  /** Three X posts a day for two days, and a talking video shown on YouTube too. */
+  const month = [
+    ...["2026-11-10", "2026-11-11"].flatMap((date) =>
+      ["a", "b", "c"].map((slot) =>
+        post({ id: `x-${date}-${slot}`, date, channel: "x", format: "post" }),
+      ),
+    ),
+    post({
+      id: "v1",
+      date: "2026-11-12",
+      channel: "instagram",
+      format: "talking_video",
+    }),
+    post({
+      id: "v1@youtube",
+      date: "2026-11-12",
+      channel: "youtube",
+      format: "talking_video",
+      videoOf: "v1",
+    }),
+  ];
+  const read = async (tier: string | null) => {
+    subscriptionFindFirst.mockResolvedValueOnce(tier ? { tier } : null);
+    return readCmoProduction(cuso(month), {
+      connected: new Set(),
+      subscribed: true,
+      now: NOW,
+    });
+  };
+
+  it("makes one X post a day on Starter, and the rest waits for a bigger plan", async () => {
+    const { status, pieces } = await read("starter");
+    expect(status.level).toBe("steady");
+    expect(pieces.map((piece) => piece.id)).toEqual([
+      "x-2026-11-10-a",
+      "x-2026-11-11-a",
+      "v1",
+      "v1@youtube",
+    ]);
+    expect(status.total).toBe(4);
+    expect(status.beyondPlan).toEqual([
+      "x-2026-11-10-b",
+      "x-2026-11-10-c",
+      "x-2026-11-11-b",
+      "x-2026-11-11-c",
+    ]);
+  });
+
+  it("makes more of the same month on Growth, and all of it on Scale", async () => {
+    expect((await read("growth")).status).toMatchObject({
+      level: "active",
+      total: 6,
+    });
+    expect((await read("scale")).status).toMatchObject({
+      level: "all_in",
+      total: 8,
+      beyondPlan: [],
+    });
+  });
+
+  it("makes all of it on Tester credits, with no plan bought", async () => {
+    expect((await read(null)).status).toMatchObject({
+      level: "all_in",
+      total: 8,
+    });
   });
 });

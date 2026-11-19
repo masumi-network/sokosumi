@@ -56,6 +56,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">) {
         projectId: true,
         provider: true,
         composioConnectedAccountId: true,
+        executorProjectId: true,
         subscriptionType: true,
       },
     });

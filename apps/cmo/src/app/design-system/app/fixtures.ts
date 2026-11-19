@@ -1,6 +1,7 @@
 import type { CmoOverview, CmoSeo } from "@sokosumi/core-client";
 import { AGENT_NAME } from "../../../lib/agent";
 import type { CusoMessage } from "../../../lib/chat-messages";
+import type { ChatWork } from "../../../lib/chat-work";
 import { VIEW_PATHS, type View } from "../../../lib/views";
 import {
   cmoBilling,
@@ -28,6 +29,8 @@ function entry(
 ): Entry {
   return {
     id: `e${day}-${channel}`,
+    // A social piece is a Social post once the month is approved.
+    ...(channel === "newsletter" ? {} : { socialPostId: `e${day}-${channel}` }),
     date: `2026-11-${String(day).padStart(2, "0")}`,
     time: "09:00",
     channel,
@@ -55,7 +58,15 @@ const calendar: Entry[] = [
   }),
   entry(11, "x", "What a slipped launch costs", { status: "draft" }),
   entry(13, "linkedin", "How we plan a launch window", { status: "draft" }),
-  entry(16, "facebook", "Meet the crew", { imageFileId: "f6" }),
+  // Facebook is not connected: written, and waiting for the owner.
+  entry(16, "facebook", "Meet the crew", {
+    imageFileId: "f6",
+    status: "draft",
+  }),
+  entry(17, "instagram", "Why launches slip", {
+    format: "talking_video",
+    alsoOn: ["youtube", "facebook"],
+  }),
   entry(18, "x", "Ask us anything", { status: "idea", draft: undefined }),
   entry(20, "linkedin", "Customer story: Moonshot", { status: "idea" }),
   entry(24, "newsletter", "November launches", {
@@ -83,6 +94,30 @@ const plan: Plan = {
 };
 
 const at = (iso: string) => new Date(`2026-11-${iso}Z`);
+
+/** A post Cuso made on request, outside the month: it waits for the owner. */
+const WAITING_DRAFT: CmoOverview["drafts"][number] = {
+  id: "d1",
+  provider: "x",
+  text: "Every engine we ship runs on the test stand first.\n\nHere is what a full burn looks like from two metres away.",
+  status: "NEEDS_APPROVAL",
+  revision: 0,
+  scheduledAt: null,
+  publishedUrl: null,
+  media: [{ kind: "image", url: PICTURE, name: "test-stand.jpg" }],
+};
+
+/** A TikTok video of the month: it goes out only once the owner confirms it. */
+const TIKTOK_DRAFT: CmoOverview["drafts"][number] = {
+  id: "d2",
+  provider: "tiktok",
+  text: "Three things nobody tells you about a test burn.",
+  status: "NEEDS_APPROVAL",
+  revision: 0,
+  scheduledAt: null,
+  publishedUrl: null,
+  media: [{ kind: "image", url: PICTURE, name: "test-burn.jpg" }],
+};
 
 export const overview: CmoOverview = cmoOverview({
   ...cmoStrategyVersion(new Date("2026-11-01T09:10:00Z")),
@@ -164,7 +199,11 @@ export const overview: CmoOverview = cmoOverview({
       ],
       rewriting: false,
     },
+    level: "active",
+    // Growth: the month's third X post and last LinkedIn post wait for Scale.
+    beyondPlan: ["e18-x", "e27-linkedin"],
   },
+  timeZone: "Europe/Berlin",
   routines: [
     {
       key: "cmo-daily-run",
@@ -190,6 +229,7 @@ export const overview: CmoOverview = cmoOverview({
       handle: "acme",
       displayName: "Acme",
       status: "ACTIVE",
+      personalProfile: false,
     },
     {
       id: "c2",
@@ -197,9 +237,15 @@ export const overview: CmoOverview = cmoOverview({
       handle: "acme_rockets",
       displayName: "Acme Rockets",
       status: "ACTIVE",
+      personalProfile: false,
     },
   ],
   adProviders: ["google_ads"],
+  postRevisions: Object.fromEntries(
+    calendar.flatMap((item) =>
+      item.socialPostId ? [[item.socialPostId, 1]] : [],
+    ),
+  ),
   mailingListSize: 128,
   billing: cmoBilling({
     tier: "growth",
@@ -245,6 +291,8 @@ export const overview: CmoOverview = cmoOverview({
       at: at("04T09:05:00"),
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     },
     {
       id: "u2",
@@ -256,6 +304,8 @@ export const overview: CmoOverview = cmoOverview({
       at: at("03T09:00:00"),
       revertible: true,
       revertedAt: null,
+      posts: [],
+      media: [],
     },
     {
       id: "u3",
@@ -266,8 +316,24 @@ export const overview: CmoOverview = cmoOverview({
       at: at("04T10:03:40"),
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
+    },
+    {
+      id: "u4",
+      kind: "request",
+      headline: "Test stand post ready for you",
+      done: ["Made the picture", "Wrote the post for X"],
+      upNext: [],
+      at: at("04T11:20:00"),
+      revertible: false,
+      revertedAt: null,
+      posts: [WAITING_DRAFT],
+      media: [],
     },
   ],
+  drafts: [WAITING_DRAFT, TIKTOK_DRAFT],
+  tiktokEnabled: true,
   measurement: [
     {
       provider: "google_analytics",
@@ -331,6 +397,49 @@ export const messages: CusoMessage[] = [
     },
   },
   message("m4", false, "Great. Keep X posts short.", "04T10:03:00"),
+  {
+    ...message(
+      "week",
+      true,
+      "What your competitors did this week",
+      "04T10:02:00",
+    ),
+    week: {
+      checkDay: "2026-11-04",
+      moves: [
+        {
+          competitor: "Calendly",
+          text: "Calendly raised Standard from $10 to $12 per seat a month.",
+          source: {
+            label: "Calendly",
+            url: "https://calendly.com/pricing",
+          },
+          big: true,
+          meaning:
+            "Calendly's rise leaves your Teams plan the cheaper one for small teams.",
+          move: "Lead your pricing page with the price per seat this week.",
+        },
+        {
+          competitor: "SavvyCal",
+          text: "SavvyCal added round-robin scheduling for teams.",
+          source: {
+            label: "savvycal.com",
+            url: "https://savvycal.com/blog/round-robin",
+          },
+          big: false,
+        },
+        {
+          competitor: "Zcal",
+          text: "Zcal ends its Pro plan in December 2026.",
+          source: {
+            label: "it.example.edu",
+            url: "https://it.example.edu/notices/zcal",
+          },
+          big: false,
+        },
+      ],
+    },
+  },
   message(
     "m5",
     true,
@@ -338,6 +447,20 @@ export const messages: CusoMessage[] = [
     "04T10:03:30",
   ),
 ];
+
+/** A picture, video or voice-over: nobody else works on it. */
+const media = {
+  url: null,
+  by: null,
+  text: null,
+  readable: false,
+  files: [],
+  table: null,
+  people: [],
+  total: null,
+  steps: [],
+  turnId: null,
+};
 
 /**
  * The chat page's own state: a long German message, to check how the thread
@@ -353,7 +476,168 @@ export const chat = {
       "Bitte schreibe die LinkedIn-Beiträge für die Produkteinführung auf Deutsch, mit einem klaren Nutzenversprechen für Produktverantwortliche und einem Hinweis auf die vierzehntägige Testphase. Die Geschwindigkeitsbegrenzung im Wettbewerbsvergleich darf nicht fehlen.",
       "04T10:05:00",
     ),
+    message(
+      "m7",
+      false,
+      "Make a picture, a short video and a voice-over for the launch, write the brief, and get the research done.",
+      "04T10:20:00",
+    ),
+    message("m8", true, "Started image.\n\nStarted video.", "04T10:20:01"),
   ],
+  // What Cuso makes and hands on in the chat, in each state it can be in.
+  work: [
+    {
+      ...media,
+      id: "w1",
+      kind: "image",
+      state: "ready",
+      at: new Date("2026-11-04T10:20:10Z"),
+      title: "The launch on a phone",
+      url: "/cuso/walking.png",
+    },
+    {
+      ...media,
+      id: "w2",
+      kind: "video",
+      state: "making",
+      at: new Date("2026-11-04T10:20:20Z"),
+      title: "A walk through the launch",
+    },
+    {
+      ...media,
+      id: "w3",
+      kind: "audio",
+      state: "failed",
+      at: new Date("2026-11-04T10:20:30Z"),
+      title: "Launch day is here.",
+    },
+    {
+      ...media,
+      id: "w4",
+      kind: "file",
+      state: "ready",
+      at: new Date("2026-11-04T10:21:00Z"),
+      title: "Launch brief.md",
+      url: "/cuso/walking.png",
+      readable: true,
+    },
+    {
+      ...media,
+      id: "w5",
+      kind: "task",
+      state: "making",
+      at: new Date("2026-11-04T10:22:00Z"),
+      title: "Research three launch trends",
+      by: "Hannah",
+    },
+    {
+      ...media,
+      id: "w6",
+      kind: "task",
+      state: "waiting",
+      at: new Date("2026-11-04T10:23:00Z"),
+      title: "Write the press note",
+      by: "Alex",
+      text: "Which date goes in the headline, the 12th or the 14th?",
+    },
+    {
+      ...media,
+      id: "w7",
+      kind: "agent",
+      state: "ready",
+      at: new Date("2026-11-04T10:24:00Z"),
+      title: "Market scan for product teams",
+      by: "Market Scout",
+      text: "Three trends stand out this quarter: loyalty passes replace one-off drops, brands mint on their own site, and buyers pay by card.",
+      readable: true,
+      files: [{ name: "market-scan.pdf", url: "/cuso/walking.png" }],
+    },
+    {
+      ...media,
+      id: "w8",
+      kind: "table",
+      state: "ready",
+      at: new Date("2026-11-04T10:25:00Z"),
+      title: "Content tracker",
+      readable: true,
+      table: {
+        columns: ["Post", "Channel", "Status"],
+        rows: [
+          ["Launch post 1", "X", "Made"],
+          ["Launch post 2", "LinkedIn", "Made"],
+          ["Launch post 3", "X", "Planned"],
+        ],
+        total: 12,
+      },
+    },
+    {
+      ...media,
+      id: "w9",
+      kind: "contacts",
+      state: "ready",
+      at: new Date("2026-11-04T10:26:00Z"),
+      title: "Press",
+      people: [
+        { name: "Mira Lindqvist", detail: "Editor, Product Weekly" },
+        { name: "Jonas Feld", detail: null },
+      ],
+      total: 5,
+    },
+    {
+      ...media,
+      id: "w10",
+      kind: "run",
+      state: "making",
+      at: new Date("2026-11-04T10:27:00Z"),
+      title: "Results log for the last four weeks",
+      steps: [
+        { label: "Read last month's posts", state: "done" },
+        { label: "Fill the results table", state: "now" },
+        { label: "Write the summary", state: "next" },
+      ],
+      turnId: "run-1",
+    },
+    {
+      ...media,
+      id: "w11",
+      kind: "question",
+      state: "ready",
+      at: new Date("2026-11-04T10:28:00Z"),
+      title: "How long would a three-trend report take?",
+      by: "Hannah",
+      text: "About two hours. I need your three main competitors and the market you sell in.",
+    },
+    {
+      ...media,
+      id: "w12",
+      kind: "seo",
+      state: "making",
+      at: new Date("2026-11-04T10:29:00Z"),
+      title: 'Where you rank on Google for "nft checkout", "mint on your site"',
+      by: "The SEO specialist",
+    },
+    {
+      ...media,
+      id: "w13",
+      kind: "seo",
+      state: "ready",
+      at: new Date("2026-11-04T10:30:00Z"),
+      title: 'Where you rank on Google for "nft minting platform"',
+      by: "The SEO specialist",
+      text: 'The SEO specialist checked Google on 2026-11-04 for https://nmkr.io/: "nft minting platform" (mobile, US): position 7, 1,300 searches a month. Top results: 1. opensea.io; 2. thirdweb.com',
+      readable: true,
+    },
+    {
+      ...media,
+      id: "audit-1",
+      kind: "audit",
+      state: "ready",
+      at: new Date("2026-11-04T10:31:00Z"),
+      title: "Weekly audit of your site",
+      by: "The SEO specialist",
+      text: "86 of 110 checks passed. 5 things to fix are in your SEO tab.",
+    },
+  ] satisfies ChatWork[],
 };
 
 const seoAt = (iso: string) => new Date(iso);
@@ -374,6 +658,25 @@ export const seo: CmoSeo = {
       observedAt: seoAt("2026-11-16T06:12:00Z"),
       checked: 110,
       passed: 86,
+      failedChecks: 6,
+      readingChecks: 18,
+      readings: [
+        {
+          title: "Title length",
+          pageUrl: "https://acme.io/",
+          detail: "title 45 characters",
+        },
+        {
+          title: "Meta description length",
+          pageUrl: "https://acme.io/",
+          detail: "meta description 147 characters",
+        },
+        {
+          title: "Redirect hops",
+          pageUrl: "https://acme.io/",
+          detail: "1 redirect hop before the final URL",
+        },
+      ],
       issues: [
         {
           title: "Structured data",
@@ -388,6 +691,14 @@ export const seo: CmoSeo = {
           severity: "minor",
           detail:
             "acme.io sends visitors to www.acme.io with a temporary redirect.",
+        },
+        {
+          title:
+            "Script and style files for rendering load and are not blocked",
+          pageUrl: "https://acme.io/",
+          severity: "minor",
+          detail:
+            "1 of 17 script and style files rendering asks for failed to load",
         },
       ],
       fixes: [],
@@ -433,6 +744,7 @@ export const seo: CmoSeo = {
       body: "Replace the page title.",
       newText: "Team Booking Software for Sales and Support | Acme",
       draft: null,
+      sources: [],
       evidence: [
         {
           metric: "position",
@@ -456,6 +768,34 @@ export const seo: CmoSeo = {
       doneAt: null,
       verifiedAt: null,
     },
+    {
+      id: "0198c0de-0000-7000-8000-000000000003",
+      kind: "page_change",
+      source: "audit",
+      title: "Fix the HubSpot script that fails to load during rendering",
+      keyword: null,
+      pageUrl: "https://acme.io/",
+      why: "The Finding RN-01 shows that 1 of the 17 script and style files the page's main frame requested during rendering failed: https://js-eu1.hs-scripts.com/27172445.js returned net::ERR_BLOCKED_BY_ORB. This is the HubSpot tracking/chat script. Since the page cannot rely on this file loading, check why the response is blocked: an ORB block usually means the file is served with a wrong Content-Type, is redirected to a non-script response (for example an HTML error page, a consent/cookie-walled response, or a bot-block), or is served from a region/CDN path that returns an unexpected body. Verify the URL returns the JavaScript directly (correct Content-Type: application/javascript, HTTP 200, no redirect to HTML), and if the HubSpot snippet is outdated, update it to the current embed code from the HubSpot account for portal ID 27172445. If the script is not intended to load for non-browser or non-EU contexts, make sure the page degrades gracefully without it. Note: the loading check for the 20 file URLs on hosts whose robots.txt the run did not read was limited to loading only, so robots.txt on those hosts was not checked.",
+      body: "Once the script loads correctly, the page's render is complete and any HubSpot chat or tracking behavior works as intended for visitors and for Googlebot's render of the page. This removes the render error itself; no rank or traffic change can be forecast from it.",
+      newText: null,
+      draft: null,
+      sources: [],
+      evidence: [
+        {
+          metric: "auditIssue",
+          keyword: null,
+          pageUrl: "https://acme.io/",
+          value:
+            "Script and style files for rendering load and are not blocked",
+          source: "weekly_audit",
+          observedAt: seoAt("2026-11-16T06:12:00Z"),
+        },
+      ],
+      status: "open",
+      createdAt: seoAt("2026-11-16T06:20:00Z"),
+      doneAt: null,
+      verifiedAt: null,
+    },
   ],
   articles: [
     {
@@ -469,6 +809,7 @@ export const seo: CmoSeo = {
       body: "## Who needs an alternative\n## Acme and Calendly side by side\n## How to switch in a day",
       newText: null,
       draft: null,
+      sources: [],
       evidence: [
         {
           metric: "searchVolume",
@@ -493,6 +834,42 @@ export const seo: CmoSeo = {
       verifiedAt: null,
     },
   ],
+  landingPages: [
+    {
+      id: "0198c0de-0000-7000-8000-000000000009",
+      kind: "landing_page",
+      source: "cuso",
+      title: "Calendly alternative for teams that want their own booking page",
+      keyword: "calendly alternative",
+      pageUrl: null,
+      why: "880 people a month search this while they choose, and your search ad for it has no page that answers them.",
+      body: "",
+      newText: null,
+      draft:
+        "# Calendly alternative for teams that want their own booking page\n\nLooking for a Calendly alternative? Acme gives every teammate a booking page on your own domain, free for one person.\n\n## What you get\n\n- A booking page on your domain\n- Round-robin for the whole team\n\n## Acme and Calendly side by side\n\nCalendly's Standard plan costs $12 per seat a month, billed yearly. Acme is free for one person.\n\nIf you only need one meeting type, Calendly's free plan may be all you need.",
+      sources: [
+        {
+          text: "Calendly's Standard plan costs $12 per seat a month, billed yearly.",
+          sourceUrl: "https://calendly.com/pricing",
+          quote: "Standard $12 /seat/mo billed yearly",
+        },
+      ],
+      evidence: [
+        {
+          metric: "searchVolume",
+          keyword: "calendly alternative",
+          pageUrl: null,
+          value: "880",
+          source: "keyword_research",
+          observedAt: seoAt("2026-11-19T09:00:00Z"),
+        },
+      ],
+      status: "open",
+      createdAt: seoAt("2026-11-19T09:00:00Z"),
+      doneAt: null,
+      verifiedAt: null,
+    },
+  ],
   keywordSearches: [
     {
       topic: "team booking software",
@@ -513,6 +890,22 @@ export const seo: CmoSeo = {
           searchVolume: 140,
           difficulty: 24,
           intent: "commercial",
+          position: null,
+          positionSource: null,
+        },
+        {
+          keyword: "team booking app free",
+          searchVolume: 10,
+          difficulty: null,
+          intent: "commercial",
+          position: null,
+          positionSource: null,
+        },
+        {
+          keyword: "booking software for sales teams",
+          searchVolume: null,
+          difficulty: null,
+          intent: null,
           position: null,
           positionSource: null,
         },

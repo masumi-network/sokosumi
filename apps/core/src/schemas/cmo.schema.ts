@@ -9,7 +9,27 @@ import {
 import { dateTimeSchema } from "@/helpers/datetime";
 import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
+import { socialAccountChoiceSchema } from "@/schemas/project-social-connection.schema";
+import { tikTokPostSettingsSchema } from "@/schemas/social-post.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
+
+/** An IANA time zone this server knows, such as "America/New_York". */
+export const cmoTimeZoneSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .refine(
+    (value) => {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Not a time zone" },
+  );
 
 export const cmoOnboardingRequestSchema = z
   .object({
@@ -25,6 +45,17 @@ export const cmoOnboardingRequestSchema = z
       .optional()
       .describe(
         "An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.",
+      ),
+    timeZone: cmoTimeZoneSchema
+      .optional()
+      .describe(
+        "The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.",
+      ),
+    testCopyOfProjectId: z
+      .uuid()
+      .optional()
+      .describe(
+        "Hire a test copy of this Project's Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy's Social connections are links to the source's connected accounts.",
       ),
   })
   .openapi("CmoOnboardingRequest");
@@ -117,6 +148,16 @@ export const cmoProductionSchema = z
       .describe(
         "Once the made month was read: each pillar's planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.",
       ),
+    level: z
+      .enum(["steady", "active", "all_in"])
+      .describe(
+        "How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.",
+      ),
+    beyondPlan: z
+      .array(z.string())
+      .describe(
+        "Calendar entries the plan bought does not make. A bigger plan makes them.",
+      ),
   })
   .openapi("CmoProduction");
 
@@ -191,6 +232,48 @@ export const cmoBrandFixStartedSchema = z
   .openapi("CmoBrandFixStarted");
 
 /** A version of the plan of the Cuso a CMO route acts on. */
+export const cmoTestCopyCheckSchema = z
+  .object({
+    projectId: z.string().uuid(),
+    sourceProjectId: z
+      .string()
+      .uuid()
+      .describe("The Project whose connected accounts the copy uses."),
+    tornDownAt: z.date().nullable(),
+    clean: z
+      .boolean()
+      .describe(
+        "Nothing is left: no unsent post, linked account, run or Cuso.",
+      ),
+    left: z.object({
+      unsentPosts: z.number().int(),
+      linkedAccounts: z.number().int(),
+      activeTurns: z.number().int(),
+      liveCuso: z.boolean(),
+    }),
+    publishedPosts: z
+      .number()
+      .int()
+      .describe("Posts of the copy that went out. Always 0."),
+    providerRevocations: z
+      .number()
+      .int()
+      .describe("Accounts ended at the provider through the copy. Always 0."),
+  })
+  .openapi("CmoTestCopyCheck");
+
+export const cmoTestCopyTeardownSchema = z
+  .object({
+    removed: z.object({
+      canceledPosts: z.number().int(),
+      unlinkedAccounts: z.number().int(),
+      stoppedTurns: z.number().int(),
+      archivedCuso: z.boolean(),
+    }),
+    check: cmoTestCopyCheckSchema,
+  })
+  .openapi("CmoTestCopyTeardown");
+
 export const cmoStrategyParamsSchema = cmoProjectParamsSchema.extend({
   strategyId: z
     .string()
@@ -207,8 +290,182 @@ export const cmoPieceTextSchema = z
   .object({ text: z.string() })
   .openapi("CmoPieceText");
 
+export const cmoChatTableSchema = z
+  .object({
+    columns: z.array(z.string()),
+    rows: z.array(z.array(z.string())),
+    total: z.number().int().describe("Every row the table holds."),
+  })
+  .openapi("CmoChatTable");
+
+export const cmoChatWorkItemSchema = z
+  .object({
+    id: z
+      .string()
+      .describe("The tool call that started it; a weekly audit's own id."),
+    kind: z
+      .enum([
+        "image",
+        "video",
+        "audio",
+        "file",
+        "task",
+        "agent",
+        "table",
+        "contacts",
+        "run",
+        "question",
+        "seo",
+        "audit",
+      ])
+      .describe(
+        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).",
+      ),
+    state: z
+      .enum(["making", "waiting", "ready", "failed", "stopped"])
+      .describe(
+        "making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.",
+      ),
+    at: dateTimeSchema.describe("When Cuso started it."),
+    title: z
+      .string()
+      .describe(
+        "What it is: the prompt, the words spoken, the file's or the work's name.",
+      ),
+    url: z
+      .union([z.string(), z.null()])
+      .describe("Where the finished file plays or downloads from."),
+    by: z
+      .union([z.string(), z.null()])
+      .describe("Who does handed work: the Coworker or the Agent."),
+    text: z
+      .union([z.string(), z.null()])
+      .describe(
+        "Handed work: what is asked while it waits, the start of the result once done.",
+      ),
+    readable: z
+      .boolean()
+      .describe("Its full words are at /chat-work/{id}/text."),
+    files: z
+      .array(z.object({ name: z.string(), url: z.string() }))
+      .describe("Files handed work came back with."),
+    table: z
+      .union([cmoChatTableSchema, z.null()])
+      .describe("A table's columns and first rows."),
+    people: z
+      .array(
+        z.object({
+          name: z.string(),
+          detail: z.union([z.string(), z.null()]),
+        }),
+      )
+      .describe("The first people of a contact list or a lookup."),
+    total: z
+      .union([z.number().int(), z.null()])
+      .describe("Everyone that list or lookup holds, shown or not."),
+    steps: z
+      .array(
+        z.object({
+          label: z.string(),
+          state: z.enum(["done", "now", "next"]),
+        }),
+      )
+      .describe("A running background run's plan."),
+    turnId: z
+      .union([z.string(), z.null()])
+      .describe(
+        "A background run's own turn: its report in the room is this card.",
+      ),
+  })
+  .openapi("CmoChatWorkItem");
+
+export const cmoChatWorkTableSchema = z
+  .object({ title: z.string(), table: cmoChatTableSchema })
+  .openapi("CmoChatWorkTable");
+
+export const cmoChatWorkSchema = z
+  .object({ items: z.array(cmoChatWorkItemSchema) })
+  .openapi("CmoChatWork");
+
+export const cmoChatWorkIdParamsSchema = cmoProjectParamsSchema.extend({
+  id: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "id", in: "path" } }),
+});
+
 /** A report is its card's message in Cuso's shared room. */
 export const cmoReportIdParamsSchema = z.object({ id: z.string().uuid() });
+
+export const cmoMediaItemSchema = z
+  .object({
+    kind: z.enum(["image", "video"]),
+    url: z.string(),
+    name: z.string(),
+  })
+  .openapi("CmoMediaItem");
+
+export const cmoDraftSchema = z
+  .object({
+    id: z.string(),
+    provider: z.string(),
+    text: z.string(),
+    status: z
+      .string()
+      .describe(
+        "The Social post's status. NEEDS_APPROVAL waits for the owner; SCHEDULED goes out at scheduledAt.",
+      ),
+    revision: z.number().int(),
+    scheduledAt: z.union([dateTimeSchema, z.null()]),
+    publishedUrl: z.union([z.string(), z.null()]),
+    media: z.array(cmoMediaItemSchema),
+  })
+  .openapi("CmoDraft");
+
+export const cmoDraftParamsSchema = cmoProjectParamsSchema.extend({
+  postId: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "postId", in: "path" } }),
+});
+
+export const cmoDraftRevisionSchema = z
+  .object({
+    revision: z
+      .number()
+      .int()
+      .describe("The draft's revision as shown; a changed draft is refused."),
+  })
+  .openapi("CmoDraftRevision");
+
+export const cmoDraftApproveSchema = cmoDraftRevisionSchema
+  .extend({
+    tikTokSettings: tikTokPostSettingsSchema
+      .optional()
+      .describe(
+        "A TikTok video only: who sees it, what viewers may do, and the owner's confirmation of this video (`previewConsent`) and of TikTok's Music Usage Confirmation. Required for TikTok, which posts the video at once.",
+      ),
+  })
+  .openapi("CmoDraftApprove");
+
+export const cmoTikTokCreatorSchema = z
+  .object({
+    creator_nickname: z.string(),
+    privacy_level_options: z
+      .array(z.string())
+      .describe(
+        "The audiences TikTok allows now. Empty: no post is possible right now.",
+      ),
+    comment_disabled: z.boolean(),
+    duet_disabled: z.boolean(),
+    stitch_disabled: z.boolean(),
+    max_video_post_duration_sec: z.number().int(),
+  })
+  .openapi("CmoTikTokCreator");
+
+export const cmoDraftEditSchema = cmoDraftRevisionSchema
+  .extend({ text: z.string().trim().min(1).max(25_000) })
+  .openapi("CmoDraftEdit");
 
 export const cmoUpdateSchema = cmoReportUpdateInputSchema
   .extend({
@@ -216,6 +473,14 @@ export const cmoUpdateSchema = cmoReportUpdateInputSchema
     at: dateTimeSchema,
     revertible: z.boolean(),
     revertedAt: z.union([dateTimeSchema, z.null()]),
+    posts: z
+      .array(cmoDraftSchema)
+      .describe("The Social posts the report's turn made, as they are now."),
+    media: z
+      .array(cmoMediaItemSchema)
+      .describe(
+        "Pictures and videos the report's turn made that are on none of its posts.",
+      ),
   })
   .openapi("CmoUpdate");
 
@@ -226,8 +491,24 @@ export const cmoChannelSchema = z
     handle: z.union([z.string(), z.null()]),
     displayName: z.union([z.string(), z.null()]),
     status: z.string(),
+    personalProfile: z
+      .boolean()
+      .describe(
+        "A LinkedIn connection that posts as the person, not as a company Page.",
+      ),
   })
   .openapi("CmoChannel");
+
+export const cmoSocialConnectionFinalizedSchema = z
+  .object({
+    state: z
+      .enum(["connected", "choose"])
+      .describe(
+        "`choose`: the sign-in reaches several accounts; finalize again with the owner's pick.",
+      ),
+    choices: z.array(socialAccountChoiceSchema),
+  })
+  .openapi("CmoSocialConnectionFinalized");
 
 export const cmoUpNextItemSchema = z
   .object({
@@ -325,9 +606,37 @@ export const cmoBrandMediaSchema = z
           label: z.string(),
           pageUrl: z.string(),
           device: z.enum(["desktop", "mobile"]),
+          fullUrl: z
+            .union([z.string(), z.null()])
+            .describe("The page from the top, several screens down."),
         }),
       )
-      .describe("The brand's own pages, home first, then home on a phone."),
+      .describe(
+        "The brand's own pages Cuso read, home first, each on a desktop and then on a phone.",
+      ),
+    sections: z
+      .array(
+        cmoMediaFileSchema.extend({
+          kind: z.enum([
+            "hero",
+            "pricing",
+            "testimonials",
+            "customers",
+            "faq",
+            "product",
+            "features",
+            "cta",
+            "section",
+          ]),
+          /** The section's heading, or its first words. */
+          title: z.string(),
+          pageLabel: z.string(),
+          pageUrl: z.string(),
+        }),
+      )
+      .describe(
+        "Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.",
+      ),
     competitors: z
       .array(
         cmoMediaFileSchema.extend({ name: z.string(), pageUrl: z.string() }),
@@ -401,6 +710,9 @@ export const cmoOverviewSchema = z
         "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.",
       ),
     routines: z.array(cmoRoutineSchema),
+    timeZone: z
+      .string()
+      .describe("The time zone Cuso's routines run in, as the owner set it."),
     brandBrain: z.union([brandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
@@ -424,6 +736,11 @@ export const cmoOverviewSchema = z
       .describe(
         "The image or video Cuso attached to each calendar piece, by entry id.",
       ),
+    postRevisions: z
+      .record(z.string(), z.number().int())
+      .describe(
+        "The revision of each Social post of the month, by post id: what an owner's edit of its words names (PATCH drafts/{postId}).",
+      ),
     strategyVersion: z
       .union([marketingStrategyVersionSchema, z.null()])
       .describe(
@@ -440,11 +757,20 @@ export const cmoOverviewSchema = z
         "When a plan was first approved, so hiring ended. Unlike the approved version's approvedAt, a later approval does not move it.",
       ),
     updates: z.array(cmoUpdateSchema),
+    drafts: z
+      .array(cmoDraftSchema)
+      .describe(
+        "Social posts Cuso made that wait for the owner's approval, newest first.",
+      ),
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),
     connectChannelUrl: z.string(),
+    tiktokEnabled: z
+      .boolean()
+      .describe(
+        "TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.",
+      ),
     adProviders: z.array(z.string()),
-    connectAdsUrl: z.string(),
     measurement: z
       .array(cmoMeasurementSchema)
       .describe(

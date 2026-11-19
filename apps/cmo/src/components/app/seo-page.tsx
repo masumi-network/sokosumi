@@ -9,7 +9,13 @@ import type {
 import { Check, Copy, Download, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { AGENT_NAME } from "../../lib/agent";
+import {
+  pageChangeCopy,
+  plainIssueDetail,
+  withoutAuditIds,
+} from "../../lib/seo-copy";
 import { DraftText } from "../draft-text";
+import { LocalDay } from "../local-day";
 import { StatusText } from "../status";
 import { SubmitButton } from "../submit-button";
 
@@ -22,6 +28,11 @@ export interface SeoActions {
     id: string,
     status: "open" | "done" | "dismissed",
   ) => Promise<string | null>;
+  /** The owner published a landing page at this address on their site. */
+  markLandingPageLive: (
+    id: string,
+    url: string,
+  ) => Promise<{ note: string | null; error: string | null }>;
   /** No id: more article ideas; an id: the full article. */
   askCusoForArticles: (articleId?: string) => Promise<string | null>;
   connectSearchConsole: () => Promise<{
@@ -42,12 +53,7 @@ const day = (iso: string | Date) =>
 
 const count = (value: number) => value.toLocaleString("en-US");
 
-const weekday = (iso: string | Date) =>
-  new Date(iso).toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "short",
-  });
+const NOT_KNOWN = "Not known";
 
 const SOURCE: Record<CmoSeoEvidence["source"], string> = {
   keyword_research: "Keyword research",
@@ -74,7 +80,7 @@ function evidenceText(e: CmoSeoEvidence): string {
     case "ctr":
       return `${e.value} clicked${on}`;
     case "auditIssue":
-      return e.value;
+      return `did not pass the check "${withoutAuditIds(e.value)}"`;
   }
 }
 
@@ -147,21 +153,28 @@ function pagePath(url: string | null): string {
   }
 }
 
-function AuditCard({ seo }: { seo: CmoSeo }) {
+function AuditCard({ seo, timeZone }: { seo: CmoSeo; timeZone: string }) {
   const { audit } = seo;
   const latest = audit.latest;
   const schedule =
-    audit.status === "active"
-      ? audit.running
-        ? "Running now. Results show here in a few minutes."
-        : audit.nextRunAt
-          ? `Next audit: ${weekday(audit.nextRunAt)}.`
-          : "Runs once a week."
-      : audit.status === "paused"
-        ? "Paused until your CMO plan is paid."
-        : audit.status === "not_started"
-          ? `Starts once your plan is active and its credits cover ${audit.creditsPerAudit}.`
-          : "The weekly audit is not available here yet.";
+    audit.status === "active" ? (
+      audit.running ? (
+        "Running now. Results show here in a few minutes."
+      ) : audit.nextRunAt ? (
+        <>
+          Next audit:{" "}
+          <LocalDay at={audit.nextRunAt} serverZone={timeZone} time />.
+        </>
+      ) : (
+        "Runs once a week."
+      )
+    ) : audit.status === "paused" ? (
+      "Paused until your CMO plan is paid."
+    ) : audit.status === "not_started" ? (
+      `Starts once your plan is active and its credits cover ${audit.creditsPerAudit}.`
+    ) : (
+      "The weekly audit is not available here yet."
+    );
   return (
     <section className="card">
       <h3>Weekly site audit</h3>
@@ -196,28 +209,34 @@ function AuditCard({ seo }: { seo: CmoSeo }) {
               </span>
             </div>
             <div className="kpi">
-              <span className="label">Issues</span>
+              <span className="label">To fix</span>
               <span className="v num">{latest.issues.length}</span>
             </div>
           </div>
+          <AuditReadings latest={latest} />
           {latest.issues.length > 0 ? (
-            <ul className="list">
-              {latest.issues.map((issue) => (
-                <li key={`${issue.title}-${issue.pageUrl}`} className="li">
-                  <span className="tag">{issue.severity}</span>
-                  <span className="grow">
-                    <b>{issue.title}</b>
-                    <br />
-                    <span className="note">
-                      {pagePath(issue.pageUrl)}
-                      {issue.detail ? ` · ${issue.detail}` : ""}
+            <div className="stack-sm">
+              <span className="label">Checks that did not pass</span>
+              <ul className="list">
+                {latest.issues.map((issue) => (
+                  <li key={`${issue.title}-${issue.pageUrl}`} className="li">
+                    <span className="tag">{issue.severity}</span>
+                    <span className="grow">
+                      <b>{withoutAuditIds(issue.title)}</b>
+                      <br />
+                      <span className="note">
+                        {pagePath(issue.pageUrl)}
+                        {issue.detail
+                          ? ` · ${plainIssueDetail(issue.detail)}`
+                          : ""}
+                      </span>
                     </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : (
-            <p>No issues found.</p>
+            <p>Nothing to fix.</p>
           )}
         </>
       ) : (
@@ -226,6 +245,55 @@ function AuditCard({ seo }: { seo: CmoSeo }) {
         </p>
       )}
     </section>
+  );
+}
+
+/**
+ * Why "passed" is not every check: some found something to fix, and the rest
+ * only record a value (a title's length, a position). Those are listed, so
+ * the numbers never contradict each other.
+ */
+function AuditReadings({
+  latest,
+}: {
+  latest: NonNullable<CmoSeo["audit"]["latest"]>;
+}) {
+  // Core and CMO deploy apart: an older Core sends none of the three.
+  const { failedChecks = 0, readingChecks = 0, readings = [] } = latest;
+  if (failedChecks + readingChecks === 0) return null;
+  const checks = (n: number) => `${n} ${n === 1 ? "check" : "checks"}`;
+  return (
+    <div className="stack-sm">
+      <p className="note">
+        {failedChecks > 0
+          ? `${checks(failedChecks)} found what is listed to fix (one thing can show on your phone and desktop page). `
+          : null}
+        {readingChecks > 0
+          ? `${checks(readingChecks)} only took a reading, such as how long your title is. A reading is not a problem.`
+          : null}
+      </p>
+      {readings.length > 0 ? (
+        <details>
+          <summary>See the readings</summary>
+          <ul className="list">
+            {readings.map((reading) => (
+              <li key={`${reading.title}-${reading.pageUrl}`} className="li">
+                <span className="grow">
+                  <b>{withoutAuditIds(reading.title)}</b>
+                  <br />
+                  <span className="note">
+                    {pagePath(reading.pageUrl)}
+                    {reading.detail
+                      ? ` · ${plainIssueDetail(reading.detail)}`
+                      : ""}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
   );
 }
 
@@ -298,8 +366,10 @@ function SearchConsoleCard({
                 <span className="note">{pagePath(row.pageUrl)}</span>
               </span>
               <span className="note num">
-                position {row.position?.toFixed(1)} · seen{" "}
-                {count(row.impressions)} · {count(row.clicks)} clicks
+                {row.position === null
+                  ? ""
+                  : `position ${row.position.toFixed(1)} · `}
+                seen {count(row.impressions)} · {count(row.clicks)} clicks
               </span>
             </li>
           ))}
@@ -328,14 +398,14 @@ function SearchConsoleCard({
           <div className="kpi">
             <span className="label">Average position</span>
             <span className="v num">
-              {gsc.totals.position?.toFixed(1) ?? "None"}
+              {gsc.totals.position?.toFixed(1) ?? NOT_KNOWN}
             </span>
           </div>
           <div className="kpi">
             <span className="label">Clicked</span>
             <span className="v num">
               {gsc.totals.ctr === null
-                ? "None"
+                ? NOT_KNOWN
                 : `${(gsc.totals.ctr * 100).toFixed(1)}%`}
             </span>
           </div>
@@ -362,12 +432,13 @@ function PageChange({
   change: CmoSeoSuggestion;
   setStatus: (status: "open" | "done" | "dismissed") => Promise<void>;
 }) {
+  const copy = pageChangeCopy(change);
   return (
     <li className="li seo-item">
       <div className="grow stack-sm">
-        <b>{change.title}</b>
+        <b>{copy.title}</b>
         <span className="note">{pagePath(change.pageUrl)}</span>
-        <p>{change.body}</p>
+        <p>{copy.what}</p>
         {change.newText ? (
           <div className="seo-copy">
             <span className="label">New text</span>
@@ -377,7 +448,17 @@ function PageChange({
             </div>
           </div>
         ) : null}
-        <p className="note">{change.why}</p>
+        <p className="note">{copy.why}</p>
+        {copy.detail ? (
+          <details>
+            <summary className="note">More detail</summary>
+            {copy.detail.split("\n\n").map((part) => (
+              <p key={part} className="note">
+                {part}
+              </p>
+            ))}
+          </details>
+        ) : null}
         <Evidence items={change.evidence} />
       </div>
       <div className="seo-actions">
@@ -470,6 +551,121 @@ function Article({
   );
 }
 
+/** Where a source stands, as its site's name. */
+function sourceSite(url: string): string {
+  return URL.parse(url)?.hostname.replace(/^www\./, "") ?? url;
+}
+
+/**
+ * A page for a search that names a competitor: its words to copy, what it
+ * says about the competitor with the competitor's own words, and where the
+ * owner says it is live.
+ */
+function LandingPage({
+  page,
+  markLive,
+  setStatus,
+}: {
+  page: CmoSeoSuggestion;
+  markLive: (url: string) => Promise<void>;
+  setStatus: (status: "open" | "done" | "dismissed") => Promise<void>;
+}) {
+  const live = page.status !== "open" && page.pageUrl;
+  return (
+    <li className="li seo-item">
+      <div className="grow stack-sm">
+        <b>{page.title}</b>
+        {page.keyword ? (
+          <span className="note">For the search "{page.keyword}"</span>
+        ) : null}
+        <p className="note">{page.why}</p>
+        <Evidence items={page.evidence} />
+        <details>
+          <summary className="note">Read the page</summary>
+          <DraftText text={page.draft ?? ""} />
+        </details>
+        {page.sources.length > 0 ? (
+          <details>
+            <summary className="note">
+              What it says about them, and where they say it
+            </summary>
+            <ul className="list">
+              {page.sources.map((source) => (
+                <li key={`${source.sourceUrl}${source.quote}`} className="li">
+                  <span className="grow stack-sm">
+                    <span>{source.text}</span>
+                    <span className="note">
+                      "{source.quote}" (
+                      <a
+                        href={source.sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {sourceSite(source.sourceUrl)}
+                      </a>
+                      )
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
+        {live ? null : (
+          <form
+            className="seo-search"
+            action={async (form) => {
+              const url = String(form.get("url") ?? "").trim();
+              if (url) await markLive(url);
+            }}
+          >
+            <input
+              aria-label={`Where "${page.title}" is live`}
+              name="url"
+              type="url"
+              placeholder="https://your-site.com/the-page"
+              maxLength={500}
+              required
+            />
+            <SubmitButton className="button button-small">
+              It's live
+            </SubmitButton>
+          </form>
+        )}
+      </div>
+      <div className="seo-actions">
+        {page.draft ? (
+          <>
+            <CopyButton text={page.draft} label="Copy" />
+            <DownloadButton text={page.draft} title={page.title} />
+          </>
+        ) : null}
+        {live ? (
+          <>
+            <StatusText>Live</StatusText>
+            <span className="note">{pagePath(page.pageUrl)}</span>
+            <button
+              type="button"
+              className="button button-ghost button-small"
+              onClick={() => setStatus("open")}
+            >
+              Not live yet
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => setStatus("dismissed")}
+          >
+            Skip
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
 function KeywordResults({ search }: { search: CmoKeywordSearch }) {
   return (
     <div className="stack-sm">
@@ -497,11 +693,11 @@ function KeywordResults({ search }: { search: CmoKeywordSearch }) {
                   <td>{idea.keyword}</td>
                   <td className="num">
                     {idea.searchVolume === null
-                      ? "None"
+                      ? NOT_KNOWN
                       : count(idea.searchVolume)}
                   </td>
-                  <td className="num">{idea.difficulty ?? "None"}</td>
-                  <td>{idea.intent ?? "None"}</td>
+                  <td className="num">{idea.difficulty ?? NOT_KNOWN}</td>
+                  <td>{idea.intent ?? NOT_KNOWN}</td>
                   <td className="num">
                     {idea.position === null ? "Not yet" : idea.position}
                   </td>
@@ -583,7 +779,14 @@ function KeywordSearch({
   );
 }
 
-export function SeoPage({ actions }: { actions: SeoActions }) {
+export function SeoPage({
+  actions,
+  timeZone,
+}: {
+  actions: SeoActions;
+  /** The clock Cuso works on, for when the next audit runs. */
+  timeZone: string;
+}) {
   const [seo, setSeo] = useState<CmoSeo | null>(null);
   const [failed, setFailed] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -633,6 +836,12 @@ export function SeoPage({ actions }: { actions: SeoActions }) {
           : `${AGENT_NAME} is looking for new ideas. They show here in a few minutes, and he tells you in the chat.`),
     );
   };
+  const markLive = (id: string) => async (url: string) => {
+    const result = await actions.markLandingPageLive(id, url);
+    setNote(result.error ?? result.note);
+    await refresh();
+  };
+  const landingPages = seo.landingPages.filter((p) => p.status !== "dismissed");
   const changes = seo.pageChanges.filter((c) => c.status !== "dismissed");
   const open = changes.filter((c) => c.status === "open");
   const articles = seo.articles.filter((a) => a.status !== "dismissed");
@@ -644,7 +853,7 @@ export function SeoPage({ actions }: { actions: SeoActions }) {
           {note}
         </p>
       ) : null}
-      <AuditCard seo={seo} />
+      <AuditCard seo={seo} timeZone={timeZone} />
       <section className={open.length > 0 ? "card card-focus" : "card"}>
         <h3>Page changes</h3>
         <p className="muted">
@@ -700,6 +909,27 @@ export function SeoPage({ actions }: { actions: SeoActions }) {
           </ul>
         )}
       </section>
+      {landingPages.length > 0 ? (
+        <section className="card">
+          <h3>Landing pages</h3>
+          <p className="muted">
+            Pages for people comparing you with a competitor, each with the
+            search in its heading and first paragraph. Publish one on your site,
+            then say where it is live: the search ad for that search sends
+            people there from then on.
+          </p>
+          <ul className="list">
+            {landingPages.map((page) => (
+              <LandingPage
+                key={page.id}
+                page={page}
+                markLive={markLive(page.id)}
+                setStatus={setStatus(page.id)}
+              />
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <KeywordSearch
         seo={seo}
         search={actions.searchKeywords}

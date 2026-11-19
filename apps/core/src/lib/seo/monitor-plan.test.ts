@@ -4,6 +4,7 @@ import {
   hasReadableSeoMonitorPlan,
   parseSeoMonitorPlan,
   SEO_MONITOR_MARKER,
+  seoMonitorAuditId,
   seoMonitorDescriptionForUser,
   seoMonitorDescriptionWithRule,
 } from "./monitor-plan";
@@ -43,6 +44,26 @@ describe("SEO monitor owner protocol", () => {
     );
   });
 
+  it("identifies only the audit in a readable v2 plan, including equivalent UUID spellings", () => {
+    const id = "abcdefff-1111-4111-8111-111111111111";
+    const body = description({
+      version: 2,
+      auditId: id.toUpperCase(),
+      ...plan,
+    }).replace("ABC", "\\u0041BC");
+    expect(seoMonitorAuditId(body)).toBe(id);
+    expect(
+      seoMonitorAuditId(
+        description({
+          version: 1,
+          ...plan,
+          analysis: { ...plan.analysis, pageIds: [id] },
+        }),
+      ),
+    ).toBeNull();
+    expect(seoMonitorAuditId(SEO_MONITOR_MARKER + id)).toBeNull();
+  });
+
   it("keeps legacy Project packets and rejects missing or ambiguous Audit ownership", () => {
     expect(
       parseSeoMonitorPlan(description({ version: 1, ...plan })),
@@ -77,6 +98,10 @@ describe("SEO monitor owner protocol", () => {
     ).toBe("audit_full");
     for (const analysis of [
       { ...plan.analysis, scopeId: AUDIT_ID },
+      {
+        ...plan.analysis,
+        setupGoal: { pageId: AUDIT_ID, expectedRevision: 0, action: "buy" },
+      },
       { ...plan.analysis, pageIds: [] },
       { ...plan.analysis, coworkerId: undefined },
     ])

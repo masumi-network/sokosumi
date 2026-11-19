@@ -14,13 +14,15 @@ describe("Cuso's research in groups (SOKD-167)", () => {
     expect([...sections].sort()).toEqual([...CMO_BRAND_SECTION_KEYS].sort());
   });
 
-  it("ships on cmo-v2, the version new hires get; cmo-v1 Cusos keep theirs", () => {
+  it("ships from cmo-v2 on, so the version new hires get has it; cmo-v1 Cusos keep theirs", () => {
     const v2 = getSokoBotVersion("cmo-v2");
     expect(v2.profile).toBe("cmo");
     expect(v2.skills).toContain("cmo-brand-brain-groups");
     expect(v2.skills).not.toContain("cmo-brand-brain");
     expect(getSokoBotVersion("cmo-v1").skills).toContain("cmo-brand-brain");
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v2");
+    expect(getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID).skills).toContain(
+      "cmo-brand-brain-groups",
+    );
   });
 
   it("briefs each group under its own heading, within the turn's 30 searches", () => {

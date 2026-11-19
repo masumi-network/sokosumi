@@ -229,8 +229,9 @@ describe("color tokens", () => {
   it("paints the primary on no text or edge", () => {
     // Iris Flower, the primary, measures 2.67:1 on white. The Masumi Family
     // guide allows it as a fill only, so text, borders, rings and thin marks
-    // take a foreground role. The tail rejects `[\w-]`, so fill-side
-    // label (`text-primary-foreground`) stays legal.
+    // take a foreground role. The one exception is the navigation progress
+    // bar, a `bg-primary` fill 3px high (DESIGN.md, Motion). The tail rejects
+    // `[\w-]`, so fill-side label (`text-primary-foreground`) stays legal.
     const violations = findColorViolations(
       PRIMARY_ON_TEXT_OR_EDGE,
       (rel) =>

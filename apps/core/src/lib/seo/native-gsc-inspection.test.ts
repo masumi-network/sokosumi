@@ -26,6 +26,7 @@ describe("normalizeGscInspection", () => {
       verdict: "FAIL",
       coverageState: "Crawled - currently not indexed",
       robotsTxtState: null,
+      indexingState: null,
       lastCrawlTime: "2026-10-30T08:15:00Z",
       googleCanonical: "https://example.test/b",
       userCanonical: null,

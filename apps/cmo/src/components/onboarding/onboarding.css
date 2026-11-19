@@ -62,11 +62,17 @@ body:has(.ob) .site-header {
   font-weight: 600;
 }
 
+/* A step to go back to is a link among labels: its name underlined, no
+   line and no shadow. A shadowed pill beside the current step read as a
+   second, heavier "current", and its shadow ran under its neighbour. */
 .ob-step > button {
   cursor: pointer;
-  transition:
-    background-color 150ms,
-    border-color 150ms;
+  transition: background-color 150ms;
+}
+
+.ob-step > button .ob-step-label {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .ob-step > button:hover {
@@ -78,9 +84,10 @@ body:has(.ob) .site-header {
   outline-offset: 2px;
 }
 
+/* Done and to come are the same plain label: a tick and the text colour,
+   or a number and the muted one. Only the current step is filled. */
 .ob-step.done > span,
 .ob-step.done > button {
-  border-color: var(--line);
   color: var(--foreground);
 }
 
@@ -89,11 +96,6 @@ body:has(.ob) .site-header {
   border-color: var(--line);
   background: var(--primary);
   color: var(--primary-foreground);
-}
-
-/* A step you can go back to is a button, so it casts a shadow; the label does not. */
-.ob-step.now > button {
-  box-shadow: var(--shadow);
 }
 
 .ob-who {
@@ -299,31 +301,9 @@ body:has(.ob) .site-header {
   text-overflow: ellipsis;
 }
 
-/* The sidebar's scene: as wide as its column, shorter, a smaller label. */
-.ob-scene-compact {
-  width: auto;
-  height: 176px;
-}
-
-/* In the sidebar the stage is a picture, not an action: the line, no shadow. */
-.ob-scene-compact .ob-stage-art {
-  border-radius: var(--radius-card);
-}
-
-.ob-scene-compact .ob-scene-now {
-  bottom: 24px;
-  max-width: calc(100% - 16px);
-  padding: 4px 8px;
-  font-size: 0.75rem;
-}
-
 /* A label on the stage: he stands above it, so it never covers him. */
 .ob-scene:has(.ob-scene-now) .ob-stage-art {
   padding-bottom: 72px;
-}
-
-.ob-scene-compact:has(.ob-scene-now) .ob-stage-art {
-  padding-bottom: 56px;
 }
 
 /* He needs the owner: the label calls out on Iris. */
@@ -543,8 +523,11 @@ body:has(.ob) .site-header {
 
 .ob-foot {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 0 32px 32px;
+  text-align: center;
 }
 
 /* ── Type ── */
@@ -670,8 +653,10 @@ body:has(.ob) .site-header {
   list-style: none;
 }
 
+/* Row even when working: the chat's `.working` stacks its children. */
 .ob-checklist li {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 10px;
   color: var(--muted);
@@ -1120,6 +1105,18 @@ body:has(.ob) .site-header {
   background: var(--surface);
 }
 
+/* A no the strategy does not show yet: what to do, beside the checks. */
+.ob-checks > .ob-unfitted {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 14px 20px;
+  background: var(--warn);
+  color: var(--primary-foreground);
+}
+
 .ob-chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -1454,6 +1451,8 @@ body:has(.ob) .site-header {
 
 .ob-plan-body {
   display: grid;
+  /* One column no wider than the page, however wide a child's content is. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -1658,19 +1657,28 @@ body:has(.ob) .site-header {
   background: var(--card);
   color: var(--foreground);
   font: inherit;
+  box-shadow: var(--shadow);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color 150ms,
+    transform 150ms;
 }
 
 .ob-tabs button:hover {
   background: var(--surface);
 }
 
+.ob-tabs button:active {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+/* Every tab is a button and casts the shadow; the picked one is filled. */
 .ob-tabs button[aria-selected="true"],
 .ob-tabs button[aria-pressed="true"] {
   background: var(--primary);
-  box-shadow: var(--shadow);
   color: var(--primary-foreground);
 }
 
@@ -2103,12 +2111,24 @@ body:has(.ob) .site-header {
   color: var(--foreground);
   font: inherit;
   text-align: left;
+  box-shadow: var(--shadow);
   cursor: pointer;
 }
 
-/* The selected tile in a grid takes the Iris shadow. */
+/* Every plan is a button and casts the shadow; the picked one is filled. */
 .ob-plan-option[aria-pressed="true"] {
-  box-shadow: var(--shadow-iris);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.ob-plan-option[aria-pressed="true"] .muted {
+  color: var(--primary-foreground);
+}
+
+/* On the picked plan the mark would vanish into the fill. */
+.ob-plan-option[aria-pressed="true"] .ob-plan-fit {
+  background: var(--card);
+  color: var(--foreground);
 }
 
 .ob-plan-option:focus-visible {
@@ -2254,6 +2274,22 @@ body:has(.ob) .site-header {
     order: 3;
     grid-column: 1 / -1;
     justify-content: space-between;
+  }
+
+  /* Without its underlined name, a step to go back to stands on the panel
+     fill, so it still reads as the one to tap. */
+  .ob-step > button {
+    background: var(--surface);
+  }
+
+  /* Five labels are wider than a phone; the other steps keep their number or tick. */
+  .ob-step:not(.now) .ob-step-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .ob-main {
@@ -2473,6 +2509,20 @@ body:has(.ob) .site-header {
 .ob-look-fonts {
   margin: 0;
   font-size: 0.875rem;
+}
+
+/* The brand's colours in a row of the tile: discs, no codes. */
+.ob-look-dots {
+  display: inline-flex;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.ob-look-dots > span {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
 }
 
 /* The market map: Cuso's two axes, the business as the Iris dot. */

@@ -911,6 +911,15 @@ describe("AuthFlow signUp", () => {
     expect(fireGTMEvent.registerFormStart).toHaveBeenCalledTimes(1);
   });
 
+  it("gives Log in a target at least 24px tall", () => {
+    render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
+
+    // WCAG 2.5.8: a bare text-sm link is 20px tall on a phone.
+    expect(screen.getByRole("link", { name: "Login.link" })).toHaveClass(
+      "min-h-6",
+    );
+  });
+
   it("links to sign-in without a query when there is no OAuth request", () => {
     render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
 

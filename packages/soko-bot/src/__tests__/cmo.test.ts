@@ -1,3 +1,7 @@
+import {
+  creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PRICE,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,8 +14,14 @@ import {
   SOKO_BOT_CMO_RHYTHMS,
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
-import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
-import { marketingStrategyPlanSchema } from "../project-marketing.js";
+import {
+  SOKO_BOT_CMO_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
+} from "../policy.js";
+import {
+  cmoCalendarEntrySchema,
+  marketingStrategyPlanSchema,
+} from "../project-marketing.js";
 import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import { CMO_SKILLS } from "../versions/cmo-skills.js";
@@ -104,10 +114,25 @@ describe("CMO version", () => {
   it("gives CMO tools to Cuso on every route and to nobody else", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     const assistant = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
-    expect(applyVersionCapabilities(cmo, ["read_memory"])).toEqual([
-      "read_memory",
-      ...SOKO_BOT_CMO_CAPABILITIES,
-    ]);
+    // Cuso also always carries the competitor tools, routed or not, once.
+    for (const routed of [
+      ["read_memory"] as const,
+      ["read_memory", "check_competitors", "save_competitor_feed"] as const,
+    ])
+      expect(applyVersionCapabilities(cmo, routed)).toEqual([
+        "read_memory",
+        ...SOKO_BOT_CMO_CAPABILITIES,
+        ...SOKO_BOT_COMPETITOR_CAPABILITIES,
+      ]);
+    // Another bot gets them only from its route; Core then asks whether a
+    // Project it works in has the weekly check on.
+    expect(
+      applyVersionCapabilities(assistant, [
+        "read_memory",
+        "check_competitors",
+        "save_competitor_feed",
+      ]),
+    ).toEqual(["read_memory", "check_competitors", "save_competitor_feed"]);
     expect(
       applyVersionCapabilities(assistant, [
         "read_memory",
@@ -125,9 +150,9 @@ describe("CMO version", () => {
     const cmo = getSokoBotVersion(CMO_SOKO_BOT_VERSION_ID);
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
-        "code-tools",
-        "agent-jobs",
-        "ask-coworker-first",
+        "cmo-code-tools",
+        "cmo-agent-jobs",
+        "cmo-ask-coworker",
       ]),
     );
     expect(cmo.capabilities).toEqual(
@@ -148,13 +173,19 @@ describe("CMO version", () => {
     expect(prompt).toContain("When the owner forbids or defers an action");
     expect(prompt).toContain("# You are Cuso");
     expect(prompt).toContain(
-      "Answer in the language of the owner's latest message",
+      "Write to the owner in the language of their latest message in the chat",
+    );
+    expect(prompt).toContain(
+      "Every piece is in it from its title to its last word",
+    );
+    expect(prompt).not.toContain(
+      "is in the language the owner wrote their goal",
     );
     expect(cmo.skills).toEqual(
       expect.arrayContaining([
-        "social-posting-instructions",
-        "long-and-chained-work-follow-ups",
-        "newsletter",
+        "cmo-social-posts",
+        "cmo-long-work",
+        "cmo-newsletter",
       ]),
     );
     expect(cmo.skills).not.toContain("long-work");
@@ -447,10 +478,13 @@ describe("CMO strategy and rhythms", () => {
         ],
       },
     });
-    expect(
-      cmoSaveStrategyInputSchema.safeParse(proposing("instagram")).success,
-    ).toBe(true);
-    for (const outside of ["reddit", "tiktok", "linkedin"]) {
+    // TikTok is a channel Cuso runs: the owner confirms each video.
+    for (const run of ["instagram", "tiktok"]) {
+      expect(cmoSaveStrategyInputSchema.safeParse(proposing(run)).success).toBe(
+        true,
+      );
+    }
+    for (const outside of ["reddit", "linkedin"]) {
       expect(
         cmoSaveStrategyInputSchema.safeParse(proposing(outside)).success,
       ).toBe(false);
@@ -624,6 +658,29 @@ describe("picture styles", () => {
   });
 });
 
+describe("pictures of the month", () => {
+  it("tells Cuso to style every picture, each slide with its own words", async () => {
+    const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
+    const skill = CMO_SKILLS.find((entry) => entry.id === "cmo-production");
+    expect(skill?.content).toContain(
+      "Every piece with a picture takes the look of an old print",
+    );
+    expect(skill?.content).toContain("slideHeadlines: one entry per slide");
+    expect(skill?.content).not.toContain("Decide per piece");
+    expect(
+      cmoCalendarEntrySchema.safeParse({
+        id: "c1",
+        date: "2026-12-01",
+        channel: "instagram",
+        title: "Three steps",
+        format: "carousel",
+        status: "draft",
+        slideHeadlines: ["Review the drafts", "Then it goes live"],
+      }).success,
+    ).toBe(true);
+  });
+});
+
 describe("pictures in chat", () => {
   it("tells Cuso to make a chat post's picture in a library style", async () => {
     const { CMO_SKILLS } = await import("../versions/cmo-skills.js");
@@ -632,7 +689,10 @@ describe("pictures in chat", () => {
       "In chat, a picture for a post or an ad goes the same way",
     );
     expect(skill?.content).toContain("the reference's id as styleReferenceId");
-    expect(skill?.content).toContain("maxCredits 30");
+    expect(skill?.content).toContain("maxCredits 25");
+    expect(skill?.content).toContain(
+      "pass that picture in referenceFileIds as well",
+    );
     const scenario = CMO_SCENARIOS.find(
       (entry) => entry.id === "cmo-post-with-picture",
     );
@@ -640,5 +700,32 @@ describe("pictures in chat", () => {
       "find_style_references",
       "generate_image",
     ]);
+  });
+});
+
+describe("what Cuso is told a talking video costs", () => {
+  const credits = (length: number, siteShots = false) =>
+    creditsPerTalkingVideoCents(TALKING_VIDEO_PRICE, "x".repeat(length), {
+      siteShots,
+    });
+
+  it("tells the strategy the price a 150 to 400 character script is charged, with the music and B-roll a month's video has", () => {
+    const strategy = CMO_SKILLS.filter((skill) =>
+      skill.id.startsWith("cmo-strategy"),
+    );
+    expect(strategy.length).toBeGreaterThan(0);
+    const extras = 60;
+    const from = Math.round((credits(150) + extras) / 10) * 10;
+    const to = Math.round((credits(400, true) + extras) / 10) * 10;
+    for (const skill of strategy) {
+      expect(skill.content).toContain(`costs about ${from} to ${to} credits`);
+      expect(skill.content).not.toContain("200 to 450 credits");
+    }
+  });
+
+  it("quotes the same price in the tool that makes one", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.generate_talking_video).toContain(
+      `a 150-character script costs about ${credits(150)})`,
+    );
   });
 });

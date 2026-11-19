@@ -10,7 +10,20 @@ import { chat, messages, overview, seo } from "./fixtures";
 const actions: CmoAppActions = {
   // The same data every time, so the app's polling never changes the screen.
   loadState: async () => ({ overview, messages }),
+  loadChatWork: async () => [],
+  loadChatWorkText: async () =>
+    "## Three trends\n\n- Loyalty passes replace one-off drops\n- Brands mint on their own site\n- Buyers pay by card",
+  loadChatWorkTable: async () => ({
+    columns: ["Post", "Channel", "Status"],
+    rows: Array.from({ length: 12 }, (_, index) => [
+      `Launch post ${index + 1}`,
+      index % 2 ? "LinkedIn" : "X",
+      index < 4 ? "Made" : "Planned",
+    ]),
+    total: 12,
+  }),
   sendMessage: async () => {},
+  changeChannel: async () => ({ url: null, error: null }),
   skipSubscription: async () => ({ error: null }),
   loadPieceText: async (id) =>
     overview.strategy?.calendar.find((entry) => entry.id === id)?.draft ?? null,
@@ -20,6 +33,20 @@ const actions: CmoAppActions = {
   saveBrandBrain: async () => overview,
   retryLearning: async () => ({ overview, error: null }),
   pauseEntry: async () => overview,
+  approveDraft: async () => ({ overview, error: null }),
+  readTikTokCreator: async () => ({
+    creator: {
+      creator_nickname: "acme",
+      privacy_level_options: ["PUBLIC_TO_EVERYONE"],
+      comment_disabled: false,
+      duet_disabled: false,
+      stitch_disabled: false,
+      max_video_post_duration_sec: 600,
+    },
+    error: null,
+  }),
+  declineDraft: async () => ({ overview, error: null }),
+  editDraft: async () => ({ overview, error: null }),
   competitors: {
     loadCompetitors: async () => competitors,
     addCompetitor: async () => ({ competitors, error: null }),
@@ -61,6 +88,7 @@ const actions: CmoAppActions = {
   ],
   // Both would leave the preview.
   startOver: async () => null,
+  setTimeZone: async () => null,
   startTopUp: async () => ({ url: null, error: null }),
   subscribe: async () => ({ url: null, error: null }),
   changePlan: async () => ({ change: null, error: null }),
@@ -72,6 +100,7 @@ const actions: CmoAppActions = {
     error: null,
   }),
   setSeoSuggestionStatus: async () => null,
+  markLandingPageLive: async () => ({ note: null, error: null }),
   askCusoForArticles: async () => null,
 };
 
@@ -92,13 +121,16 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
     <CmoApp
       overview={data.overview}
       messages={data.messages}
+      work={view === "chat" ? chat.work : []}
       name="Francis Luz"
       email="francis@acme.io"
       initialView={view}
       plans={cmoPlans}
+      mayHire
       actions={{
         ...actions,
         loadState: async () => data,
+        loadChatWork: async () => (view === "chat" ? chat.work : []),
         competitors: { ...actions.competitors, loadCompetitors },
       }}
     />

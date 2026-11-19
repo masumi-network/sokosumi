@@ -259,7 +259,12 @@ interface StartTalkingVideoParameters
   extends AuthenticatedRequest,
     Pick<
       CreateProjectTalkingVideoJobRequest,
-      "script" | "presenter" | "idempotencyKey"
+      | "script"
+      | "presenter"
+      | "siteShots"
+      | "broll"
+      | "music"
+      | "idempotencyKey"
     > {
   projectId: string;
   modelId: string;
@@ -281,6 +286,9 @@ export const startTalkingVideo = withSession<
         voice: input.voice as CreateProjectTalkingVideoJobRequest["voice"],
         languageCode: input.languageCode,
         presenter: input.presenter,
+        siteShots: input.siteShots,
+        broll: input.broll,
+        music: input.music,
         idempotencyKey: input.idempotencyKey,
       },
     );

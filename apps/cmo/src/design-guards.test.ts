@@ -44,7 +44,7 @@ const SOURCE = FILES.filter(
 const STYLESHEET = "app/globals.css";
 
 /** Drawings of the networks' own UIs; exempt from the visual-system guards. */
-const ALLOWLIST = ["components/phone-feeds.css", "components/showcases.css"];
+const ALLOWLIST = ["components/phone-feeds.css"];
 
 /** Every stylesheet and non-test source file except the allowlist. */
 const STYLED = FILES.filter(
@@ -122,6 +122,8 @@ describe("colours", () => {
   });
 });
 
+const BRAND_FONT_SAMPLE = "components/onboarding/brand-look.tsx";
+
 describe("typeface", () => {
   it("sets the face only through --font-sans (PP Mori)", () => {
     const stylesheet = FILES.find((file) => file.rel === STYLESHEET);
@@ -131,7 +133,12 @@ describe("typeface", () => {
       .filter(({ line }) => !/font-family\s*:\s*var\(--font-sans\)/.test(line))
       .map(({ line, index }) => `${STYLESHEET}:${index + 1}: ${line.trim()}`);
 
-    const inSource = findLines(SOURCE, /\bfontFamily\s*:/);
+    // One exception: the Brand Brain names the brand's own fonts in those
+    // fonts. That is the brand's look shown as content, not the app's face.
+    const inSource = findLines(
+      SOURCE.filter((file) => file.rel !== BRAND_FONT_SAMPLE),
+      /\bfontFamily\s*:/,
+    );
 
     expect(stylesheet?.text).toMatch(/--font-sans:\s*var\(--font-mori\)/);
     expect([...literalFamilies, ...inSource]).toEqual([]);
@@ -319,7 +326,7 @@ const CASTS_SHADOW = [
   /\.button(?:-small|-secondary)?(?![\w-])/,
   /\[aria-(?:pressed|selected)/,
   // Classes that are only ever set on a <button>.
-  /^\.(?:chip|who-button|ob-who-button|ob-side-close|sc-pace-option)(?![\w-])/,
+  /^\.(?:chip|who-button|ob-who-button|ob-side-close|cal-filter|ob-plan-option)(?![\w-])/,
   // The chat's composer: the frame around its textarea.
   /^\.composer$/,
   /^\.ob-who-menu$/,
@@ -394,6 +401,96 @@ describe("shadows mean action", () => {
       ),
     ).toEqual([]);
     expect(passiveShadows(".tag { box-shadow: none; }")).toEqual([]);
+  });
+});
+
+/**
+ * A set to pick from (tabs, filters, paces, plans): every one is a button, so
+ * every one casts the shadow at rest and only the fill says which is picked. A
+ * flat outline beside a shadowed Iris pill reads as a label.
+ */
+const PICKED = /\[aria-(?:pressed|selected)="true"\](?=(?::not\([^)]*\))?$)/;
+/** Shared button classes, which cast their shadow in their own rule. */
+const SHARED_BUTTON = /^\.(?:button(?:-small|-secondary)?|chip)(?![\w-])/;
+
+function rulesOf(css: string): { selector: string; body: string }[] {
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "");
+  return [...rules.matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(
+    ([, list = "", body = ""]) =>
+      selectors(list).map((selector) => ({ selector, body })),
+  );
+}
+
+/** The sets whose picked one is styled while the rest lie flat. */
+function flatChoices(css: string): string[] {
+  const rules = rulesOf(css);
+  const casts = new Set(
+    rules
+      .filter(({ body }) => /box-shadow:\s*var\(--shadow\)/.test(body))
+      .map(({ selector }) => selector),
+  );
+  const bases = rules
+    .filter(({ selector }) => PICKED.test(selector))
+    .map(({ selector }) => selector.replace(PICKED, ""));
+  return [...new Set(bases)].filter(
+    (base) => !casts.has(base) && !SHARED_BUTTON.test(base),
+  );
+}
+
+describe("every choice reads as a button", () => {
+  const css = STYLED.filter((file) => file.rel.endsWith(".css"))
+    .map((file) => file.text)
+    .join("\n");
+
+  it("casts the shadow from every one of a set, picked or not", () => {
+    expect(flatChoices(css)).toEqual([]);
+  });
+
+  it("casts it from the shared buttons", () => {
+    const casts = rulesOf(css)
+      .filter(({ body }) => /box-shadow:\s*var\(--shadow\)/.test(body))
+      .map(({ selector }) => selector);
+    expect(casts).toEqual(
+      expect.arrayContaining([".button", ".button-small", ".chip"]),
+    );
+  });
+
+  it("keeps the step bar calm: no step casts a shadow or draws a line of its own but the current one", () => {
+    const steps = rulesOf(css).filter(({ selector }) =>
+      selector.startsWith(".ob-step"),
+    );
+    expect(steps.length).toBeGreaterThan(0);
+    expect(
+      steps
+        .filter(({ body }) => /box-shadow:\s*var\(--shadow/.test(body))
+        .map(({ selector }) => selector),
+    ).toEqual([]);
+    expect(
+      steps
+        .filter(({ body }) => /border-color:\s*var\(--line\)/.test(body))
+        .map(({ selector }) => selector),
+    ).toEqual([".ob-step.now > span", ".ob-step.now > button"]);
+  });
+
+  it("flags a set that shadows only its picked one and passes one that shadows all", () => {
+    const picked =
+      '.tabs button[aria-selected="true"] { background: var(--primary); box-shadow: var(--shadow); }';
+    expect(flatChoices(`.tabs button { cursor: pointer; } ${picked}`)).toEqual([
+      ".tabs button",
+    ]);
+    expect(
+      flatChoices(`.tabs button { box-shadow: var(--shadow); } ${picked}`),
+    ).toEqual([]);
+    expect(
+      flatChoices(
+        '.button-small[aria-pressed="true"]:not(.button-ghost) { background: var(--primary); }',
+      ),
+    ).toEqual([]);
+    expect(
+      flatChoices(
+        '[aria-pressed="true"] > .count { background: var(--card); }',
+      ),
+    ).toEqual([]);
   });
 });
 

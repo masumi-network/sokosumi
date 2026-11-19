@@ -17,6 +17,7 @@ import type {
   TaskTagSnapshot,
   TaskTagWrite,
 } from "@/lib/actions/task/task-write-input";
+import { cn } from "@/lib/utils";
 import {
   representedTaskTopics,
   useTaskTagCatalog,
@@ -56,6 +57,7 @@ function renderTagBadge(
     TaskWorkspaceTag,
     "id" | "displayName" | "color" | "customColor" | "taskTopicId"
   >,
+  quiet = false,
 ) {
   return (
     <TaskTagBadge
@@ -64,6 +66,7 @@ function renderTagBadge(
       color={tag.color}
       customColor={tag.customColor}
       taskTopicId={tag.taskTopicId}
+      quiet={quiet}
     >
       <span className="truncate">{tag.displayName}</span>
     </TaskTagBadge>
@@ -74,10 +77,13 @@ export function TaskTags({
   tags,
   workspaceTags = [],
   compact = false,
+  quiet = false,
   showManualTopics = true,
   inLink = false,
 }: TaskTagsProps & {
   compact?: boolean;
+  /** Tags with no box, for a board card. */
+  quiet?: boolean;
   showManualTopics?: boolean;
   inLink?: boolean;
 }) {
@@ -90,10 +96,14 @@ export function TaskTags({
   return (
     <div
       role="group"
-      className="flex min-w-0 flex-wrap items-center gap-1"
+      className={cn(
+        "flex min-w-0 items-center gap-1",
+        // One tag on one line: it truncates, the count after it stays whole.
+        compact ? "*:first:min-w-0 *:first:shrink" : "flex-wrap",
+      )}
       aria-label={t("label")}
     >
-      {visible.map(renderTagBadge)}
+      {visible.map((tag) => renderTagBadge(tag, quiet))}
       {remaining > 0 &&
         (inLink ? (
           <span
@@ -112,7 +122,12 @@ export function TaskTags({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="relative z-10 min-h-6 px-1.5 text-xs"
+                className={cn(
+                  "relative z-10 min-h-6 px-1.5 text-xs",
+                  quiet && "text-muted-foreground",
+                  // On a card's one-line row the count keeps one fixed height.
+                  compact && "h-6",
+                )}
                 aria-label={t("showAll", { count: badges.length })}
                 onPointerDown={(event) => event.stopPropagation()}
                 onKeyDown={(event) => event.stopPropagation()}
@@ -127,7 +142,7 @@ export function TaskTags({
             >
               <p className="text-sm font-medium">{t("label")}</p>
               <div className="flex flex-wrap gap-1">
-                {badges.map(renderTagBadge)}
+                {badges.map((tag) => renderTagBadge(tag))}
               </div>
             </PopoverContent>
           </Popover>
@@ -192,7 +207,7 @@ export function TaskTagSection({
       </h2>
       {hasTags ? (
         <div className="flex flex-wrap items-center gap-1">
-          {workspaceTags.map(renderTagBadge)}
+          {workspaceTags.map((tag) => renderTagBadge(tag))}
           <TopicBadges tags={tags} workspaceTags={workspaceTags} />
         </div>
       ) : (

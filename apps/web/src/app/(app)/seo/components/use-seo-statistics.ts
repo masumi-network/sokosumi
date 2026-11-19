@@ -28,15 +28,11 @@ export function useSeoStatistics(
   const connected =
     useSeoConnectionStatus(provider).status.data?.status === "connected";
   // The reader's choice, then the property of the last sync, then the one that names the site.
-  const { properties, propertiesUnavailable, propertyId, setPropertyId } =
-    useSeoStatisticsProperties(workspace, provider, connected);
+  const choices = useSeoStatisticsProperties(workspace, provider, connected);
   return {
+    ...choices,
     provider,
     connected,
-    propertyId,
-    setPropertyId,
     channel,
-    properties,
-    propertiesUnavailable,
   };
 }

@@ -69,9 +69,11 @@ vi.mock("../room-session-composer", () => ({
   RoomSessionComposer: ({
     ref,
     focusOnMount,
+    placeholder,
   }: {
     ref?: Ref<RoomComposerHandle>;
     focusOnMount?: boolean;
+    placeholder?: string;
   }) => {
     useImperativeHandle(ref, () => ({
       attachFiles: () => undefined,
@@ -81,6 +83,7 @@ vi.mock("../room-session-composer", () => ({
       <div
         data-testid="room-session-composer"
         data-focus-on-mount={String(Boolean(focusOnMount))}
+        data-placeholder={placeholder}
       />
     );
   },
@@ -623,6 +626,28 @@ describe("RoomsClient room header chrome", () => {
 
     expect(screen.getByTestId("room-open-subtitle")).toHaveTextContent(
       "headerSelfDirect",
+    );
+  });
+
+  it("asks for a note in a self Direct's composer", () => {
+    renderRoom({
+      ...humanDirectRoom(),
+      isSelfDirect: true,
+      userMembers: [participant("user-1", "Ada")],
+    });
+
+    expect(screen.getByTestId("room-session-composer")).toHaveAttribute(
+      "data-placeholder",
+      "SelfDirect.composerPlaceholder",
+    );
+  });
+
+  it("names the other person in a 1:1 Direct's composer", () => {
+    renderRoom(humanDirectRoom());
+
+    expect(screen.getByTestId("room-session-composer")).toHaveAttribute(
+      "data-placeholder",
+      "directComposerPlaceholder",
     );
   });
 

@@ -112,6 +112,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     projectLogo: null,
     presenterSet: false,
     onboardingStep: "done",
+    timeZone: "Europe/Berlin",
     routines: [
       {
         key: "cmo-daily-run",
@@ -137,13 +138,15 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     strategy: cmoStrategy,
     approvedStrategy: null,
     media: [],
+    postRevisions: {},
     ...cmoStrategyVersion(null, new Date("2026-10-01T09:02:00Z")),
     updates: [],
+    drafts: [],
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
+    tiktokEnabled: false,
     adProviders: [],
-    connectAdsUrl: "http://web/ads?projectId=project-1",
     production: {
       state: "waiting",
       ready: 0,
@@ -153,6 +156,8 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
       needPictures: 0,
       finishedAt: null,
       pillars: null,
+      level: "all_in",
+      beyondPlan: [],
     },
     measurement: [
       {

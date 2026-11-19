@@ -667,3 +667,40 @@ describe("TaskMetadata participants", () => {
     expect(screen.queryByText("Participants")).toBeNull();
   });
 });
+
+describe("TaskMetadata field slots", () => {
+  // The detail page keys each slot by the Task id so it resets on a new
+  // Task. Same-keyed siblings duplicated rows when the status changed.
+  it("shows each slot once after the status changes", () => {
+    const slots = {
+      assigneeField: <div key="task-1">Assignee slot</div>,
+      participants: <div key="task-1">Participants slot</div>,
+      projectField: <div key="task-1">Project slot</div>,
+    };
+    const { rerender } = renderTaskMetadata({
+      task: createTask({ status: TaskStatus.DRAFT }),
+      editable: true,
+      ...slots,
+    });
+
+    for (const status of [TaskStatus.READY, TaskStatus.DRAFT]) {
+      rerender(
+        <TaskMetadata
+          title="Properties"
+          taskId="task-1"
+          editable
+          task={createTask({ status })}
+          project={null}
+          labels={baseLabels}
+          statusFieldLabels={baseStatusFieldLabels}
+          priorityLabels={basePriorityLabels}
+          {...slots}
+        />,
+      );
+    }
+
+    expect(screen.getAllByText("Assignee slot")).toHaveLength(1);
+    expect(screen.getAllByText("Participants slot")).toHaveLength(1);
+    expect(screen.getAllByText("Project slot")).toHaveLength(1);
+  });
+});

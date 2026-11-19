@@ -31,7 +31,8 @@ vi.mock("@/clients/social-post-providers/tools", () => ({
   executeComposioTool: mocks.execute,
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
-  projectExecutorUserId: (id: string) => `sokosumi:project-executor:${id}`,
+  connectionExecutorUserId: (connection: { projectId: string }) =>
+    `sokosumi:project-executor:${connection.projectId}`,
 }));
 
 const connection = {

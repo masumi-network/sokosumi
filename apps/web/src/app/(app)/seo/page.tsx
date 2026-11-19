@@ -57,6 +57,8 @@ export default async function SeoPage({
         <WorkspacePageShell title={t("title")}>
           <RefreshPrefetchedPage />
           <SeoAuditIndex
+            key={JSON.stringify([projectId, cursor])}
+            cursor={cursor ?? null}
             audits={index.audits}
             projectId={projectId ?? null}
             nextCursor={index.pagination?.nextCursor ?? null}

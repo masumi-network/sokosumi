@@ -26,10 +26,10 @@ const {
   turnFindUniqueMock,
   turnUpdateManyMock,
   stopSandboxMock,
-  reconcileTurnMock,
+  reconcileRuntimeCompletionMock,
   afterCommit,
 } = vi.hoisted(() => ({
-  reconcileTurnMock: vi.fn(),
+  reconcileRuntimeCompletionMock: vi.fn(),
   /** Runs once after the next locked append commits: who waited on its lock. */
   afterCommit: { next: null as null | (() => Promise<void>) },
   turnFindUniqueMock: vi.fn(),
@@ -99,7 +99,9 @@ vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
   stopTurnSandbox: stopSandboxMock,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
+  sokoBotControlPlane: {
+    reconcileRuntimeCompletion: reconcileRuntimeCompletionMock,
+  },
 }));
 
 import {
@@ -112,6 +114,7 @@ import {
 } from "./soko-bot-sandbox-turn.service";
 
 const claims = {
+  reconciliationLeaseToken: "launch-lease",
   turnId: "01960001-0001-7001-8001-000000000001",
   sessionId: "sess_1",
   expiresAt: Date.now() + 60_000,
@@ -699,6 +702,32 @@ describe("sandbox turn service", () => {
     ]);
   });
 
+  it("records each untrusted source, so a page fetched after an MCP read still counts", async () => {
+    // The turn already read its MCP server; a fetched page is a second source.
+    findFirstEventMock.mockImplementation(
+      async (query: { where: { data?: { equals?: string } } }) =>
+        query.where.data?.equals === "mcp:server-1" ? { id: "taint" } : null,
+    );
+    await recordSandboxAction(claims, {
+      name: "web_fetch",
+      toolCallId: "c3",
+      toolInput: { url: "https://example.com" },
+    });
+    expect(findFirstEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          data: { path: ["source"], equals: "web_fetch" },
+        }),
+      }),
+    );
+    expect(events()).toContainEqual(
+      expect.objectContaining({
+        type: "sandbox.untrusted_input",
+        data: { source: "web_fetch" },
+      }),
+    );
+  });
+
   it("records a sandbox tool as a tool call with what it could cite", async () => {
     await recordSandboxAction(claims, {
       name: "web_fetch",
@@ -1225,7 +1254,7 @@ describe("sandbox turn service", () => {
 
       it("logs the report that failed the turn, though a duplicate settles it right after", async () => {
         // Settling marks the row FAILED.
-        reconcileTurnMock.mockImplementation(async () => {
+        reconcileRuntimeCompletionMock.mockImplementation(async () => {
           row.status = "FAILED";
         });
         findFirstEventMock.mockImplementation(

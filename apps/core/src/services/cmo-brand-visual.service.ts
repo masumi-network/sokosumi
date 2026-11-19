@@ -1,4 +1,4 @@
-import { brandColors, designMdBrandLook } from "@sokosumi/utils";
+import { designMdBrandLook, designMdPalette } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import { type BrandVisual, readBrandVisual } from "@/lib/brand-visual";
@@ -24,8 +24,8 @@ export interface CmoBrandVisual {
 
 /**
  * Name, colours and fonts in a DESIGN.md: its front matter's `name` and
- * `fontFamily` entries (CSS `font-family` too), and its colours, most used
- * first.
+ * `fontFamily` entries (CSS `font-family` too), and its palette (primary,
+ * secondary, accent, background and text; never a status colour).
  */
 export function brandLookFromDesignMd(
   content: string,
@@ -35,7 +35,7 @@ export function brandLookFromDesignMd(
     ?.trim()
     .replace(/^["']|["']$/g, "");
   return {
-    colors: brandColors(content, 5),
+    colors: designMdPalette(content),
     fonts: designMdBrandLook(content).fonts,
     siteName: name ? decodeEntities(name).slice(0, 120) : null,
   };

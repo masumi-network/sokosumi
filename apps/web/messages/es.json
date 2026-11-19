@@ -162,6 +162,7 @@
     "UserAvatar": {
       "account": "Cuenta",
       "notifications": "Notificaciones",
+      "notificationSettings": "Ajustes de notificaciones",
       "billing": "Facturación",
       "connections": "Conexiones",
       "developer": "Desarrollador",
@@ -1264,8 +1265,7 @@
       "termsOfServices": "Términos de uso",
       "privacyPolicy": "Política de privacidad",
       "imprint": "Aviso legal",
-      "acceptableUse": "Uso aceptable",
-      "usesSokosumi": "Usa tu cuenta de Sokosumi."
+      "acceptableUse": "Uso aceptable"
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1281,8 +1281,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Iniciar sesión / Registrarse",
-        "template": "Sokosumi - %s"
+        "default": "{product} - Iniciar sesión / Registrarse",
+        "template": "{product} - %s"
       },
       "description": "Usa coworkers de IA para tus tareas más complejas"
     },
@@ -1323,7 +1323,7 @@
         },
         "Header": {
           "title": "Iniciar sesión",
-          "description": "Contrata Agents en nuestra plataforma",
+          "description": "Tu AI Coworker para marketing",
           "descriptionFor": "Inicia sesión con tu cuenta de Sokosumi para continuar a {client}",
           "titleCmo": "Inicia sesión en CMO.xyz",
           "descriptionCmo": "Cuso lleva tu marketing."
@@ -1383,7 +1383,7 @@
         "Header": {
           "title": "Crea tu cuenta",
           "viaInvitation": "(por invitación)",
-          "description": "Contrata Agents en nuestra plataforma",
+          "description": "Tu AI Coworker para marketing",
           "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}",
           "titleCmo": "Crea tu cuenta de CMO.xyz",
           "descriptionCmo": "Cuso lleva tu marketing."
@@ -1474,6 +1474,7 @@
       "chooseAccountTitle": "Elige una cuenta",
       "chooseAccountTitleFor": "Elige una cuenta para {client}",
       "signedInAs": "Sesión iniciada en Sokosumi como <account>{email}</account>",
+      "signedInAsCmo": "Sesión iniciada como <account>{email}</account>",
       "continueAs": "Continuar como {account}",
       "useAnotherAccount": "Usar otra cuenta",
       "accountCheckError": "No se pudo comprobar tu cuenta. Inténtalo de nuevo.",
@@ -1483,7 +1484,7 @@
       "backTo": "Volver a {client}"
     },
     "SignInError": {
-      "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
+      "accountNotLinked": "Este correo ya tiene una cuenta. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
       "cancelled": "Se canceló el inicio de sesión. Elige cómo quieres continuar.",
       "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo.",
       "expired": "Ese inicio de sesión tardó demasiado o se inició en otro navegador. Inténtalo de nuevo.",
@@ -1812,6 +1813,8 @@
         "searchLabel": "Buscar tareas archivadas",
         "searchPlaceholder": "Buscar por nombre",
         "noMatches": "Ninguna tarea archivada coincide con «{query}».",
+        "searchResults": "{count, plural, =0 {Ninguna tarea archivada coincide con «{query}».} one {# tarea archivada coincide con «{query}».} other {# tareas archivadas coinciden con «{query}».}}",
+        "searchResultsLimited": "Se muestran las {shown, number} más recientes de {total, number} tareas archivadas que coinciden con «{query}».",
         "noProject": "Sin proyecto",
         "archivedOn": "Archivada el {date}",
         "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
@@ -1846,6 +1849,8 @@
         "loading": "Cargando...",
         "loadMore": "Cargar más"
       },
+      "noTitle": "(Sin título)",
+      "unansweredMention": "Tienes una mención sin responder",
       "createTaskFab": "Crear tarea",
       "personalAssistant": "Asistente personal",
       "sokoBot": "Soko Bot",
@@ -1911,14 +1916,17 @@
         "workspaceTags": "Etiquetas del espacio de trabajo",
         "archivedTags": "Etiquetas archivadas",
         "topicTags": "Temas predeterminados",
-        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más"
+        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más",
+        "needsMe": "Me necesita",
+        "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
+        "mentions": "Menciones",
+        "mentionsHint": "Tareas en las que un comentario te menciona y no has comentado desde entonces"
       },
       "Detail": {
         "back": "Volver a Tasks",
         "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
-        "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
         "organization": "Organización",
@@ -1930,6 +1938,8 @@
         "updated": "Actualizado",
         "description": "Descripción",
         "context": "Contexto",
+        "subtasks": "Subtareas",
+        "subtaskOf": "Subtarea de",
         "copyIdentifier": "Copiar ID de la tarea",
         "identifierCopied": "{identifier} copiado",
         "identifierCopyError": "No se pudo copiar el ID de la tarea",
@@ -1996,12 +2006,16 @@
           "archive": "Archivar",
           "archiveError": "No se pudo archivar la tarea",
           "reopenToReady": "Reabrir como Lista",
-          "reopenToReadyTitle": "Reabrir tarea",
-          "reopenToReadyDescription": "Añade un comentario para que tu coworker sepa qué hacer a continuación. La tarea volverá a Lista.",
-          "reopenToReadyCommentLabel": "Comentario",
-          "reopenToReadyCommentPlaceholder": "Describe lo que aún hay que hacer…",
           "reopenToReadyCommentRequired": "Se requiere un comentario para reabrir esta tarea",
-          "reopenToReadyConfirm": "Reabrir como Lista",
+          "sendBack": {
+            "title": "¿Devolver a {assignee}?",
+            "description": "La tarea vuelve a Lista y {assignee} inicia una nueva ejecución. Dile a {assignee} qué hacer.",
+            "commentLabel": "Qué corregir",
+            "commentPlaceholder": "¿Qué debe cambiar o rehacer {assignee}?",
+            "confirm": "Devolver a {assignee}",
+            "reopenAsDraft": "Reabrir como borrador",
+            "cancel": "Ahora no"
+          },
           "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado del Task actualizado",
@@ -2014,19 +2028,32 @@
           "moveToWorkspaceCancel": "Cancelar",
           "moveToWorkspaceSuccess": "Tarea movida correctamente",
           "moveToWorkspaceError": "No se pudo mover la tarea",
-          "markAs": "Marcar como",
+          "linkToTask": "Vincular a tarea",
+          "linkPicker": {
+            "related": {
+              "title": "Vincular como relacionada",
+              "description": "Elige una tarea. Cada tarea muestra la otra en Relacionada."
+            },
+            "blocks": {
+              "title": "Vincular como bloqueando",
+              "description": "Elige la tarea que esta bloquea. Esta tarea la muestra en Bloqueando y la otra muestra esta en Bloqueada por."
+            },
+            "blockedBy": {
+              "title": "Vincular como bloqueada por",
+              "description": "Elige la tarea que esta espera. Esta tarea la muestra en Bloqueada por y la otra muestra esta en Bloqueando."
+            },
+            "duplicate": {
+              "title": "Vincular como duplicada",
+              "description": "Elige la tarea que esta repite. Cada tarea muestra la otra en Duplicada. No se copia nada."
+            }
+          },
           "createRelated": "Crear tarea relacionada",
           "removeRelated": "Quitar tarea relacionada",
           "removeRelatedSuccess": "Tarea relacionada quitada",
           "removeRelatedError": "No se pudo quitar la tarea relacionada",
-          "removeParent": "Quitar tarea principal",
-          "removeParentSuccess": "Tarea principal quitada",
-          "removeParentError": "No se pudo quitar la tarea principal",
           "linkTaskSuccess": "Tarea vinculada",
           "linkTaskError": "No se pudo vincular la tarea",
           "createRelatedSuccess": "Tarea relacionada creada",
-          "taskPickerTitle": "Marcar como {relation}",
-          "taskPickerDescription": "Elige una tarea para vincularla con la tarea actual.",
           "taskPickerSearchPlaceholder": "Buscar tareas...",
           "taskPickerLoading": "Cargando tareas...",
           "taskPickerEmpty": "No se encontraron tareas.",
@@ -2038,10 +2065,7 @@
             "related": "Relacionada",
             "blocks": "Bloqueando",
             "blockedBy": "Bloqueada por",
-            "parent": "Tarea principal",
-            "subtask": "Subtarea",
-            "duplicate": "Duplicada",
-            "addSubtask": "Agregar subtarea"
+            "duplicate": "Duplicada"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Empezar a trabajar",
@@ -2052,7 +2076,7 @@
           "markComplete": "Marcar como completada",
           "repeat": "Repetir",
           "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo.",
-          "duplicate": "Duplicar como borrador",
+          "duplicate": "Copiar como borrador",
           "sendToChat": {
             "menuItem": "Enviar al chat",
             "title": "Enviar tarea al chat",
@@ -2071,6 +2095,23 @@
             "refused": "Este chat ya no puede recibir esta tarea. Elige otro.",
             "retry": "Enviar de nuevo",
             "retryHint": "Puede que el último envío no haya llegado. Enviar de nuevo no la publicará dos veces; si cambias el chat o el mensaje, se envía uno nuevo."
+          },
+          "subtasks": {
+            "add": "Añadir subtarea…",
+            "addExisting": "Añadir tarea existente como subtarea…",
+            "addExistingTitle": "Añadir tarea existente como subtarea",
+            "addExistingDescription": "Elige una tarea. Pasa a ser la última subtarea de esta tarea.",
+            "addExistingSuccess": "Subtarea añadida",
+            "moveUnder": "Mover debajo de…",
+            "moveUnderTitle": "Mover debajo de otra tarea",
+            "moveUnderDescription": "Elige una tarea. Esta tarea pasa a ser su última subtarea.",
+            "moveUnderSuccess": "Tarea movida",
+            "removeFromParent": "Quitar de la tarea principal",
+            "removeFromParentSuccess": "Tarea quitada de su tarea principal",
+            "moveError": "No se pudo mover la tarea.",
+            "createSuccess": "Subtarea añadida",
+            "createError": "No se pudo añadir la subtarea.",
+            "serverErrorDescription": "Inténtalo de nuevo más tarde."
           }
         },
         "ShareModal": {
@@ -2106,7 +2147,6 @@
           "confirm": "Cambiar espacio de trabajo",
           "switchError": "No se pudo cambiar de espacio de trabajo. Inténtalo de nuevo."
         },
-        "clonedFrom": "Clonada de {name}",
         "pendingApproval": "Aprobación pendiente",
         "VendorGrantApproval": {
           "title": "Se requiere aprobación de acceso del proveedor",
@@ -2231,7 +2271,7 @@
         "previewUse": "Usar esta tarea",
         "previewEmpty": "Aún no hay salida de ejemplo disponible.",
         "taskCreated": "Tarea creada",
-        "taskCreatedHint": "Todo está configurado y listo.",
+        "taskCreatedHint": "{status, select, DRAFT {Está como borrador en Pendiente. Nada empieza hasta que la pases a Listo.} QUEUED {Espera en Pendiente y empieza a la hora que elegiste.} other {Está en Por hacer, lista para empezar.}}",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
         "close": "Cerrar",
@@ -2315,6 +2355,24 @@
           "tomorrowAt": "Empieza mañana a las {time}",
           "at": "Empieza {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} de {total} subtareas completadas",
+        "title": "Subtareas",
+        "add": "Añadir subtarea",
+        "movedTo": "Movida a la posición {position} de {total}",
+        "reorderHandle": "Reordenar {name}. Arrastra o pulsa las flechas arriba y abajo.",
+        "toggleLabel": "{name} hecha",
+        "agentDoneHint": "Al desmarcarla vuelve a {assignee}",
+        "changeError": "No se pudo guardar el cambio de la subtarea. Inténtalo de nuevo.",
+        "truncated": "Se muestran las primeras {count} subtareas.",
+        "createDescription": "La subtarea va al final de la lista.",
+        "name": "Nombre",
+        "description": "Descripción (opcional)",
+        "assignee": "Responsable",
+        "dueOn": "Fecha límite",
+        "cancel": "Cancelar",
+        "create": "Añadir subtarea"
       },
       "Due": {
         "label": "Fecha límite",
@@ -2578,7 +2636,18 @@
         "filter": {
           "placeholder": "Filtrar proyectos",
           "clear": "Borrar filtro",
-          "noMatches": "Ningún proyecto coincide con «{query}»."
+          "noMatches": "Ningún proyecto coincide con «{query}».",
+          "noMatchesIn": {
+            "open": "Ningún proyecto abierto coincide con «{query}».",
+            "hidden": "Ningún proyecto oculto coincide con «{query}».",
+            "closed": "Ningún proyecto cerrado coincide con «{query}»."
+          },
+          "elsewhere": "Hay proyectos que coinciden en otra vista.",
+          "showIn": {
+            "open": "Ver proyectos abiertos",
+            "hidden": "Ver proyectos ocultos",
+            "closed": "Ver proyectos cerrados"
+          }
         },
         "lastActivity": "Última actividad",
         "created": "Creado",
@@ -2648,6 +2717,12 @@
           "undo": "Deshacer",
           "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
           "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        },
+        "closing": {
+          "badge": "Cerrándose",
+          "failedBadge": "Cierre fallido",
+          "remaining": "{count, plural, =0 {Terminando; luego pasa a Cerrados} one {Queda # ejecución programada; luego pasa a Cerrados} other {Quedan # ejecuciones programadas; luego pasa a Cerrados}}",
+          "failed": "Abre el proyecto para reintentar el cierre."
         }
       },
       "column": {
@@ -4347,8 +4422,11 @@
       }
     },
     "TikTokStudio": {
+      "addMusic": "Añadir música de fondo (+{credits} créditos)",
+      "addBroll": "Empezar con un clip generado (+{credits} créditos)",
+      "showSite": "Mostrar tu sitio web en el vídeo",
+      "postToTikTok": "Publicar en TikTok",
       "title": "TikTok Studio",
-      "intro": "Una persona dice tu guion, con subtítulos, listo para TikTok, Reels y Shorts.",
       "pickTitle": "Elige un proyecto",
       "pickBody": "Un vídeo con presentador pertenece a un proyecto. Su marca escribe los guiones y sus Archivos guardan el vídeo.",
       "pickUnavailable": "Ese proyecto no está disponible en este espacio de trabajo. Elige otro.",
@@ -5495,6 +5573,161 @@
         "retry": "Reintentar"
       }
     },
+    "Competitors": {
+      "title": "Competidores",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Los competidores pertenecen a un proyecto: a quién observa y qué encontró la revisión semanal. Elige un proyecto para abrir sus competidores.",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "loading": "Cargando competidores…",
+      "error": {
+        "title": "No se pudieron cargar los competidores",
+        "description": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      },
+      "start": {
+        "title": "Mira qué han cambiado tus competidores esta semana",
+        "body": "Una vez por semana Sokosumi lee sus sitios web, precios, noticias, anuncios e Instagram y muestra qué ha cambiado, con su fuente.",
+        "add": "Añadir a mano",
+        "price": "Buscar competidores es gratis. La revisión semanal cuesta {credits} créditos por competidor a la semana y sigue apagada hasta que la actives."
+      },
+      "example": {
+        "label": "Ejemplo",
+        "price": {
+          "name": "Acme",
+          "summary": "Plan Pro $12 -> $10 por puesto al mes",
+          "quote": "Pro $10 por puesto/mes, facturación anual",
+          "source": "acme.com/pricing"
+        },
+        "news": {
+          "name": "Northwind",
+          "summary": "Northwind lanzó un asistente de IA que reserva reuniones",
+          "quote": "El asistente propone tres horas que convienen a todos.",
+          "source": "TechCrunch"
+        },
+        "website": {
+          "name": "Globex",
+          "summary": "La página de inicio se dirige ahora a equipos de ventas, antes a autónomos",
+          "quote": "Hecho para equipos de ventas",
+          "source": "globex.com"
+        }
+      },
+      "check": {
+        "price": "{count, plural, =0 {Cuesta {each} créditos por competidor a la semana.} one {Cuesta {credits} créditos a la semana por # competidor.} other {Cuesta {credits} créditos a la semana por # competidores, {each} cada uno.}}",
+        "last": "Última revisión {last}, próxima {next}.",
+        "sourceFailed": "La última revisión no pudo leer: {sources}. La próxima lo intenta de nuevo.",
+        "source": {
+          "pages": "sitios web",
+          "news": "noticias",
+          "ads": "anuncios",
+          "social": "Instagram"
+        },
+        "turnOn": "Activar revisión semanal",
+        "turnOff": "Desactivar",
+        "runNow": "Revisar ahora",
+        "failed": "No funcionó. Inténtalo de nuevo.",
+        "outcome": {
+          "not_due": "Ya hay una revisión en curso o se hizo esta semana.",
+          "no_competitors": "Añade primero un competidor.",
+          "paused": "La revisión semanal está desactivada.",
+          "unfunded": "Esta revisión cuesta {credits} créditos y el espacio de trabajo tiene menos. Añade créditos y revisa de nuevo."
+        },
+        "status": {
+          "off": "La revisión semanal está apagada",
+          "running": "La primera revisión está en marcha",
+          "on": "La revisión semanal está activa"
+        },
+        "running": "Lo que encuentre aparecerá aquí en un minuto."
+      },
+      "list": {
+        "title": "En seguimiento",
+        "count": "{count} de {limit}",
+        "emptyReadOnly": "Nadie todavía.",
+        "noWebsite": "Sin sitio web",
+        "pricingPage": "página de precios",
+        "facebook": "Facebook {handle}",
+        "editNamed": "Editar {name}",
+        "removeNamed": "Quitar {name}",
+        "add": "Añadir competidor",
+        "full": "Son los {limit}. Quita uno para observar otro.",
+        "failed": "No funcionó. Inténtalo de nuevo."
+      },
+      "form": {
+        "addTitle": "Añadir un competidor",
+        "editTitle": "Editar competidor",
+        "description": "El nombre basta para encontrar noticias. Con el sitio web y la página de precios la revisión ve qué cambió allí.",
+        "name": {
+          "label": "Nombre",
+          "placeholder": "Acme"
+        },
+        "websiteUrl": {
+          "label": "Sitio web",
+          "placeholder": "acme.com"
+        },
+        "pricingUrl": {
+          "label": "Página de precios",
+          "placeholder": "acme.com/precios"
+        },
+        "instagramHandle": {
+          "label": "Instagram",
+          "placeholder": "@acme"
+        },
+        "facebookHandle": {
+          "label": "Página de Facebook",
+          "placeholder": "facebook.com/acme"
+        },
+        "cancel": "Cancelar",
+        "add": "Añadir",
+        "save": "Guardar",
+        "failed": "No funcionó. Inténtalo de nuevo."
+      },
+      "find": {
+        "title": "Buscar competidores",
+        "description": "Empresas que venden lo que vende {project}, encontradas a partir de su sitio web. Elige a cuáles seguir.",
+        "searching": "Buscando empresas como {project}…",
+        "none": "No se encontraron competidores a partir del sitio web. Añádelos a mano.",
+        "room": "{count, plural, one {Puedes añadir # más.} other {Puedes añadir # más.}}",
+        "free": "Buscar competidores es gratis.",
+        "add": "{count, plural, =0 {Añadir} one {Añadir # competidor} other {Añadir # competidores}}",
+        "cancel": "Cancelar",
+        "retry": "Buscar de nuevo",
+        "failed": "No ha funcionado. Inténtalo de nuevo.",
+        "open": "Buscar competidores"
+      },
+      "thisWeek": {
+        "title": "Esta semana",
+        "checked": "Revisión del {date}",
+        "quiet": "Una semana tranquila: nada que contar.",
+        "unknown": "Un competidor",
+        "big": "Movimiento grande",
+        "weak": "Respaldado en parte",
+        "meaning": "Qué significa para ti",
+        "move": "Movimiento sugerido",
+        "open": "Sigue abierto"
+      },
+      "findings": {
+        "title": "Qué ha cambiado",
+        "nothing": "Sin cambios en las últimas cinco semanas.",
+        "kind": {
+          "WEBSITE_CHANGE": "Sitio web",
+          "PRICE_CHANGE": "Precio",
+          "NEWS": "Noticias",
+          "AD": "Anuncios",
+          "SOCIAL": "Instagram"
+        },
+        "preview": "Lo que muestra la revisión semanal",
+        "example": "Ejemplo",
+        "running": "Nada todavía. Lo que encuentre la primera revisión aparecerá aquí."
+      },
+      "scoreboard": {
+        "title": "Instagram",
+        "account": "Cuenta",
+        "posts": "Publicaciones por semana",
+        "engagement": "Me gusta y comentarios por publicación",
+        "followers": "Seguidores",
+        "growth": "Seguidores ganados en una semana",
+        "you": "(tú)"
+      }
+    },
     "Newsletter": {
       "title": "Boletín",
       "description": "Cada proyecto tiene su propio boletín. Elige un proyecto para gestionarlo.",
@@ -5614,6 +5847,7 @@
           "schedules": "Programaciones",
           "social": "Publicaciones sociales",
           "ads": "Anuncios",
+          "competitors": "Competidores",
           "newsletter": "Boletín",
           "contacts": "Contactos",
           "groups": {
@@ -5649,7 +5883,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, trabajos, resultados de trabajos, imágenes o archivos",
+      "description": "Buscar tareas, etiquetas, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
@@ -5657,7 +5891,11 @@
       "created": "Creado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
-      "filesFilenameMatch": "Coincide el nombre"
+      "filesFilenameMatch": "Coincide el nombre",
+      "tagsGroup": "Etiquetas",
+      "tagTasksGroup": "Tareas con la etiqueta {tag}",
+      "tagsError": "No se pudieron cargar las etiquetas",
+      "tagTasksError": "No se pudieron cargar estas tareas"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",
@@ -9117,6 +9355,7 @@
         "ariaLabel": "Navegación principal",
         "backToChats": "Volver a chats",
         "back": "Volver",
+        "backToYou": "Volver a «Tú»",
         "goHome": "Ir al inicio",
         "home": "Inicio",
         "searchAgents": "Buscar agentes"
@@ -9745,6 +9984,7 @@
         "you": "Tú",
         "youNamed": "{name} (tú)",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
+        "composerPlaceholder": "Escríbete una nota",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       },
       "Signals": {
@@ -11196,6 +11436,21 @@
       "descending": "descendente",
       "noHistory": "No hay cambios registrados.",
       "undoBatch": "Deshacer lote",
+      "findReplace": {
+        "title": "Buscar y reemplazar",
+        "description": "Cambia cada celda de una columna que contenga exactamente el valor que buscas, sin distinguir mayúsculas. Se guarda como un solo cambio que puedes deshacer desde Historial y fuentes.",
+        "column": "Columna",
+        "find": "Buscar",
+        "replace": "Reemplazar por",
+        "replaceEmpty": "Déjalo vacío para vaciar las celdas",
+        "findMatches": "Buscar coincidencias",
+        "matches": "{count, plural, one {Cambiará # celda.} other {Cambiarán # celdas.}}",
+        "unchanged": "Todas las celdas que coinciden ya tienen el nuevo valor. No hay nada que cambiar.",
+        "none": "Ninguna celda de esta columna contiene exactamente ese valor. Revisa espacios y ortografía.",
+        "tooMany": "Más de {limit} celdas de esta columna contienen ese texto y Buscar y reemplazar revisa como máximo {limit}. No se cambió nada.",
+        "apply": "{count, plural, one {Reemplazar # celda} other {Reemplazar # celdas}}",
+        "done": "{count, plural, one {Se reemplazó # celda.} other {Se reemplazaron # celdas.}} Puedes deshacerlo desde Historial y fuentes."
+      },
       "before": "Antes",
       "after": "Después",
       "openTask": "Abrir tarea",
@@ -11904,8 +12159,6 @@
       "title": "SEO",
       "intro": "Consulta los cambios, el trabajo pendiente y las próximas comprobaciones.",
       "edit": "Editar",
-      "pickTitle": "Auditorías SEO",
-      "pickBody": "Reúne páginas relacionadas, comprobaciones, estadísticas, acciones y chat en una auditoría.",
       "pickUnavailable": "Esta auditoría no está disponible. Abre otra auditoría.",
       "errorTitle": "No se pudo cargar SEO",
       "errorBody": "Actualiza esta auditoría o vuelve a la lista de auditorías.",
@@ -11944,6 +12197,93 @@
       "runAnalysis": "Iniciar comprobación",
       "runFullAudit": "Iniciar auditoría completa",
       "runPageCheck": "Iniciar comprobación de página",
+      "brief": {
+        "title": "Objetivos de la auditoría",
+        "private": "Solo tú puedes leer este documento. La auditoría completa solo comparte los objetivos de las páginas que selecciones.",
+        "confirmed": "Lo confirmaste el {date}.",
+        "objective": "Objetivo del sitio",
+        "audience": "¿A quién se dirige el sitio?",
+        "outcome": "¿Qué resultado quieres conseguir?",
+        "constraints": "Límites para los cambios",
+        "pageSettings": "Ajustes de la página",
+        "page": "Página",
+        "role": "Tipo de página",
+        "job": "¿Qué deberían poder hacer aquí los visitantes?",
+        "action": "Acción deseada",
+        "index": "Visibilidad en la Búsqueda de Google",
+        "pageLimit": "Puedes definir un propósito para un máximo de {count} páginas. Borra los ajustes de otra página para añadir esta.",
+        "unset": "Sin especificar",
+        "save": "Guardar objetivos",
+        "empty": "Añade el objetivo del sitio para indicar la finalidad de esta auditoría.",
+        "edit": "Editar objetivos",
+        "add": "Añadir objetivos",
+        "readFailed": "No se han podido cargar tus objetivos.",
+        "retry": "Reintentar",
+        "conflict": "Los objetivos cambiaron mientras los editabas. Vuelve a cargar la versión guardada para continuar.",
+        "reload": "Cargar la versión guardada",
+        "followUp": "Seguimiento de la página",
+        "recordedChange": "Cambio registrado el {date}.",
+        "lastCrawl": "Último rastreo registrado por Google el {date}.",
+        "share": "Compartir objetivos de página en esta tarea pública",
+        "shareHelp": "La tarea pública de SEO mostrará la URL, el tipo y la acción deseada de cada página que selecciones. El resto del informe seguirá siendo privado.",
+        "priority": "Prioridad según tu informe",
+        "nextStep": "Siguiente paso recomendado",
+        "why": "Motivo de esta página",
+        "objectives": {
+          "sales": "Ventas",
+          "traffic": "Tráfico de búsqueda",
+          "support": "Atención al cliente"
+        },
+        "roles": {
+          "guide": "Guía",
+          "product": "Producto",
+          "pricing": "Precios",
+          "support": "Ayuda",
+          "comparison": "Comparación",
+          "other": "Otro"
+        },
+        "actions": {
+          "sign_up": "Registrarse",
+          "buy": "Comprar",
+          "contact_sales": "Contactar con ventas",
+          "book": "Reservar",
+          "subscribe": "Suscribirse",
+          "download": "Descargar",
+          "call": "Llamar",
+          "visit": "Visitar",
+          "read": "Leer",
+          "none": "Ninguna acción"
+        },
+        "visibility": {
+          "index": "Incluir esta página",
+          "exclude": "Excluir esta página",
+          "unknown": "Sin decidir"
+        },
+        "events": {
+          "title": "Compras y registros desde la búsqueda orgánica",
+          "source": "Solo tú puedes ver estas cifras de GA4. Corresponden a visitas desde la búsqueda orgánica que comenzaron en esta página.",
+          "purchase": "Compras",
+          "sign_up": "Registros",
+          "before": "Antes del cambio",
+          "after": "Después del cambio",
+          "latest": "Último periodo registrado",
+          "count": "{count, plural, one {# evento} other {# eventos}}",
+          "noComparison": "Faltan periodos comparables anteriores y posteriores al cambio registrado.",
+          "observed": "Otros factores también pueden afectar a estas cifras.",
+          "missing": "No hay un recuento verificado de compras o registros para las visitas orgánicas que empezaron en esta página."
+        },
+        "followUps": {
+          "awaiting_recrawl": "Pendiente de confirmar un rastreo posterior al cambio.",
+          "recrawled": "Google ha rastreado la página después del cambio.",
+          "unknown": "Se desconoce la fecha del rastreo."
+        },
+        "indexReview": {
+          "expected_exclusion": "La exclusión coincide con el ajuste de visibilidad.",
+          "review_exclusion": "Comprueba por qué aparece esta página en la búsqueda. Quieres excluirla.",
+          "review_indexing": "Comprueba por qué se excluye esta página. Quieres que aparezca en la búsqueda.",
+          "matches_intent": "El estado de indexación en Google coincide con el ajuste de visibilidad."
+        }
+      },
       "manageStatistics": "Conexiones de Google",
       "syncStatistics": "Sincronizar estadísticas",
       "noPages": "Añade una página para empezar",
@@ -12001,6 +12341,20 @@
         "failedCheck": "<prefix>No superada:</prefix> {name}",
         "checkedOn": "Comprobado el",
         "diagnostics": "Título, descripción y otros detalles de la página",
+        "rank": {
+          "absent": "Fuera del top {top}",
+          "position": "Posición {position}",
+          "featuredSnippet": "Fragmento destacado, posición {position}",
+          "forKeyword": "para «{keyword}»",
+          "source": "Mercado {country}, {language} · DataForSEO",
+          "aiNotCited": "Aparece una vista general de IA que no cita la página",
+          "aiCited": "La vista general de IA cita la página",
+          "othersAbsent": "{count, plural, one {# palabra clave más} other {# palabras clave más}}: ninguna en el top {top}",
+          "searchConsole": "Posición media en Search Console: {position}",
+          "serpRead": "Resultado de búsqueda leído:",
+          "allDetails": "Todos los detalles",
+          "showRankings": "Ver posiciones"
+        },
         "perDay": "{metric} por día",
         "chartHint": "Use las flechas izquierda y derecha para moverse entre los días.",
         "positionAxis": "La posición 1 está arriba. Una posición más baja es mejor. Los días sin impresiones no tienen posición.",
@@ -12020,7 +12374,6 @@
         "pageNotes": "Notas ({count})",
         "references": "{count, plural, one {# fuente} other {# fuentes}}",
         "noteRule": "Regla no cumplida: «{name}»",
-        "notesNotCounted": "no cuentan como problemas",
         "askAgent": "Preguntar al agente",
         "askAboutNote": "Una comprobación marcó «{name}» en mi página. ¿Qué significa y debería cambiar algo?",
         "showAll": "Mostrar todo",
@@ -12028,9 +12381,6 @@
         "askAboutNoteOnPage": "Una comprobación marcó «{name}» en {url}. ¿Qué significa y debería cambiar algo?",
         "insideToolRanges": "{total, plural, one {dentro del rango de la herramienta} other {dentro de los # rangos de herramientas}}",
         "outsideToolRanges": "{total, plural, one {fuera del rango de la herramienta ({tools})} other {fuera de {outside} de # rangos de herramientas ({tools})}}",
-        "referencesAndRules": "Fuentes e ID de reglas",
-        "ruleIds": "ID de reglas: {ids}",
-        "rulesOnly": "ID de reglas",
         "toolRanges": "Rangos que usan las herramientas SEO: {ranges}",
         "positionHint": "1 es el primer resultado",
         "noteFound": "Encontrado: {found}",
@@ -12122,6 +12472,7 @@
             "opportunity": "Búsqueda relacionada"
           },
           "short": "Ideas",
+          "name": "Ideas de palabras clave",
           "more": "{count, plural, one {Mostrar # idea más} other {Mostrar # ideas más}}"
         },
         "addButton": "Añadir una palabra clave",
@@ -12314,8 +12665,6 @@
         "home": "Página de inicio"
       },
       "timeline": {
-        "title": "Historial",
-        "runNewCheck": "Ejecutar una nueva comprobación",
         "statuses": {
           "requested": "Solicitada",
           "running": "En curso",
@@ -12323,10 +12672,6 @@
           "partial": "Parcial",
           "unavailable": "No disponible"
         },
-        "empty": "Aún no hay comprobaciones ni cambios para estas páginas",
-        "emptyBody": "Aquí aparecerán las comprobaciones, selecciones de páginas, tareas y sincronizaciones fallidas.",
-        "emptyOff": "No hay nada registrado para estas páginas",
-        "emptyBodyOff": "Aquí aparecen las selecciones de páginas, las tareas y las sincronizaciones fallidas.",
         "details": "Detalles del trabajo",
         "graphLabel": "Actividad SEO, lo más reciente primero",
         "auditRun": "Resultados de la auditoría",
@@ -12341,7 +12686,6 @@
         "sourceDetails": "Detalles",
         "resultsSaved": "Resultados guardados",
         "incomplete": "No se pudo completar parte del trabajo solicitado.",
-        "showAll": "Mostrar los {count} eventos",
         "metricsSyncedTimes": "{count, plural, one {Estadísticas sincronizadas} other {Estadísticas sincronizadas # veces}}",
         "metricsFailedTimes": "{count, plural, one {La sincronización de estadísticas falló} other {La sincronización de estadísticas falló # veces}}",
         "result": "{count, plural, =0 {No se encontraron problemas} one {# problema encontrado} other {# problemas encontrados}}",
@@ -12433,7 +12777,7 @@
           "search_console": "Búsquedas, clics y posiciones en la Búsqueda de Google",
           "ga4": "Visitas y páginas vistas en tu sitio"
         },
-        "propertyNotMatching": "No cubre las páginas seleccionadas, así que no se cargan estadísticas de ella."
+        "propertyNotMatching": "Ninguna propiedad de Search Console cubre todas las páginas seleccionadas de {sites}. Comprueba los permisos de esta cuenta de Google o selecciona páginas de una sola propiedad."
       },
       "metrics": {
         "page_views": "Vistas de página",
@@ -12554,6 +12898,16 @@
       },
       "historyLimited": "Se muestran las últimas {limit} comprobaciones y las últimas {limit} sincronizaciones de estas páginas. El historial anterior no se incluye.",
       "audits": {
+        "moreOptions": "Más opciones para {name}",
+        "delete": "Eliminar auditoría",
+        "deleteTitle": "¿Eliminar «{name}»?",
+        "deleteDescription": "La auditoría y sus resultados se eliminarán de este espacio de trabajo. El enlace a la auditoría dejará de funcionar.",
+        "deleteFailed": "No se pudo eliminar la auditoría. Inténtalo de nuevo.",
+        "deleteActiveCheck": "Espera a que termine la comprobación actual o cancela su tarea. Después, vuelve a intentarlo.",
+        "deleteActiveChat": "Se está generando una respuesta en el chat. Espera a que termine y vuelve a intentarlo.",
+        "deleteScheduled": "Finaliza las comprobaciones programadas de esta auditoría y vuelve a intentarlo.",
+        "deleteBlocked": "Esta auditoría ha cambiado. Vuelve a intentarlo.",
+        "deleteUnavailable": "Ya no puedes eliminar esta auditoría.",
         "continue": "Continuar",
         "create": "Crear auditoría",
         "saved": "Auditorías guardadas",
@@ -12785,6 +13139,17 @@
       "scopeFilters": "Filtros",
       "unmeasuredColumns": "Aún no medido para estas filas: {columns}.",
       "runs": {
+        "details": "Detalles",
+        "detailsOf": "Detalles del {day}",
+        "since": "Lo que pasó después del {day}.",
+        "sinceStart": "Lo que pasó hasta este día.",
+        "sinceAll": "Todo lo registrado hasta ahora.",
+        "checks": "{count, plural, one {# comprobación} other {# comprobaciones}}",
+        "pageChanges": "{count, plural, one {# cambio de página} other {# cambios de página}}",
+        "tasks": "{count, plural, one {# tarea vinculada} other {# tareas vinculadas}}",
+        "failedSyncs": "{count, plural, one {# sincronización fallida} other {# sincronizaciones fallidas}}",
+        "failedChecks": "{count, plural, one {# comprobación fallida} other {# comprobaciones fallidas}}",
+        "scopeChanges": "{count, plural, one {# cambio de la selección de páginas} other {# cambios de la selección de páginas}}",
         "label": "Comprobaciones",
         "running": "En curso",
         "left": "quedan unos {minutes} min",
@@ -12822,35 +13187,51 @@
         }
       },
       "indexReview": {
-        "title": "Notas sobre la indexación",
-        "help": "Estas páginas necesitan una decisión o más evidencia. Las notas explican qué pudo verificar el agente.",
+        "auditPage": "Página auditada",
         "checked": "Revisado",
         "state": {
           "review": "Revisión necesaria",
           "expected_exclusion": "Exclusión esperada",
           "unavailable": "Sin revisar"
         },
-        "suggestedFix": "Siguiente paso sugerido",
         "evidence": "Ver evidencia",
-        "unavailableEvidence": "Google Search Console o la auditoría no proporcionaron evidencia suficiente.",
-        "sources": "Fuentes: Google Search Console y esta auditoría."
+        "googleReason": "Google: {reason}",
+        "lastCrawled": "Último rastreo de Google"
       },
       "index": {
         "title": "Índice de Google",
-        "help": "Si Google mantiene cada página en su índice de búsqueda, según la inspección de URL de Search Console.",
-        "checked": "estado leído",
         "state": {
           "indexed": "Indexada",
           "warnings": "Indexada, con advertencias",
           "notIndexed": "No indexada",
           "unknown": "Estado de índice desconocido"
         },
-        "google": "Google indica: «{words}»",
         "lastCrawl": "Último rastreo:",
         "otherCanonical": "Google eligió otra página canónica:",
         "unanswered": "{count, plural, one {Aún no hay estado de indexación para # página de la vista.} other {Aún no hay estado de indexación para # páginas de la vista.}}"
       },
       "setup": {
+        "pausedStart": "Iniciar auditoría",
+        "pausedReason": "Este espacio de trabajo no tiene un agente SEO disponible para ejecutar una comprobación. Las estadísticas de Google siguen funcionando.",
+        "pausedPreviewReason": "En esta vista previa no hay un agente SEO disponible para este espacio de trabajo. Las estadísticas de Google siguen funcionando.",
+        "goal": {
+          "pausedDraft": "Esta selección solo se guarda cuando inicias una auditoría.",
+          "reviewChanged": "El objetivo de la página ha cambiado. Vuelve a la configuración para revisarlo antes de empezar.",
+          "unsupportedCheck": "Esta comprobación no guardará el objetivo de la página. Elige una auditoría completa o una comprobación de página para guardarlo.",
+          "draft": "Tu selección se guardará al iniciar la auditoría.",
+          "freeDraft": "Tu selección se guardará al iniciar la comprobación.",
+          "private": "Objetivo privado de la página: {goal}",
+          "pausedUnavailable": "El objetivo de la página no está disponible.",
+          "advanced": "Opciones avanzadas",
+          "automatic": "La auditoría detecta el objetivo de la página a partir de su contenido.",
+          "autoOption": "Automático",
+          "selected": "Esta auditoría usará el objetivo «{goal}».",
+          "unavailable": "Puedes iniciar la comprobación aunque el objetivo de la página no esté disponible.",
+          "question": "Objetivo de la página",
+          "suggested": "Usar el objetivo sugerido «{action}»",
+          "include": "Compartir este objetivo con la auditoría",
+          "shareDetails": "Si incluyes este objetivo, la auditoría pública recibirá la URL {url} y el objetivo «{goal}»."
+        },
         "historyUnavailable": "No se pudo comprobar la configuración de la auditoría. Inténtalo de nuevo antes de iniciar una comprobación.",
         "googleBody": "Conecta Google para incluir tus estadísticas de búsqueda o continúa solo con comprobaciones de páginas públicas.",
         "skipGoogle": "Continuar sin Google",
@@ -12858,9 +13239,8 @@
         "steps": "Pasos de configuración",
         "done": "hecho",
         "page": "Añade una página",
-        "pageDone": "Página añadida",
         "pageBody": "Añade la página pública que quieres posicionar.",
-        "pageDoneBody": "{count, plural, one {# página está en esta auditoría.} other {# páginas están en esta auditoría.}} Puedes añadir más páginas después.",
+        "pageCount": "{count, plural, one {# página en esta auditoría} other {# páginas en esta auditoría}}",
         "audit": "Inicia la primera auditoría",
         "auditBody": "El agente comprueba tus páginas, lee las posiciones de tus palabras clave y tus competidores, y prepara correcciones. Tú apruebas cada una.",
         "check": "Inicia la primera comprobación",
@@ -12878,6 +13258,39 @@
       "strategy": {
         "title": "Estrategia de palabras clave",
         "from": "De la comprobación del",
+        "purpose": {
+          "title": "Intención de búsqueda",
+          "goal": {
+            "sales": "La auditoría se centra en las ventas.",
+            "traffic": "La auditoría se centra en el tráfico de búsqueda."
+          },
+          "source": {
+            "owner": "El propietario eligió la acción deseada en la página inicial.",
+            "inferred": "La auditoría dedujo la acción deseada a partir de la página inicial.",
+            "unspecified": "La auditoría usó la acción deseada en la página inicial."
+          },
+          "first": {
+            "sales": "Revisa la búsqueda con intención de compra «{keyword}»",
+            "traffic": "Revisa la búsqueda informativa «{keyword}»"
+          },
+          "groupDemand": "Se estiman {count, number} búsquedas mensuales para este grupo.",
+          "ranked": "La página apareció en los resultados o en un fragmento destacado para una búsqueda de este grupo.",
+          "inReach": "La comparación de dominios de referencia sitúa este grupo al alcance del sitio.",
+          "measure": {
+            "sales": "Después del cambio, comprueba los clics de búsquedas con intención de compra y cuántas veces se completa la acción deseada en la página.",
+            "traffic": "Después del cambio, comprueba los clics de las búsquedas informativas de este grupo."
+          },
+          "demand": "Búsquedas mensuales estimadas de los grupos de palabras clave medidos",
+          "intents": {
+            "buyer": "Búsquedas con intención de compra",
+            "informational": "Búsquedas informativas",
+            "other": "Otras búsquedas"
+          },
+          "unmeasured": "Sin medir",
+          "atLeast": "Al menos {count, number}",
+          "estimate": "{count, number}",
+          "missing": "{count, plural, one {# grupo sin estimación} other {# grupos sin estimación}}"
+        },
         "verdict": {
           "keep": "Mantén estas palabras clave",
           "outOfReach": "La mayoría de las búsquedas de estas palabras clave están fuera del alcance del sitio",
@@ -12901,10 +13314,15 @@
           "notDetermined": "{groups} {count, plural, one {no tiene} other {no tienen}} un alcance conocido"
         },
         "moving": "{count, plural, one {Las búsquedas cambian en # grupo} other {Las búsquedas cambian en # grupos}}",
+        "forumQuestions": {
+          "title": "Preguntas vistas en resultados de foros",
+          "keyword": "Grupo de búsqueda «{keyword}»",
+          "more": "{count, plural, one {Mostrar # grupo de búsqueda más} other {Mostrar # grupos de búsqueda más}}"
+        },
         "reachHelp": {
           "ranks": "Un grupo posiciona cuando una página del sitio está en los resultados o en el fragmento destacado.",
           "inReach": "Un grupo está al alcance cuando los dominios de referencia del sitio están cerca de los de la página más débil del top 10 que la auditoría pudo contar.",
-          "open": "Un foro en los resultados de búsqueda es una señal de que los resultados están abiertos a páginas nuevas."
+          "open": "Consulta el debate para ver qué preguntas hace la gente. El potencial de posicionamiento requiere otras pruebas."
         },
         "trend": {
           "falling": "Las búsquedas bajan",
@@ -13025,19 +13443,17 @@
         "keyEventsNotRead": "No leído: comparte una ruta de página de destino con otra página seleccionada"
       },
       "export": {
+        "menu": "Exportar: {table}",
         "csv": "Descargar CSV",
         "action": "Acción",
         "kind": "Tipo",
         "status": "Estado",
-        "csvLabel": "Descargar CSV: {table}",
         "table": "Copiar a una tabla",
-        "tableLabel": "Copiar a una tabla: {table}",
         "tableTitle": "{table} · {site} · {date}",
         "tableDescription": "Copiado de SEO el {date}. Una instantánea: no cambia cuando SEO vuelve a comprobar.",
-        "tableCopied": "{count, plural, one {# palabra clave copiada a una tabla nueva.} other {# palabras clave copiadas a una tabla nueva.}}",
+        "tableCopied": "{count, plural, one {# fila copiada a una tabla nueva.} other {# filas copiadas a una tabla nueva.}}",
         "openTable": "Abrir tabla",
-        "tableFailed": "La tabla aún no está completa. Pulsa de nuevo «Copiar a una tabla» para terminarla.",
-        "list": "Lista"
+        "tableFailed": "La tabla aún no está completa. Pulsa de nuevo «Copiar a una tabla» para terminarla."
       },
       "datePresets": {
         "label": "Periodos rápidos",
@@ -13261,7 +13677,7 @@
           },
           "38": {
             "title": "Exportación y periodos predefinidos",
-            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas de países y dispositivos, competidores, ideas de palabras clave y asistentes de IA no tienen descarga CSV. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
+            "missing": "No hay una comparación con el mismo periodo del año anterior. Las tablas «Países y dispositivos» y «Asistentes de IA» no tienen exportación. El separador del CSV sigue el idioma de la aplicación, no la región del ordenador."
           },
           "39": {
             "title": "Historial de citas en resúmenes de IA",
@@ -13644,7 +14060,7 @@
   },
   "CookieConsent": {
     "title": "Usamos cookies",
-    "body": "Las cookies necesarias mantienen Sokosumi en funcionamiento. Con tu permiso, también usamos cookies de análisis y marketing para mejorar el producto.",
+    "body": "Las cookies necesarias mantienen {product} en funcionamiento. Con tu permiso, también usamos cookies de análisis y marketing para mejorar el producto.",
     "policyLink": "Política de cookies",
     "acceptAll": "Aceptar todo",
     "rejectAll": "Rechazar las no esenciales",
@@ -13655,7 +14071,7 @@
     "analyticsTitle": "Análisis",
     "analyticsBody": "Medición de uso con Google Analytics. Mientras tienes la sesión iniciada, un identificador seudónimo de cuenta vincula tus visitas, nunca tu nombre ni tu correo electrónico.",
     "marketingTitle": "Marketing",
-    "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que Sokosumi podría resultar útil.",
+    "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que {product} podría resultar útil.",
     "settings": "Configuración de cookies"
   },
   "WorkspaceGate": {

@@ -33,7 +33,11 @@ const MIN_FORMATS = 6;
 const MAX_SUMMARY_WORDS = 20;
 /** How far, in points, the calendar's shares may stray from the mix and the pillars. */
 export const CMO_SHARE_TOLERANCE = 7;
-/** Videos a month: each costs about four pictures, and a plan once asked for eight. */
+/**
+ * Videos a month: a moving video costs about four pictures and a talking
+ * video two to six times that (`TALKING_VIDEO_PLANNED_CREDITS`), and a plan
+ * once asked for eight.
+ */
 export const CMO_MAX_VIDEOS_PER_MONTH = 4;
 
 function isVideoFormat(entry: { channel: string; format: string }): boolean {
@@ -239,7 +243,7 @@ export function cmoPlanProblems(
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
       problems.push(
-        `calendar has ${videos} videos; plan at most ${CMO_MAX_VIDEOS_PER_MONTH} a month. Each costs about as much as four pictures: keep video for what moves.`,
+        `calendar has ${videos} videos; plan at most ${CMO_MAX_VIDEOS_PER_MONTH} a month. Each costs at least as much as four pictures: keep video for what moves.`,
       );
   }
   return problems;
@@ -391,6 +395,52 @@ export async function cmoSideChannelFit(
         : [];
     });
     return { problems, costUsd };
+  } catch {
+    return { problems: [], costUsd: 0 };
+  }
+}
+
+/** Titles Jev reads to tell a calendar's language. */
+const LANGUAGE_TITLES_READ = 20;
+
+/**
+ * Whether new calendar titles are in the language the posts are written in:
+ * Jev reads a sample of them. A strategy written for an owner who writes
+ * German once put German titles over English posts. A failed check is no
+ * finding.
+ */
+export async function cmoCalendarLanguage(
+  strategy: MarketingStrategyPlan,
+  earlier: MarketingStrategyPlan | null,
+): Promise<{ problems: string[]; costUsd: number }> {
+  const language = strategy.contentLanguage?.trim();
+  const known = new Set(earlier?.calendar.map((entry) => entry.id));
+  const titles = strategy.calendar
+    .filter((entry) => entry.status !== "skipped" && !known.has(entry.id))
+    .slice(0, LANGUAGE_TITLES_READ)
+    .map((entry) => entry.title);
+  if (!language || titles.length === 0) return { problems: [], costUsd: 0 };
+  try {
+    const { answers, costUsd } = await evaluateWithJev({
+      state: { contentLanguage: language, titles },
+      questions: {
+        inContentLanguage: {
+          type: "boolean" as const,
+          instructions: `Are these titles written in ${language}? Names of brands, products and places, and a trade word borrowed from another language, do not count against it.`,
+        },
+      },
+      timeoutMs: 15_000,
+    });
+    const answer = answers.get("inContentLanguage");
+    return {
+      problems:
+        answer?.type === "boolean" && answer.probability < 0.3
+          ? [
+              `the calendar's titles are not in ${language}, the contentLanguage its posts are written in; rewrite each new entry's title, brief and story in ${language}.`,
+            ]
+          : [],
+      costUsd,
+    };
   } catch {
     return { problems: [], costUsd: 0 };
   }

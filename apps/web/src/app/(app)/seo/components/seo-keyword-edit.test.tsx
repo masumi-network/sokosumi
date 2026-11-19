@@ -707,6 +707,142 @@ function queryOrder() {
 }
 
 describe("Keywords after a check", () => {
+  it.each([
+    {
+      purpose: "sales" as const,
+      source: "owner" as const,
+      keyword: "compare pricing",
+      reach: "ranks" as const,
+      heading: "Review the buyer search “compare pricing”",
+      why: /appeared in a featured snippet/,
+      provenance: /owner selected/,
+      measure: /how often visitors complete/,
+      url: "https://example.com/pricing",
+    },
+    {
+      purpose: "traffic" as const,
+      source: "inferred" as const,
+      keyword: "how it works",
+      reach: "in reach" as const,
+      heading: "Review the informational search “how it works”",
+      why: /referring-domain comparison/,
+      provenance: /audit inferred/,
+      measure: /clicks from the informational searches/,
+      url: "https://example.com/",
+    },
+  ])(
+    "binds the public $purpose recommendation to its page, demand and follow-up in Rankings without a saved brief",
+    (example) => {
+      const { workspace } = savedKeywordWorkspace();
+      const strategy = seoTestStrategy();
+      workspace.strategy = {
+        ...strategy,
+        purpose: example.purpose,
+        purposeSource: example.source,
+        purposeOpportunity: {
+          pageUrl: example.url,
+          keyword: example.keyword,
+          demand: 90,
+          reach: example.reach,
+        },
+        demandByIntent: { buyer: 90, informational: 0, other: 0 },
+        missingDemandByIntent: { buyer: 1, informational: 2, other: 0 },
+        groups: [
+          {
+            ...strategy.groups[0],
+            lead: example.keyword,
+            reach: example.reach,
+            forums: true,
+          },
+        ],
+      };
+      renderWorkspace(workspace);
+      const fold = screen
+        .getByTestId("seo-strategy-verdict")
+        .closest("details")!;
+      fold.open = true;
+      const intent = within(
+        screen.getByRole("region", { name: "Search intent" }),
+      );
+      expect(
+        intent.getByRole("heading", { name: example.heading }),
+      ).toBeVisible();
+      expect(intent.getByRole("link", { name: example.url })).toHaveAttribute(
+        "href",
+        example.url,
+      );
+      expect(intent.getByText(example.provenance)).toBeVisible();
+      expect(intent.getByText(example.why)).toHaveTextContent(
+        "90 monthly searches",
+      );
+      expect(intent.getByText(example.measure)).toBeVisible();
+      expect(
+        intent.getByText("Buyer searches").parentElement,
+      ).toHaveTextContent("At least 90 · 1 group without an estimate");
+      expect(
+        intent.getByText("Informational searches").parentElement,
+      ).toHaveTextContent("Unmeasured · 2 groups without estimates");
+      expect(
+        intent.getByText("Other searches").parentElement,
+      ).toHaveTextContent("0");
+      expect(within(fold).getByText(/Inspect the discussion/)).toBeVisible();
+    },
+  );
+
+  it("shows only questions from selected keyword groups and links a captured public source when available", () => {
+    const { workspace, pricingPage } = savedKeywordWorkspace();
+    const strategy = seoTestStrategy();
+    const group = {
+      ...strategy.groups[0],
+      pageUrl: workspace.pages[0].url,
+      forums: true,
+      reach: "out of reach",
+      forumQuestions: [
+        {
+          title: "How can I compare plans?",
+          url: "https://community.example.com/thread/plan",
+        },
+        { title: "What happens when the trial ends?" },
+        { title: "Can I move an existing plan?", url: "javascript:void(0)" },
+      ],
+    };
+    workspace.strategy = {
+      ...strategy,
+      groups: [
+        group,
+        {
+          ...group,
+          pageUrl: pricingPage.url,
+          forumQuestions: [{ title: "Outside the selected page?" }],
+        },
+      ],
+    };
+    renderWorkspace(workspace);
+    const fold = screen.getByTestId("seo-strategy-verdict").closest("details")!;
+    fold.open = true;
+    const cues = within(
+      screen.getByRole("region", { name: "Questions seen in forum results" }),
+    );
+    expect(
+      cues.getByRole("link", { name: "How can I compare plans?" }),
+    ).toHaveAttribute("href", "https://community.example.com/thread/plan");
+    expect(cues.getByText("What happens when the trial ends?")).toBeVisible();
+    expect(cues.getByText("Can I move an existing plan?")).toBeVisible();
+    expect(cues.getAllByRole("link")).toHaveLength(1);
+    expect(cues.queryByText("Outside the selected page?")).toBeNull();
+    expect(within(fold).getByText(/(?:is|are) out of reach/)).toBeVisible();
+  });
+
+  it("keeps the legacy search verdict without inventing a purpose, page or demand breakdown", () => {
+    const { workspace } = savedKeywordWorkspace();
+    workspace.strategy = seoTestStrategy();
+    renderWorkspace(workspace);
+    const verdict = screen.getByTestId("seo-strategy-verdict");
+    verdict.closest("details")!.open = true;
+    expect(verdict).toHaveTextContent("Keep these keywords");
+    expect(screen.queryByRole("region", { name: "Search intent" })).toBeNull();
+  });
+
   it("says the site audit's keyword result in one closed line under the list, and each keyword's reach and falling searches", () => {
     const { workspace } = savedKeywordWorkspace();
     const row = (keyword: string) => ({
@@ -777,7 +913,9 @@ describe("Keywords after a check", () => {
     // The help says what a count in view means, in the line of that count.
     expect(
       screen.getByText("1 group has a forum in the results").closest("li"),
-    ).toHaveTextContent(/A forum in the search results is a sign/);
+    ).toHaveTextContent(
+      /Inspect the discussion to see which questions people ask/,
+    );
     expect(
       screen.getByText("1 group of similar keywords is in reach").closest("li"),
     ).not.toHaveTextContent(/forum/);
@@ -1877,59 +2015,44 @@ describe("Search Console queries", () => {
 });
 
 describe("Keyword exports", () => {
-  it("offers a keyword tracked by hand, never checked, as a CSV and as a Table", async () => {
-    const { workspace } = savedKeywordWorkspace();
-    renderWorkspace(workspace);
-    expect(
-      await screen.findByRole("button", { name: "Download CSV: Keywords" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Copy to a table: Keywords" }),
-    ).toBeInTheDocument();
-  });
-
-  it("copies the ideas of a check from the Ideas list it opens on, with no CSV of checked keywords to give", async () => {
-    const workspace = seoTestWorkspace();
-    workspace.keywords.push(
-      seoTestKeyword({
-        keyword: "battery saver",
-        source: "gap",
-        saved: false,
-        volume: 300,
-        position: null,
-        positionStatus: "unavailable",
-        observedAt: null,
-        observationId: null,
-        device: null,
-      }),
-    );
-    const user = userEvent.setup();
-    renderWorkspace(workspace);
-    // With ideas only, the tab opens on the Ideas list.
-    expect(
-      await screen.findByRole("button", { name: "Ideas", pressed: true }),
-    ).toBeInTheDocument();
-    // happy-dom applies no Tailwind: a list switched away is a `hidden` ancestor, so only one copy counts.
-    const shown = screen
-      .getAllByRole("button", { name: "Copy to a table: Keywords" })
+  // happy-dom applies no Tailwind: a list switched away is a `hidden` ancestor, so only the list in view counts.
+  const shownMenus = (name: string) =>
+    screen
+      .queryAllByRole("button", { name })
       .filter((button) => !button.closest(".hidden"));
-    expect(shown).toHaveLength(1);
-    expect(
-      screen.queryByRole("button", { name: "Download CSV: Keywords" }),
-    ).not.toBeInTheDocument();
-    await user.click(shown[0]);
+  async function copyFrom(
+    user: ReturnType<typeof userEvent.setup>,
+    menu: HTMLElement,
+  ) {
+    await user.click(menu);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Copy to a table" }),
+    );
     await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
     const [, batch] = tables.batch.mock.calls[0] as unknown as [
       string,
       { insert: { values: Record<string, unknown> }[] },
     ];
-    expect(batch.insert).toHaveLength(1);
-    expect(Object.values(batch.insert[0].values)).toContain("battery saver");
-  });
-});
+    return batch.insert.flatMap((row) => Object.values(row.values));
+  }
 
-describe("One keyword copy across the Keywords and Ideas lists", () => {
-  function bothListsWorkspace() {
+  it("offers a keyword tracked by hand, never checked, as a CSV and as a Table", async () => {
+    const user = userEvent.setup();
+    const { workspace } = savedKeywordWorkspace();
+    renderWorkspace(workspace);
+    await user.click(
+      await screen.findByRole("button", { name: "Export: Keywords" }),
+    );
+    expect(
+      await screen.findByRole("menuitem", { name: "Download CSV" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Copy to a table" }),
+    ).toBeInTheDocument();
+  });
+
+  /** A checked keyword and one idea, "battery saver": both lists have rows. */
+  function bothLists() {
     const { workspace } = savedKeywordWorkspace();
     workspace.keywords.push(
       seoTestKeyword({
@@ -1946,20 +2069,6 @@ describe("One keyword copy across the Keywords and Ideas lists", () => {
     );
     return workspace;
   }
-  // happy-dom applies no Tailwind: a control switched away has a `hidden` ancestor.
-  const shownCopies = () =>
-    screen
-      .getAllByRole("button", { name: "Copy to a table: Keywords" })
-      .filter((button) => !button.closest(".hidden"));
-
-  it("hides the copy on the Competitors list", async () => {
-    const user = userEvent.setup();
-    renderWorkspace(bothListsWorkspace());
-    await screen.findByRole("button", { name: "Keywords", pressed: true });
-    expect(shownCopies()).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "Competitors" }));
-    expect(shownCopies()).toHaveLength(0);
-  });
 
   it("keeps a copy in flight busy when the list switches, so it cannot start twice", async () => {
     let finish: (table: { id: string }) => void = () => {};
@@ -1967,38 +2076,46 @@ describe("One keyword copy across the Keywords and Ideas lists", () => {
       () => new Promise((resolve) => (finish = resolve)),
     );
     const user = userEvent.setup();
-    renderWorkspace(bothListsWorkspace());
+    renderWorkspace(bothLists());
     await screen.findByRole("button", { name: "Keywords", pressed: true });
-    await user.click(shownCopies()[0]);
+    const menu = shownMenus("Export: Keywords")[0];
+    await user.click(menu);
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Copy to a table" }),
+    );
     await user.click(screen.getByRole("button", { name: "Ideas" }));
-    expect(shownCopies()).toHaveLength(1);
-    expect(shownCopies()[0]).toHaveAttribute("aria-busy", "true");
-    await user.click(shownCopies()[0]);
+    await user.click(screen.getByRole("button", { name: "Keywords" }));
+    expect(menu).toHaveAttribute("aria-busy", "true");
+    await user.click(menu);
+    expect(
+      await screen.findByRole("menuitem", { name: "Copy to a table" }),
+    ).toHaveAttribute("aria-disabled", "true");
     act(() => finish({ id: "table-1" }));
     await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
     expect(tables.create).toHaveBeenCalledOnce();
   });
 
-  it("finishes a failed copy from the other list, in the same table under the same key", async () => {
-    tables.batch.mockRejectedValueOnce(new Error("down"));
+  it("gives each list its own export: the keywords hold the checked keywords, the ideas the ideas", async () => {
+    const workspace = bothLists();
     const user = userEvent.setup();
-    renderWorkspace(bothListsWorkspace());
+    const view = renderWorkspace(workspace);
     await screen.findByRole("button", { name: "Keywords", pressed: true });
-    await user.click(shownCopies()[0]);
-    await waitFor(() => expect(tables.batch).toHaveBeenCalledOnce());
-    await user.click(screen.getByRole("button", { name: "Ideas" }));
-    await waitFor(() =>
-      expect(shownCopies()[0]).not.toHaveAttribute("aria-busy"),
+    expect(shownMenus("Export: Keyword ideas")).toHaveLength(0);
+    const keywords = await copyFrom(user, shownMenus("Export: Keywords")[0]);
+    expect(keywords).not.toContain("battery saver");
+    // The Table copy keeps the Difficulty the list shows; the CSV keeps its old columns.
+    const [created] = tables.create.mock.calls[0] as unknown as [
+      { columns: { name: string }[] },
+    ];
+    expect(created.columns.map((column) => column.name)).toContain(
+      "Difficulty",
     );
-    expect(shownCopies()).toHaveLength(1);
-    await user.click(shownCopies()[0]);
-    await waitFor(() => expect(tables.batch).toHaveBeenCalledTimes(2));
-    expect(tables.create).toHaveBeenCalledOnce();
-    const [first, retry] = tables.batch.mock.calls as unknown as [
-      string,
-      { key: string },
-    ][];
-    expect(retry[0]).toBe("table-1");
-    expect(retry[1].key).toBe(first[1].key);
+    view.unmount();
+    tables.batch.mockClear();
+    renderWorkspace(workspace);
+    await user.click(await screen.findByRole("button", { name: "Ideas" }));
+    expect(shownMenus("Export: Keywords")).toHaveLength(0);
+    const ideas = await copyFrom(user, shownMenus("Export: Keyword ideas")[0]);
+    expect(ideas).toContain("battery saver");
   });
 });

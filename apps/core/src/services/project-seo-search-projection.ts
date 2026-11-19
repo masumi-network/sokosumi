@@ -76,7 +76,8 @@ export function projectSearchEvidence(
           propertyId: split.data.propertyId,
           from: split.data.from,
           to: split.data.to,
-          observedAt: split.row.observedAt.toISOString(),
+          observedAt:
+            split.data.collectedAt ?? split.row.observedAt.toISOString(),
           ...parts,
         }
       : null;
@@ -109,7 +110,8 @@ export function projectSearchEvidence(
       from: current.data.from,
       to: current.data.to,
       timeZone: current.data.timeZone,
-      observedAt: current.row.observedAt.toISOString(),
+      observedAt:
+        current.data.collectedAt ?? current.row.observedAt.toISOString(),
       rowLimit: current.data.queries.rowLimit,
       truncated: current.data.queries.truncated,
       rows: current.data.queries.rows.map((row, index) => ({

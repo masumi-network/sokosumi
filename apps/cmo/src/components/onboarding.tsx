@@ -3,7 +3,7 @@
 import "./onboarding/onboarding.css";
 
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import type { OnboardFormState } from "../app/cmo-actions";
@@ -22,6 +22,8 @@ interface OnboardingProps {
   signOut?: () => Promise<void>;
   /** False without a Cuso: the picker would only reload this form. */
   cusoPicker?: boolean;
+  /** Hire a test copy of this Project's Cuso, in his organization. */
+  testCopyOf?: string | undefined;
   onboard: (
     previous: OnboardFormState,
     formData: FormData,
@@ -38,6 +40,7 @@ export function Onboarding({
   organizations = [],
   signOut,
   cusoPicker,
+  testCopyOf,
   onboard,
 }: OnboardingProps) {
   const [state, formAction] = useActionState(onboard, {
@@ -47,6 +50,12 @@ export function Onboarding({
   });
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
+  // The owner's time zone, so Cuso's routines run at their local times. Read
+  // after mount: the server does not know it.
+  const [timeZone, setTimeZone] = useState("");
+  useEffect(() => {
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone ?? "");
+  }, []);
   const websiteErrorId = errors.websiteUrl ? "ob-website-error" : undefined;
   return (
     <div className="ob">
@@ -71,6 +80,10 @@ export function Onboarding({
           action={formAction}
           className="ob-hire"
         >
+          <input type="hidden" name="timeZone" value={timeZone} />
+          {testCopyOf ? (
+            <input type="hidden" name="testCopyOf" value={testCopyOf} />
+          ) : null}
           <div className="ob-stage">
             <img
               className="ob-stage-art"
@@ -92,6 +105,12 @@ export function Onboarding({
             {AGENT_NAME} is your AI CMO. He reads your site, plans your month
             and runs it.
           </p>
+          {testCopyOf ? (
+            <p className="muted">
+              Test copy. He uses the accounts of the {AGENT_NAME} he copies, and
+              nothing he makes goes out.
+            </p>
+          ) : null}
           {errors.form ? (
             <p className="alert" role="alert" tabIndex={-1}>
               {errors.form}
@@ -131,7 +150,7 @@ export function Onboarding({
               </span>
             )}
           </div>
-          {organizations.length > 0 ? (
+          {organizations.length > 0 && !testCopyOf ? (
             <fieldset className="ob-where">
               <legend>Where</legend>
               {[

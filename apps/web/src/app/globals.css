@@ -269,7 +269,8 @@
    Each value is a guide step named in its comment; the chart tints say how
    they are derived. Iris Flower #FF51FF is the one primary and carries
    Neutral 950 text (7.33:1; white is 2.67:1). It is a fill, never text, an
-   edge or a thin mark on the page. Dark rests on Dark Iris #D141D1
+   edge or a thin mark on the page. The one exception is the navigation
+   progress bar (DESIGN.md, Motion). Dark rests on Dark Iris #D141D1
    (Proposed, 5:1 under Neutral 950) and hovers to Iris Flower.
 
    Two light and three dark values leave the guide's role table to meet its
@@ -691,6 +692,9 @@ body:has(vercel-live-feedback) main[data-app-main] {
 body:has(vercel-live-feedback) main[data-app-main]::after {
   content: "";
   flex: 0 0 calc(5rem + env(safe-area-inset-bottom));
+  /* WebKit stops the inner column at main's height, so a long page's rows
+     overflow onto this spacer and a tap there hit `main`, not the row. */
+  pointer-events: none;
 }
 
 @utility container {

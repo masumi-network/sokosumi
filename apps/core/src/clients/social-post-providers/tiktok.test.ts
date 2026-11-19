@@ -180,6 +180,30 @@ describe("publishTikTokVideo", () => {
     });
   });
 
+  it("labels a video whose media ref is marked AI-made", async () => {
+    const fetchMock = stubSession((call) => {
+      if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
+        return toolResponse({ privacy_level_options: ["SELF_ONLY"] });
+      }
+      if (call.tool_slug === "TIKTOK_PUBLISH_VIDEO") {
+        return toolResponse({ publish_id: "pub_ai" });
+      }
+      return toolResponse({
+        status: "PUBLISH_COMPLETE",
+        publicaly_available_post_id: ["751234567891"],
+      });
+    });
+
+    await publishTikTokVideo({
+      ...context,
+      media: [{ ...context.media[0], aiGenerated: true }],
+    });
+
+    expect(executeCalls(fetchMock)[1]?.arguments).toMatchObject({
+      is_aigc: true,
+    });
+  });
+
   it("stores the publish id when completion has no queryable video id", async () => {
     stubSession((call) => {
       if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
@@ -417,7 +441,12 @@ describe("TikTok through Zernio", () => {
     vi.mocked(zernioRequest)
       .mockResolvedValueOnce(result("processing"))
       .mockResolvedValueOnce(result("published"));
-    await expect(publishTikTokVideo(input)).resolves.toMatchObject({
+    await expect(
+      publishTikTokVideo({
+        ...input,
+        media: [{ ...input.media[0], aiGenerated: true }],
+      }),
+    ).resolves.toMatchObject({
       externalId: "zpost",
       publishedUrl: null,
       toolSlug: "ZERNIO_TIKTOK_CREATE_POST",
@@ -432,6 +461,7 @@ describe("TikTok through Zernio", () => {
         platforms: [{ platform: "tiktok", accountId: "alpha" }],
         publishNow: true,
         tiktokSettings: {
+          videoMadeWithAi: true,
           privacy_level: "PUBLIC_TO_EVERYONE",
           allow_comment: true,
           allow_duet: false,
@@ -445,6 +475,20 @@ describe("TikTok through Zernio", () => {
     expect(zernioRequest).toHaveBeenNthCalledWith(3, "/posts/zpost", {
       signal: undefined,
     });
+  });
+
+  it("labels a talking video Core recognised, whose media ref carries no mark", async () => {
+    vi.mocked(zernioRequest).mockResolvedValueOnce(result("published"));
+    await publishTikTokVideo({ ...input, aiGenerated: true });
+    expect(zernioRequest).toHaveBeenNthCalledWith(
+      2,
+      "/posts",
+      expect.objectContaining({
+        body: expect.objectContaining({
+          tiktokSettings: expect.objectContaining({ videoMadeWithAi: true }),
+        }),
+      }),
+    );
   });
 
   it("treats a failure within an HTTP success as a provider refusal", async () => {

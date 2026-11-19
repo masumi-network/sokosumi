@@ -10,11 +10,19 @@ import {
 import { taskWorkerContextSchema } from "./task-worker-context.schema";
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
+/** A retry keeps the original Google read time for each reused page. Only Core writes these timestamps. */
+export const seoReusedInspectionTimesSchema = z.record(
+  seoUrlSchema,
+  z.iso.datetime(),
+);
+export const seoAnsweredUnknownPageUrlsSchema = z
+  .array(seoUrlSchema)
+  .max(SEO_MAX_PAGES);
 
 /** This finite bridge carries no credentials, query rows, or arbitrary provider operations. */
 export const seoTaskIndexedPageSchema = seoIndexedPageSchema
   .extend({
-    indexingState: z.string().max(100).nullable(),
+    indexingState: seoIndexedPageSchema.shape.indexingState.unwrap(),
     pageFetchState: z.string().max(100).nullable(),
   })
   .strict()
@@ -48,7 +56,16 @@ export const seoTaskIndexingReceiptSchema = z
 export const seoTaskIndexingResultRequestSchema = seoTaskIndexingRequestSchema
   .extend({
     receiptHash: hash,
-    assessments: z.array(seoIndexAssessmentSchema).min(1).max(SEO_MAX_PAGES),
+    assessments: z
+      .array(
+        seoIndexAssessmentSchema
+          .safeExtend({
+            publicEvidenceAvailable: z.boolean().optional(),
+          })
+          .openapi("ProjectSeoIndexAssessment"),
+      )
+      .min(1)
+      .max(SEO_MAX_PAGES),
   })
   .strict()
   .openapi("SeoTaskIndexingResultRequest");
@@ -61,7 +78,15 @@ export const seoTaskIndexingResultSchema = z
     receiptHash: hash,
     checkedAt: dateTimeSchema,
     auditPageUrl: seoUrlSchema.optional(),
-    assessments: z.array(seoIndexAssessmentSchema).min(1).max(SEO_MAX_PAGES),
+    assessments: z
+      .array(
+        seoIndexAssessmentSchema.safeExtend({
+          checkedAt: z.iso.datetime().optional(),
+          googleReturnedUnknown: z.literal(true).optional(),
+        }),
+      )
+      .min(1)
+      .max(SEO_MAX_PAGES),
   })
   .openapi("SeoTaskIndexingResult");
 

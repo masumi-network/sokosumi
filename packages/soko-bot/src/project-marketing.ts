@@ -420,7 +420,11 @@ export const cmoCalendarEntrySchema = z.object({
    * makes it from this, attaches it and makes each carousel slide.
    */
   visual: longText.optional(),
-  /** Brand pictures (brandPictures fileIds) the visual is made from. */
+  /**
+   * Brand pictures (brandPictures fileIds) the visual is made from. A styled
+   * picture shows them inside its style, so it names one only when it must
+   * show that page, screen or product.
+   */
   visualFileIds: z.array(z.string().max(100)).max(3).optional(),
   /**
    * A reference library image (find_style_references) whose look the
@@ -436,6 +440,11 @@ export const cmoCalendarEntrySchema = z.object({
   /** A carousel's slides in order: what each one shows and its few words. */
   slides: z.array(shortText).max(10).optional(),
   /**
+   * A styled carousel's words: one entry per slide, in order, lettered into
+   * that slide and spelled exactly.
+   */
+  slideHeadlines: z.array(z.string().trim().min(1).max(60)).max(10).optional(),
+  /**
    * A talking video's spoken words, hook first, in the brand's own voice.
    * Never a customer's account. The post's draft is its caption.
    */
@@ -446,6 +455,20 @@ export const cmoCalendarEntrySchema = z.object({
   voice: z.string().trim().min(1).max(40).optional(),
   /** ISO 639-1 language of the script, e.g. "de". */
   languageCode: z.string().trim().length(2).optional(),
+  /**
+   * The other networks a talking video also goes out on. Core makes the
+   * video once and keeps one Social post per network, each with its own
+   * caption.
+   */
+  alsoOn: z
+    .array(z.string().trim().toLowerCase().min(1).max(40))
+    .max(4)
+    .optional(),
+  /**
+   * On a talking video's post for another network: the entry whose video it
+   * shows. Set by Core; Cuso never sends it.
+   */
+  videoOf: z.string().max(64).optional(),
   /**
    * The one real moment the piece is built on, from the Brand Brain: a
    * customer and what they did, a launch, a number, a decision.
@@ -499,10 +522,13 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   styleReferenceId: true,
   headline: true,
   slides: true,
+  slideHeadlines: true,
   script: true,
   presenter: true,
   voice: true,
   languageCode: true,
+  alsoOn: true,
+  videoOf: true,
   story: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
@@ -913,7 +939,7 @@ export const marketingStrategyPlanSchema = z.object({
   why: longText.optional(),
   goals: z.array(shortText).min(1).max(6),
   audience: shortText.optional(),
-  /** The language posts, ads and emails are written in, named in English ("German"). */
+  /** The language every piece is in, its calendar title and brief included, named in English ("German"). */
   contentLanguage: shortText.optional(),
   positioning: longText.optional(),
   pillars: cmoPillarsSchema,

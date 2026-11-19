@@ -14,9 +14,9 @@ import {
   marketingStrategyPlanSchema,
   networkAudiences,
 } from "@sokosumi/soko-bot";
-import { isCmoTalkingFormat } from "@sokosumi/utils";
+import { isCmoChannelFormat, isCmoTalkingFormat } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
-import { keepAnswers } from "@/helpers/question-answers";
+import { keepAnswers, sameQuestion } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import {
@@ -43,21 +43,25 @@ import {
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
+import { cmoPictureStyleProblem } from "@/services/cmo-media-maker.service";
 import {
   cmoPlanRulesBrokenSince,
   WEEKLY_STRATEGY_SKILL,
 } from "@/services/cmo-plan-review.service";
 import {
   approvedMarketingStrategy,
+  cmoAlsoOnProblem,
   cmoChangeKind,
   isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
+  parseSocialPostPlanning,
   planMarketingStrategyPosts,
   STRATEGY_TURN_PREFIX,
   sameTitle,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -574,7 +578,7 @@ async function startStrategyTurn(
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the strategy's goals with it.",
               ...(siteLanguage
                 ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this strategy is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the strategy itself (summary, goals, why, briefs) stays in the owner's language.`,
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, unless the owner asked for another. Every piece is in it, from its calendar title, brief and story to its words (hooks, drafts, the offer's action), and so are the pillar names. What explains the strategy to the owner (the idea, summary, goals, each why, the funnel, the questions) stays in the owner's language.`,
                   ]
                 : []),
               ...ownerAnswers(brain),
@@ -799,40 +803,132 @@ export function withoutDashes<T>(value: T): T {
 }
 
 /**
- * A piece that is a Project file (an image ad) keeps its visual on the
- * approved plan's entry, where Core's media maker reads it; a Social post
- * keeps it on the post.
+ * The pieces a save sends that are Project files (an ad, a newsletter
+ * issue), kept on the approved plan: a piece Cuso adds in chat joins the
+ * calendar, where the owner reads and launches it, the way a new social
+ * entry becomes a draft post; a piece already there keeps its visual on its
+ * entry, where Core's media maker reads it. The words and a search ad's
+ * parts stay with the piece's file.
  */
-async function keepFileVisuals(
+async function keepFilePieces(
   db: Prisma.TransactionClient,
   approved: MarketingStrategy,
   sent: CmoCalendarEntry[],
 ): Promise<MarketingStrategy> {
-  const visuals = new Map(
-    sent
-      .filter((entry) => isMarketingFilePiece(entry) && entry.visual)
-      .map((entry) => [entry.id, entry]),
-  );
   const plan = parseMarketingPlan(approved.plan);
-  if (visuals.size === 0 || !plan) return approved;
-  const calendar = plan.calendar.map((entry) => {
-    const sentEntry = visuals.get(entry.id);
-    return sentEntry
-      ? {
-          ...entry,
-          visual: sentEntry.visual,
-          visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
-          styleReferenceId:
-            sentEntry.styleReferenceId ?? entry.styleReferenceId,
-          headline: sentEntry.headline ?? entry.headline,
-          slides: sentEntry.slides ?? entry.slides,
-        }
-      : entry;
-  });
+  const pieces = sent.filter(isMarketingFilePiece);
+  if (!plan || pieces.length === 0) return approved;
+  const planned = new Set(plan.calendar.map((entry) => entry.id));
+  const added = pieces.filter(
+    (entry) =>
+      !planned.has(entry.id) &&
+      entry.status !== "skipped" &&
+      Boolean(entry.draft?.trim()),
+  );
+  const unknown = added.find(
+    (entry) => !isCmoChannelFormat(entry.channel, entry.format),
+  );
+  if (unknown)
+    throw new CmoConflictError(
+      `"${unknown.title}" was not added: ${unknown.channel} has no format "${unknown.format}". Use a channel and format from the strategy's channel menu.`,
+    );
+  const visuals = new Map(
+    pieces.filter((entry) => entry.visual).map((entry) => [entry.id, entry]),
+  );
+  if (visuals.size === 0 && added.length === 0) return approved;
+  const calendar = [
+    ...plan.calendar.map((entry) => {
+      const sentEntry = visuals.get(entry.id);
+      return sentEntry
+        ? {
+            ...entry,
+            visual: sentEntry.visual,
+            visualFileIds: sentEntry.visualFileIds ?? entry.visualFileIds,
+            styleReferenceId:
+              sentEntry.styleReferenceId ?? entry.styleReferenceId,
+            headline: sentEntry.headline ?? entry.headline,
+            slides: sentEntry.slides ?? entry.slides,
+            slideHeadlines: sentEntry.slideHeadlines ?? entry.slideHeadlines,
+          }
+        : entry;
+    }),
+    ...added.map(
+      ({ draft: _draft, searchAd: _searchAd, adCampaign: _ad, ...entry }) =>
+        entry,
+    ),
+  ];
   return db.marketingStrategy.update({
     where: { id: approved.id },
     data: { plan: { ...plan, calendar } },
   });
+}
+
+/**
+ * Why Cuso's save of pieces breaks the picture rules, or null. Each sent
+ * piece is read as it will stand: what it sends over what its post or the
+ * plan already holds. A reference the library does not hold is refused too.
+ */
+async function pictureStyleProblem(
+  db: Prisma.TransactionClient,
+  approved: MarketingStrategy,
+  sent: CmoCalendarEntry[],
+): Promise<string | null> {
+  const pictures = sent.filter(
+    (entry) => entry.status !== "skipped" && entry.visual?.trim(),
+  );
+  if (pictures.length === 0) return null;
+  const posts = await db.socialPost.findMany({
+    where: { marketingStrategyId: approved.id, status: { not: "CANCELED" } },
+    select: { id: true, planning: true },
+  });
+  const stored = new Map<string, Partial<CmoCalendarEntry>>();
+  for (const entry of parseMarketingPlan(approved.plan)?.calendar ?? [])
+    stored.set(entry.id, entry);
+  for (const post of posts) {
+    const planning = parseSocialPostPlanning(post.planning);
+    if (!planning) continue;
+    stored.set(planning.id, planning);
+    stored.set(post.id, planning);
+  }
+  const saved = pictures.map((entry) => {
+    const before = stored.get(entry.id);
+    return {
+      ...entry,
+      // The post's own id names the same piece as its plan entry's.
+      id: before?.id ?? entry.id,
+      styleReferenceId: entry.styleReferenceId ?? before?.styleReferenceId,
+      slides: entry.slides ?? before?.slides,
+      slideHeadlines: entry.slideHeadlines ?? before?.slideHeadlines,
+    };
+  });
+  const savedIds = new Set(saved.map((entry) => entry.id));
+  const others = [
+    ...new Map(
+      [...stored.values()].flatMap((entry) =>
+        entry.id && !savedIds.has(entry.id)
+          ? [
+              [
+                entry.id,
+                { id: entry.id, styleReferenceId: entry.styleReferenceId },
+              ] as const,
+            ]
+          : [],
+      ),
+    ).values(),
+  ];
+  const problem = cmoPictureStyleProblem(saved, others);
+  if (problem) return problem;
+  const ids = [
+    ...new Set(saved.flatMap((entry) => entry.styleReferenceId ?? [])),
+  ];
+  const known = await db.referenceImage.findMany({
+    where: { id: { in: ids } },
+    select: { id: true },
+  });
+  const missing = ids.filter((id) => !known.some((row) => row.id === id));
+  return missing.length > 0
+    ? `Nothing was saved: ${missing.join(", ")} is no style reference. Use an id find_style_references returned.`
+    : null;
 }
 
 /**
@@ -866,6 +962,10 @@ export async function saveCmoStrategy(
   const cuso = await requireCuso(where, db);
   // What the last patch changed is Core's to say.
   const { patched, ...strategy } = save;
+  const alsoOn = (strategy.calendar ?? [])
+    .map((entry) => cmoAlsoOnProblem(entry))
+    .find((problem) => problem !== null);
+  if (alsoOn && options.turnId) throw unprocessableEntity(alsoOn);
   if (options.part === "pieces") {
     // Pieces write the approved version's Social posts and never a plan.
     const approved = await approvedMarketingStrategy(cuso.projectId, db);
@@ -873,6 +973,14 @@ export async function saveCmoStrategy(
       throw new CmoConflictError(
         "Pieces fill in the approved strategy; no version is approved yet; until the owner approves, change entries with part patch (only those entries, by id) or the whole month with part calendar",
       );
+    }
+    if (options.turnId && referenceLibraryAvailable()) {
+      const problem = await pictureStyleProblem(
+        db,
+        approved,
+        (strategy.calendar ?? []) as CmoCalendarEntry[],
+      );
+      if (problem) throw unprocessableEntity(problem);
     }
     await planMarketingStrategyPosts(db, {
       version: approved,
@@ -883,7 +991,7 @@ export async function saveCmoStrategy(
           ? { sokoBotId: cuso.sokoBotId }
           : { userId: where.userId },
     });
-    return keepFileVisuals(
+    return keepFilePieces(
       db,
       approved,
       (strategy.calendar ?? []) as CmoCalendarEntry[],
@@ -969,7 +1077,17 @@ export async function saveCmoStrategy(
     // The ad budget the owner set is theirs: Cuso's saves plan around it.
     const parsed = keepOwnerAds({
       ...whole,
-      questions: keepAnswers(whole.questions, before?.questions ?? []),
+      questions: keepAnswers(
+        options.turnId
+          ? await withoutBrandBrainRepeats(
+              cuso.projectId,
+              whole.questions,
+              before?.questions ?? [],
+              db,
+            )
+          : whole.questions,
+        before?.questions ?? [],
+      ),
       proposals: whole.proposals.filter(
         (proposal) => !running.has(proposal.channel),
       ),
@@ -1128,6 +1246,34 @@ export function withLineBreaks<
   };
 }
 
+/**
+ * A check of the strategy never asks again what the Brand Brain's questions
+ * asked: the owner has seen those, answered or skipped. A check already on
+ * the strategy stays, so nothing the owner is answering disappears.
+ */
+async function withoutBrandBrainRepeats(
+  projectId: string,
+  questions: CmoPlanQuestion[],
+  stored: CmoPlanQuestion[],
+  db: Pick<Prisma.TransactionClient, "brandBrain">,
+): Promise<CmoPlanQuestion[]> {
+  if (questions.length === 0) return questions;
+  const brain = parseBrandBrain(
+    (
+      await db.brandBrain.findUnique({
+        where: { projectId },
+        select: { body: true },
+      })
+    )?.body,
+  );
+  const asked = brain?.questions ?? [];
+  return questions.filter(
+    (question) =>
+      stored.some((kept) => kept.id === question.id) ||
+      !asked.some((earlier) => sameQuestion(earlier, question)),
+  );
+}
+
 /** The newest version CMO shows, or "Cuso has not written it yet". */
 async function newestCmoStrategy(
   cuso: Pick<Cuso, "projectId">,
@@ -1154,6 +1300,35 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
         ...changes,
       ].join("\n")
     : null;
+}
+
+/**
+ * A no the strategy does not show yet (CMO's `planUnfitted`): Core clears
+ * `changes` when a new or changed no lands, and Cuso's fit fills it again.
+ */
+export function cmoStrategyUnfitted(plan: unknown): boolean {
+  const parsed = parseMarketingPlan(plan);
+  return (
+    parsed !== null &&
+    parsed.questions.some((question) => question.answer === "no") &&
+    (parsed.changes ?? []).length === 0
+  );
+}
+
+/** The owner approves what they read: never a strategy that still shows an answer they said no to. */
+export async function requireCmoStrategyFitted(
+  cuso: Pick<Cuso, "projectId">,
+  strategyId: string,
+): Promise<void> {
+  const version = await prisma.marketingStrategy.findFirst({
+    where: { id: strategyId, projectId: cuso.projectId },
+    select: { plan: true, approvedAt: true },
+  });
+  if (version && !version.approvedAt && cmoStrategyUnfitted(version.plan)) {
+    throw new CmoConflictError(
+      "You answered no to one of the checks. Update the strategy first, then approve it.",
+    );
+  }
 }
 
 /** Cuso patches the plan where the owner's answers say it was wrong. */

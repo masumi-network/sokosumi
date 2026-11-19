@@ -23,6 +23,7 @@ const connection = {
   status: "active",
   connectedAt: "2026-10-08T12:00:00.000Z",
   disconnectedAt: null,
+  personalProfile: false,
 };
 
 describe("projectSocialProviderSchema", () => {

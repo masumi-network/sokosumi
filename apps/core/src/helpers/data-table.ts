@@ -39,6 +39,12 @@ export interface TableActor {
   taskId?: string;
   /** Set only by the authenticated in-process owner-chat runtime, never HTTP input. */
   ownerChat?: boolean;
+  /**
+   * A Project's shared Soko Bot works in its Project alone: it lists, reads
+   * and writes only that Project's tables, and a table it creates is the
+   * Project's. Set by the runtime from the bot's own scope, never from input.
+   */
+  projectScope?: string;
 }
 const tableInclude = {
   columns: { orderBy: { position: "asc" as const } },
@@ -91,7 +97,11 @@ export async function requireDataTable(
   tx: Prisma.TransactionClient = prisma,
 ) {
   const table = await tx.dataTable.findFirst({
-    where: { id, workspaceId: actor.workspaceId },
+    where: {
+      id,
+      workspaceId: actor.workspaceId,
+      ...(actor.projectScope ? { projectId: actor.projectScope } : {}),
+    },
     include: tableInclude,
   });
   if (!table) throw notFound("Table not found");
@@ -345,6 +355,13 @@ export async function createDataTable(
   ).parse(input);
   if (actor.actorKind !== "user" && !actor.ownerChat && !actor.taskId)
     throw forbidden("Creating a table requires an assigned task context");
+  if (
+    actor.projectScope &&
+    body.projectId &&
+    body.projectId !== actor.projectScope
+  )
+    throw forbidden("This table can only be created in the bot's own Project");
+  const projectId = actor.projectScope ?? body.projectId;
   if (actor.taskId) await scopeForTask(actor, "", prisma);
   if (
     actor.taskId &&
@@ -360,10 +377,10 @@ export async function createDataTable(
     async (tx, batchId) => {
       if (actor.taskId) await scopeForTask(actor, "", tx);
       if (
-        body.projectId &&
+        projectId &&
         !(await tx.project.findFirst({
           where: {
-            id: body.projectId,
+            id: projectId,
             workspaceId: actor.workspaceId,
             closedAt: null,
           },
@@ -383,7 +400,7 @@ export async function createDataTable(
       const table = await tx.dataTable.create({
         data: {
           workspaceId: actor.workspaceId,
-          projectId: body.projectId,
+          projectId,
           title: body.title,
           description: body.description,
           createdBy: actor.actorId,
@@ -434,7 +451,9 @@ export async function listDataTables(
     workspaceId: actor.workspaceId,
     ...(scope ? { id: scope.tableId } : {}),
     archivedAt: options.archived ? { not: null } : null,
-    ...(options.projectId ? { projectId: options.projectId } : {}),
+    ...((actor.projectScope ?? options.projectId)
+      ? { projectId: actor.projectScope ?? options.projectId }
+      : {}),
     ...(search ? { title: { contains: search, mode: "insensitive" } } : {}),
   };
   const cursor = options.cursor

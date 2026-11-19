@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import type { OAuthRequestBrand } from "@/lib/auth/auth.utils";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 const LEGAL_LINKS = [
@@ -10,11 +11,17 @@ const LEGAL_LINKS = [
   ["acceptableUse", LEGAL_URLS.ACCEPTABLE_USE],
 ] as const;
 
+interface LegalLinksProps {
+  /** The product the person is signing in to, when it has its own look. */
+  brand?: OAuthRequestBrand | undefined;
+}
+
 /**
  * The policy links under sign-up, log in and setup, the same on each. Each
- * link is at least 24px tall, so a thumb can hit it on a phone.
+ * link is at least 24px tall, so a thumb can hit it on a phone. CMO.XYZ has
+ * an imprint of its own; its other policies are still Sokosumi's.
  */
-export function LegalLinks() {
+export function LegalLinks({ brand }: LegalLinksProps) {
   const t = useTranslations("Auth.Footer");
 
   return (
@@ -23,7 +30,9 @@ export function LegalLinks() {
       {LEGAL_LINKS.map(([key, href]) => (
         <Link
           key={key}
-          href={href}
+          href={
+            brand === "cmo" && key === "imprint" ? LEGAL_URLS.CMO_IMPRINT : href
+          }
           target="_blank"
           rel="noopener noreferrer"
           className="text-muted-foreground hover:text-foreground inline-flex min-h-6 items-center text-sm"

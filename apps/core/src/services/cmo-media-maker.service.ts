@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
+  isCmoOwnerConfirmedChannel,
   isCmoTalkingFormat,
   socialPostMediaKindForMime,
 } from "@sokosumi/utils";
@@ -47,6 +48,7 @@ import {
   createTalkingVideoJob,
   createVideoJob,
   DEFAULT_SETTINGS,
+  downloadStudioFileReference,
 } from "@/services/image-studio-jobs.service";
 import {
   readReferenceImage,
@@ -74,24 +76,26 @@ const ATTEMPTS = 2;
 /** Default references when the visual names none: the brand's own pictures. */
 const DEFAULT_REFERENCES = 2;
 /**
- * The models a picture in a reference library style rotates through, one per
- * try: GPT Image 2.6 kept the period look and lettering best in Patrick's
- * NMKR test (2026-11-16), Nano Banana 2.1 made the boldest layouts, Seedream
- * 5 Pro the cleanest. A try that fails the style check goes to the next.
+ * The models a picture in a reference library style goes through, one per
+ * try. Muse Image first, twice: on ten pieces of CMO.XYZ's month (2026-11-19)
+ * it passed the style check 16 of 20 times at 1 credit, with every headline
+ * spelled right. GPT Image 2.6 passed 9 of 10 and letters bolder, at 21
+ * credits, so it is the remake. Nano Banana 2.1 is the last try.
  */
 export const REFERENCE_STYLE_MODELS = [
+  "muse-image",
+  "muse-image",
   "gpt-image-2-6",
   "nano-banana-2-1",
-  "seedream-5-pro",
 ] as const;
 
 /**
  * A styled picture the style check turned down keeps its finished job (it
  * was paid for) and says so in the job's error, which this starts.
  */
-const REJECTED = "Style check: ";
+export const CMO_STYLE_REJECTED = "Style check: ";
 /** A chat picture that passed keeps that on its job, so it is judged once. */
-const PASSED = "Style passed";
+export const CMO_STYLE_PASSED = "Style passed";
 
 const LIVE = new Set<ProjectImageJobStatus>([
   ProjectImageJobStatus.PENDING,
@@ -150,6 +154,62 @@ export function cmoPieceIsTalking(
   return isCmoTalkingFormat(entry.channel, entry.format);
 }
 
+/** Whether Core makes the piece's picture, or each slide, in a library style. */
+export function cmoPieceTakesStyle(
+  entry: Pick<CmoCalendarEntry, "channel" | "format">,
+): boolean {
+  return (
+    cmoPieceNeedsMedia(entry) &&
+    !cmoPieceIsVideo(entry) &&
+    !cmoPieceIsTalking(entry)
+  );
+}
+
+type StyledEntry = Pick<
+  CmoCalendarEntry,
+  | "id"
+  | "channel"
+  | "format"
+  | "title"
+  | "visual"
+  | "styleReferenceId"
+  | "slides"
+  | "slideHeadlines"
+>;
+
+/**
+ * Why a save of pictures cannot be kept, or null: every picture takes a
+ * library style, a carousel has its words per slide, and no reference is
+ * used on two pieces of a month. `saved` are the pieces being saved, as they
+ * will stand; `others` every other piece of the month.
+ */
+export function cmoPictureStyleProblem(
+  saved: readonly StyledEntry[],
+  others: readonly Pick<StyledEntry, "id" | "styleReferenceId">[],
+): string | null {
+  const pictures = saved.filter(
+    (entry) => cmoPieceTakesStyle(entry) && entry.visual?.trim(),
+  );
+  const plain = pictures.filter((entry) => !entry.styleReferenceId);
+  if (plain.length > 0)
+    return `Nothing was saved: ${plain.map((entry) => entry.id).join(", ")} ${plain.length === 1 ? "has a picture and no style" : "have a picture and no style"}. Every picture takes the look of an old print: call find_style_references for each and save again with its styleReferenceId (and headline, or slideHeadlines for a carousel).`;
+  const wordless = pictures.find((entry) => {
+    const slides = cmoPieceSlides(entry);
+    return slides > 0 && (entry.slideHeadlines?.length ?? 0) < slides;
+  });
+  if (wordless)
+    return `Nothing was saved: the carousel ${wordless.id} needs slideHeadlines, one entry per slide (${cmoPieceSlides(wordless)}), each the few words lettered on that slide.`;
+  const owner = new Map<string, string>();
+  for (const entry of [...others, ...pictures]) {
+    if (!entry.styleReferenceId) continue;
+    const first = owner.get(entry.styleReferenceId);
+    if (first && first !== entry.id)
+      return `Nothing was saved: ${entry.id} and ${first} use the same style reference. Each piece takes its own: pick another result of find_style_references for one of them and save again.`;
+    owner.set(entry.styleReferenceId, entry.id);
+  }
+  return null;
+}
+
 /** What Core makes a piece's media from: its visual, or a talking video's script. */
 function hasBrief(
   piece: Pick<CmoMediaPiece, "channel" | "format" | "visual" | "script">,
@@ -173,6 +233,7 @@ export interface CmoMediaPiece
     | "styleReferenceId"
     | "headline"
     | "slides"
+    | "slideHeadlines"
     | "script"
     | "presenter"
     | "voice"
@@ -229,6 +290,7 @@ export function cmoVisualKey(
     | "slides"
     | "styleReferenceId"
     | "headline"
+    | "slideHeadlines"
     | "script"
     | "presenter"
     | "voice"
@@ -242,10 +304,10 @@ export function cmoVisualKey(
       )
       .digest("hex")
       .slice(0, 10);
-  // A style or headline joins the key only when set, so the keys of pieces
-  // made before them do not change.
+  // A style, headline or slide's words joins the key only when set, so the
+  // keys of pieces made before them do not change.
   const style = piece.styleReferenceId
-    ? `|style:${piece.styleReferenceId}|${piece.headline ?? ""}`
+    ? `|style:${piece.styleReferenceId}|${piece.headline ?? ""}${piece.slideHeadlines?.length ? `|${piece.slideHeadlines.join("|")}` : ""}`
     : "";
   return createHash("sha256")
     .update(
@@ -255,7 +317,7 @@ export function cmoVisualKey(
     .slice(0, 10);
 }
 
-/** A styled picture gets one try per style model; any other, two. */
+/** A styled picture gets one try per entry of the style models; any other, two. */
 function attemptsFor(piece: Pick<CmoMediaPiece, "styleReferenceId">): number {
   return piece.styleReferenceId ? REFERENCE_STYLE_MODELS.length : ATTEMPTS;
 }
@@ -315,21 +377,15 @@ export function cmoMediaState(
   if (!cmoPieceNeedsMedia(piece) || piece.media.length >= slotsOf(piece))
     return "made";
   if (!hasBrief(piece)) return "no_visual";
-  const key = cmoVisualKey(piece);
   for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
-    const action = cmoSlotAction(
-      piece,
-      jobs.filter(
-        (job) =>
-          job.pieceId === piece.id &&
-          job.slot === slot &&
-          job.visualKey === key,
-      ),
-    );
+    const action = cmoSlotAction(piece, slotJobs(piece, slot, jobs));
     if (action.kind === "failed") return "failed";
   }
   return "making";
 }
+
+/** The piece id in a talking video's job key: its posts share the one job. */
+const SHARED_VIDEO = "video";
 
 function jobKey(
   versionId: string,
@@ -341,12 +397,30 @@ function jobKey(
   return [
     KEY_PREFIX,
     versionId,
-    piece.id,
+    step === "talking" ? SHARED_VIDEO : piece.id,
     slot,
     step,
     cmoVisualKey(piece),
     attempt,
   ].join(":");
+}
+
+/**
+ * The jobs started for one slot of a piece under its current visual. A
+ * talking video is one job for every piece that speaks the same script with
+ * the same presenter and voice, so a Reel and a Short of it are made once.
+ */
+function slotJobs(
+  piece: CmoMediaPiece,
+  slot: number,
+  jobs: readonly CmoMediaJob[],
+): CmoMediaJob[] {
+  const key = cmoVisualKey(piece);
+  return jobs.filter((job) =>
+    cmoPieceIsTalking(piece)
+      ? job.step === "talking" && job.visualKey === key
+      : job.pieceId === piece.id && job.slot === slot && job.visualKey === key,
+  );
 }
 
 /** Core's media jobs for a version, oldest first. */
@@ -390,7 +464,7 @@ export async function listCmoMediaJobs(
         status: row.status,
         assetId: row.asset?.id ?? null,
         prompt: row.prompt,
-        rejected: row.error?.startsWith(REJECTED) ?? false,
+        rejected: row.error?.startsWith(CMO_STYLE_REJECTED) ?? false,
       },
     ];
   });
@@ -441,39 +515,68 @@ export function cmoImagePrompt(input: {
     .join(" ");
 }
 
+/** The words lettered into a styled picture: a slide's own, else the headline. */
+export function cmoStyleHeadline(
+  piece: Pick<CmoMediaPiece, "headline" | "slideHeadlines">,
+  slot: number,
+): string | null {
+  return piece.slideHeadlines?.[slot]?.trim() || piece.headline?.trim() || null;
+}
+
 /**
  * A picture in the look of an old print from the reference library: the
  * reference (the first image fal gets) lends only its style, the brand gives
- * the colours and, through the studio's brand block, its DESIGN.md. Core
- * places the real logo afterwards, so the model leaves its corner plain.
+ * the colours and, through the studio's brand block, its DESIGN.md. A piece
+ * that shows the brand's site or product gets that picture after the
+ * reference, set into the style unchanged. Core places the real logo
+ * afterwards, so the model leaves its corner plain.
  */
 export function cmoStylePrompt(input: {
-  piece: Pick<CmoMediaPiece, "visual" | "title" | "headline" | "slides">;
+  piece: Pick<
+    CmoMediaPiece,
+    "visual" | "title" | "headline" | "slides" | "slideHeadlines"
+  >;
   slot: number;
   businessName: string;
   colours: readonly string[];
+  /** The brand's own pictures sent after the reference. */
+  brandPictures?: number;
 }): string {
   const { piece } = input;
+  const slides = piece.slides?.length ?? 0;
   const slide = piece.slides?.[input.slot]?.trim();
-  const headline = piece.headline?.trim();
+  const headline = cmoStyleHeadline(piece, input.slot);
+  const own = input.brandPictures ?? 0;
   return [
     "The first image is an old print, used ONLY as a style reference: borrow its illustration technique, layout, lettering and print texture.",
     "Copy none of its words, names, mastheads, characters or illustrations; make an entirely new picture.",
-    `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slide ? ` This slide: ${slide}.` : ""}`,
+    own > 0
+      ? `${own > 1 ? "The other images are" : "The second image is"} ${input.businessName}'s own picture${own > 1 ? "s" : ""} of its site or product. Set what the scene shows of it into the composition as it is, like a plate printed into the page: its layout, words and colours unchanged and readable. Invent no price, number, plan, label or interface detail it does not show.`
+      : "",
+    `Make an original ad for ${input.businessName}. Scene: ${piece.visual?.trim() ?? piece.title}.${slides > 1 ? " One picture of a series: the others share this same style and colours. Draw no slide number, page number or counter." : ""}${slide ? ` This slide: ${slide}.` : ""}`,
     headline
-      ? `The only words in the picture: "${headline}", lettered in the reference's style and spelled exactly.`
-      : "No words, letters or numbers in the picture.",
+      ? `${own > 0 ? "Besides what stands in the brand's own picture, the" : "The"} only words in the picture: "${headline}", lettered large in the reference's style and spelled exactly.`
+      : own > 0
+        ? "Besides what stands in the brand's own picture, no words, letters or numbers in the picture."
+        : "No words, letters or numbers in the picture.",
     input.colours.length > 0
       ? `Recolour everything around the brand colours ${input.colours.join(", ")}; a few neutral tones are fine.`
       : "",
-    "Draw no logo, brand mark, emblem, coin, currency symbol, signature or watermark. Keep the lower-right corner plain: the brand's logo is placed there afterwards.",
+    `Draw no ${own > 0 ? "other " : ""}logo, brand mark, emblem, coin, currency symbol, signature or watermark. Keep the lower-right corner plain and every word clear of it: the brand's logo is placed there afterwards.`,
     "Never a real, named person.",
   ]
     .filter(Boolean)
     .join(" ");
 }
 
-/** The pictures a visual is made from: those it names, else the brand's own. */
+/** Brand pictures a styled picture may show inside its style. */
+export const MAX_STYLE_BRAND_PICTURES = 2;
+
+/**
+ * The pictures a visual is made from: those it names, else the brand's own.
+ * Each piece starts at another of them (by its id), so a month draws on
+ * every section and photo of the site instead of the first one each time.
+ */
 function references(
   piece: CmoMediaPiece,
   brandPictures: readonly { fileId: string; alt: string }[],
@@ -481,13 +584,34 @@ function references(
   const known = new Set(brandPictures.map((picture) => picture.fileId));
   const named = (piece.visualFileIds ?? []).filter((id) => known.has(id));
   if (named.length > 0) return named;
-  const photos = brandPictures.filter(
+  const own = brandPictures.filter(
     (picture) => !picture.alt.endsWith("page screenshot"),
   );
+  const start =
+    own.length > 0
+      ? [...piece.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+        own.length
+      : 0;
+  const turned = [...own.slice(start), ...own.slice(0, start)];
   const home = brandPictures.find((picture) => picture.alt.startsWith("Home"));
-  return [...photos.slice(0, 1), ...(home ? [home] : []), ...photos.slice(1)]
+  return [...turned.slice(0, 1), ...(home ? [home] : []), ...turned.slice(1)]
     .slice(0, DEFAULT_REFERENCES)
     .map((picture) => picture.fileId);
+}
+
+/**
+ * The brand pictures a styled picture shows: only those its visual names.
+ * Given the site's screenshot without a reason, Muse Image pasted the
+ * homepage into six of six pictures that were not about it (2026-11-19).
+ */
+function styleBrandPictures(
+  piece: CmoMediaPiece,
+  brandPictures: readonly { fileId: string }[],
+): string[] {
+  const known = new Set(brandPictures.map((picture) => picture.fileId));
+  return (piece.visualFileIds ?? [])
+    .filter((id) => known.has(id))
+    .slice(0, MAX_STYLE_BRAND_PICTURES);
 }
 
 interface MediaContext {
@@ -562,22 +686,15 @@ export async function advanceCmoMedia(
   let brandPictures: { fileId: string; alt: string }[] | null = null;
   let styleBrand: StyleBrand | null = null;
   const brandFor = async () => (styleBrand ??= await loadStyleBrand(projectId));
+  // Talking videos started in this pass, so its other posts wait for it.
+  const started = new Set<string>();
   for (const piece of wanted) {
-    const key = cmoVisualKey(piece);
     // Slides go on in order, so the next one missing is always slot
     // media.length: a carousel once attached slides 2 and 3 while its cover
     // failed, and the cover was never tried again or handed back to Cuso.
     let inOrder = true;
     for (let slot = piece.media.length; slot < slotsOf(piece); slot += 1) {
-      const action = cmoSlotAction(
-        piece,
-        jobs.filter(
-          (job) =>
-            job.pieceId === piece.id &&
-            job.slot === slot &&
-            job.visualKey === key,
-        ),
-      );
+      const action = cmoSlotAction(piece, slotJobs(piece, slot, jobs));
       if (action.kind === "attach") {
         if (inOrder)
           inOrder = await attach(
@@ -595,15 +712,26 @@ export async function advanceCmoMedia(
       }
       inOrder = false;
       if (action.kind !== "start" || capacity <= 0) continue;
+      const startKey = jobKey(
+        context.versionId,
+        piece,
+        slot,
+        action.step,
+        action.attempt,
+      );
+      if (started.has(startKey)) continue;
+      started.add(startKey);
       brandPictures ??= await listCmoBrandPictures(projectId);
-      const started = await start(context, drive, {
+      const accepted = await start(context, drive, {
         piece,
         slot,
         action,
         references:
           action.step === "video" || action.step === "talking"
             ? []
-            : references(piece, brandPictures),
+            : styled(piece)
+              ? styleBrandPictures(piece, brandPictures)
+              : references(piece, brandPictures),
         colours:
           styled(piece) && action.step !== "video" && action.step !== "talking"
             ? (await brandFor()).colours
@@ -611,7 +739,7 @@ export async function advanceCmoMedia(
       });
       // A refusal (credits, the hourly limit) stops starting, never
       // attaching: finished pictures further down still go on their posts.
-      capacity = started ? capacity - 1 : 0;
+      capacity = accepted ? capacity - 1 : 0;
     }
   }
 }
@@ -678,6 +806,9 @@ async function start(
         script: piece.script?.trim() ?? "",
         ...(await talkingVoiceAndPresenter(context, drive, piece)),
         languageCode: piece.languageCode ?? "en",
+        // A month's videos carry music, and B-roll where the hook has room.
+        music: true,
+        broll: true,
       });
       return true;
     }
@@ -710,6 +841,7 @@ async function start(
             slot,
             businessName: context.cuso.businessName,
             colours: input.colours,
+            brandPictures: input.references.length,
           })
         : cmoImagePrompt({
             piece,
@@ -726,7 +858,7 @@ async function start(
         aspectRatio: aspectRatio(piece),
       },
       referenceAssetIds: [],
-      referenceFileIds: style ? [] : input.references,
+      referenceFileIds: input.references,
       referenceLibraryIds: style ? [style] : [],
       parentAssetId: null,
     });
@@ -765,7 +897,15 @@ async function attach(
 ): Promise<boolean> {
   if (!job.assetId) return false;
   const finished = style
-    ? await checkAndBrand(context, piece, job, style)
+    ? await checkAndBrand(
+        context,
+        {
+          styleReferenceId: piece.styleReferenceId,
+          headline: cmoStyleHeadline(piece, job.slot) ?? undefined,
+        },
+        job,
+        style,
+      )
     : null;
   if (finished === "rejected") return false;
   const file = await ensureStudioAssetDriveFile({
@@ -846,9 +986,11 @@ async function attach(
 }
 
 /**
- * Checks a styled picture next to its reference (headline, nothing copied,
- * brand colours, no stray marks, room for the logo) and places the brand's
- * logo on one that passes. A refusal marks the job, so the next model tries.
+ * Checks a styled picture next to its reference and the brand pictures it
+ * was made from (headline, nothing copied, nothing invented on the brand's
+ * own page, brand colours, no stray marks, room for the logo) and places the
+ * brand's logo on one that passes. A refusal marks the job, so the next
+ * model tries.
  */
 async function checkAndBrand(
   context: { cuso: Pick<Cuso, "sokoBotId"> },
@@ -870,6 +1012,7 @@ async function checkAndBrand(
     reference: reference.bytes,
     headline: piece.headline ?? null,
     colours: style.colours,
+    brandPictures: await jobBrandPictures(job.id),
   });
   await recordSokoBotCheckUsage({
     sokoBotId: context.cuso.sokoBotId,
@@ -880,7 +1023,7 @@ async function checkAndBrand(
     await prisma.projectImageJob.update({
       where: { id: job.id },
       data: {
-        error: `${REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`,
+        error: `${CMO_STYLE_REJECTED}${check.verdict.problems.join("; ").slice(0, 400) || "did not pass"}`,
       },
       select: { id: true },
     });
@@ -898,6 +1041,34 @@ async function checkAndBrand(
         bytes: await sharp(png).jpeg({ quality: 90 }).toBuffer(),
         contentType: "image/jpeg",
       };
+}
+
+/** The brand's own pictures a styled job was made from, for its check. */
+async function jobBrandPictures(jobId: string): Promise<Uint8Array[]> {
+  const job = await prisma.projectImageJob.findUnique({
+    where: { id: jobId },
+    select: {
+      workspaceId: true,
+      requestedByUserId: true,
+      referenceFileIds: true,
+      workspace: { select: { organizationId: true } },
+    },
+  });
+  if (!job) return [];
+  const pictures = await Promise.all(
+    job.referenceFileIds.map((fileId) =>
+      downloadStudioFileReference(job.workspaceId, fileId, {
+        userId: job.requestedByUserId,
+        organizationId: job.workspace.organizationId,
+        kind: "soko_bot",
+      })
+        .then((file) => file.bytes)
+        // A picture deleted since is not shown to the check, which is then
+        // the stricter one: words from it count as extra.
+        .catch(() => null),
+    ),
+  );
+  return pictures.filter((bytes) => bytes !== null);
 }
 
 /**
@@ -918,10 +1089,13 @@ export async function finishCmoChatPicture(input: {
   | { passed: false; problems: string }
 > {
   const { job, drive } = input;
-  if (job.error?.startsWith(REJECTED))
-    return { passed: false, problems: job.error.slice(REJECTED.length) };
+  if (job.error?.startsWith(CMO_STYLE_REJECTED))
+    return {
+      passed: false,
+      problems: job.error.slice(CMO_STYLE_REJECTED.length),
+    };
   const finished =
-    job.error === PASSED
+    job.error === CMO_STYLE_PASSED
       ? null
       : await checkAndBrand(
           input,
@@ -939,8 +1113,8 @@ export async function finishCmoChatPicture(input: {
     });
     return {
       passed: false,
-      problems: row?.error?.startsWith(REJECTED)
-        ? row.error.slice(REJECTED.length)
+      problems: row?.error?.startsWith(CMO_STYLE_REJECTED)
+        ? row.error.slice(CMO_STYLE_REJECTED.length)
         : "the picture or its reference could not be read",
     };
   }
@@ -965,7 +1139,7 @@ export async function finishCmoChatPicture(input: {
       return { passed: false, problems: "its file could not be saved" };
     await prisma.projectImageJob.update({
       where: { id: job.id },
-      data: { error: PASSED },
+      data: { error: CMO_STYLE_PASSED },
       select: { id: true },
     });
   }
@@ -1005,7 +1179,10 @@ async function scheduleWhenComplete(
   );
 }
 
-/** Schedules a written post at its planned time on a connected network. */
+/**
+ * Schedules a written post at its planned time on a connected network, or
+ * hands it to the owner where the network wants each post confirmed.
+ */
 async function schedule(
   context: MediaContext,
   scope: {
@@ -1029,13 +1206,17 @@ async function schedule(
     post.text.trim() !== "" &&
     post.text !== planning?.brief &&
     post.text !== planning?.title;
-  if (
-    !written ||
-    !context.connected.has(post.provider) ||
-    !post.scheduledAt ||
-    post.scheduledAt.getTime() <= Date.now()
-  )
+  if (!written || !context.connected.has(post.provider)) return;
+  // TikTok asks the creator to confirm each video, so a made post waits for
+  // the owner's tap instead of a schedule.
+  if (isCmoOwnerConfirmedChannel(post.provider)) {
+    await prisma.socialPost.updateMany({
+      where: { id: post.id, status: "DRAFT", revision: post.revision },
+      data: { status: "NEEDS_APPROVAL", revision: { increment: 1 } },
+    });
     return;
+  }
+  if (!post.scheduledAt || post.scheduledAt.getTime() <= Date.now()) return;
   await scheduleSocialPost({
     ...scope,
     revision: post.revision,

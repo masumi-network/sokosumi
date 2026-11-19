@@ -27,7 +27,7 @@ export type CmoSeoEvidence = z.infer<typeof cmoSeoEvidenceSchema>;
 export const cmoSeoSuggestionSchema = z
   .object({
     id: z.string().uuid(),
-    kind: z.enum(["article", "page_change"]),
+    kind: z.enum(["article", "page_change", "landing_page"]),
     source: z.enum(["audit", "cuso"]),
     title: z.string(),
     keyword: z.string().nullable(),
@@ -36,6 +36,10 @@ export const cmoSeoSuggestionSchema = z
     body: z.string(),
     newText: z.string().nullable(),
     draft: z.string().nullable(),
+    /** A landing page: what it says about the competitor, each with the competitor's own words. */
+    sources: z.array(
+      z.object({ text: z.string(), sourceUrl: z.string(), quote: z.string() }),
+    ),
     evidence: z.array(cmoSeoEvidenceSchema),
     status: z.enum(["open", "done", "verified", "dismissed"]),
     createdAt: at,
@@ -122,6 +126,17 @@ export const cmoSeoAuditSchema = z
         observedAt: at,
         checked: z.number().int(),
         passed: z.number().int(),
+        /** Checks that found something to fix; one issue can come from several. */
+        failedChecks: z.number().int(),
+        /** Checks that only recorded a value or a note: nothing to fix. */
+        readingChecks: z.number().int(),
+        readings: z.array(
+          z.object({
+            title: z.string(),
+            pageUrl: z.string(),
+            detail: z.string().nullable(),
+          }),
+        ),
         issues: z.array(
           z.object({
             title: z.string(),
@@ -154,6 +169,8 @@ export const cmoSeoSchema = z
     searchConsole: cmoSearchConsoleSchema,
     articles: z.array(cmoSeoSuggestionSchema),
     pageChanges: z.array(cmoSeoSuggestionSchema),
+    /** Pages for searches that name a competitor, for the owner to publish. */
+    landingPages: z.array(cmoSeoSuggestionSchema),
     keywordSearches: z.array(cmoKeywordSearchSchema),
     /** Keyword searches left today. */
     keywordSearchesLeft: z.number().int(),
@@ -175,3 +192,18 @@ export const cmoSeoSuggestionStatusRequestSchema = z
   .object({ status: z.enum(["open", "done", "dismissed"]) })
   .strict()
   .openapi("CmoSeoSuggestionStatusRequest");
+
+export const cmoLandingPageLiveRequestSchema = z
+  .object({ url: z.string().trim().url().max(500) })
+  .strict()
+  .openapi("CmoLandingPageLiveRequest");
+
+export const cmoLandingPageLiveSchema = z
+  .object({
+    page: cmoSeoSuggestionSchema,
+    /** Search ads on this search that now send people to the page. */
+    adsUpdated: z.number().int(),
+    /** Launched search ads on this search, which keep their address. */
+    adsLaunched: z.number().int(),
+  })
+  .openapi("CmoLandingPageLive");

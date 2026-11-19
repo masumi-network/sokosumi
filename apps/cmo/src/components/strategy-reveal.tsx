@@ -209,11 +209,16 @@ export function Pillars({
 
 const GROUP_ORDER: ChannelGroup[] = ["social", "ads", "email", "search"];
 
-/** "Image post" reads "3 image posts"; a name such as "YouTube Short" keeps its capitals. */
-function plural(name: string, count: number): string {
+/**
+ * "Image post" reads "3 image posts" and "Post with a reply" reads "3 posts
+ * with a reply"; a name such as "YouTube Short" keeps its capitals.
+ */
+export function plural(name: string, count: number): string {
   const lower = /[a-z][A-Z]/.test(name) ? name : name.toLowerCase();
   if (count === 1) return `1 ${lower}`;
-  return `${count} ${/(x|s|sh|ch)$/.test(lower) ? `${lower}es` : `${lower}s`}`;
+  const [noun, ...rest] = lower.split(/ (?=with )/);
+  const many = /(x|s|sh|ch)$/.test(noun) ? `${noun}es` : `${noun}s`;
+  return [count, many, ...rest].join(" ");
 }
 
 interface ChannelPlanProps {
@@ -241,7 +246,7 @@ export function ChannelPlan({ strategy }: ChannelPlanProps) {
     .filter((key) => CMO_CHANNELS[key].status === "live" && !used.has(key))
     .map((key) => CMO_CHANNELS[key].name);
   const soon = (Object.keys(CMO_CHANNELS) as (keyof typeof CMO_CHANNELS)[])
-    .filter((key) => CMO_CHANNELS[key].status === "soon")
+    .filter((key) => (CMO_CHANNELS[key].status as string) === "soon")
     .map((key) => CMO_CHANNELS[key].name);
   return (
     <>

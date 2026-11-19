@@ -510,6 +510,19 @@ export function TaskActivitySection({
             const originFromLabel = t("originFromApp", {
               appName: channelAppName,
             });
+            // "from Unknown" tells the reader nothing, so name no origin.
+            const origin =
+              event.channel === Channel.UNKNOWN ? null : (
+                <span className="whitespace-nowrap">
+                  {originFromLabel}
+                  <ChannelIcon
+                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                    role="img"
+                    aria-label={originFromLabel}
+                    data-testid={`origin-icon-${event.id}`}
+                  />
+                </span>
+              );
             const isNewOptimisticEvent = isNewOptimisticEventId(event.id);
             const chargePresentation = getTaskEventChargePresentation(event);
             const formattedComment = chargePresentation.hasComment
@@ -666,20 +679,7 @@ export function TaskActivitySection({
                         </span>
                         <span className="max-sm:order-3 max-sm:basis-full sm:contents">
                           <span className="text-muted-foreground text-xs">
-                            <span>{action}</span>{" "}
-                            {!taskStatus ? (
-                              <>
-                                <span className="whitespace-nowrap">
-                                  {originFromLabel}
-                                  <ChannelIcon
-                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
-                                    role="img"
-                                    aria-label={originFromLabel}
-                                    data-testid={`origin-icon-${event.id}`}
-                                  />
-                                </span>
-                              </>
-                            ) : null}
+                            <span>{action}</span> {taskStatus ? null : origin}
                           </span>
                           {taskStatus ? (
                             <>
@@ -689,15 +689,7 @@ export function TaskActivitySection({
                                 label={tStatus(taskStatus)}
                               />{" "}
                               <span className="text-muted-foreground text-xs">
-                                <span className="whitespace-nowrap">
-                                  {originFromLabel}
-                                  <ChannelIcon
-                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
-                                    role="img"
-                                    aria-label={originFromLabel}
-                                    data-testid={`origin-icon-${event.id}`}
-                                  />
-                                </span>
+                                {origin}
                               </span>
                             </>
                           ) : null}

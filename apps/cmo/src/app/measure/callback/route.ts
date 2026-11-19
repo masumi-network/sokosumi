@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
       : from === "seo"
         ? new URL("/seo", request.nextUrl)
         : new URL("/", request.nextUrl);
-  if (from !== "app" && from !== "seo") {
+  // From Launch the founder returns to Launch, which is where Core has them.
+  if (from !== "app" && from !== "seo" && from !== "launch") {
     back.searchParams.set("step", "results");
     back.searchParams.set("from", "onboarding");
   }

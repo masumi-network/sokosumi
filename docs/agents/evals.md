@@ -55,9 +55,9 @@ Credits: each lane's organization is topped up to 2,000 free credits before a ru
 ## Adding a case
 
 - **Soko Bot:** add a scenario to `SOKO_BOT_SCENARIOS` in `packages/soko-bot/src/scenarios.ts` (prompt or trigger, `expect` checks, a rubric for the judge) and its area in `SOKO_BOT_AREAS` (`eval-cases.ts`). Write it against the lane's world above, and put it where the state it needs exists.
-- **CMO chat:** add to `CMO_SCENARIOS`; it runs on the lane's Cuso, after the CMO research and strategy cases.
+- **CMO chat:** add to `CMO_SCENARIOS`; it runs on the lane's Cuso, after the CMO research and strategy cases. A `follow_up` trigger starts the case as the follow-up of the chat turn an earlier case asked (`ask` is that case's prompt), the way the watch sync starts one, so put it right after that case.
 - **CMO research or strategy:** add the brand to `fixtures/cmo-brands.json` and to `RESEARCH_BRANDS` or `STRATEGY_BRANDS` in `eval-cmo-cases.ts`. A strategy case needs the brand's Brand Brain in `fixtures/cmo-brand-brains.json`: run its research case once and copy the saved Brand Brain in.
 
 ## Cuso versions
 
-Cuso changes ship on a version, as Soko Bot's do. To release one, add `cmo-vN` to `SOKO_BOT_PRODUCT_VERSIONS` and run the CMO suite with `--cuso-version cmo-vN`. When nothing regresses, point `CMO_SOKO_BOT_VERSION_ID` at it so new hires get it. Lookups accept every Cuso version (`CMO_SOKO_BOT_VERSION_IDS`). Moving existing Cusos onto a new version has no admin path yet.
+Cuso changes ship on a version, as Soko Bot's do. To release one, add `cmo-vN` to `SOKO_BOT_PRODUCT_VERSIONS` and run the CMO suite with `--cuso-version cmo-vN`. When nothing regresses, point `CMO_SOKO_BOT_VERSION_ID` at it so new hires get it. Lookups accept every Cuso version (`CMO_SOKO_BOT_VERSION_IDS`). Existing Cusos stay on their version until an administrator moves them: `POST /v1/admin/soko-bots/versions/migrate` with `fromVersionId` and `toVersionId` both Cuso versions (always give `fromVersionId`: without it every bot moves). The admin page only offers personal versions as targets.

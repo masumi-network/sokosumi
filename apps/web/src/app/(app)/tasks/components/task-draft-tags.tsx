@@ -1,7 +1,7 @@
 "use client";
 
 import type { TaskTagId } from "@sokosumi/core-client";
-import { Sparkles } from "lucide-react";
+import { Bot } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TaskTagBadge, TaskTagRemoveButton } from "./task-tag-colors";
 
@@ -18,7 +18,7 @@ export function JevTagIndicator() {
   const label = t("appliedByJev");
   return (
     <span title={label} className="inline-flex shrink-0">
-      <Sparkles role="img" aria-label={label} className="size-3" />
+      <Bot role="img" aria-label={label} className="size-3" />
     </span>
   );
 }

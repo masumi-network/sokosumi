@@ -84,6 +84,14 @@ export const nativeSeoMetricsSchema = z
     landingPages: seoLandingPagesSchema.optional(),
     /** URL Inspection results for the selected pages Google answered for. Absent when none answered. */
     indexedPages: z.array(seoIndexedPageSchema).max(SEO_MAX_PAGES).optional(),
+    /** Original attempt times, including failures. Only actual reads may seed another report. */
+    inspectionCache: z
+      .object({
+        key: z.string().regex(/^[a-f0-9]{64}$/),
+        readUrls: z.array(seoUrlSchema).max(SEO_MAX_PAGES),
+        checkedAt: z.record(seoUrlSchema, dateTimeSchema),
+      })
+      .optional(),
   })
   .strict()
   .refine((input) => input.from <= input.to, "Period ends before it starts")

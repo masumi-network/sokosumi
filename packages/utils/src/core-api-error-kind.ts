@@ -54,6 +54,9 @@ export const CORE_API_ERROR_KINDS = {
   LAST_WORKSPACE: "last_workspace",
   PERSONAL_WORKSPACE_MISSING: "personal_workspace_missing",
   PROJECT_DELETION_REMOVED: "project_deletion_removed",
+  SEO_AUDIT_ACTIVE_CHECK: "seo_audit_active_check",
+  SEO_AUDIT_ACTIVE_CHAT: "seo_audit_active_chat",
+  SEO_AUDIT_RESUMABLE_MONITOR: "seo_audit_resumable_monitor",
   SCHEDULE_RUN_STATE_CONFLICT: "schedule_run_state_conflict",
   SCHEDULE_RUN_TARGET_INVALID: "schedule_run_target_invalid",
   QUEUED_REQUIRES_RUN_AT: "queued_requires_run_at",
@@ -66,6 +69,7 @@ export const CORE_API_ERROR_KINDS = {
   /** A Soko Bot turn was cancelled, paused or expired; its runner stops. */
   SOKO_BOT_TURN_INACTIVE: "soko_bot_turn_inactive",
   SOCIAL_FACEBOOK_PAGE_REQUIRED: "social_facebook_page_required",
+  SOCIAL_YOUTUBE_CHANNEL_REQUIRED: "social_youtube_channel_required",
   TASK_WORKSPACE_TAGS_CHANGED: "task_workspace_tags_changed",
   TASK_SCHEDULE_MOVED: "task_schedule_moved",
   WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",

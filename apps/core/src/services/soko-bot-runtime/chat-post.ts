@@ -183,9 +183,11 @@ export async function postChat(
     // A chat turn's answer already appears where it was asked, in the thread
     // when it was asked in one. Posting it into that room as well put the
     // same answer in the thread and in the channel. A post that summons a
-    // Coworker or another assistant is a message of its own and still goes.
+    // Coworker or another assistant is a message of its own and still goes,
+    // and so does a link Core itself posts for a table the turn created.
     if (
       !input.via &&
+      !input.publicationId &&
       authorized.turn.source === "CHAT" &&
       authorized.turn.chainDepth === 0 &&
       mentionedCoworkerIds.length === 0 &&
