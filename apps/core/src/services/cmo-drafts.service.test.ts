@@ -13,6 +13,11 @@ const mocks = vi.hoisted(() => ({
   updateSocialPost: vi.fn(),
 }));
 
+const testCopy = vi.hoisted(() => ({ is: vi.fn(async () => false) }));
+vi.mock("@/services/project-test-copy", async (original) => ({
+  ...(await original<typeof import("@/services/project-test-copy")>()),
+  isTestCopyProject: testCopy.is,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findMany: mocks.toolCalls },
@@ -282,6 +287,39 @@ describe("approveCmoDraft", () => {
       ...scope,
       revision: 1,
     });
+  });
+
+  it("refuses to send a test copy's draft two minutes later, and changes nothing", async () => {
+    testCopy.is.mockResolvedValueOnce(true);
+    mocks.getSocialPost.mockResolvedValue(post());
+
+    await expect(approveCmoDraft(target)).rejects.toThrow(
+      "A test copy sends nothing at once",
+    );
+    expect(mocks.scheduleSocialPost).not.toHaveBeenCalled();
+    expect(mocks.approveSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("refuses a test copy's draft planned sooner than 12 hours ahead, and approves one planned later", async () => {
+    testCopy.is.mockResolvedValue(true);
+    mocks.getSocialPost.mockResolvedValue(
+      post({ scheduledAt: new Date(NOW.getTime() + 11 * 60 * 60 * 1_000) }),
+    );
+    await expect(approveCmoDraft(target)).rejects.toThrow(
+      "at least 12 hours ahead",
+    );
+    expect(mocks.approveSocialPost).not.toHaveBeenCalled();
+
+    mocks.getSocialPost.mockResolvedValue(
+      post({ scheduledAt: new Date(NOW.getTime() + 13 * 60 * 60 * 1_000) }),
+    );
+    await approveCmoDraft(target);
+    expect(mocks.scheduleSocialPost).not.toHaveBeenCalled();
+    expect(mocks.approveSocialPost).toHaveBeenCalledWith({
+      ...scope,
+      revision: 0,
+    });
+    testCopy.is.mockResolvedValue(false);
   });
 
   it("keeps a draft's own planned time", async () => {

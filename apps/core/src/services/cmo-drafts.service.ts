@@ -12,6 +12,11 @@ import {
 } from "@/services/cmo-cuso.service";
 import { loadLiveResources } from "@/services/file-search.service";
 import {
+  isTestCopyProject,
+  scheduleLeadMs,
+  TEST_COPY_NOTHING_AT_ONCE,
+} from "@/services/project-test-copy";
+import {
   approveSocialPost,
   cancelSocialPost,
   getSocialPost,
@@ -233,9 +238,21 @@ export async function approveCmoDraft(input: DraftTarget): Promise<void> {
     throw new CmoConflictError("This post no longer waits for approval.");
   if (post.revision !== input.revision)
     throw new CmoConflictError("This post changed. Look at it again.");
+  const testCopy = await isTestCopyProject(cuso.projectId);
   const planned =
     post.scheduledAt !== null &&
-    post.scheduledAt.getTime() > Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+    post.scheduledAt.getTime() >
+      Date.now() +
+        scheduleLeadMs(
+          { testCopyOfProjectId: testCopy ? cuso.projectId : null },
+          SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+        );
+  // Approving a draft without a time sends it two minutes later.
+  if (!planned && testCopy) {
+    throw new CmoConflictError(
+      `${TEST_COPY_NOTHING_AT_ONCE}. Give the post a time at least 12 hours ahead.`,
+    );
+  }
   if (!planned) {
     post = await scheduleSocialPost({
       ...scope,

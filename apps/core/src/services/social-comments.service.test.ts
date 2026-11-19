@@ -72,6 +72,21 @@ describe("handleSocialComment", () => {
     });
   });
 
+  it("never replies from a test copy, and leaves the comment new", async () => {
+    db.commentFindFirst.mockResolvedValue(
+      comment({
+        socialPost: {
+          socialConnectionId: "conn-1",
+          provider: "instagram",
+          project: { testCopyOfProjectId: "p-source" },
+        },
+      }),
+    );
+    await expect(reply()).rejects.toThrow("A test copy sends nothing at once");
+    expect(provider.reply).not.toHaveBeenCalled();
+    expect(db.commentUpdateMany).not.toHaveBeenCalled();
+  });
+
   it("posts the reply and records it", async () => {
     await expect(reply()).resolves.toEqual({
       status: "replied",
