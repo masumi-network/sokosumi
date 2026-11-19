@@ -110,16 +110,21 @@ export function CalendarPage({
   const [channel, setChannel] = useState<string | null>(null);
   const [pillar, setPillar] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  // What the plan bought does not make waits for a bigger plan, off the month.
+  const beyond = useMemo(
+    () => new Set(overview.production.beyondPlan),
+    [overview.production.beyondPlan],
+  );
   const live = useMemo(
     () =>
       (strategy?.calendar ?? [])
-        .filter((entry) => entry.status !== "skipped")
+        .filter((entry) => entry.status !== "skipped" && !beyond.has(entry.id))
         .sort(
           (a, b) =>
             a.date.localeCompare(b.date) ||
             (a.time ?? "").localeCompare(b.time ?? ""),
         ),
-    [strategy],
+    [strategy, beyond],
   );
   const channels = useMemo(
     () => [...new Set(live.map((entry) => entry.channel))],
@@ -187,6 +192,9 @@ export function CalendarPage({
         <p className="note num">
           {live.length} posts this month · {ready} ready
           {ready < live.length ? ` · ${live.length - ready} being made` : ""}
+          {beyond.size > 0
+            ? ` · ${beyond.size} more with a bigger plan, in Settings`
+            : ""}
         </p>
         {waitingFor.map((network) => {
           const count = live.filter(

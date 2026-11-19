@@ -326,7 +326,7 @@ const CASTS_SHADOW = [
   /\.button(?:-small|-secondary)?(?![\w-])/,
   /\[aria-(?:pressed|selected)/,
   // Classes that are only ever set on a <button>.
-  /^\.(?:chip|who-button|ob-who-button|ob-side-close|sc-pace-option|cal-filter|ob-plan-option)(?![\w-])/,
+  /^\.(?:chip|who-button|ob-who-button|ob-side-close|cal-filter|ob-plan-option)(?![\w-])/,
   // The chat's composer: the frame around its textarea.
   /^\.composer$/,
   /^\.ob-who-menu$/,

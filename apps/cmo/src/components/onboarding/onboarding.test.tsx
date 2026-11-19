@@ -618,7 +618,7 @@ describe("Plan", () => {
     expect(html).toContain("Why this strategy");
   });
 
-  it("is read-only once approved: answers, pace and budget as text, no change", () => {
+  it("is read-only once approved: answers and budget as text, no change", () => {
     const base = draft(cmoStrategyVersion(new Date()));
     const html = renderToStaticMarkup(
       <PlanStep
@@ -657,8 +657,8 @@ describe("Plan", () => {
     expect(html).toContain("Continue to Launch");
     expect(html).toContain("Do you ship every month?");
     expect(html).toContain("Every quarter");
-    expect(html).toContain("Pace:");
-    expect(html).toContain("two a day on each network");
+    expect(html).not.toContain("Pace:");
+    expect(html).not.toContain("two a day on each network");
     expect(html).toContain("€200 a month for ads");
     for (const live of [
       "Ask for a change",
@@ -734,7 +734,7 @@ describe("Plan", () => {
         },
       },
     });
-    expect(html).toContain("Active");
+    expect(html).toContain("written at the most a plan makes");
     expect(html).toContain("€200 a month for ads");
     expect(html).not.toContain("OK for ads");
   });

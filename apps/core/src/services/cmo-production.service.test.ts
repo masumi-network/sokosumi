@@ -34,6 +34,7 @@ const {
   listMediaJobs,
   advanceMedia,
   turnCount,
+  subscriptionFindFirst,
 } = vi.hoisted(() => ({
   listMediaJobs: vi.fn(),
   advanceMedia: vi.fn(),
@@ -52,6 +53,7 @@ const {
   startTurn: vi.fn(),
   isCmoSubscribed: vi.fn(),
   listCmoChannels: vi.fn(),
+  subscriptionFindFirst: vi.fn(),
 }));
 
 // PostgreSQL's clock: the test clock, or the time a test sets.
@@ -68,6 +70,7 @@ vi.mock("@/lib/db/prisma", () => ({
       count: turnCount,
     },
     sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
+    polarSubscription: { findFirst: subscriptionFindFirst },
   },
 }));
 
@@ -1094,5 +1097,74 @@ describe("syncCmoProduction", () => {
       expect.arrayContaining([{ id: "bot-1" }, { id: "bot-2" }]),
     );
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PLAN");
+  });
+});
+
+describe("the month the plan bought", () => {
+  /** Three X posts a day for two days, and a talking video shown on YouTube too. */
+  const month = [
+    ...["2026-11-10", "2026-11-11"].flatMap((date) =>
+      ["a", "b", "c"].map((slot) =>
+        post({ id: `x-${date}-${slot}`, date, channel: "x", format: "post" }),
+      ),
+    ),
+    post({
+      id: "v1",
+      date: "2026-11-12",
+      channel: "instagram",
+      format: "talking_video",
+    }),
+    post({
+      id: "v1@youtube",
+      date: "2026-11-12",
+      channel: "youtube",
+      format: "talking_video",
+      videoOf: "v1",
+    }),
+  ];
+  const read = async (tier: string | null) => {
+    subscriptionFindFirst.mockResolvedValueOnce(tier ? { tier } : null);
+    return readCmoProduction(cuso(month), {
+      connected: new Set(),
+      subscribed: true,
+      now: NOW,
+    });
+  };
+
+  it("makes one X post a day on Starter, and the rest waits for a bigger plan", async () => {
+    const { status, pieces } = await read("starter");
+    expect(status.level).toBe("steady");
+    expect(pieces.map((piece) => piece.id)).toEqual([
+      "x-2026-11-10-a",
+      "x-2026-11-11-a",
+      "v1",
+      "v1@youtube",
+    ]);
+    expect(status.total).toBe(4);
+    expect(status.beyondPlan).toEqual([
+      "x-2026-11-10-b",
+      "x-2026-11-10-c",
+      "x-2026-11-11-b",
+      "x-2026-11-11-c",
+    ]);
+  });
+
+  it("makes more of the same month on Growth, and all of it on Scale", async () => {
+    expect((await read("growth")).status).toMatchObject({
+      level: "active",
+      total: 6,
+    });
+    expect((await read("scale")).status).toMatchObject({
+      level: "all_in",
+      total: 8,
+      beyondPlan: [],
+    });
+  });
+
+  it("makes all of it on Tester credits, with no plan bought", async () => {
+    expect((await read(null)).status).toMatchObject({
+      level: "all_in",
+      total: 8,
+    });
   });
 });

@@ -1344,6 +1344,31 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     },
   },
   {
+    id: "cmo-tiktok-waits-for-owner",
+    title: "Plans a TikTok video and leaves the posting to the owner",
+    intent:
+      "Asked to put a talking video on TikTok, Cuso plans it there and says it waits for the owner's confirmation, never that it is scheduled or posted.",
+    prompt:
+      "Make one of next week's Instagram pieces a talking video: someone explaining in a few seconds why a booking link beats emailing back and forth. Put the same video on TikTok too. When does the TikTok one go out?",
+    rubric:
+      "Cuso saved the change with save_strategy: one calendar entry with format talking_video for this message on Instagram whose alsoOn lists tiktok (or on tiktok with Instagram in alsoOn), with a script (spoken words only, hook first, one point, one next step, in the brand's voice and never as a customer), a presenter and a voice. He answers the question honestly: the video has no fixed posting time, because TikTok asks the owner to confirm each video; once it is made it waits for the owner, who posts it with their own tap. Saying it is scheduled, will go out on a day or time, or was posted, saying TikTok is not available or coming soon, calling generate_talking_video or generate_video in place of the save, or planning it on another network instead of TikTok are failures.",
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["save_strategy"],
+      // The lane's month is a draft: a pieces save is refused, a calendar save works.
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: [
+        "generate_talking_video",
+        "generate_video",
+        "publish_social_post",
+        "schedule_social_post",
+        "create_task",
+        "hire_agent",
+      ],
+      noInventedIds: true,
+    },
+  },
+  {
     id: "cmo-picture-style",
     title: "Gives a picture the look of an old print",
     intent:

@@ -2,9 +2,10 @@
 
 **Cuso does**
 
-- The weekly short video, written for TikTok: hook in the first second, captions in the safe area, AI label on.
-- Answers comments.
+- Plans TikTok videos in the month's strategy once the owner wants the channel: talking videos and short videos made from brand pictures.
+- Writes each one for TikTok: hook in the first second, captions in the safe area, AI label on.
+- Hands each finished video to the owner. He never posts to TikTok himself, and never says a video was posted or scheduled.
 
-**The owner should see:** the video in chat to approve, then live on TikTok, marked as AI-made.
+**The owner should see:** each finished video waiting for them in the Calendar, with its caption, who it posts as and the confirmation TikTok asks for; then live on TikTok, marked as AI-made.
 
-**Missing today:** all of it. TikTok can be connected in utxo's workspace only, until TikTok approves the app audit (#7443), and the channel is still "soon" for Cuso, so he plans and posts nothing there. The video is made and goes to Reels and Shorts.
+**Missing today:** a posting time (a video goes out when the owner posts it), reading and answering TikTok comments, and TikTok numbers in the weekly review.

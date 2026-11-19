@@ -29,7 +29,14 @@ describe("system turn routes", () => {
       "bash",
     ]);
     expect(route?.sandbox).toBe(true);
-    expect(inheritedScheduleRoute([])).toBeUndefined();
+  });
+
+  it("runs a console schedule saved before it stored tools with a person's tools, not Jev's guess", () => {
+    const route = inheritedScheduleRoute([]);
+    expect(route.capabilities).toEqual(PERSON_SCHEDULE_CAPABILITIES);
+    expect(route.capabilities).toEqual(
+      expect.arrayContaining(["upload_file", "post_chat"]),
+    );
   });
 
   it("runs a person's console schedule with their chat tools, but not on other schedules", () => {
