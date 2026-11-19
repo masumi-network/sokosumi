@@ -318,7 +318,7 @@ export function SeoKeywordMap({
           <p className="flex items-center gap-2 text-xs">
             <span
               aria-hidden
-              className="size-2.5 rotate-45 rounded-[2px] border-2 border-chart-5"
+              className="size-2.5 rotate-45 rounded-xs border-2 border-chart-5"
             />
             {t("recommendation.legend")}
           </p>
@@ -465,7 +465,7 @@ export function SeoKeywordMap({
                       "ring-background pop-in stagger-delay pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 transition-colors duration-150 motion-reduce:transition-none",
                       // The picked dot sits over a neighbour it touches.
                       (index === active || point === opened) && "z-[1]",
-                      reasonOf(point) && "rotate-45 rounded-[2px]",
+                      reasonOf(point) && "rotate-45 rounded-xs",
                       point.checked
                         ? index === active || point === opened
                           ? "bg-foreground"
