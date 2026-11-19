@@ -2255,7 +2255,7 @@
         "previewUse": "Usar esta tarea",
         "previewEmpty": "Aún no hay salida de ejemplo disponible.",
         "taskCreated": "Tarea creada",
-        "taskCreatedHint": "Todo está configurado y listo.",
+        "taskCreatedHint": "{status, select, DRAFT {Está como borrador en Pendiente. Nada empieza hasta que la pases a Listo.} QUEUED {Espera en Pendiente y empieza a la hora que elegiste.} other {Está en Por hacer, lista para empezar.}}",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
         "close": "Cerrar",

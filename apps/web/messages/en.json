@@ -2255,7 +2255,7 @@
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "taskCreated": "Task created",
-        "taskCreatedHint": "Everything's set up and ready to go.",
+        "taskCreatedHint": "{status, select, DRAFT {It's a draft in Backlog. Nothing starts until you set it to Ready.} QUEUED {It waits in Backlog and starts at the time you set.} other {It's in Todo, ready to start.}}",
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
         "close": "Close",

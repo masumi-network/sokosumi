@@ -119,9 +119,17 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("textbox", { name: "Details" })
         .fill("Three sections, one recipe teaser and a short chef note.");
       await newTask.getByRole("button", { name: "Create task" }).click();
+      const goToTask = newTask.getByRole("button", {
+        name: "Bring me to the task",
+      });
+      await goToTask.waitFor({ timeout: 120_000 });
+      // A new Task is a Draft: the dialog says it waits, not "ready to go".
       await newTask
-        .getByRole("button", { name: "Bring me to the task" })
-        .click({ timeout: 120_000 });
+        .getByText("Nothing starts until you set it to Ready.", {
+          exact: false,
+        })
+        .waitFor();
+      await goToTask.click();
 
       const participants = page.getByRole("button", {
         name: /^Participants:/,
@@ -161,6 +169,15 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .getByRole("button", { name: "Save" })
         .click();
       await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
+      // Saving refreshes Properties; each row shows once, not once per refresh.
+      assert.equal(
+        await page
+          .getByRole("combobox", { name: /^Assignee:/ })
+          .filter({ visible: true })
+          .count(),
+        1,
+        "the Assignee row shows more than once after Save",
+      );
 
       // Back on the board: a card without tags has no empty tags line. Only
       // cards count: the task page stays in the DOM, hidden, and its Auto

@@ -2255,7 +2255,7 @@
         "previewUse": "Diesen Task verwenden",
         "previewEmpty": "Noch kein Beispiel verfügbar.",
         "taskCreated": "Task erstellt",
-        "taskCreatedHint": "Alles ist eingerichtet und bereit.",
+        "taskCreatedHint": "{status, select, DRAFT {Sie liegt als Entwurf im Backlog. Nichts startet, bis du sie auf Bereit setzt.} QUEUED {Sie wartet im Backlog und startet zur festgelegten Zeit.} other {Sie steht unter Offen und kann starten.}}",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
