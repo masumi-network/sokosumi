@@ -1017,6 +1017,7 @@ describe("project social connections service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
+        testCopyOfProjectId: true,
         workspace: {
           select: {
             organization: { select: { slug: true } },
@@ -2039,9 +2040,14 @@ describe("project social connections service", () => {
     expect(revokeComposioConnectedAccountMock).not.toHaveBeenCalled();
     expect(socialConnectionFindFirstMock).toHaveBeenLastCalledWith({
       where: {
-        composioConnectedAccountId: "ca_old",
-        status: { not: "disconnected" },
-        NOT: { id: SOCIAL_CONNECTION_ID },
+        OR: [
+          { id: SOCIAL_CONNECTION_ID, executorProjectId: { not: null } },
+          {
+            composioConnectedAccountId: "ca_old",
+            status: { not: "disconnected" },
+            NOT: { id: SOCIAL_CONNECTION_ID },
+          },
+        ],
       },
       select: { id: true },
     });

@@ -5,7 +5,14 @@ import {
 } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { unpaidCuso } = vi.hoisted(() => ({ unpaidCuso: vi.fn() }));
+const { unpaidCuso, testCopy } = vi.hoisted(() => ({
+  unpaidCuso: vi.fn(),
+  testCopy: { requireSource: vi.fn(), link: vi.fn() },
+}));
+vi.mock("@/services/cmo-test-copy.service", () => ({
+  requireTestCopySource: testCopy.requireSource,
+  linkTestCopyConnections: testCopy.link,
+}));
 
 import {
   archiveBot,
@@ -666,6 +673,50 @@ describe("startCmoOnboarding", () => {
       data: { ingestTimezone: "Asia/Tokyo" },
     });
     expect(retimeSystemSchedules).toHaveBeenCalledWith("bot-1", "Asia/Tokyo");
+  });
+
+  it("hires a test copy into its source's organization and links the source's accounts", async () => {
+    testCopy.requireSource.mockResolvedValue("org-team");
+    const copy = { ...input, testCopyOfProjectId: "project-source" };
+    await expect(startCmoOnboarding(copy)).resolves.toMatchObject({
+      sokoBotId: "bot-1",
+    });
+    expect(testCopy.requireSource).toHaveBeenCalledWith({
+      userId: "user-1",
+      sourceProjectId: "project-source",
+      organizationId: undefined,
+    });
+    expect(getUserWorkspace).toHaveBeenLastCalledWith("user-1", {
+      organizationId: "org-team",
+    });
+    expect(projectCreate.mock.lastCall?.[0].data).toMatchObject({
+      name: "CMO.xyz · acme.io (test copy)",
+      testCopyOfProjectId: "project-source",
+    });
+    expect(testCopy.link).toHaveBeenCalledWith({
+      projectId: "project-1",
+      sourceProjectId: "project-source",
+      actorId: "user-1",
+    });
+  });
+
+  it("creates nothing when the test copy is refused, and links nothing on a plain hire", async () => {
+    testCopy.requireSource.mockRejectedValue(new Error("refused"));
+    await expect(
+      startCmoOnboarding({
+        ...input,
+        organizationId: "org-team",
+        testCopyOfProjectId: "project-source",
+      }),
+    ).rejects.toThrow("refused");
+    expect(projectCreate).not.toHaveBeenCalled();
+
+    await startCmoOnboarding(input);
+    expect(projectCreate.mock.lastCall?.[0].data).toMatchObject({
+      name: "CMO.xyz · acme.io",
+      testCopyOfProjectId: null,
+    });
+    expect(testCopy.link).not.toHaveBeenCalled();
   });
 
   it("hires into an organization with no credits and grants no credits", async () => {

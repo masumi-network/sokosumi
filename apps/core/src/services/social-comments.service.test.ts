@@ -31,7 +31,7 @@ vi.mock("@/clients/social-post-providers/comments", async (importOriginal) => ({
   replyToComment: provider.reply,
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
-  projectExecutorUserId: () => "exec-1",
+  connectionExecutorUserId: () => "exec-1",
 }));
 
 import {

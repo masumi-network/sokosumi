@@ -487,6 +487,12 @@ model Project {
   /// null while it is off. A CMO Project's check does not need it: it runs
   /// while its Cuso is paid for.
   competitorChecksSince   DateTime?
+  /// Set on a CMO test copy: the Project whose connected accounts it uses
+  /// (ADR 0073). No foreign key: the mark must outlive its source, because a
+  /// test copy's posts never publish.
+  testCopyOfProjectId     String?                 @db.Uuid
+  /// When the test copy was torn down.
+  testCopyTornDownAt      DateTime?
   seoAudits               SeoAudit[]
   seoPages                ProjectSeoPage[]
   seoScopes               ProjectSeoScope[]
@@ -663,6 +669,10 @@ model ProjectSocialConnection {
   composioConnectedAccountId    String
   /// Dedicated profile to release along with this TikTok authorization.
   zernioProfileId               String?
+  /// Set on a test copy's link to its source's account (ADR 0073): the Project
+  /// whose Composio executor the account was granted to. Null means this
+  /// row's own Project. The provider is never asked to revoke a link.
+  executorProjectId             String?   @db.Uuid
   status                        String
   activeExternalAccountKey      String?
   connectorUserId               String

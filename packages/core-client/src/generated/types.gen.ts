@@ -14096,6 +14096,10 @@ export type CmoOnboardingRequest = {
      * The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.
      */
     timeZone?: string;
+    /**
+     * Hire a test copy of this Project's Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy's Social connections are links to the source's connected accounts.
+     */
+    testCopyOfProjectId?: string;
 };
 
 export type CmoSubscriptionPlan = {

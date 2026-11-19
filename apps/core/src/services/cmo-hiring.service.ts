@@ -50,6 +50,10 @@ import {
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
+  linkTestCopyConnections,
+  requireTestCopySource,
+} from "@/services/cmo-test-copy.service";
+import {
   cmoChangeKind,
   STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
@@ -814,6 +818,8 @@ export async function startCmoOnboarding(input: {
   organizationId?: string | undefined;
   /** The owner's time zone, from their browser. */
   timeZone?: string | undefined;
+  /** Hire a test copy of this Project's Cuso, in his organization (ADR 0073). */
+  testCopyOfProjectId?: string | undefined;
 }): Promise<Cuso> {
   // shortcut: two racing submits can hire twice, in two organizations or in
   // one; the start form submits once. Add a per-person lock if duplicates
@@ -827,25 +833,37 @@ export async function startCmoOnboarding(input: {
     );
   }
   await requireNoUnpaidCuso(input.userId);
+  const sourceProjectId = input.testCopyOfProjectId;
+  // A test copy goes into its source's organization, whatever was asked.
+  const organizationId = sourceProjectId
+    ? await requireTestCopySource({
+        userId: input.userId,
+        sourceProjectId,
+        organizationId: input.organizationId,
+      })
+    : input.organizationId;
   // Organization names take 2 to 50 characters.
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
     .slice(0, 50)
     .padEnd(2, ".");
-  const workspace = input.organizationId
+  const workspace = organizationId
     ? await existingOrganizationWorkspace({
         userId: input.userId,
-        organizationId: input.organizationId,
+        organizationId,
       })
     : await newOrganizationWorkspace({ ...input, businessName });
-  const organizationId = workspace.organizationId;
-  if (!organizationId) throw new Error("Cuso's workspace has no organization");
-  await requireHirerSeat(input.userId, organizationId);
+  if (!workspace.organizationId)
+    throw new Error("Cuso's workspace has no organization");
+  await requireHirerSeat(input.userId, workspace.organizationId);
 
   const project = await prisma.project.create({
     data: {
       workspaceId: workspace.id,
-      name: cmoProjectName(businessName),
+      name: sourceProjectId
+        ? `${cmoProjectName(businessName).slice(0, 108)} (test copy)`
+        : cmoProjectName(businessName),
       websiteUrl: input.websiteUrl,
+      testCopyOfProjectId: sourceProjectId ?? null,
     },
     select: { id: true },
   });
@@ -868,6 +886,13 @@ export async function startCmoOnboarding(input: {
     const cuso = await findCusoForBot(bot.id);
     if (!cuso) throw new Error("Cuso was not created");
     created = cuso;
+    if (sourceProjectId) {
+      await linkTestCopyConnections({
+        projectId: project.id,
+        sourceProjectId,
+        actorId: input.userId,
+      });
+    }
   } catch (error) {
     // No stray Project, Cuso or room: deleting the Project cascades to his
     // bot, which only lets go of its shared room. The Project is the one made

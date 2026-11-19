@@ -109,6 +109,19 @@ describe("pre-hire Site", () => {
     expect(html).not.toContain('name="organizationId"');
   });
 
+  it("marks a test copy and leaves out where he goes: Core puts him beside his source", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        organizations={[{ id: "org-1", name: "Agency" }]}
+        testCopyOf="project-source"
+        onboard={async () => ({ attempt: 0, websiteUrl: "", errors: {} })}
+      />,
+    );
+    expect(html).toContain('name="testCopyOf" value="project-source"');
+    expect(html).toContain("Test copy.");
+    expect(html).not.toContain('name="organizationId"');
+  });
+
   it("asks where Cuso goes, with a new organization selected", () => {
     const html = renderToStaticMarkup(
       <Onboarding
