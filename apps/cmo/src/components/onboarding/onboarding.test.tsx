@@ -742,7 +742,7 @@ describe("Launch", () => {
     expect(strategySocialChannels(draft())).toEqual(["linkedin", "x"]);
   });
 
-  it("shows the plan's own ads as optional too", () => {
+  it("shows the month's own ads as planned, never as an optional extra", () => {
     const ad = {
       id: "ad-1",
       date: "2026-10-05",
@@ -752,11 +752,8 @@ describe("Launch", () => {
       status: "idea" as const,
     };
     const ads = feedScreens([ad]).find((screen) => screen.key === "ads");
-    expect(ads).toMatchObject({
-      optional: true,
-      perMonth: 1,
-      name: "Meta ads",
-    });
+    expect(ads).toMatchObject({ name: "Meta ads", ads: "meta_ads" });
+    expect(ads?.optional).toBeUndefined();
   });
 
   it("makes ads and proposed channels optional, and leaves the newsletter out", () => {
