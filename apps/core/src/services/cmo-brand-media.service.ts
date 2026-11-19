@@ -563,7 +563,9 @@ async function asJpeg(
   picture: { body: Buffer; contentType: string },
 ): Promise<Buffer | null> {
   if (picture.contentType === "image/jpeg") return picture.body;
-  const page = await browser.newPage();
+  // A browser that died mid-capture costs this picture, never the capture.
+  const page = await browser.newPage().catch(() => null);
+  if (!page) return null;
   try {
     const jpeg = await page.evaluate(
       async (source: string) => {
@@ -586,7 +588,7 @@ async function asJpeg(
   } catch {
     return null;
   } finally {
-    await page.close();
+    await page.close().catch(() => undefined);
   }
 }
 
@@ -808,100 +810,103 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     return true;
   };
 
-  const media = await withBrowser(async (browser: Browser) => {
-    const home = robots.allows("/")
-      ? await capturePage(browser, site.href, {
+  try {
+    const media = await withBrowser(async (browser: Browser) => {
+      const home = robots.allows("/")
+        ? await capturePage(browser, site.href, {
+            ...DESKTOP,
+            fullScreens: FULL_PAGE_SCREENS,
+            sections: HOME_SECTIONS,
+          })
+        : null;
+      if (home) await saveOwnPage("Home", home);
+      // The site's own header and footer say which pages matter; its sitemap
+      // fills in what they leave out.
+      const found = home
+        ? [
+            ...home.links.map((link) => link.url),
+            ...(await readSitemapPages(site.origin, robots)),
+          ]
+        : [];
+      const ownPages = cmoOwnPages(cuso.websiteUrl, brain.data, found)
+        .slice(1)
+        .filter((page) => robots.allows(new URL(page.url).pathname));
+      const rest = await inBatches(ownPages, async (page) => {
+        if (!inTime()) return null;
+        const capture = await capturePage(browser, page.url, {
           ...DESKTOP,
           fullScreens: FULL_PAGE_SCREENS,
-          sections: HOME_SECTIONS,
-        })
-      : null;
-    if (home) await saveOwnPage("Home", home);
-    // The site's own header and footer say which pages matter; its sitemap
-    // fills in what they leave out.
-    const found = home
-      ? [
-          ...home.links.map((link) => link.url),
-          ...(await readSitemapPages(site.origin, robots)),
-        ]
-      : [];
-    const ownPages = cmoOwnPages(cuso.websiteUrl, brain.data, found)
-      .slice(1)
-      .filter((page) => robots.allows(new URL(page.url).pathname));
-    const rest = await inBatches(ownPages, async (page) => {
-      if (!inTime()) return null;
-      const capture = await capturePage(browser, page.url, {
-        ...DESKTOP,
-        fullScreens: FULL_PAGE_SCREENS,
-        sections: PAGE_SECTIONS,
+          sections: PAGE_SECTIONS,
+        });
+        return capture && (await saveOwnPage(page.label, capture))
+          ? capture
+          : null;
       });
-      return capture && (await saveOwnPage(page.label, capture))
-        ? capture
-        : null;
-    });
-    const own = [home, ...rest];
-    await inBatches(index.pages, async (page) => {
-      if (!inTime()) return;
-      const phone = await capturePage(browser, page.url, MOBILE);
-      if (phone) {
-        await saveShot(
-          drive,
-          CMO_BRAND_MEDIA_FOLDER,
-          `${page.name}${MOBILE_SUFFIX}`,
-          phone.screenshot,
-        );
+      const own = [home, ...rest];
+      await inBatches(index.pages, async (page) => {
+        if (!inTime()) return;
+        const phone = await capturePage(browser, page.url, MOBILE);
+        if (phone) {
+          await saveShot(
+            drive,
+            CMO_BRAND_MEDIA_FOLDER,
+            `${page.name}${MOBILE_SUFFIX}`,
+            phone.screenshot,
+          );
+        }
+      });
+      await inBatches(competitorPages, async (page) => {
+        if (!inTime() || !(await readRobots(page.url)).allows("/")) return;
+        const capture = await capturePage(browser, page.url);
+        if (capture) {
+          await saveShot(
+            drive,
+            `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
+            page.name,
+            capture.screenshot,
+          );
+        }
+      });
+      const seen = new Set<string>();
+      const candidates = own
+        .flatMap((capture) => capture?.images ?? [])
+        .filter((image) => {
+          const key = image.url.split("?")[0] ?? image.url;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .slice(0, MAX_PICTURES);
+      const pictures: { image: SiteImage; body: Buffer }[] = [];
+      for (const image of candidates) {
+        const picture = await downloadPicture(image);
+        const body = picture ? await asJpeg(browser, picture) : null;
+        if (body) pictures.push({ image, body });
       }
+      return { pictures };
     });
-    await inBatches(competitorPages, async (page) => {
-      if (!inTime() || !(await readRobots(page.url)).allows("/")) return;
-      const capture = await capturePage(browser, page.url);
-      if (capture) {
-        await saveShot(
-          drive,
-          `${CMO_BRAND_MEDIA_FOLDER}/Competitors`,
-          page.name,
-          capture.screenshot,
-        );
-      }
-    });
-    const seen = new Set<string>();
-    const candidates = own
-      .flatMap((capture) => capture?.images ?? [])
-      .filter((image) => {
-        const key = image.url.split("?")[0] ?? image.url;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, MAX_PICTURES);
-    const pictures: { image: SiteImage; body: Buffer }[] = [];
-    for (const image of candidates) {
-      const picture = await downloadPicture(image);
-      const body = picture ? await asJpeg(browser, picture) : null;
-      if (body) pictures.push({ image, body });
+    for (const [index, { image, body }] of media.pictures.entries()) {
+      const slot = String(index + 1).padStart(2, "0");
+      // The alt text names the picture, so Cuso finds a product's photo.
+      const filename = image.alt.trim()
+        ? `${slot}-${slug(image.alt)}.jpg`
+        : `picture-${slot}.jpg`;
+      await saveCusoProjectFile(
+        drive,
+        { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
+        body,
+        "image/jpeg",
+      );
     }
-    return { pictures };
-  });
-
-  await logo;
-  // Written last and always: it marks the Project as indexed.
-  await saveCusoProjectFile(
-    drive,
-    { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
-    Buffer.from(JSON.stringify(index, null, 2)),
-    "application/json",
-  );
-  for (const [index, { image, body }] of media.pictures.entries()) {
-    const slot = String(index + 1).padStart(2, "0");
-    // The alt text names the picture, so Cuso finds a product's photo.
-    const filename = image.alt.trim()
-      ? `${slot}-${slug(image.alt)}.jpg`
-      : `picture-${slot}.jpg`;
+  } finally {
+    await logo;
+    // Written last and always, also after a capture that threw: it marks
+    // the Project as indexed, so the backfill moves on to the next Cuso.
     await saveCusoProjectFile(
       drive,
-      { folder: `${CMO_BRAND_MEDIA_FOLDER}/Pictures`, filename },
-      body,
-      "image/jpeg",
+      { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
+      Buffer.from(JSON.stringify(index, null, 2)),
+      "application/json",
     );
   }
   nudgeFileIndexing();
