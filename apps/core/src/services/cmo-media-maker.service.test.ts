@@ -101,8 +101,10 @@ import {
   type CmoMediaPiece,
   cmoImagePrompt,
   cmoMediaState,
+  cmoPictureStyleProblem,
   cmoPieceSlides,
   cmoSlotAction,
+  cmoStyleHeadline,
   cmoStylePrompt,
   cmoVisualKey,
   REFERENCE_STYLE_MODELS,
@@ -260,6 +262,81 @@ describe("a picture in a reference library style", () => {
         colours: [],
       }),
     ).toContain("No words, letters or numbers");
+  });
+
+  it("sets the brand's own picture inside the style, and letters each slide with its own words", () => {
+    const withSite = cmoStylePrompt({
+      piece: styled(),
+      slot: 0,
+      businessName: "NMKR",
+      colours: [],
+      brandPictures: 1,
+    });
+    expect(withSite).toContain("The second image is NMKR's own picture");
+    expect(withSite).toContain("Invent no price, number, plan");
+    expect(withSite).toContain(
+      "Besides what stands in the brand's own picture",
+    );
+    const carousel = styled({
+      channel: "linkedin",
+      format: "images",
+      slides: ["A draft board", "An approval gate"],
+      slideHeadlines: ["Review the drafts", "Then it goes live"],
+    });
+    const second = cmoStylePrompt({
+      piece: carousel,
+      slot: 1,
+      businessName: "NMKR",
+      colours: [],
+    });
+    // Naming the slide made Muse Image letter "SLIDE 2 OF 2" into it.
+    expect(second).not.toMatch(/slide \d of \d/i);
+    expect(second).toContain("Draw no slide number");
+    expect(second).toContain('"Then it goes live"');
+    expect(second).not.toContain("Fresh minted");
+    expect(cmoStyleHeadline(carousel, 0)).toBe("Review the drafts");
+    expect(cmoVisualKey(carousel)).not.toBe(
+      cmoVisualKey({ ...carousel, slideHeadlines: ["Other", "Words"] }),
+    );
+  });
+
+  it("asks for a style on every picture and slide, once per reference", () => {
+    const one = { ...styled({ id: "a" }), visual: "A desk" };
+    expect(cmoPictureStyleProblem([one], [])).toBeNull();
+    expect(
+      cmoPictureStyleProblem([{ ...one, styleReferenceId: undefined }], []),
+    ).toContain("a has a picture and no style");
+    // Text, a video and a piece whose visual is not written yet need none.
+    expect(
+      cmoPictureStyleProblem(
+        [
+          piece({ id: "t", format: "post", styleReferenceId: undefined }),
+          piece({ id: "v", format: "video", styleReferenceId: undefined }),
+          piece({ id: "n", visual: undefined }),
+        ],
+        [],
+      ),
+    ).toBeNull();
+    expect(
+      cmoPictureStyleProblem(
+        [one],
+        [{ id: "b", styleReferenceId: one.styleReferenceId }],
+      ),
+    ).toContain("a and b use the same style reference");
+    expect(
+      cmoPictureStyleProblem(
+        [
+          {
+            ...one,
+            channel: "linkedin",
+            format: "images",
+            slides: ["One", "Two"],
+            slideHeadlines: ["Only one"],
+          },
+        ],
+        [],
+      ),
+    ).toContain("needs slideHeadlines, one entry per slide (2)");
   });
 
   it("tries each style model once, and a picture the check turned down counts as a try", () => {
@@ -424,6 +501,34 @@ describe("advanceCmoMedia", () => {
       "gpt-image-2-6",
       "nano-banana-2-1",
     ]);
+  });
+
+  it("gives a styled picture only the brand pictures its visual names", async () => {
+    jobFindMany.mockResolvedValue([]);
+    jobCount.mockResolvedValue(0);
+    const style = "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9";
+    await advanceCmoMedia(context, [
+      piece({ id: "a", socialPostId: "a", styleReferenceId: style }),
+      piece({
+        id: "b",
+        socialPostId: "b",
+        styleReferenceId: "01a1eb55-a767-7259-af74-b1d86f203752",
+        visualFileIds: ["f-home", "f-unknown"],
+      }),
+    ]);
+    expect(createImageJob.mock.calls[0]?.[0]).toMatchObject({
+      referenceLibraryIds: [style],
+      referenceFileIds: [],
+    });
+    expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain(
+      "own picture",
+    );
+    expect(createImageJob.mock.calls[1]?.[0]).toMatchObject({
+      referenceFileIds: ["f-home"],
+    });
+    expect(createImageJob.mock.calls[1]?.[0].prompt).toContain(
+      "The second image is NMKR's own picture",
+    );
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
