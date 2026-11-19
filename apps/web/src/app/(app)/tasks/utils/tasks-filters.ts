@@ -519,10 +519,11 @@ export function clearTasksFilters(
  * - Organization boards: Show the dot when `scope` is "owned" or "workspace"
  *   (either explicit choice signals the board is scoped — "My Tasks" or "All
  *   workspace tasks" — as opposed to a hypothetical unfiltered view). The
- *   default here is "workspace". Also show when assigneeId or status is set.
+ *   default here is "workspace". Also show when assigneeId, status or
+ *   Stuck is set.
  *   `projectId` is owned by the project switcher, not the Filters panel.
  * - Personal boards: Show the dot only when a non-default filter is applied
- *   (assigneeId or status). The default "owned" scope alone does
+ *   (assigneeId, status or Stuck). The default "owned" scope alone does
  *   not show the dot, as there's no workspace context to distinguish from.
  */
 export function hasActiveTasksFilters(
@@ -535,6 +536,7 @@ export function hasActiveTasksFilters(
       filters.assigneeUserId ||
       filters.status ||
       filters.tag ||
+      filters.stuck ||
       filters.visibility === TaskVisibility.PRIVATE,
   );
 
