@@ -28,6 +28,7 @@ import type {
 import { ZERNIO_TIKTOK_CREATE_POST } from "@/clients/social-post-providers/zernio-tiktok";
 import { getZernioAccountId } from "@/clients/zernio.client";
 import {
+  requireOwnTikTokAppAllowed,
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
   socialProviderWorkspaceForProject,
@@ -728,11 +729,27 @@ async function attemptPublish(
         socialProviderWorkspaceForProject(post.project),
       ) !== null,
   );
-  if (disabledProvider) {
-    const message = socialProviderUnavailableMessage(
-      disabledProvider,
-      socialProviderWorkspaceForProject(post.project),
-    );
+  // Our own TikTok app's connections publish only where it is allowed.
+  const ownTikTokApp =
+    provider === "tiktok" &&
+    !!post.socialConnection &&
+    !getZernioAccountId(post.socialConnection.composioConnectedAccountId);
+  let closedMessage = disabledProvider
+    ? socialProviderUnavailableMessage(
+        disabledProvider,
+        socialProviderWorkspaceForProject(post.project),
+      )
+    : null;
+  if (!closedMessage && ownTikTokApp) {
+    try {
+      requireOwnTikTokAppAllowed(post.project);
+    } catch (error) {
+      if (!(error instanceof HTTPException)) throw error;
+      closedMessage = error.message;
+    }
+  }
+  if (closedMessage) {
+    const message = closedMessage;
     await prisma.socialPostPublishAttempt.create({
       data: {
         socialPostId: post.id,
@@ -741,7 +758,7 @@ async function attemptPublish(
         actorUserId: options.actorUserId ?? null,
         finishedAt: now,
         outcome: "failed_permanent",
-        errorKind: `provider_coming_soon:${disabledProvider}`,
+        errorKind: `provider_coming_soon:${disabledProvider ?? provider}`,
         providerOutcome: message,
       },
       select: { id: true },
