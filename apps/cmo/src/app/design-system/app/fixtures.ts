@@ -377,7 +377,18 @@ export const messages: CusoMessage[] = [
 ];
 
 /** A picture, video or voice-over: nobody else works on it. */
-const media = { url: null, by: null, text: null, readable: false, files: [] };
+const media = {
+  url: null,
+  by: null,
+  text: null,
+  readable: false,
+  files: [],
+  table: null,
+  people: [],
+  total: null,
+  steps: [],
+  turnId: null,
+};
 
 /**
  * The chat page's own state: a long German message, to check how the thread
@@ -468,6 +479,61 @@ export const chat = {
       text: "Three trends stand out this quarter: loyalty passes replace one-off drops, brands mint on their own site, and buyers pay by card.",
       readable: true,
       files: [{ name: "market-scan.pdf", url: "/cuso/walking.png" }],
+    },
+    {
+      ...media,
+      id: "w8",
+      kind: "table",
+      state: "ready",
+      at: new Date("2026-11-04T10:25:00Z"),
+      title: "Content tracker",
+      readable: true,
+      table: {
+        columns: ["Post", "Channel", "Status"],
+        rows: [
+          ["Launch post 1", "X", "Made"],
+          ["Launch post 2", "LinkedIn", "Made"],
+          ["Launch post 3", "X", "Planned"],
+        ],
+        total: 12,
+      },
+    },
+    {
+      ...media,
+      id: "w9",
+      kind: "contacts",
+      state: "ready",
+      at: new Date("2026-11-04T10:26:00Z"),
+      title: "Press",
+      people: [
+        { name: "Mira Lindqvist", detail: "Editor, Product Weekly" },
+        { name: "Jonas Feld", detail: null },
+      ],
+      total: 5,
+    },
+    {
+      ...media,
+      id: "w10",
+      kind: "run",
+      state: "making",
+      at: new Date("2026-11-04T10:27:00Z"),
+      title: "Results log for the last four weeks",
+      steps: [
+        { label: "Read last month's posts", state: "done" },
+        { label: "Fill the results table", state: "now" },
+        { label: "Write the summary", state: "next" },
+      ],
+      turnId: "run-1",
+    },
+    {
+      ...media,
+      id: "w11",
+      kind: "question",
+      state: "ready",
+      at: new Date("2026-11-04T10:28:00Z"),
+      title: "How long would a three-trend report take?",
+      by: "Hannah",
+      text: "About two hours. I need your three main competitors and the market you sell in.",
     },
   ] satisfies ChatWork[],
 };

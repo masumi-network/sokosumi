@@ -43,10 +43,18 @@ export function buildThread(
   // A report is a message in the room; it shows as its card below.
   const reports = new Set(overview.updates.map((update) => update.id));
   const hired = iso(overview.hiredAt);
+  // A background run's report is its card: the card holds the result.
+  const runs = new Set(
+    work.flatMap((made) =>
+      made.turnId && made.state !== "making" ? [made.turnId] : [],
+    ),
+  );
   const items: ThreadItem[] = messages
     .filter(
       (message) =>
-        !reports.has(message.id) && (!hired || message.createdAt > hired),
+        !reports.has(message.id) &&
+        !(message.turnId && runs.has(message.turnId)) &&
+        (!hired || message.createdAt > hired),
     )
     .map((message) => ({
       kind: "message",

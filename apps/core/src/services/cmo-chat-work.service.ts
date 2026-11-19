@@ -11,6 +11,15 @@ import { digestJob, plainExcerpt } from "@/helpers/job-digest";
 import prisma from "@/lib/db/prisma";
 import { publicDriveUrl } from "@/lib/drive-blob";
 import {
+  type CmoChatPerson,
+  type CmoChatRecord,
+  type CmoChatStep,
+  type CmoChatTable,
+  listCmoChatRecords,
+  readCmoChatRecordText,
+  readCmoChatTable,
+} from "@/services/cmo-chat-records.service";
+import {
   CmoNotFoundError,
   type CusoTarget,
   requireCuso,
@@ -44,9 +53,19 @@ export interface CmoChatWorkFile {
 export interface CmoChatWorkItem {
   /** The tool call that started it; stable across reloads. */
   id: string;
-  kind: "image" | "video" | "audio" | "file" | "task" | "agent";
-  /** `waiting` is handed work that needs the owner before it goes on. */
-  state: "making" | "waiting" | "ready" | "failed";
+  kind:
+    | "image"
+    | "video"
+    | "audio"
+    | "file"
+    | "task"
+    | "agent"
+    | CmoChatRecord["kind"];
+  /**
+   * `waiting` is handed work that needs the owner before it goes on;
+   * `stopped` is a background run somebody called off.
+   */
+  state: "making" | "waiting" | "ready" | "failed" | "stopped";
   at: Date;
   /** What it is: the prompt, the words spoken, the file's or the work's name. */
   title: string;
@@ -60,6 +79,16 @@ export interface CmoChatWorkItem {
   readable: boolean;
   /** Files handed work came back with. */
   files: CmoChatWorkFile[];
+  /** A table's columns and first rows. */
+  table: CmoChatTable | null;
+  /** The first people of a contact list or a lookup. */
+  people: CmoChatPerson[];
+  /** Everyone that list or lookup holds, shown or not. */
+  total: number | null;
+  /** A running background run's plan. */
+  steps: CmoChatStep[];
+  /** A background run's own turn: its report in the room is this card. */
+  turnId: string | null;
 }
 
 /** How many of the newest items the chat shows. */
@@ -291,7 +320,21 @@ function liveFiles(drive: Drive, resourceIds: string[]) {
   });
 }
 
-const NOT_HANDED = { by: null, text: null, readable: false, files: [] };
+/** What only a record (a table, contacts, a run) carries. */
+const NO_RECORD = {
+  table: null,
+  people: [],
+  total: null,
+  steps: [],
+  turnId: null,
+};
+const NOT_HANDED = {
+  ...NO_RECORD,
+  by: null,
+  text: null,
+  readable: false,
+  files: [],
+};
 
 /**
  * What Cuso made, or is making, for the owner in chat, newest first: the
@@ -319,7 +362,10 @@ export async function listCmoChatWork(
     take: CMO_CHAT_WORK_SHOWN,
     select: CALL_SELECT,
   });
-  if (calls.length === 0) return [];
+  const records = (await listCmoChatRecords(cuso)).map(
+    (record): CmoChatWorkItem => ({ ...record, url: null, files: [] }),
+  );
+  if (calls.length === 0) return records;
   const drive = await driveOf(cuso, input.userId);
   const keyOf = (call: WorkCall) =>
     `soko-bot:${call.turnId}:${call.toolCallId}`;
@@ -406,6 +452,7 @@ export async function listCmoChatWork(
               : null;
         return {
           ...base,
+          ...NO_RECORD,
           kind: "task",
           state,
           title: task.name,
@@ -431,6 +478,7 @@ export async function listCmoChatWork(
               : null;
         return {
           ...base,
+          ...NO_RECORD,
           kind: "agent",
           state,
           title: hired.name,
@@ -508,7 +556,10 @@ export async function listCmoChatWork(
       };
     }),
   );
-  return items.filter((item): item is CmoChatWorkItem => item !== null);
+  return [
+    ...items.filter((item): item is CmoChatWorkItem => item !== null),
+    ...records,
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
 /**
@@ -528,9 +579,20 @@ export async function readCmoChatWorkText(
     },
     select: CALL_SELECT,
   });
-  const text = call ? await wordsOf(call, cuso, input.userId) : null;
+  const text = call
+    ? await wordsOf(call, cuso, input.userId)
+    : await readCmoChatRecordText(cuso, input.id);
   if (!text) throw new CmoNotFoundError("There is nothing to read here yet");
   return text;
+}
+
+/** A table Cuso made or wrote into, in full, for "Show all" in the chat. */
+export async function readCmoChatWorkTable(
+  input: CusoTarget & { id: string },
+): Promise<{ title: string; table: CmoChatTable }> {
+  const found = await readCmoChatTable(await requireCuso(input), input.id);
+  if (!found) throw new CmoNotFoundError("This table is no longer there");
+  return found;
 }
 
 async function wordsOf(
