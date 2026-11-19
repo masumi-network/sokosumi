@@ -29,26 +29,6 @@ const SOURCE_ICONS = {
   shopify: ShoppingBag,
 } as const;
 
-/** The four parts of the strategy, under the sentence that joins them. */
-export function IdeaParts({ idea }: { idea: NonNullable<Strategy["idea"]> }) {
-  const parts: [string, string][] = [
-    ["Who", idea.who],
-    ["Positioned as", idea.position],
-    ["How they find you", idea.attract],
-    ["The offer", idea.offer],
-  ];
-  return (
-    <dl className="sc-parts">
-      {parts.map(([label, value]) => (
-        <div key={label}>
-          <dt>{label}</dt>
-          <dd>{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 /** The other strategies Cuso weighed; one tap asks him to switch. */
 export function Alternatives({
   alternatives,
