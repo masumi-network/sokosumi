@@ -59,10 +59,12 @@ function observe(args: unknown[]): Promise<Outcome> {
 }
 
 /**
- * Observes every call as Vitest records it. Vitest pushes each call's
- * arguments onto `mock.calls` and replaces the array on `mockClear()`, so
- * the property becomes an accessor that watches each array it is given. The
- * state is internal: a Vitest upgrade that changes it fails here loudly.
+ * Observes every call as Vitest records it. Vitest appends each call's
+ * arguments to `mock.calls` and replaces the array on `mockClear()`, so
+ * the property becomes an accessor that watches each array it is given.
+ * Vitest 5.1.1 appends with `Array.prototype.push` (a primordial), which
+ * ignores an own `push`, so the array is a proxy that sees the index write.
+ * The state is internal: a Vitest upgrade that changes it fails here loudly.
  */
 function observeCalls(state: { calls: unknown[][] }): void {
   const holder = state as { calls: unknown[][]; [OBSERVED]?: true };
@@ -75,15 +77,15 @@ function observeCalls(state: { calls: unknown[][] }): void {
   }
   const watch = (calls: unknown[][]): unknown[][] => {
     for (const args of calls) observe(args);
-    const push = calls.push;
-    Object.defineProperty(calls, "push", {
-      configurable: true,
-      value(...items: unknown[][]): number {
-        for (const args of items) observe(args);
-        return push.apply(calls, items);
+    return new Proxy(calls, {
+      set(target, property, value, receiver) {
+        const result = Reflect.set(target, property, value, receiver);
+        if (typeof property === "string" && /^\d+$/.test(property)) {
+          observe(value as unknown[]);
+        }
+        return result;
       },
     });
-    return calls;
   };
   let calls = watch(descriptor.value);
   Object.defineProperty(state, "calls", {

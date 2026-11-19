@@ -81,15 +81,6 @@ export const OWNER_PART: Record<ChannelInfo["owner"], string> = {
   publish: `${AGENT_NAME} finds what to improve and writes it ready to paste. You publish it on your site.`,
 };
 
-/** Social networks Cuso posts to once connected. */
-export const POSTING_NETWORKS = (
-  Object.entries(CMO_CHANNELS) as [CmoChannelKey, ChannelInfo][]
-)
-  .filter(
-    ([, channel]) => channel.group === "social" && channel.status === "live",
-  )
-  .map(([key]) => key);
-
 /** Channels coming soon, to show without offering them. */
 export const SOON_CHANNELS = (
   Object.entries(CMO_CHANNELS) as [CmoChannelKey, ChannelInfo][]
@@ -97,14 +88,3 @@ export const SOON_CHANNELS = (
   // None today; a channel listed as "soon" shows here without a button.
   .filter(([, channel]) => (channel.status as string) === "soon")
   .map(([key, channel]) => ({ key, name: channel.name }));
-
-/**
- * Networks whose comments Cuso answers in his daily run. Core reads and
- * replies through these only: LinkedIn shares no comments and X needs paid
- * search, so both are left out.
- */
-export const COMMENT_REPLY_CHANNELS: readonly string[] = [
-  "instagram",
-  "facebook",
-  "youtube",
-];

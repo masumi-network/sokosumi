@@ -22,6 +22,7 @@ import {
   postFindFirst,
   postFindMany,
   postUpdate,
+  referenceFindMany,
   resetCmoServiceMocks,
   revised,
   seedStrategy,
@@ -31,6 +32,11 @@ import {
   strategyRows,
   turnFindFirst,
 } from "@/test-fixtures/cmo-service";
+
+const libraryAvailable = vi.hoisted(() => vi.fn(() => false));
+vi.mock("@/services/reference-library.service", () => ({
+  referenceLibraryAvailable: libraryAvailable,
+}));
 
 // PostgreSQL's clock is the test clock here.
 vi.mock("@/lib/db/database-now", () => ({
@@ -587,6 +593,101 @@ describe("saving versions", () => {
 
     expect(strategyRows).toHaveLength(2);
     expect(plan(strategyRows[0]!)).toEqual(strategy);
+  });
+
+  describe("pictures of the approved month", () => {
+    const STYLE_A = "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9";
+    const STYLE_B = "01a1eb55-a767-7259-af74-b1d86f203752";
+    const picture = (patch: Record<string, unknown>) => ({
+      ...strategy.calendar[0]!,
+      format: "image",
+      visual: "The booking page on a desk",
+      ...patch,
+    });
+    const savePieces = (calendar: unknown[]) =>
+      saveCmoStrategy({ sokoBotId: "bot-1" }, { calendar } as never, {
+        turnId: "turn-2",
+        part: "pieces",
+      });
+
+    beforeEach(() => {
+      cusoFind.mockResolvedValue(HIRE);
+      seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+      libraryAvailable.mockReturnValue(true);
+      referenceFindMany.mockResolvedValue([{ id: STYLE_A }, { id: STYLE_B }]);
+      postFindMany.mockResolvedValue([
+        {
+          id: "01a10b97-d4d3-7264-b4d5-0a396e87c0ad",
+          status: "DRAFT",
+          planning: {
+            id: "other",
+            title: "Styled before",
+            format: "image",
+            styleReferenceId: STYLE_B,
+          },
+        },
+      ]);
+    });
+    afterEach(() => libraryAvailable.mockReturnValue(false));
+
+    it("refuses a picture without a library style, and saves nothing", async () => {
+      await expect(savePieces([picture({ id: "p1" })])).rejects.toThrow(
+        "p1 has a picture and no style",
+      );
+      expect(postCreateMany).not.toHaveBeenCalled();
+      expect(postUpdate).not.toHaveBeenCalled();
+    });
+
+    it("refuses a reference another piece of the month already uses", async () => {
+      await expect(
+        savePieces([picture({ id: "p1", styleReferenceId: STYLE_B })]),
+      ).rejects.toThrow("p1 and other use the same style reference");
+      await expect(
+        savePieces([
+          picture({ id: "p1", styleReferenceId: STYLE_A }),
+          picture({ id: "p2", styleReferenceId: STYLE_A }),
+        ]),
+      ).rejects.toThrow("p2 and p1 use the same style reference");
+    });
+
+    it("refuses a styled carousel without its words per slide, and an id the library lacks", async () => {
+      const carousel = picture({
+        id: "c1",
+        format: "images",
+        styleReferenceId: STYLE_A,
+        slides: ["The board", "The gate"],
+      });
+      await expect(savePieces([carousel])).rejects.toThrow(
+        "c1 needs slideHeadlines, one entry per slide (2)",
+      );
+      referenceFindMany.mockResolvedValue([]);
+      await expect(
+        savePieces([picture({ id: "p1", styleReferenceId: STYLE_A })]),
+      ).rejects.toThrow(`${STYLE_A} is no style reference`);
+    });
+
+    it("saves styled pictures, a plain one where there is no library, and text as before", async () => {
+      referenceFindMany.mockResolvedValue([
+        { id: STYLE_A },
+        { id: "01a1eb1e-6063-70a2-bcc4-03bab65abd2f" },
+      ]);
+      await savePieces([
+        picture({ id: "p1", styleReferenceId: STYLE_A, headline: "Book it" }),
+        picture({
+          id: "c1",
+          format: "images",
+          styleReferenceId: "01a1eb1e-6063-70a2-bcc4-03bab65abd2f",
+          slides: ["The board", "The gate"],
+          slideHeadlines: ["Review the drafts", "Then it goes live"],
+        }),
+        { ...strategy.calendar[0]!, id: "t1", draft: "Words only." },
+      ]);
+      expect(postCreateMany).toHaveBeenCalledTimes(1);
+      postCreateMany.mockClear();
+      libraryAvailable.mockReturnValue(false);
+      await savePieces([picture({ id: "p9" })]);
+      expect(postCreateMany).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("fills pieces into the approved version's Social posts, not a newer draft", async () => {
