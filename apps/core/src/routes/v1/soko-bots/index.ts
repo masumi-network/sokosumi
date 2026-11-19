@@ -78,6 +78,7 @@ import mountUpdateMySokoBotVersion, {
 import mountCreateSokoBot, {
   mountById as mountReactivateSokoBot,
 } from "./post.js";
+import { mountSokoBotSecretRoutes } from "./secrets.js";
 import mountBrowseSokoBotSkills from "./skills/browse/get.js";
 import mountSearchSokoBotSkills from "./skills/search/get.js";
 import mountGetSokoBotTeam from "./team/get.js";
@@ -155,5 +156,6 @@ mountUpdateSokoBotVersion(app);
 mountReactivateSokoBot(app);
 mountSokoBotIntegrationByIdRoutes(app);
 mountSokoBotScheduleByIdRoutes(app);
+mountSokoBotSecretRoutes(app);
 
 export default app;
