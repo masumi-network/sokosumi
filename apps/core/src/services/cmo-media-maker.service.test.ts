@@ -477,6 +477,28 @@ describe("advanceCmoMedia", () => {
     });
   });
 
+  it("starts each piece without named pictures at another of the brand's own", async () => {
+    jobFindMany.mockResolvedValue([]);
+    jobCount.mockResolvedValue(0);
+    brandPictures.mockResolvedValue([
+      { fileId: "f-home", alt: "Home page screenshot" },
+      { fileId: "f-pricing", alt: "Pricing cards, Home page: plans" },
+      { fileId: "f-quotes", alt: "Testimonials, Home page: what they say" },
+      { fileId: "f-photo", alt: "studio dashboard" },
+    ]);
+    await advanceCmoMedia(context, [
+      piece({ id: "a", socialPostId: "a" }),
+      piece({ id: "b", socialPostId: "b" }),
+      piece({ id: "c", socialPostId: "c" }),
+    ]);
+    const used = createImageJob.mock.calls.map(([job]) => job.referenceFileIds);
+    expect(used).toEqual([
+      ["f-quotes", "f-home"],
+      ["f-photo", "f-home"],
+      ["f-pricing", "f-home"],
+    ]);
+  });
+
   it("makes a styled picture on Muse Image twice before the dearer models", async () => {
     const styled = piece({
       styleReferenceId: "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9",

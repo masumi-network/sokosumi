@@ -606,9 +606,37 @@ export const cmoBrandMediaSchema = z
           label: z.string(),
           pageUrl: z.string(),
           device: z.enum(["desktop", "mobile"]),
+          fullUrl: z
+            .union([z.string(), z.null()])
+            .describe("The page from the top, several screens down."),
         }),
       )
-      .describe("The brand's own pages, home first, then home on a phone."),
+      .describe(
+        "The brand's own pages Cuso read, home first, each on a desktop and then on a phone.",
+      ),
+    sections: z
+      .array(
+        cmoMediaFileSchema.extend({
+          kind: z.enum([
+            "hero",
+            "pricing",
+            "testimonials",
+            "customers",
+            "faq",
+            "product",
+            "features",
+            "cta",
+            "section",
+          ]),
+          /** The section's heading, or its first words. */
+          title: z.string(),
+          pageLabel: z.string(),
+          pageUrl: z.string(),
+        }),
+      )
+      .describe(
+        "Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.",
+      ),
     competitors: z
       .array(
         cmoMediaFileSchema.extend({ name: z.string(), pageUrl: z.string() }),

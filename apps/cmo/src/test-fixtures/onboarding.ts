@@ -156,8 +156,38 @@ const shot = (url: string) => ({
 export const richMedia: NonNullable<CmoOverview["brandMedia"]> = {
   capturedAt: "2026-10-05T09:02:00Z",
   pages: [
-    { ...shot("/cuso/walking.png"), label: "Home", device: "desktop" },
-    { ...shot("/cuso/walking.png"), label: "Home", device: "mobile" },
+    {
+      ...shot("/cuso/walking.png"),
+      label: "Home",
+      device: "desktop",
+      fullUrl: null,
+    },
+    {
+      ...shot("/cuso/walking.png"),
+      label: "Home",
+      device: "mobile",
+      fullUrl: null,
+    },
+    {
+      ...shot("/cuso/thinking.png"),
+      label: "Pricing",
+      device: "desktop",
+      fullUrl: null,
+    },
+  ],
+  sections: [
+    {
+      ...shot("/cuso/pointing.png"),
+      kind: "pricing",
+      title: "Plans for every launch",
+      pageLabel: "Pricing",
+    },
+    {
+      ...shot("/cuso/thumbs-up.png"),
+      kind: "testimonials",
+      title: "What mission leads say",
+      pageLabel: "Home",
+    },
   ],
   competitors: [{ ...shot("/cuso/searching.png"), name: "Moonshot" }],
   pictures: [],

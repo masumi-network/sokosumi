@@ -53950,6 +53950,17 @@ export const CmoBrandMediaSchema = {
                             'desktop',
                             'mobile'
                         ]
+                    },
+                    fullUrl: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The page from the top, several screens down.'
                     }
                 },
                 required: [
@@ -53957,10 +53968,64 @@ export const CmoBrandMediaSchema = {
                     'fileId',
                     'label',
                     'pageUrl',
-                    'device'
+                    'device',
+                    'fullUrl'
                 ]
             },
-            description: 'The brand\'s own pages, home first, then home on a phone.'
+            description: 'The brand\'s own pages Cuso read, home first, each on a desktop and then on a phone.'
+        },
+        sections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    fileId: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'hero',
+                            'pricing',
+                            'testimonials',
+                            'customers',
+                            'faq',
+                            'product',
+                            'features',
+                            'cta',
+                            'section'
+                        ]
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageLabel: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'url',
+                    'fileId',
+                    'kind',
+                    'title',
+                    'pageLabel',
+                    'pageUrl'
+                ]
+            },
+            description: 'Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.'
         },
         competitors: {
             type: 'array',
@@ -54030,6 +54095,7 @@ export const CmoBrandMediaSchema = {
     required: [
         'capturedAt',
         'pages',
+        'sections',
         'competitors',
         'pictures'
     ]

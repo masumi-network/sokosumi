@@ -572,7 +572,11 @@ export function cmoStylePrompt(input: {
 /** Brand pictures a styled picture may show inside its style. */
 export const MAX_STYLE_BRAND_PICTURES = 2;
 
-/** The pictures a visual is made from: those it names, else the brand's own. */
+/**
+ * The pictures a visual is made from: those it names, else the brand's own.
+ * Each piece starts at another of them (by its id), so a month draws on
+ * every section and photo of the site instead of the first one each time.
+ */
 function references(
   piece: CmoMediaPiece,
   brandPictures: readonly { fileId: string; alt: string }[],
@@ -580,11 +584,17 @@ function references(
   const known = new Set(brandPictures.map((picture) => picture.fileId));
   const named = (piece.visualFileIds ?? []).filter((id) => known.has(id));
   if (named.length > 0) return named;
-  const photos = brandPictures.filter(
+  const own = brandPictures.filter(
     (picture) => !picture.alt.endsWith("page screenshot"),
   );
+  const start =
+    own.length > 0
+      ? [...piece.id].reduce((sum, char) => sum + char.charCodeAt(0), 0) %
+        own.length
+      : 0;
+  const turned = [...own.slice(start), ...own.slice(0, start)];
   const home = brandPictures.find((picture) => picture.alt.startsWith("Home"));
-  return [...photos.slice(0, 1), ...(home ? [home] : []), ...photos.slice(1)]
+  return [...turned.slice(0, 1), ...(home ? [home] : []), ...turned.slice(1)]
     .slice(0, DEFAULT_REFERENCES)
     .map((picture) => picture.fileId);
 }
