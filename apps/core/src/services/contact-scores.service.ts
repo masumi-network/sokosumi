@@ -8,6 +8,7 @@
 import type { ContactImportanceSource, Prisma } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { notFound } from "@/helpers/error";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { emitCoreError } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -224,6 +225,7 @@ export async function judgeWorkspaceImportance(input: {
       input.stats.judged += 1;
     } catch (error) {
       input.stats.failed += 1;
+      if (error instanceof AiGatewayBudgetError) break;
       // Runs in the contact capture cron. Jev reads the conversations, so
       // content-free metadata only.
       emitCoreError(

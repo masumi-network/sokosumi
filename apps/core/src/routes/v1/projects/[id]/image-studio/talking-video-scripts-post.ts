@@ -3,6 +3,7 @@ import { createRoute } from "@hono/zod-openapi";
 import { serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -61,7 +62,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       projectId,
       topic: input.topic,
       languageCode: input.languageCode,
-    }).catch(() => {
+    }).catch((error: unknown) => {
+      if (error instanceof AiGatewayBudgetError) throw error;
       throw serviceUnavailable("Could not write scripts");
     });
     if (scripts.length === 0)

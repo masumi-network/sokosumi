@@ -295,6 +295,8 @@ async function postEvaluation(input: {
     const latencyMs = Date.now() - startedAt;
 
     if (!response.ok) {
+      // Inspect the body only to classify a budget refusal. Never log or
+      // return the body, which can echo the document.
       const budgetFailure = await reportAiGatewayBudgetResponse(
         response,
         apiKey,
@@ -302,8 +304,8 @@ async function postEvaluation(input: {
       if (budgetFailure)
         return { kind: "failed", reason: budgetFailure, latencyMs };
       /**
-       * Status only, and the same answer for every status. A body can
-       * carry back the document text we sent.
+       * For other refusals, report status only and use the same fallback
+       * for every status. A body can carry back the document text we sent.
        *
        * 400 and 422 used to be singled out as "the Gateway rejected our
        * retention options" and latch the evaluator off. The Gateway
