@@ -356,6 +356,9 @@ export function OnboardingFlow({
             overview={overview}
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}
+            onConnectMeasurement={(provider) =>
+              actions.connectMeasurement(provider, "launch")
+            }
             onSetPresenter={actions.setPresenter}
             onClearPresenter={actions.clearPresenter}
             notice={returnNotice}
