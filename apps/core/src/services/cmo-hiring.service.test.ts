@@ -30,6 +30,7 @@ import {
   projectDelete,
   resetCmoServiceMocks,
   sokoBotFindUnique,
+  sokoBotUpdateMany,
   startTurn,
   toolCallFindFirst,
   turnFindFirst,
@@ -128,6 +129,7 @@ import {
   describeCmoStep,
   mayHireCuso,
   retryCmoOnboarding,
+  setCmoTimeZone,
   startCmoOnboarding,
   startCmoOver,
   startCmoResearch,
@@ -583,6 +585,16 @@ describe("research feed", () => {
   });
 });
 
+const { retimeSystemSchedules } = vi.hoisted(() => ({
+  retimeSystemSchedules: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/soko-bot-proactive.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/soko-bot-proactive.service")
+  >()),
+  retimeSystemSchedules,
+}));
+
 describe("startCmoOnboarding", () => {
   const input = {
     userId: "user-1",
@@ -632,6 +644,28 @@ describe("startCmoOnboarding", () => {
       failure: { errorName: "Error" },
     });
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
+  });
+
+  it("hires Cuso in the owner's time zone, and on the default without one", async () => {
+    await startCmoOnboarding({ ...input, timeZone: "America/Los_Angeles" });
+    expect(createBot.mock.lastCall?.[0]).toMatchObject({
+      timezone: "America/Los_Angeles",
+    });
+    await startCmoOnboarding(input);
+    expect(createBot.mock.lastCall?.[0]).not.toHaveProperty("timezone");
+  });
+
+  it("moves Cuso and his routines to a new time zone", async () => {
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-1", projectId: "project-1" });
+    await setCmoTimeZone(
+      { userId: "user-1", projectId: "project-1" },
+      "Asia/Tokyo",
+    );
+    expect(sokoBotUpdateMany).toHaveBeenCalledWith({
+      where: { id: "bot-1" },
+      data: { ingestTimezone: "Asia/Tokyo" },
+    });
+    expect(retimeSystemSchedules).toHaveBeenCalledWith("bot-1", "Asia/Tokyo");
   });
 
   it("hires into an organization with no credits and grants no credits", async () => {

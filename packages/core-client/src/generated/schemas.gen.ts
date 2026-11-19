@@ -50793,6 +50793,10 @@ export const CmoOverviewSchema = {
                 $ref: '#/components/schemas/CmoRoutine'
             }
         },
+        timeZone: {
+            type: 'string',
+            description: 'The time zone Cuso\'s routines run in, as the owner set it.'
+        },
         brandBrain: {
             anyOf: [
                 {
@@ -53335,6 +53339,7 @@ export const CmoOverviewSchema = {
         'presenterSet',
         'onboardingStep',
         'routines',
+        'timeZone',
         'brandBrain',
         'brandBrainUpdatedAt',
         'brandBrainConfirmedAt',
@@ -56057,6 +56062,12 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             minLength: 1,
             description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
+        },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The owner\'s time zone, from their browser: Cuso\'s routines run at their local times in it. Without it he works on Europe/Berlin time.'
         }
     },
     required: [
@@ -56491,6 +56502,20 @@ export const CmoCustomerPortalSchema = {
     },
     required: [
         'url'
+    ]
+} as const;
+
+export const CmoTimeZoneSchema = {
+    type: 'object',
+    properties: {
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'timeZone'
     ]
 } as const;
 

@@ -13043,6 +13043,10 @@ export type CmoOverview = {
      */
     onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
+    /**
+     * The time zone Cuso's routines run in, as the owner set it.
+     */
+    timeZone: string;
     brandBrain: {
         summary: string;
         voice: {
@@ -14056,6 +14060,10 @@ export type CmoOnboardingRequest = {
      * An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.
      */
     organizationId?: string;
+    /**
+     * The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.
+     */
+    timeZone?: string;
 };
 
 export type CmoSubscriptionPlan = {
@@ -14206,6 +14214,10 @@ export type CmoPlanChange = {
 
 export type CmoCustomerPortal = {
     url: string;
+};
+
+export type CmoTimeZone = {
+    timeZone: string;
 };
 
 export type CmoSeo = {
@@ -89112,6 +89124,96 @@ export type StartCmoOverForProjectResponses = {
 };
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
+
+export type SetCmoTimeZoneForProjectData = {
+    body: CmoTimeZone;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/time-zone';
+};
+
+export type SetCmoTimeZoneForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a time zone
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoTimeZoneForProjectError = SetCmoTimeZoneForProjectErrors[keyof SetCmoTimeZoneForProjectErrors];
+
+export type SetCmoTimeZoneForProjectResponses = {
+    /**
+     * Cuso works in this time zone now
+     */
+    200: {
+        data: CmoTimeZone;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoTimeZoneForProjectResponse = SetCmoTimeZoneForProjectResponses[keyof SetCmoTimeZoneForProjectResponses];
 
 export type GetCmoSeoForProjectData = {
     body?: never;

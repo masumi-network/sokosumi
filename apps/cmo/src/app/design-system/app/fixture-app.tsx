@@ -65,6 +65,7 @@ const actions: CmoAppActions = {
   ],
   // Both would leave the preview.
   startOver: async () => null,
+  setTimeZone: async () => null,
   startTopUp: async () => ({ url: null, error: null }),
   subscribe: async () => ({ url: null, error: null }),
   changePlan: async () => ({ change: null, error: null }),

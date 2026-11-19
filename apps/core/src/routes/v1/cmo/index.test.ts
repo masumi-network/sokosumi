@@ -155,6 +155,7 @@ function overview() {
     projectLogo: null,
     presenterSet: false,
     routines: [],
+    timeZone: "Europe/Berlin",
     updates: [
       {
         id: "u1",
