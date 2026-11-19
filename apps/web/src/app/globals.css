@@ -692,6 +692,9 @@ body:has(vercel-live-feedback) main[data-app-main] {
 body:has(vercel-live-feedback) main[data-app-main]::after {
   content: "";
   flex: 0 0 calc(5rem + env(safe-area-inset-bottom));
+  /* WebKit stops the inner column at main's height, so a long page's rows
+     overflow onto this spacer and a tap there hit `main`, not the row. */
+  pointer-events: none;
 }
 
 @utility container {

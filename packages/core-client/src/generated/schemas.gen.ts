@@ -50793,6 +50793,10 @@ export const CmoOverviewSchema = {
                 $ref: '#/components/schemas/CmoRoutine'
             }
         },
+        timeZone: {
+            type: 'string',
+            description: 'The time zone Cuso\'s routines run in, as the owner set it.'
+        },
         brandBrain: {
             anyOf: [
                 {
@@ -53335,6 +53339,7 @@ export const CmoOverviewSchema = {
         'presenterSet',
         'onboardingStep',
         'routines',
+        'timeZone',
         'brandBrain',
         'brandBrainUpdatedAt',
         'brandBrainConfirmedAt',
@@ -56057,6 +56062,12 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             minLength: 1,
             description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
+        },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The owner\'s time zone, from their browser: Cuso\'s routines run at their local times in it. Without it he works on Europe/Berlin time.'
         }
     },
     required: [
@@ -56205,6 +56216,77 @@ export const CmoPieceTextSchema = {
     },
     required: [
         'text'
+    ]
+} as const;
+
+export const CmoChatWorkSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChatWorkItem'
+            }
+        }
+    },
+    required: [
+        'items'
+    ]
+} as const;
+
+export const CmoChatWorkItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'The tool call that started it.'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video',
+                'audio'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'making',
+                'ready',
+                'failed'
+            ],
+            description: 'making until the file exists; failed when it never will.'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Cuso started it.'
+        },
+        title: {
+            type: 'string',
+            description: 'What was asked for: the prompt, or the words spoken.'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the finished file plays from; null until it is ready.'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'state',
+        'at',
+        'title',
+        'url'
     ]
 } as const;
 
@@ -56420,6 +56502,20 @@ export const CmoCustomerPortalSchema = {
     },
     required: [
         'url'
+    ]
+} as const;
+
+export const CmoTimeZoneSchema = {
+    type: 'object',
+    properties: {
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'timeZone'
     ]
 } as const;
 

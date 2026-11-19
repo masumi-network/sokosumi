@@ -44,6 +44,7 @@ import {
   fixBrandSection,
   launchAd,
   loadAdCampaigns,
+  loadChatWork,
   loadCompetitors,
   loadCusos,
   loadMessages,
@@ -66,6 +67,7 @@ import {
   setAdCampaignStatus,
   setPresenter,
   setSeoSuggestionStatus,
+  setTimeZone,
   skipBrandQuestions,
   skippedSteps,
   skipSubscription,
@@ -343,8 +345,9 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   // "Your Cusos" leads somewhere only when there is another Cuso to open.
-  const [messages, manyCusos] = await Promise.all([
+  const [messages, work, manyCusos] = await Promise.all([
     loadMessages(projectId).catch(() => []),
+    loadChatWork(projectId).catch(() => []),
     loadCusos()
       .then(({ cusos }) => cusos.length > 1)
       .catch(() => false),
@@ -359,12 +362,14 @@ export async function Home({ searchParams, view }: HomeProps) {
           : []
       }
       messages={messages}
+      work={work}
       name={session.user.name}
       email={session.user.email}
       initialView={step === "connect" ? "channels" : view}
       connectFailed={step === "connect" && first(params.connect) === "failed"}
       actions={{
         loadState: loadState.bind(null, projectId),
+        loadChatWork: loadChatWork.bind(null, projectId),
         sendMessage: sendMessage.bind(null, projectId),
         loadPieceText: loadPieceText.bind(null, projectId),
         loadSeo: loadSeo.bind(null, projectId),
@@ -394,6 +399,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         launchAd: launchAd.bind(null, projectId),
         setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
+        setTimeZone: setTimeZone.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
         startTopUp: startTopUp.bind(null, projectId),
         skipSubscription: skipSubscription.bind(null, projectId),
