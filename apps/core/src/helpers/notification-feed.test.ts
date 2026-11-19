@@ -1,6 +1,7 @@
 import {
   CoworkerWorkspaceAccessStatus,
   NotificationKind,
+  TaskStatus,
   VendorGrantStatus,
 } from "@sokosumi/database";
 import {
@@ -9,6 +10,8 @@ import {
   CHAT_MENTION_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  TASK_INPUT_REQUIRED_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +19,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   excludeResolvedCoworkerAccessNotificationsWhere,
   excludeResolvedVendorGrantNotificationsWhere,
+  findNeedsActionNotificationIds,
   findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
   mergeAccessNotificationExclusions,
@@ -23,6 +27,8 @@ import {
 } from "./notification-feed";
 
 const notificationFindManyMock = vi.fn();
+const taskFindManyMock = vi.fn();
+const jobFindManyMock = vi.fn();
 const vendorGrantFindManyMock = vi.fn();
 const coworkerWorkspaceAccessFindManyMock = vi.fn();
 
@@ -31,6 +37,8 @@ vi.mock("@/lib/db/prisma", () => ({
     notification: {
       findMany: (...args: unknown[]) => notificationFindManyMock(...args),
     },
+    task: { findMany: (...args: unknown[]) => taskFindManyMock(...args) },
+    job: { findMany: (...args: unknown[]) => jobFindManyMock(...args) },
     vendorGrant: {
       findMany: (...args: unknown[]) => vendorGrantFindManyMock(...args),
     },
@@ -40,6 +48,43 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
+
+describe("findNeedsActionNotificationIds", () => {
+  it.each([undefined, "project-1"])(
+    "queries waiting tasks and jobs with project filter %s",
+    async (projectId) => {
+      notificationFindManyMock.mockResolvedValue([
+        {
+          id: "task-ask",
+          messageKey: TASK_INPUT_REQUIRED_MESSAGE_KEY,
+          referenceId: "task-1",
+        },
+        {
+          id: "job-ask",
+          messageKey: JOB_INPUT_REQUIRED_MESSAGE_KEY,
+          referenceId: "job-1",
+        },
+      ]);
+      taskFindManyMock.mockResolvedValue([{ id: "task-1" }]);
+      jobFindManyMock.mockResolvedValue([]);
+
+      await expect(
+        findNeedsActionNotificationIds("user-1", projectId),
+      ).resolves.toEqual(["task-ask"]);
+
+      const projectFilter = projectId === undefined ? {} : { projectId };
+      expect(taskFindManyMock.mock.lastCall?.[0].where).toStrictEqual({
+        id: { in: ["task-1"] },
+        status: TaskStatus.INPUT_REQUIRED,
+        ...projectFilter,
+      });
+      expect(jobFindManyMock.mock.lastCall?.[0].where).toStrictEqual({
+        id: { in: ["job-1"] },
+        ...projectFilter,
+      });
+    },
+  );
+});
 
 /**
  * Written out rather than read from `CHAT_FEED_MESSAGE_KEYS`, so a key added to
