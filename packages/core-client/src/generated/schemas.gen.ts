@@ -7739,6 +7739,18 @@ export const TaskSchema = {
             example: [],
             description: 'For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.'
         },
+        seoAudit: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskSeoAudit'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            example: null,
+            description: 'The SEO page of an SEO analysis Task: its audit (auditId, with the audit\'s Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.'
+        },
         selectableStatuses: {
             type: 'array',
             items: {
@@ -9347,6 +9359,30 @@ export const TaskAncestorSchema = {
         'identifier',
         'name',
         'status'
+    ]
+} as const;
+
+export const TaskSeoAuditSchema = {
+    type: 'object',
+    properties: {
+        auditId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        }
+    },
+    required: [
+        'auditId',
+        'projectId'
     ]
 } as const;
 
