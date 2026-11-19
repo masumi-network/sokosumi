@@ -4994,3 +4994,70 @@ button.today-ask:active {
   color: var(--primary-foreground);
   font-weight: 600;
 }
+
+/* ── Results: the month by network ── */
+.results-month {
+  display: grid;
+  gap: 16px;
+}
+
+.results-month .month {
+  padding: 0;
+  border: 0;
+}
+
+.netbars {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.netbars li {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 12px;
+  max-width: none;
+}
+
+.netbars-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+/* The whole month is the outline; what is out fills it in its colour. */
+.netbars-track {
+  display: flex;
+  height: 20px;
+  overflow: hidden;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.netbars-out {
+  border-right: var(--line-width-small) solid var(--line);
+  transform-origin: left center;
+}
+
+.netbars-count {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .netbars-out {
+    animation: month-grow 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both 200ms;
+  }
+}
+
+@media (max-width: 560px) {
+  .netbars li {
+    grid-template-columns: 96px minmax(0, 1fr) 52px;
+    gap: 8px;
+  }
+}

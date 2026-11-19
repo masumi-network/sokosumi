@@ -286,3 +286,46 @@ export function MonthBar({ entries }: { entries: Entry[] }) {
     </div>
   );
 }
+
+/** Each network's posts this month: out on its colour, still to come outlined. */
+export function NetworkBars({ entries }: { entries: Entry[] }) {
+  const networks = [...new Set(entries.map((entry) => entry.channel))]
+    .map((channel) => {
+      const mine = entries.filter((entry) => entry.channel === channel);
+      return {
+        channel,
+        total: mine.length,
+        out: mine.filter((entry) => entry.status === "published").length,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+  const most = Math.max(1, ...networks.map((network) => network.total));
+  return (
+    <ul className="netbars">
+      {networks.map(({ channel, total, out }) => (
+        <li key={channel}>
+          <span className="netbars-name">
+            <ChannelIcon channel={channel} size={14} />
+            {channelLabel(channel)}
+          </span>
+          <span
+            className="netbars-track"
+            role="img"
+            aria-label={`${channelLabel(channel)}: ${out} of ${total} out`}
+            style={{ width: `${(total / most) * 100}%` }}
+          >
+            {out > 0 ? (
+              <span
+                className={`netbars-out net-${channelTone(channel)}`}
+                style={{ width: `${(out / total) * 100}%` }}
+              />
+            ) : null}
+          </span>
+          <span className="netbars-count num">
+            {out} of {total}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}

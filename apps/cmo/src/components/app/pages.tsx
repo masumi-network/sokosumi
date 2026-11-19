@@ -16,6 +16,7 @@ import { channelInfo, SOON_CHANNELS } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { strategyApproved } from "../../lib/strategy";
+import { monthEntries } from "../../lib/today";
 import type { View } from "../../lib/views";
 import {
   type AdActions,
@@ -39,6 +40,7 @@ import {
   SubscriptionCard,
 } from "./subscription-card";
 import { type SetTimeZone, TimeZoneSetting } from "./time-zone";
+import { MonthBar, NetworkBars } from "./today-page";
 
 interface PageProps {
   overview: CmoOverview;
@@ -87,6 +89,7 @@ export function ResultsPage({
   ).flatMap((entry) => waitsForNetwork(entry, networks) ?? []);
   const drafts = Math.max(0, posts.draft + writtenInPlan - waits.length);
   const review = nextWeeklyReview(overview);
+  const month = monthEntries(overview);
   return (
     <div className="page-body">
       <div className="grid4">
@@ -124,6 +127,14 @@ export function ResultsPage({
             Connect
           </button>
         </p>
+      ) : null}
+      {month.length > 0 ? (
+        <section className="card results-month">
+          <h3>This month</h3>
+          <MonthBar entries={month} />
+          <h3>By network</h3>
+          <NetworkBars entries={month} />
+        </section>
       ) : null}
       <section className="card">
         <h3>Your numbers</h3>
