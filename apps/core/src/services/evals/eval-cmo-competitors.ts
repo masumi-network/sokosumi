@@ -14,12 +14,14 @@ export const SOKO_BOT_COMPETITOR_CASE_ID = "competitor-week";
 const BIG_WEEK_ID = "cmo-competitor-feed";
 const QUIET_WEEK_ID = "cmo-competitor-quiet-week";
 const SECOND_HAND_ID = "cmo-competitor-second-hand";
+const DIGEST_ID = "cmo-competitor-digest";
 
 /** What each competitor case finds in its lane. */
 export const COMPETITOR_CASE_SETUPS = {
   [BIG_WEEK_ID]: "cmo-competitors",
   [QUIET_WEEK_ID]: "cmo-competitors-quiet",
   [SECOND_HAND_ID]: "cmo-competitors-second-hand",
+  [DIGEST_ID]: "cmo-competitors-busy",
 } as const;
 
 type CompetitorSetup =
@@ -130,6 +132,82 @@ const SECOND_HAND_WEEK: readonly SeededSignal[] = [
   instagram("SavvyCal", 1, 2_100),
 ];
 
+/**
+ * A first check as a new owner's Cuso once got it (2026-11-18): much noise,
+ * all of it second-hand or small. Two sites report one competitor's prices,
+ * a changelog entry was labelled a launch, a launch is known from a
+ * directory's listing whose passage is page furniture, and an outage was
+ * fixed.
+ */
+const BUSY_WEEK: readonly SeededSignal[] = [
+  {
+    competitor: "Calendly",
+    kind: "NEWS",
+    summary:
+      "A pricing change was detected where Calendly's Standard plan is priced at $12 per seat.",
+    quote:
+      "Calendly: $12 a seat buys the Standard plan now Detected November 10.",
+    sourceUrl: "https://saascompared.com/blog/saas-price-changes-fall-2026",
+    sourceTitle:
+      "SaaS Pricing Corrections, October to November 2026: Calendly, Close, FreshBooks and More | SaaSCompared",
+    sourcePublisher: "saascompared.com",
+    daysAgo: 1,
+    raw: { event: "pricing" },
+  },
+  {
+    competitor: "Calendly",
+    kind: "NEWS",
+    summary:
+      "Calendly offers a 50% discount on its annual Standard plan in a Fall Sale ending November 20.",
+    quote:
+      "Calendly is offering 50% off its annual Standard plan in a Fall Sale: $6 instead of $12 per seat a month in the first year.",
+    sourceUrl: "https://i4u.business/en/news/calendly-fall-sale-50-percent",
+    sourceTitle: "Calendly Black Friday 2026: 50% off ends Nov 20 – I4U",
+    sourcePublisher: "i4u.business",
+    daysAgo: 1,
+    raw: { event: "pricing" },
+  },
+  {
+    competitor: "SavvyCal",
+    kind: "NEWS",
+    summary:
+      "SavvyCal overhauled its system for managing roles and permissions for teams.",
+    quote:
+      "Flexible Roles & Permissions for Teams Published November 17, 2026 We've completely overhauled the system for managing roles & permissions for teams using SavvyCal.",
+    sourceUrl: "https://savvycal.com/changelog/flexible-roles-permissions",
+    sourceTitle: "Flexible Roles & Permissions for Teams | SavvyCal Changelog",
+    sourcePublisher: "savvycal.com",
+    daysAgo: 1,
+    raw: { event: "launch" },
+  },
+  {
+    competitor: "Zcal",
+    kind: "NEWS",
+    summary:
+      "Zcal launched an AI scheduling assistant that books meetings from an inbox on PeerPush.",
+    quote:
+      "Zcal AI scheduling assistant that books your week from your inbox @zcalhq Published on Nov 18, 2026 Awarded Just Launched PeerPush",
+    sourceUrl: "https://peerpush.com/p/zcal-assistant",
+    sourceTitle: "Zcal - PeerPush",
+    sourcePublisher: "peerpush.com",
+    daysAgo: 0,
+    raw: { event: "launch" },
+  },
+  {
+    competitor: "SavvyCal",
+    kind: "NEWS",
+    summary: "SavvyCal resolved an issue affecting sync with Google Calendar.",
+    quote:
+      "SavvyCal: Issue with syncing Google Calendar Nov 17, 2026, 10:23 UTC started 13:12 UTC resolved Current status of SavvyCal: Operational",
+    sourceUrl: "https://outagedb.com/status/savvycal/2026-11-17-google-sync",
+    sourceTitle: "SavvyCal, Nov 17, 2026: Issue with syncing Google Calendar",
+    sourcePublisher: "outagedb.com",
+    daysAgo: 1,
+    raw: { event: "other" },
+  },
+  instagram("Zcal", 2, 3_400),
+];
+
 const QUIET_WEEK: readonly SeededSignal[] = [
   instagram("Calendly", 4, 41_000),
   instagram("SavvyCal", 1, 2_100),
@@ -140,6 +218,7 @@ const WEEKS = {
   "cmo-competitors": BIG_WEEK,
   "cmo-competitors-quiet": QUIET_WEEK,
   "cmo-competitors-second-hand": SECOND_HAND_WEEK,
+  "cmo-competitors-busy": BUSY_WEEK,
 } as const;
 
 /**
@@ -273,6 +352,78 @@ export async function competitorFeedChecks(
     pass: feed !== null,
     actual: feed ? `${items.length} items` : "no feed",
   };
+  if (scenarioId === DIGEST_ID) {
+    const signals = await prisma.competitorSignal.findMany({
+      where: { projectId: lane.cusoProjectId },
+      select: { id: true, raw: true, sourceUrl: true },
+    });
+    const ids = (wanted: (signal: (typeof signals)[number]) => boolean) =>
+      new Set(signals.filter(wanted).map((signal) => signal.id));
+    const pricing = ids(
+      (signal) => (signal.raw as { event?: unknown })?.event === "pricing",
+    );
+    const outage = ids(
+      (signal) => signal.sourceUrl?.includes("outagedb") === true,
+    );
+    const citing = (wanted: ReadonlySet<string>) =>
+      items.filter((item) =>
+        item.facts.some((fact) => fact.signalIds.some((id) => wanted.has(id))),
+      );
+    const said = items.flatMap((item) => [item.meaning, item.move]);
+    const facts = items.flatMap((item) => item.facts.map((fact) => fact.text));
+    const [week] = messages;
+    return [
+      saved,
+      {
+        label: "Tells the owner about the whole week in one message",
+        pass: messages.length === 1,
+        actual: `${messages.length} messages`,
+      },
+      {
+        label:
+          "Calls nothing big that only second-hand sites or a changelog report",
+        pass:
+          items.length > 0 &&
+          items.every((item) => !item.big) &&
+          !week?.content.includes("Suggested move"),
+        actual: `${items.filter((item) => item.big).length} big of ${items.length}`,
+      },
+      {
+        label: "Makes Calendly's list price and its sale one move",
+        pass: citing(pricing).length === 1,
+        actual: `${citing(pricing).length} items about Calendly's prices`,
+      },
+      {
+        label: "Leaves the fixed outage out",
+        pass: citing(outage).length === 0,
+        actual: `${citing(outage).length} items`,
+      },
+      {
+        label: "Speaks to the owner about their business, never as Cuso",
+        pass: said.length > 0 && said.every((text) => !/\bCuso\b/i.test(text)),
+        actual: said.find((text) => /\bCuso\b/i.test(text)) ?? "no Cuso",
+      },
+      {
+        label:
+          "Writes each fact in plain words, without what a source leaves out",
+        pass: facts.every(
+          (text) =>
+            !/was detected|was reported|unstated|not stated/i.test(text),
+        ),
+        actual:
+          facts.find((text) =>
+            /was detected|was reported|unstated|not stated/i.test(text),
+          ) ?? "plain",
+      },
+      {
+        label: "Keeps the pages' scraped words out of the chat",
+        pass:
+          week !== undefined &&
+          !/Awarded Just Launched|Detected November/.test(week.content),
+        actual: week ? week.content.slice(0, 200) : "no message",
+      },
+    ];
+  }
   if (scenarioId === SECOND_HAND_ID) {
     const facts = items.flatMap((item) => item.facts);
     return [

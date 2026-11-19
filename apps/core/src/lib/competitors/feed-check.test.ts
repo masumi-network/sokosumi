@@ -106,6 +106,51 @@ describe("feedProblems", () => {
     ).toEqual([]);
   });
 
+  // CMO.XYZ's Cuso, 18 Nov 2026: a $99 entry plan and a $49.50 sale on it
+  // reached the owner as two moves that read like two prices.
+  it("refuses two items about one competitor's prices, and takes them as one", () => {
+    const SALE = "bbbbbbbb-bbbb-4bbb-8bbb-000000000009";
+    const signals = new Map(SIGNALS).set(
+      SALE,
+      signal({
+        id: SALE,
+        kind: "NEWS",
+        summary: "Calendly offers 50% off Standard: $6 instead of $12",
+        quote: "$6 instead of $12 per seat",
+        sourceUrl: "https://i4u.business/en/news/calendly-sale",
+        raw: { event: "pricing" },
+      }),
+    );
+    const list = {
+      text: "Calendly's Standard plan costs $12 per seat.",
+      signalIds: [PRICE],
+      support: "strong" as const,
+    };
+    const sale = {
+      text: "Calendly sells Standard at $6 instead of $12 in a sale.",
+      signalIds: [SALE],
+      support: "weak" as const,
+    };
+    const [first] = feed([list]).items;
+    const [second] = feed([sale]).items;
+    if (!first || !second) throw new Error("no items");
+    expect(
+      feedProblems(
+        { items: [first, second], openQuestions: [] },
+        signals,
+        COMPETITORS,
+        "",
+      ),
+    ).toEqual([
+      expect.stringMatching(
+        /^Items 1 and 2 are both about Calendly's prices\. Make them one item/,
+      ),
+    ]);
+    expect(feedProblems(feed([list, sale]), signals, COMPETITORS, "")).toEqual(
+      [],
+    );
+  });
+
   it("refuses an invented number, a foreign id and another competitor's signal", () => {
     const problems = feedProblems(
       feed([

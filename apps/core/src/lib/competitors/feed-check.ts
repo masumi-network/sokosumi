@@ -135,6 +135,15 @@ function bigNewsEvent(
     : null;
 }
 
+/** A signal about what the competitor charges: its page, or pricing news. */
+function aboutPrices(signal: CitableSignal): boolean {
+  return (
+    signal.kind === "PRICE_CHANGE" ||
+    (signal.kind === "NEWS" &&
+      (signal.raw as { event?: unknown } | null)?.event === "pricing")
+  );
+}
+
 /**
  * How big a move is, from its signals: 0 for a price change (the
  * competitor's own pricing page moved, or first-hand pricing news), 1 for a
@@ -250,6 +259,22 @@ export function feedProblems(
         );
     }
   });
+  // One competitor's prices are one move: two items about them read as two
+  // price changes, and once told the owner a $99 plan and a $49.50 one.
+  const priced = new Map<string, number[]>();
+  input.items.forEach((item, index) => {
+    if (!cited(item, signals).some(aboutPrices)) return;
+    priced.set(item.competitorId, [
+      ...(priced.get(item.competitorId) ?? []),
+      index + 1,
+    ]);
+  });
+  for (const [competitorId, found] of priced) {
+    if (found.length < 2) continue;
+    problems.push(
+      `Items ${found.join(" and ")} are both about ${competitors.get(competitorId) ?? "one competitor"}'s prices. Make them one item with one meaning and one move: each fact keeps its own signals, and the facts must agree (a list price and a sale on it are one story).`,
+    );
+  }
   return problems;
 }
 

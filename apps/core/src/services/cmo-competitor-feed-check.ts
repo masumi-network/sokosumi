@@ -23,6 +23,9 @@ function overlap(a: Set<string>, b: Set<string>): number {
   return shared / Math.max(1, a.size + b.size - shared);
 }
 
+/** Cuso naming himself: "Cuso's X account", "the Cuso homepage". */
+const NAMES_CUSO = /\bCuso\b/i;
+
 /** The competitor's name, or a word of it long enough to be its own. */
 function namesCompetitor(text: string, competitor: string): boolean {
   const said = words(text);
@@ -34,7 +37,8 @@ function namesCompetitor(text: string, competitor: string): boolean {
 
 /**
  * What CMO asks of Cuso's feed beyond the facts: each item's meaning is about
- * that competitor's move, no two say the same, and a suggested move uses a
+ * that competitor's move, no two say the same, meaning and move speak to the
+ * owner ("your homepage", never "Cuso's"), and a suggested move uses a
  * network the business has connected or says to connect it first.
  */
 export function cusoFeedProblems(
@@ -63,6 +67,15 @@ export function cusoFeedProblems(
       problems.push(
         `Two items have almost the same meaning: "${item.meaning}". Say for each move what that move changes for this business.`,
       );
+    for (const [field, text] of [
+      ["meaning", item.meaning],
+      ["move", item.move],
+    ] as const) {
+      if (NAMES_CUSO.test(text))
+        problems.push(
+          `The ${field} for ${competitor}'s move says "Cuso": "${text}". Cuso is you. Write to the owner about their business: "your homepage", "your X account", "your pricing page".`,
+        );
+    }
     if (/\bconnect\b/i.test(item.move)) return;
     for (const { key, name, pattern } of SOCIAL_NETWORKS) {
       if (connectedNetworks.has(key) || !pattern.test(item.move)) continue;
