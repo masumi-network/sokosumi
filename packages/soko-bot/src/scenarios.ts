@@ -1541,6 +1541,24 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       answerMatches: "nothing to add",
     },
   },
+  {
+    id: "cmo-competitor-search-ads",
+    title: "Turns the competitors' searches into search ads the owner launches",
+    intent:
+      "Asked for ads on competitor searches, Cuso reads the real searches, writes one search ad per search within the ad budget, and leaves launching to the owner.",
+    prompt:
+      "Set up Google search ads for the people comparing us with our competitors: the alternative, vs and pricing searches.",
+    rubric:
+      'Cuso called research_competitor_keywords, which returned searches for Calendly ("calendly pricing", 4,400 searches a month; "calendly alternatives", 880; "calendly alternative free", 390; "cal.com vs calendly", 320, and more), two for SavvyCal and none for Zcal. The ad budget pays for two search ads, and the read marked "calendly pricing" and "calendly alternatives" as fitting it. He wrote those two search ads, no more, and saved them with save_strategy part pieces as new google_ads search_ad entries, each with searchAd: keywords exactly as returned, a first headline that is the search itself, headlines of at most 30 characters, descriptions that say what cal.com offers, a finalUrl on cal.com and the United States as location. His answer gives each ad\'s search with its monthly searches and click price as returned, says the ads are in the Calendar and that nothing spends until the owner presses Launch, and says that other searches were left out because the budget does not pay for them. Saying how much each ad gets a day, worked out from the returned daily budget, is fine. A search number no tool returned, an ad that says something about the competitor (a price, a flaw, "better than"), an ad on a search not marked as fitting, more than two ads, or a claim that an ad is running fails.',
+    expect: {
+      routes: ["MANAGE_WORK", "MIXED"],
+      tools: ["research_competitor_keywords", "save_strategy"],
+      // A headline one character too long is refused; he fixes it and saves again.
+      allowFailedTools: ["save_strategy"],
+      forbiddenTools: ["create_task", "hire_agent", "save_seo_suggestions"],
+      answerAvoids: CMO_PLACEHOLDER_PATTERN,
+    },
+  },
 ];
 
 /**

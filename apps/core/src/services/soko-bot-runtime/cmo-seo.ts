@@ -6,6 +6,7 @@ import {
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
 import type { CmoSeo } from "@/schemas/cmo-seo.schema";
+import { readCmoCompetitorKeywords } from "@/services/cmo-competitor-keywords.service";
 import { CmoError, findCusoForBot } from "@/services/cmo-cuso.service";
 import {
   readCmoSeo,
@@ -101,6 +102,19 @@ export async function executeCmoSeoTool(
           note: "Volume is Google searches a month in this market; difficulty runs 0 to 100. Quote these numbers with this date; never estimate others.",
         };
       }
+      case "research_competitor_keywords": {
+        const read = await readCmoCompetitorKeywords(cuso);
+        await taint(authorized, input);
+        if (read.competitors.length === 0)
+          return {
+            ...read,
+            note: "No competitor is on the watch list yet. The owner adds them on the Competitors page; then ask again.",
+          };
+        return {
+          ...read,
+          note: `Searches a month and prices are Google's for ${read.countryCode}; prices are USD. A competitor without searches has none worth an ad, or could not be read (observedAt null): say which. Quote these numbers with their date; never estimate others.`,
+        };
+      }
       case "check_search_rankings": {
         const { keywords, then } =
           SOKO_BOT_TOOL_INPUT_SCHEMAS.check_search_rankings.parse(input.input);
@@ -163,7 +177,8 @@ export async function executeCmoSeoTool(
     if (error instanceof CmoError)
       throw new SokoBotRuntimeValidationError(error.message);
     if (
-      input.capability === "research_keywords" &&
+      (input.capability === "research_keywords" ||
+        input.capability === "research_competitor_keywords") &&
       !(error instanceof SokoBotRuntimeValidationError)
     )
       throw new SokoBotRuntimeValidationError(

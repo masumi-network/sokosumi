@@ -70,7 +70,9 @@ export function toCusoMessages(messages: ChatRoomMessage[]): CusoMessage[] {
             ? message.sender.sokoBot.name
             : message.sender.type === "user"
               ? message.sender.user.name
-              : "Sokosumi",
+              : message.sender.type === "coworker"
+                ? message.sender.coworker.name
+                : "Team",
         content: fromCuso
           ? cusoText(message.content)
           : withoutIdMentions(message.content),
