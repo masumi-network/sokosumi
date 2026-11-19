@@ -664,6 +664,26 @@ it("hands a link's ?view=board back to the saved view when List is picked", asyn
   searchParamsRef.current = new URLSearchParams();
 });
 
+it("turns on Show sub-tasks without reloading the page", async () => {
+  replaceMock.mockClear();
+  const replaceState = vi.spyOn(window.history, "replaceState");
+  try {
+    const user = userEvent.setup();
+    renderBoard();
+    await user.click(screen.getByRole("button", { name: "Display" }));
+    await user.click(screen.getByRole("switch", { name: "Show subtasks" }));
+
+    expect(replaceState).toHaveBeenCalledWith(
+      null,
+      "",
+      expect.stringContaining("subtasks=1"),
+    );
+    expect(replaceMock).not.toHaveBeenCalled();
+  } finally {
+    replaceState.mockRestore();
+  }
+});
+
 it("keeps a task that left the server page when this tab did not archive it", () => {
   const shifted: TaskWithCoworker = { ...TASK, id: "task-shifted" };
   const { rerender } = renderBoard([TASK, shifted]);

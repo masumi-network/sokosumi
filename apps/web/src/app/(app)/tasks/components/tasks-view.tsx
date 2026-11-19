@@ -77,6 +77,11 @@ function TasksRealtimeListener({
   return null;
 }
 
+// Only the URL changes: Core already sends each Task's open sub-tasks, so a
+// display switch needs no server reload. Next keeps useSearchParams in step.
+const URL_ONLY_NAVIGATOR = {
+  replace: (href: string) => window.history.replaceState(null, "", href),
+};
 export interface TasksViewProps {
   tasks: TaskWithCoworker[];
   listNextCursor: string | null;
@@ -247,13 +252,16 @@ export function TasksView(props: TasksViewProps) {
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
   const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
-  const replaceRouteFilters = (patch: Partial<TasksFilters>) => {
+  const replaceRouteFilters = (
+    patch: Partial<TasksFilters>,
+    navigator: { replace: (href: string) => void } = router,
+  ) => {
     const nextQuery = buildTasksFiltersSearchParams(
       searchParams,
       { ...routeFilters, ...patch },
       activeOrganizationId,
     ).toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    navigator.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
 
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -292,7 +300,7 @@ export function TasksView(props: TasksViewProps) {
             onSortChange: (sort) => replaceRouteFilters({ sort }),
             showSubtasks: routeFilters.subtasks === true,
             onShowSubtasksChange: (subtasks) =>
-              replaceRouteFilters({ subtasks }),
+              replaceRouteFilters({ subtasks }, URL_ONLY_NAVIGATOR),
             labels: labels.display,
           }}
         />
