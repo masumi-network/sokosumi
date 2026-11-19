@@ -32127,6 +32127,9 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    setByOwner: {
+                                        type: 'boolean'
                                     }
                                 },
                                 required: [
@@ -32279,6 +32282,9 @@ export const MarketingStrategySchema = {
                                     type: 'integer',
                                     minimum: 1,
                                     maximum: 200
+                                },
+                                setByOwner: {
+                                    type: 'boolean'
                                 }
                             },
                             required: [
@@ -34015,6 +34021,9 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 1,
                                 maxLength: 400
+                            },
+                            setByOwner: {
+                                type: 'boolean'
                             }
                         },
                         required: [
@@ -34167,6 +34176,9 @@ export const MarketingStrategyRequestSchema = {
                             type: 'integer',
                             minimum: 1,
                             maximum: 200
+                        },
+                        setByOwner: {
+                            type: 'boolean'
                         }
                     },
                     required: [
@@ -55457,6 +55469,9 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    setByOwner: {
+                        type: 'boolean'
                     }
                 },
                 required: [
@@ -55609,6 +55624,9 @@ export const CmoPlanSchema = {
                     type: 'integer',
                     minimum: 1,
                     maximum: 200
+                },
+                setByOwner: {
+                    type: 'boolean'
                 }
             },
             required: [

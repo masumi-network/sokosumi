@@ -267,7 +267,10 @@ export function cmoPlanProblems(
 export function cmoPlanProblemsSince(
   strategy: MarketingStrategyPlan,
   before: MarketingStrategyPlan | null,
-  options: PlanReviewOptions = {},
+  options: PlanReviewOptions & {
+    /** A new month, not a change: the last month's low volume excuses nothing. */
+    fresh?: boolean;
+  } = {},
 ): string[] {
   const problems = cmoPlanProblems(strategy, options);
   if (!before || before.calendar.length === 0) return problems;
@@ -288,6 +291,7 @@ export function cmoPlanProblemsSince(
   return problems.filter(
     (problem) =>
       problem.startsWith("calendar covers ") ||
+      (options.fresh === true && isTopVolumeProblem(problem)) ||
       (!had.has(rule(problem)) && withoutSkips.has(counted(problem))),
   );
 }
@@ -514,27 +518,106 @@ export function cmoTopVolumeProblems(
   strategy: MarketingStrategyPlan,
 ): string[] {
   const problems: string[] = [];
-  if (strategy.pace && strategy.pace.level !== "all_in")
+  if (
+    strategy.pace &&
+    strategy.pace.level !== "all_in" &&
+    !strategy.pace.setByOwner
+  )
     problems.push(
-      `pace is ${strategy.pace.level}; write every strategy all_in: the plan the owner buys decides how much of it is made. Never lower the pace or a cadence to clear another problem.`,
+      `pace is ${strategy.pace.level}; write every strategy all_in: the plan the owner buys decides how much of it is made. Only the owner lowers the pace or a cadence; never lower one on your own, also not to clear another problem.`,
     );
   for (const channel of strategy.channels) {
+    if (channel.setByOwner || !belowTopVolume(channel)) continue;
     const key = channel.channel.toLowerCase();
-    if (!CMO_LIVE_NETWORKS.includes(key) || VIDEO_ONLY_NETWORKS.includes(key))
-      continue;
-    const range = cadenceRange(channel.cadence);
-    const top =
-      channel.role === "side"
-        ? TOP_VOLUME.side
-        : key === "x"
-          ? TOP_VOLUME.x
-          : TOP_VOLUME.main;
-    if (range && range[1] < top.pieces)
-      problems.push(
-        `${key} has the cadence "${channel.cadence}"; at the top volume a ${channel.role === "side" ? "side" : "main"} ${key} takes ${top.cadence}. Set it and plan its pieces.`,
-      );
+    problems.push(
+      `${key} has the cadence "${channel.cadence}"; at the top volume a ${channel.role === "side" ? "side" : "main"} ${key} takes ${topVolume(channel).cadence}. Set it and plan its pieces, unless the owner asked for less.`,
+    );
   }
   return problems;
+}
+
+function topVolume(channel: MarketingStrategyPlan["channels"][number]) {
+  if (channel.role === "side") return TOP_VOLUME.side;
+  return channel.channel.toLowerCase() === "x" ? TOP_VOLUME.x : TOP_VOLUME.main;
+}
+
+/** A posting network whose cadence is under the top volume's rate. */
+function belowTopVolume(
+  channel: MarketingStrategyPlan["channels"][number],
+): boolean {
+  const key = channel.channel.toLowerCase();
+  if (!CMO_LIVE_NETWORKS.includes(key) || VIDEO_ONLY_NETWORKS.includes(key))
+    return false;
+  const range = cadenceRange(channel.cadence);
+  return range !== null && range[1] < topVolume(channel).pieces;
+}
+
+/** Whether a problem is about the month's volume (pace or a cadence). */
+export function isTopVolumeProblem(problem: string): boolean {
+  return (
+    problem.startsWith("pace is ") ||
+    / has the cadence ".*"; at the top volume /.test(problem)
+  );
+}
+
+/** Words that ask for less: "only 1 a day on LinkedIn", "post less on X". */
+const ASKS_FOR_LESS =
+  /\b(less|fewer|lower|reduce|slow(er)?|calmer|quieter|cut( back| down)?|only|at most|no more than|max(imum)?|once a (day|week)|\d+\s*(posts?\s*)?(a|per|each)\s*(day|week))\b/i;
+
+/** The networks an owner's request names; X only as a word on its own. */
+function networksNamed(request: string): Set<string> {
+  const names = CMO_CHANNELS as Record<string, { name: string }>;
+  return new Set(
+    CMO_LIVE_NETWORKS.filter((key) =>
+      key === "x"
+        ? /(^|[^\w@])(X|Twitter|twitter)(?!\w)/.test(request)
+        : new RegExp(`\\b${names[key]?.name ?? key}\\b`, "i").test(request),
+    ),
+  );
+}
+
+/**
+ * Marks the pace and cadences the owner lowered, so the review keeps them:
+ * those the owner's request in this save's turn asks to lower (every network
+ * when it names none), and those an earlier version already marked, while
+ * they stay as the owner set them. Anything Cuso sends as the owner's is
+ * decided here again. The plan bought still caps how much is made.
+ */
+export function cmoWithOwnerPace(
+  plan: MarketingStrategyPlan,
+  before: MarketingStrategyPlan | null,
+  ownerRequest: string | null,
+): MarketingStrategyPlan {
+  const asked = ownerRequest && ASKS_FOR_LESS.test(ownerRequest);
+  const named = asked ? networksNamed(ownerRequest) : new Set<string>();
+  const lowered = (key: string) =>
+    Boolean(asked) && (named.size === 0 || named.has(key));
+  const was = new Map(
+    (before?.channels ?? []).map((channel) => [
+      channel.channel.toLowerCase(),
+      channel,
+    ]),
+  );
+  const channels = plan.channels.map(({ setByOwner: _, ...channel }) => {
+    const key = channel.channel.toLowerCase();
+    const earlier = was.get(key);
+    const owners =
+      belowTopVolume(channel) &&
+      (lowered(key) ||
+        (earlier?.setByOwner === true && earlier.cadence === channel.cadence));
+    return owners ? { ...channel, setByOwner: true } : channel;
+  });
+  if (!plan.pace) return { ...plan, channels };
+  const { setByOwner: _, ...pace } = plan.pace;
+  const ownersPace =
+    pace.level !== "all_in" &&
+    (Boolean(asked) ||
+      (before?.pace?.setByOwner === true && before.pace.level === pace.level));
+  return {
+    ...plan,
+    channels,
+    pace: ownersPace ? { ...pace, setByOwner: true } : pace,
+  };
 }
 
 /** Whether a funnel play promises video; "Short" alone is an adjective ("Short workflow notes"). */
