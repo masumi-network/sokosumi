@@ -168,22 +168,27 @@ export async function keepCmoSeoAudit(
     const page = await cmoSeoHomePage(cuso, actor);
     const market = await cmoSeoMarket(cuso);
     // Short of 750 credits: no monitor yet; a later sync starts it once they cover a week.
-    const monitor = await createProjectSeoMonitor(vars, actor, {
-      operationId: operationIdFor(cuso.projectId, monitors.length),
-      rule: WEEKLY_AUDIT_RULE,
-      analysis: {
-        kind: "audit_full",
-        pageIds: [page.id],
-        keywords: [],
-        countryCode: market.countryCode,
-        languageCode: market.languageCode,
-        devices: ["mobile", "desktop"],
-        competitorUrls: [],
-        maxProviderCalls: 20,
-        fullAuditCredits: SEO_FULL_AUDIT_CREDITS,
-        idempotencyKey: "monitor-template",
+    const monitor = await createProjectSeoMonitor(
+      vars,
+      actor,
+      {
+        operationId: operationIdFor(cuso.projectId, monitors.length),
+        rule: WEEKLY_AUDIT_RULE,
+        analysis: {
+          kind: "audit_full",
+          pageIds: [page.id],
+          keywords: [],
+          countryCode: market.countryCode,
+          languageCode: market.languageCode,
+          devices: ["mobile", "desktop"],
+          competitorUrls: [],
+          maxProviderCalls: 20,
+          fullAuditCredits: SEO_FULL_AUDIT_CREDITS,
+          idempotencyKey: "monitor-template",
+        },
       },
-    }).catch((error: unknown) => {
+      "cmo-subscription",
+    ).catch((error: unknown) => {
       if (!isRefusal(error)) throw error;
       return null;
     });
@@ -196,9 +201,14 @@ export async function keepCmoSeoAudit(
       next &&
       next.getTime() - now.getTime() > FIRST_AUDIT_GAP_MS
     )
-      await runTaskScheduleNow(vars, monitor.id, {
-        expectedRevision: monitor.revision,
-      }).catch((error: unknown) => {
+      await runTaskScheduleNow(
+        vars,
+        monitor.id,
+        {
+          expectedRevision: monitor.revision,
+        },
+        "cmo-subscription",
+      ).catch((error: unknown) => {
         if (!isRefusal(error)) throw error;
       });
     return;

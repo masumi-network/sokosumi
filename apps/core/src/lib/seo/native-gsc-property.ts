@@ -1,3 +1,4 @@
+import { z } from "@hono/zod-openapi";
 import { seoSearchUrlPrefixCovers } from "@sokosumi/utils";
 
 /** A URL-prefix or domain property must cover every exact page being inspected. */
@@ -13,4 +14,35 @@ export function gscPropertyCovers(property: string, urls: string[]): boolean {
     );
   }
   return seoSearchUrlPrefixCovers(property, urls);
+}
+
+const sitesSchema = z.object({
+  siteEntry: z
+    .array(
+      z.object({ siteUrl: z.string().max(500), permissionLevel: z.string() }),
+    )
+    .max(1000)
+    .default([]),
+});
+
+export function readableGscProperties(
+  payload: Record<string, unknown>,
+): string[] {
+  if (
+    !("siteEntry" in payload) &&
+    Object.keys(payload).some((key) => key !== "kind")
+  )
+    throw new Error("Search Console returned an unsupported property list");
+  return [
+    ...new Set(
+      sitesSchema
+        .parse(payload)
+        .siteEntry.filter(({ permissionLevel }) =>
+          ["siteOwner", "siteFullUser", "siteRestrictedUser"].includes(
+            permissionLevel,
+          ),
+        )
+        .map(({ siteUrl }) => siteUrl),
+    ),
+  ];
 }

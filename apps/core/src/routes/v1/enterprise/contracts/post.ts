@@ -73,10 +73,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         seats: body.seats,
         centsPerMonth,
         oneTimeCents,
-        oneTimeExpiresAt: body.oneTimeExpiresAt,
-        paymentReference: body.paymentReference,
-        notes: body.notes,
-        externalReference: body.externalReference,
+        ...(body.oneTimeExpiresAt !== undefined && {
+          oneTimeExpiresAt: body.oneTimeExpiresAt,
+        }),
+        ...(body.paymentReference !== undefined && {
+          paymentReference: body.paymentReference,
+        }),
+        ...(body.notes !== undefined && { notes: body.notes }),
+        ...(body.externalReference !== undefined && {
+          externalReference: body.externalReference,
+        }),
       },
       include: enterpriseContractOrganizationSelect,
     });

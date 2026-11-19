@@ -12452,7 +12452,6 @@
         "showAll": "Show all",
         "showLess": "Show less",
         "askAboutNoteOnPage": "What does “{name}” mean for {url}? Should I change anything?",
-        "insideToolRanges": "{total, plural, one {within the tool range} other {within all # tool ranges}}",
         "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "positionHint": "1 is the top result",
@@ -12880,6 +12879,23 @@
         "viewEachResult": "{count, plural, one {Show # check} other {Show # checks}}"
       },
       "analysis": {
+        "unconfirmed": "Sokosumi could not confirm whether the previous audit request succeeded. Retry that request before starting another.",
+        "retryPrevious": "Retry previous request",
+        "coverage": {
+          "title": "Search Console coverage",
+          "audit": "The audit has not started. Search Console evidence appears only in your SEO workspace. A limited audit can run without it.",
+          "monitor": "The schedule has not been created. Search Console evidence appears only in your SEO workspace. Limited audits can run without it.",
+          "manualRun": "This extra audit has not started. Search Console evidence appears only in your SEO workspace. A limited audit uses the approved price for this run only.",
+          "notConnected": "Connect Search Console to check indexing and read search statistics for these pages.",
+          "reconnect": "Choose or reconnect a Google account to use Search Console for these pages.",
+          "property": "Choose an authorized Search Console property that covers every selected page.",
+          "unavailable": "Sokosumi could not verify Search Console access. Try again.",
+          "retry": "Retry and start audit",
+          "retryMonitor": "Retry and create schedule",
+          "reviewMonitor": "Review in SEO",
+          "limited": "Start limited audit",
+          "limitedMonitor": "Schedule limited audits"
+        },
         "title": "Run a check",
         "description": "The agent starts with these settings. Existing results remain available while it runs.",
         "options": "Change options",

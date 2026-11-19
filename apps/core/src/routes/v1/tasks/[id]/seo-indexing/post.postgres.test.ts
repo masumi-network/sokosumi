@@ -21,6 +21,10 @@ import {
 } from "@/schemas/seo-task-indexing.schema";
 import { getProjectSeoWorkspace } from "@/services/project-seo.service";
 import { sha256 } from "@/services/project-seo-store";
+import {
+  connectionVersion,
+  resolveSeoStatisticsIntegration,
+} from "@/services/seo-connections.service";
 import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
 import {
   createTaskScheduleTestApp,
@@ -118,7 +122,13 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
       jsonRequest("POST", { expectedContext, ...result, ...extra }),
     );
   }
-  async function approveDiscovery(pageUrls: string[] = PAGE_URLS) {
+  async function approveDiscovery(
+    pageUrls: string[] = PAGE_URLS,
+    searchConsoleAccess?: {
+      propertyId: string;
+      connectionVersion: string;
+    } | null,
+  ) {
     const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
       where: { taskId },
     });
@@ -137,7 +147,10 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     await prisma.projectSeoAnalysis.update({
       where: { id: analysis.id },
       data: {
-        request: packet,
+        request: {
+          ...packet,
+          ...(searchConsoleAccess !== undefined && { searchConsoleAccess }),
+        },
         pageIds: pageUrls.map(
           (url) => pages.find((page) => page.url === url)!.id,
         ),
@@ -475,6 +488,77 @@ describe.skipIf(!enabled)("Task-bound SEO indexing on PostgreSQL", () => {
     });
     expect(stored.pageIds).toEqual(before.pageIds);
     expect(stored.payload).toMatchObject({ auditPageUrl: PAGE_URLS[0] });
+  });
+
+  it("keeps an explicitly limited audit private through related-page discovery and skips Google", async () => {
+    const packet = await approveDiscovery(PAGE_URLS, null);
+    expect((await selectPages()).status).toBe(200);
+    const analysis = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+    });
+    expect(analysis.request).toHaveProperty("searchConsoleAccess", null);
+    expect((await receipt({}, false)).status).toBe("unavailable");
+    expect(reads).toEqual([]);
+    expect(
+      (await prisma.task.findUniqueOrThrow({ where: { id: taskId } }))
+        .description,
+    ).toBe(`seo_audit: ${JSON.stringify(packet)}`);
+  });
+
+  it("uses only the approved account and property even after a cached inspection", async () => {
+    const owner = { userId: ownerId, workspaceId };
+    const integration = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    expect.assert(integration);
+    const access = {
+      propertyId: PROPERTY,
+      connectionVersion: connectionVersion(integration),
+    };
+    await approveDiscovery(PAGE_URLS, access);
+    expect((await selectPages()).status).toBe(200);
+    const first = await receipt({}, false);
+    expect(first.status).toBe("available");
+    const inspected = reads.filter((read) => read.slug === INSPECT_TOOL).length;
+    providerHook = async (slug) =>
+      slug === LIST_TOOL
+        ? Response.json({
+            successful: true,
+            data: {
+              siteEntry: [
+                {
+                  siteUrl: "https://example.test/",
+                  permissionLevel: "siteFullUser",
+                },
+              ],
+            },
+          })
+        : null;
+    const denied = await receipt({}, false);
+    expect(denied.status).toBe("needs_property");
+    expect(
+      denied.pages.every((page) => page.verdict === "VERDICT_UNSPECIFIED"),
+    ).toBe(true);
+    expect(reads.filter((read) => read.slug === INSPECT_TOOL)).toHaveLength(
+      inspected,
+    );
+    await prisma.seoConnection.update({
+      where: { id: connectionId },
+      data: { revision: { increment: 1 } },
+    });
+    const previousReadCount = reads.length;
+    const changed = await receipt({}, false);
+    expect(changed.status).toBe("unavailable");
+    expect(reads).toHaveLength(previousReadCount);
+    expect(
+      (
+        await request({
+          receiptHash: first.receiptHash,
+          assessments: first.pages.map((page) => assessment(page.pageUrl)),
+        })
+      ).status,
+    ).toBe(409);
   });
 
   it("binds related findings to a successful original seed when the primary was skipped", async () => {

@@ -111,6 +111,7 @@ app.openapi(route, async (c) => {
     return ok(c, { received: true });
   }
 
+  const url = type === "CLICKED" ? data.click?.link : undefined;
   const bounceType = data.bounce?.type?.trim().toLowerCase();
   await prisma.$transaction(async (tx) => {
     // Insert first so a duplicate never repeats subscriber side effects.
@@ -121,8 +122,8 @@ app.openapi(route, async (c) => {
         subscriberId: send.subscriberId,
         sendId: send.id,
         type,
-        url: type === "CLICKED" ? data.click?.link : undefined,
-        bounceType: type === "BOUNCED" ? bounceType : undefined,
+        ...(url !== undefined && { url }),
+        ...(type === "BOUNCED" && bounceType !== undefined && { bounceType }),
         occurredAt,
         providerEventId: id,
       },

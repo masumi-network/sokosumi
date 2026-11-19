@@ -626,3 +626,20 @@ export function measuresOutsideToolRanges(diagnostics: readonly Finding[]) {
   }
   return [...found.values()];
 }
+
+/**
+ * The page-detail rows that ask something of the owner: every note, every measurement no tool range
+ * can judge, and every value some tool range leaves out. A value inside every range asks nothing.
+ * Core already drops an older row a newer check of the same page, rule, device and market replaced.
+ */
+export function actionablePageDetails(diagnostics: readonly Finding[]) {
+  return diagnostics.filter((finding) => {
+    const first = finding.evidence[0];
+    if (finding.severity !== "measure" || first === undefined) return true;
+    const fit = toolRangeFit(
+      measureValue(checkName(finding.title), first),
+      pageDetailGuidance(finding.evidence),
+    );
+    return fit === null || fit.outside.length > 0;
+  });
+}

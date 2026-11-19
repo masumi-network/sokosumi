@@ -24,20 +24,26 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoStatisticsDialog({
   model,
   source,
+  chooseSearchProperty = false,
+  selectionContext,
+  onClose = () => model.setDialog(null),
 }: {
   model: SeoWorkspaceModel;
   source?: SeoStatisticsProvider;
+  onClose?: () => void;
+  chooseSearchProperty?: boolean;
+  selectionContext?: string;
 }) {
   const t = useTranslations("App.Seo");
   const forms = {
-    search_console: useSeoStatistics(model, "search_console"),
+    search_console: useSeoStatistics(model, "search_console", selectionContext),
     ga4: useSeoStatistics(model, "ga4"),
   };
   return (
     <Dialog
       open
       onOpenChange={(open) => {
-        if (!open && !model.pending) model.setDialog(null);
+        if (!open && !model.pending) onClose();
       }}
     >
       <DialogContent
@@ -63,6 +69,9 @@ export function SeoStatisticsDialog({
               key={provider}
               form={forms[provider]}
               focused={provider === source}
+              chooseProperty={
+                chooseSearchProperty && provider === "search_console"
+              }
             />
           ))}
         </div>
@@ -77,7 +86,7 @@ export function SeoStatisticsDialog({
             type="button"
             variant="outline"
             disabled={model.pending}
-            onClick={() => model.setDialog(null)}
+            onClick={onClose}
           >
             {t("close")}
           </Button>

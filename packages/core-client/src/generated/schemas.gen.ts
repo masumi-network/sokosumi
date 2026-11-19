@@ -43951,6 +43951,12 @@ export const ProjectImageStudioCaptionSchema = {
 export const ProjectSeoWorkspaceSchema = {
     type: 'object',
     properties: {
+        searchConsolePropertyId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         sharing: {
             type: 'string',
             enum: [
@@ -47358,6 +47364,17 @@ export const RequestProjectSeoAnalysisRequestSchema = {
             type: 'number',
             enum: [
                 750
+            ]
+        },
+        searchConsolePropertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        allowLimitedAudit: {
+            type: 'boolean',
+            enum: [
+                true
             ]
         },
         setupGoal: {
@@ -62273,6 +62290,11 @@ export const TaskScheduleSeoMonitorSchema = {
         pageCount: {
             type: 'integer',
             minimum: 0
+        },
+        auditId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The saved audit the monitor owner can open to review a full audit Run.'
         }
     },
     required: [
@@ -62701,6 +62723,17 @@ export const CreateTaskScheduleRunRequestSchema = {
             minimum: 0,
             description: 'Task Schedule revision observed by the caller',
             example: 3
+        },
+        searchConsolePropertyId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        },
+        allowLimitedAudit: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
         }
     },
     required: [
