@@ -877,6 +877,27 @@ async function pauseSeoAuditsOfEndedCusos(): Promise<void> {
   }
 }
 
+/** A new Cuso's first competitor check rides on this sync too. */
+async function keepCmoCompetitors(cuso: Cuso, now: Date): Promise<void> {
+  try {
+    const { keepCusoFirstCompetitorCheck } = await import(
+      "@/services/cmo-competitors.service"
+    );
+    await keepCusoFirstCompetitorCheck(cuso, now);
+  } catch (error) {
+    // The error can quote a page or an article.
+    recordCoreWarning(
+      { operation: "cmo_competitor_sync", sokoBot: { id: cuso.sokoBotId } },
+      {
+        message: "CMO production sync skipped a Cuso's first competitor check",
+        why: "Running the first competitor check or starting its watch run threw",
+        fix: "The next sync tries again, and the weekly competitor sync checks him within the hour; a check is charged once. If it repeats, look up the error name and code under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+  }
+}
+
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
@@ -903,6 +924,7 @@ export async function syncCmoProduction(
       await keepCmoRhythmsWithRunner(cuso);
       await advanceCmoProduction(cuso);
       await keepCmoSeo(cuso, now);
+      await keepCmoCompetitors(cuso, now);
       checked += 1;
     } catch (error) {
       // One event per Cuso skipped; the error can quote the plan or a prompt.
