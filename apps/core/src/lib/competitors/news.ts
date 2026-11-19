@@ -75,6 +75,25 @@ function onDomain(hostname: string, domain: string): boolean {
   return hostname === domain || hostname.endsWith(`.${domain}`);
 }
 
+const PROFILE_HOSTS = [
+  "crunchbase.com",
+  "exa.ai",
+  "github.com",
+  "producthunt.com",
+];
+
+/** A review, job, forum or social site: it writes about companies, it is not one's own. */
+export function thirdPartyHost(hostname: string): boolean {
+  return [...NEWS_JUNK_DOMAINS, ...SOCIAL_HOSTS].some((domain) =>
+    onDomain(hostname, domain),
+  );
+}
+
+/** A site that lists companies: news can be there, a company's homepage is not. */
+export function profileHost(hostname: string): boolean {
+  return PROFILE_HOSTS.some((domain) => onDomain(hostname, domain));
+}
+
 const MONTH_NAME =
   "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
 /** What a page prints before its first sentence: weekday, dates, times, a wire's tag. */
@@ -164,11 +183,7 @@ export function competitorNews(
     const url = canonical ? URL.parse(canonical) : null;
     if (!canonical || !url) continue;
     const hostname = host(url);
-    if (
-      NEWS_JUNK_DOMAINS.some((domain) => onDomain(hostname, domain)) ||
-      SOCIAL_HOSTS.some((domain) => onDomain(hostname, domain))
-    )
-      continue;
+    if (thirdPartyHost(hostname)) continue;
     const title = candidate.title.replace(/\s+/g, " ").trim();
     if (
       !title ||

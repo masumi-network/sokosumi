@@ -73,6 +73,7 @@ export default async function CompetitorsPage({
               competitors={competitors.competitors}
               limit={competitors.limit}
               projectId={project.id}
+              projectName={project.name}
               readOnly={readOnly}
             />
           </div>

@@ -288,6 +288,30 @@ describe.skipIf(!enabled)("tracked competitors (PostgreSQL)", () => {
     });
   });
 
+  it("leaves a picked suggestion open for the check to fill, unlike a typed one", async () => {
+    const cuso = await seedCuso();
+    await addTrackedCompetitor(cuso.projectId, {
+      name: "Picked",
+      websiteUrl: "picked.example",
+      suggested: true,
+    });
+    await addTrackedCompetitor(cuso.projectId, {
+      name: "Typed",
+      websiteUrl: "typed.example",
+    });
+    const rows = await listTrackedCompetitors(cuso.projectId);
+    expect(
+      rows.map(({ name, source, memberEditedAt }) => ({
+        name,
+        source,
+        open: memberEditedAt === null,
+      })),
+    ).toEqual([
+      { name: "Picked", source: "MEMBER", open: true },
+      { name: "Typed", source: "MEMBER", open: false },
+    ]);
+  });
+
   it("refuses a rename onto a tracked name and frees a removed one", async () => {
     const cuso = await seedCuso();
     await addTrackedCompetitor(cuso.projectId, { name: "Calendly" });

@@ -610,6 +610,7 @@ import {
   startAdminBadgeCampaign as coreStartAdminBadgeCampaign,
   startAdminImpersonation as coreStartAdminImpersonation,
   stopAdminImpersonation as coreStopAdminImpersonation,
+  suggestProjectCompetitors as coreSuggestProjectCompetitors,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminBadgeCampaign as coreUpdateAdminBadgeCampaign,
@@ -5083,6 +5084,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function suggestProjectCompetitors(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSuggestProjectCompetitors({ client, path: { id } }),
+      "Failed to find competitors",
+    );
+  }
+
   async function getProjectsByIdAdsAccounts(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7477,6 +7486,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     removeProjectCompetitor,
     setProjectCompetitorChecks,
     runProjectCompetitorCheck,
+    suggestProjectCompetitors,
     getProjectsByIdAdsAccounts,
     getProjectsByIdAdsAccountsByAccountIdCampaigns,
     getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
