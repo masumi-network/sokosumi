@@ -27,10 +27,7 @@
 /* A touch more breathing room between the headline and the paragraph. */
 .v3x .hero.hero--center h1 { margin-bottom: 0.5rem; }
 .v3x .hero.hero--center .hero__visual { width: 100%; }
-.v3x .hero.hero--center .hero__model {
-  width: min(540px, 92vw);
-  height: min(500px, 54vh);
-}
+.v3x .hero.hero--center .cuso { width: min(500px, 92vw, 54vh); }
 .v3x .hero.hero--center .orb { width: min(440px, 80vw); }
 .v3x .section__head h2,
 .v3x .problem h2,
@@ -158,9 +155,6 @@
     padding-bottom: clamp(2rem, 9vw, 3rem);
     gap: 1.3rem;
   }
-  .v3x .hero.hero--center .hero__model {
-    width: min(340px, 84vw);
-    height: min(360px, 44vh);
-  }
+  .v3x .hero.hero--center .cuso { width: min(360px, 84vw, 44vh); }
   .v3x .hero.hero--center .orb { width: min(300px, 74vw); }
 }

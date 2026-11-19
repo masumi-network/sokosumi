@@ -21,7 +21,7 @@
   bottom: -42px;
   width: 132px;
   height: 132px;
-  background: url("/site/assets/mascot.webp") center / contain no-repeat;
+  background: url("/site/assets/cuso/watching.svg") center / contain no-repeat;
   filter: drop-shadow(0 16px 24px rgba(16, 20, 28, 0.28));
   z-index: 4;
   pointer-events: none;

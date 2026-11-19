@@ -35,7 +35,6 @@
 /* ---- Hero: centered, mascot underneath ---- */
 .v3x .hero.hero--center { padding-top: clamp(6rem, 14vh, 9rem); }
 .v3x .hero.hero--center .orb { display: none; }
-.v3x .hero__model { cursor: pointer; }
 
 /* ---- Gradient frame (product window look) ---- */
 .v3x .frame {
