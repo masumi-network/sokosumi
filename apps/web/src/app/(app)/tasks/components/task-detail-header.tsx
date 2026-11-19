@@ -1,3 +1,7 @@
+import type { TaskSeoAudit } from "@sokosumi/core-client";
+import { SearchCheck } from "lucide-react";
+import Link from "next/link";
+import { seoAuditHref, seoProjectHref } from "@/app/seo/seo-href";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 
 import { BackToTasksButton } from "./back-to-tasks-button";
@@ -20,6 +24,9 @@ interface TaskDetailHeaderProps {
   /** False where the board is not the likely next page. */
   loadBoardOnMount?: boolean;
   parentLink?: React.ReactNode;
+  /** The SEO page of an SEO analysis Task, from Core; null hides the link. */
+  seoAudit?: TaskSeoAudit | null;
+  seoAuditLabels?: { audit: string; project: string };
   actions?: React.ReactNode;
 }
 
@@ -32,8 +39,24 @@ export function TaskDetailHeader({
   calendarBackLabel,
   loadBoardOnMount,
   parentLink,
+  seoAudit,
+  seoAuditLabels,
   actions,
 }: TaskDetailHeaderProps) {
+  const seoLink =
+    seoAudit && seoAuditLabels
+      ? seoAudit.auditId
+        ? {
+            href: seoAuditHref(seoAudit.auditId, seoAudit.projectId),
+            label: seoAuditLabels.audit,
+          }
+        : seoAudit.projectId
+          ? {
+              href: seoProjectHref(seoAudit.projectId),
+              label: seoAuditLabels.project,
+            }
+          : null
+      : null;
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end md:justify-between">
@@ -61,6 +84,15 @@ export function TaskDetailHeader({
         />
       </div>
       {parentLink}
+      {seoLink ? (
+        <Link
+          href={seoLink.href}
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm underline-offset-4 transition-colors hover:underline"
+        >
+          <SearchCheck aria-hidden className="size-4" />
+          {seoLink.label}
+        </Link>
+      ) : null}
     </div>
   );
 }

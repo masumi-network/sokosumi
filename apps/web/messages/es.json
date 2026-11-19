@@ -1943,6 +1943,8 @@
         "context": "Contexto",
         "subtasks": "Subtareas",
         "subtaskOf": "Subtarea de",
+        "openSeoAudit": "Abrir auditoría SEO",
+        "openSeoProjectWorkspace": "Abrir espacio SEO del proyecto",
         "copyIdentifier": "Copiar ID de la tarea",
         "identifierCopied": "{identifier} copiado",
         "identifierCopyError": "No se pudo copiar el ID de la tarea",
