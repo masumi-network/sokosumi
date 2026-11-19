@@ -40,6 +40,7 @@ import {
 import { MadeInChat } from "./chat-work";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
 import type { DraftActions, DraftResult } from "./draft-post";
+import { MessageText } from "./message-text";
 import {
   type AddMailingList,
   BrandBrainPage,
@@ -65,6 +66,8 @@ export interface CmoAppActions
   }>;
   /** What Cuso made, or is making, in the chat, as it stands now. */
   loadChatWork: () => Promise<ChatWork[]>;
+  /** The full words of a file Cuso wrote or of work he handed on. */
+  loadChatWorkText: (id: string) => Promise<string | null>;
   sendMessage: (content: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
   loadPieceText: (entryId: string) => Promise<string | null>;
@@ -438,6 +441,7 @@ export function CmoApp({
                     actions={cardActions}
                     name={name || email}
                     openCalendar={() => go("calendar")}
+                    loadText={actions.loadChatWorkText}
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
@@ -688,19 +692,21 @@ function ThreadEntry({
   actions,
   name,
   openCalendar,
+  loadText,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
   name: string;
   openCalendar: () => void;
+  loadText: (id: string) => Promise<string | null>;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
       return (
         <div className="msg">
           <span className="mav user" aria-hidden="true">
-            {initial(name)}
+            {initial(item.message.author || name)}
           </span>
           <div className="mbody">
             <MessageMeta author={item.message.author || name} at={item.at} />
@@ -711,9 +717,10 @@ function ThreadEntry({
     }
     return (
       <CusoSays at={item.at}>
-        <p className="txt">
-          {renderInline(item.message.content, webOriginOf(overview))}
-        </p>
+        <MessageText
+          content={item.message.content}
+          inline={(text) => renderInline(text, webOriginOf(overview))}
+        />
         {item.message.trace ? <HowIGotHere trace={item.message.trace} /> : null}
       </CusoSays>
     );
@@ -721,7 +728,11 @@ function ThreadEntry({
   if (item.kind === "work") {
     return (
       <CusoSays at={item.at}>
-        <MadeInChat work={item.work} retry={actions.compose} />
+        <MadeInChat
+          work={item.work}
+          compose={actions.compose}
+          loadText={loadText}
+        />
       </CusoSays>
     );
   }

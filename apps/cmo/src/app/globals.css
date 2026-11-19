@@ -1783,6 +1783,11 @@ button.card-focus {
   border-top: 1px solid var(--border);
 }
 
+/* A table Cuso wrote in the chat: as wide as his words, scrolling inside. */
+.chat-table {
+  max-width: 62ch;
+}
+
 .seo-table td.num {
   font-variant-numeric: tabular-nums;
 }
@@ -3509,6 +3514,61 @@ button.cal-card:hover {
 .made-audio {
   display: block;
   width: 100%;
+}
+
+/* A file Cuso wrote, or work he handed on: where it stands, and its words. */
+.made-words {
+  max-width: 520px;
+  padding: 16px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--background);
+}
+
+.made-words .note {
+  margin: 0;
+}
+
+.made-title {
+  font-weight: 600;
+}
+
+.made-text {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.made-read {
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.made-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.made-files a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.made-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.made-acts:empty {
+  display: none;
 }
 
 .sheet-head > span:not(.sheet-steps) {

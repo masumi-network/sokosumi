@@ -1,6 +1,37 @@
 import { describe, expect, it } from "vitest";
 
-import { cusoText, withoutIdMentions } from "./chat-messages";
+import { cmoChatMessage } from "../test-fixtures/cmo";
+import { cusoText, toCusoMessages, withoutIdMentions } from "./chat-messages";
+
+describe("toCusoMessages", () => {
+  it("names a Coworker who writes in Cuso's room, never Sokosumi", () => {
+    const [fromCoworker, fromNobody] = toCusoMessages([
+      cmoChatMessage({
+        id: "c1",
+        content: "The research is done.",
+        sender: {
+          type: "coworker",
+          coworker: {
+            id: "hannah",
+            name: "Hannah",
+            slug: "hannah",
+            caption: null,
+            image: null,
+            presence: "online",
+          },
+        },
+      }),
+      cmoChatMessage({
+        id: "c2",
+        content: "A note.",
+        createdAt: new Date("2026-10-01T09:04:00Z"),
+        sender: { type: "unknown" },
+      }),
+    ]);
+    expect(fromCoworker).toMatchObject({ author: "Hannah", fromCuso: false });
+    expect(fromNobody?.author).toBe("Team");
+  });
+});
 
 describe("cusoText", () => {
   it("shows a leaked answer's message and drops the DONE marker", () => {

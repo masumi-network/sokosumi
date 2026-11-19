@@ -14120,23 +14120,45 @@ export type CmoChatWorkItem = {
      * The tool call that started it.
      */
     id: string;
-    kind: 'image' | 'video' | 'audio';
     /**
-     * making until the file exists; failed when it never will.
+     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).
      */
-    state: 'making' | 'ready' | 'failed';
+    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent';
+    /**
+     * making until it is done; waiting when handed work needs the owner; failed when it never will be done.
+     */
+    state: 'making' | 'waiting' | 'ready' | 'failed';
     /**
      * When Cuso started it.
      */
     at: Date;
     /**
-     * What was asked for: the prompt, or the words spoken.
+     * What it is: the prompt, the words spoken, the file's or the work's name.
      */
     title: string;
     /**
-     * Where the finished file plays from; null until it is ready.
+     * Where the finished file plays or downloads from.
      */
     url: string | null;
+    /**
+     * Who does handed work: the Coworker or the Agent.
+     */
+    by: string | null;
+    /**
+     * Handed work: what is asked while it waits, the start of the result once done.
+     */
+    text: string | null;
+    /**
+     * Its full words are at /chat-work/{id}/text.
+     */
+    readable: boolean;
+    /**
+     * Files handed work came back with.
+     */
+    files: Array<{
+        name: string;
+        url: string;
+    }>;
 };
 
 export type CmoCompetitors = {
@@ -87957,6 +87979,82 @@ export type GetCmoChatWorkForProjectResponses = {
 };
 
 export type GetCmoChatWorkForProjectResponse = GetCmoChatWorkForProjectResponses[keyof GetCmoChatWorkForProjectResponses];
+
+export type GetCmoChatWorkTextForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/chat-work/{id}/text';
+};
+
+export type GetCmoChatWorkTextForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Nothing to read yet, or Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoChatWorkTextForProjectError = GetCmoChatWorkTextForProjectErrors[keyof GetCmoChatWorkTextForProjectErrors];
+
+export type GetCmoChatWorkTextForProjectResponses = {
+    /**
+     * Its words
+     */
+    200: {
+        data: CmoPieceText;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoChatWorkTextForProjectResponse = GetCmoChatWorkTextForProjectResponses[keyof GetCmoChatWorkTextForProjectResponses];
 
 export type GetCmoCompetitorsForProjectData = {
     body?: never;
