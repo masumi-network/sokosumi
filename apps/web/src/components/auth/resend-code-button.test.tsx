@@ -70,6 +70,15 @@ describe("ResendCodeButton", () => {
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
+  it("is a target at least 24px tall", () => {
+    render(
+      <ResendCodeButton sentAt={0} onResend={vi.fn()} isSending={false} />,
+    );
+
+    // WCAG 2.5.8: a bare text-sm link is 20px tall on a phone.
+    expect(screen.getByRole("button")).toHaveClass("min-h-6");
+  });
+
   it("stays unavailable while a code is on its way", () => {
     render(<ResendCodeButton sentAt={0} onResend={vi.fn()} isSending={true} />);
 

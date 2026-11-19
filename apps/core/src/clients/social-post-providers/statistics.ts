@@ -87,12 +87,20 @@ function matchingVideo(
   return items.map(record).find((item) => item?.id === externalId) ?? null;
 }
 
-/** TikTok exposes these four engagement counters; unsupported metrics are absent. */
-export function zernioTikTokMetrics(raw: unknown): SocialPostMetrics {
+/**
+ * Zernio's counters for one post. TikTok has no impressions and LinkedIn
+ * counts them instead of views; a metric a network lacks stays absent.
+ */
+export function zernioPostMetrics(
+  provider: "tiktok" | "linkedin",
+  raw: unknown,
+): SocialPostMetrics {
   const values = record(raw);
   return {
     ...emptyMetrics(),
-    views: counter(values?.views),
+    ...(provider === "tiktok"
+      ? { views: counter(values?.views) }
+      : { impressions: counter(values?.impressions) }),
     likes: counter(values?.likes),
     comments: counter(values?.comments),
     shares: counter(values?.shares),
@@ -104,7 +112,10 @@ export async function fetchSocialPostStatistics(
   context: SocialPostStatisticsContext,
 ): Promise<SocialPostMetrics> {
   const label = socialPostProviderLabel(context.provider);
-  if (context.provider === "linkedin") {
+  const zernioAccountId =
+    (context.provider === "tiktok" || context.provider === "linkedin") &&
+    getZernioAccountId(context.connectedAccountId);
+  if (context.provider === "linkedin" && !zernioAccountId) {
     throw new SocialPostStatisticsUnavailableError(
       "LinkedIn personal post statistics are not available through this connection.",
     );
@@ -112,12 +123,9 @@ export async function fetchSocialPostStatistics(
   const unavailable = `${label} statistics are unavailable. Check the connection permissions or try again later.`;
   let sessionId: string | undefined;
   try {
-    const zernioAccountId =
-      context.provider === "tiktok" &&
-      getZernioAccountId(context.connectedAccountId);
     if (zernioAccountId) {
       const query = new URLSearchParams({
-        platform: "tiktok",
+        platform: context.provider,
         accountId: zernioAccountId,
         postId: context.externalId,
       });
@@ -131,14 +139,19 @@ export async function fetchSocialPostStatistics(
           .find(
             (entry) =>
               entry?.accountId === zernioAccountId &&
-              entry.platform === "tiktok" &&
+              entry.platform === context.provider &&
               entry.syncStatus === "synced",
           );
-      const metrics = zernioTikTokMetrics(platform && platform.analytics);
+      const metrics = zernioPostMetrics(
+        context.provider === "linkedin" ? "linkedin" : "tiktok",
+        platform && platform.analytics,
+      );
       if (Object.values(metrics).every((value) => value === null))
         throw new SocialPostStatisticsUnavailableError(unavailable);
       return metrics;
     }
+    if (context.provider === "linkedin")
+      throw new SocialPostStatisticsUnavailableError(unavailable);
     const activeSessionId = await createComposioToolSession({
       toolkitSlug: context.provider === "x" ? "twitter" : context.provider,
       connectedAccountId: context.connectedAccountId,

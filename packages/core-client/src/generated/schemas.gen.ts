@@ -55939,6 +55939,10 @@ export const CmoChannelSchema = {
         },
         status: {
             type: 'string'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -55946,7 +55950,8 @@ export const CmoChannelSchema = {
         'provider',
         'handle',
         'displayName',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -57908,6 +57913,96 @@ export const CmoBrandFixRequestSchema = {
     required: [
         'section',
         'note'
+    ]
+} as const;
+
+export const CmoSocialConnectionFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'choose'
+            ],
+            description: '`choose`: the sign-in reaches several accounts; finalize again with the owner\'s pick.'
+        },
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSocialAccountChoice'
+            }
+        }
+    },
+    required: [
+        'state',
+        'choices'
+    ]
+} as const;
+
+export const CmoSocialAccountChoiceSchema = {
+    type: 'object',
+    properties: {
+        externalAccountId: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        handle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page',
+                'profile'
+            ]
+        }
+    },
+    required: [
+        'externalAccountId',
+        'name',
+        'handle',
+        'kind'
+    ]
+} as const;
+
+export const CmoFinalizeSocialConnectionRequestSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/FinalizeProjectSocialConnectionRequest'
+        },
+        {
+            type: 'object',
+            properties: {
+                pendingDataToken: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 512,
+                    description: 'Returned with a LinkedIn sign-in: names the Pages it reaches.'
+                },
+                connectToken: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 4096,
+                    description: 'Returned with a LinkedIn sign-in: lets Core finish it.'
+                },
+                externalAccountId: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 256,
+                    description: 'The Page or profile the owner picked among the sign-in\'s accounts.'
+                }
+            }
+        }
     ]
 } as const;
 
