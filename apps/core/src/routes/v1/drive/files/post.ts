@@ -9,6 +9,7 @@ import {
   resolveUserUploadContentType,
 } from "@sokosumi/utils";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
+import { copyAttemptName } from "@/helpers/drive-copy-name";
 import {
   requireOrganizationDriveFileUploadAccess,
   requireUserDriveFileUploadAccess,
@@ -102,7 +103,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const displayName = clampDriveFileName(body.filename || "file");
+    // A copy gets its own name per attempt: its grant and its pinned
+    // reservation are bound to a key nobody else can address before its
+    // bytes land. Ordinary uploads keep the exact name they were given.
+    const displayName = body.pinLabelsEmpty
+      ? copyAttemptName(clampDriveFileName(body.filename || "file"))
+      : clampDriveFileName(body.filename || "file");
     const folderPath = normalizeDriveFolderPath(body.folder ?? "");
 
     if (isDriveFolderMarkerName(displayName)) {

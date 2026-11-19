@@ -108,7 +108,8 @@ beforeEach(() => {
     return json(200, {
       data: {
         uploadUrl: "https://blob.test/upload?sig=1",
-        pathname: `drive/users/u1/briefs/${body.filename}`,
+        // Core mints the copy's own name per attempt.
+        pathname: "drive/users/u1/briefs/weekly_copyNameLabel_2_0a1b2c3d4e.md",
         access: "public",
         method: "PUT",
         headers: { "Content-Type": "text/markdown" },
@@ -153,7 +154,7 @@ describe("Make a copy through the real mint", () => {
 
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith(
-        "copyMade:weekly (copyNameLabel) 2.md",
+        "copyMade:weekly_copyNameLabel_2_0a1b2c3d4e.md",
         { id: "toast-1" },
       ),
     );

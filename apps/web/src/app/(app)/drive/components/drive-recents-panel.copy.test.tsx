@@ -109,7 +109,10 @@ describe("Make a copy", () => {
   });
 
   it("uploads the file's bytes beside it as a new, label-free file and reloads the list", async () => {
-    copyMock.mockResolvedValue({ pathname: "p", fileUrl: "u" });
+    copyMock.mockResolvedValue({
+      pathname: "drive/users/u1/briefs/weekly_copy_0a1b2c3d4e.md",
+      fileUrl: "u",
+    });
     const user = userEvent.setup();
     const onItemsChanged = renderPanel();
 
@@ -130,7 +133,7 @@ describe("Make a copy", () => {
     });
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith(
-        "copyMade:weekly (copyNameLabel).md",
+        "copyMade:weekly_copy_0a1b2c3d4e.md",
         { id: "toast-1" },
       ),
     );
@@ -144,7 +147,7 @@ describe("Make a copy", () => {
     );
     copyMock
       .mockRejectedValueOnce(new DriveFileUploadError("duplicate", "taken"))
-      .mockResolvedValueOnce({ pathname: "p", fileUrl: "u" });
+      .mockResolvedValueOnce({ pathname: "drive/x/p", fileUrl: "u" });
     const user = userEvent.setup();
     renderPanel();
 
@@ -202,7 +205,7 @@ describe("Make a copy", () => {
     await user.click(item);
     expect(copyMock).toHaveBeenCalledTimes(1);
 
-    finish({ pathname: "p", fileUrl: "u" });
+    finish({ pathname: "drive/x/p", fileUrl: "u" });
     await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
   });
 

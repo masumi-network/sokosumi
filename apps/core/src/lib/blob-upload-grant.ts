@@ -6,7 +6,7 @@ import {
 
 import { attachUploadToLogger } from "@/lib/evlog";
 
-export const DEFAULT_TOKEN_VALID_MS = 15 * 60 * 1000;
+const DEFAULT_TOKEN_VALID_MS = 15 * 60 * 1000;
 const DEFAULT_URL_VALID_MS = 10 * 60 * 1000;
 
 export interface CreateBlobUploadGrantInput {

@@ -283,22 +283,46 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
       expect(await suggestionsAsked(resourceId)).toBe(0);
     });
 
-    it("lets an ordinary upload take the name once the copy grant has expired", async () => {
-      const { resourceId } = await reserve("draft (copy).md");
+    it("never lets an ordinary upload take a copy's key, however old", async () => {
+      const { resourceId } = await reserve("old (copy).md");
       await prisma.fileResource.update({
         where: { id: resourceId },
-        data: { createdAt: new Date(Date.now() - 21 * 60_000) },
+        data: { createdAt: new Date(Date.now() - 86_400_000) },
       });
 
-      await reserve("draft (copy).md", false);
-      expect(await finalize("draft (copy).md", 9)).toEqual({
+      await expect(reserve("old (copy).md", false)).rejects.toMatchObject({
+        status: 409,
+      });
+      // A copy PUT that commits even this late is still the copy's.
+      expect(await finalize("old (copy).md")).toEqual({
         resourceId,
-        labelsPinnedEmpty: false,
+        labelsPinnedEmpty: true,
       });
+      expect(await suggestionsAsked(resourceId)).toBe(0);
+    });
 
-      expect(await pins(resourceId)).toEqual([]);
-      // The ordinary upload is labelled like any other.
-      expect(await suggestionsAsked(resourceId)).toBe(1);
+    it("never lets a rename or move take a copy's pending key", async () => {
+      const { resourceId: copy } = await reserve("key (copy).md");
+      const { resourceId: other } = await reserve("other-file.md", false);
+
+      await expect(
+        renameDriveUploadResource({
+          workspaceId,
+          scope: "user",
+          fromPathname: key("other-file.md").pathname,
+          toPathname: key("key (copy).md").pathname,
+          displayName: "key (copy).md",
+        }),
+      ).rejects.toMatchObject({ code: "P2002" });
+      expect(await pins(copy)).toEqual(EMPTY_PINS);
+      expect(
+        (
+          await prisma.fileResource.findUniqueOrThrow({
+            where: { id: other },
+            select: { sourceId: true },
+          })
+        ).sourceId,
+      ).toBe(key("other-file.md").pathname);
     });
   });
 

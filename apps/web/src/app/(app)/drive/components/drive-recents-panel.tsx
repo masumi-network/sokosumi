@@ -340,11 +340,12 @@ export function DriveRecentsPanel({
         if (attempt > 20) throw new Error("No free name for the copy");
         const candidate = copyName(item.name, t("copyNameLabel"), attempt);
         try {
-          await uploadDriveFile(
+          // Core mints the copy's own name for this attempt; show that one.
+          const { pathname } = await uploadDriveFile(
             new File([bytes], candidate, { type: bytes.type }),
             { scope: "me", folder, pinLabelsEmpty: true },
           );
-          return candidate;
+          return pathname.slice(pathname.lastIndexOf("/") + 1);
         } catch (error) {
           if (!isDriveFileUploadDuplicate(error)) throw error;
           return uploadAt(attempt + 1);
