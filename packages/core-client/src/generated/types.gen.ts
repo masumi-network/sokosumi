@@ -1985,6 +1985,10 @@ export type Task = {
      */
     ancestors?: Array<TaskAncestor>;
     /**
+     * The SEO page of an SEO analysis Task: its audit (auditId, with the audit's Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.
+     */
+    seoAudit?: TaskSeoAudit | null;
+    /**
      * Statuses the requesting actor may move this task to right now, in display order and excluding the current one. Computed per actor: a user never sees coworker-set statuses such as INPUT_REQUIRED or APPROVAL_REQUIRED. POST /tasks/{id}/events rejects a user status outside this list.
      */
     selectableStatuses: Array<TaskStatus>;
@@ -2500,6 +2504,11 @@ export type TaskAncestor = {
     identifier: string | null;
     name: string;
     status: TaskStatus;
+};
+
+export type TaskSeoAudit = {
+    auditId: string | null;
+    projectId: string | null;
 };
 
 export type AdminTaskPaymentClaim = {

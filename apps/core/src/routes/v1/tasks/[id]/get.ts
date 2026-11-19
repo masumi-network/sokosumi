@@ -16,6 +16,7 @@ import {
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { taskSchema } from "@/schemas/task.schema";
+import { loadTaskSeoAuditLink } from "@/services/seo-task-audit-link";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -118,12 +119,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     // A coworker reads only what it is assigned; parent names would leak.
-    const ancestors = isCoworkerAuthContext(authContext)
-      ? []
-      : await loadTaskAncestors(task.parentTaskId, prisma);
+    const [ancestors, seoAudit] = await Promise.all([
+      isCoworkerAuthContext(authContext)
+        ? []
+        : loadTaskAncestors(task.parentTaskId, prisma),
+      loadTaskSeoAuditLink(c.var, task.id),
+    ]);
     return ok(
       c,
-      taskSchema.parse({ ...mapTask(task, authContext), ancestors }),
+      taskSchema.parse({ ...mapTask(task, authContext), ancestors, seoAudit }),
     );
   });
 }

@@ -476,6 +476,22 @@ export const taskSchema = taskBaseSchema
         description:
           "For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.",
       }),
+    seoAudit: z
+      .union([
+        z
+          .object({
+            auditId: z.string().uuid().nullable(),
+            projectId: z.string().uuid().nullable(),
+          })
+          .openapi("TaskSeoAudit"),
+        z.null(),
+      ])
+      .optional()
+      .openapi({
+        example: null,
+        description:
+          "The SEO page of an SEO analysis Task: its audit (auditId, with the audit's Project or null), or the Project SEO workspace (auditId null). Null when the Task has no SEO analysis or the caller cannot open that SEO page in the active workspace. Sent only by GET /tasks/{id}.",
+      }),
     selectableStatuses: z.array(taskStatusSchema).openapi({
       example: [TaskStatus.DRAFT, TaskStatus.RUNNING, TaskStatus.COMPLETED],
       description:
