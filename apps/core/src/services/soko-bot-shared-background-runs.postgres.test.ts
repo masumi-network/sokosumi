@@ -9,6 +9,12 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import prisma from "@/lib/db/prisma";
 
+// Core's test setup drains recorded reconciliation work before fixture cleanup.
+vi.mock("@vercel/functions", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/functions")>()),
+  waitUntil: vi.fn(),
+}));
+
 // The flow publishes over Ably; the test env has no real key.
 vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
