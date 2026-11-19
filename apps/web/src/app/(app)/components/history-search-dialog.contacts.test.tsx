@@ -67,7 +67,7 @@ const labels = {
   peopleGroup: "People",
   copyEmail: (email: string) => `Copy ${email}`,
   emailCopied: "Email copied",
-  emailCopyFailed: "Couldn't copy the email",
+  emailCopyFailed: "Failed to copy email",
   mentionInTask: (name: string) => `Mention ${name} in a new task`,
   tagsGroup: "Tags",
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
@@ -220,7 +220,7 @@ describe("HistorySearchDialog People group", () => {
     );
 
     await waitFor(() =>
-      expect(toastErrorMock).toHaveBeenCalledWith("Couldn't copy the email"),
+      expect(toastErrorMock).toHaveBeenCalledWith("Failed to copy email"),
     );
     expect(toastSuccessMock).not.toHaveBeenCalled();
   });
@@ -256,11 +256,11 @@ describe("HistorySearchDialog People group", () => {
 
     await user.type(screen.getByPlaceholderText("Search..."), "nina");
 
-    expect(
-      await screen.findByRole("option", {
-        name: "Mention Nina Berg in a new task",
-      }),
-    ).toBeInTheDocument();
+    const mention = await screen.findByRole("option", {
+      name: "Mention Nina Berg in a new task",
+    });
+    // The New task icon (sidebar), not ListPlus, which Contacts uses for lists.
+    expect(mention.querySelector(".lucide-square-pen")).not.toBeNull();
     expect(
       screen.queryByRole("option", { name: /^Copy / }),
     ).not.toBeInTheDocument();

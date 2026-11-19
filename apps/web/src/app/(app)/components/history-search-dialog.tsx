@@ -7,7 +7,7 @@ import type {
   TaskListItem,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
-import { Copy, FileText, ListPlus, ListTodo } from "lucide-react";
+import { Copy, FileText, ListTodo, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
@@ -482,7 +482,7 @@ function PeopleSearchGroup({
                 onSelect={() => onMentionInTask(contact)}
                 className={actionClassName}
               >
-                <ListPlus aria-hidden />
+                <SquarePen aria-hidden />
               </CommandItem>
             ) : null}
           </div>

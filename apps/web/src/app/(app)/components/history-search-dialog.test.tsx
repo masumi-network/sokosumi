@@ -61,7 +61,7 @@ const labels = {
   peopleGroup: "People",
   copyEmail: (email: string) => `Copy ${email}`,
   emailCopied: "Email copied",
-  emailCopyFailed: "Couldn't copy the email",
+  emailCopyFailed: "Failed to copy email",
   mentionInTask: (name: string) => `Mention ${name} in a new task`,
   tagsGroup: "Tags",
   tagTasksGroup: (tag: string) => `Tasks tagged ${tag}`,
