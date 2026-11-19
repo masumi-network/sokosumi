@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PLANNED_CREDITS,
   talkingVideoQuotedSeconds,
 } from "./talking-video-credits";
 
@@ -64,5 +65,16 @@ describe("creditsPerTalkingVideoCents", () => {
         "a".repeat(130),
       ),
     ).toBe(102);
+  });
+});
+
+describe("TALKING_VIDEO_PLANNED_CREDITS", () => {
+  it("prices the scripts bots are asked to write at fal's billed figures", () => {
+    // 150 characters: 12 s, 60 cents of video, 1.2 of voice, 0.16 of captions.
+    expect(TALKING_VIDEO_PLANNED_CREDITS.shortest).toBe(62);
+    // 400 characters with the site: 31 s, 155 + 3.2 + 0.41 + 31.5 of cut-out.
+    expect(TALKING_VIDEO_PLANNED_CREDITS.longest).toBe(191);
+    expect(TALKING_VIDEO_PLANNED_CREDITS.perCharacter).toBeCloseTo(0.4, 1);
+    expect(TALKING_VIDEO_PLANNED_CREDITS.sitePerCharacter).toBeCloseTo(0.1, 1);
   });
 });
