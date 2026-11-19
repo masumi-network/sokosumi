@@ -8,6 +8,7 @@ import type {
   CreateSeoAuditRequest,
   GetProjectSeoWorkspaceData,
   ImportProjectSeoAuditRequest,
+  ListSeoAuditsData,
   RecordProjectSeoPageChangeRequest,
   RequestProjectSeoAnalysisRequest,
   SaveProjectSeoBrandTermsRequest,
@@ -26,7 +27,6 @@ import {
   createSeoAuditActionTask,
   createSeoAuditMonitor,
   createSeoAuditScope,
-  deleteSeoAudit,
   getProjectSeoWorkspace,
   getSeoAuditWorkspace,
   getSeoAuditWorkspaceMapping,
@@ -45,6 +45,7 @@ import {
   saveSeoAuditBrandTerms,
   saveSeoAuditCompetitor,
   saveSeoAuditKeyword,
+  setSeoAuditArchived,
   syncProjectSeoStatistics,
   syncSeoAuditStatistics,
   updateProjectSeoScope,
@@ -60,9 +61,7 @@ export type SeoWorkspaceQuery = NonNullable<
 >;
 
 export const seoServiceNoRedirect = {
-  async listAudits(
-    query: { cursor?: string; limit?: number; projectId?: string } = {},
-  ) {
+  async listAudits(query: NonNullable<ListSeoAuditsData["query"]> = {}) {
     const response = await executeCoreOperation(
       createCoreGeneratedClient,
       (client) => listSeoAudits({ client, query }),
@@ -78,11 +77,16 @@ export const seoServiceNoRedirect = {
     );
     return response.data;
   },
-  async deleteAudit(auditId: string) {
+  async setAuditArchived(auditId: string, archived: boolean) {
     await executeCoreOperation(
       createCoreGeneratedClient,
-      (client) => deleteSeoAudit({ client, path: { id: auditId } }),
-      "Failed to delete SEO audit",
+      (client) =>
+        setSeoAuditArchived({
+          client,
+          path: { id: auditId },
+          body: { archived },
+        }),
+      "Failed to update SEO report archive status",
     );
   },
   async getWorkspace(owner: SeoOwner, query: SeoWorkspaceQuery = {}) {

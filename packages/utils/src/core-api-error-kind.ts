@@ -57,6 +57,7 @@ export const CORE_API_ERROR_KINDS = {
   SEO_AUDIT_ACTIVE_CHECK: "seo_audit_active_check",
   SEO_AUDIT_ACTIVE_CHAT: "seo_audit_active_chat",
   SEO_AUDIT_RESUMABLE_MONITOR: "seo_audit_resumable_monitor",
+  SEO_AUDIT_TASK_SCOPE_CONFLICT: "seo_audit_task_scope_conflict",
   SCHEDULE_RUN_STATE_CONFLICT: "schedule_run_state_conflict",
   SCHEDULE_RUN_TARGET_INVALID: "schedule_run_target_invalid",
   QUEUED_REQUIRES_RUN_AT: "queued_requires_run_at",

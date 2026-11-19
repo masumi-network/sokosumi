@@ -250,7 +250,7 @@ export async function reconcileProjectSeoTaskFile(
         kind: "audit" as const,
         id: analysis.auditId,
         root: await prisma.seoAudit.findUnique({
-          where: { id: analysis.auditId, deletedAt: null },
+          where: { id: analysis.auditId, deletedAt: null, archivedAt: null },
           select: { workspaceId: true },
         }),
       }
@@ -304,7 +304,9 @@ export async function reconcileProjectSeoTaskFile(
       where: {
         id: analysis.id,
         status: { not: "completed" },
-        ...(analysis.auditId && { audit: { deletedAt: null } }),
+        ...(analysis.auditId && {
+          audit: { deletedAt: null, archivedAt: null },
+        }),
       },
       data: {
         status: "failed",

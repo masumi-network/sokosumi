@@ -9,14 +9,9 @@ import {
   ChevronLeft,
   Eye,
   Info,
-  Lightbulb,
   ListChecks,
   ListOrdered,
-  ListPlus,
   type LucideIcon,
-  MoreHorizontal,
-  PencilLine,
-  Plus,
   RotateCw,
   Settings2,
 } from "lucide-react";
@@ -30,12 +25,6 @@ import {
 } from "@/app/seo/seo-load-error-model";
 import { SEO_TABS, type SeoTab } from "@/app/seo/seo-query";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -81,6 +70,7 @@ import { SeoStatisticsDialog } from "./seo-statistics-dialog";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { SeoTraffic } from "./seo-traffic";
 import { seoChannelLabel } from "./seo-traffic-model";
+import { SeoWorkspaceMenu } from "./seo-workspace-menu";
 import { useSeoWorkspace } from "./use-seo-workspace";
 
 /** A load faster than this shows no skeleton at all. */
@@ -307,73 +297,11 @@ export function SeoWorkspace({
           </div>
         </div>
         <div className="col-start-2 row-start-2 flex flex-nowrap gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              {/* The trigger shows only its icon: the run leads the checks card under the header. An icon-only
-                  control is 40 px below md. */}
-              <Button
-                variant="outline"
-                size="sm"
-                title={t("manage")}
-                className="max-md:min-h-10 max-md:min-w-10"
-              >
-                <MoreHorizontal className="size-4" />
-                <span className="sr-only">{t("manage")}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {model.data.availableActions.canEdit ? (
-                <DropdownMenuItem
-                  disabled={unavailable}
-                  onSelect={() => model.setDialog("brief")}
-                >
-                  <PencilLine className="size-4" />
-                  {t("brief.title")}
-                </DropdownMenuItem>
-              ) : null}
-              {model.data.availableActions.canSyncMetrics ? (
-                <DropdownMenuItem
-                  disabled={unavailable}
-                  onSelect={() => model.setDialog("statistics")}
-                >
-                  <Settings2 className="size-4" />
-                  {t("manageStatistics")}
-                </DropdownMenuItem>
-              ) : null}
-              {model.data.availableActions.canEdit ? (
-                <>
-                  <DropdownMenuItem
-                    disabled={unavailable}
-                    onSelect={() => model.setDialog("page")}
-                  >
-                    <Plus className="size-4" />
-                    {t("addPage")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={unavailable || !model.data.pages.length}
-                    onSelect={() => model.setDialog("scope")}
-                  >
-                    <ListPlus className="size-4" />
-                    {t("createScope")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={unavailable || !model.data.scope.pageIds.length}
-                    onSelect={() => model.setDialog("page_change")}
-                  >
-                    <PencilLine className="size-4" />
-                    {t("pageChange.title")}
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-              <DropdownMenuItem
-                disabled={unavailable}
-                onSelect={() => model.setDialog("improve")}
-              >
-                <Lightbulb className="size-4" />
-                {t("improve.catalog.title")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <SeoWorkspaceMenu
+            key={model.viewerKey}
+            model={model}
+            unavailable={unavailable}
+          />
         </div>
       </div>
       {/* One group of notices; it takes no room when none shows. */}

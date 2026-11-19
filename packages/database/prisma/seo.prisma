@@ -11,6 +11,9 @@ model SeoAudit {
   updatedAt    DateTime                @updatedAt
   /// Removed from the workspace. Retain analysis links, billing history and chat usage.
   deletedAt    DateTime?
+  archivedAt   DateTime?
+  /// Tasks archived by the current report archive, eligible for restoration with it.
+  archivedTaskIds String[] @default([])
   pages        ProjectSeoPage[]
   scopes       ProjectSeoScope[]
   observations ProjectSeoObservation[]

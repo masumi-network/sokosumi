@@ -1,7 +1,11 @@
 /** The SEO page keeps the header's Project scope in `projectId`, as the other scoped pages do. */
-export function seoIndexHref(projectId: string | null, cursor?: string) {
+export function seoIndexHref(
+  projectId: string | null,
+  { cursor, archived }: { cursor?: string; archived?: boolean } = {},
+) {
   const params = new URLSearchParams();
   if (projectId) params.set("projectId", projectId);
+  if (archived) params.set("view", "archived");
   if (cursor) params.set("cursor", cursor);
   const query = params.toString();
   return query ? `/seo?${query}` : "/seo";

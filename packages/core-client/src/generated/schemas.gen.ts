@@ -48328,9 +48328,6 @@ export const SeoAuditSummarySchema = {
             type: 'integer',
             minimum: 0
         },
-        canDelete: {
-            type: 'boolean'
-        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -48707,6 +48704,19 @@ export const SendSeoAuditChatRequestSchema = {
     required: [
         'question',
         'idempotencyKey'
+    ],
+    additionalProperties: false
+} as const;
+
+export const SetSeoAuditArchivedRequestSchema = {
+    type: 'object',
+    properties: {
+        archived: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'archived'
     ],
     additionalProperties: false
 } as const;
