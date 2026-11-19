@@ -851,7 +851,10 @@
         "answerPlaceholderNoName": "Deine Antwort…",
         "send": "Senden",
         "answerSent": "Antwort gesendet",
-        "answerError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal."
+        "answerError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
+        "questionLoading": "Frage wird geladen…",
+        "questionError": "Die Frage konnte nicht geladen werden.",
+        "questionOnTask": "In der Aufgabe lesen"
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# Frage im Datenraum wartet auf eine Antwort} other {# Fragen im Datenraum warten auf eine Antwort}}",

@@ -93,13 +93,19 @@ export function isTaskAskListed(
 }
 
 /**
- * What the agent asked: the comment it parked the Task with, else its newest
- * comment. People's comments (they carry a `userId`) are never the question.
+ * What the agent asked for the current wait: the comment it parked the Task
+ * with, else its newest comment since the Task last left Input required.
+ * People's comments (they carry a `userId`) are never the question. Null
+ * when this wait has no question of its own, rather than an older one.
  */
 export function waitingQuestion(events: TaskEvent[]): string | null {
-  const asked = events.findLast(
+  const lastOther = events.findLastIndex(
+    (event) => event.status && event.status !== TaskStatus.INPUT_REQUIRED,
+  );
+  const wait = events.slice(lastOther + 1);
+  const asked = wait.findLast(
     (event) => event.status === TaskStatus.INPUT_REQUIRED && event.comment,
   );
-  const fallback = events.findLast((event) => !event.userId && event.comment);
+  const fallback = wait.findLast((event) => !event.userId && event.comment);
   return (asked ?? fallback)?.comment ?? null;
 }

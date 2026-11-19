@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -26,11 +26,16 @@ vi.mock("@/lib/utils/notification-time", () => ({
 
 import { NotificationWaitingTasks } from "./notification-waiting-tasks";
 
-function task(id: string, status: string) {
+function task(
+  id: string,
+  status: string,
+  statusSince = "2026-11-19T10:00:00.000Z",
+) {
   return {
     id,
     name: `Task ${id}`,
     status,
+    statusSince,
     updatedAt: "2026-11-19T10:00:00.000Z",
     assignee: { type: "sokoBot", sokoBot: { name: "Pip" } },
   };
@@ -52,10 +57,17 @@ function renderRows(tasks: ReturnType<typeof task>[]) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  render(
     <QueryClientProvider client={client}>
       <NotificationWaitingTasks />
     </QueryClientProvider>,
+  );
+  return client;
+}
+
+async function openAnswer() {
+  await userEvent.click(
+    await screen.findByRole("button", { name: "action.INPUT_REQUIRED" }),
   );
 }
 
@@ -98,5 +110,77 @@ describe("NotificationWaitingTasks", () => {
     expect(
       screen.queryByRole("button", { name: "action.APPROVAL_REQUIRED" }),
     ).toBeNull();
+  });
+
+  it("posts one answer when Enter is pressed again while sending", async () => {
+    core.getTaskEvents.mockResolvedValue({ data: [] });
+    const pending = Promise.withResolvers<undefined>();
+    createTaskComment.mockReturnValue(pending.promise);
+    renderRows([task("t1", "INPUT_REQUIRED")]);
+    await openAnswer();
+
+    const box = screen.getByRole("textbox");
+    await userEvent.type(box, "Bakeries{Enter}");
+    await userEvent.type(box, "{Enter}{Enter}");
+    expect(createTaskComment).toHaveBeenCalledTimes(1);
+
+    await act(async () => pending.resolve(undefined));
+  });
+
+  it("returns focus to the Task link after the answer is sent", async () => {
+    core.getTaskEvents.mockResolvedValue({ data: [] });
+    createTaskComment.mockResolvedValue(undefined);
+    renderRows([task("t1", "INPUT_REQUIRED")]);
+    await openAnswer();
+
+    await userEvent.type(screen.getByRole("textbox"), "Bakeries{Enter}");
+
+    await screen.findByText(/^answerSent/);
+    expect(document.activeElement).toBe(
+      screen.getByRole("link", { name: /Task t1/ }),
+    );
+  });
+
+  it("offers Answer again when the agent asks a second time", async () => {
+    core.getTaskEvents.mockResolvedValue({ data: [] });
+    createTaskComment.mockResolvedValue(undefined);
+    const client = renderRows([task("t1", "INPUT_REQUIRED")]);
+    await openAnswer();
+    await userEvent.type(screen.getByRole("textbox"), "Bakeries{Enter}");
+    await screen.findByText(/^answerSent/);
+
+    core.getTasks.mockResolvedValue({
+      data: [task("t1", "INPUT_REQUIRED", "2026-11-19T11:00:00.000Z")],
+    });
+    await act(() => client.invalidateQueries());
+
+    expect(
+      await screen.findByRole("button", { name: "action.INPUT_REQUIRED" }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/^answerSent/)).toBeNull();
+  });
+
+  it("sends the reader to the Task when the question cannot be read", async () => {
+    core.getTaskEvents.mockRejectedValue(new Error("down"));
+    renderRows([task("t1", "INPUT_REQUIRED")]);
+    await openAnswer();
+
+    expect(await screen.findByText("questionError")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "questionOnTask" }).getAttribute("href"),
+    ).toBe(screen.getByRole("link", { name: /Task t1/ }).getAttribute("href"));
+  });
+
+  it("points to the Task when this wait has no question of its own", async () => {
+    core.getTaskEvents.mockResolvedValue({ data: [] });
+    renderRows([task("t1", "INPUT_REQUIRED")]);
+    await openAnswer();
+
+    expect(
+      await screen.findByRole("link", { name: "questionOnTask" }),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.queryByText("questionLoading")).toBeNull(),
+    );
   });
 });

@@ -36,4 +36,26 @@ describe("waitingQuestion", () => {
       waitingQuestion([event("e1", "Brief", { userId: "u1" })] as never),
     ).toBeNull();
   });
+
+  it("reads only the current wait, never an earlier ask", () => {
+    expect(
+      waitingQuestion([
+        event("e1", "Which audience?", { status: "INPUT_REQUIRED" }),
+        event("e2", "Bakeries", { userId: "u1" }),
+        event("e3", null, { status: "RUNNING" }),
+        event("e4", null, { status: "INPUT_REQUIRED" }),
+      ] as never),
+    ).toBeNull();
+  });
+
+  it("finds the question asked just before the current wait began", () => {
+    expect(
+      waitingQuestion([
+        event("e1", "Old question", { status: "INPUT_REQUIRED" }),
+        event("e2", null, { status: "RUNNING" }),
+        event("e3", "Which city?"),
+        event("e4", null, { status: "INPUT_REQUIRED" }),
+      ] as never),
+    ).toBe("Which city?");
+  });
 });

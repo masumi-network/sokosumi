@@ -7,7 +7,7 @@ import { useChannel } from "ably/react";
 import { Send } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { taskHref } from "@/app/tasks/utils/task-href";
@@ -110,47 +110,87 @@ function WaitingTaskAnswer({
   task,
   name,
   onSent,
+  onNavigate,
 }: {
   task: TaskListItem;
   name: string | null;
   onSent: () => void;
+  onNavigate?: () => void;
 }) {
   const t = useTranslations("Components.NotificationCenter.WaitingTasks");
+  const { data: session } = useSession();
   const [text, setText] = useState("");
   const [isSending, startSending] = useTransition();
+  // Enter can fire again before the pending state renders; one answer only.
+  const sending = useRef(false);
   const question = useQuery({
-    queryKey: ["needs-you-task-question", task.id],
+    // Per reader, workspace and wait: the query client outlives a sign-out,
+    // a workspace switch and the agent asking again.
+    queryKey: [
+      "needs-you-task-question",
+      session?.user.id ?? null,
+      session?.session.activeOrganizationId ?? null,
+      task.id,
+      String(task.statusSince),
+    ],
     queryFn: async () =>
       waitingQuestion((await coreClient.getTaskEvents(task.id)).data),
   });
   const label = name
     ? t("answerPlaceholder", { name })
     : t("answerPlaceholderNoName");
-  const send = () =>
+  const send = () => {
+    if (sending.current || !text.trim()) return;
+    sending.current = true;
     startSending(async () => {
       try {
         await createTaskComment({ taskId: task.id, comment: text });
       } catch {
+        sending.current = false;
         toast.error(t("answerError"));
         return;
       }
-      setText("");
       onSent();
     });
+  };
+  const onTask = (
+    <Link
+      href={taskHref(task)}
+      onClick={onNavigate}
+      className="text-foreground underline underline-offset-2"
+    >
+      {t("questionOnTask")}
+    </Link>
+  );
 
   return (
     <form
       className="flex flex-col gap-2 px-3 pb-3 sm:pl-14"
       onSubmit={(event) => {
         event.preventDefault();
-        if (text.trim()) send();
+        send();
       }}
     >
-      {question.data ? (
-        <p className="bg-muted line-clamp-6 rounded-md p-2 text-sm whitespace-pre-line break-words">
+      {question.isPending ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {t("questionLoading")}
+        </p>
+      ) : question.isError ? (
+        <p className="text-muted-foreground text-sm">
+          {t("questionError")} {onTask}
+        </p>
+      ) : question.data ? (
+        // Scrolls rather than clips, so a long question stays readable;
+        // tabIndex lets a keyboard reader scroll it.
+        <p
+          tabIndex={0}
+          className="bg-muted focus-visible:ring-ring max-h-48 overflow-y-auto rounded-md p-2 text-sm whitespace-pre-line break-words outline-none focus-visible:ring-2"
+        >
           {question.data}
         </p>
-      ) : null}
+      ) : (
+        <p className="text-muted-foreground text-sm">{onTask}</p>
+      )}
       <Textarea
         value={text}
         onChange={(event) => setText(event.target.value)}
@@ -158,8 +198,7 @@ function WaitingTaskAnswer({
           if (
             event.key === "Enter" &&
             !event.shiftKey &&
-            !event.nativeEvent.isComposing &&
-            text.trim()
+            !event.nativeEvent.isComposing
           ) {
             event.preventDefault();
             send();
@@ -204,11 +243,13 @@ function WaitingTaskRow({
   const t = useTranslations("Components.NotificationCenter.WaitingTasks");
   const [answering, setAnswering] = useState(false);
   const [answered, setAnswered] = useState(false);
+  const link = useRef<HTMLAnchorElement>(null);
 
   return (
     <li>
       <div className="flex items-start">
         <Link
+          ref={link}
           href={taskHref(task)}
           onClick={onNavigate}
           className="hover:bg-accent focus-visible:ring-ring flex min-w-0 flex-1 items-start gap-3 p-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset"
@@ -268,7 +309,12 @@ function WaitingTaskRow({
         <WaitingTaskAnswer
           task={task}
           name={name}
-          onSent={() => setAnswered(true)}
+          onNavigate={onNavigate}
+          onSent={() => {
+            setAnswered(true);
+            // The form leaves with the focused control; keep the reader here.
+            link.current?.focus();
+          }}
         />
       ) : null}
     </li>
@@ -352,7 +398,8 @@ export function NotificationWaitingTasks({
 
           return (
             <WaitingTaskRow
-              key={task.id}
+              // A new ask is a new wait: it starts with its own Answer.
+              key={`${task.id}:${String(task.statusSince)}`}
               task={task}
               name={name}
               summary={summary}

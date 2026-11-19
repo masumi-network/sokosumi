@@ -851,7 +851,10 @@
         "answerPlaceholderNoName": "Escribe tu respuesta…",
         "send": "Enviar",
         "answerSent": "Respuesta enviada",
-        "answerError": "No se pudo enviar tu respuesta. Inténtalo de nuevo."
+        "answerError": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
+        "questionLoading": "Cargando la pregunta…",
+        "questionError": "No se pudo cargar la pregunta.",
+        "questionOnTask": "Léela en la tarea"
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",
