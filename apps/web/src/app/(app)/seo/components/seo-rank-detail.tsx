@@ -6,6 +6,7 @@ import {
   type SeoRankDetail,
   type SeoRankResult,
   seoRankAbsentOthers,
+  seoRankShownTop,
 } from "./seo-rank-detail-model";
 import { SeoDate, SeoFoldSummary } from "./seo-shared";
 
@@ -25,7 +26,8 @@ function displayName(
 function RankResult({ result }: { result: SeoRankResult }) {
   const t = useTranslations("App.Seo.overview.rank");
   const format = useFormatter();
-  if (result.kind === "absent") return t("absent", { top: result.top });
+  if (result.kind === "absent")
+    return t("absent", { top: seoRankShownTop(result.top) });
   if (result.kind === "other") return result.text;
   if (result.kind === "searchConsole")
     return t("searchConsole", {
@@ -112,7 +114,12 @@ export function SeoRankDetailRow({
             </li>
           ))}
           {absentOthers ? (
-            <li>{t("overview.rank.othersAbsent", absentOthers)}</li>
+            <li>
+              {t("overview.rank.othersAbsent", {
+                count: absentOthers.count,
+                top: seoRankShownTop(absentOthers.top),
+              })}
+            </li>
           ) : null}
         </ul>
       ) : null}

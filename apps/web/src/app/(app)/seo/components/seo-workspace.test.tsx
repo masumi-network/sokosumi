@@ -833,7 +833,7 @@ describe("SEO workspace integration", () => {
     if (!row) throw new Error("no position row");
     // The result leads; the other keywords are one line; the rule and the raw head wait in the fold.
     expect(row).toHaveTextContent(
-      "Not in Google's top 16 for “macbook charge limit”",
+      "Not in Google's top 15 for “macbook charge limit”",
     );
     // The Market reads as a country and a language, not as codes.
     expect(row).toHaveTextContent("Google · United States · English");
