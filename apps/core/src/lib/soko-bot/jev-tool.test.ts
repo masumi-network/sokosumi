@@ -2,7 +2,8 @@ import { sokoBotEvaluateWithJevInputSchema } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { evaluateMock } = vi.hoisted(() => ({ evaluateMock: vi.fn() }));
-vi.mock("ai", () => ({
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
   experimental_evaluate: evaluateMock,
   gateway: { evaluationModel: vi.fn() },
 }));
