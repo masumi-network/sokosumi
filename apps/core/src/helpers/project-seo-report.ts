@@ -90,7 +90,18 @@ const action = z.object({
     .object({ target: text, before: text.nullable(), after: text })
     .nullable(),
 });
-export const publicSeoPayloadSchema = z.object({
+// Prisma rejects explicit undefined inside JSON. Zod can retain it for an absent or unreadable optional field.
+function omitUndefinedProperties<T extends object>(parsed: T): T {
+  for (const key of Object.keys(parsed) as (keyof T)[]) {
+    const value = parsed[key];
+    if (value === undefined) delete parsed[key];
+    else if (value !== null && typeof value === "object")
+      omitUndefinedProperties(value);
+  }
+  return parsed;
+}
+
+const publicSeoPayload = z.object({
   version: z.literal(1),
   kind: z.string().max(100),
   requestId: z.string().uuid().nullable(),
@@ -134,6 +145,9 @@ export const publicSeoPayloadSchema = z.object({
   /** Monitor rule ids that fired in a focused result's Run. */
   alertRows: seoAlertRowsSchema.optional(),
 });
+export const publicSeoPayloadSchema = publicSeoPayload.transform(
+  omitUndefinedProperties,
+);
 export type PublicSeoPayload = z.infer<typeof publicSeoPayloadSchema>;
 
 function focusedRuleCoverage(
