@@ -705,6 +705,12 @@ describe("plain notes", () => {
         expect(notes[key]?.title, key).toBeTruthy();
         expect(notes[key]?.why, key).toBeTruthy();
       }
+      // A share note's count heading must exist in each language too.
+      for (const key of ["cameraFileNames", "brokenLinks"] as const)
+        expect(
+          (notes[key] as { found?: string } | undefined)?.found,
+          key,
+        ).toBeTruthy();
     }
   });
 });

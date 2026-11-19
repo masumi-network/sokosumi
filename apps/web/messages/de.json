@@ -12473,7 +12473,7 @@
           },
           "twoWayFacts": {
             "title": "Datums- oder Zeitangaben, die man zweifach lesen kann",
-            "why": "Ein Datum wie 04/05/2026 heißt in manchen Ländern 5. April und in anderen 4. Mai. Eine Zahl wie 1:30 kann eine Uhrzeit oder eine Dauer sein. Schreib den Monat als Wort (5. Mai 2026) und Zeiträume aus (1 Stunde 30 Minuten)."
+            "why": "Ein Datum wie 04/05/2026 heißt in manchen Ländern 5. April und in anderen 4. Mai. Eine Zahl wie 1:30 vor einer Einheit kann 1 Minute 30 Sekunden oder 1 Stunde 30 Minuten heißen. Schreib den Monat als Wort (5. Mai 2026) und Dauern aus (1 Minute 30 Sekunden)."
           },
           "retiredMarkup": {
             "title": "Markup für eine Suchfunktion, die Google nicht mehr zeigt",
@@ -12485,19 +12485,19 @@
           },
           "noFieldData": {
             "title": "Keine Geschwindigkeitsdaten von echten Besuchern",
-            "why": "Chrome veröffentlicht Geschwindigkeitsdaten echter Besucher nur für Seiten mit genug Besuchen, und Google nennt keine Zahl. Bis dahin gilt der Labortest zur Geschwindigkeit aus diesem Audit."
+            "why": "Chrome veröffentlicht Geschwindigkeitsdaten echter Besucher nur für öffentliche Seiten (Status 200, kein noindex) mit genug Besuchen, und Google nennt keine Zahl. Bis dahin gilt der Labortest zur Geschwindigkeit aus diesem Audit."
           },
           "rawRenderedDiff": {
             "title": "JavaScript ändert die Seite nach dem Laden",
-            "why": "Das HTML der Seite und die Seite nach JavaScript zeigen unterschiedliche Titel, Überschriften, Links oder Texte. Google liest die Seite nach JavaScript, die meisten KI-Crawler lesen aber nur das HTML. Stelle wichtige Texte und Links direkt ins HTML."
+            "why": "Das HTML der Seite und die Seite nach JavaScript zeigen einen anderen Titel, eine andere Beschreibung, h1, andere Links oder Texte. Google liest die Seite nach JavaScript. Crawler, die kein JavaScript ausführen, sehen nur das HTML. Bring das HTML auf den Stand, den JavaScript zeigt."
           },
           "googleExtended": {
             "title": "robots.txt sperrt Google-Extended",
-            "why": "Das hindert Google daran, deine Inhalte für Training und Grounding von Gemini zu nutzen. Die Seite bleibt in der Google-Suche, in KI-Übersichten und im KI-Modus. Wenn du das so willst, musst du nichts ändern."
+            "why": "Das hindert Google daran, deine Inhalte für Training und Grounding von Gemini zu nutzen. Es entfernt die Seite nicht aus der Google-Suche, den KI-Übersichten oder dem KI-Modus. Wenn du das so willst, musst du nichts ändern."
           },
           "canonicalTarget": {
             "title": "Der Canonical-Link zeigt auf eine Seite mit einem Problem",
-            "why": "Der Canonical-Link sagt Google, welche Adresse die Hauptadresse dieser Seite ist. Er muss auf eine erreichbare Seite ohne Weiterleitung und ohne noindex zeigen. Setze ihn auf die endgültige Adresse der Seite."
+            "why": "Der Canonical-Link sagt Google, welche Adresse die Hauptadresse dieser Seite ist. Er muss auf eine erreichbare Seite ohne Weiterleitung und ohne noindex zeigen. Setze ihn auf die erreichbare Adresse, die Google zeigen soll, zum Beispiel die Adresse, auf der die Weiterleitung endet."
           },
           "siteName": {
             "title": "Die Startseite nennt Google den Namen der Website nicht",
@@ -12505,7 +12505,7 @@
           },
           "queryWords": {
             "title": "Suchwörter fehlen in Titel und Hauptüberschrift",
-            "why": "Menschen haben diese Seite mit Suchen gefunden, deren Wörter nicht in Titel und h1 stehen. Google erkennt auch verwandte Wörter, füge ein Wort also nur hinzu, wo es die Seite beschreibt."
+            "why": "Google hat diese Seite bei Suchen gezeigt, deren Wörter nicht in Titel und h1 stehen. Google erkennt auch verwandte Wörter, füge ein Wort also nur hinzu, wo es die Seite beschreibt."
           },
           "shopping": {
             "title": "Produkt nicht in Google Shopping gefunden",
@@ -12517,23 +12517,23 @@
           },
           "sitemap": {
             "title": "Seite fehlt in der Sitemap",
-            "why": "Google kann diese Seite indexieren, aber sie steht nicht in deiner Sitemap. Google findet verlinkte Seiten auch ohne Sitemap, das ist also ein schwaches Signal. Füge die Seite der Sitemap hinzu, damit Google einen Weg mehr hat, sie zu finden."
+            "why": "Das Audit hat nichts gefunden, was Google am Indexieren dieser Seite hindert, aber sie steht nicht in deiner Sitemap. Google findet verlinkte Seiten auch ohne Sitemap, das ist also ein schwaches Signal. Füge die Seite der Sitemap hinzu, damit Google einen Weg mehr hat, sie zu finden."
           },
           "moneyLinked": {
             "title": "Wichtige Seite ohne Link von deinen anderen Seiten",
             "why": "Keine der anderen Seiten, die dieses Audit gelesen hat, verlinkt auf diese Seite. Jede wichtige Seite braucht einen Link von mindestens einer anderen Seite. Verlinke sie von einer passenden Seite. Das Audit liest nur einige Seiten, ein Link kann also auf einer nicht gelesenen Seite stehen."
           },
           "twoForKeyword": {
-            "title": "Zwei deiner Seiten ranken für dieselbe Suche",
+            "title": "Mehrere deiner Seiten ranken für dieselbe Suche",
             "why": "Google zeigt oben meist höchstens zwei Ergebnisse einer Website. Prüfe, ob beide Seiten für diese Suche ranken sollen oder ob eine Seite das Thema abdeckt. Das ist ein Punkt zum Prüfen, kein Fehler."
           },
           "noH1": {
             "title": "Keine Hauptüberschrift (h1)",
-            "why": "Die Seite hat keine h1-Überschrift. In einem SEO-Test hat das Ändern der ersten Überschrift in eine h1 den Suchverkehr um 4,5 % gesteigert. Gib der Seite eine h1, die sagt, worum es geht."
+            "why": "Die Seite hat keine h1-Überschrift. In einem SEO-Test auf Reise-Listenseiten hat das Ändern der ersten Überschrift in eine h1 den Suchverkehr um 4,5 % gesteigert. Probiere eine h1, die sagt, worum es geht, und miss die Wirkung."
           },
           "aiSearchBots": {
             "title": "robots.txt sperrt KI-Suchbots",
-            "why": "Die Seite sperrt Bots, mit denen KI-Suchdienste wie ChatGPT, Claude oder Perplexity Seiten finden, diese Dienste zeigen sie also eventuell nicht in ihren Antworten. Wenn du sie absichtlich sperrst, musst du nichts ändern."
+            "why": "robots.txt sperrt die Bots, mit denen KI-Suchdienste wie ChatGPT, Claude oder Perplexity Seiten finden, diese Dienste zeigen die Seite also eventuell nicht in ihren Antworten. Wenn du sie absichtlich sperrst, musst du nichts ändern."
           }
         },
         "checkFound": "Was die Prüfung gefunden hat",

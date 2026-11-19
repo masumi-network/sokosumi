@@ -12473,7 +12473,7 @@
           },
           "twoWayFacts": {
             "title": "Dates or times that can be read two ways",
-            "why": "A date like 04/05/2026 means 5 April in some countries and 4 May in others. A number like 1:30 can be a time of day or a duration. Write the month as a word (5 May 2026) and write durations out (1 hour 30 minutes)."
+            "why": "A date like 04/05/2026 means 5 April in some countries and 4 May in others. A number like 1:30 before a unit can mean 1 minute 30 seconds or 1 hour 30 minutes. Write the month as a word (5 May 2026) and write durations out (1 minute 30 seconds)."
           },
           "retiredMarkup": {
             "title": "Markup for a search feature Google no longer shows",
@@ -12485,11 +12485,11 @@
           },
           "noFieldData": {
             "title": "No speed data from real visitors",
-            "why": "Chrome publishes speed data from real visitors only for pages with enough visits, and Google does not say how many. Until then, use the lab speed test of this audit."
+            "why": "Chrome publishes speed data from real visitors only for public pages (status 200, no noindex) with enough visits, and Google does not say how many. Until then, use the lab speed test of this audit."
           },
           "rawRenderedDiff": {
             "title": "JavaScript changes the page after it loads",
-            "why": "The page's HTML and the page after JavaScript runs show different titles, headings, links or text. Google reads the page after JavaScript runs, but most AI crawlers read only the HTML. Put important text and links in the HTML itself."
+            "why": "The page's HTML and the page after JavaScript runs show a different title, description, h1, links or text. Google reads the page after JavaScript runs. Crawlers that do not run JavaScript see only the HTML. Make the HTML match what JavaScript shows."
           },
           "googleExtended": {
             "title": "robots.txt blocks Google-Extended",
@@ -12497,7 +12497,7 @@
           },
           "canonicalTarget": {
             "title": "The canonical link points to a page with a problem",
-            "why": "The canonical link tells Google which address is the main one for this page. It must point to a live page that does not redirect and has no noindex. Change it to the final address of the page."
+            "why": "The canonical link tells Google which address is the main one for this page. It must point to a live page that does not redirect and has no noindex. Point it at the live address you want Google to show, for example the address the redirect ends at."
           },
           "siteName": {
             "title": "The home page does not give Google the site name",
@@ -12505,7 +12505,7 @@
           },
           "queryWords": {
             "title": "Search words missing from the title and main heading",
-            "why": "People found this page with searches that use words its title and h1 do not have. Google also matches related words, so add a word only where it describes the page."
+            "why": "Google showed this page for searches with words that its title and h1 do not have. Google also matches related words, so add a word only where it describes the page."
           },
           "shopping": {
             "title": "Product not found in Google Shopping",
@@ -12517,23 +12517,23 @@
           },
           "sitemap": {
             "title": "Page missing from the sitemap",
-            "why": "Google can index this page, but it is not in your sitemap. Google finds linked pages without a sitemap, so this is a weak signal. Add the page to the sitemap to give Google one more way to find it."
+            "why": "The audit found nothing that stops Google from indexing this page, but it is not in your sitemap. Google finds linked pages without a sitemap, so this is a weak signal. Add the page to the sitemap to give Google one more way to find it."
           },
           "moneyLinked": {
             "title": "Important page without a link from your other pages",
             "why": "None of the other pages this audit read link to this page. Each page you care about needs a link from at least one other page. Add a link to it from a related page. The audit reads only some pages, so a link can exist on a page it did not read."
           },
           "twoForKeyword": {
-            "title": "Two of your pages rank for the same search",
+            "title": "Several of your pages rank for the same search",
             "why": "Google usually shows at most two results from one site at the top. Check that both pages should rank for this search, or let one page cover it. This is a point to review, not a fault."
           },
           "noH1": {
             "title": "No main heading (h1)",
-            "why": "The page has no h1 heading. In one SEO test, changing the first heading to an h1 raised search traffic by 4.5%. Give the page one h1 that says what it is about."
+            "why": "The page has no h1 heading. In one SEO test on travel listing pages, changing the first heading to an h1 raised search traffic by 4.5%. Try one h1 that says what the page is about, and measure the effect."
           },
           "aiSearchBots": {
             "title": "robots.txt blocks AI search bots",
-            "why": "The page blocks bots that AI search tools such as ChatGPT, Claude or Perplexity use to find pages, so these tools may not show it in their answers. If you block them on purpose, nothing needs to change."
+            "why": "robots.txt blocks the bots that AI search tools such as ChatGPT, Claude or Perplexity use to find pages, so these tools may not show the page in their answers. If you block them on purpose, nothing needs to change."
           }
         },
         "checkFound": "What the check found",

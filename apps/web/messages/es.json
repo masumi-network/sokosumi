@@ -12473,7 +12473,7 @@
           },
           "twoWayFacts": {
             "title": "Fechas u horas que se pueden leer de dos maneras",
-            "why": "Una fecha como 04/05/2026 significa 5 de abril en algunos países y 4 de mayo en otros. Un número como 1:30 puede ser una hora del día o una duración. Escribe el mes con letras (5 de mayo de 2026) y las duraciones completas (1 hora 30 minutos)."
+            "why": "Una fecha como 04/05/2026 significa 5 de abril en algunos países y 4 de mayo en otros. Un número como 1:30 antes de una unidad puede significar 1 minuto 30 segundos o 1 hora 30 minutos. Escribe el mes con letras (5 de mayo de 2026) y las duraciones completas (1 minuto 30 segundos)."
           },
           "retiredMarkup": {
             "title": "Marcado para una función de búsqueda que Google ya no muestra",
@@ -12485,19 +12485,19 @@
           },
           "noFieldData": {
             "title": "Sin datos de velocidad de visitantes reales",
-            "why": "Chrome publica datos de velocidad de visitantes reales solo para páginas con suficientes visitas, y Google no dice cuántas. Mientras tanto, usa la prueba de velocidad de laboratorio de esta auditoría."
+            "why": "Chrome publica datos de velocidad de visitantes reales solo para páginas públicas (estado 200, sin noindex) con suficientes visitas, y Google no dice cuántas. Mientras tanto, usa la prueba de velocidad de laboratorio de esta auditoría."
           },
           "rawRenderedDiff": {
             "title": "JavaScript cambia la página después de cargarla",
-            "why": "El HTML de la página y la página después de ejecutar JavaScript muestran títulos, encabezados, enlaces o textos distintos. Google lee la página después de JavaScript, pero la mayoría de los rastreadores de IA solo leen el HTML. Pon el texto y los enlaces importantes en el propio HTML."
+            "why": "El HTML de la página y la página después de ejecutar JavaScript muestran un título, una descripción, un h1, enlaces o textos distintos. Google lee la página después de JavaScript. Los rastreadores que no ejecutan JavaScript solo ven el HTML. Haz que el HTML coincida con lo que muestra JavaScript."
           },
           "googleExtended": {
             "title": "robots.txt bloquea Google-Extended",
-            "why": "Esto impide que Google use tu contenido para entrenar y fundamentar Gemini. La página sigue en la Búsqueda de Google, en las vistas generales de IA y en el modo IA. Si eso es lo que quieres, no hace falta cambiar nada."
+            "why": "Esto impide que Google use tu contenido para entrenar y fundamentar Gemini. No quita la página de la Búsqueda de Google, de las vistas generales de IA ni del modo IA. Si eso es lo que quieres, no hace falta cambiar nada."
           },
           "canonicalTarget": {
             "title": "El enlace canónico apunta a una página con un problema",
-            "why": "El enlace canónico indica a Google cuál es la dirección principal de esta página. Debe apuntar a una página activa, sin redirección y sin noindex. Cámbialo por la dirección final de la página."
+            "why": "El enlace canónico indica a Google cuál es la dirección principal de esta página. Debe apuntar a una página activa, sin redirección y sin noindex. Haz que apunte a la dirección activa que quieres que Google muestre, por ejemplo la dirección donde termina la redirección."
           },
           "siteName": {
             "title": "La página de inicio no indica a Google el nombre del sitio",
@@ -12505,7 +12505,7 @@
           },
           "queryWords": {
             "title": "Faltan palabras de búsqueda en el título y el encabezado principal",
-            "why": "La gente encontró esta página con búsquedas que usan palabras que no están en su título ni en su h1. Google también reconoce palabras relacionadas, así que añade una palabra solo donde describa la página."
+            "why": "Google mostró esta página en búsquedas con palabras que no están en su título ni en su h1. Google también reconoce palabras relacionadas, así que añade una palabra solo donde describa la página."
           },
           "shopping": {
             "title": "Producto no encontrado en Google Shopping",
@@ -12517,23 +12517,23 @@
           },
           "sitemap": {
             "title": "Página que falta en el sitemap",
-            "why": "Google puede indexar esta página, pero no está en tu sitemap. Google encuentra las páginas enlazadas sin sitemap, así que es una señal débil. Añade la página al sitemap para darle a Google una forma más de encontrarla."
+            "why": "La auditoría no encontró nada que impida a Google indexar esta página, pero no está en tu sitemap. Google encuentra las páginas enlazadas sin sitemap, así que es una señal débil. Añade la página al sitemap para darle a Google una forma más de encontrarla."
           },
           "moneyLinked": {
             "title": "Página importante sin enlace desde tus otras páginas",
             "why": "Ninguna de las otras páginas que leyó esta auditoría enlaza a esta página. Cada página importante necesita un enlace desde al menos otra página. Enlázala desde una página relacionada. La auditoría lee solo algunas páginas, así que puede haber un enlace en una página que no leyó."
           },
           "twoForKeyword": {
-            "title": "Dos de tus páginas posicionan para la misma búsqueda",
+            "title": "Varias de tus páginas posicionan para la misma búsqueda",
             "why": "Google suele mostrar como mucho dos resultados de un mismo sitio arriba. Comprueba si las dos páginas deben posicionar para esta búsqueda o si una sola debe cubrirla. Es un punto para revisar, no un error."
           },
           "noH1": {
             "title": "Sin encabezado principal (h1)",
-            "why": "La página no tiene un encabezado h1. En una prueba de SEO, cambiar el primer encabezado a h1 aumentó el tráfico de búsqueda un 4,5 %. Dale a la página un h1 que diga de qué trata."
+            "why": "La página no tiene un encabezado h1. En una prueba de SEO en páginas de listados de viajes, cambiar el primer encabezado a h1 aumentó el tráfico de búsqueda un 4,5 %. Prueba un h1 que diga de qué trata la página y mide el efecto."
           },
           "aiSearchBots": {
             "title": "robots.txt bloquea bots de búsqueda con IA",
-            "why": "La página bloquea los bots que usan herramientas de búsqueda con IA como ChatGPT, Claude o Perplexity para encontrar páginas, así que estas herramientas pueden no mostrarla en sus respuestas. Si los bloqueas a propósito, no hace falta cambiar nada."
+            "why": "robots.txt bloquea los bots que las herramientas de búsqueda con IA (ChatGPT, Claude, Perplexity) usan para encontrar páginas, así que estas herramientas pueden no mostrar la página en sus respuestas. Si los bloqueas a propósito, no hace falta cambiar nada."
           }
         },
         "checkFound": "Lo que encontró la comprobación",

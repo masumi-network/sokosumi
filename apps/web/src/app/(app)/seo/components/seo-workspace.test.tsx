@@ -1114,7 +1114,7 @@ describe("SEO workspace integration", () => {
       title: "Raw HTML: AI search bots may fetch the page",
       severity: "test",
       evidence: [
-        "robots.txt blocks GPTBot",
+        "https://example.com/robots.txt disallows OAI-SearchBot for this page",
         "Source: raw HTML; the rendered DOM was not requested.",
       ],
       sourceRef: "robots",

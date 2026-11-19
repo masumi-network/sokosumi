@@ -242,6 +242,8 @@ function PageDetail({
         <details className="text-muted-foreground text-xs">
           <SeoFoldSummary className="py-1.5">
             {t("overview.checkFound")}
+            {/* Every titled note has this fold; a screen reader hears which note it belongs to. */}
+            <span className="sr-only">{`: ${t(`overview.plainNote.${plain.key}.title`)}`}</span>
           </SeoFoldSummary>
           <ul className="list-disc space-y-0.5 ps-4 pt-1">
             {pageDetailLines(finding.evidence).map((line, index) => (
