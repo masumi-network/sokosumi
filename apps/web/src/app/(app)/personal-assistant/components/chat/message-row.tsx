@@ -227,6 +227,7 @@ export function TurnRows({
   onDecisionResolved: () => void;
 }) {
   const t = useTranslations("App.SokoBot.Chat");
+  const tFailure = useTranslations("Components.SokoBotTurnFailure");
   const active = isActiveTurn(turn);
   const kind = turnKind(turn);
   const startedAt = turn.startedAt ?? turn.createdAt;
@@ -287,7 +288,9 @@ export function TurnRows({
               </Markdown>
             ) : turn.status === "FAILED" ? (
               <p className="text-semantic-destructive pt-1 pr-10 text-sm">
-                {turn.errorDetail ?? t("failed")}
+                {turn.errorKind === "ai_budget_exceeded"
+                  ? tFailure("aiBudgetExceeded")
+                  : (turn.errorDetail ?? t("failed"))}
               </p>
             ) : turn.status === "CANCELLED" ? (
               <p className="text-muted-foreground pt-1 pr-10 text-sm italic">

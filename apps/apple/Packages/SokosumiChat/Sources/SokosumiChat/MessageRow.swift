@@ -1,5 +1,6 @@
 import CoreAPI
 import Foundation
+import OpenAPIRuntime
 
 /// One part of a row's body, in drawing order (web `MessageBody`). Payloads carry only what was parsed; the quote
 /// and the Markdown read the message itself.
@@ -7,7 +8,7 @@ public enum MessageBodyPart: Equatable, Sendable, Identifiable {
   /// Soko Bot's quiet line above a message it sent on its own.
   case sokoBotSource(SokoBotSourceLabel)
   /// A coworker's mention that failed to dispatch.
-  case failedMention
+  case failedMention(aiBudgetExceeded: Bool)
   /// A coworker's Thought; `shellWorking` while a persisted mention shell still waits for its answer.
   case thought(startedAt: Date, shellWorking: Bool)
   /// "This message was deleted": nothing follows it.
@@ -132,7 +133,8 @@ public struct MessageRow: Equatable, Sendable {
       parts.append(.sokoBotSource(label))
     }
     if case .failed? = shell {
-      parts.append(.failedMention)
+      let failure = message.metadata?.additionalProperties["mention_failure"]?.value as? [String: Any]
+      parts.append(.failedMention(aiBudgetExceeded: failure?["kind"] as? String == "ai_budget_exceeded"))
     } else if hasThoughtView(message) {
       // A persisted mention shell keeps the live Thought header until Core fills the answer; its clock starts at
       // `thought_timing_ms.start`.

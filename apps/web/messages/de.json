@@ -1,5 +1,8 @@
 {
   "Components": {
+    "SokoBotTurnFailure": {
+      "aiBudgetExceeded": "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird."
+    },
     "AuthCaptcha": {
       "error": "Die Sicherheitsprüfung konnte nicht geladen werden. Deaktiviere Inhaltsblocker oder lade die Seite neu.",
       "verificationFailed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuche es erneut.",

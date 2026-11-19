@@ -1,5 +1,8 @@
 {
   "Components": {
+    "SokoBotTurnFailure": {
+      "aiBudgetExceeded": "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets."
+    },
     "AuthCaptcha": {
       "error": "Security check could not load. Turn off content blockers or reload the page.",
       "verificationFailed": "The security check failed. Please try again.",
