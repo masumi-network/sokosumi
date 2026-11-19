@@ -1,4 +1,5 @@
 import {
+  isCmoMeasurementSource,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotDraftEmailInputSchema,
   sokoBotListCalendarEventsInputSchema,
@@ -12,6 +13,7 @@ import {
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
+import { testCopySourceBotId } from "@/services/cmo-test-copy.service";
 import {
   adToolkitRefusal,
   integrationToolSearchResult,
@@ -33,6 +35,23 @@ import {
   SokoBotRuntimeValidationError,
 } from "../soko-bot-runtime.service";
 import { type RuntimeOperations } from "./operations";
+
+/**
+ * The bot's connected account for a generic toolkit. A CMO test copy has no
+ * measurement account of its own: it reads its source's (ADR 0073), and only
+ * with tools Composio marks read-only.
+ */
+async function genericIntegration(sokoBotId: string, provider: string) {
+  const sourceBotId = isCmoMeasurementSource(provider)
+    ? await testCopySourceBotId(sokoBotId)
+    : null;
+  const [integration] = await activeIntegrationsForBot(
+    sourceBotId ?? sokoBotId,
+    "generic",
+    provider,
+  );
+  return { integration, readOnly: sourceBotId !== null };
+}
 
 export async function dispatchIntegrationsTools(
   runtime: RuntimeOperations,
@@ -152,9 +171,8 @@ export async function dispatchIntegrationsTools(
       const parsed = sokoBotListIntegrationToolsInputSchema.parse(input.input);
       const refusal = adToolkitRefusal(parsed.provider);
       if (refusal) throw new SokoBotRuntimeValidationError(refusal);
-      const [integration] = await activeIntegrationsForBot(
+      const { integration } = await genericIntegration(
         authorized.turn.sokoBotId,
-        "generic",
         parsed.provider.toLowerCase(),
       );
       if (!integration) {
@@ -178,9 +196,8 @@ export async function dispatchIntegrationsTools(
       // Nothing was sent: a refused-unsent receipt, so a retry stays allowed.
       const refusal = adToolkitRefusal(parsed.provider, parsed.tool);
       if (refusal) throw new SokoBotRefusedUnsentError(refusal);
-      const [integration] = await activeIntegrationsForBot(
+      const { integration, readOnly } = await genericIntegration(
         authorized.turn.sokoBotId,
-        "generic",
         parsed.provider.toLowerCase(),
       );
       if (!integration) {
@@ -189,7 +206,7 @@ export async function dispatchIntegrationsTools(
         );
       }
       return (
-        input.capability === "read_integration_tool"
+        input.capability === "read_integration_tool" || readOnly
           ? readIntegrationTool
           : runIntegrationTool
       )(integration, parsed.tool, parsed.arguments ?? {});

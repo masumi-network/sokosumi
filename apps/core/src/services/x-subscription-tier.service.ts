@@ -10,7 +10,7 @@ import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
-import { projectExecutorUserId } from "@/services/project-social-connections.service";
+import { connectionExecutorUserId } from "@/services/project-social-connections.service";
 
 export const X_SUBSCRIPTION_LOOKUP_TIMEOUT_MS = 3_000;
 
@@ -21,7 +21,7 @@ type XConnection = Pick<
   | "provider"
   | "composioConnectedAccountId"
   | "subscriptionType"
->;
+> & { executorProjectId?: string | null };
 
 const subscriptionSchema = z.enum(["None", "Basic", "Premium", "PremiumPlus"]);
 
@@ -41,7 +41,7 @@ async function lookupXSubscriptionType(
     sessionId = await createComposioToolSession({
       toolkitSlug: "twitter",
       connectedAccountId: connection.composioConnectedAccountId,
-      executorUserId: projectExecutorUserId(connection.projectId),
+      executorUserId: connectionExecutorUserId(connection),
       toolSlugs: ["TWITTER_USER_LOOKUP_ME"],
       context: "create X subscription lookup session",
       signal,
@@ -152,6 +152,7 @@ export async function resolveProjectXSubscriptionTypes(
       projectId: true,
       provider: true,
       composioConnectedAccountId: true,
+      executorProjectId: true,
       subscriptionType: true,
     },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],

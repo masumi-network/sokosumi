@@ -186,6 +186,8 @@ export interface HomeSearchParams {
   cusos?: string | string[];
   /** "Hire a new Cuso" and Start over: the hire form. */
   hire?: string | string[];
+  /** With `hire`: the Project of the Cuso to hire a test copy of. */
+  testCopyOf?: string | string[];
   connect?: string | string[];
   from?: string | string[];
 }
@@ -280,6 +282,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         organizations={organizations}
         signOut={signOut}
         cusoPicker={opened.cusoPicker}
+        testCopyOf={first(params.testCopyOf) || undefined}
         onboard={onboard}
       />
     );

@@ -61,7 +61,7 @@ import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { CMO_PAUSED, LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 import { studioVideoOfMedia } from "@/services/image-studio-drive.service";
 import {
-  projectExecutorUserId,
+  connectionExecutorUserId,
   requireLockedOpenProject,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
@@ -87,6 +87,8 @@ const SETTLEMENT_RESERVE_MS = 20_000;
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_INACTIVE_ERROR = "Social connection needs reconnecting";
+/** A test copy schedules real posts and never sends one (ADR 0073). */
+export const TEST_COPY_NEVER_PUBLISHES = "A test copy never publishes";
 const PROJECT_CLOSED_ERROR =
   "Cannot publish Social posts in a closing or closed Project";
 const AUTHORIZATION_REVOKED_ERROR =
@@ -131,6 +133,7 @@ const publisherInclude = {
   socialConnection: {
     select: {
       id: true,
+      executorProjectId: true,
       provider: true,
       status: true,
       composioConnectedAccountId: true,
@@ -319,10 +322,13 @@ async function checkProjectPublishingAccess(
   attemptId?: string,
 ): Promise<AttemptOutcome | null> {
   try {
-    await requireScopedProject(post, {
+    const project = await requireScopedProject(post, {
       requireOpen: true,
       closedMessage: PROJECT_CLOSED_ERROR,
     });
+    // The last check before the provider: whatever claimed this post, a test
+    // copy's post stays here (ADR 0073).
+    if (project.testCopyOfProjectId) throw conflict(TEST_COPY_NEVER_PUBLISHES);
     return null;
   } catch (error) {
     if (
@@ -341,7 +347,10 @@ async function checkProjectPublishingAccess(
     }
     const settled = await settle(post, {
       status: "FAILED",
-      lastError: PROJECT_CLOSED_ERROR,
+      lastError:
+        error.message === TEST_COPY_NEVER_PUBLISHES
+          ? TEST_COPY_NEVER_PUBLISHES
+          : PROJECT_CLOSED_ERROR,
     });
     return settled ? "failed" : "skipped";
   }
@@ -924,7 +933,10 @@ async function attemptPublish(
       ...(toolSlug === ZERNIO_TIKTOK_CREATE_POST && { postId: post.id }),
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
-      executorUserId: projectExecutorUserId(post.projectId),
+      executorUserId: connectionExecutorUserId({
+        projectId: post.projectId,
+        executorProjectId: connection.executorProjectId,
+      }),
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
       text: post.text,
@@ -1063,7 +1075,10 @@ async function attemptPublish(
         provider,
         subscriptionType,
         connectedAccountId: connection.composioConnectedAccountId,
-        executorUserId: projectExecutorUserId(post.projectId),
+        executorUserId: connectionExecutorUserId({
+          projectId: post.projectId,
+          executorProjectId: connection.executorProjectId,
+        }),
         externalAccountId: connection.externalAccountId,
         externalId: lastExternalId ?? published.externalId,
         text: firstComment,
@@ -1142,7 +1157,12 @@ async function claimDuePost(held: string[]): Promise<ClaimResult> {
       OR: [
         {
           status: "SCHEDULED",
-          project: { closingAt: null, closedAt: null },
+          // A test copy's due post is held, never sent (ADR 0073).
+          project: {
+            closingAt: null,
+            closedAt: null,
+            testCopyOfProjectId: null,
+          },
           ...(held.length > 0 && { projectId: { notIn: held } }),
           scheduledAt: { lte: now },
           OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
@@ -1267,9 +1287,12 @@ export async function publishSocialPostNow(
   if (paused.length > 0) throw conflict(CMO_PAUSED);
   const { post, now, leaseToken, movedQuotes } = await serializableTransaction(
     async (tx) => {
-      await requireLockedOpenProject(tx, input, {
+      const project = await requireLockedOpenProject(tx, input, {
         closedMessage: PROJECT_CLOSED_ERROR,
       });
+      if (project.testCopyOfProjectId) {
+        throw conflict(TEST_COPY_NEVER_PUBLISHES);
+      }
       const post = await tx.socialPost.findFirst({
         where: {
           id: input.postId,

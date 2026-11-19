@@ -1698,6 +1698,7 @@ describe("social posts service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
+        testCopyOfProjectId: true,
         workspace: {
           select: {
             organization: { select: { slug: true } },
@@ -4103,6 +4104,7 @@ describe("social posts service", () => {
           id: true,
           closingAt: true,
           closedAt: true,
+          testCopyOfProjectId: true,
           workspace: {
             select: {
               organization: { select: { slug: true } },
