@@ -18,6 +18,8 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "install_skill",
   "provide_job_input",
   "run_integration_tool",
+  // Not run_mcp_tool: its dispatcher applies a stricter rule of its own (the
+  // owner's turn, and nothing untrusted but that same server; ADR 0074).
   "upload_file",
   // Deleting is for good; a page the bot read must not pick what goes.
   "delete_file",

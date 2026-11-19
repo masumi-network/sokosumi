@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fakeMcpServer } from "@/test-fixtures/fake-mcp-server";
+import { fakeMcpServer } from "@/lib/evals/fake-mcp-server";
 
 import {
   callMcpServerTool,

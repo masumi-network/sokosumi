@@ -90,6 +90,7 @@ export const ACTION_LABELS: Record<string, string> = {
   hire_agent: "Hired agent",
   provide_job_input: "Submitted job input",
   run_integration_tool: "Integration acknowledged operation",
+  run_mcp_tool: "Ran a tool on an MCP server",
   upload_file: "Uploaded file",
   generate_voiceover: "Made voice-over",
   move_file: "Moved file",

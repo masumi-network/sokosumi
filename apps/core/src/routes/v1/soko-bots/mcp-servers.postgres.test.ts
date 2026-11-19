@@ -3,9 +3,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
 import prisma from "@/lib/db/prisma";
+import { fakeMcpServer } from "@/lib/evals/fake-mcp-server";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { mcpServerTarget } from "@/services/soko-bot-mcp.service";
-import { fakeMcpServer } from "@/test-fixtures/fake-mcp-server";
 
 import { mountSokoBotMcpServerRoutes } from "./mcp-servers";
 
