@@ -156,6 +156,7 @@ export const seoActionSchema = z
     status: z.enum([
       "recommended",
       "task_created",
+      "unavailable",
       "implemented",
       "verified",
       "canceled",

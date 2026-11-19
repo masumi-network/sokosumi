@@ -6,6 +6,7 @@ import type {
 import {
   CORE_API_ERROR_KINDS,
   SEO_FULL_AUDIT_MAX_PROVIDER_USD,
+  seasonalUpdateHasPassed,
   seoTaskDescription,
 } from "@sokosumi/utils";
 
@@ -15,6 +16,7 @@ import {
   readPublicSeoDecisions,
 } from "@/helpers/project-seo-decisions";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
+import { seasonalPayloadActions } from "@/helpers/project-seo-seasonal";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   requireSeoAnalysisDispatch,
@@ -23,8 +25,9 @@ import {
 import {
   requireSeoAnalysisBalance,
   requireSeoFullAuditPriceApproval,
-  seoAnalysisMaxCredits,
+  seoAnalysisAdmissionCredits,
 } from "@/lib/seo/analysis-price";
+import { fullAuditBillingContext } from "@/lib/seo/audit-settlement";
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
 import { seoPageComparisonKey } from "@/lib/seo/related-page-selection";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
@@ -98,9 +101,14 @@ export function seoTaskPacket(
     (context && input.kind !== "audit_full")
   )
     throw badRequest("Choose shared page goals for one full audit only");
+  const price =
+    input.fullAuditPrice ??
+    (input.fullAuditCredits === undefined
+      ? undefined
+      : { kind: "fixed", credits: input.fullAuditCredits });
   if (
     input.kind === "audit_full" &&
-    input.fullAuditCredits !== undefined &&
+    price &&
     new Set(pageUrls.map(seoPageComparisonKey)).size !== pageUrls.length
   )
     throw badRequest(
@@ -113,12 +121,7 @@ export function seoTaskPacket(
           ...(context ? { context } : {}),
           requestId,
           pageUrls,
-          ...(input.fullAuditCredits !== undefined
-            ? { inspectRelated: true }
-            : {}),
-          ...(input.fullAuditCredits !== undefined
-            ? { price: { kind: "fixed", credits: input.fullAuditCredits } }
-            : {}),
+          ...(price ? { price, inspectRelated: true } : {}),
           ...(input.keywords[0] ? { keyword: input.keywords[0] } : {}),
           countryCode: input.countryCode,
           languageCode: input.languageCode,
@@ -177,11 +180,11 @@ export function validateSeoAnalysis(
     throw badRequest("Select each competitor once");
   if (input.kind === "audit_full") {
     if (
-      input.fullAuditCredits !== undefined &&
+      (input.fullAuditPrice || input.fullAuditCredits !== undefined) &&
       (input.fullAuditLimits?.usd ?? 0) > SEO_FULL_AUDIT_MAX_PROVIDER_USD
     )
       throw badRequest(
-        "The full-audit data budget exceeds the fixed-price allowance",
+        "The full-audit data budget exceeds the provider allowance",
       );
     if (input.analyses || input.competitorUrls.length)
       throw badRequest("Full audits cannot use focused analysis options");
@@ -197,7 +200,7 @@ export function validateSeoAnalysis(
       throw badRequest("A full related-page audit uses pages on the same host");
     return;
   }
-  if (input.fullAuditCredits !== undefined)
+  if (input.fullAuditPrice || input.fullAuditCredits !== undefined)
     throw badRequest("A full-audit price applies only to full audits");
   if (input.fullAuditLimits)
     throw badRequest("Full-audit limits apply only to full audits");
@@ -291,7 +294,7 @@ async function prepareSeoAnalysis(
       organizationId: actor.organizationId,
       projectId,
     },
-    seoAnalysisMaxCredits(input, pageUrls.length),
+    seoAnalysisAdmissionCredits(input, pageUrls.length),
   );
   return {
     input,
@@ -467,10 +470,15 @@ export async function requestProjectSeoAnalysisInTransaction(
     },
     tx,
   );
-  const request: Prisma.InputJsonObject =
-    access === undefined
-      ? packet
-      : { ...packet, searchConsoleAccess: access && { ...access } };
+  const request: Prisma.InputJsonObject = {
+    ...packet,
+    ...(access !== undefined && {
+      searchConsoleAccess: access && { ...access },
+    }),
+    ...(input.fullAuditPrice && {
+      fullAuditBillingContext: fullAuditBillingContext(task),
+    }),
+  };
   const result = await tx.projectSeoAnalysis.update({
     where: { id: analysis.id },
     data: {
@@ -538,6 +546,20 @@ async function resolveSeoTaskSource(
           publicDecisionAction(d, data.countryCode, data.languageCode),
         )
         .find((d) => d.id === input.actionId);
+    const seasonal =
+      !strategy && observation.kind === "audit_full"
+        ? seasonalPayloadActions(data).find(
+            (row) => row.action.id === input.actionId,
+          )
+        : undefined;
+    if (seasonal)
+      return {
+        observation,
+        action: seasonal.action,
+        evidence: seasonal.action.evidence,
+        seasonalIdea: seasonal.idea,
+        decision: undefined,
+      };
     if (!strategy) throw notFound("SEO recommendation not found");
     return {
       observation,
@@ -616,7 +638,7 @@ export async function createProjectSeoActionTask(
         throw notFound("SEO observation not found");
       return existingTask(previous);
     }
-    const { observation, action, evidence, decision } =
+    const { observation, action, evidence, decision, seasonalIdea } =
       await resolveSeoTaskSource(tx, actor, input);
     // Stable opportunity IDs refer to the same work across later audits and Search Console syncs.
     const sameOpportunity = evidence.length
@@ -625,6 +647,10 @@ export async function createProjectSeoActionTask(
         })
       : null;
     if (sameOpportunity) return existingTask(sameOpportunity);
+    if (seasonalIdea && seasonalUpdateHasPassed(seasonalIdea, new Date()))
+      throw conflict(
+        "This seasonal window has passed. Run a new audit to find the next opportunity.",
+      );
     const proposedEdit = action.edit
       ? `\n\nProposed edit:\n${JSON.stringify(action.edit, null, 2)}`
       : "";
@@ -638,7 +664,7 @@ export async function createProjectSeoActionTask(
         workspaceId: actor.workspaceId,
         projectId: await requireSeoTaskProject(actor, tx),
         name: action.title,
-        description: `Page: ${action.pageUrl}\n\n${action.why}\n\n${decision ? `Alternative: ${decision.alternative}\n\nNext check: ${decision.nextCheck}` : `Expected effect (hypothesis): ${action.expectedEffect}`}${proposedEdit}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${!decision && evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
+        description: `Page: ${action.pageUrl}\n\n${action.why}\n\n${decision ? `Alternative: ${decision.alternative}\n\nNext check: ${decision.nextCheck}` : `Expected effect (hypothesis): ${action.expectedEffect}`}${proposedEdit}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${!decision && !seasonalIdea && evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
         status: "DRAFT",
         visibility: "PUBLIC",
       },

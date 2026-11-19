@@ -18,6 +18,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SeoChatReply } from "./seo-chat-reply";
 import { SeoConnectionButton } from "./seo-connection-button";
+import {
+  canDraftSeoAction,
+  useSeasonalClock,
+} from "./seo-seasonal-ideas-model";
 import { SeoDate } from "./seo-shared";
 import type { SeoDialog, SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -108,6 +112,12 @@ function ChatActions({
   model: SeoWorkspaceModel;
 }) {
   const t = useTranslations("App.Seo");
+  const now = useSeasonalClock(
+    turn.actions.some(
+      (action) =>
+        action.kind === "task" && action.actionId.startsWith("seasonal:"),
+    ),
+  );
   const tasks: ReactNode[] = [];
   const buttons: ReactNode[] = [];
   turn.actions.forEach((action, index) => {
@@ -153,7 +163,7 @@ function ChatActions({
                 {t("openTask")}
               </Link>
             </Button>
-          ) : model.data.availableActions.canEdit ? (
+          ) : canDraftSeoAction(model.data, current, now) ? (
             <Button
               size="sm"
               variant="outline"

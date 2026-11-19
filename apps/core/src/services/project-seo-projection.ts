@@ -20,6 +20,7 @@ import {
   saveSeoKeywordSchema,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
+import { applySeoActionTaskVisibility } from "./project-seo-action-task-visibility";
 import {
   actionVerifiedAt,
   latestDate,
@@ -98,6 +99,7 @@ const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
 /** Current views are projections. Historical observations and human choices remain separate. */
 export function projectSeoProjection(
   input: ProjectionInput,
+  now = new Date(),
 ): ProjectSeoWorkspace {
   const { project, scope, query } = input;
   const selectedIds = new Set(scope.pageIds),
@@ -148,6 +150,7 @@ export function projectSeoProjection(
     selectedUrls,
     actionTasks,
     taskStatuses,
+    now,
   );
   const seasonalIdeas = decisions.seasonal;
   const searchSources: SearchEvidenceSource[] = [];
@@ -598,16 +601,7 @@ export function projectSeoProjection(
     taskStatuses,
   );
   actions.push(...decisions.actions, ...search.actions);
-  // The day each Task behind an action completed, so a chart can mark it. A reopened Task is not done.
-  for (const action of actions) {
-    const task = input.tasks.find((item) => item.id === action.taskId);
-    if (action.taskId && !task) {
-      action.taskId = null;
-      action.status = "recommended";
-    }
-    if (task?.status === "COMPLETED" && task.completedAt)
-      action.completedAt = task.completedAt.toISOString();
-  }
+  applySeoActionTaskVisibility(actions, input.actionTasks, input.tasks);
   for (const link of actionTasks) {
     const observation =
       scopedPublicSources.get(link.observationId) ??

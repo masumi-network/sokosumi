@@ -29,7 +29,6 @@ import { requireOwnerSeat } from "@/helpers/owner-seat";
 import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
-  mapTaskEvent,
   validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
@@ -62,6 +61,7 @@ import {
 } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { prepareAuditSettlement } from "@/lib/seo/audit-settlement";
 import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskStatusSchema } from "@/schemas/domain-enums.schema";
@@ -77,45 +77,28 @@ import {
   createTaskPaymentClaim,
   processTaskPaymentClaim,
 } from "@/services/task-payment-claim.service";
-import { taskEventApiInclude } from "@/types/task";
-
 import {
   failedAdmissionSchema,
   requireFailedSeoAdmission,
 } from "./failed-admission";
-import { createTaskEventRequestSchema } from "./schema";
+import { mapCreatedTaskEventForResponse } from "./map-created-event";
+import {
+  createTaskEventRequestSchema,
+  seoSettlementFields,
+  taskEventParamsSchema,
+} from "./schema";
 import { settleTaskEventCharge } from "./settle-charge";
-
-const paramsSchema = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
-    example: "tsk_123",
-  }),
-});
-
-async function mapCreatedTaskEventForResponse(
-  tx: Prisma.TransactionClient,
-  eventId: string,
-): Promise<ReturnType<typeof mapTaskEvent>> {
-  const row = await tx.taskEvent.findUnique({
-    where: { id: eventId },
-    include: taskEventApiInclude,
-  });
-  if (!row) {
-    throw internalServerError(`Task event not found after create: ${eventId}`);
-  }
-  return mapTaskEvent(row);
-}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   mountTaskEventRoute(app, "standard");
   mountTaskEventRoute(app, "context");
   mountTaskEventRoute(app, "failed-admission");
+  mountTaskEventRoute(app, "seo-settlement");
 }
 
 function mountTaskEventRoute(
   app: OpenAPIHonoWithAuth,
-  mode: "standard" | "context" | "failed-admission",
+  mode: "standard" | "context" | "failed-admission" | "seo-settlement",
 ) {
   const baseSchema = createTaskEventRequestSchema({
     serverNetwork: getEnv().NETWORK,
@@ -134,6 +117,12 @@ function mountTaskEventRoute(
         z.object({ expectedContext: taskWorkerContextSchema }),
       ),
     },
+    "seo-settlement": {
+      path: "/{id}/events/seo-settlement-v1",
+      description:
+        "Settle a completed full audit once using the original cost-plus approval and verified API receipts.",
+      schema: baseSchema.and(seoSettlementFields),
+    },
     "failed-admission": {
       path: "/{id}/events/failed-admission-v1",
       description:
@@ -149,7 +138,7 @@ function mountTaskEventRoute(
     description,
     tags: ["Tasks"],
     request: {
-      params: paramsSchema,
+      params: taskEventParamsSchema,
       body: {
         required: mode === "failed-admission" || undefined,
         content: {
@@ -337,6 +326,12 @@ function mountTaskEventRoute(
       }
       let cents: bigint | undefined;
       let transactionId: string | null = null;
+      const recordAuditCost = await prepareAuditSettlement(
+        tx,
+        task,
+        body,
+        isAgent && mode === "seo-settlement",
+      );
       let eventStatus: TaskStatus | null = status ?? null;
       let chargedMasumiPayment = false;
       let pausedForInsufficientBalance = false;
@@ -360,6 +355,9 @@ function mountTaskEventRoute(
             settled.eventStatus === TaskStatus.OUT_OF_CREDITS;
         }
       }
+
+      if (eventStatus === TaskStatus.OUT_OF_CREDITS || transactionId)
+        await recordAuditCost?.(eventStatus);
 
       const actorData = resolveTaskEventActorFields(authContext);
 

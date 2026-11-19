@@ -7,6 +7,9 @@ import { taskService } from "@/lib/services/task.service";
 import { taskWorkspaceAfterMiss } from "../_lib/task-workspace-after-miss";
 import { OpenTaskResult } from "./open-task-result";
 
+// The destination depends on the current reader's permissions and the latest import state.
+export const instant = false;
+
 export default async function TaskResultPage({
   params,
 }: {
@@ -19,7 +22,7 @@ export default async function TaskResultPage({
   if (!task)
     return taskWorkspaceAfterMiss(taskId, await getPrivateCachedSession());
   const result = task.status === "COMPLETED" ? task.seoAudit : null;
-  if (!result?.auditId && !result?.projectId) {
+  if (!result?.resultAvailable || (!result.auditId && !result.projectId)) {
     redirect(`/tasks/${encodeURIComponent(task.id)}`);
   }
   const t = await getTranslations("App.Tasks.Detail");

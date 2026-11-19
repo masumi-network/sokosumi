@@ -501,6 +501,7 @@ export const taskSchema = taskBaseSchema
           .object({
             auditId: z.string().uuid().nullable(),
             projectId: z.string().uuid().nullable(),
+            resultAvailable: z.boolean().optional(),
           })
           .openapi("TaskSeoAudit"),
         z.null(),

@@ -67,7 +67,12 @@ it("shows aggregate counts, incident time, page impact and an admin-only task li
 
 it("shows counts on the admin hub and distinguishes a failed read from zero alerts", async () => {
   const { SeoAlertSummary } = await import("./seo-alert-summary");
-  read.mockResolvedValueOnce({ critical: 2, warning: 3, reconnect: 1 });
+  read.mockResolvedValueOnce({
+    critical: 2,
+    warning: 3,
+    reconnect: 1,
+    pricingAttention: 1,
+  });
   render(await SeoAlertSummary());
   expect(
     screen.getByText("Last 30 days: 2 critical, 3 warnings"),
@@ -81,6 +86,7 @@ it("shows counts on the admin hub and distinguishes a failed read from zero aler
   read.mockRejectedValueOnce(new Error("unavailable"));
   render(await SeoAlertSummary());
   expect(screen.getByText("Alert counts are unavailable.")).toBeInTheDocument();
+  expect(screen.getByText("Audit payments to check: 1")).toBeInTheDocument();
 });
 
 it("shows a current provider incident with an account link on its own tab", async () => {
@@ -91,6 +97,8 @@ it("shows a current provider incident with an account link on its own tab", asyn
     connections: [
       {
         id: "conn",
+        workspaceId: "same-user-second-workspace",
+        workspaceOrganizationSlug: "studio/rental",
         userId: "user/1",
         provider: "ga4",
         status: "NEEDS_RECONNECT",
@@ -103,10 +111,104 @@ it("shows a current provider incident with an account link on its own tab", asyn
       searchParams: Promise.resolve({ view: "connections" }),
     }),
   );
+  expect(
+    screen
+      .getByRole("link", { name: /same-user-second-workspace/ })
+      .getAttribute("href"),
+  ).toBe("/admin/organizations/studio%2Frental");
   expect(screen.getByText("Google Analytics 4")).toBeInTheDocument();
   expect(screen.getByText("Needs reconnection")).toBeInTheDocument();
   expect(
     screen.getByRole("link", { name: "Open account" }).getAttribute("href"),
   ).toBe("/admin/users/user%2F1");
   expect(screen.queryByRole("link", { name: "Open source task" })).toBeNull();
+});
+
+it("shows a selectable audit and workspace reference when an incident has no Task", async () => {
+  read.mockResolvedValue({
+    total: 1,
+    connectionTotal: 0,
+    critical: 1,
+    warning: 0,
+    info: 0,
+    pageSize: 25,
+    items: [
+      {
+        id: "audit-1",
+        auditId: "audit-1",
+        workspaceId: "workspace-3",
+        taskId: null,
+        severity: "critical",
+        at: new Date(),
+        reasons: ["workerFailed"],
+      },
+    ],
+  });
+  render(await AdminSeoAlertsPage({ searchParams: Promise.resolve({}) }));
+  expect(screen.getByText("audit-1").tagName).toBe("CODE");
+  expect(screen.getByText("workspace-3").tagName).toBe("CODE");
+  expect(screen.queryByRole("link", { name: "Open source task" })).toBeNull();
+});
+
+it("links the first metered run to its pending Task and shows only settled provider totals as cost", async () => {
+  const pending = {
+    id: "new-run",
+    taskId: "new/run",
+    at: new Date("2026-11-19T00:00:00Z"),
+    status: "receiptsPending",
+    approvedMaxCredits: null,
+    attemptedCredits: null,
+    dataBudgetUsd: null,
+    chargedCredits: null,
+    cost: null,
+  };
+  read.mockResolvedValue({
+    total: 0,
+    connectionTotal: 0,
+    billingTotal: 2,
+    pageSize: 25,
+    billing: [
+      pending,
+      {
+        ...pending,
+        id: "canceled-run",
+        taskId: "canceled",
+        status: "abandoned",
+        attemptedCredits: 777,
+        dataBudgetUsd: 3,
+      },
+      {
+        ...pending,
+        id: "done-run",
+        taskId: "done",
+        status: "settled",
+        chargedCredits: 900,
+        cost: {
+          version: 1,
+          gatewayMicroUsd: 1500000,
+          directModelMicroUsd: 2200000,
+          dataForSeoMicroUsd: 2299986,
+          otherApiMicroUsd: 14,
+        },
+      },
+    ],
+  });
+  render(
+    await AdminSeoAlertsPage({
+      searchParams: Promise.resolve({ view: "billing" }),
+    }),
+  );
+  expect(screen.getByText("Waiting for cost receipts")).toBeVisible();
+  expect(screen.getByRole("link", { name: "Task ID new/run" })).toHaveAttribute(
+    "href",
+    "/admin/tasks/new%2Frun",
+  );
+  expect(screen.getByText("Closed with unpaid costs")).toBeVisible();
+  expect(screen.getByText("777 credits")).toBeVisible();
+  expect(screen.getByText("0 credits")).toBeVisible();
+  expect(screen.getByText("$3.00")).toBeVisible();
+  expect(screen.getByText("900 credits")).toBeVisible();
+  expect(screen.getByText("$6.00")).toBeVisible();
+  expect(screen.getByText("$0.000014")).toBeVisible();
+  expect(screen.queryByText("Approved maximum")).toBeNull();
 });

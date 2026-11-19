@@ -235,7 +235,7 @@ export function seoMonitorDescriptionForUser(
 export function requireSeoMonitorApprovalForWrite(
   description: string | null | undefined,
   previous?: string | null,
-  approvedMonitor = false,
+  approvedMonitor?: "interactive" | "cmo-subscription",
 ): void {
   if (
     !isSeoMonitorDescription(description ?? null) ||
@@ -248,7 +248,11 @@ export function requireSeoMonitorApprovalForWrite(
   } catch {
     throw unprocessableEntity("The SEO monitor blueprint is not valid");
   }
-  if (plan) requireSeoFullAuditPriceApproval(plan.analysis);
+  if (plan)
+    requireSeoFullAuditPriceApproval(
+      plan.analysis,
+      approvedMonitor === "cmo-subscription",
+    );
   if (plan?.analysis.kind === "audit_full" && !approvedMonitor)
     throw conflict(
       "Start the recurring full audit from SEO to approve its Search Console coverage.",

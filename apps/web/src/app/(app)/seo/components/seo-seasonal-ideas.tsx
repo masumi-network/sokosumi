@@ -1,6 +1,11 @@
 "use client";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { SeoActionTaskButton } from "./seo-action-finding";
+import {
+  seasonalIdeaTiming,
+  useSeasonalClock,
+} from "./seo-seasonal-ideas-model";
 import {
   SeoFoldSummary,
   SeoPageText,
@@ -10,9 +15,11 @@ import {
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
+  const tActions = useTranslations("App.Seo.actions");
   const t = useTranslations("App.Seo.keywords.seasonal");
   const format = useFormatter();
   const locale = useLocale();
+  const now = useSeasonalClock(!!model.data.seasonalIdeas?.length);
   if (!model.data.seasonalIdeas?.length) return null;
   const query = model.keywordSearch.trim().toLocaleLowerCase(locale);
   const ideas = model.data.seasonalIdeas.filter((idea) =>
@@ -58,6 +65,24 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
           const status = comparison?.status;
           const hasComparison =
             status === "above_baseline" || status === "no_observed_rise";
+          const timing = seasonalIdeaTiming(idea, now);
+          const action = model.data.actions.find(
+            (row) => row.id === idea.actionId,
+          );
+          const noWindowRise =
+            !idea.event && !idea.windows.length && timing.observed.length > 0;
+          // What to confirm before acting, as one list: separate grey lines
+          // read like more evidence and hid where the checks begin.
+          const checks = [
+            ...((!hasComparison && !idea.windows.length) ||
+            idea.limitations.includes("demand_unverified")
+              ? (["verifyDemand"] as const)
+              : []),
+            ...idea.limitations.filter(
+              (limit) =>
+                limit !== "timing_uncertain" && limit !== "demand_unverified",
+            ),
+          ];
           return (
             <li
               key={JSON.stringify([
@@ -68,11 +93,18 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                 idea.audience,
                 idea.event?.date,
               ])}
-              className="space-y-1 px-2 py-3"
+              className="space-y-1 px-2 py-3 wrap-anywhere"
             >
               <h3 className="text-sm font-medium">
                 <bdi>{idea.keyword}</bdi>
               </h3>
+              {/* Market and audit date sit under the search they qualify. */}
+              <p className="text-muted-foreground text-xs">
+                {t("audit", {
+                  market: seoMarketName(locale, idea.country, idea.language),
+                  date: day(idea.asOf),
+                })}
+              </p>
               {idea.event && (
                 <>
                   <p className="text-sm font-medium">
@@ -86,48 +118,53 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                   </p>
                 </>
               )}
-              {idea.windows.length > 0 && (
+              {timing.upcoming.length > 0 && (
                 <p className="text-sm font-medium">
                   {t("planFor", {
-                    months: format.list(
-                      idea.windows.map((window) => month(window.targetPeriod)),
-                    ),
+                    months: format.list(timing.upcoming.map(month)),
                   })}
                 </p>
               )}
-              <p className="text-muted-foreground text-xs">
-                {t("audit", {
-                  market: seoMarketName(locale, idea.country, idea.language),
-                  date: day(idea.asOf),
-                })}
-              </p>
+              {timing.passed && (
+                <p className="text-sm font-medium">
+                  {t("passed", {
+                    timing: idea.event
+                      ? day(idea.event.date)
+                      : format.list(timing.passedMonths.map(month)),
+                  })}
+                </p>
+              )}
               <p className="text-sm">
                 {idea.origin === "market_history"
                   ? t("historicalIdea")
                   : t(idea.action, { audience: idea.audience })}
               </p>
-              {(hasComparison || idea.windows.length > 0) && (
+              {action?.status === "unavailable" && (
                 <p className="text-muted-foreground text-sm">
-                  {t(hasComparison ? status : "windowRise")}
+                  {tActions("unavailable")}
                 </p>
               )}
-              {((!hasComparison && !idea.windows.length) ||
-                idea.limitations.includes("demand_unverified")) && (
+              {action && (action.taskId || !timing.passed) && (
+                <SeoActionTaskButton action={action} model={model} />
+              )}
+              {(hasComparison || idea.windows.length > 0 || noWindowRise) && (
                 <p className="text-muted-foreground text-sm">
-                  {t("verifyDemand")}
+                  {t(
+                    hasComparison
+                      ? status
+                      : noWindowRise
+                        ? "noWindowRise"
+                        : "windowRise",
+                  )}
                 </p>
               )}
-              {idea.limitations
-                .filter(
-                  (limit) =>
-                    limit !== "timing_uncertain" &&
-                    limit !== "demand_unverified",
-                )
-                .map((limit) => (
-                  <p className="text-muted-foreground text-sm" key={limit}>
-                    {t(limit)}
-                  </p>
-                ))}
+              {checks.length > 0 && (
+                <ul className="text-muted-foreground list-disc space-y-0.5 ps-5 text-sm">
+                  {checks.map((check) => (
+                    <li key={check}>{t(check)}</li>
+                  ))}
+                </ul>
+              )}
               <details className="text-sm">
                 <SeoFoldSummary className="text-muted-foreground min-h-10 w-fit font-medium">
                   {t("evidence")}
@@ -154,6 +191,20 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                     <p>
                       {t("incompleteComparison", {
                         counts: format.list(counts),
+                      })}
+                    </p>
+                  )}
+                  {timing.observed.length > 0 && (
+                    <p>
+                      {t("observed", {
+                        counts: format.list(
+                          timing.observed.map((row) =>
+                            t("count", {
+                              month: month(row.period),
+                              volume: row.volume,
+                            }),
+                          ),
+                        ),
                       })}
                     </p>
                   )}

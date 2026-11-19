@@ -6,6 +6,10 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { seoOverviewModel } from "./seo-overview-model";
+import {
+  canDraftSeoAction,
+  useSeasonalClock,
+} from "./seo-seasonal-ideas-model";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 /** What the check found, where an issue is behind the action; else the effect of the fix. */
@@ -47,6 +51,7 @@ export function SeoActionTaskButton({
   model: SeoWorkspaceModel;
 }) {
   const t = useTranslations("App.Seo");
+  const now = useSeasonalClock(action.id.startsWith("seasonal:"));
   return action.taskId ? (
     <Button asChild size="sm" variant="outline">
       <Link href={`/tasks/${encodeURIComponent(action.taskId)}`}>
@@ -54,7 +59,7 @@ export function SeoActionTaskButton({
         {t("openTask")}
       </Link>
     </Button>
-  ) : model.data.availableActions.canEdit ? (
+  ) : canDraftSeoAction(model.data, action, now) ? (
     <Button
       size="sm"
       // Tinted, not the brand fill: a draft is a quiet step the owner reviews later (owner, 2026-11-13).

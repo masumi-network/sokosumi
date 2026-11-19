@@ -30,6 +30,7 @@ import {
   seoAlertRowsSchema,
   seoSerpReadsSchema,
 } from "./project-seo-report-serps";
+import { readSeasonalInsight } from "./project-seo-seasonal";
 import {
   auditedSeoPageKey,
   publicSiteFindings,
@@ -647,10 +648,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     ...Object.values(result.header.finalUrl ?? {}),
   ].flatMap((value) => (value ? [auditedSeoPageKey(value)] : []));
   const seasonalIdeas = result.seasonalReview?.insights
-    .flatMap((row) => {
-      const parsed = seoSeasonalIdeaSchema.safeParse(row);
-      return parsed.success ? [parsed.data] : [];
-    })
+    .flatMap((row) => readSeasonalInsight(row) ?? [])
     .filter(
       (idea) =>
         publicTargets.includes(auditedSeoPageKey(idea.url)) &&

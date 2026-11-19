@@ -48,7 +48,11 @@ describe("completed Task result", () => {
       "/seo?projectId=project-3&view=project",
     ],
   ])("opens the current authorized SEO result", async (seoAudit, href) => {
-    readTask.mockResolvedValue({ id: "task-1", status: "COMPLETED", seoAudit });
+    readTask.mockResolvedValue({
+      id: "task-1",
+      status: "COMPLETED",
+      seoAudit: { ...seoAudit, resultAvailable: true },
+    });
     render(await ResultPage({ params }));
     expect(screen.getByRole("link").getAttribute("href")).toBe(href);
     expect(replace).toHaveBeenCalledWith(href);
@@ -59,6 +63,11 @@ describe("completed Task result", () => {
   });
   it.each([
     { status: "COMPLETED", seoAudit: null },
+    {
+      status: "COMPLETED",
+      seoAudit: { auditId: "old", projectId: null, resultAvailable: false },
+    },
+    { status: "COMPLETED", seoAudit: { auditId: "old", projectId: null } },
     { status: "RUNNING", seoAudit: { auditId: "old", projectId: null } },
   ])("returns to the Task when a result is unavailable", async (task) => {
     readTask.mockResolvedValue({ id: "task-1", ...task });

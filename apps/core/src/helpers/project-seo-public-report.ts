@@ -64,3 +64,29 @@ export function failedPageRuns(
       .map((row) => row.url),
   ).size;
 }
+
+/** Read only the worker's stage codes after the artifact and Task ownership checks. Never retain provider messages. */
+export function failedSeoSpecialists(raw: unknown) {
+  const input = reportObject(raw);
+  const site = input?.kind === "site";
+  const pages = site && Array.isArray(input.pages) ? input.pages : [input];
+  const failed: ("seasonal" | "exploration" | "searchInvestigation")[] = [];
+  if (
+    pages.some((page) => {
+      const status = reportObject(
+        reportObject(reportObject(page)?.seasonalReview)?.status,
+      );
+      return [status?.demand, status?.audience].some(
+        (value) =>
+          value === "failed" || value === "invalid" || value === "unrecorded",
+      );
+    })
+  )
+    failed.push("seasonal");
+  if (site && Array.isArray(input.specialistFailures)) {
+    for (const stage of ["exploration", "searchInvestigation"] as const) {
+      if (input.specialistFailures.includes(stage)) failed.push(stage);
+    }
+  }
+  return failed;
+}

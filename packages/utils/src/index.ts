@@ -493,12 +493,14 @@ export {
   PAID_DATA_MARKUP_PERCENT,
   SEO_DEFAULT_FULL_AUDIT_USD,
   SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
   SEO_FULL_AUDIT_MAX_PROVIDER_USD,
   SEO_FULL_AUDIT_MAX_SECONDS,
   SEO_MIN_AUDIT_USD,
   SEO_PAGE_CEILING_CENTS,
   type SeoCreditCeilingInput,
   seoCreditsForCents,
+  seoFullAuditPrice,
   seoMaxCredits,
 } from "./seo-credits.js";
 export {
@@ -514,6 +516,11 @@ export {
   seoInspectionEvidence,
 } from "./seo-index-verdict.js";
 export { normalizeSeoQuery } from "./seo-query.js";
+export {
+  hasSeasonalDemandRise,
+  seasonalUpdateHasPassed,
+  seoSeasonalTiming,
+} from "./seo-seasonal-timing.js";
 export {
   readSeoStatisticsNote,
   SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,

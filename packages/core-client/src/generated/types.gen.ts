@@ -48,10 +48,35 @@ export type AdminSeoAlerts = {
     pageSize: number;
     failurePercent: number;
     importGraceMinutes: number;
+    billingTotal: number;
+    pricingAttention: number;
+    billing: Array<{
+        id: string;
+        taskId: string | null;
+        auditId: string | null;
+        projectId: string | null;
+        workspaceId: string | null;
+        at: Date;
+        status: 'inProgress' | 'receiptsPending' | 'needsCredits' | 'retrying' | 'settled' | 'closed' | 'abandoned' | 'unverified';
+        approvedMaxCredits: number | null;
+        attemptedCredits: number | null;
+        dataBudgetUsd: number | null;
+        chargedCredits: number | null;
+        cost: {
+            version: 1;
+            gatewayMicroUsd: number;
+            directModelMicroUsd: number;
+            dataForSeoMicroUsd: number;
+            otherApiMicroUsd: number;
+        } | null;
+    }>;
     connectionTotal: number;
     reconnect: number;
     connections: Array<{
         id: string;
+        workspaceId: string | null;
+        workspaceOrganizationSlug: string | null;
+        workspaceUserId: string | null;
         userId: string;
         provider: 'ga4' | 'search_console';
         status: 'NEEDS_RECONNECT' | 'DISCONNECTED';
@@ -59,10 +84,15 @@ export type AdminSeoAlerts = {
     }>;
     items: Array<{
         id: string;
+        workspaceId: string | null;
+        workspaceOrganizationSlug: string | null;
+        workspaceUserId: string | null;
+        auditId: string | null;
+        projectId: string | null;
         taskId: string | null;
         at: Date;
         severity: 'critical' | 'warning' | 'info';
-        reasons: Array<'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
+        reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
         failedPages: number;
         attemptedPages: number;
     }>;
@@ -2537,6 +2567,7 @@ export type TaskAncestor = {
 export type TaskSeoAudit = {
     auditId: string | null;
     projectId: string | null;
+    resultAvailable?: boolean;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -11772,6 +11803,11 @@ export type ProjectSeoWorkspace = {
             baselineMedian: number;
             referenceMonths?: Array<string>;
         }>;
+        observedMonths?: Array<{
+            period: string;
+            volume: number;
+        }>;
+        actionId?: string;
     }>;
     serpHistory?: Array<ProjectSeoSerpSeries>;
     shareOfVoice?: ProjectSeoShareOfVoice | null;
@@ -11922,7 +11958,7 @@ export type ProjectSeoAction = {
         nextCheck: string;
     };
     taskId: string | null;
-    status: 'recommended' | 'task_created' | 'implemented' | 'verified' | 'canceled' | 'failed';
+    status: 'recommended' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
     completedAt?: Date;
     verifiedAt?: Date;
     kind: 'fix' | 'opportunity';
@@ -12362,6 +12398,13 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    fullAuditPrice?: {
+        kind: 'cost_plus';
+        version: 1;
+        minimumCredits: 750;
+        markupPercent: 50;
+        maxCredits?: 750;
+    };
     searchConsolePropertyId?: string;
     allowLimitedAudit?: true;
     setupGoal?: {
@@ -17330,7 +17373,7 @@ export type ListAdminSeoAlertsData = {
     body?: never;
     path?: never;
     query?: {
-        view?: 'counts' | 'connections';
+        view?: 'counts' | 'connections' | 'billing';
         period?: '7' | '30' | '90' | 'all';
         page?: number;
     };
@@ -106165,6 +106208,170 @@ export type PostTasksByIdEventsFailedAdmissionV1Responses = {
 };
 
 export type PostTasksByIdEventsFailedAdmissionV1Response = PostTasksByIdEventsFailedAdmissionV1Responses[keyof PostTasksByIdEventsFailedAdmissionV1Responses];
+
+export type PostTasksByIdEventsSeoSettlementV1Data = {
+    body?: {
+        status?: TaskStatus;
+        comment?: string;
+        /**
+         * Workspace member ids @-mentioned in this comment. Unknown ids are ignored. Also read from @userId tokens in comment. Does not add participants unless comment is set.
+         */
+        mentionedUserIds?: Array<string>;
+        authenticationUrl?: string;
+        /**
+         * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
+         */
+        credits?: number | null;
+        channel?: Channel;
+        origin?: Channel & unknown;
+        masumiPayment?: MasumiPayment;
+    } & {
+        status: 'COMPLETED';
+        credits: number;
+        expectedContext: TaskWorkerContext;
+        fullAuditCost: {
+            version: 1;
+            gatewayMicroUsd: number;
+            directModelMicroUsd: number;
+            dataForSeoMicroUsd: number;
+            otherApiMicroUsd: number;
+        };
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/events/seo-settlement-v1';
+};
+
+export type PostTasksByIdEventsSeoSettlementV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        data?: TaskEvent;
+        attemptedCredits?: number;
+        requestedStatus?: TaskStatus | null;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdEventsSeoSettlementV1Error = PostTasksByIdEventsSeoSettlementV1Errors[keyof PostTasksByIdEventsSeoSettlementV1Errors];
+
+export type PostTasksByIdEventsSeoSettlementV1Responses = {
+    /**
+     * Create task event
+     */
+    201: {
+        data: TaskEvent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdEventsSeoSettlementV1Response = PostTasksByIdEventsSeoSettlementV1Responses[keyof PostTasksByIdEventsSeoSettlementV1Responses];
 
 export type GetTasksByIdFilesData = {
     body?: never;

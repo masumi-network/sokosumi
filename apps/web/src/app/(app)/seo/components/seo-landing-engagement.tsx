@@ -40,24 +40,33 @@ export function SeoLandingEngagement({ change }: { change: Comparison }) {
         <TableHeader>
           <TableRow>
             <TableHead>{t("metric")}</TableHead>
-            <TableHead>
+            {/* Numbers align at the end so before and after compare digit by digit. */}
+            <TableHead className="text-end">
               <SeoPeriod {...change.before} />
             </TableHead>
-            <TableHead>
+            <TableHead className="text-end">
               <SeoPeriod {...change.after} />
             </TableHead>
-            <TableHead>{t("within")}</TableHead>
-            <TableHead>{t("mix")}</TableHead>
+            <TableHead className="text-end">{t("within")}</TableHead>
+            <TableHead className="text-end">{t("mix")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.map(({ label, values }) => (
             <TableRow key={label}>
               <TableHead scope="row">{label}</TableHead>
-              <TableCell>{number(values.before)}</TableCell>
-              <TableCell>{number(values.after)}</TableCell>
-              <TableCell>{number(values.withinPageChange, true)}</TableCell>
-              <TableCell>{number(values.mixChange, true)}</TableCell>
+              <TableCell className="text-end tabular-nums">
+                {number(values.before)}
+              </TableCell>
+              <TableCell className="text-end tabular-nums">
+                {number(values.after)}
+              </TableCell>
+              <TableCell className="text-end tabular-nums">
+                {number(values.withinPageChange, true)}
+              </TableCell>
+              <TableCell className="text-end tabular-nums">
+                {number(values.mixChange, true)}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

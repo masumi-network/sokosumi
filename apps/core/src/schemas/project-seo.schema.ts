@@ -20,7 +20,7 @@ import {
   seoSerpSeriesSchema,
   seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
-import { seoSeasonalIdeaSchema } from "./project-seo-seasonal.schema";
+import { seoWorkspaceSeasonalIdeaSchema } from "./project-seo-seasonal.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
   seoSearchQueryRowSchema,
@@ -29,6 +29,7 @@ import {
   seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
+import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
 import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
 
 import {
@@ -181,6 +182,7 @@ export const requestSeoAnalysisSchema = z
       .max(SEO_MAX_PROVIDER_CALLS)
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
+    fullAuditPrice: seoCostPlusPriceSchema.optional(),
     searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
     allowLimitedAudit: z.literal(true).optional(),
     setupGoal: z
@@ -208,6 +210,12 @@ export const requestSeoAnalysisSchema = z
     coworkerId: z.string().min(1).max(128).optional(),
   })
   .strict()
+  .refine(
+    (input) =>
+      !input.fullAuditPrice ||
+      (input.kind === "audit_full" && input.fullAuditCredits === undefined),
+    "Choose one full-audit price for a full audit only",
+  )
   .refine(
     (input) => !(input.scopeId && input.pageIds),
     "Choose a saved scope or explicit pages",
@@ -681,7 +689,7 @@ export const projectSeoWorkspaceSchema = z
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     landingEngagementChange: seoLandingEngagementChange.optional(),
-    seasonalIdeas: z.array(seoSeasonalIdeaSchema).optional(),
+    seasonalIdeas: z.array(seoWorkspaceSeasonalIdeaSchema).optional(),
     /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */
     serpHistory: z
       .array(seoSerpSeriesSchema)

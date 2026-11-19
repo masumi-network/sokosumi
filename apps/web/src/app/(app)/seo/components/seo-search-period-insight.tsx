@@ -27,21 +27,35 @@ export function SeoSearchPeriodInsight({
       <p className="text-muted-foreground">
         {t("scope", { count: pages, property: finding.property })}
       </p>
-      <p>
-        <SeoPeriod {...finding.previous} /> ·{" "}
-        {t("values", {
-          clicks: number(finding.beforeClicks),
-          impressions: number(finding.beforeImpressions),
-          position: number(finding.beforePosition),
-        })}
-        <br />
-        <SeoPeriod {...finding.current} /> ·{" "}
-        {t("values", {
-          clicks: number(finding.afterClicks),
-          impressions: number(finding.afterImpressions),
-          position: number(finding.afterPosition),
-        })}
-      </p>
+      {/* Two periods as a list of pairs, so a screen reader hears each period with its values. */}
+      <dl className="tabular-nums">
+        <div>
+          <dt className="inline">
+            <SeoPeriod {...finding.previous} />
+          </dt>{" "}
+          <dd className="inline">
+            ·{" "}
+            {t("values", {
+              clicks: number(finding.beforeClicks),
+              impressions: number(finding.beforeImpressions),
+              position: number(finding.beforePosition),
+            })}
+          </dd>
+        </div>
+        <div>
+          <dt className="inline">
+            <SeoPeriod {...finding.current} />
+          </dt>{" "}
+          <dd className="inline">
+            ·{" "}
+            {t("values", {
+              clicks: number(finding.afterClicks),
+              impressions: number(finding.afterImpressions),
+              position: number(finding.afterPosition),
+            })}
+          </dd>
+        </div>
+      </dl>
       <p>{t("nextCheck")}</p>
     </div>
   );

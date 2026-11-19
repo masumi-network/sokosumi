@@ -607,3 +607,164 @@ describe.skipIf(!enabled)("immutable private SEO briefs", () => {
     }
   });
 });
+
+describe.skipIf(!enabled)("owner-only GA4 goal priority", () => {
+  const ownerId = randomUUID(),
+    collaboratorId = randomUUID(),
+    organizationId = randomUUID(),
+    orgWorkspaceId = randomUUID(),
+    orgProjectId = randomUUID();
+  const base = {
+    owner: { kind: "project" as const, id: orgProjectId },
+    workspaceId: orgWorkspaceId,
+    organizationId,
+  };
+  const owner: SeoActor = { ...base, userId: ownerId };
+  const collaborator: SeoActor = { ...base, userId: collaboratorId };
+  const pageUrl = "https://goal.example.test/signup";
+  const accountKey = "a".repeat(64);
+  beforeAll(async () => {
+    const now = new Date();
+    for (const id of [ownerId, collaboratorId])
+      await prisma.user.create({
+        data: {
+          id,
+          name: "Goal priority fixture",
+          email: `${id}@example.test`,
+          emailVerified: true,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+    // No seat contract: on a free plan every member counts as seated.
+    await prisma.organization.create({
+      data: {
+        id: organizationId,
+        name: "Goal priority fixture",
+        slug: organizationId,
+        workspace: { create: { id: orgWorkspaceId } },
+        members: {
+          create: [{ userId: ownerId }, { userId: collaboratorId }],
+        },
+      },
+    });
+    await prisma.project.create({
+      data: {
+        id: orgProjectId,
+        workspaceId: orgWorkspaceId,
+        name: "Goal priority fixture",
+      },
+    });
+  });
+  afterAll(async () => {
+    await prisma.workspace.deleteMany({ where: { id: orgWorkspaceId } });
+    await prisma.organization.deleteMany({ where: { id: organizationId } });
+    await prisma.user.deleteMany({
+      where: { id: { in: [ownerId, collaboratorId] } },
+    });
+  });
+
+  it("shows the GA4 goal decline and its next step only to the owner who read it, until access or the source changes", async () => {
+    const page = await addProjectSeoPage(owner, {
+      url: pageUrl,
+      relationship: "primary",
+    });
+    const goal = {
+      objective: "sales",
+      audience: null,
+      outcome: null,
+      constraints: null,
+      pages: [
+        {
+          pageId: page.id,
+          job: null,
+          role: "product",
+          action: "sign up",
+          indexIntent: "index",
+        },
+      ],
+      expectedRevision: 0,
+    };
+    await saveSeoBrief(owner, goal);
+    await saveSeoBrief(collaborator, goal);
+    const stored = (payload: object, at: string) =>
+      prisma.projectSeoObservation.create({
+        data: {
+          projectId: orgProjectId,
+          ownerId,
+          visibility: "PRIVATE",
+          kind: "landing_outcomes",
+          source: "ga4",
+          sourceKey: `landing-outcomes:${randomUUID()}`,
+          artifactHash: randomUUID(),
+          pageIds: [page.id],
+          payload,
+          observedAt: new Date(at),
+        },
+      });
+    await stored(
+      {
+        version: 1,
+        channel: "organic",
+        accountKey,
+        propertyId: "properties/123",
+        verifiedHost: "goal.example.test",
+        timeZone: "Europe/Berlin",
+        from: "2026-09-15",
+        to: "2026-09-28",
+        rows: [{ pageUrl, event: "sign_up", count: 12 }],
+        goalInvestigation: {
+          pageUrl,
+          timeZone: "Europe/Berlin",
+          event: "sign_up",
+          before: {
+            from: "2026-09-01",
+            to: "2026-09-14",
+            organic: { sessions: 400, rate: 0.05 },
+            direct: { sessions: 200, rate: 0.04 },
+          },
+          after: {
+            from: "2026-09-15",
+            to: "2026-09-28",
+            organic: { sessions: 420, rate: 0.03 },
+            direct: { sessions: 210, rate: 0.04 },
+          },
+          assessment: "organic_declined",
+        },
+      },
+      "2026-09-30T12:00:00.000Z",
+    );
+    const [priority] = (await getSeoBrief(owner)).priorities;
+    expect(priority).toMatchObject({
+      pageId: page.id,
+      nextStep: expect.stringContaining("Search Console"),
+      why: expect.arrayContaining([
+        expect.stringContaining("GA4 sign_up rate: organic search 5.0%"),
+      ]),
+    });
+    // A collaborator on the same page and goal reads only their own private records.
+    const shared = await getSeoBrief(collaborator);
+    expect(shared.followUps[0]?.goalInvestigation).toBeUndefined();
+    expect(JSON.stringify(shared.priorities)).not.toMatch(
+      /sign_up rate|Search Console/,
+    );
+    expect(
+      JSON.stringify(
+        await getProjectSeoWorkspace(collaborator, { pageId: page.id }),
+      ),
+    ).not.toMatch(/goalInvestigation|sign_up rate/);
+    // A later source selection without counts retires the older decision.
+    await stored(
+      { version: 2, accountKey, propertyId: "properties/456" },
+      "2026-10-02T12:00:00.000Z",
+    );
+    expect(JSON.stringify((await getSeoBrief(owner)).priorities)).not.toMatch(
+      /sign_up rate|Search Console/,
+    );
+    // A member who left the organization reads nothing.
+    await prisma.member.deleteMany({
+      where: { organizationId, userId: ownerId },
+    });
+    await expect(getSeoBrief(owner)).rejects.toMatchObject({ status: 404 });
+  });
+});

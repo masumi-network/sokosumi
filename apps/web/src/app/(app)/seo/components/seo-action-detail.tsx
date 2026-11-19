@@ -11,6 +11,7 @@ import { SeoBriefFollowUp, SeoBriefPagePriority } from "./seo-brief-summary";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
   SEO_SEVERITY_MARK_CLASS,
+  SeoFoldSummary,
   SeoMetaLine,
   SeoPageLink,
   SeoSource,
@@ -47,6 +48,17 @@ export function SeoActionDetail({
   const t = useTranslations("App.Seo");
   const finding = useSeoActionFinding(action, model);
   const instructions = useSeoActionInstructions(action, finding);
+  const rankedKeywordsRef = "rankingData.page.ranked";
+  const references = action.decision
+    ? action.evidence.filter(
+        (line) => line === rankedKeywordsRef || /^[a-f0-9]{64}$/u.test(line),
+      )
+    : [];
+  const observations = action.evidence.filter(
+    (line) => !references.includes(line),
+  );
+  if (references.includes(rankedKeywordsRef))
+    observations.push(t("actions.rankingEvidence"));
   const problem = seoOverviewModel(model.data).actionProblem(action);
   const page = model.data.pages.find((item) => item.url === action.pageUrl);
   const followUp = model.brief?.data?.followUps?.find(
@@ -167,10 +179,14 @@ export function SeoActionDetail({
         {action.decision ? (
           <>
             <DetailPart title={t("actions.alternative")}>
-              <p>{action.decision.alternative}</p>
+              <p className="whitespace-pre-wrap break-words">
+                {action.decision.alternative}
+              </p>
             </DetailPart>
             <DetailPart title={t("actions.nextCheck")}>
-              <p>{action.decision.nextCheck}</p>
+              <p className="whitespace-pre-wrap break-words">
+                {action.decision.nextCheck}
+              </p>
             </DetailPart>
           </>
         ) : (
@@ -192,16 +208,32 @@ export function SeoActionDetail({
         ) : null}
         {action.evidence.length ? (
           <DetailPart title={t("actions.evidence")}>
-            <ul className="divide-y rounded-md border">
-              {action.evidence.map((line, index) => (
-                <li
-                  key={`${index}:${line}`}
-                  className="text-muted-foreground px-3 py-2 text-xs break-words"
-                >
-                  {line}
-                </li>
-              ))}
-            </ul>
+            {observations.length > 0 && (
+              <ul className="divide-y rounded-md border">
+                {observations.map((line, index) => (
+                  <li
+                    key={`${index}:${line}`}
+                    className="text-muted-foreground px-3 py-2 text-xs break-words"
+                  >
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {references.length > 0 && (
+              <details>
+                <SeoFoldSummary className="text-muted-foreground min-h-10 w-fit text-sm">
+                  {t("actions.sourceRecords", { count: references.length })}
+                </SeoFoldSummary>
+                <ul className="text-muted-foreground space-y-1 text-xs">
+                  {references.map((ref, index) => (
+                    <li key={index}>
+                      <code className="break-all">{ref}</code>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </DetailPart>
         ) : null}
         {page && <SeoBriefPagePriority model={model} pageId={page.id} />}

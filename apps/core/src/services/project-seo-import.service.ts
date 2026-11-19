@@ -12,6 +12,7 @@ import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned
 import { jsonInput } from "@/helpers/prisma-json";
 import {
   failedPageRuns,
+  failedSeoSpecialists,
   reportObject,
   SEO_REPORT_IMPORT_REJECTED,
 } from "@/helpers/project-seo-public-report";
@@ -216,8 +217,14 @@ export async function importProjectSeoAudit(
       pageIds.push(page.id);
     }
     const reportPayload =
-      analysis && reportObject(raw)?.kind === "site"
-        ? { ...payload, pageRunFailures: failedPageRuns(skippedPages(raw)) }
+      analysis && payload.kind === "audit_full"
+        ? {
+            ...payload,
+            ...(reportObject(raw)?.kind === "site" && {
+              pageRunFailures: failedPageRuns(skippedPages(raw)),
+            }),
+            specialistFailures: failedSeoSpecialists(raw),
+          }
         : payload;
     const observation = await tx.projectSeoObservation.create({
       data: {

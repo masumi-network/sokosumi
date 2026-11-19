@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
-import { failedPageRuns } from "./project-seo-public-report";
+import {
+  failedPageRuns,
+  failedSeoSpecialists,
+} from "./project-seo-public-report";
 import { skippedPages } from "./project-seo-report";
 
 it("counts failed page runs once and excludes deliberate skips from the stored incident count", () => {
@@ -26,4 +29,47 @@ it("counts failed page runs once and excludes deliberate skips from the stored i
       skippedPages({ kind: "page", selection: { skipped: [exception] } }),
     ),
   ).toBe(0);
+});
+
+it("retains only typed failed specialist stages from a bound report and counts one seasonal incident per audit", () => {
+  const good = {
+    seasonalReview: {
+      status: { demand: "completed", audience: "completed" },
+      insights: [],
+    },
+  };
+  const bad = {
+    seasonalReview: {
+      status: { demand: "failed", audience: "invalid" },
+      insights: [],
+    },
+  };
+  expect(
+    failedSeoSpecialists({
+      kind: "site",
+      pages: [good, bad, bad],
+      specialistFailures: [
+        "exploration",
+        "sensitive error",
+        "searchInvestigation",
+      ],
+    }),
+  ).toEqual(["seasonal", "exploration", "searchInvestigation"]);
+  expect(
+    failedSeoSpecialists({ ...good, notes: ["exploration failed"] }),
+  ).toEqual([]);
+  expect(
+    failedSeoSpecialists({
+      seasonalReview: {
+        status: { demand: "unrecorded", audience: "unrecorded" },
+      },
+    }),
+  ).toEqual(["seasonal"]);
+  expect(
+    failedSeoSpecialists({
+      kind: "site",
+      pages: [good],
+      specialistFailures: "exploration",
+    }),
+  ).toEqual([]);
 });

@@ -34,7 +34,7 @@ import {
 } from "@/helpers/notification-publish-queue";
 import { readNotificationRowJson } from "@/helpers/notification-row-json";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
-import { hasSeoTaskResult } from "@/helpers/seo-task-notification";
+import { seoTaskResultHint } from "@/helpers/seo-task-notification";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { recordCoreError, runAsBackgroundWork } from "@/lib/evlog";
@@ -569,7 +569,7 @@ export async function createNotification(
       input.workspaceId &&
       input.kind === NotificationKind.TASK &&
       input.messageKey === TASK_COMPLETED_MESSAGE_KEY
-        ? await hasSeoTaskResult(client, input.workspaceId, input.referenceId)
+        ? await seoTaskResultHint(client, input.workspaceId, input.referenceId)
         : undefined;
     const storedMetadata =
       seoResult === undefined ? metadata : { ...metadata, seoResult };

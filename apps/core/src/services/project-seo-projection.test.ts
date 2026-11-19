@@ -12,6 +12,7 @@ import {
   SEO_TEST_SECOND_PAGE,
   siteStrategyReport,
 } from "@/test-fixtures/project-seo";
+import workerInsights from "./__tests__/fixtures/seo-seasonal-worker-insights.json";
 
 import { projectSeoProjection } from "./project-seo-projection";
 
@@ -1917,6 +1918,141 @@ it("keeps seasonal suggestions within their audited page and market and retires 
   expect(projectSeoProjection(input).seasonalIdeas).toEqual([britishIdea]);
 });
 
+it("imports a worker seasonal review with its measured history and offers the supported update as work", () => {
+  const input = fixture();
+  const raw = legacyReport();
+  const market = raw.header.market;
+  const insights = workerInsights.map((row) => ({
+    ...row,
+    url: SEO_TEST_PAGE,
+    country: market.country,
+    language: market.language,
+  }));
+  const payload = parsePublicSeoArtifact({
+    ...raw,
+    seasonalReview: {
+      status: { demand: "completed", audience: "completed" },
+      insights,
+    },
+  });
+  input.observations = [observation(input, payload, raw.header.capturedAt)];
+  const result = projectSeoProjection(input, new Date("2026-11-19T12:00:00Z"));
+  const [rise, flat] = result.seasonalIdeas ?? [];
+  expect(flat).toMatchObject({ keyword: "segelpflege", windows: [] });
+  expect(flat.observedMonths).toHaveLength(34);
+  expect(flat.observedMonths?.at(-1)).toEqual({
+    period: "2026-10",
+    volume: 50,
+  });
+  expect(flat.actionId).toBeUndefined();
+  expect(rise.actionId).toMatch(/^seasonal:/);
+  expect(result.actions.find((a) => a.id === rise.actionId)).toMatchObject({
+    status: "recommended",
+    evidence: [
+      'Page quote: "Segel lagern im Winter"',
+      expect.stringContaining("2025-12: 300 estimated searches"),
+    ],
+  });
+  expect(JSON.stringify(result)).not.toMatch(/reviewers|bbbbbbbb/);
+});
+
+it("turns a supported seasonal page update into one action that keeps its Task across repeat audits", () => {
+  const input = fixture();
+  const raw = legacyReport();
+  const supported = {
+    keyword: "canvas storage",
+    audience: "sailboat owners",
+    url: SEO_TEST_PAGE,
+    asOf: "2026-11-01",
+    country: raw.header.market.country,
+    language: raw.header.market.language,
+    pageQuote: "Cover your canvas before storing it.",
+    event: null,
+    action: "improve_existing_page",
+    limitations: ["timing_uncertain"],
+    comparison: null,
+    windows: [
+      {
+        targetPeriod: "2026-12",
+        historicalPeriod: "2025-12",
+        historicalVolume: 95,
+        baselineMedian: 10,
+      },
+    ],
+  };
+  const angle = {
+    ...supported,
+    keyword: "canvas repair",
+    action: "investigate_angle",
+  };
+  const audit = (ideas: object[]) =>
+    parsePublicSeoArtifact({ ...raw, seasonalReview: { insights: ideas } });
+  const first = observation(
+    input,
+    audit([supported, angle]),
+    raw.header.capturedAt,
+  );
+  input.observations = [first];
+  const before = projectSeoProjection(input, new Date("2026-11-19T12:00:00Z"));
+  const seasonal = before.actions.filter((a) => a.id.startsWith("seasonal:"));
+  expect(seasonal).toEqual([
+    expect.objectContaining({
+      observationId: first.id,
+      pageUrl: SEO_TEST_PAGE,
+      status: "recommended",
+      taskId: null,
+    }),
+  ]);
+  expect(before.seasonalIdeas?.map((idea) => idea.actionId)).toEqual([
+    seasonal[0].id,
+    undefined,
+  ]);
+
+  const taskId = randomUUID();
+  input.actionTasks = [
+    {
+      id: randomUUID(),
+      projectId: input.project.id,
+      auditId: null,
+      observationId: first.id,
+      actionId: seasonal[0].id,
+      taskId,
+      idempotencyKey: "seasonal-test",
+      createdAt: now,
+    },
+  ];
+  input.tasks = [{ id: taskId, status: "IN_PROGRESS", completedAt: null }];
+  const repeat = observation(
+    input,
+    audit([{ ...supported, audience: "yacht owners", asOf: "2026-11-20" }]),
+    "2026-11-20T12:00:00Z",
+  );
+  input.observations = [repeat, first];
+  const after = projectSeoProjection(input, new Date("2026-11-19T12:00:00Z"));
+  expect(after.actions.filter((a) => a.id.startsWith("seasonal:"))).toEqual([
+    expect.objectContaining({
+      id: seasonal[0].id,
+      observationId: first.id,
+      taskId,
+      status: "task_created",
+    }),
+  ]);
+  expect(after.seasonalIdeas?.map((idea) => idea.audience)).toEqual([
+    "yacht owners",
+  ]);
+
+  input.observations = [
+    observation(input, audit([]), "2026-11-21T12:00:00Z"),
+    first,
+  ];
+  expect(
+    projectSeoProjection(
+      input,
+      new Date("2026-11-19T12:00:00Z"),
+    ).actions.filter((a) => a.taskId === taskId),
+  ).toHaveLength(1);
+});
+
 it("distinguishes changing organic landing rates from a changing session mix only across complete matching cohorts", () => {
   const input = fixture();
   const long = {
@@ -2165,7 +2301,11 @@ it("imports only bound public strategy decisions and links stable work to its Ta
   ).toBe("failed");
   input.tasks = [];
   const hidden = projectSeoProjection(input);
-  expect(hidden.actions.find((a) => a.id === action.id)?.taskId).toBeNull();
+  expect(hidden.actions.find((a) => a.id === action.id)).toMatchObject({
+    taskId: null,
+    status: "unavailable",
+  });
+  expect(JSON.stringify(hidden.actions)).not.toContain(taskId);
   expect(hidden.timeline.some((event) => event.taskId === taskId)).toBe(false);
   input.actionTasks = [];
   input.observations = [

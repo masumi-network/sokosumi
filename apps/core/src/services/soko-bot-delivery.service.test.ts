@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   messageFind: vi.fn(),
   taskEvent: vi.fn(),
   seoAnalysis: vi.fn(),
+  seoObservation: vi.fn(),
   transaction: vi.fn(),
   findMany: vi.fn(),
   findUnique: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock("@/lib/db/prisma", () => ({
     workspace: { findFirst: mocks.workspace },
     taskEvent: { findFirst: mocks.taskEvent },
     projectSeoAnalysis: { findFirst: mocks.seoAnalysis },
+    projectSeoObservation: { findFirst: mocks.seoObservation },
     chatRoom: { findFirst: mocks.room, update: mocks.roomUpdate },
     chatRoomMessage: {
       upsert: mocks.message,
@@ -191,8 +193,9 @@ describe("durable delivery", () => {
       mocks.find.mockResolvedValue(delivery({ turn: summaryTurn }));
       mocks.taskEvent.mockResolvedValue({ taskId: "task/1" });
       mocks.seoAnalysis.mockResolvedValue(
-        isSeo ? { id: "private-audit-id" } : null,
+        isSeo ? { id: "private-audit-id", status: "completed" } : null,
       );
+      mocks.seoObservation.mockResolvedValue(isSeo ? { id: "report" } : null);
       await deliverSokoBotDelivery("delivery");
       const content = mocks.message.mock.calls[0]?.[0]?.create?.content;
       expect(content).toBe(

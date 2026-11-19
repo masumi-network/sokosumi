@@ -1,9 +1,11 @@
 import type { ProjectSeoActionTask } from "@sokosumi/database";
+import { seasonalUpdateHasPassed } from "@sokosumi/utils";
 import {
   publicDecisionAction,
   readPublicSeoDecisions,
 } from "@/helpers/project-seo-decisions";
 import type { PublicSeoPayload } from "@/helpers/project-seo-report";
+import { seasonalPayloadActions } from "@/helpers/project-seo-seasonal";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import { normalizeSeoUrl } from "./project-seo-store";
 
@@ -26,6 +28,7 @@ export class SeoAuditDecisions {
     private readonly selected: Set<string>,
     links: ProjectSeoActionTask[],
     private readonly statuses: Map<string, string>,
+    private readonly now: Date,
   ) {
     this.linked = new Map(links.map((link) => [link.actionId, link]));
   }
@@ -35,28 +38,42 @@ export class SeoAuditDecisions {
       data.pageUrls,
       data.decisionSources,
     );
+    const seasonal = new Map(
+      seasonalPayloadActions(data)
+        .filter(
+          ({ idea, action }) =>
+            this.linked.has(action.id) ||
+            !seasonalUpdateHasPassed(idea, this.now),
+        )
+        .map((row) => [row.idea, row.action]),
+    );
     for (const url of data.pageUrls) {
       const page = normalizeSeoUrl(url);
       if (!this.selected.has(page)) continue;
       const key = JSON.stringify([page, data.countryCode, data.languageCode]);
       const current = !this.pages.has(key);
       this.pages.add(key);
+      const ideas = (data.seasonalIdeas ?? []).filter(
+        (idea) =>
+          normalizeSeoUrl(idea.url) === page &&
+          idea.country === data.countryCode &&
+          idea.language === data.languageCode,
+      );
       if (current)
         this.seasonal.push(
-          ...(data.seasonalIdeas ?? []).filter(
-            (idea) =>
-              normalizeSeoUrl(idea.url) === page &&
-              idea.country === data.countryCode &&
-              idea.language === data.languageCode,
+          ...ideas.map((idea) => {
+            const id = seasonal.get(idea)?.id;
+            return id ? { ...idea, actionId: id } : idea;
+          }),
+        );
+      for (const action of [
+        ...(decisions ?? [])
+          .filter((decision) => normalizeSeoUrl(decision.targetUrl) === page)
+          .map((decision) =>
+            publicDecisionAction(decision, data.countryCode, data.languageCode),
           ),
-        );
-      for (const decision of decisions ?? []) {
-        if (normalizeSeoUrl(decision.targetUrl) !== page) continue;
-        const action = publicDecisionAction(
-          decision,
-          data.countryCode,
-          data.languageCode,
-        );
+        ...ideas.flatMap((idea) => seasonal.get(idea) ?? []),
+      ]) {
         const link = this.linked.get(action.id);
         const index = this.indexes.get(action.id);
         const original = link?.observationId === observationId;

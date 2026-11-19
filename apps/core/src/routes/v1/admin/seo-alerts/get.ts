@@ -17,7 +17,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       operationId: "listAdminSeoAlerts",
       tags: ["Admin"],
       description:
-        "Operational alerts for the latest finished full audit in each scope.",
+        "Operational alerts and metered billing for full audits, including overdue runs.",
       request: { query: adminSeoAlertQuery },
       responses: {
         200: jsonSuccessResponse(adminSeoAlerts, "SEO audit alerts"),

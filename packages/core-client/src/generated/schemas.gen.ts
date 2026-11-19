@@ -117,6 +117,150 @@ export const AdminSeoAlertsSchema = {
             type: 'integer',
             minimum: 0
         },
+        billingTotal: {
+            type: 'integer',
+            minimum: 0
+        },
+        pricingAttention: {
+            type: 'integer',
+            minimum: 0
+        },
+        billing: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    taskId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    auditId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    projectId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'inProgress',
+                            'receiptsPending',
+                            'needsCredits',
+                            'retrying',
+                            'settled',
+                            'closed',
+                            'abandoned',
+                            'unverified'
+                        ]
+                    },
+                    approvedMaxCredits: {
+                        type: [
+                            'integer',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    attemptedCredits: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    dataBudgetUsd: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    chargedCredits: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    cost: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            version: {
+                                type: 'number',
+                                enum: [
+                                    1
+                                ]
+                            },
+                            gatewayMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            directModelMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            dataForSeoMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            otherApiMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            }
+                        },
+                        required: [
+                            'version',
+                            'gatewayMicroUsd',
+                            'directModelMicroUsd',
+                            'dataForSeoMicroUsd',
+                            'otherApiMicroUsd'
+                        ],
+                        additionalProperties: false
+                    }
+                },
+                required: [
+                    'id',
+                    'taskId',
+                    'auditId',
+                    'projectId',
+                    'workspaceId',
+                    'at',
+                    'status',
+                    'approvedMaxCredits',
+                    'attemptedCredits',
+                    'dataBudgetUsd',
+                    'chargedCredits',
+                    'cost'
+                ]
+            }
+        },
         connectionTotal: {
             type: 'integer',
             minimum: 0
@@ -133,6 +277,25 @@ export const AdminSeoAlertsSchema = {
                     id: {
                         type: 'string',
                         format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceOrganizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    workspaceUserId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
                     },
                     userId: {
                         type: 'string'
@@ -158,6 +321,9 @@ export const AdminSeoAlertsSchema = {
                 },
                 required: [
                     'id',
+                    'workspaceId',
+                    'workspaceOrganizationSlug',
+                    'workspaceUserId',
                     'userId',
                     'provider',
                     'status',
@@ -172,6 +338,39 @@ export const AdminSeoAlertsSchema = {
                 properties: {
                     id: {
                         type: 'string',
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceOrganizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    workspaceUserId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    auditId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    projectId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
                         format: 'uuid'
                     },
                     taskId: {
@@ -197,11 +396,21 @@ export const AdminSeoAlertsSchema = {
                         items: {
                             type: 'string',
                             enum: [
+                                'priceUnverified',
+                                'priceUnpaid',
+                                'dataBudgetExceeded',
+                                'priceReceiptPending',
+                                'priceNeedsCredits',
+                                'priceRetry',
+                                'workerOverdue',
                                 'workerFailed',
                                 'auditFailed',
                                 'reportRejected',
                                 'pageException',
                                 'pageFailureRate',
+                                'seasonalFailed',
+                                'explorationFailed',
+                                'investigationFailed',
                                 'reportMissing',
                                 'gscDisconnected',
                                 'gscProperty',
@@ -222,6 +431,11 @@ export const AdminSeoAlertsSchema = {
                 },
                 required: [
                     'id',
+                    'workspaceId',
+                    'workspaceOrganizationSlug',
+                    'workspaceUserId',
+                    'auditId',
+                    'projectId',
                     'taskId',
                     'at',
                     'severity',
@@ -240,6 +454,9 @@ export const AdminSeoAlertsSchema = {
         'pageSize',
         'failurePercent',
         'importGraceMinutes',
+        'billingTotal',
+        'pricingAttention',
+        'billing',
         'connectionTotal',
         'reconnect',
         'connections',
@@ -9539,6 +9756,9 @@ export const TaskSeoAuditSchema = {
                 'null'
             ],
             format: 'uuid'
+        },
+        resultAvailable: {
+            type: 'boolean'
         }
     },
     required: [
@@ -44614,6 +44834,31 @@ export const ProjectSeoWorkspaceSchema = {
                             ]
                         },
                         maxItems: 4
+                    },
+                    observedMonths: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                period: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                volume: {
+                                    type: 'integer',
+                                    minimum: 0
+                                }
+                            },
+                            required: [
+                                'period',
+                                'volume'
+                            ]
+                        },
+                        minItems: 1,
+                        maxItems: 36
+                    },
+                    actionId: {
+                        type: 'string'
                     }
                 },
                 required: [
@@ -45486,6 +45731,7 @@ export const ProjectSeoActionSchema = {
             enum: [
                 'recommended',
                 'task_created',
+                'unavailable',
                 'implemented',
                 'verified',
                 'canceled',
@@ -47858,6 +48104,48 @@ export const RequestProjectSeoAnalysisRequestSchema = {
             enum: [
                 750
             ]
+        },
+        fullAuditPrice: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'cost_plus'
+                    ]
+                },
+                version: {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                minimumCredits: {
+                    type: 'number',
+                    enum: [
+                        750
+                    ]
+                },
+                markupPercent: {
+                    type: 'number',
+                    enum: [
+                        50
+                    ]
+                },
+                maxCredits: {
+                    type: 'number',
+                    enum: [
+                        750
+                    ]
+                }
+            },
+            required: [
+                'kind',
+                'version',
+                'minimumCredits',
+                'markupPercent'
+            ],
+            additionalProperties: false
         },
         searchConsolePropertyId: {
             type: 'string',

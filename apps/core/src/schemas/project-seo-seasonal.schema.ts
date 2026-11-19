@@ -4,6 +4,10 @@ const period = z.string().regex(/^\d{4}-(?:0[1-9]|1[0-2])$/);
 const day = z.iso.date();
 const volume = z.number().int().nonnegative();
 const month = z.object({ period, volume: volume.nullable() });
+const chronological = (periods: string[]) =>
+  periods.every((value, index) => index === 0 || periods[index - 1] < value);
+/** DataForSEO keeps up to three years of monthly history for a query. */
+export const MAX_SEASONAL_HISTORY_MONTHS = 36;
 
 export const seoSeasonalIdeaSchema = z.object({
   origin: z.literal("market_history").optional(),
@@ -49,14 +53,25 @@ export const seoSeasonalIdeaSchema = z.object({
           .min(6)
           .max(8)
           .refine(
-            (months) =>
-              months.every(
-                (value, index) => index === 0 || months[index - 1] < value,
-              ),
+            chronological,
             "Reference months must be distinct and chronological",
           )
           .optional(),
       }),
     )
     .max(4),
+  /** Monthly estimates for this exact query before the audit month, kept when no rise qualified. */
+  observedMonths: z
+    .array(z.object({ period, volume }))
+    .min(1)
+    .max(MAX_SEASONAL_HISTORY_MONTHS)
+    .refine(
+      (months) => chronological(months.map((row) => row.period)),
+      "Observed months must be distinct and chronological",
+    )
+    .optional(),
+});
+/** Core sets the action ID. An imported report cannot. */
+export const seoWorkspaceSeasonalIdeaSchema = seoSeasonalIdeaSchema.extend({
+  actionId: z.string().optional(),
 });

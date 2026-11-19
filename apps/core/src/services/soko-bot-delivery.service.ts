@@ -5,7 +5,7 @@ import { taskNotificationHref } from "@sokosumi/utils";
 import { z } from "zod";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
-import { hasSeoTaskResult } from "@/helpers/seo-task-notification";
+import { seoTaskResultHint } from "@/helpers/seo-task-notification";
 import { writableAssistantRoomWhere } from "@/helpers/shared-soko-bot-room";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
 import {
@@ -273,7 +273,7 @@ async function withFollowerSeoResult(
     },
     select: { taskId: true },
   });
-  if (!event || !(await hasSeoTaskResult(tx, turn.workspaceId, event.taskId)))
+  if (!event || !(await seoTaskResultHint(tx, turn.workspaceId, event.taskId)))
     return content;
   const href = taskNotificationHref({
     referenceId: event.taskId,

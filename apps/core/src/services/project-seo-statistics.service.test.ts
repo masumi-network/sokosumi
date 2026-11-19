@@ -1754,6 +1754,14 @@ it("uses two channel-control reads for an owner purchase goal, keeps them privat
   expect(
     (await getSeoBrief(user)).followUps[0]?.goalInvestigation?.assessment,
   ).toBe("both_declined");
+  // The owner's Actions priority names the measured decline and its next step.
+  expect((await getSeoBrief(user)).priorities[0]).toMatchObject({
+    pageId: state.pageId,
+    nextStep: expect.stringContaining("Check the completion step"),
+    why: expect.arrayContaining([
+      expect.stringContaining("GA4 purchase rate: organic search 20.0%"),
+    ]),
+  });
   await expect(getSeoBrief(actor)).rejects.toMatchObject({ status: 403 });
   expect((await getSeoBrief(user)).followUps[0]?.latestClosedGoal?.count).toBe(
     3,
@@ -1769,6 +1777,10 @@ it("uses two channel-control reads for an owner purchase goal, keeps them privat
   });
   const other = (await getSeoBrief(user)).followUps[0];
   expect(other?.goalInvestigation).toBeUndefined();
+  // Another property's selection retires the older decision from the priority too.
+  expect(JSON.stringify((await getSeoBrief(user)).priorities)).not.toMatch(
+    /GA4 purchase rate|completion step/,
+  );
   expect(other?.latestClosedGoal).toBeUndefined();
   expect(other?.outcomes).toEqual([]);
   expect(controls()).toHaveLength(4);

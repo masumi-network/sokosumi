@@ -195,7 +195,7 @@ it("shows the alternative, evidence and next check for a strategy action", async
   } as const;
   const accepted: ProjectSeoAction = {
     ...item,
-    evidence: [...item.evidence],
+    evidence: [...item.evidence, "c".repeat(64), "rankingData.page.ranked"],
     taskId: "accepted-task",
     status: "implemented",
     completedAt: new Date("2026-06-01T12:00:00Z"),
@@ -253,6 +253,11 @@ it("shows the alternative, evidence and next check for a strategy action", async
     ...item.evidence,
   ])
     expect(detail.getByText(text)).toBeVisible();
+  expect(detail.getByText("Keywords this page ranked for")).toBeVisible();
+  const records = detail.getByText("c".repeat(64)).closest("details");
+  expect(records).not.toHaveAttribute("open");
+  await user.click(records!.querySelector("summary")!);
+  expect(records).toHaveAttribute("open");
   expect(detail.getByText(/9 occurrences of sign_up/)).toBeVisible();
   expect(detail.getByText(/different numbers of some weekdays/)).toBeVisible();
   expect(detail.getByText(/Both channels had a lower goal rate/)).toBeVisible();

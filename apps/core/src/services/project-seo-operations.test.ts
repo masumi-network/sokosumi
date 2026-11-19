@@ -20,6 +20,38 @@ const request = () =>
   });
 
 describe("SEO worker request compatibility before Task dispatch", () => {
+  it("freezes the customer's cost-plus terms independently of the worker data budget", () => {
+    const fullAuditPrice = {
+      kind: "cost_plus",
+      version: 1,
+      minimumCredits: 750,
+      markupPercent: 50,
+    };
+    const terms = { ...request(), kind: "audit_full", fullAuditPrice };
+    const input = requestSeoAnalysisSchema.parse(terms);
+    expect(seoTaskPacket(input, [page], "audit-id")).toMatchObject({
+      price: fullAuditPrice,
+      inspectRelated: true,
+    });
+    for (const invalid of [
+      { ...terms, fullAuditCredits: 750 },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, maxCredits: 749 } },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, markupPercent: 0 } },
+      { ...terms, fullAuditPrice: { ...fullAuditPrice, totalMicroUsd: 1 } },
+    ])
+      expect(requestSeoAnalysisSchema.safeParse(invalid).success).toBe(false);
+    expect(() =>
+      validateSeoAnalysis(
+        {
+          ...input,
+          analyses: undefined,
+          devices: ["mobile", "desktop"],
+          fullAuditLimits: { usd: 6, seconds: 300 },
+        },
+        [page, page + "/two"],
+      ),
+    ).toThrow(/data budget/);
+  });
   it("rejects equivalent encoded seed URLs before emitting a fixed-price worker packet", () => {
     expect(() =>
       seoTaskPacket(
@@ -116,7 +148,7 @@ describe("SEO worker request compatibility before Task dispatch", () => {
         page,
         `${page}/next`,
       ]),
-    ).toThrow("fixed-price allowance");
+    ).toThrow("provider allowance");
     expect(() =>
       validateSeoAnalysis(base, [page, `${page}/next`]),
     ).not.toThrow();
