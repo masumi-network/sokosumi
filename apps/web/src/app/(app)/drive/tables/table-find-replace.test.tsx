@@ -110,7 +110,6 @@ describe("TableFindReplace", () => {
         { columnId: company.id, operator: "contains", value: "acme inc" },
       ],
       limit: 100,
-      cursor: undefined,
       archived: false,
     });
     expect(f.batch).not.toHaveBeenCalled();
@@ -127,31 +126,28 @@ describe("TableFindReplace", () => {
     });
   });
 
-  it("reads every page of candidates before counting", async () => {
-    f.query
-      .mockResolvedValueOnce(page([row(1, "Acme")], "next"))
-      .mockResolvedValueOnce(page([row(2, "acme")]));
+  it("matches case the way Core's filter does, letter by letter", async () => {
+    f.query.mockResolvedValue(page([row(1, "ΟΣ"), row(2, "ος")]));
     open();
-    fill("Acme", "Globex");
+    fill("οσ", "Ω");
     findMatches();
+    // Postgres lower() maps Σ to σ, never to the final ς, so only ΟΣ is a candidate match.
     expect(
-      await screen.findByText('findReplace.matches {"count":2}'),
+      await screen.findByText('findReplace.matches {"count":1}'),
     ).toBeTruthy();
-    expect(f.query.mock.calls[1][1].cursor).toBe("next");
   });
 
-  it("refuses more than one batch of rows before writing", async () => {
-    const rows = Array.from({ length: 100 }, (_, i) => row(i + 1, "Acme"));
-    f.query
-      .mockResolvedValueOnce(page(rows, "next"))
-      .mockResolvedValueOnce(page([row(101, "acme")], "more"));
+  it("reads candidates in one request and refuses when more than one page contains the text", async () => {
+    const rows = Array.from({ length: 100 }, (_, i) => row(i + 1, "Acme Co"));
+    f.query.mockResolvedValue(page(rows, "next"));
     open();
     fill("Acme", "Globex");
     findMatches();
     expect(
       await screen.findByText('findReplace.tooMany {"limit":100}'),
     ).toBeTruthy();
-    expect(f.query).toHaveBeenCalledTimes(2);
+    expect(f.query).toHaveBeenCalledTimes(1);
+    expect(f.query.mock.calls[0][1]).not.toHaveProperty("cursor");
     expect(
       screen.queryByRole("button", { name: /findReplace.apply/ }),
     ).toBeNull();
@@ -252,5 +248,38 @@ describe("TableFindReplace", () => {
     cleanup();
     await waitFor(() => expect(document.activeElement).toBe(trigger));
     trigger.remove();
+  });
+  it("counts the request key against the 1 MB limit", async () => {
+    // Patch bytes without the key, for 100 rows whose versions add `extra` digits.
+    const ids = Array.from({ length: 100 }, (_, i) => row(i + 1, "Acme"));
+    const bytes = (value: string, extra: number) =>
+      new Blob([
+        JSON.stringify({
+          patch: ids.map((r, i) => ({
+            id: r.id,
+            version: i < extra ? r.version * 10 : r.version,
+            values: { [company.id]: value },
+          })),
+        }),
+      ]).size;
+    const length = Math.floor((1_000_000 - 20 - bytes("", 0)) / 100);
+    const extra = 1_000_000 - 20 - bytes("x".repeat(length), 0);
+    expect(extra).toBeGreaterThanOrEqual(0);
+    expect(extra).toBeLessThan(100);
+    // 20 bytes under the cap without the key; the key's 49 bytes push it over.
+    expect(bytes("x".repeat(length), extra)).toBe(1_000_000 - 20);
+    f.query.mockResolvedValue(
+      page(
+        ids.map((r, i) =>
+          i < extra ? ({ ...r, version: r.version * 10 } as TableRow) : r,
+        ),
+      ),
+    );
+    open();
+    fill("Acme", "x".repeat(length));
+    findMatches();
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "errors.requestSize",
+    );
   });
 });

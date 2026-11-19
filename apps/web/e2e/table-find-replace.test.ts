@@ -20,6 +20,7 @@ const CSV = [
   "acme inc,Priya Shah",
   "Acme Inc Ltd,Tom Berg",
   "Globex,Mia Chen",
+  "ΟΣ,Ana Lima",
 ].join("\n");
 
 const PROJECTS = [
@@ -120,6 +121,20 @@ for (const { name: size, isMobile, ...viewport } of PROJECTS) {
       await page.keyboard.press("Escape");
       await page.getByText("ACME INC", { exact: true }).waitFor();
       await shot(page, size, "3-undone");
+
+      // Core's `contains` and the dialog agree on case letter by letter: οσ
+      // finds ΟΣ. Replacing it with itself writes nothing.
+      await menu.click();
+      await page.getByRole("menuitem", { name: "Find and replace" }).click();
+      await dialog.getByLabel("Find").fill("οσ");
+      await dialog.getByLabel("Replace with").fill("ΟΣ");
+      await dialog.getByRole("button", { name: "Find matches" }).click();
+      await dialog
+        .getByText("Every matching cell already holds the new value.", {
+          exact: false,
+        })
+        .waitFor();
+      await page.keyboard.press("Escape");
 
       const overflow = await page.evaluate(
         () =>

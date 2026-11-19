@@ -11420,7 +11420,7 @@
       "undoBatch": "Deshacer lote",
       "findReplace": {
         "title": "Buscar y reemplazar",
-        "description": "Cambia cada celda de una columna que contenga exactamente el valor que buscas, sin distinguir mayúsculas. Se guarda como un solo cambio que puedes deshacer desde el historial.",
+        "description": "Cambia cada celda de una columna que contenga exactamente el valor que buscas, sin distinguir mayúsculas. Se guarda como un solo cambio que puedes deshacer desde Historial y fuentes.",
         "column": "Columna",
         "find": "Buscar",
         "replace": "Reemplazar por",
@@ -11429,9 +11429,9 @@
         "matches": "{count, plural, one {Cambiará # celda.} other {Cambiarán # celdas.}}",
         "unchanged": "Todas las celdas que coinciden ya tienen el nuevo valor. No hay nada que cambiar.",
         "none": "Ninguna celda de esta columna contiene exactamente ese valor. Revisa espacios y ortografía.",
-        "tooMany": "Coinciden más de {limit} celdas y un reemplazo cambia como máximo {limit}. No se cambió nada.",
+        "tooMany": "Más de {limit} celdas de esta columna contienen ese texto y Buscar y reemplazar revisa como máximo {limit}. No se cambió nada.",
         "apply": "{count, plural, one {Reemplazar # celda} other {Reemplazar # celdas}}",
-        "done": "{count, plural, one {Se reemplazó # celda.} other {Se reemplazaron # celdas.}} Puedes deshacerlo desde el historial."
+        "done": "{count, plural, one {Se reemplazó # celda.} other {Se reemplazaron # celdas.}} Puedes deshacerlo desde Historial y fuentes."
       },
       "before": "Antes",
       "after": "Después",

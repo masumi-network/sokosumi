@@ -26,6 +26,15 @@ const MAX_BYTES = 1_000_000;
 /** Columns whose cells hold one piece of text, so a whole-cell match is meaningful. */
 const TEXT_TYPES = new Set(["text", "long_text", "url", "email"]);
 
+/**
+ * Lowercases letter by letter, as Postgres lower() does for Core's `contains`
+ * filter, so the whole-cell check agrees with the candidates Core returns
+ * (Σ is σ, never the word-final ς that String#toLowerCase picks).
+ */
+function lower(text: string): string {
+  return Array.from(text, (letter) => letter.toLowerCase()).join("");
+}
+
 type Patch = { id: string; version: number; values: TableRow["values"] };
 type Found =
   | { kind: "none" }
@@ -71,26 +80,22 @@ export function TableFindReplace({
     setPending(true);
     try {
       const value = parseTableInput(column, replace);
-      const wanted = find.toLowerCase();
-      const matches: TableRow[] = [];
-      let cursor: string | undefined;
-      // ponytail: Core has no case-insensitive whole-cell filter (its operators are
-      // shared with Soko Bot's read_table), so read every `contains` hit and keep
-      // whole-cell matches here. Up to 100 requests on a 10,000-row table.
-      do {
-        const page = await dataTableService.query(table.id, {
-          filters: [{ columnId, operator: "contains", value: find }],
-          limit: LIMIT,
-          cursor,
-          archived: false,
-        });
-        for (const row of page.rows) {
-          const cell = row.values[columnId];
-          if (typeof cell === "string" && cell.toLowerCase() === wanted)
-            matches.push(row);
-        }
-        cursor = page.nextCursor ?? undefined;
-      } while (cursor && matches.length <= LIMIT);
+      // One read of every cell that contains the text, so no page boundary can
+      // move under the scan. Core caps a page at 100: more is refused below.
+      const page = await dataTableService.query(table.id, {
+        filters: [{ columnId, operator: "contains", value: find }],
+        limit: LIMIT,
+        archived: false,
+      });
+      if (page.nextCursor) {
+        setFound({ kind: "tooMany" });
+        return;
+      }
+      const wanted = lower(find);
+      const matches = page.rows.filter((row) => {
+        const cell = row.values[columnId];
+        return typeof cell === "string" && lower(cell) === wanted;
+      });
       // A cell that already holds the replacement keeps its value and its sources.
       const patch = matches
         .filter((row) => row.values[columnId] !== value)
@@ -99,18 +104,18 @@ export function TableFindReplace({
           version: row.version,
           values: { [columnId]: value },
         }));
-      if (new Blob([JSON.stringify({ patch })]).size > MAX_BYTES) {
+      // Measure the body as sent: the batch adds a UUID idempotency key.
+      const body = JSON.stringify({ patch, key: crypto.randomUUID() });
+      if (new Blob([body]).size > MAX_BYTES) {
         setError(t("errors.requestSize"));
         return;
       }
       setFound(
         matches.length === 0
           ? { kind: "none" }
-          : matches.length > LIMIT
-            ? { kind: "tooMany" }
-            : patch.length === 0
-              ? { kind: "unchanged" }
-              : { kind: "ready", patch },
+          : patch.length === 0
+            ? { kind: "unchanged" }
+            : { kind: "ready", patch },
       );
     } catch (error) {
       setError(tableError(error, t));
