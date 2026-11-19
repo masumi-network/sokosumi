@@ -66,17 +66,27 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       const message = page.getByRole("article").last();
       await message.getByText("Kickoff for the spring launch.").waitFor();
       if (isMobile) {
-        // Touch opens the message's actions with a long press.
-        await message
-          .getByText("Kickoff for the spring launch.")
-          .click({ delay: 700 });
+        // Touch has no hover pill. The row's always-mounted actions button
+        // opens the same sheet a long press does; a held mouse click does
+        // not stand in for a touch long press here.
+        await message.getByRole("button", { name: "Message actions" }).focus();
+        await page.keyboard.press("Enter");
       } else {
         await message.hover();
       }
+      // The reaction's Server Action carries the emoji in its body. Server
+      // Actions run one at a time, so it can wait behind the room's own; a
+      // reload before it answers would drop it unsent.
+      const saved = page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          (response.request().postData() ?? "").includes("👍"),
+      );
       await page.getByRole("button", { name: "React with 👍" }).first().click();
       const chip = page.getByRole("button", { name: "👍 1" });
       await chip.waitFor();
       const pressed = await chip.getAttribute("aria-pressed");
+      await saved;
       // The saved state, not the optimistic one: a rolled-back reaction
       // would be gone (or unpressed) after a reload.
       await page.reload();
