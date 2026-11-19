@@ -101,27 +101,29 @@ export function TasksExportDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
-        <TasksExportSummary {...props} onExported={() => onOpenChange(false)} />
+        <TasksExportSummary
+          {...props}
+          open={open}
+          onExported={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );
 }
 
 function TasksExportSummary({
+  open,
   filters,
   activeFilters,
   sortLabel,
   onExported,
-}: Omit<
-  TasksExportDialogProps,
-  "open" | "onOpenChange" | "onCloseAutoFocus"
-> & {
+}: Omit<TasksExportDialogProps, "onOpenChange" | "onCloseAutoFocus"> & {
   onExported: () => void;
 }) {
   const t = useTranslations("App.Tasks.Export");
   const labels = useCsvLabels();
-  // Mounted only while the dialog is open, and dropped on close, so each
-  // open counts again.
+  // Mounted while the dialog shows and dropped after, so each open counts
+  // again.
   const preview = useQuery({
     queryKey: ["tasks-export-preview", filters],
     queryFn: () => previewTasksExport(filters),
@@ -129,23 +131,26 @@ function TasksExportSummary({
     gcTime: 0,
   });
   const [isExporting, startExport] = useTransition();
-  // Cancel closes the dialog but cannot stop the action; drop its file.
-  const closed = useRef(false);
+  // Cancel closes the dialog but cannot stop the action. Closing, opening
+  // again, or unmounting starts a new run, and an export from an earlier
+  // run saves nothing. The content stays mounted while it animates out.
+  const run = useRef(0);
   useEffect(() => {
-    closed.current = false;
+    const wasOpen = open;
     return () => {
-      closed.current = true;
+      if (wasOpen) run.current += 1;
     };
-  }, []);
+  }, [open]);
   const handleExport = () => {
+    const started = run.current;
     startExport(async () => {
       try {
         const { rows } = await exportTasks(filters);
-        if (closed.current) return;
+        if (run.current !== started) return;
         download(tasksCsv(rows, labels));
         onExported();
       } catch {
-        toast.error(t("error"));
+        if (run.current === started) toast.error(t("error"));
       }
     });
   };
