@@ -75,11 +75,23 @@ function onDomain(hostname: string, domain: string): boolean {
   return hostname === domain || hostname.endsWith(`.${domain}`);
 }
 
+const PROFILE_HOSTS = [
+  "crunchbase.com",
+  "exa.ai",
+  "github.com",
+  "producthunt.com",
+];
+
 /** A review, job, forum or social site: it writes about companies, it is not one's own. */
 export function thirdPartyHost(hostname: string): boolean {
   return [...NEWS_JUNK_DOMAINS, ...SOCIAL_HOSTS].some((domain) =>
     onDomain(hostname, domain),
   );
+}
+
+/** A site that lists companies: news can be there, a company's homepage is not. */
+export function profileHost(hostname: string): boolean {
+  return PROFILE_HOSTS.some((domain) => onDomain(hostname, domain));
 }
 
 const MONTH_NAME =

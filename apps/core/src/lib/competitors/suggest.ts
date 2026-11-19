@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { ExaSearchResult } from "@/lib/soko-bot/exa";
 
 import { type AskCompetitorModel, askCompetitorModel } from "./model";
-import { thirdPartyHost } from "./news";
+import { profileHost, thirdPartyHost } from "./news";
 import { bareHost, squash } from "./text";
 
 /** How many competitors one search suggests at most. */
@@ -12,13 +12,6 @@ export const MAX_SUGGESTIONS = 8;
 export const SUGGESTION_CANDIDATES = 12;
 /** Well-known competitors the model may name on top of the search's. */
 const MAX_KNOWN = 4;
-/** Sites that list companies: a result there is a profile, not a homepage. */
-const PROFILE_HOSTS = [
-  "crunchbase.com",
-  "exa.ai",
-  "github.com",
-  "producthunt.com",
-];
 const WHY_CHARS = 120;
 const ABOUT_CHARS = 600;
 
@@ -74,7 +67,7 @@ export function suggestionCandidates(
       hosts.has(host) ||
       names.has(squash(name)) ||
       thirdPartyHost(host) ||
-      PROFILE_HOSTS.some((profile) => host.endsWith(profile))
+      profileHost(host)
     )
       return [];
     hosts.add(host);

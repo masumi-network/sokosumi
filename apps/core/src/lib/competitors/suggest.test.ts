@@ -59,10 +59,11 @@ describe("suggestionCandidates", () => {
           result("SavvyCal", "https://www.linkedin.com/company/savvycal"),
           result("Doodle", "https://www.crunchbase.com/organization/doodle"),
           result("No description", "https://nodescription.example/", ""),
+          result("Notexa", "https://notexa.ai/"),
         ],
         { hosts: ["www.cal.com", "zcal.co"], names: ["Cal.com"] },
-      ),
-    ).toEqual([]);
+      ).map(({ name }) => name),
+    ).toEqual(["Notexa"]);
   });
 });
 
