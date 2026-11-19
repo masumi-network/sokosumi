@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { hashPassword } from "better-auth/crypto";
+import { Hono } from "hono";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
+import { type AuthVariables, authMiddleware } from "@/middleware/auth";
+import { causeMessage, expectCoreLog } from "@/test/core-log";
+
+vi.mock("@/helpers/background-email", () => ({
+  sendEmailInBackground: vi.fn(),
+}));
 
 vi.mock("@/clients/stripe.client", async (importOriginal) => {
   const actual =
@@ -36,6 +43,18 @@ const enabled =
 const origin = "https://example.com";
 const passwordEmail = `password-${randomUUID()}@example.test`;
 const googleEmail = `google-${randomUUID()}@example.test`;
+const otpEmail = `otp-${randomUUID()}@example.test`;
+const apiKeyUserId = randomUUID();
+const apiKeyEmail = `api-key-${apiKeyUserId}@example.test`;
+const captchaHeaders = { [AUTH_CAPTCHA_HEADER]: "fixture-turnstile-token" };
+
+function passCaptcha() {
+  return vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async () =>
+      Response.json({ success: true, action: AUTH_CAPTCHA_ACTION }),
+    );
+}
 
 function post(
   path: string,
@@ -54,8 +73,14 @@ function post(
 describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
   afterEach(() => vi.restoreAllMocks());
   afterAll(async () => {
+    await prisma.apikey.deleteMany({ where: { referenceId: apiKeyUserId } });
+    await prisma.verification.deleteMany({
+      where: { identifier: { endsWith: otpEmail } },
+    });
     await prisma.user.deleteMany({
-      where: { email: { in: [passwordEmail, googleEmail] } },
+      where: {
+        email: { in: [passwordEmail, googleEmail, otpEmail, apiKeyEmail] },
+      },
     });
     await prisma.$disconnect();
   });
@@ -80,16 +105,12 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
         },
       },
     });
-    const verify = vi
-      .spyOn(globalThis, "fetch")
-      .mockImplementation(async () =>
-        Response.json({ success: true, action: AUTH_CAPTCHA_ACTION }),
-      );
+    const verify = passCaptcha();
 
     const response = await post(
       "/sign-in/email",
       { email: passwordEmail, password },
-      { [AUTH_CAPTCHA_HEADER]: "fixture-turnstile-token" },
+      captchaHeaders,
     );
 
     expect(verify).toHaveBeenCalledTimes(1);
@@ -158,5 +179,90 @@ describe.runIf(enabled)("Core Better Auth with PostgreSQL", () => {
       ],
       sessions: [expect.objectContaining({ userId: user.id })],
     });
+  });
+
+  it("creates a verified user and session with an emailed code", async () => {
+    passCaptcha();
+    const lines: string[] = [];
+    const output = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation((chunk) => {
+        if (typeof chunk === "string") lines.push(chunk);
+        return true;
+      });
+    const sent = await post(
+      "/email-otp/send-verification-otp",
+      { email: otpEmail, type: "sign-in" },
+      captchaHeaders,
+    ).finally(() => output.mockRestore());
+    expect(sent.status).toBe(200);
+    const prefix = `[email code] ${otpEmail}: `;
+    const otp = lines
+      .find((line) => line.startsWith(prefix))
+      ?.slice(prefix.length)
+      .trim();
+    if (!otp || !/^\d{6}$/.test(otp))
+      throw new Error("Missing development email code");
+
+    const response = await post("/sign-in/email-otp", {
+      email: otpEmail,
+      otp,
+      firstName: "Email",
+      lastName: "Fixture",
+      password: "fixture-password-long",
+      termsAccepted: true,
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.getSetCookie().join("\n")).toContain(
+      "session_token=",
+    );
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { email: otpEmail },
+      include: { accounts: true, sessions: true },
+    });
+    expect(user).toMatchObject({
+      emailVerified: true,
+      termsAccepted: true,
+      accounts: [expect.objectContaining({ providerId: "credential" })],
+      sessions: [expect.objectContaining({ userId: user.id })],
+    });
+  });
+
+  it("authenticates a created API key and rejects an unknown key", async () => {
+    await prisma.user.create({
+      data: {
+        id: apiKeyUserId,
+        name: "API Key Fixture",
+        email: apiKeyEmail,
+        emailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+    const { key } = await auth.api.createApiKey({
+      body: { userId: apiKeyUserId, configId: "default", name: "Smoke test" },
+    });
+
+    const app = new Hono<{ Variables: AuthVariables }>();
+    app.use("*", authMiddleware);
+    app.get("/", (c) => c.json(c.var.authContext));
+
+    const accepted = await app.request("/", {
+      headers: { authorization: `Bearer ${key}` },
+    });
+    expect(accepted.status).toBe(200);
+    expect(await accepted.json()).toMatchObject({
+      actor: "user",
+      userId: apiKeyUserId,
+      authenticationMethod: "api_key",
+    });
+
+    const failures = expectCoreLog("error", "Failed to validate API key:");
+    const rejected = await app.request("/", {
+      headers: { authorization: `Bearer unknown-${randomUUID()}` },
+    });
+    expect(rejected.status).toBe(401);
+    // Better Auth also catches database errors here. Check the cause of the rejection.
+    expect(causeMessage(failures[0]?.cause)).toBe("Invalid API key.");
   });
 });
