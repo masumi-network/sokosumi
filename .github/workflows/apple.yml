@@ -7,6 +7,11 @@ on:
   # Draft PRs run nothing (see `changes`); `ready_for_review` starts the run.
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # The merge queue needs `Xcode test` and `Swift lint and format` on its
+  # group commit too. They run only when the group changes Apple files and
+  # report skipped (accepted) otherwise, as on PRs.
+  merge_group:
+    types: [checks_requested]
   # Main-scoped caches (Mint, SwiftPM, Xcode compilation) are what PRs restore.
   # Saving them used to mean running test/lint on every Apple push to main.
   # A daily off-peak warm plus manual dispatch fills the same keys instead.
@@ -40,7 +45,7 @@ jobs:
   changes:
     name: Detect Apple changes
     # Schedule has no push/PR diff, and a tag push has no branch to diff
-    # against; skip rather than fail paths-filter. Only the pull_request-only
+    # against; skip rather than fail paths-filter. Only the PR and merge-queue
     # test and lint jobs need it, so Publish still runs on tags. Skipping it on
     # a draft PR skips test and lint too.
     if: github.event_name != 'schedule' && !startsWith(github.ref, 'refs/tags/') && !github.event.pull_request.draft
@@ -60,6 +65,8 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v3
         with:
+          base: ${{ github.event.merge_group.base_sha }}
+          ref: ${{ github.event.merge_group.head_sha }}
           filters: |
             apple:
               - "apps/apple/**"
@@ -77,8 +84,8 @@ jobs:
     name: Xcode test
     needs: changes
     # Required check name: keep this `name:` stable. Runs on pull_request
-    # only (path-filtered by `changes`). A skipped job still reports, so
-    # non-Apple PRs satisfy the Default Branch ruleset. Do not run on push
+    # and merge_group only (path-filtered by `changes`). A skipped job still
+    # reports, so non-Apple PRs and merge groups satisfy the Default Branch ruleset. Do not run on push
     # to main: that queued macOS runners behind every Apple merge.
     #
     # One build of the `Sokosumi` *workspace* scheme covers the app target
@@ -86,7 +93,7 @@ jobs:
     # tests reachable from the scheme, so do not add per-package jobs. Its
     # tests are what `xcodebuild test`, the command `apps/apple/README.md`
     # tells a human to run, runs; CI only spreads them over processes.
-    if: github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true'
+    if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.changes.outputs.apple == 'true'
     runs-on: xcode-27
     permissions:
       contents: read
@@ -201,9 +208,9 @@ jobs:
   lint:
     name: Swift lint and format
     needs: changes
-    # Required check name: keep this `name:` stable. Same PR-only gate as
+    # Required check name: keep this `name:` stable. Same PR and merge-queue gate as
     # `Xcode test`. Mint on main is saved by `Warm Apple caches`, not here.
-    if: github.event_name == 'pull_request' && needs.changes.outputs.apple == 'true'
+    if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.changes.outputs.apple == 'true'
     runs-on: xcode-27
     steps:
       - name: Checkout repository
@@ -338,7 +345,7 @@ jobs:
   # is a permanent link to the newest build of main. A Beta build is never
   # written into the appcast and never touches `macos-latest`.
   #
-  # No `needs: test`: `Xcode test` is pull_request-only, and a skipped needed
+  # No `needs: test`: `Xcode test` never runs on push, and a skipped needed
   # job skips its dependents. The Default Branch ruleset already required
   # `Xcode test` on the PR that merged. Do not add `needs: warm` (or `test`)
   # — warm's `if` is false on push, so that need would skip Publish on every

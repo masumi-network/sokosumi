@@ -88,11 +88,11 @@ describe("Apple CI triggers", () => {
 
     assert.match(
       test,
-      /if: github\.event_name == 'pull_request' && needs\.changes\.outputs\.apple == 'true'/,
+      /if: \(github\.event_name == 'pull_request' \|\| github\.event_name == 'merge_group'\) && needs\.changes\.outputs\.apple == 'true'/,
     );
     assert.match(
       lint,
-      /if: github\.event_name == 'pull_request' && needs\.changes\.outputs\.apple == 'true'/,
+      /if: \(github\.event_name == 'pull_request' \|\| github\.event_name == 'merge_group'\) && needs\.changes\.outputs\.apple == 'true'/,
     );
     assert.doesNotMatch(test, /github\.event_name == 'push'/);
     assert.doesNotMatch(lint, /github\.event_name == 'push'/);
@@ -168,6 +168,22 @@ describe("PR CI drafts", () => {
       assert.match(
         jobBlock(yaml, "changes"),
         /if: .*!github\.event\.pull_request\.draft/,
+      );
+    }
+  });
+});
+
+// The merge queue waits for every required check on its group commit. A
+// workflow behind one that does not run on merge_group never reports it, so
+// every queued PR times out.
+describe("Merge queue", () => {
+  it("runs each workflow behind a required check on merge_group", async () => {
+    for (const file of ["ci.yml", "apple.yml", "conventional-commit.yml"]) {
+      const yaml = await readRepoFile(".github", "workflows", file);
+      assert.match(
+        yaml.split(/^jobs:/m)[0],
+        /\n {2}merge_group:\n {4}types: \[checks_requested\]\n/,
+        `${file} must run on merge_group`,
       );
     }
   });
