@@ -24,12 +24,19 @@ const cells = (n: number) => [
   "Title misses the main keyword and the meta description is too long",
   "Rewrite the title",
 ];
+// Wider than the 28rem cap in any font: without the cap this one cell sets the column width.
+const LONG = Array.from(
+  { length: 6 },
+  () => "The meta description repeats the title and runs past the result page",
+).join(" ");
+// The 28rem cap with box-sizing border-box, plus a pixel of rounding.
+const CELL_CAP_PX = 448 + 1;
 const row = (values: string[]) => `| ${values.join(" | ")} |`;
 const TABLE = [
   row(Array.from({ length: COLUMNS }, (_, i) => `Column ${i + 1}`)),
   row(Array.from({ length: COLUMNS }, () => "---")),
   row(cells(1)),
-  row(cells(2)),
+  row(cells(2).with(8, LONG)),
 ].join("\n");
 
 let browser: Browser;
@@ -75,12 +82,18 @@ describe("Markdown table layout", () => {
         return {
           frameClient: frame?.clientWidth ?? 0,
           frameScroll: frame?.scrollWidth ?? 0,
+          // The URL links, not their cells: a cell is as tall as its row, and the long prose cell wraps on purpose.
           tallestCellLines:
             Math.max(
-              ...[...document.querySelectorAll("td")].map(
-                (cell) => cell.getBoundingClientRect().height,
+              ...[...document.querySelectorAll("td a")].map(
+                (link) => link.getBoundingClientRect().height,
               ),
             ) / lineHeight,
+          widestCell: Math.max(
+            ...[...document.querySelectorAll("td")].map(
+              (cell) => cell.getBoundingClientRect().width,
+            ),
+          ),
           pageClient: document.documentElement.clientWidth,
           pageScroll: document.documentElement.scrollWidth,
         };
@@ -90,6 +103,7 @@ describe("Markdown table layout", () => {
       expect(layout.pageScroll).toBeLessThanOrEqual(layout.pageClient);
       // Squished columns stacked a URL over 20 lines; capped cells wrap to a few.
       expect(layout.tallestCellLines).toBeLessThan(5);
+      expect(layout.widestCell).toBeLessThanOrEqual(CELL_CAP_PX);
     },
   );
 });

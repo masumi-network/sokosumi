@@ -293,7 +293,7 @@ export default function Markdown({
           <table
             {...props}
             className={cn(
-              "w-max min-w-full caption-bottom border-collapse text-sm [&_:is(td,th)]:max-w-md [&_:is(td,th)_a]:wrap-break-word",
+              "w-max min-w-full caption-bottom border-collapse text-sm [&_:is(td,th)]:max-w-md",
               className,
             )}
           >
