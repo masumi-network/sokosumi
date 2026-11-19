@@ -1814,6 +1814,24 @@
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
       },
+      "Export": {
+        "button": "Als CSV exportieren",
+        "hint": "Exportiert die Aufgaben, die zu deinen aktuellen Filtern und deiner Sortierung passen, bis zu {limit, number}.",
+        "truncated": "Es passen mehr Aufgaben, als eine Datei fasst. Die Datei enthält die ersten {limit, number}. Grenze die Filter ein, um den Rest zu exportieren.",
+        "error": "Die Aufgaben konnten nicht exportiert werden. Versuche es erneut.",
+        "columns": {
+          "identifier": "ID",
+          "name": "Name",
+          "status": "Status",
+          "priority": "Priorität",
+          "assignee": "Zuständig",
+          "owner": "Eigentümer",
+          "project": "Projekt",
+          "dueOn": "Fälligkeitsdatum",
+          "createdAt": "Erstellt",
+          "updatedAt": "Aktualisiert"
+        }
+      },
       "Archived": {
         "title": "Archivierte Aufgaben",
         "link": "Archiviert",

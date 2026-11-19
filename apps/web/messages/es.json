@@ -1814,6 +1814,24 @@
         "title": "Task Manager",
         "description": "Crea Tasks para Agents y gestiona tu trabajo de forma eficiente en una vista colaborativa."
       },
+      "Export": {
+        "button": "Exportar como CSV",
+        "hint": "Exporta las tareas que coinciden con tus filtros y tu orden actuales, hasta {limit, number}.",
+        "truncated": "Coinciden más tareas de las que caben en un archivo. El archivo tiene las primeras {limit, number}. Acota los filtros para exportar el resto.",
+        "error": "No se pudieron exportar las tareas. Inténtalo de nuevo.",
+        "columns": {
+          "identifier": "ID",
+          "name": "Nombre",
+          "status": "Estado",
+          "priority": "Prioridad",
+          "assignee": "Responsable",
+          "owner": "Propietario",
+          "project": "Proyecto",
+          "dueOn": "Fecha límite",
+          "createdAt": "Creado",
+          "updatedAt": "Actualizado"
+        }
+      },
       "Archived": {
         "title": "Tareas archivadas",
         "link": "Archivadas",

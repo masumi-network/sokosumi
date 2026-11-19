@@ -69,6 +69,7 @@ vi.mock("@/lib/helpers/project-filter-options", () => ({
 }));
 
 import {
+  exportTasks,
   loadCreateTaskModalData,
   loadMoreTasksColumn,
   loadMoreTasksList,
@@ -557,5 +558,76 @@ describe("loadNewTaskWizardOptions", () => {
     await loadNewTaskWizardOptions();
 
     expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("exportTasks", () => {
+  const filters = {
+    scope: "workspace" as const,
+    assigneeId: null,
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
+    status: null,
+    projectId: null,
+    visibility: null,
+  };
+
+  // Core's cursor paging over `total` Tasks; the cursor is the next offset.
+  function serveTasks(total: number) {
+    getTasksListPageMock.mockImplementation(
+      async ({ cursor, limit }: { cursor: string | null; limit: number }) => {
+        const start = cursor ? Number(cursor) : 0;
+        const end = Math.min(total, start + limit);
+        return {
+          tasks: Array.from({ length: end - start }, (_, index) => ({
+            id: `task-${start + index}`,
+            name: `Task ${start + index}`,
+          })),
+          nextCursor: end < total ? String(end) : null,
+        };
+      },
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getMineMock.mockResolvedValue(null);
+    listCoworkersMock.mockResolvedValue([]);
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+    });
+  });
+
+  it("stops at 1,000 Tasks and says more matched", async () => {
+    serveTasks(1500);
+
+    const { rows, truncated } = await exportTasks(filters);
+
+    expect(rows).toHaveLength(1000);
+    expect(rows.at(-1)?.name).toBe("Task 999");
+    expect(truncated).toBe(true);
+    // Ten full pages, then one row to learn whether more match.
+    expect(
+      getTasksListPageMock.mock.calls.map(([params]) => params.limit),
+    ).toEqual([...Array(10).fill(100), 1]);
+  });
+
+  it("exports exactly 1,000 matching Tasks as complete", async () => {
+    serveTasks(1000);
+
+    const { rows, truncated } = await exportTasks(filters);
+
+    expect(rows).toHaveLength(1000);
+    expect(truncated).toBe(false);
+  });
+
+  it("exports a short list in one request", async () => {
+    serveTasks(30);
+
+    const { rows, truncated } = await exportTasks(filters);
+
+    expect(rows).toHaveLength(30);
+    expect(truncated).toBe(false);
+    expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
   });
 });

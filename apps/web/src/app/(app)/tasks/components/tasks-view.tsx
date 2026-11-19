@@ -303,6 +303,7 @@ export function TasksView(props: TasksViewProps) {
               replaceRouteFilters({ subtasks }, URL_ONLY_NAVIGATOR),
             labels: labels.display,
           }}
+          exportFilters={{ ...routeFilters, sort: shownSort }}
         />
       </div>
 
