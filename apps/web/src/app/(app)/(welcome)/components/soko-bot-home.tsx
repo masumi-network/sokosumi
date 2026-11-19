@@ -297,13 +297,23 @@ export async function SokoBotHome({
                         status={row.task.status}
                         label={tStatus(row.task.status)}
                       />
-                      <span className="text-foreground min-w-0 flex-1 truncate text-sm">
-                        {row.task.name}
+                      {/* On a phone the time beside the title cut it to a
+                          few words, so there the title wraps to two lines
+                          and the time sits under it, as chat rows do. */}
+                      <span className="min-w-0 flex-1 text-sm sm:flex sm:items-center sm:gap-3">
+                        <span className="text-foreground line-clamp-2 break-words sm:line-clamp-1 sm:flex-1">
+                          {row.task.name}
+                        </span>
+                        <span className="text-muted-foreground hidden max-w-40 shrink-0 truncate sm:block">
+                          {row.task.who}
+                        </span>
+                        <span className="block sm:hidden">
+                          {timeOf(row.at)}
+                        </span>
                       </span>
-                      <span className="text-muted-foreground hidden max-w-40 shrink-0 truncate text-sm sm:block">
-                        {row.task.who}
+                      <span className="hidden sm:contents">
+                        {timeOf(row.at)}
                       </span>
-                      {timeOf(row.at)}
                     </Link>
                   </li>
                 ),
