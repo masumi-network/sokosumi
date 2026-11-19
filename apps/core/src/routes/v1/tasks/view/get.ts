@@ -11,7 +11,7 @@ const route = createRoute({
   method: "get",
   path: "/view",
   description:
-    "The Tasks page view the caller last chose in the active workspace, so the page can open it again. Interactive session users only.",
+    "The Tasks page view the caller last chose in the active workspace, so the page can open it again. People only: Coworker and agent callers get 403.",
   tags: ["Tasks"],
   responses: {
     200: jsonSuccessResponse(

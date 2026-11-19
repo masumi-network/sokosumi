@@ -7754,7 +7754,7 @@ export const getTasksSummary = <ThrowOnError extends boolean = false>(options?: 
 });
 
 /**
- * The Tasks page view the caller last chose in the active workspace, so the page can open it again. Interactive session users only.
+ * The Tasks page view the caller last chose in the active workspace, so the page can open it again. People only: Coworker and agent callers get 403.
  */
 export const getTasksView = <ThrowOnError extends boolean = false>(options?: Options<GetTasksViewData, ThrowOnError>): RequestResult<GetTasksViewResponses, GetTasksViewErrors, ThrowOnError> => (options?.client ?? client).get<GetTasksViewResponses, GetTasksViewErrors, ThrowOnError>({
     responseTransformer: getTasksViewResponseTransformer,
@@ -7763,7 +7763,7 @@ export const getTasksView = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
- * Save the Tasks page view the caller chose in the active workspace. The last write wins. Interactive session users only.
+ * Save the Tasks page view the caller chose in the active workspace. The last write wins. People only: Coworker and agent callers get 403.
  */
 export const putTasksView = <ThrowOnError extends boolean = false>(options?: Options<PutTasksViewData, ThrowOnError>): RequestResult<PutTasksViewResponses, PutTasksViewErrors, ThrowOnError> => (options?.client ?? client).put<PutTasksViewResponses, PutTasksViewErrors, ThrowOnError>({
     responseTransformer: putTasksViewResponseTransformer,

@@ -14,7 +14,7 @@ const route = createRoute({
   method: "put",
   path: "/view",
   description:
-    "Save the Tasks page view the caller chose in the active workspace. The last write wins. Interactive session users only.",
+    "Save the Tasks page view the caller chose in the active workspace. The last write wins. People only: Coworker and agent callers get 403.",
   tags: ["Tasks"],
   request: {
     body: {
