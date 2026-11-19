@@ -56330,7 +56330,7 @@ export const CmoChatWorkItemSchema = {
     properties: {
         id: {
             type: 'string',
-            description: 'The tool call that started it.'
+            description: 'The tool call that started it; a weekly audit\'s own id.'
         },
         kind: {
             type: 'string',
@@ -56344,9 +56344,11 @@ export const CmoChatWorkItemSchema = {
                 'table',
                 'contacts',
                 'run',
-                'question'
+                'question',
+                'seo',
+                'audit'
             ],
-            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, or a question to a Coworker.'
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist\'s weekly audit of the site (audit).'
         },
         state: {
             type: 'string',
@@ -56833,6 +56835,12 @@ export const CmoSeoSchema = {
                 $ref: '#/components/schemas/CmoSeoSuggestion'
             }
         },
+        landingPages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
         keywordSearches: {
             type: 'array',
             items: {
@@ -56851,6 +56859,7 @@ export const CmoSeoSchema = {
         'searchConsole',
         'articles',
         'pageChanges',
+        'landingPages',
         'keywordSearches',
         'keywordSearchesLeft'
     ]
@@ -57165,7 +57174,8 @@ export const CmoSeoSuggestionSchema = {
             type: 'string',
             enum: [
                 'article',
-                'page_change'
+                'page_change',
+                'landing_page'
             ]
         },
         source: {
@@ -57207,6 +57217,28 @@ export const CmoSeoSuggestionSchema = {
                 'string',
                 'null'
             ]
+        },
+        sources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    sourceUrl: {
+                        type: 'string'
+                    },
+                    quote: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'text',
+                    'sourceUrl',
+                    'quote'
+                ]
+            }
         },
         evidence: {
             type: 'array',
@@ -57253,6 +57285,7 @@ export const CmoSeoSuggestionSchema = {
         'body',
         'newText',
         'draft',
+        'sources',
         'evidence',
         'status',
         'createdAt',
@@ -57435,6 +57468,41 @@ export const CmoSeoSuggestionStatusRequestSchema = {
     },
     required: [
         'status'
+    ],
+    additionalProperties: false
+} as const;
+
+export const CmoLandingPageLiveSchema = {
+    type: 'object',
+    properties: {
+        page: {
+            $ref: '#/components/schemas/CmoSeoSuggestion'
+        },
+        adsUpdated: {
+            type: 'integer'
+        },
+        adsLaunched: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'page',
+        'adsUpdated',
+        'adsLaunched'
+    ]
+} as const;
+
+export const CmoLandingPageLiveRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            maxLength: 500,
+            format: 'uri'
+        }
+    },
+    required: [
+        'url'
     ],
     additionalProperties: false
 } as const;

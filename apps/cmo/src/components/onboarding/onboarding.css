@@ -63,6 +63,8 @@ body:has(.ob) .site-header {
 }
 
 .ob-step > button {
+  border-color: var(--line);
+  box-shadow: var(--shadow);
   cursor: pointer;
   transition:
     background-color 150ms,
@@ -89,11 +91,6 @@ body:has(.ob) .site-header {
   border-color: var(--line);
   background: var(--primary);
   color: var(--primary-foreground);
-}
-
-/* A step you can go back to is a button, so it casts a shadow; the label does not. */
-.ob-step.now > button {
-  box-shadow: var(--shadow);
 }
 
 .ob-who {
@@ -1674,19 +1671,28 @@ body:has(.ob) .site-header {
   background: var(--card);
   color: var(--foreground);
   font: inherit;
+  box-shadow: var(--shadow);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color 150ms,
+    transform 150ms;
 }
 
 .ob-tabs button:hover {
   background: var(--surface);
 }
 
+.ob-tabs button:active {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+/* Every tab is a button and casts the shadow; the picked one is filled. */
 .ob-tabs button[aria-selected="true"],
 .ob-tabs button[aria-pressed="true"] {
   background: var(--primary);
-  box-shadow: var(--shadow);
   color: var(--primary-foreground);
 }
 
@@ -2119,12 +2125,24 @@ body:has(.ob) .site-header {
   color: var(--foreground);
   font: inherit;
   text-align: left;
+  box-shadow: var(--shadow);
   cursor: pointer;
 }
 
-/* The selected tile in a grid takes the Iris shadow. */
+/* Every plan is a button and casts the shadow; the picked one is filled. */
 .ob-plan-option[aria-pressed="true"] {
-  box-shadow: var(--shadow-iris);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.ob-plan-option[aria-pressed="true"] .muted {
+  color: var(--primary-foreground);
+}
+
+/* On the picked plan the mark would vanish into the fill. */
+.ob-plan-option[aria-pressed="true"] .ob-plan-fit {
+  background: var(--card);
+  color: var(--foreground);
 }
 
 .ob-plan-option:focus-visible {

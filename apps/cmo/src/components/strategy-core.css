@@ -322,10 +322,13 @@
   border-radius: var(--radius-card);
   background: var(--background);
   color: var(--foreground);
+  box-shadow: var(--shadow);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color 150ms;
+  transition:
+    background-color 150ms,
+    transform 150ms;
 }
 
 .sc-pace-option span {
@@ -334,24 +337,31 @@
 }
 
 .sc-pace-option:hover:not(:disabled) {
-  border-color: var(--foreground);
+  background: var(--surface);
 }
 
-/* The picked pace is filled with Iris and takes the hard shadow. */
-.sc-pace-option.current {
+.sc-pace-option:active:not(:disabled) {
+  transform: translate(var(--offset), var(--offset));
+  box-shadow: none;
+}
+
+/* Every pace is a button and casts the shadow; the picked one is filled. */
+.sc-pace-option[aria-pressed="true"] {
   background: var(--primary);
-  box-shadow: var(--shadow);
   color: var(--primary-foreground);
   cursor: default;
 }
 
-.sc-pace-option.current span {
+.sc-pace-option[aria-pressed="true"] span {
   color: var(--primary-foreground);
 }
 
-.sc-pace-option:disabled:not(.current) {
+/* A pace that cannot be picked now is flat, like any disabled button. */
+.sc-pace-option:disabled:not([aria-pressed="true"]) {
+  border-color: var(--border);
+  box-shadow: none;
+  color: var(--muted);
   cursor: default;
-  opacity: 0.6;
 }
 
 .sc-pace-option:focus-visible,

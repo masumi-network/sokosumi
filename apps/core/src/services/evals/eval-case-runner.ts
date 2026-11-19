@@ -25,7 +25,9 @@ import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
   COMPETITOR_ADS_CASE_ID,
+  COMPETITOR_LANDING_PAGE_CASE_ID,
   competitorAdChecks,
+  competitorLandingPageChecks,
 } from "./eval-cmo-competitor-ads";
 import {
   competitorFeedChecks,
@@ -306,6 +308,12 @@ async function pollScenario(
   }
   if (scenario.id === COMPETITOR_ADS_CASE_ID) {
     const extra = await competitorAdChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === COMPETITOR_LANDING_PAGE_CASE_ID) {
+    const extra = await competitorLandingPageChecks(lane);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;
