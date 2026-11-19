@@ -1817,7 +1817,7 @@
       "Export": {
         "button": "Export as CSV…",
         "title": "Export tasks as CSV",
-        "description": "The file holds the tasks this view shows, in the same order.",
+        "description": "The file holds the tasks this view shows.",
         "filtersLabel": "View and filters",
         "sortChip": "Sort: {sort}",
         "counting": "Counting tasks…",

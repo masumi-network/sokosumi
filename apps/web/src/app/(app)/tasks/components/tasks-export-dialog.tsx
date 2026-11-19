@@ -4,7 +4,7 @@ import { TaskPriority, TaskStatus } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { toast } from "sonner";
 import { exportTasks, previewTasksExport } from "@/app/tasks/actions";
 import {
@@ -129,10 +129,19 @@ function TasksExportSummary({
     gcTime: 0,
   });
   const [isExporting, startExport] = useTransition();
+  // Cancel closes the dialog but cannot stop the action; drop its file.
+  const closed = useRef(false);
+  useEffect(() => {
+    closed.current = false;
+    return () => {
+      closed.current = true;
+    };
+  }, []);
   const handleExport = () => {
     startExport(async () => {
       try {
         const { rows } = await exportTasks(filters);
+        if (closed.current) return;
         download(tasksCsv(rows, labels));
         onExported();
       } catch {

@@ -1817,7 +1817,7 @@
       "Export": {
         "button": "Exportar como CSV…",
         "title": "Exportar tareas como CSV",
-        "description": "El archivo contiene las tareas de esta vista, en el mismo orden.",
+        "description": "El archivo contiene las tareas de esta vista.",
         "filtersLabel": "Vista y filtros",
         "sortChip": "Orden: {sort}",
         "counting": "Contando tareas…",

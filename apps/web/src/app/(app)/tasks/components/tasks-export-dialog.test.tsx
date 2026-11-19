@@ -1,8 +1,9 @@
 import { TaskPriority, TaskStatus } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { exportTasks, previewTasksExport } from "@/app/tasks/actions";
@@ -107,6 +108,45 @@ describe("TasksExportDialog", () => {
     expect(click).toHaveBeenCalledTimes(1);
     expect(exportTasksMock).toHaveBeenCalledTimes(1);
     click.mockRestore();
+  });
+
+  it("saves no file when the reader cancels while the export runs", async () => {
+    const user = userEvent.setup();
+    previewMock.mockResolvedValue({ rows: [row("A")], matched: 1 });
+    let finish: (value: Awaited<ReturnType<typeof exportTasks>>) => void =
+      () => {};
+    exportTasksMock.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <QueryClientProvider client={new QueryClient()}>
+          <NextIntlClientProvider locale="en" messages={messages}>
+            <TasksExportDialog
+              open={open}
+              onOpenChange={setOpen}
+              filters={{} as Parameters<typeof exportTasks>[0]}
+              activeFilters={[]}
+              sortLabel="Priority"
+            />
+          </NextIntlClientProvider>
+        </QueryClientProvider>
+      );
+    }
+    render(<Harness />);
+
+    await screen.findByText("1 task matches");
+    await user.click(screen.getByRole("button", { name: "Export" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    await act(async () => finish({ rows: [row("A")], truncated: false }));
+
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
   it("offers no export when nothing matches", async () => {

@@ -211,9 +211,9 @@ export async function exportTasks(
 const TASKS_EXPORT_PREVIEW_ROWS = 3;
 
 /**
- * What Export as CSV would save, read in one small request: how many Tasks
- * match, and the first few rows. The confirm dialog shows it before the
- * full export runs.
+ * What Export as CSV would save, from one page of Tasks: how many match,
+ * and the first few rows. The confirm dialog shows it before the full
+ * export runs.
  */
 export async function previewTasksExport(
   filters: TasksLoadMoreFilters,

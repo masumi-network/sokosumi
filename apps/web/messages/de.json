@@ -1817,7 +1817,7 @@
       "Export": {
         "button": "Als CSV exportieren…",
         "title": "Aufgaben als CSV exportieren",
-        "description": "Die Datei enthält die Aufgaben dieser Ansicht, in derselben Reihenfolge.",
+        "description": "Die Datei enthält die Aufgaben dieser Ansicht.",
         "filtersLabel": "Ansicht und Filter",
         "sortChip": "Sortierung: {sort}",
         "counting": "Aufgaben werden gezählt…",
