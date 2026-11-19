@@ -101,7 +101,10 @@ function LibraryTile({
   const making = ACTIVE_STATUSES.has(job.status);
   const unavailable =
     asset !== null &&
-    (playback === "failed" || (thumbnailFailed && playback !== "ready"));
+    // A retry is not a recovery until the stage player can play the file.
+    (playback === "failed" ||
+      playback === "retrying" ||
+      (thumbnailFailed && playback !== "ready"));
 
   return (
     <button
@@ -147,8 +150,7 @@ function LibraryTile({
         ) : making ? (
           <>
             {t("videoMaking")}
-            {" · "}
-            <ElapsedTime since={new Date(job.createdAt)} />
+            <ElapsedTime prefix=" · " since={new Date(job.createdAt)} />
           </>
         ) : (
           t("videoFailed")

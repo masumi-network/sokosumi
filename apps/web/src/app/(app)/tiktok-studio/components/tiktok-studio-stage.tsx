@@ -89,10 +89,16 @@ function useElapsedSeconds(since: Date): number | null {
 const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
-/** How long a video has been in the making, as m:ss. */
-export function ElapsedTime({ since }: { since: Date }) {
+/** How long a video has been in the making, as m:ss, after a prefix. */
+export function ElapsedTime({
+  since,
+  prefix = "",
+}: {
+  since: Date;
+  prefix?: string;
+}) {
   const seconds = useElapsedSeconds(since);
-  return seconds === null ? null : <>{clock(seconds)}</>;
+  return seconds === null ? null : <>{`${prefix}${clock(seconds)}`}</>;
 }
 
 function Elapsed({ since }: { since: Date }) {
@@ -129,19 +135,17 @@ function FinishedVideo({
 }) {
   const t = useTranslations("App.TikTokStudio");
   const player = useRef<HTMLDivElement>(null);
-  /** This stage tried the file again, so a new failure takes focus. */
-  const [retried, setRetried] = useState(false);
-  const focusOnMount = useCallback((button: HTMLButtonElement | null) => {
-    button?.focus();
+  /** Focus was on the player when it failed, so Try again takes it. */
+  const refocus = useRef(false);
+  const focusIfDisplaced = useCallback((button: HTMLButtonElement | null) => {
+    if (button && refocus.current) button.focus();
+    refocus.current = false;
   }, []);
 
   // Off only once the file is known to fail, until a retry really plays.
   const blocked = playback === "failed" || playback === "retrying";
   const retry = () => {
-    flushSync(() => {
-      setRetried(true);
-      onPlayback("retrying");
-    });
+    flushSync(() => onPlayback("retrying"));
     player.current?.focus();
   };
   return (
@@ -168,7 +172,7 @@ function FinishedVideo({
               <Button
                 className="mt-3"
                 onClick={retry}
-                ref={retried ? focusOnMount : undefined}
+                ref={focusIfDisplaced}
                 size="sm"
               >
                 <RotateCcw aria-hidden />
@@ -184,7 +188,12 @@ function FinishedVideo({
               controls
               key={asset.id}
               onCanPlay={() => onPlayback("ready")}
-              onError={() => onPlayback("failed")}
+              onError={() => {
+                // Only take focus back from the player this failure removes.
+                refocus.current =
+                  player.current?.contains(document.activeElement) ?? false;
+                onPlayback("failed");
+              }}
               playsInline
               preload={playback === "retrying" ? "auto" : "metadata"}
               src={assetContentUrl(asset)}

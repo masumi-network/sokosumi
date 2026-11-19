@@ -517,6 +517,9 @@ describe("TikTokStudio", () => {
       expect(stage()).toHaveTextContent("checking");
       actionsOff();
 
+      // Not playable yet, so the library does not call it Ready.
+      expect(tile("a")).toHaveAccessibleName(/videoUnavailable/);
+
       // Size and length alone are not a playable file.
       fireEvent.loadedMetadata(stageVideo("a"));
       actionsOff();
@@ -536,6 +539,21 @@ describe("TikTokStudio", () => {
 
       expect(screen.getByRole("button", { name: "tryAgain" })).toHaveFocus();
       actionsOff();
+    });
+
+    it("leaves focus where the person moved it when a retry fails late", () => {
+      renderLibrary();
+      fireEvent.click(tile("a"));
+      fireEvent.error(stageVideo("a"));
+      fireEvent.click(screen.getByRole("button", { name: "tryAgain" }));
+      const script = screen.getByLabelText("script");
+      script.focus();
+      fireEvent.error(stageVideo("a"));
+
+      expect(script).toHaveFocus();
+      expect(
+        screen.getByRole("button", { name: "tryAgain" }),
+      ).not.toHaveFocus();
     });
 
     it("keeps a confirmed failure, and its gate, across video switches", () => {
