@@ -57,6 +57,8 @@ const site = vi.hoisted(() => ({
   sitemap: vi.fn(),
   /** A host whose capture throws, as a browser that died does. */
   dies: { host: "" },
+  /** Set when Chromium does not start. */
+  noBrowser: { on: false },
 }));
 vi.mock("@/lib/site-pages", () => ({
   readRobots: site.robots,
@@ -65,7 +67,10 @@ vi.mock("@/lib/site-pages", () => ({
 vi.mock("@/lib/site-capture", () => ({
   DESKTOP: { width: 1440, height: 900 },
   MOBILE: { width: 390, height: 844 },
-  withBrowser: (work: (browser: unknown) => unknown) => work({}),
+  withBrowser: async (work: (browser: unknown) => unknown) => {
+    if (site.noBrowser.on) throw new Error("Failed to launch the browser");
+    return work({});
+  },
   capturePage: async (
     _browser: unknown,
     url: string,
@@ -360,12 +365,15 @@ describe("captureCmoBrandMedia", () => {
     });
   });
 
-  it("still writes the index when the capture throws partway", async () => {
+  it("still writes the index when the capture throws partway, and says where it stopped", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The brand capture stopped partway",
+      ["A step of the capture threw; what it saved before is kept"],
+    );
     site.dies.host = "rival.example";
     try {
-      await expect(captureCmoBrandMedia("bot-1")).rejects.toThrow(
-        "Target closed",
-      );
+      await captureCmoBrandMedia("bot-1");
     } finally {
       site.dies.host = "";
     }
@@ -374,6 +382,31 @@ describe("captureCmoBrandMedia", () => {
     );
     // The pages read before the browser died are kept and named.
     expect(JSON.parse(String(index?.[1])).pages).toHaveLength(3);
+    expect(warnings[0]?.event).toMatchObject({
+      operation: "cmo_brand_media",
+      brandMedia: { step: "competitors", pagesRead: 3, ownPagesMissed: 0 },
+      failure: { errorName: "Error" },
+    });
+  });
+
+  it("says the browser did not start when Chromium fails to launch", async () => {
+    const warnings = expectCoreLogWhys(
+      "warn",
+      "The brand capture stopped partway",
+      ["A step of the capture threw; what it saved before is kept"],
+    );
+    site.noBrowser.on = true;
+    try {
+      await captureCmoBrandMedia("bot-1");
+    } finally {
+      site.noBrowser.on = false;
+    }
+    expect(warnings[0]?.event).toMatchObject({
+      brandMedia: { step: "browser", pagesRead: 0 },
+    });
+    expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual([
+      `${ORG}/index.json`,
+    ]);
   });
 
   it("reads only what robots.txt allows", async () => {
