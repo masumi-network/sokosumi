@@ -11147,7 +11147,11 @@
         "changes": "Cambia cosas",
         "kindLabel": "Qué hace {name}",
         "enabledLabel": "Permitir que el bot use {name}",
-        "toolError": "No se pudo cambiar la herramienta"
+        "toolError": "No se pudo cambiar la herramienta",
+        "authOauth": "Iniciar sesión en la página del servidor",
+        "signIn": "Iniciar sesión",
+        "signInNeeded": "Inicia sesión en este servidor para que tu bot pueda usarlo.",
+        "signInError": "No se pudo iniciar la sesión"
       },
       "Shell": {
         "title": "Herramientas de línea de comandos",

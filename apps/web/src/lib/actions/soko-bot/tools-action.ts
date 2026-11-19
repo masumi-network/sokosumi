@@ -1,6 +1,10 @@
 "use server";
 
-import type { SokoBotMcpServer, SokoBotSecret } from "@sokosumi/core-client";
+import type {
+  AddedSokoBotMcpServer,
+  SokoBotMcpServer,
+  SokoBotSecret,
+} from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
 import {
@@ -94,6 +98,7 @@ const addServerSchema = z.object({
   url: z.string().trim().min(1).max(2_000),
   auth: z.discriminatedUnion("type", [
     z.object({ type: z.literal("none") }),
+    z.object({ type: z.literal("oauth") }),
     z.object({ type: z.literal("bearer"), token: z.string().trim().min(1) }),
     z.object({
       type: z.literal("header"),
@@ -105,7 +110,7 @@ const addServerSchema = z.object({
 
 export const addSokoBotMcpServerAction = withSession<
   ToolsParams,
-  ActionResultDto<SokoBotMcpServer, ActionError>
+  ActionResultDto<AddedSokoBotMcpServer, ActionError>
 >(async ({ input }) => {
   const parsed = addServerSchema.safeParse(input);
   if (!parsed.success) return toActionResult(err(invalidInput()));
@@ -155,4 +160,15 @@ export const updateSokoBotMcpToolAction = withSession<
   if (!parsed.success) return toActionResult(err(invalidInput()));
   const { botId: id, serverId, ...change } = parsed.data;
   return run(() => sokoBotService.updateMcpTool(id, serverId, change));
+});
+
+export const signInToSokoBotMcpServerAction = withSession<
+  ToolsParams,
+  ActionResultDto<string | null, ActionError>
+>(async ({ input }) => {
+  const parsed = serverSchema.safeParse(input);
+  if (!parsed.success) return toActionResult(err(invalidInput()));
+  return run(() =>
+    sokoBotService.signInToMcpServer(parsed.data.botId, parsed.data.serverId),
+  );
 });

@@ -73,6 +73,7 @@ import {
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
   setSokoBotSandboxSetup as coreSetSokoBotSandboxSetup,
+  signInToSokoBotMcpServer as coreSignInToSokoBotMcpServer,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startMySokoBotTurn as coreStartMySokoBotTurn,
   startSokoBotTurn as coreStartSokoBotTurn,
@@ -490,6 +491,15 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     );
   }
 
+  async function signInToSokoBotMcpServer(id: string, serverId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSignInToSokoBotMcpServer({ client, path: { id, serverId } }),
+      "Failed to start signing in to the MCP server",
+    );
+  }
+
   async function updateSokoBotMcpTool(
     id: string,
     serverId: string,
@@ -768,6 +778,7 @@ export function createSokoBotClient(getClient: GetCoreClient) {
     listSokoBotMcpServers,
     addSokoBotMcpServer,
     refreshSokoBotMcpServer,
+    signInToSokoBotMcpServer,
     updateSokoBotMcpTool,
     removeSokoBotMcpServer,
     browseSokoBotSkills,
