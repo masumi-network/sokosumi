@@ -77,6 +77,13 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       const chip = page.getByRole("button", { name: "👍 1" });
       await chip.waitFor();
       const pressed = await chip.getAttribute("aria-pressed");
+      // The saved state, not the optimistic one: a rolled-back reaction
+      // would be gone (or unpressed) after a reload.
+      await page.reload();
+      const reloadedChip = page.getByRole("button", { name: "👍 1" });
+      await reloadedChip.waitFor();
+      const pressedAfterReload =
+        await reloadedChip.getAttribute("aria-pressed");
 
       if (name === "phone") {
         await page.getByRole("link", { name: "Back to chats" }).click();
@@ -95,6 +102,11 @@ for (const { name, isMobile, ...viewport } of PROJECTS) {
       await context.close();
 
       assert.equal(pressed, "true", "own reaction chip is pressed");
+      assert.equal(
+        pressedAfterReload,
+        "true",
+        "own reaction chip is still pressed after a reload",
+      );
       assert.match(selfText, /^AT/, "Message yourself shows AT");
       assert.deepEqual(errors, []);
     });
