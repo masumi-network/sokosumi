@@ -20,10 +20,11 @@ import {
   addSokoBotMcpServerAction,
   refreshSokoBotMcpServerAction,
   removeSokoBotMcpServerAction,
+  signInToSokoBotMcpServerAction,
   updateSokoBotMcpToolAction,
 } from "@/lib/actions/soko-bot/tools-action";
 
-type AuthType = "none" | "bearer" | "header";
+type AuthType = "none" | "bearer" | "header" | "oauth";
 
 /**
  * The remote MCP servers the owner added to their bot (ADR 0074): add one by
@@ -56,6 +57,17 @@ export function McpServersSection({
         replace(result.value);
         toast.success(t("refreshed", { name: server.name }));
       } else toast.error(result?.error.message ?? t("refreshError"));
+    });
+  }
+
+  function signIn(server: SokoBotMcpServer) {
+    startTransition(async () => {
+      const result = await signInToSokoBotMcpServerAction({
+        input: { botId, serverId: server.id },
+      }).catch(() => null);
+      if (result?.ok && result.value) window.location.assign(result.value);
+      else if (result?.ok) refresh(server);
+      else toast.error(result?.error.message ?? t("signInError"));
     });
   }
 
@@ -94,6 +106,7 @@ export function McpServersSection({
               server={server}
               pending={isPending}
               onRefresh={() => refresh(server)}
+              onSignIn={() => signIn(server)}
               onRemove={() => remove(server)}
               onChangeTool={(name, change) => changeTool(server, name, change)}
             />
@@ -129,12 +142,14 @@ function McpServerRow({
   server,
   pending,
   onRefresh,
+  onSignIn,
   onRemove,
   onChangeTool,
 }: {
   server: SokoBotMcpServer;
   pending: boolean;
   onRefresh: () => void;
+  onSignIn: () => void;
   onRemove: () => void;
   onChangeTool: (
     name: string,
@@ -164,9 +179,11 @@ function McpServerRow({
             </span>
           </span>
         </button>
-        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-          {t("toolCount", { enabled, total: server.tools.length })}
-        </span>
+        {server.toolsRefreshedAt ? (
+          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+            {t("toolCount", { enabled, total: server.tools.length })}
+          </span>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
@@ -194,6 +211,24 @@ function McpServerRow({
         <p className="text-destructive border-t px-3 py-2 text-xs">
           {server.lastError}
         </p>
+      ) : null}
+      {/* Added with OAuth, but the owner has not finished signing in. */}
+      {server.authKind === "oauth" &&
+      (server.toolsRefreshedAt === null || server.lastError) ? (
+        <div className="flex items-center gap-3 border-t px-3 py-2">
+          <p className="text-muted-foreground flex-1 text-xs">
+            {t("signInNeeded")}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            loading={pending}
+            onClick={onSignIn}
+          >
+            {t("signIn")}
+          </Button>
+        </div>
       ) : null}
       {open ? (
         <ul className="divide-y border-t">
@@ -257,7 +292,7 @@ function AddMcpServerForm({
   const t = useTranslations("App.SokoBot.Mcp");
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [authType, setAuthType] = useState<AuthType>("bearer");
+  const [authType, setAuthType] = useState<AuthType>("oauth");
   const [headerName, setHeaderName] = useState("");
   const [secret, setSecret] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -265,12 +300,13 @@ function AddMcpServerForm({
     name.trim() &&
     url.trim() &&
     (authType === "none" ||
+      authType === "oauth" ||
       (secret.trim() && (authType === "bearer" || headerName.trim())));
 
   function submit() {
     const auth =
-      authType === "none"
-        ? { type: "none" as const }
+      authType === "none" || authType === "oauth"
+        ? { type: authType }
         : authType === "bearer"
           ? { type: "bearer" as const, token: secret.trim() }
           : { type: "header" as const, name: headerName.trim(), value: secret };
@@ -278,7 +314,9 @@ function AddMcpServerForm({
       const result = await addSokoBotMcpServerAction({
         input: { botId, name: name.trim(), url: url.trim(), auth },
       }).catch(() => null);
-      if (result?.ok) {
+      if (result?.ok && result.value.authorizationUrl)
+        window.location.assign(result.value.authorizationUrl);
+      else if (result?.ok) {
         setSecret("");
         onAdded(result.value);
       } else toast.error(result?.error.message ?? t("addError"));
@@ -325,13 +363,14 @@ function AddMcpServerForm({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="oauth">{t("authOauth")}</SelectItem>
             <SelectItem value="bearer">{t("authBearer")}</SelectItem>
             <SelectItem value="header">{t("authHeader")}</SelectItem>
             <SelectItem value="none">{t("authNone")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
-      {authType === "none" ? null : (
+      {authType === "none" || authType === "oauth" ? null : (
         <div className="space-y-1.5">
           <Label htmlFor="mcp-secret">{t("keyLabel")}</Label>
           <div className="flex gap-2">

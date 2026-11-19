@@ -60453,6 +60453,29 @@ export const SokoBotMcpToolSchema = {
     ]
 } as const;
 
+export const AddedSokoBotMcpServerSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SokoBotMcpServer'
+        },
+        {
+            type: 'object',
+            properties: {
+                authorizationUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    description: 'The server\'s sign-in page to send the owner to; null when no sign-in is needed'
+                }
+            },
+            required: [
+                'authorizationUrl'
+            ]
+        }
+    ]
+} as const;
+
 export const AddSokoBotMcpServerRequestSchema = {
     type: 'object',
     properties: {
@@ -60475,6 +60498,20 @@ export const AddSokoBotMcpServerRequestSchema = {
                             type: 'string',
                             enum: [
                                 'none'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'oauth'
                             ]
                         }
                     },
@@ -60534,6 +60571,21 @@ export const AddSokoBotMcpServerRequestSchema = {
         'name',
         'url',
         'auth'
+    ]
+} as const;
+
+export const SokoBotMcpSignInSchema = {
+    type: 'object',
+    properties: {
+        authorizationUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'authorizationUrl'
     ]
 } as const;
 

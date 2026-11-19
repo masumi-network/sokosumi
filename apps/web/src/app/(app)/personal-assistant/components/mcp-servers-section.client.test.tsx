@@ -1,5 +1,6 @@
 import type { SokoBotMcpServer } from "@sokosumi/core-client";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { addMock, updateToolMock } = vi.hoisted(() => ({
@@ -102,6 +103,9 @@ describe("McpServersSection", () => {
     fireEvent.change(screen.getByLabelText("urlLabel"), {
       target: { value: "https://mcp.example.com/mcp" },
     });
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("authLabel"));
+    await user.click(screen.getByRole("option", { name: "authBearer" }));
     fireEvent.change(screen.getByLabelText("keyLabel"), {
       target: { value: "secret-key-123" },
     });
@@ -119,5 +123,52 @@ describe("McpServersSection", () => {
     });
     expect(screen.getByText("Tracker")).toBeTruthy();
     expect(screen.queryByDisplayValue("secret-key-123")).toBeNull();
+  });
+
+  it("sends the owner to the server's sign-in page when it uses OAuth", async () => {
+    const assign = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign });
+    addMock.mockResolvedValue({
+      ok: true,
+      value: {
+        ...server({ name: "Notes", authKind: "oauth", tools: [] }),
+        authorizationUrl: "https://notes.example/authorize?state=x",
+      },
+    });
+    render(<McpServersSection botId={BOT} initialServers={[]} />);
+    fireEvent.change(screen.getByLabelText("nameLabel"), {
+      target: { value: "Notes" },
+    });
+    fireEvent.change(screen.getByLabelText("urlLabel"), {
+      target: { value: "https://notes.example/mcp" },
+    });
+    expect(screen.queryByLabelText("keyLabel")).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "connect" }));
+    });
+    expect(addMock).toHaveBeenCalledWith({
+      input: {
+        botId: BOT,
+        name: "Notes",
+        url: "https://notes.example/mcp",
+        auth: { type: "oauth" },
+      },
+    });
+    expect(assign).toHaveBeenCalledWith(
+      "https://notes.example/authorize?state=x",
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("offers to sign in again on a server that is not signed in", () => {
+    render(
+      <McpServersSection
+        botId={BOT}
+        initialServers={[
+          server({ authKind: "oauth", tools: [], toolsRefreshedAt: null }),
+        ]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "signIn" })).toBeTruthy();
   });
 });

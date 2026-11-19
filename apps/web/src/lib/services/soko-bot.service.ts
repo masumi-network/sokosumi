@@ -1,6 +1,7 @@
 import "server-only";
 
 import type {
+  AddedSokoBotMcpServer,
   AddSokoBotMcpServerRequest,
   CreateScopedSokoBotRequest,
   CreateSokoBotRequest,
@@ -304,7 +305,7 @@ export const sokoBotService = {
   async addMcpServer(
     botId: string,
     input: AddSokoBotMcpServerRequest,
-  ): Promise<SokoBotMcpServer> {
+  ): Promise<AddedSokoBotMcpServer> {
     return (await coreClient.addSokoBotMcpServer(botId, input)).data;
   },
 
@@ -313,6 +314,14 @@ export const sokoBotService = {
     serverId: string,
   ): Promise<SokoBotMcpServer> {
     return (await coreClient.refreshSokoBotMcpServer(botId, serverId)).data;
+  },
+
+  async signInToMcpServer(
+    botId: string,
+    serverId: string,
+  ): Promise<string | null> {
+    return (await coreClient.signInToSokoBotMcpServer(botId, serverId)).data
+      .authorizationUrl;
   },
 
   async updateMcpTool(

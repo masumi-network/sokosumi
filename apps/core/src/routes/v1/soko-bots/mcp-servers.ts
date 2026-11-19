@@ -1,20 +1,26 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { getWebAppBaseUrl } from "@/config/env";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import {
+  addedSokoBotMcpServerSchema,
   addSokoBotMcpServerRequestSchema,
+  sokoBotMcpOAuthCallbackQuerySchema,
   sokoBotMcpServerSchema,
+  sokoBotMcpSignInSchema,
   updateSokoBotMcpToolRequestSchema,
 } from "@/schemas/soko-bot-mcp.schema";
 import {
   addSokoBotMcpServer,
+  completeSokoBotMcpSignIn,
   listSokoBotMcpServers,
   refreshSokoBotMcpServer,
   removeSokoBotMcpServer,
   SokoBotMcpError,
+  signInToSokoBotMcpServer,
   updateSokoBotMcpTool,
 } from "@/services/soko-bot-mcp.service";
 import { requireOwnedPersonalSokoBot } from "@/services/soko-bot-secrets.service";
@@ -67,8 +73,8 @@ const addRoute = createRoute({
   },
   responses: {
     200: jsonSuccessResponse(
-      sokoBotMcpServerSchema,
-      "The server, connected, with its tools",
+      addedSokoBotMcpServerSchema,
+      "The server, connected with its tools, or waiting for the owner to sign in",
     ),
     ...refusals,
   },
@@ -83,6 +89,33 @@ const refreshRoute = createRoute({
   responses: {
     200: jsonSuccessResponse(sokoBotMcpServerSchema, "The tools, read again"),
     ...refusals,
+  },
+});
+
+const signInRoute = createRoute({
+  method: "post",
+  path: "/{id}/mcp-servers/{serverId}/sign-in",
+  operationId: "signInToSokoBotMcpServer",
+  tags: ["Soko Bots"],
+  request: { params: serverParamsSchema },
+  responses: {
+    200: jsonSuccessResponse(
+      sokoBotMcpSignInSchema,
+      "The server's sign-in page to send the owner to",
+    ),
+    ...refusals,
+  },
+});
+
+const oauthCallbackRoute = createRoute({
+  method: "get",
+  path: "/mcp-oauth/callback",
+  operationId: "completeSokoBotMcpSignIn",
+  tags: ["Soko Bots"],
+  request: { query: sokoBotMcpOAuthCallbackQuerySchema },
+  responses: {
+    302: { description: "Back to the bot's settings in Sokosumi" },
+    401: jsonErrorResponse("Unauthorized"),
   },
 });
 
@@ -152,7 +185,45 @@ export function mountSokoBotMcpServerRoutes(
       { sokoBotId: id, userId: auth.userId, ...c.req.valid("json") },
       fetch,
     ).catch(asUnprocessable);
-    return ok(c, sokoBotMcpServerSchema.parse(server));
+    return ok(c, addedSokoBotMcpServerSchema.parse(server));
+  });
+
+  app.openapi(signInRoute, async (c) => {
+    const auth = requireInteractiveUserAuthContext(c.var.authContext);
+    const { id, serverId } = c.req.valid("param");
+    await requireOwnedPersonalSokoBot(auth.userId, id);
+    const authorizationUrl = await signInToSokoBotMcpServer(
+      id,
+      serverId,
+      fetch,
+    ).catch(asUnprocessable);
+    if (authorizationUrl === null) throw notFound("MCP server not found");
+    return ok(c, { authorizationUrl });
+  });
+
+  // The owner's browser, back from the server's sign-in page.
+  app.openapi(oauthCallbackRoute, async (c) => {
+    const auth = requireInteractiveUserAuthContext(c.var.authContext);
+    const { code, state, iss } = c.req.valid("query");
+    const back = (outcome: string) =>
+      c.redirect(
+        `${getWebAppBaseUrl()}/personal-assistant?view=advanced&mcp=${outcome}`,
+        302,
+      );
+    if (!code) return back("cancelled");
+    try {
+      await completeSokoBotMcpSignIn(
+        { code, state, issuer: iss },
+        async (sokoBotId) => {
+          await requireOwnedPersonalSokoBot(auth.userId, sokoBotId);
+        },
+        fetch,
+      );
+      return back("connected");
+    } catch (error) {
+      if (error instanceof SokoBotMcpError) return back("failed");
+      throw error;
+    }
   });
 
   app.openapi(refreshRoute, async (c) => {

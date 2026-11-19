@@ -11156,7 +11156,11 @@
         "changes": "Changes things",
         "kindLabel": "What {name} does",
         "enabledLabel": "Let the bot use {name}",
-        "toolError": "Could not change the tool"
+        "toolError": "Could not change the tool",
+        "authOauth": "Sign in on the server's page",
+        "signIn": "Sign in",
+        "signInNeeded": "Sign in to this server before your bot can use it.",
+        "signInError": "Could not start signing in"
       },
       "Shell": {
         "title": "Command-line tools",

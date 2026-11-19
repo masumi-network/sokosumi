@@ -11156,7 +11156,11 @@
         "changes": "Ändert etwas",
         "kindLabel": "Was {name} tut",
         "enabledLabel": "Bot darf {name} nutzen",
-        "toolError": "Das Tool konnte nicht geändert werden"
+        "toolError": "Das Tool konnte nicht geändert werden",
+        "authOauth": "Auf der Seite des Servers anmelden",
+        "signIn": "Anmelden",
+        "signInNeeded": "Melde dich bei diesem Server an, bevor dein Bot ihn nutzen kann.",
+        "signInError": "Die Anmeldung konnte nicht gestartet werden"
       },
       "Shell": {
         "title": "Kommandozeilen-Tools",

@@ -26,15 +26,27 @@ export function fakeMcpServer(options: {
   tools: FakeMcpTool[];
   /** Answer 401 unless this header value is sent as `authorization`. */
   requireAuthorization?: string;
+  /**
+   * Be its own OAuth 2.1 authorization server, as the MCP spec describes:
+   * protected resource and server metadata, registration, and a token
+   * endpoint that hands out `access-1` for the code `code-1`.
+   */
+  oauth?: boolean;
 }) {
   const requests: FakeMcpRequest[] = [];
+  const tokenRequests: URLSearchParams[] = [];
 
   const answer = (id: unknown, body: Record<string, unknown>) =>
     Response.json({ jsonrpc: "2.0", id, ...body });
 
-  const fetch: typeof globalThis.fetch = async (_input, init) => {
+  const fetch: typeof globalThis.fetch = async (input, init) => {
     const headers = Object.fromEntries(new Headers(init?.headers).entries());
     const method = (init?.method ?? "GET").toUpperCase();
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (options.oauth) {
+      const answered = oauthAnswer(url, method, init?.body);
+      if (answered) return answered;
+    }
     const message =
       typeof init?.body === "string" ? JSON.parse(init.body) : null;
     requests.push({
@@ -43,11 +55,18 @@ export function fakeMcpServer(options: {
       headers,
       params: message?.params,
     });
-    if (
-      options.requireAuthorization &&
-      headers.authorization !== options.requireAuthorization
-    )
-      return new Response("Unauthorized", { status: 401 });
+    const required =
+      options.requireAuthorization ??
+      (options.oauth ? "Bearer access-1" : undefined);
+    if (required && headers.authorization !== required)
+      return new Response("Unauthorized", {
+        status: 401,
+        headers: options.oauth
+          ? {
+              "www-authenticate": `Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource${url.pathname}"`,
+            }
+          : {},
+      });
     if (method !== "POST" || !message)
       return new Response(null, { status: 405 });
     if (message.id === undefined) return new Response(null, { status: 202 });
@@ -95,5 +114,51 @@ export function fakeMcpServer(options: {
     }
   };
 
-  return { fetch, requests };
+  function oauthAnswer(
+    url: URL,
+    method: string,
+    body: unknown,
+  ): Response | null {
+    const origin = url.origin;
+    if (url.pathname.startsWith("/.well-known/oauth-protected-resource"))
+      return Response.json({
+        resource: `${origin}/mcp`,
+        authorization_servers: [origin],
+      });
+    if (
+      url.pathname === "/.well-known/oauth-authorization-server" ||
+      url.pathname === "/.well-known/openid-configuration"
+    )
+      return Response.json({
+        issuer: origin,
+        authorization_endpoint: `${origin}/authorize`,
+        token_endpoint: `${origin}/token`,
+        registration_endpoint: `${origin}/register`,
+        response_types_supported: ["code"],
+        grant_types_supported: ["authorization_code", "refresh_token"],
+        code_challenge_methods_supported: ["S256"],
+        token_endpoint_auth_methods_supported: ["none"],
+      });
+    if (url.pathname === "/register" && method === "POST")
+      return Response.json(
+        { ...JSON.parse(String(body)), client_id: "client-1" },
+        { status: 201 },
+      );
+    if (url.pathname === "/token" && method === "POST") {
+      const form = new URLSearchParams(String(body));
+      tokenRequests.push(form);
+      return form.get("code") === "code-1" ||
+        form.get("refresh_token") === "refresh-1"
+        ? Response.json({
+            access_token: "access-1",
+            token_type: "Bearer",
+            refresh_token: "refresh-1",
+            expires_in: 3600,
+          })
+        : Response.json({ error: "invalid_grant" }, { status: 400 });
+    }
+    return null;
+  }
+
+  return { fetch, requests, tokenRequests };
 }
