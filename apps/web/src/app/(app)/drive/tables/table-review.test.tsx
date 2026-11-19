@@ -75,7 +75,9 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({ dateTime: () => "date" }),
 }));
-vi.mock("sonner", () => ({ toast: { error: f.toastError } }));
+vi.mock("sonner", () => ({
+  toast: { error: f.toastError, success: vi.fn() },
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: f.push }) }));
 vi.mock("nuqs", async () => {
   const { useState } = await import("react");
@@ -1390,4 +1392,28 @@ describe("archive rows", () => {
       queryKey: ["table-rows", f.column.tableId],
     });
   });
+});
+it("opens Find and replace from the table menu, not on an archived table", async () => {
+  const view = render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "findReplace.title" }),
+  );
+  expect(
+    screen.getByRole("dialog", { name: "findReplace.title" }),
+  ).toBeInTheDocument();
+  view.unmount();
+  f.tableArchived = new Date();
+  render(<TableEditor id={f.column.tableId} />);
+  fireEvent.pointerDown(screen.getByRole("button", { name: "tableMenu" }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  await screen.findByRole("menuitem", { name: "exportCsv" });
+  expect(
+    screen.queryByRole("menuitem", { name: "findReplace.title" }),
+  ).not.toBeInTheDocument();
 });

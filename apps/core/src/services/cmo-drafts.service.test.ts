@@ -11,12 +11,31 @@ const mocks = vi.hoisted(() => ({
   approveSocialPost: vi.fn(),
   cancelSocialPost: vi.fn(),
   updateSocialPost: vi.fn(),
+  postUpdateMany: vi.fn(),
+  postFindFirst: vi.fn(),
+  publishNow: vi.fn(),
+  creatorInfo: vi.fn(),
+}));
+vi.mock("@/services/social-post-publisher.service", () => ({
+  publishSocialPostNow: mocks.publishNow,
+}));
+vi.mock("@/clients/social-post-providers/zernio-tiktok", () => ({
+  getZernioTikTokCreatorInfo: mocks.creatorInfo,
 }));
 
+const testCopy = vi.hoisted(() => ({ is: vi.fn(async () => false) }));
+vi.mock("@/services/project-test-copy", async (original) => ({
+  ...(await original<typeof import("@/services/project-test-copy")>()),
+  isTestCopyProject: testCopy.is,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotToolCall: { findMany: mocks.toolCalls },
-    socialPost: { findMany: mocks.posts },
+    socialPost: {
+      findMany: mocks.posts,
+      updateMany: mocks.postUpdateMany,
+      findFirst: mocks.postFindFirst,
+    },
     workspace: { findUniqueOrThrow: mocks.workspace },
   },
 }));
@@ -45,6 +64,7 @@ import {
   declineCmoDraft,
   editCmoDraft,
   listCmoDrafts,
+  readCmoTikTokCreator,
 } from "./cmo-drafts.service";
 
 const NOW = new Date("2026-11-18T18:00:00.000Z");
@@ -236,6 +256,131 @@ describe("cmoReportAttachments", () => {
   });
 });
 
+describe("a TikTok video", () => {
+  const target = {
+    userId: "user-1",
+    projectId: "project-1",
+    postId: "post-1",
+    revision: 0,
+  };
+  const scope = {
+    projectId: "project-1",
+    workspaceId: "ws-1",
+    userId: "user-1",
+    postId: "post-1",
+  };
+  const consent = {
+    privacyLevel: "PUBLIC_TO_EVERYONE" as const,
+    allowComment: true,
+    allowDuet: false,
+    allowStitch: false,
+    promotesOwnBrand: true,
+    acceptedMusicUsage: true as const,
+    previewConsent: true as const,
+  };
+
+  beforeEach(() => {
+    mocks.getSocialPost.mockResolvedValue(post({ provider: "tiktok" }));
+    mocks.approveSocialPost.mockResolvedValue(
+      post({ provider: "tiktok", status: "DRAFT", revision: 1 }),
+    );
+    mocks.postUpdateMany.mockResolvedValue({ count: 1 });
+  });
+
+  it("is never posted without the owner's confirmation of that video", async () => {
+    await expect(approveCmoDraft(target)).rejects.toThrow(
+      "TikTok needs your confirmation for each video",
+    );
+    await expect(
+      approveCmoDraft({
+        ...target,
+        tikTokSettings: { ...consent, previewConsent: undefined },
+      }),
+    ).rejects.toThrow("TikTok needs your confirmation for each video");
+    expect(mocks.approveSocialPost).not.toHaveBeenCalled();
+    expect(mocks.scheduleSocialPost).not.toHaveBeenCalled();
+    expect(mocks.publishNow).not.toHaveBeenCalled();
+  });
+
+  it("goes out at once with the owner's choices, never on a schedule", async () => {
+    mocks.publishNow.mockResolvedValue(post({ status: "PUBLISHED" }));
+
+    await approveCmoDraft({ ...target, tikTokSettings: consent });
+
+    expect(mocks.publishNow).toHaveBeenCalledWith({
+      ...scope,
+      revision: 1,
+      tikTokSettings: consent,
+    });
+    expect(mocks.scheduleSocialPost).not.toHaveBeenCalled();
+    expect(mocks.postUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("waits for the owner again when TikTok does not take it", async () => {
+    mocks.publishNow.mockRejectedValue(new Error("Zernio refused"));
+    await expect(
+      approveCmoDraft({ ...target, tikTokSettings: consent }),
+    ).rejects.toThrow("Zernio refused");
+    mocks.publishNow.mockResolvedValue(
+      post({ status: "FAILED", lastError: "Choose an available audience" }),
+    );
+    await expect(
+      approveCmoDraft({ ...target, tikTokSettings: consent }),
+    ).rejects.toThrow("Choose an available audience");
+
+    expect(mocks.postUpdateMany).toHaveBeenCalledTimes(2);
+    expect(mocks.postUpdateMany).toHaveBeenLastCalledWith({
+      where: {
+        id: "post-1",
+        status: { in: ["DRAFT", "SCHEDULED", "FAILED"] },
+      },
+      data: { status: "NEEDS_APPROVAL", revision: { increment: 1 } },
+    });
+  });
+
+  it("is never posted from a test copy", async () => {
+    testCopy.is.mockResolvedValueOnce(true);
+    await expect(
+      approveCmoDraft({ ...target, tikTokSettings: consent }),
+    ).rejects.toThrow("A test copy sends nothing at once");
+    expect(mocks.approveSocialPost).not.toHaveBeenCalled();
+    expect(mocks.publishNow).not.toHaveBeenCalled();
+  });
+
+  it("reads what TikTok allows from the account the video goes to", async () => {
+    mocks.postFindFirst.mockResolvedValue({
+      socialConnection: {
+        status: "active",
+        composioConnectedAccountId: "zernio:0123456789abcdef01234567",
+      },
+    });
+    mocks.creatorInfo.mockResolvedValue({ creator_nickname: "acme" });
+    await expect(
+      readCmoTikTokCreator({
+        userId: "user-1",
+        projectId: "project-1",
+        postId: "post-1",
+      }),
+    ).resolves.toEqual({ creator_nickname: "acme" });
+    expect(mocks.creatorInfo).toHaveBeenCalledWith("0123456789abcdef01234567");
+
+    // A connection of our own TikTok app, or none: connect again.
+    mocks.postFindFirst.mockResolvedValue({
+      socialConnection: {
+        status: "active",
+        composioConnectedAccountId: "ca_own_app",
+      },
+    });
+    await expect(
+      readCmoTikTokCreator({
+        userId: "user-1",
+        projectId: "project-1",
+        postId: "post-1",
+      }),
+    ).rejects.toThrow("Connect TikTok again");
+  });
+});
+
 describe("listCmoDrafts", () => {
   it("lists the Project's posts that wait for approval", async () => {
     mocks.posts.mockResolvedValue([post()]);
@@ -243,10 +388,11 @@ describe("listCmoDrafts", () => {
     expect(drafts.map((draft) => draft.id)).toEqual(["post-1"]);
     expect(mocks.posts).toHaveBeenCalledWith(
       expect.objectContaining({
+        // Outside the month, and the month's TikTok videos, which wait for the owner.
         where: {
           projectId: "project-1",
           status: "NEEDS_APPROVAL",
-          marketingStrategyId: null,
+          OR: [{ marketingStrategyId: null }, { provider: { in: ["tiktok"] } }],
         },
       }),
     );
@@ -282,6 +428,39 @@ describe("approveCmoDraft", () => {
       ...scope,
       revision: 1,
     });
+  });
+
+  it("refuses to send a test copy's draft two minutes later, and changes nothing", async () => {
+    testCopy.is.mockResolvedValueOnce(true);
+    mocks.getSocialPost.mockResolvedValue(post());
+
+    await expect(approveCmoDraft(target)).rejects.toThrow(
+      "A test copy sends nothing at once",
+    );
+    expect(mocks.scheduleSocialPost).not.toHaveBeenCalled();
+    expect(mocks.approveSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("refuses a test copy's draft planned sooner than 12 hours ahead, and approves one planned later", async () => {
+    testCopy.is.mockResolvedValue(true);
+    mocks.getSocialPost.mockResolvedValue(
+      post({ scheduledAt: new Date(NOW.getTime() + 11 * 60 * 60 * 1_000) }),
+    );
+    await expect(approveCmoDraft(target)).rejects.toThrow(
+      "at least 12 hours ahead",
+    );
+    expect(mocks.approveSocialPost).not.toHaveBeenCalled();
+
+    mocks.getSocialPost.mockResolvedValue(
+      post({ scheduledAt: new Date(NOW.getTime() + 13 * 60 * 60 * 1_000) }),
+    );
+    await approveCmoDraft(target);
+    expect(mocks.scheduleSocialPost).not.toHaveBeenCalled();
+    expect(mocks.approveSocialPost).toHaveBeenCalledWith({
+      ...scope,
+      revision: 0,
+    });
+    testCopy.is.mockResolvedValue(false);
   });
 
   it("keeps a draft's own planned time", async () => {

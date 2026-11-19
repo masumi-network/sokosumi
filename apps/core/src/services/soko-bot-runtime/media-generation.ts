@@ -149,7 +149,7 @@ export async function generateImage(
       note:
         job.status === "SUBMISSION_UNCERTAIN"
           ? uncertain
-          : "Started in the look of that reference. Core checks the picture against it and places the brand's logo; one the check turns down is made again on the next model, at most three tries. It takes a minute or two: wait_for its jobId, then get_image.",
+          : "Started in the look of that reference. Core checks the picture against it and places the brand's logo; one the check turns down is made again, at most four tries. It takes a minute or two: wait_for its jobId, then get_image.",
     };
   return {
     jobId: job.id,
@@ -272,7 +272,7 @@ async function styledChatPicture(
     status: next.status,
     failureReason: null,
     replaces: job.id,
-    note: `The picture did not pass (${problems}), so the next model is making it again. Do not use the old one: wait_for jobId ${next.id}, then get_image with it.`,
+    note: `The picture did not pass (${problems}), so it is being made again. Do not use the old one: wait_for jobId ${next.id}, then get_image with it.`,
   };
 }
 

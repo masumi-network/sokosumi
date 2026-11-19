@@ -26,6 +26,7 @@ import {
   keepCmoSeoAudit,
   listCmoSeoAuditRuns,
   pauseCmoSeoAuditsWithoutCuso,
+  readCmoSeoAudit,
   verifyCmoSeoChanges,
 } from "./cmo-seo-audit.service";
 import {
@@ -255,6 +256,90 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
     await prisma.vendor.deleteMany({ where: { id: vendorId } });
     await prisma.organization.deleteMany({ where: { id: organizationId } });
     await prisma.user.deleteMany({ where: { id: userId } });
+  });
+
+  it("starts no audit for a test copy whose source was audited this week, and shows the copy that audit", async () => {
+    const copyProject = await prisma.project.create({
+      data: {
+        workspaceId,
+        name: "Cuso (test copy)",
+        websiteUrl: "https://battery-sensei.app/",
+        testCopyOfProjectId: projectId,
+      },
+      select: { id: true },
+    });
+    const copyBot = await prisma.sokoBot.create({
+      data: {
+        workspaceId,
+        projectId: copyProject.id,
+        userId: null,
+        createdByUserId: userId,
+        versionId: CMO_SOKO_BOT_VERSION_ID,
+        name: "Cuso",
+      },
+    });
+    const copy = await findCusoForBot(copyBot.id);
+    if (!copy) throw new Error("Copy fixture missing");
+    // The copy is paid for, with credits for an audit of its own.
+    const grant = await prisma.transaction.create({
+      data: { amount: 10_000n * CREDIT, organizationId },
+      select: { id: true },
+    });
+    await prisma.creditBucket.create({
+      data: {
+        amount: 10_000n * CREDIT,
+        organizationId,
+        projectId: copyProject.id,
+        sourceTransactionId: grant.id,
+        referenceType: "CMO_TESTER_CREDITS",
+      },
+    });
+    const copyMonitors = () =>
+      prisma.taskSchedule.count({ where: { projectId: copyProject.id } });
+    const sourceAudit = (createdAt: Date, status = "completed") =>
+      prisma.projectSeoAnalysis.create({
+        data: {
+          projectId,
+          kind: "audit_full",
+          status,
+          idempotencyKey: randomUUID(),
+          requestHash: randomUUID(),
+          request: {},
+          requestedBy: userId,
+          createdAt,
+        },
+        select: { id: true },
+      });
+    const days = (count: number) => new Date(Date.now() - count * 86_400_000);
+
+    // Audited three days ago: the copy starts nothing.
+    const recent = await sourceAudit(days(3));
+    await keepCmoSeoAudit(copy);
+    expect(await copyMonitors()).toBe(0);
+    // And reads the source's report on its own SEO tab.
+    await storeAudit(report, days(3));
+    expect((await readCmoSeoAudit(copy)).latest?.checked).toBeGreaterThan(0);
+
+    // Only an audit older than a week, or a failed one: the copy audits.
+    await prisma.projectSeoAnalysis.update({
+      where: { id: recent.id },
+      data: { createdAt: days(8) },
+    });
+    await sourceAudit(days(1), "failed");
+    await keepCmoSeoAudit(copy);
+    expect(await copyMonitors()).toBe(1);
+
+    await prisma.projectSeoObservation.deleteMany({ where: { projectId } });
+    await prisma.projectSeoAnalysis.deleteMany({
+      where: { projectId: { in: [projectId, copyProject.id] } },
+    });
+    await prisma.task.deleteMany({ where: { projectId: copyProject.id } });
+    await prisma.taskSchedule.deleteMany({
+      where: { projectId: copyProject.id },
+    });
+    await prisma.transaction.deleteMany({ where: { id: grant.id } });
+    await prisma.sokoBot.delete({ where: { id: copyBot.id } });
+    await prisma.project.delete({ where: { id: copyProject.id } });
   });
 
   it("keeps one weekly 750-credit audit while CMO is paid, pauses it while not, and skips a week the credits cannot cover", async () => {

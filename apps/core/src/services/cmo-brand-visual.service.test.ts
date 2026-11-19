@@ -109,6 +109,30 @@ describe("brand capture", () => {
 });
 
 describe("cmoBrandVisual", () => {
+  it("gives the palette with its black and white, never the error colours", async () => {
+    mocks.readDesignMd.mockResolvedValue(
+      [
+        "---",
+        "name: CMO.XYZ",
+        "colors:",
+        "  primary: '#ff51ff'",
+        "  secondary: '#000000'",
+        "  error: '#ba1a1a'",
+        "  on-error-container: '#410002'",
+        "  background: '#ffffff'",
+        "  on-background: '#000000'",
+        "---",
+        "Errors are `#ba1a1a` on `#ffdad6`.",
+      ].join("\n"),
+    );
+    expect(
+      await cmoBrandVisual(
+        { logo: null, designMdUrl: "https://blob/d.md" },
+        [],
+      ),
+    ).toMatchObject({ colors: ["#ff51ff", "#000000", "#ffffff"] });
+  });
+
   it("reads colours, fonts and name from a DESIGN.md the API wrote", async () => {
     mocks.readDesignMd.mockResolvedValue(
       [

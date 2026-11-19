@@ -181,6 +181,57 @@ function designMdRoleColors(content: string): string[] | null {
   return distinctColors(colors.filter((hex) => !isNeutral(hex)));
 }
 
+/** Status colours say what happened, not what the brand looks like. */
+const STATUS_ROLE =
+  /(?:^|-)(?:error|danger|destructive|warning|success|info|positive|negative|alert)(?:-|$)/i;
+
+/** The palette's roles in order, each with the names a DESIGN.md gives it. */
+const PALETTE_ROLES: readonly (readonly string[])[] = [
+  ["primary"],
+  ["secondary"],
+  ["accent"],
+  ["tertiary"],
+  ["background", "surface"],
+  ["on-background", "on-surface", "text", "foreground"],
+];
+
+/**
+ * The brand's palette as its DESIGN.md states it: primary, secondary and
+ * accent, then its background and text colour, black and white included
+ * (for a black-and-white brand they are the brand). Never a status colour:
+ * CMO.XYZ's pictures leaned maroon because its `error` red and
+ * `on-error-container` counted as brand colours. A `colors:` block without
+ * those roles gives its entries in order, status ones left out; a file
+ * without the block gives its most used colours.
+ */
+export function designMdPalette(content: string, limit = 5): string[] {
+  const block = content.match(
+    /^colors:[ \t]*\r?\n((?:[ \t][^\n]*(?:\n|(?![\s\S])))+)/m,
+  )?.[1];
+  if (!block) return brandColors(content, limit);
+  const entries = [
+    ...block.matchAll(/^[ \t]+([\w-]+):[ \t]*["']?(#[0-9a-fA-F]{3,6})\b/gm),
+  ].flatMap((match) => {
+    const hex = normalizeHex(match[2] ?? "");
+    return hex && !STATUS_ROLE.test(match[1] ?? "")
+      ? [{ role: (match[1] ?? "").toLowerCase(), hex }]
+      : [];
+  });
+  const named = PALETTE_ROLES.flatMap((names, index) => {
+    const hex = names
+      .map((name) => entries.find((entry) => entry.role === name)?.hex)
+      .find((found) => found !== undefined);
+    // A grey tertiary is a surface shade, not a brand colour.
+    return hex && !(index === 3 && isNeutral(hex)) ? [hex] : [];
+  });
+  const chosen = entries.some((entry) =>
+    ["primary", "secondary", "accent"].includes(entry.role),
+  )
+    ? named
+    : entries.map((entry) => entry.hex);
+  return distinctColors(chosen).slice(0, limit);
+}
+
 /** The brand's look as a DESIGN.md states it. Empty where it says nothing. */
 export interface DesignMdBrandLook {
   /**

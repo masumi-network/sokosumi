@@ -161,26 +161,36 @@ export async function checkImageRequest(
     ...(model.outputFormats.includes("jpeg") ? { outputFormat: "jpeg" } : {}),
     ...(aspectRatio.data ? { aspectRatio: aspectRatio.data } : {}),
   };
+  const references = style ? 1 : referenceFileIds.length;
   let credits: number;
+  // A picture the style check turns down is made again on a dearer model
+  // without another question, so the allowance has to cover that try too.
+  let dearestTry: number;
   try {
     credits = creditsPerImage(
       model,
-      resolveImageSettings(
-        model.id,
-        settings,
-        style ? 1 : referenceFileIds.length,
-      ),
+      resolveImageSettings(model.id, settings, references),
     );
+    dearestTry = style
+      ? Math.max(
+          ...REFERENCE_STYLE_MODELS.map((id) =>
+            creditsPerImage(
+              botImageModel(id),
+              resolveImageSettings(id, settings, references),
+            ),
+          ),
+        )
+      : credits;
   } catch (error) {
     throw new SokoBotRuntimeValidationError(
       error instanceof Error ? error.message : "Invalid image settings",
     );
   }
-  if (credits > input.maxCredits)
+  if (dearestTry > input.maxCredits)
     throw new SokoBotRuntimeValidationError(
       style
         ? // The owner asked for the picture, and a month's pictures cost the same.
-          `A picture in a library style costs ${credits} credits a try, more than the ${input.maxCredits} allowed. Call generate_image again with maxCredits ${Math.ceil(credits)}.`
+          `A picture in a library style costs ${credits} credits, and up to ${dearestTry} when a stronger model has to make it again, more than the ${input.maxCredits} allowed. Call generate_image again with maxCredits ${Math.ceil(dearestTry)}.`
         : `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
     );
   return { input, model, settings, credits, referenceFileIds, style };

@@ -163,6 +163,7 @@ function post(
   return {
     entry: { ...made, socialPostId: made.id },
     entryId: made.id,
+    revision: 1,
     media: media.map((pathname) => ({
       pathname,
       fileUrl: `https://blob.example/${pathname}`,
@@ -276,6 +277,15 @@ describe("cmoPieceReady", () => {
         connected,
       ),
     ).toBe(true);
+  });
+
+  it("counts a TikTok video as made once it has its words and video: it waits for the owner, not for Cuso", () => {
+    const tiktok = { channel: "tiktok", format: "video", draft: "Words" };
+    const withTikTok = new Set(["tiktok"]);
+    expect(cmoPieceReady(piece(tiktok), withTikTok)).toBe(false);
+    expect(cmoPieceReady(piece(tiktok, ["drive/a.mp4"]), withTikTok)).toBe(
+      true,
+    );
   });
 
   it("counts published and skipped pieces as done", () => {

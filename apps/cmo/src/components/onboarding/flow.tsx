@@ -4,8 +4,8 @@ import "./onboarding.css";
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { useCallback, useEffect, useState } from "react";
-
 import type { CusoMessage } from "../../lib/chat-messages";
+import { connectReturnError } from "../../lib/connect-return";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import type { SkippedStep } from "../../lib/skipped-steps";
 import { AccountMenu } from "../account-menu";
@@ -76,10 +76,10 @@ export function OnboardingFlow({
 
   // The connection redirect's query has been read; a reload routes from Core.
   useEffect(() => {
-    const failed =
-      new URLSearchParams(window.location.search).get("connect") === "failed";
     setReturnNotice(
-      failed ? "That connection didn't finish. Try again." : adsReturnError(),
+      connectReturnError(
+        new URLSearchParams(window.location.search).get("connect"),
+      ) ?? adsReturnError(),
     );
     // Polar's return address stays, so a reload keeps confirming the payment.
     if (window.location.search && !returnedFromCheckout) {
@@ -356,6 +356,9 @@ export function OnboardingFlow({
             overview={overview}
             onConnect={actions.connectChannel}
             onConnectAds={actions.connectAds}
+            onConnectMeasurement={(provider) =>
+              actions.connectMeasurement(provider, "launch")
+            }
             onSetPresenter={actions.setPresenter}
             onClearPresenter={actions.clearPresenter}
             notice={returnNotice}
@@ -370,6 +373,9 @@ export function OnboardingFlow({
         )}
       </main>
       <footer className="ob-foot">
+        <p className="ob-small muted">
+          You can close this page and come back any time to continue.
+        </p>
         <StartOver
           className="button button-ghost button-small"
           label="Use another website"

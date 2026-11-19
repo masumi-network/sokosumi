@@ -77,6 +77,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
 
 import {
   cmoMaxCpc,
+  connectCmoAds,
   finalizeCmoAds,
   launchCmoSearchAd,
   setCmoAdCampaignStatus,
@@ -122,6 +123,12 @@ const google = {
   provider: "google_ads",
   currency: "EUR",
 };
+
+const testCopy = vi.hoisted(() => ({ is: vi.fn(async () => false) }));
+vi.mock("@/services/project-test-copy", async (original) => ({
+  ...(await original<typeof import("@/services/project-test-copy")>()),
+  isTestCopyProject: testCopy.is,
+}));
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -225,6 +232,33 @@ describe("launching a search ad", () => {
         entryId: "ad-1",
       }),
     ).rejects.toBeInstanceOf(CmoConflictError);
+  });
+
+  it("never connects, launches or starts an ad on a test copy", async () => {
+    testCopy.is.mockResolvedValue(true);
+    const target = { projectId: "project-1", userId: "user-1" };
+
+    await expect(
+      launchCmoSearchAd({ ...target, entryId: "ad-1" }),
+    ).rejects.toThrow("A test copy sends nothing at once");
+    await expect(
+      setCmoAdCampaignStatus({
+        ...target,
+        accountId: "account-1",
+        campaignId: "campaign-1",
+        status: "ACTIVE",
+      }),
+    ).rejects.toBeInstanceOf(CmoConflictError);
+    await expect(
+      connectCmoAds({
+        ...target,
+        provider: "google_ads",
+        returnUrl: "https://app.cmo.xyz/ads/callback",
+      }),
+    ).rejects.toThrow("A test copy sends nothing at once");
+    expect(createCampaign).not.toHaveBeenCalled();
+    expect(updateCampaign).not.toHaveBeenCalled();
+    testCopy.is.mockResolvedValue(false);
   });
 
   it("is only for owners and admins", async () => {

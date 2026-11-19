@@ -13489,6 +13489,12 @@ export type CmoOverview = {
         slides?: Array<string>;
     }>;
     /**
+     * The revision of each Social post of the month, by post id: what an owner's edit of its words names (PATCH drafts/{postId}).
+     */
+    postRevisions: {
+        [key: string]: number;
+    };
+    /**
      * The newest Marketing strategy version, whose plan `strategy` shows: approved, or a draft waiting for an owner or admin.
      */
     strategyVersion: MarketingStrategyVersion | null;
@@ -13508,8 +13514,11 @@ export type CmoOverview = {
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
     connectChannelUrl: string;
+    /**
+     * TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.
+     */
+    tiktokEnabled: boolean;
     adProviders: Array<string>;
-    connectAdsUrl: string;
     /**
      * Where Cuso reads the funnel's numbers: Google Analytics, Search Console and Shopify.
      */
@@ -14012,6 +14021,10 @@ export type CmoChannel = {
     handle: string | null;
     displayName: string | null;
     status: string;
+    /**
+     * A LinkedIn connection that posts as the person, not as a company Page.
+     */
+    personalProfile: boolean;
 };
 
 export type CmoUpNextItem = {
@@ -14096,6 +14109,10 @@ export type CmoOnboardingRequest = {
      * The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.
      */
     timeZone?: string;
+    /**
+     * Hire a test copy of this Project's Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy's Social connections are links to the source's connected accounts.
+     */
+    testCopyOfProjectId?: string;
 };
 
 export type CmoSubscriptionPlan = {
@@ -14310,6 +14327,43 @@ export type CmoCustomerPortal = {
     url: string;
 };
 
+export type CmoTestCopyCheck = {
+    projectId: string;
+    /**
+     * The Project whose connected accounts the copy uses.
+     */
+    sourceProjectId: string;
+    tornDownAt: Date | null;
+    /**
+     * Nothing is left: no unsent post, linked account, run or Cuso.
+     */
+    clean: boolean;
+    left: {
+        unsentPosts: number;
+        linkedAccounts: number;
+        activeTurns: number;
+        liveCuso: boolean;
+    };
+    /**
+     * Posts of the copy that went out. Always 0.
+     */
+    publishedPosts: number;
+    /**
+     * Accounts ended at the provider through the copy. Always 0.
+     */
+    providerRevocations: number;
+};
+
+export type CmoTestCopyTeardown = {
+    removed: {
+        canceledPosts: number;
+        unlinkedAccounts: number;
+        stoppedTurns: number;
+        archivedCuso: boolean;
+    };
+    check: CmoTestCopyCheck;
+};
+
 export type CmoTimeZone = {
     timeZone: string;
 };
@@ -14337,6 +14391,13 @@ export type CmoSeoAudit = {
         observedAt: Date;
         checked: number;
         passed: number;
+        failedChecks: number;
+        readingChecks: number;
+        readings: Array<{
+            title: string;
+            pageUrl: string;
+            detail: string | null;
+        }>;
         issues: Array<{
             title: string;
             pageUrl: string;
@@ -14471,11 +14532,27 @@ export type CmoTopUpCheckout = {
     url: string;
 };
 
+export type CmoDraftApprove = CmoDraftRevision & {
+    tikTokSettings?: TikTokPostSettings & unknown;
+};
+
 export type CmoDraftRevision = {
     /**
      * The draft's revision as shown; a changed draft is refused.
      */
     revision: number;
+};
+
+export type CmoTikTokCreator = {
+    creator_nickname: string;
+    /**
+     * The audiences TikTok allows now. Empty: no post is possible right now.
+     */
+    privacy_level_options: Array<string>;
+    comment_disabled: boolean;
+    duet_disabled: boolean;
+    stitch_disabled: boolean;
+    max_video_post_duration_sec: number;
 };
 
 export type CmoDraftEdit = CmoDraftRevision & {
@@ -14496,6 +14573,36 @@ export type CmoBrandFixRequest = {
      * What is true instead, in the owner's words.
      */
     note: string;
+};
+
+export type CmoSocialConnectionFinalized = {
+    /**
+     * `choose`: the sign-in reaches several accounts; finalize again with the owner's pick.
+     */
+    state: 'connected' | 'choose';
+    choices: Array<CmoSocialAccountChoice>;
+};
+
+export type CmoSocialAccountChoice = {
+    externalAccountId: string;
+    name: string;
+    handle: string | null;
+    kind: 'page' | 'profile';
+};
+
+export type CmoFinalizeSocialConnectionRequest = FinalizeProjectSocialConnectionRequest & {
+    /**
+     * Returned with a LinkedIn sign-in: names the Pages it reaches.
+     */
+    pendingDataToken?: string;
+    /**
+     * Returned with a LinkedIn sign-in: lets Core finish it.
+     */
+    connectToken?: string;
+    /**
+     * The Page or profile the owner picked among the sign-in's accounts.
+     */
+    externalAccountId?: string;
 };
 
 export type SokoBotApiKey = {
@@ -14942,6 +15049,29 @@ export const SokoBotScope = {
 } as const;
 
 export type SokoBotScope = typeof SokoBotScope[keyof typeof SokoBotScope];
+
+export type SokoBotSecret = {
+    id: string;
+    name: string;
+    /**
+     * Whether shell commands get this key as an env variable
+     */
+    shellAccess: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SaveSokoBotSecretRequest = {
+    /**
+     * The key. Required for a new name; leave out to keep the saved value.
+     */
+    value?: string;
+    shellAccess?: boolean;
+};
+
+export type SokoBotSandboxSetup = {
+    commands: Array<string>;
+};
 
 export type Coworker = {
     id: string;
@@ -89521,6 +89651,141 @@ export type StartCmoOverForProjectResponses = {
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
 
+export type CheckCmoTestCopyForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/test-copy';
+};
+
+export type CheckCmoTestCopyForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such Project, or it is not a test copy
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CheckCmoTestCopyForProjectError = CheckCmoTestCopyForProjectErrors[keyof CheckCmoTestCopyForProjectErrors];
+
+export type CheckCmoTestCopyForProjectResponses = {
+    /**
+     * What is left
+     */
+    200: {
+        data: CmoTestCopyCheck;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CheckCmoTestCopyForProjectResponse = CheckCmoTestCopyForProjectResponses[keyof CheckCmoTestCopyForProjectResponses];
+
+export type TearDownCmoTestCopyForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/test-copy/teardown';
+};
+
+export type TearDownCmoTestCopyForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Only an owner or admin, or whoever made the test copy
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such Project, or it is not a test copy
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TearDownCmoTestCopyForProjectError = TearDownCmoTestCopyForProjectErrors[keyof TearDownCmoTestCopyForProjectErrors];
+
+export type TearDownCmoTestCopyForProjectResponses = {
+    /**
+     * What was removed, and what is left
+     */
+    200: {
+        data: CmoTestCopyTeardown;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TearDownCmoTestCopyForProjectResponse = TearDownCmoTestCopyForProjectResponses[keyof TearDownCmoTestCopyForProjectResponses];
+
 export type SetCmoTimeZoneForProjectData = {
     body: CmoTimeZone;
     path: {
@@ -90873,7 +91138,7 @@ export type RevertCmoUpdateForProjectResponses = {
 export type RevertCmoUpdateForProjectResponse = RevertCmoUpdateForProjectResponses[keyof RevertCmoUpdateForProjectResponses];
 
 export type ApproveCmoDraftForProjectData = {
-    body: CmoDraftRevision;
+    body: CmoDraftApprove;
     path: {
         projectId: string;
         postId: string;
@@ -90977,6 +91242,97 @@ export type ApproveCmoDraftForProjectResponses = {
 };
 
 export type ApproveCmoDraftForProjectResponse = ApproveCmoDraftForProjectResponses[keyof ApproveCmoDraftForProjectResponses];
+
+export type ReadCmoTikTokCreatorForDraftData = {
+    body?: never;
+    path: {
+        projectId: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/drafts/{postId}/tiktok';
+};
+
+export type ReadCmoTikTokCreatorForDraftErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such TikTok post
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * TikTok is not connected, or needs connecting again
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * TikTok could not be read right now
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReadCmoTikTokCreatorForDraftError = ReadCmoTikTokCreatorForDraftErrors[keyof ReadCmoTikTokCreatorForDraftErrors];
+
+export type ReadCmoTikTokCreatorForDraftResponses = {
+    /**
+     * The creator's options
+     */
+    200: {
+        data: CmoTikTokCreator;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReadCmoTikTokCreatorForDraftResponse = ReadCmoTikTokCreatorForDraftResponses[keyof ReadCmoTikTokCreatorForDraftResponses];
 
 export type DeclineCmoDraftForProjectData = {
     body: CmoDraftRevision;
@@ -91853,7 +92209,7 @@ export type InitiateCmoSocialConnectionForProjectResponses = {
 export type InitiateCmoSocialConnectionForProjectResponse = InitiateCmoSocialConnectionForProjectResponses[keyof InitiateCmoSocialConnectionForProjectResponses];
 
 export type FinalizeCmoSocialConnectionForProjectData = {
-    body: FinalizeProjectSocialConnectionRequest;
+    body: CmoFinalizeSocialConnectionRequest;
     path: {
         projectId: string;
     };
@@ -91988,10 +92344,10 @@ export type FinalizeCmoSocialConnectionForProjectError = FinalizeCmoSocialConnec
 
 export type FinalizeCmoSocialConnectionForProjectResponses = {
     /**
-     * Project social connection finalized
+     * Project social connection finalized, or the accounts to pick from
      */
     201: {
-        data: ProjectSocialConnection;
+        data: CmoSocialConnectionFinalized;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -97779,6 +98135,430 @@ export type GetSokoBotStatsResponses = {
 };
 
 export type GetSokoBotStatsResponse = GetSokoBotStatsResponses[keyof GetSokoBotStatsResponses];
+
+export type ListSokoBotSecretsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets';
+};
+
+export type ListSokoBotSecretsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListSokoBotSecretsError = ListSokoBotSecretsErrors[keyof ListSokoBotSecretsErrors];
+
+export type ListSokoBotSecretsResponses = {
+    /**
+     * The bot's saved keys, without their values
+     */
+    200: {
+        data: Array<SokoBotSecret>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListSokoBotSecretsResponse = ListSokoBotSecretsResponses[keyof ListSokoBotSecretsResponses];
+
+export type DeleteSokoBotSecretData = {
+    body?: never;
+    path: {
+        id: string;
+        name: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets/{name}';
+};
+
+export type DeleteSokoBotSecretErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteSokoBotSecretError = DeleteSokoBotSecretErrors[keyof DeleteSokoBotSecretErrors];
+
+export type DeleteSokoBotSecretResponses = {
+    /**
+     * The key is gone
+     */
+    200: {
+        data: {
+            deleted: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteSokoBotSecretResponse = DeleteSokoBotSecretResponses[keyof DeleteSokoBotSecretResponses];
+
+export type SaveSokoBotSecretData = {
+    body?: SaveSokoBotSecretRequest;
+    path: {
+        id: string;
+        name: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets/{name}';
+};
+
+export type SaveSokoBotSecretErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveSokoBotSecretError = SaveSokoBotSecretErrors[keyof SaveSokoBotSecretErrors];
+
+export type SaveSokoBotSecretResponses = {
+    /**
+     * The saved key
+     */
+    200: {
+        data: SokoBotSecret;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveSokoBotSecretResponse = SaveSokoBotSecretResponses[keyof SaveSokoBotSecretResponses];
+
+export type GetSokoBotSandboxSetupData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/sandbox-setup';
+};
+
+export type GetSokoBotSandboxSetupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotSandboxSetupError = GetSokoBotSandboxSetupErrors[keyof GetSokoBotSandboxSetupErrors];
+
+export type GetSokoBotSandboxSetupResponses = {
+    /**
+     * Commands that run each time the bot's sandbox starts
+     */
+    200: {
+        data: SokoBotSandboxSetup;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotSandboxSetupResponse = GetSokoBotSandboxSetupResponses[keyof GetSokoBotSandboxSetupResponses];
+
+export type SetSokoBotSandboxSetupData = {
+    body?: SokoBotSandboxSetup;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/sandbox-setup';
+};
+
+export type SetSokoBotSandboxSetupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetSokoBotSandboxSetupError = SetSokoBotSandboxSetupErrors[keyof SetSokoBotSandboxSetupErrors];
+
+export type SetSokoBotSandboxSetupResponses = {
+    /**
+     * The saved commands
+     */
+    200: {
+        data: SokoBotSandboxSetup;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetSokoBotSandboxSetupResponse = SetSokoBotSandboxSetupResponses[keyof SetSokoBotSandboxSetupResponses];
 
 export type GetCoworkersData = {
     body?: never;

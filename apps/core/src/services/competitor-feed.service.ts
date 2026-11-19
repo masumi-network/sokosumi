@@ -84,7 +84,7 @@ export async function readCompetitorSignals(projectId: string, now: Date) {
     lastFeed.createdAt < lastCheck.finishedAt
       ? lastFeed.createdAt
       : new Date(now.getTime() - 14 * DAY_MS);
-  const names = new Map(competitors.map((c) => [c.id, c.name]));
+  const byId = new Map(competitors.map((c) => [c.id, c]));
   const sources = competitorCheckSourcesSchema.safeParse(lastCheck?.sources);
   return {
     checkedAt: lastCheck?.finishedAt?.toISOString() ?? null,
@@ -96,21 +96,24 @@ export async function readCompetitorSignals(projectId: string, now: Date) {
     signals: signals
       .filter((signal) => signal.createdAt >= since)
       .slice(0, MAX_SIGNALS_READ)
-      .map((signal) => ({
-        id: signal.id,
-        competitorId: signal.competitorId,
-        competitor: names.get(signal.competitorId) ?? null,
-        kind: signal.kind,
-        big: isBigMove([signal]),
-        summary: signal.summary,
-        date: day(signal.observedAt),
-        source: {
-          title: signal.sourceTitle,
-          publisher: signal.sourcePublisher,
-          url: signal.sourceUrl,
-        },
-        quote: signal.quote,
-      })),
+      .map((signal) => {
+        const competitor = byId.get(signal.competitorId);
+        return {
+          id: signal.id,
+          competitorId: signal.competitorId,
+          competitor: competitor?.name ?? null,
+          kind: signal.kind,
+          big: competitor ? isBigMove([signal], competitor) : false,
+          summary: signal.summary,
+          date: day(signal.observedAt),
+          source: {
+            title: signal.sourceTitle,
+            publisher: signal.sourcePublisher,
+            url: signal.sourceUrl,
+          },
+          quote: signal.quote,
+        };
+      }),
     unreadable: sources.success
       ? COMPETITOR_SOURCES.filter(
           (source) => sources.data[source].status !== "ok",
@@ -157,9 +160,6 @@ export async function lockCompetitorFeed(
   await tx.$executeRaw`SELECT 1 FROM project WHERE id = ${projectId}::uuid FOR NO KEY UPDATE`;
 }
 
-/** A cited signal, as a source line shows it. */
-export type CitedSignal = CitableSignal & { sourceUrl: string | null };
-
 /**
  * Saves a bot's feed for the latest finished check, after Core checked it:
  * every cited signal is the Project's and about that competitor, no text has
@@ -168,7 +168,7 @@ export type CitedSignal = CitableSignal & { sourceUrl: string | null };
  * what its signals say about the competitor (Jev). Refused whole otherwise;
  * Jev failing refuses too, so nothing unchecked reaches the owner. The
  * result carries the checked moves with the names and signals they cite, for
- * a caller that tells the owner about the big ones.
+ * a caller that tells the owner about the week.
  */
 export async function saveCompetitorFeed(input: {
   projectId: string;
@@ -179,9 +179,11 @@ export async function saveCompetitorFeed(input: {
   saved: number;
   bigMoves: { competitor: string; fact: string }[];
   costUsd: number;
+  /** The check this feed is the week of. */
+  checkDay: string;
   items: CompetitorFeedItem[];
   competitorNames: ReadonlyMap<string, string>;
-  signals: ReadonlyMap<string, CitedSignal>;
+  signals: ReadonlyMap<string, CitableSignal>;
 }> {
   const now = input.now ?? new Date();
   const { projectId, feed } = input;
@@ -199,6 +201,7 @@ export async function saveCompetitorFeed(input: {
     }),
   ]);
   const byId = new Map(signals.map((signal) => [signal.id, signal]));
+  const tracked = new Map(competitors.map((c) => [c.id, c]));
   const names = new Map(competitors.map((c) => [c.id, c.name]));
   const problems = feedProblems(
     feed,
@@ -240,11 +243,15 @@ export async function saveCompetitorFeed(input: {
     );
     const ranked = feed.items.map((item, index) => {
       const kept = earlier.get(moveKey(item));
-      const rank = moveRank(
-        item.facts.flatMap((fact) =>
-          fact.signalIds.flatMap((id) => byId.get(id) ?? []),
-        ),
-      );
+      const competitor = tracked.get(item.competitorId);
+      const rank = competitor
+        ? moveRank(
+            item.facts.flatMap((fact) =>
+              fact.signalIds.flatMap((id) => byId.get(id) ?? []),
+            ),
+            competitor,
+          )
+        : null;
       const made: CompetitorFeedItem = {
         ...item,
         id: kept?.id ?? randomUUID(),
@@ -255,8 +262,8 @@ export async function saveCompetitorFeed(input: {
       };
       return { made, rank: rank ?? Number.POSITIVE_INFINITY, index };
     });
-    // Price changes lead, then launches, then ad bursts, then the rest, each
-    // kind in the order Cuso wrote it.
+    // Price changes lead, then launches, funding and acquisitions, then the
+    // rest, each kind in the order the bot wrote it.
     const sorted = ranked
       .sort((a, b) => a.rank - b.rank || a.index - b.index)
       .map((entry) => entry.made);
@@ -281,6 +288,7 @@ export async function saveCompetitorFeed(input: {
         fact: item.facts[0]?.text ?? "",
       })),
     costUsd: support.costUsd,
+    checkDay,
     items,
     competitorNames: names,
     signals: byId,

@@ -4,6 +4,15 @@ import { withoutSokosumiLinks } from "./cmo-links.js";
 const web = "https://app.sokosumi.com";
 
 describe("withoutSokosumiLinks", () => {
+  it("reads a link Cuso wrote with spaces around its address", () => {
+    expect(
+      withoutSokosumiLinks(
+        "[Open the content tracker]( /drive/tables/01a1f158 ) has three rows.",
+        "https://app.sokosumi.com",
+      ),
+    ).toBe("Open the content tracker has three rows.");
+  });
+
   it("drops a receipt's bracketed link into Sokosumi", () => {
     expect(
       withoutSokosumiLinks(

@@ -18,6 +18,7 @@ import {
   SOCIAL_POST_ATTEMPT_TOOL_SLUGS,
 } from "@/clients/social-post-providers";
 import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
+import { ZERNIO_LINKEDIN_CREATE_POST } from "@/clients/social-post-providers/linkedin";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import { ComposioPublishOutcomeUnknownError } from "@/clients/social-post-providers/tools";
 import type {
@@ -28,6 +29,7 @@ import type {
 import { ZERNIO_TIKTOK_CREATE_POST } from "@/clients/social-post-providers/zernio-tiktok";
 import { getZernioAccountId } from "@/clients/zernio.client";
 import {
+  requireOwnTikTokAppAllowed,
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
   socialProviderWorkspaceForProject,
@@ -61,7 +63,7 @@ import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { CMO_PAUSED, LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
 import { studioVideoOfMedia } from "@/services/image-studio-drive.service";
 import {
-  projectExecutorUserId,
+  connectionExecutorUserId,
   requireLockedOpenProject,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
@@ -87,6 +89,8 @@ const SETTLEMENT_RESERVE_MS = 20_000;
 
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_INACTIVE_ERROR = "Social connection needs reconnecting";
+/** A test copy schedules real posts and never sends one (ADR 0073). */
+export const TEST_COPY_NEVER_PUBLISHES = "A test copy never publishes";
 const PROJECT_CLOSED_ERROR =
   "Cannot publish Social posts in a closing or closed Project";
 const AUTHORIZATION_REVOKED_ERROR =
@@ -131,6 +135,7 @@ const publisherInclude = {
   socialConnection: {
     select: {
       id: true,
+      executorProjectId: true,
       provider: true,
       status: true,
       composioConnectedAccountId: true,
@@ -319,10 +324,13 @@ async function checkProjectPublishingAccess(
   attemptId?: string,
 ): Promise<AttemptOutcome | null> {
   try {
-    await requireScopedProject(post, {
+    const project = await requireScopedProject(post, {
       requireOpen: true,
       closedMessage: PROJECT_CLOSED_ERROR,
     });
+    // The last check before the provider: whatever claimed this post, a test
+    // copy's post stays here (ADR 0073).
+    if (project.testCopyOfProjectId) throw conflict(TEST_COPY_NEVER_PUBLISHES);
     return null;
   } catch (error) {
     if (
@@ -341,7 +349,10 @@ async function checkProjectPublishingAccess(
     }
     const settled = await settle(post, {
       status: "FAILED",
-      lastError: PROJECT_CLOSED_ERROR,
+      lastError:
+        error.message === TEST_COPY_NEVER_PUBLISHES
+          ? TEST_COPY_NEVER_PUBLISHES
+          : PROJECT_CLOSED_ERROR,
     });
     return settled ? "failed" : "skipped";
   }
@@ -719,11 +730,27 @@ async function attemptPublish(
         socialProviderWorkspaceForProject(post.project),
       ) !== null,
   );
-  if (disabledProvider) {
-    const message = socialProviderUnavailableMessage(
-      disabledProvider,
-      socialProviderWorkspaceForProject(post.project),
-    );
+  // Our own TikTok app's connections publish only where it is allowed.
+  const ownTikTokApp =
+    provider === "tiktok" &&
+    !!post.socialConnection &&
+    !getZernioAccountId(post.socialConnection.composioConnectedAccountId);
+  let closedMessage = disabledProvider
+    ? socialProviderUnavailableMessage(
+        disabledProvider,
+        socialProviderWorkspaceForProject(post.project),
+      )
+    : null;
+  if (!closedMessage && ownTikTokApp) {
+    try {
+      requireOwnTikTokAppAllowed(post.project);
+    } catch (error) {
+      if (!(error instanceof HTTPException)) throw error;
+      closedMessage = error.message;
+    }
+  }
+  if (closedMessage) {
+    const message = closedMessage;
     await prisma.socialPostPublishAttempt.create({
       data: {
         socialPostId: post.id,
@@ -732,7 +759,7 @@ async function attemptPublish(
         actorUserId: options.actorUserId ?? null,
         finishedAt: now,
         outcome: "failed_permanent",
-        errorKind: `provider_coming_soon:${disabledProvider}`,
+        errorKind: `provider_coming_soon:${disabledProvider ?? provider}`,
         providerOutcome: message,
       },
       select: { id: true },
@@ -837,11 +864,15 @@ async function attemptPublish(
     return settled ? "failed" : "skipped";
   }
 
+  const zernio = Boolean(
+    getZernioAccountId(connection.composioConnectedAccountId),
+  );
   const toolSlug =
-    provider === "tiktok" &&
-    getZernioAccountId(connection.composioConnectedAccountId)
+    zernio && provider === "tiktok"
       ? ZERNIO_TIKTOK_CREATE_POST
-      : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
+      : zernio && provider === "linkedin"
+        ? ZERNIO_LINKEDIN_CREATE_POST
+        : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
   const attempt = await prisma.socialPostPublishAttempt.create({
     data: {
       socialPostId: post.id,
@@ -921,10 +952,17 @@ async function attemptPublish(
     if (projectOutcome) return projectOutcome;
     const studioVideo = await studioVideoOfMedia(post.projectId, media);
     const context: SocialPostPublishContext = {
-      ...(toolSlug === ZERNIO_TIKTOK_CREATE_POST && { postId: post.id }),
+      // Zernio's idempotency key, and the first comment it posts itself.
+      ...(zernio && { postId: post.id }),
+      ...(zernio && post.firstComment
+        ? { firstComment: post.firstComment }
+        : {}),
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
-      executorUserId: projectExecutorUserId(post.projectId),
+      executorUserId: connectionExecutorUserId({
+        projectId: post.projectId,
+        executorProjectId: connection.executorProjectId,
+      }),
       externalAccountId: connection.externalAccountId,
       externalHandle: connection.externalHandle,
       text: post.text,
@@ -1057,13 +1095,21 @@ async function attemptPublish(
     attemptCount,
   });
   const firstComment = post.firstComment?.trim() ?? "";
-  if (settled && firstComment && published.externalId) {
+  if (
+    settled &&
+    firstComment &&
+    published.externalId &&
+    !published.firstCommentIncluded
+  ) {
     try {
       await publishSocialPostFirstComment({
         provider,
         subscriptionType,
         connectedAccountId: connection.composioConnectedAccountId,
-        executorUserId: projectExecutorUserId(post.projectId),
+        executorUserId: connectionExecutorUserId({
+          projectId: post.projectId,
+          executorProjectId: connection.executorProjectId,
+        }),
         externalAccountId: connection.externalAccountId,
         externalId: lastExternalId ?? published.externalId,
         text: firstComment,
@@ -1142,7 +1188,12 @@ async function claimDuePost(held: string[]): Promise<ClaimResult> {
       OR: [
         {
           status: "SCHEDULED",
-          project: { closingAt: null, closedAt: null },
+          // A test copy's due post is held, never sent (ADR 0073).
+          project: {
+            closingAt: null,
+            closedAt: null,
+            testCopyOfProjectId: null,
+          },
           ...(held.length > 0 && { projectId: { notIn: held } }),
           scheduledAt: { lte: now },
           OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
@@ -1267,9 +1318,12 @@ export async function publishSocialPostNow(
   if (paused.length > 0) throw conflict(CMO_PAUSED);
   const { post, now, leaseToken, movedQuotes } = await serializableTransaction(
     async (tx) => {
-      await requireLockedOpenProject(tx, input, {
+      const project = await requireLockedOpenProject(tx, input, {
         closedMessage: PROJECT_CLOSED_ERROR,
       });
+      if (project.testCopyOfProjectId) {
+        throw conflict(TEST_COPY_NEVER_PUBLISHES);
+      }
       const post = await tx.socialPost.findFirst({
         where: {
           id: input.postId,

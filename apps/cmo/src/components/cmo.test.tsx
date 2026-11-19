@@ -25,6 +25,7 @@ import {
 import { AdsPanel, SearchAdControl } from "./ads";
 import { CalendarPage } from "./app/calendar-page";
 import {
+  CompetitorWeekCard,
   LearningCard,
   learningSteps,
   StrategyCard,
@@ -301,6 +302,45 @@ describe("learning steps", () => {
 });
 
 describe("cards", () => {
+  it("shows the competitors' week as one card: a line per move, the big one called out", () => {
+    const html = renderToStaticMarkup(
+      <CompetitorWeekCard
+        actions={noop}
+        week={{
+          checkDay: "2026-11-16",
+          moves: [
+            {
+              competitor: "Calendly",
+              text: "Calendly raised Standard from $10 to $12 per seat.",
+              source: {
+                label: "Calendly",
+                url: "https://calendly.com/pricing",
+              },
+              big: true,
+              meaning: "Your Teams plan is now the cheaper one.",
+              move: "Lead your pricing page with the price per seat.",
+            },
+            {
+              competitor: "Zcal",
+              text: "Zcal added team pages.",
+              source: { label: "zcal.co", url: "https://zcal.co/blog/teams" },
+              big: false,
+              meaning: "Never shown in chat.",
+              move: "Never shown in chat.",
+            },
+          ],
+        }}
+      />,
+    );
+    expect(html.match(/class="card"/g)).toHaveLength(1);
+    expect(html.match(/<li/g)).toHaveLength(2);
+    expect(html).toContain("What your competitors did this week");
+    expect(html).toContain('href="https://calendly.com/pricing"');
+    expect(html).toContain("Your Teams plan is now the cheaper one.");
+    expect(html).not.toContain("Never shown in chat.");
+    expect(html).toContain(">See every move<");
+  });
+
   it("offers Change and Pause on what is up next only after approval", () => {
     const update = {
       id: "u0",
@@ -561,7 +601,8 @@ describe("pages", () => {
     const html = results(approved);
     expect(html).toContain("checked every week");
     expect(html).toContain("Next check: <time");
-    expect(html).toContain("Sunday 22 November");
+    // The day with its time: the site audit runs on another day.
+    expect(html).toContain("Sunday 22 November at 21:00");
     expect(html).toContain("The first weekly report arrives on");
     expect(html).not.toContain("Monday");
     // Before approval no review is due, so no day is promised.
@@ -653,6 +694,7 @@ describe("pages", () => {
               handle: "@acme",
               displayName: null,
               status: "ACTIVE",
+              personalProfile: false,
             },
           ],
         })}
@@ -667,6 +709,62 @@ describe("pages", () => {
     );
     expect(html).toContain("@acme");
     expect(html).toContain("Connected");
+    expect(html).not.toContain("Change");
+  });
+
+  it("says when LinkedIn posts as the person, and lets the owner change the account", () => {
+    const page = (personalProfile: boolean) =>
+      renderToStaticMarkup(
+        <ChannelsPage
+          overview={overview({
+            channels: [
+              {
+                id: "c1",
+                provider: "linkedin",
+                handle: personalProfile ? "Alice Doe" : "acme",
+                displayName: null,
+                status: "ACTIVE",
+                personalProfile,
+              },
+            ],
+          })}
+          compose={() => {}}
+          connect={async () => ({ url: null, error: null })}
+          change={async () => ({ url: null, error: null })}
+          connectAds={async () => ({ url: null, error: null })}
+          addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
+          onChange={() => {}}
+        />,
+      );
+    expect(page(true)).toContain("Alice Doe · your personal profile");
+    expect(page(true)).toContain("Change");
+    expect(page(false)).not.toContain("personal profile");
+  });
+
+  it("offers TikTok only where Core allows connecting it", () => {
+    const page = (tiktokEnabled: boolean) =>
+      renderToStaticMarkup(
+        <ChannelsPage
+          overview={overview({ tiktokEnabled })}
+          compose={() => {}}
+          connect={async () => ({ url: null, error: null })}
+          connectAds={async () => ({ url: null, error: null })}
+          addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
+          onChange={() => {}}
+        />,
+      );
+    const row = (html: string) => {
+      const from = html.slice(html.indexOf("<b>TikTok</b>"));
+      return from.slice(0, from.indexOf("</li>"));
+    };
+    expect(row(page(true))).toContain("<button");
+    // Everywhere else TikTok is listed as soon, with nothing to press.
+    expect(row(page(false))).toContain('<span class="tag">Soon</span>');
+    expect(row(page(false))).not.toContain("<button");
   });
 
   it("offers ad accounts to everyone", () => {

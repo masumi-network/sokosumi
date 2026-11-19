@@ -116,7 +116,9 @@ async function runTurn(
       )
         continue;
       tools[capability] = tool({
-        description: SOKO_BOT_TOOL_DESCRIPTIONS[capability],
+        description:
+          turn.toolDescriptions[capability] ??
+          SOKO_BOT_TOOL_DESCRIPTIONS[capability],
         inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS[capability],
         async execute(
           toolInput: unknown,
