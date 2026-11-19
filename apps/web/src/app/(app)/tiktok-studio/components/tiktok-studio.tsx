@@ -58,6 +58,7 @@ import {
 import { TikTokStudioLibrary } from "./tiktok-studio-library";
 import {
   ACTIVE_STATUSES,
+  type Playback,
   StageJob,
   StagePreview,
   type TalkingVideoAsset,
@@ -191,8 +192,11 @@ export function TikTokStudio({
       initialVideos.jobs.find((job) => ACTIVE_STATUSES.has(job.status))?.id ??
       null,
   );
+  /** Which finished videos' files loaded or failed, by asset. */
+  const [playback, setPlayback] = useState<Record<string, Playback>>({});
   const photoInput = useRef<HTMLInputElement>(null);
   const stage = useRef<HTMLElement>(null);
+  const form = useRef<HTMLFormElement>(null);
 
   const { data: videos } = useQuery({
     queryKey,
@@ -216,6 +220,12 @@ export function TikTokStudio({
   const assetFor = (job: ProjectImageJob): TalkingVideoAsset | null =>
     videos.assets.find((asset) => asset.jobId === job.id) ?? null;
   const stageJob = videos.jobs.find((job) => job.id === stageJobId) ?? null;
+  const stageAsset = stageJob ? assetFor(stageJob) : null;
+  const playbackFor = (asset: TalkingVideoAsset) => playback[asset.id];
+  const markPlayback = (asset: TalkingVideoAsset, next: Playback) =>
+    setPlayback((current) =>
+      current[asset.id] === next ? current : { ...current, [asset.id]: next },
+    );
 
   /** What still stands between the person and the button, if anything. */
   const missing =
@@ -239,6 +249,13 @@ export function TikTokStudio({
     // video, and a scroll before that lands where it used to be.
     flushSync(() => setStageJobId(jobId));
     stage.current?.scrollIntoView({ block: "nearest" });
+  }
+
+  /** Clears the stage and takes the person to the form for a new video. */
+  function startNew() {
+    flushSync(() => setStageJobId(null));
+    form.current?.scrollIntoView({ block: "start" });
+    form.current?.focus({ preventScroll: true });
   }
 
   async function handlePhoto(file: File) {
@@ -405,9 +422,26 @@ export function TikTokStudio({
 
   return (
     <div className="grid min-w-0 items-start gap-2 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {videos.jobs.length > 0 ? (
+        <TikTokStudioLibrary
+          assetFor={assetFor}
+          jobs={videos.jobs}
+          onNew={readOnly ? undefined : startNew}
+          onPlayback={markPlayback}
+          onSelect={(job) => showOnStage(job.id)}
+          playbackFor={playbackFor}
+          selectedId={stageJob?.id ?? null}
+        />
+      ) : null}
       <form
         aria-label={t("formLabel")}
-        className={cn(HOLDER_CLASS, "flex min-w-0 flex-col gap-2")}
+        className={cn(
+          HOLDER_CLASS,
+          "flex min-w-0 scroll-mt-2 flex-col gap-2 outline-none",
+          APP_MAIN_MOBILE_SCROLL_MT_CLASS,
+        )}
+        ref={form}
+        tabIndex={-1}
         onSubmit={(event) => {
           event.preventDefault();
           handleCreate();
@@ -718,7 +752,8 @@ export function TikTokStudio({
         aria-label={stageJob ? t("stageVideo") : t("preview")}
         className={cn(
           HOLDER_CLASS,
-          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:row-span-2",
+          // The library and the form share the first column; the stage stays beside both.
+          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1",
           APP_MAIN_MOBILE_SCROLL_MT_CLASS,
           // On a phone a started video leads the page; the preview follows the steps.
           stageJob && "max-lg:order-first",
@@ -728,7 +763,11 @@ export function TikTokStudio({
         <div className="mx-auto flex w-full max-w-72 flex-col gap-2 lg:max-w-none">
           {stageJob ? (
             <StageJob
-              asset={assetFor(stageJob)}
+              asset={stageAsset}
+              onPlayback={(next) => {
+                if (stageAsset) markPlayback(stageAsset, next);
+              }}
+              playback={stageAsset ? playbackFor(stageAsset) : undefined}
               image={presenterImage(stageJob.talkingVideo?.presenterId)}
               job={stageJob}
               onPost={readOnly ? undefined : handlePost}
@@ -755,7 +794,7 @@ export function TikTokStudio({
             {stageJob ? (
               <Button
                 className="shrink-0"
-                onClick={() => setStageJobId(null)}
+                onClick={startNew}
                 size="sm"
                 variant="ghost"
               >
@@ -786,14 +825,6 @@ export function TikTokStudio({
           }}
           onError={(error) => toast.error(error.message || t("postFailed"))}
           onSaved={() => router.refresh()}
-        />
-      ) : null}
-      {videos.jobs.length > 0 ? (
-        <TikTokStudioLibrary
-          assetFor={assetFor}
-          jobs={videos.jobs}
-          onSelect={(job) => showOnStage(job.id)}
-          selectedId={stageJob?.id ?? null}
         />
       ) : null}
     </div>

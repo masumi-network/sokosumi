@@ -4,7 +4,7 @@ import type {
   ProjectImageJob,
   ProjectTalkingVideos,
 } from "@sokosumi/core-client";
-import { Download, Send } from "lucide-react";
+import { Download, RotateCcw, Send, VideoOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 
@@ -23,6 +23,8 @@ export const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
 const SLOW_AFTER_SECONDS = 300;
 
 export type TalkingVideoAsset = ProjectTalkingVideos["assets"][number];
+/** Whether a finished video's file loaded; unknown until it answers. */
+export type Playback = "ready" | "failed" | undefined;
 
 /** The 9:16 frame every state of a video is shown in. */
 function Frame({ image, children }: { image?: string; children?: ReactNode }) {
@@ -92,6 +94,8 @@ function Elapsed({ since }: { since: Date }) {
 export function StageJob({
   job,
   asset,
+  playback,
+  onPlayback,
   image,
   posting,
   onPost,
@@ -100,6 +104,9 @@ export function StageJob({
 }: {
   job: ProjectImageJob;
   asset: TalkingVideoAsset | null;
+  playback: Playback;
+  /** The file loaded, failed, or is to be tried again (undefined). */
+  onPlayback: (playback: Playback) => void;
   /** The presenter's picture, shown while the video is made. */
   image?: string;
   posting: boolean;
@@ -110,29 +117,67 @@ export function StageJob({
   const t = useTranslations("App.TikTokStudio");
 
   if (asset) {
+    const ready = playback === "ready";
     return (
       <>
-        <div className="bg-media-ground aspect-9/16 w-full overflow-hidden rounded-lg">
-          <video
-            aria-label={job.prompt}
-            className="content-in size-full object-cover"
-            controls
-            key={asset.id}
-            playsInline
-            preload="metadata"
-            src={assetContentUrl(asset)}
-          />
-        </div>
+        {playback === "failed" ? (
+          <Frame>
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-6 text-center"
+              role="alert"
+            >
+              <VideoOff
+                aria-hidden
+                className="text-muted-foreground mb-2 size-6"
+              />
+              <span className="text-sm font-medium">{t("loadFailed")}</span>
+              <span className="text-muted-foreground text-xs text-balance">
+                {t("loadFailedBody")}
+              </span>
+              <Button
+                className="mt-3"
+                onClick={() => onPlayback(undefined)}
+                size="sm"
+              >
+                <RotateCcw aria-hidden />
+                {t("tryAgain")}
+              </Button>
+            </div>
+          </Frame>
+        ) : (
+          <div className="bg-media-ground aspect-9/16 w-full overflow-hidden rounded-lg">
+            <video
+              aria-label={job.prompt}
+              className="content-in size-full object-cover"
+              controls
+              key={asset.id}
+              onError={() => onPlayback("failed")}
+              onLoadedMetadata={() => onPlayback("ready")}
+              playsInline
+              preload="metadata"
+              src={assetContentUrl(asset)}
+            />
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild className="flex-1">
-            <a download href={assetContentUrl(asset, { download: true })}>
+          {/* Off until the file plays: a missing file downloads nothing. */}
+          {ready ? (
+            <Button asChild className="flex-1">
+              <a download href={assetContentUrl(asset, { download: true })}>
+                <Download aria-hidden />
+                {t("download")}
+              </a>
+            </Button>
+          ) : (
+            <Button className="flex-1" disabled>
               <Download aria-hidden />
               {t("download")}
-            </a>
-          </Button>
+            </Button>
+          )}
           {onPost ? (
             <Button
               className="flex-1"
+              disabled={!ready}
               loading={posting}
               onClick={() => onPost(asset)}
             >

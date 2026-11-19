@@ -331,7 +331,10 @@ describe("TikTokStudio", () => {
         </SocialProviderAvailabilityProvider>
       </TestQueryProvider>,
     );
-    fireEvent.click(screen.getByRole("button", { name: SCRIPT }));
+    fireEvent.click(screen.getByRole("button", { name: /videoReady/ }));
+    fireEvent.loadedMetadata(
+      screen.getByLabelText(SCRIPT, { selector: "video" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "postToTikTok" }));
     expect(await screen.findByRole("dialog")).toHaveTextContent(
       "tik-account launch.mp4",
@@ -426,5 +429,147 @@ describe("TikTokStudio", () => {
       "Brian",
     );
     expect(screen.getByRole("region", { name: "preview" })).toBeInTheDocument();
+  });
+
+  describe("a finished video", () => {
+    const job = (id: string, status: string, prompt = `${SCRIPT} ${id}`) =>
+      ({
+        id,
+        status,
+        prompt,
+        createdAt: new Date(),
+      }) as ProjectTalkingVideos["jobs"][number];
+    const asset = (jobId: string) =>
+      ({
+        id: `asset-${jobId}`,
+        jobId,
+        contentPath: `/${jobId}.mp4`,
+      }) as ProjectTalkingVideos["assets"][number];
+
+    function renderLibrary(
+      jobs = [job("a", "SUCCEEDED"), job("b", "SUCCEEDED")],
+      assets = [asset("a"), asset("b")],
+    ) {
+      render(
+        <TestQueryProvider>
+          <TikTokStudio
+            catalog={CATALOG}
+            initialVideos={{ jobs, assets }}
+            hasWebsite={false}
+            projectId="project-1"
+            readOnly={false}
+          />
+        </TestQueryProvider>,
+      );
+    }
+    const stageVideo = (id: string) =>
+      screen.getByLabelText(`${SCRIPT} ${id}`, { selector: "video" });
+    const tile = (id: string) =>
+      screen.getByRole("button", { name: new RegExp(`${SCRIPT} ${id}$`) });
+
+    it("keeps Download and Post off until the video can play", () => {
+      renderLibrary();
+      fireEvent.click(tile("a"));
+
+      expect(screen.getByRole("button", { name: "download" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "post" })).toBeDisabled();
+
+      fireEvent.loadedMetadata(stageVideo("a"));
+
+      expect(screen.getByRole("link", { name: "download" })).toHaveAttribute(
+        "download",
+      );
+      expect(screen.getByRole("button", { name: "post" })).toBeEnabled();
+    });
+
+    it("says when its file does not load and tries again", () => {
+      renderLibrary();
+      fireEvent.click(tile("a"));
+      fireEvent.error(stageVideo("a"));
+
+      const stage = screen.getByRole("region", { name: "stageVideo" });
+      expect(stage).toHaveTextContent("loadFailed");
+      expect(screen.getByRole("button", { name: "download" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "post" })).toBeDisabled();
+      expect(tile("a")).toHaveAccessibleName(/videoUnavailable/);
+
+      fireEvent.click(screen.getByRole("button", { name: "tryAgain" }));
+
+      expect(stage).not.toHaveTextContent("loadFailed");
+      expect(screen.getByRole("button", { name: "download" })).toBeDisabled();
+      fireEvent.loadedMetadata(stageVideo("a"));
+      expect(screen.getByRole("button", { name: "post" })).toBeEnabled();
+      expect(tile("a")).toHaveAccessibleName(/videoReady/);
+    });
+
+    it("keeps each video's own playback state across switches", () => {
+      renderLibrary();
+      fireEvent.click(tile("a"));
+      fireEvent.error(stageVideo("a"));
+      fireEvent.click(tile("b"));
+
+      const stage = screen.getByRole("region", { name: "stageVideo" });
+      expect(stage).not.toHaveTextContent("loadFailed");
+      fireEvent.loadedMetadata(stageVideo("b"));
+      expect(screen.getByRole("button", { name: "post" })).toBeEnabled();
+
+      fireEvent.click(tile("a"));
+      expect(stage).toHaveTextContent("loadFailed");
+      expect(screen.getByRole("button", { name: "post" })).toBeDisabled();
+    });
+
+    it("marks a library video Unavailable once its tile fails to load", () => {
+      renderLibrary();
+      const tileVideo = tile("b").querySelector("video");
+      if (!tileVideo) throw new Error("tile has no video");
+      fireEvent.error(tileVideo);
+
+      expect(tile("b")).toHaveAccessibleName(/videoUnavailable/);
+      fireEvent.click(tile("b"));
+      expect(
+        screen.getByRole("region", { name: "stageVideo" }),
+      ).toHaveTextContent("loadFailed");
+    });
+
+    it("shows a returning owner their videos and states before the form", () => {
+      const scrolledTo: (string | null)[] = [];
+      Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+        scrolledTo.push(this.getAttribute("aria-label"));
+      });
+      renderLibrary(
+        [job("a", "SUCCEEDED"), job("m", "RUNNING"), job("f", "FAILED")],
+        [asset("a")],
+      );
+
+      const library = screen.getByRole("region", { name: "videos" });
+      const form = screen.getByRole("form", { name: "formLabel" });
+      expect(
+        library.compareDocumentPosition(form) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(tile("a")).toHaveAccessibleName(/videoReady/);
+      expect(tile("m")).toHaveAccessibleName(/videoMaking/);
+      expect(tile("f")).toHaveAccessibleName(/videoFailed/);
+
+      fireEvent.click(tile("a"));
+      fireEvent.click(
+        screen.getAllByRole("button", { name: "newVideo" })[0] as HTMLElement,
+      );
+
+      expect(screen.getByRole("region", { name: "preview" })).toBeVisible();
+      expect(scrolledTo.at(-1)).toBe("formLabel");
+      expect(form).toHaveFocus();
+    });
+
+    it("starts a first-time owner on the form, with no library", () => {
+      renderStudio();
+      expect(
+        screen.queryByRole("region", { name: "videos" }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole("form", { name: "formLabel" })).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "newVideo" }),
+      ).not.toBeInTheDocument();
+    });
   });
 });
