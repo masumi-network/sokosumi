@@ -1,6 +1,14 @@
 "use client";
 
-import { Columns3, Ellipsis, LayoutGrid, List, Rows3 } from "lucide-react";
+import {
+  Check,
+  Columns3,
+  Ellipsis,
+  LayoutGrid,
+  List,
+  Rows3,
+} from "lucide-react";
+import { RadioGroup } from "radix-ui";
 import { useCallback, useId } from "react";
 import {
   parseTasksSort,
@@ -14,13 +22,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import useIsClient from "@/hooks/use-is-client";
 import type { TasksDensity } from "@/lib/ui-preferences/tasks-density";
@@ -170,28 +171,29 @@ export function ViewModeSwitch({
             <p id={sortLabelId} className="text-sm font-medium">
               {labels.sortBy}
             </p>
-            <Select
+            {/* Every order in view: one click, no second dropdown. */}
+            <RadioGroup.Root
               value={sort}
               onValueChange={(next) => {
                 const parsed = parseTasksSort(next);
                 if (parsed) onSortChange(parsed);
               }}
+              aria-labelledby={sortLabelId}
+              className="space-y-0.5"
             >
-              <SelectTrigger
-                size="sm"
-                className="w-full"
-                aria-labelledby={sortLabelId}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TASKS_SORT_VALUES.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {labels.sortOptions[option]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {TASKS_SORT_VALUES.map((option) => (
+                <RadioGroup.Item
+                  key={option}
+                  value={option}
+                  className="hover:bg-accent focus-visible:ring-ring data-[state=checked]:bg-accent flex h-8 w-full items-center justify-between rounded-md px-2 text-sm outline-none focus-visible:ring-2"
+                >
+                  {labels.sortOptions[option]}
+                  <RadioGroup.Indicator>
+                    <Check className="size-4" aria-hidden />
+                  </RadioGroup.Indicator>
+                </RadioGroup.Item>
+              ))}
+            </RadioGroup.Root>
           </div>
           {children ? (
             <div className="space-y-1 border-t pt-3">{children}</div>
