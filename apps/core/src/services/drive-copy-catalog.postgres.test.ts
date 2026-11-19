@@ -12,12 +12,8 @@ import {
 } from "@/lib/files/index-jobs";
 import type { JevLabelEvaluator } from "@/lib/files/jev-client";
 import {
-  activateDriveCopyResource,
-  activateDriveUploadResource,
-  adoptDriveUploadResource,
-  releaseDriveCopyResource,
-  renameDriveUploadResource,
-  reserveDriveCopyResource,
+  createDriveCopyResource,
+  driveResourceHeld,
   reserveDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { runSuggestionJob } from "@/services/file-suggestions.service";
@@ -45,9 +41,9 @@ vi.mock("@/lib/files/index-jobs", async (importOriginal) => {
  * A Drive copy against the real catalog and job queue.
  *
  * The route test models these with mocks. This one checks the catalog's
- * side of the contract: a reservation is never shared, release and
- * activation touch only the copy's own row at revision 1, activation and its
- * job land together, and no later step asks the paid label model.
+ * side: the copy's document is created live, pinned and queued for
+ * extraction in one step or not at all, never over another row, and no
+ * later step asks the paid label model.
  */
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -123,8 +119,8 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
     await prisma.user.deleteMany({ where: { id: ownerId } });
   });
 
-  function reserve(name: string) {
-    return reserveDriveCopyResource({
+  function create(name: string) {
+    return createDriveCopyResource({
       key: key(name),
       displayName: name,
       mimeType: "text/markdown",
@@ -139,341 +135,66 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
     });
   }
 
-  it("refuses a second reservation of a held name", async () => {
-    await reserve("weekly (copy).md");
+  it("creates a live, pinned document with one extraction job", async () => {
+    const id = await create("plan (copy).md");
 
-    await expect(reserve("weekly (copy).md")).rejects.toMatchObject({
+    expect(
+      await prisma.fileResource.findUniqueOrThrow({
+        where: { id },
+        select: {
+          lifecycle: true,
+          sizeBytes: true,
+          mimeType: true,
+          versions: { select: { revision: true, sizeBytes: true } },
+          overrides: { select: { field: true, labelId: true } },
+        },
+      }),
+    ).toEqual({
+      lifecycle: "ACTIVE",
+      sizeBytes: 42,
+      mimeType: "text/markdown",
+      versions: [{ revision: 1, sizeBytes: 42 }],
+      overrides: expect.arrayContaining([
+        { field: "category", labelId: null },
+        { field: "tags", labelId: null },
+      ]),
+    });
+    expect(await extractJobs(id)).toBe(1);
+    expect(await driveResourceHeld(key("plan (copy).md"))).toBe(true);
+  });
+
+  it("never takes over a name any row holds, such as a pending upload", async () => {
+    await reserveDriveUploadResource({
+      key: key("sheet (copy).md"),
+      displayName: "sheet (copy).md",
+      mimeType: "text/plain",
+      sizeBytes: 9,
+    });
+
+    expect(await driveResourceHeld(key("sheet (copy).md"))).toBe(true);
+    await expect(create("sheet (copy).md")).rejects.toMatchObject({
       code: "P2002",
     });
   });
 
-  function upload(name: string, sizeBytes = 9) {
-    return reserveDriveUploadResource({
-      key: key(name),
-      displayName: name,
-      mimeType: "text/plain",
-      sizeBytes,
-    });
-  }
+  it("writes nothing when its job cannot be queued", async () => {
+    enqueueFault.failNext = true;
 
-  function adopt(
-    name: string,
-    client?: Parameters<typeof adoptDriveUploadResource>[0]["client"],
-  ) {
-    return adoptDriveUploadResource({
-      key: key(name),
-      displayName: name,
-      mimeType: null,
-      sizeBytes: 11,
-      uploadedAt: new Date(),
-      client,
-    });
-  }
+    await expect(create("agenda (copy).md")).rejects.toThrow(
+      "connection dropped",
+    );
 
-  function row(id: string) {
-    return prisma.fileResource.findUniqueOrThrow({
-      where: { id },
-      select: {
-        lifecycle: true,
-        contentRevision: true,
-        sizeBytes: true,
-        mimeType: true,
-        versions: { select: { revision: true, sizeBytes: true } },
-      },
-    });
-  }
-
-  it("activates with the written metadata and queues extraction once", async () => {
-    const id = await reserve("plan (copy).md");
-
-    expect(
-      await activateDriveCopyResource({
-        resourceId: id,
-        pathname: key("plan (copy).md").pathname,
-        sizeBytes: 7,
-        mimeType: "text/plain",
-      }),
-    ).toBe(true);
-
-    expect(await row(id)).toMatchObject({
-      lifecycle: "ACTIVE",
-      sizeBytes: 7,
-      mimeType: "text/plain",
-      versions: [{ revision: 1, sizeBytes: 7 }],
-    });
-    expect(await extractJobs(id)).toBe(1);
-  });
-
-  it("refuses to activate a copy that was renamed before it finished", async () => {
-    const id = await reserve("moved (copy).md");
-    await renameDriveUploadResource({
-      workspaceId,
-      scope: "user",
-      fromPathname: key("moved (copy).md").pathname,
-      toPathname: key("elsewhere.md").pathname,
-      displayName: "elsewhere.md",
-    });
-
-    expect(
-      await activateDriveCopyResource({
-        resourceId: id,
-        pathname: key("moved (copy).md").pathname,
-        sizeBytes: 7,
-        mimeType: "text/plain",
-      }),
-    ).toBe(false);
-    expect((await row(id)).lifecycle).toBe("PENDING");
-    expect(await extractJobs(id)).toBe(0);
-  });
-
-  describe("an upload and a copy never share a reservation", () => {
-    it("refuses an upload while a copy holds the name, then versions the finished copy", async () => {
-      const name = "deck (copy).md";
-      const id = await reserve(name);
-
-      await expect(upload(name)).rejects.toMatchObject({ status: 409 });
-      expect(await row(id)).toMatchObject({
-        lifecycle: "PENDING",
-        contentRevision: 1,
-        mimeType: "text/markdown",
-      });
-
-      await activateDriveCopyResource({
-        resourceId: id,
-        pathname: key(name).pathname,
-        sizeBytes: 42,
-        mimeType: "text/markdown",
-      });
-      await expect(upload(name)).resolves.toMatchObject({ resourceId: id });
-    });
-
-    it("refuses a copy at a name an upload reserved first", async () => {
-      await upload("sheet (copy).md");
-
-      await expect(reserve("sheet (copy).md")).rejects.toMatchObject({
-        code: "P2002",
-      });
-    });
-  });
-
-  describe("the backfill", () => {
-    it("never adopts an interrupted copy", async () => {
-      const id = await reserve("brief (copy).md");
-
-      expect(await adopt("brief (copy).md")).toBe(id);
-
-      expect((await row(id)).lifecycle).toBe("PENDING");
-      expect(await extractJobs(id)).toBe(0);
-    });
-
-    it("adopts a lost upload with the listed size and its job together", async () => {
-      const { resourceId } = await upload("lost.txt");
-
-      await adopt("lost.txt");
-
-      expect(await row(resourceId)).toMatchObject({
-        lifecycle: "ACTIVE",
-        sizeBytes: 11,
-        versions: [{ revision: 1, sizeBytes: 11 }],
-      });
-      expect(await extractJobs(resourceId)).toBe(1);
-    });
-
-    it("leaves an adoption pending when its job cannot be queued", async () => {
-      const { resourceId } = await upload("agenda.txt");
-
-      enqueueFault.failNext = true;
-      await expect(adopt("agenda.txt")).rejects.toThrow("connection dropped");
-
-      expect((await row(resourceId)).lifecycle).toBe("PENDING");
-      expect(await extractJobs(resourceId)).toBe(0);
-    });
-
-    it("does not activate a revision an upload added after it looked", async () => {
-      const { resourceId } = await upload("draft.txt");
-      // The upload's next grant lands between adoption's read and its write.
-      const racing = new Proxy(prisma, {
-        get(target, property) {
-          if (property !== "fileResource") return Reflect.get(target, property);
-          return {
-            ...target.fileResource,
-            findUnique: async (args: object) => {
-              const seen = await target.fileResource.findUnique(
-                args as Parameters<typeof target.fileResource.findUnique>[0],
-              );
-              await upload("draft.txt", 99);
-              return seen;
-            },
-          };
-        },
-      });
-
-      await adopt("draft.txt", racing as unknown as typeof prisma);
-
-      expect(await row(resourceId)).toMatchObject({
-        lifecycle: "PENDING",
-        contentRevision: 2,
-      });
-      expect(await extractJobs(resourceId)).toBe(0);
-    });
-  });
-
-  describe("releasing a failed copy", () => {
-    it("drops only its own pending claim, so the name is free again", async () => {
-      const id = await reserve("memo (copy).md");
-
-      await releaseDriveCopyResource({
-        resourceId: id,
-        pathname: key("memo (copy).md").pathname,
-      });
-
-      expect(await prisma.fileResource.count({ where: { id } })).toBe(0);
-      await expect(reserve("memo (copy).md")).resolves.toEqual(
-        expect.any(String),
-      );
-    });
-
-    it("leaves a live copy and a moved claim alone", async () => {
-      const live = await reserve("live (copy).md");
-      await activateDriveCopyResource({
-        resourceId: live,
-        pathname: key("live (copy).md").pathname,
-        sizeBytes: 42,
-        mimeType: "text/markdown",
-      });
-      const moved = await reserve("gone (copy).md");
-      await renameDriveUploadResource({
-        workspaceId,
-        scope: "user",
-        fromPathname: key("gone (copy).md").pathname,
-        toPathname: key("here.md").pathname,
-        displayName: "here.md",
-      });
-
-      await releaseDriveCopyResource({
-        resourceId: live,
-        pathname: key("live (copy).md").pathname,
-      });
-      await releaseDriveCopyResource({
-        resourceId: moved,
-        pathname: key("gone (copy).md").pathname,
-      });
-
-      expect((await row(live)).lifecycle).toBe("ACTIVE");
-      expect((await row(moved)).lifecycle).toBe("PENDING");
-    });
-  });
-
-  describe("upload finalize", () => {
-    it("never makes a pending copy live", async () => {
-      const name = "final (copy).md";
-      const id = await reserve(name);
-
-      expect(
-        await activateDriveUploadResource({
-          key: key(name),
-          sizeBytes: 9,
-          mimeType: "text/plain",
-        }),
-      ).toBeNull();
-      expect(await row(id)).toMatchObject({
-        lifecycle: "PENDING",
-        mimeType: "text/markdown",
-      });
-      expect(await extractJobs(id)).toBe(0);
-    });
-
-    it("still finalizes an upload, and again after a replace", async () => {
-      const { resourceId } = await upload("report.txt");
-      const finalize = () =>
-        activateDriveUploadResource({
-          key: key("report.txt"),
-          sizeBytes: 9,
-          mimeType: "text/plain",
-        });
-
-      expect(await finalize()).toEqual({ resourceId });
-      expect(await finalize()).toEqual({ resourceId });
-      await upload("report.txt", 12);
-      expect(await finalize()).toEqual({ resourceId });
-      expect(await row(resourceId)).toMatchObject({
-        lifecycle: "ACTIVE",
-        contentRevision: 2,
-      });
-    });
-  });
-
-  describe("an expired claim", () => {
-    async function expire(id: string) {
-      await prisma.fileResource.update({
-        where: { id },
-        data: { createdAt: new Date(Date.now() - 16 * 60_000) },
-      });
-    }
-
-    it("lets an upload take the name as a new document without the copy's pins", async () => {
-      const name = "old (copy).md";
-      const claim = await reserve(name);
-      await expire(claim);
-
-      const { resourceId } = await upload(name);
-
-      expect(resourceId).not.toBe(claim);
-      expect(await prisma.fileResource.count({ where: { id: claim } })).toBe(0);
-      expect(
-        await prisma.fileFieldOverride.count({ where: { resourceId } }),
-      ).toBe(0);
-    });
-
-    it("makes a renamed claim's name usable again by an upload", async () => {
-      const claim = await reserve("renamed (copy).md");
-      await renameDriveUploadResource({
-        workspaceId,
-        scope: "user",
-        fromPathname: key("renamed (copy).md").pathname,
-        toPathname: key("renamed.md").pathname,
-        displayName: "renamed.md",
-      });
-      await expect(upload("renamed.md")).rejects.toMatchObject({
-        status: 409,
-      });
-      await expire(claim);
-
-      const { resourceId } = await upload("renamed.md");
-      expect(
-        await activateDriveUploadResource({
-          key: key("renamed.md"),
-          sizeBytes: 9,
-          mimeType: "text/plain",
-        }),
-      ).toEqual({ resourceId });
-    });
-
-    it("is still never adopted by the backfill", async () => {
-      const claim = await reserve("stale (copy).md");
-      await expire(claim);
-
-      await adopt("stale (copy).md");
-
-      expect((await row(claim)).lifecycle).toBe("PENDING");
-      expect(await extractJobs(claim)).toBe(0);
-    });
+    expect(await driveResourceHeld(key("agenda (copy).md"))).toBe(false);
   });
 
   it("never asks the label model, through enqueue and the sweep", async () => {
     const copy = key("notes (copy).txt");
-    const resourceId = await reserveDriveCopyResource({
+    const resourceId = await createDriveCopyResource({
       key: copy,
       displayName: "notes (copy).txt",
       mimeType: "text/plain",
       sizeBytes: 5,
       decidedByUserId: ownerId,
-    });
-    await activateDriveCopyResource({
-      resourceId,
-      pathname: copy.pathname,
-      sizeBytes: 5,
-      mimeType: "text/plain",
     });
     // What extraction does when it finishes: settle the text, queue SUGGEST.
     await prisma.fileVersion.updateMany({

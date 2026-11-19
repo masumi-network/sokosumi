@@ -29,7 +29,6 @@ import {
   driveUncopy,
   isInDataRoom,
 } from "@/lib/drive-blob";
-import { recordCoreWarning } from "@/lib/evlog";
 import { nudgeFileExtraction } from "@/lib/files/in-process-indexer";
 import {
   type OpenAPIHonoWithAuth,
@@ -40,9 +39,8 @@ import {
   driveFileSchema,
 } from "@/schemas/drive-file.schema";
 import {
-  activateDriveCopyResource,
-  releaseDriveCopyResource,
-  reserveDriveCopyResource,
+  createDriveCopyResource,
+  driveResourceHeld,
 } from "@/services/file-catalog.service";
 
 /** Names tried ("x (copy)", "x (copy) 2" … 20) before the copy gives up with 409. */
@@ -106,29 +104,6 @@ export function copyName(source: string, label: string, attempt: number) {
   return `${kept}${tail}${extension}`;
 }
 
-/**
- * Undo a write this request provably made: the copy call returned its ETag,
- * and the delete only matches that ETag. Then give back the claim. Storage
- * and catalog are separate steps; when either fails the claim stays, pending
- * and unlabelled, and expires (see reserveDriveUploadResource).
- */
-async function giveBack(resourceId: string, target: string, etag: string) {
-  try {
-    await driveUncopy(target, etag);
-    await releaseDriveCopyResource({ resourceId, pathname: target });
-  } catch (error) {
-    recordCoreWarning(
-      { route: "drive.files.copy" },
-      {
-        message: "Kept a failed Drive copy's claim",
-        why: "Its write could not be undone, so its name stays held until the claim expires.",
-        cause: error,
-      },
-      { target },
-    );
-  }
-}
-
 function isUniqueViolation(error: unknown): boolean {
   return (error as { code?: unknown } | null)?.code === "P2002";
 }
@@ -174,36 +149,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname: target,
     });
 
-    // The catalog owns a fresh name before the bytes exist. A plain create:
-    // a name any row holds fails with P2002 and the next name is tried, so
-    // a copy never joins another request's row.
+    // A name nothing holds: no object, no folder, no catalog row.
     const sourceName = pathname.slice(folderPrefix.length);
     let target: string | null = null;
-    let resourceId = "";
     for (let attempt = 1; attempt <= MAX_NAME_TRIES && !target; attempt++) {
       const candidate = `${folderPrefix}${copyName(sourceName, label, attempt)}`;
       if (
-        (await driveExists(candidate)) ||
-        (await driveHasAny(`${candidate}/`))
+        !(await driveExists(candidate)) &&
+        !(await driveHasAny(`${candidate}/`)) &&
+        !(await driveResourceHeld(key(candidate)))
       ) {
-        continue;
-      }
-      try {
-        resourceId = await reserveDriveCopyResource({
-          key: key(candidate),
-          displayName: candidate.slice(folderPrefix.length),
-          mimeType: source.contentType,
-          sizeBytes: source.size,
-          decidedByUserId: userContext.userId,
-        });
         target = candidate;
-      } catch (error) {
-        if (!isUniqueViolation(error)) throw error;
       }
     }
     if (!target) throw conflict("No free name for the copy");
     const name = target.slice(folderPrefix.length);
 
+    // Never overwrites. If the call fails for any reason but a missing
+    // source, its outcome is unknown: the bytes at this name may be a late
+    // copy or another file. Nothing is deleted; whatever is there is an
+    // ordinary Drive file, which the reader can open, rename or delete.
     let copied: { url: string; etag: string };
     try {
       copied = await driveCopy(pathname, target, {
@@ -211,43 +176,45 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
       });
     } catch (error) {
-      // The store answered "no source": nothing was written.
       if (error instanceof BlobNotFoundError) {
-        await releaseDriveCopyResource({ resourceId, pathname: target });
         throw notFound("Source file not found");
       }
-      // Any other failure may still land, or may be someone else's file at
-      // this name. Touch nothing; the claim keeps it unlabelled and expires.
       throw error;
     }
 
-    let written: Awaited<ReturnType<typeof driveHead>>;
+    // The target must still be this write, and the source unchanged since
+    // its head, so the bytes copied are the ones its type describes. If not,
+    // undo only this request's own write, matched by its ETag, before any
+    // database write.
+    const [written, sourceNow] = await Promise.all([
+      driveHead(target),
+      driveHead(pathname),
+    ]);
+    if (written?.etag !== copied.etag || sourceNow?.etag !== source.etag) {
+      await driveUncopy(target, copied.etag).catch(() => undefined);
+      throw conflict("The file changed while it was copied; try again");
+    }
+
+    // After this the outcome may be committed even if the call fails, so
+    // the bytes always stay.
     try {
-      // The target must still be this write, and the source unchanged since
-      // its head, so the bytes copied are the ones its type describes.
-      const [targetNow, sourceNow] = await Promise.all([
-        driveHead(target),
-        driveHead(pathname),
-      ]);
-      written = targetNow;
-      if (written?.etag !== copied.etag || sourceNow?.etag !== source.etag) {
-        throw conflict("The file changed while it was copied; try again");
-      }
-      const activated = await activateDriveCopyResource({
-        resourceId,
-        pathname: target,
-        sizeBytes: written.size,
+      await createDriveCopyResource({
+        key: key(target),
+        displayName: name,
         mimeType: written.contentType,
+        sizeBytes: written.size,
+        decidedByUserId: userContext.userId,
       });
-      if (!activated) throw conflict("The copy was moved; try again");
     } catch (error) {
-      await giveBack(resourceId, target, copied.etag);
+      if (isUniqueViolation(error)) {
+        throw conflict("Another file took that name; try again");
+      }
       throw error;
     }
 
     // Extraction only, which is free. Labelling is paid, and the copy's
     // pinned category and tags leave every later suggestion run nothing to
-    // ask (see reserveDriveCopyResource).
+    // ask (see createDriveCopyResource).
     nudgeFileExtraction();
 
     return ok(
