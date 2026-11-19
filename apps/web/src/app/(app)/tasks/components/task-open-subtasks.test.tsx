@@ -65,6 +65,8 @@ describe("TaskOpenSubtasks", () => {
       "/tasks/WEB-10-sitemap",
     );
     // Nine sub-tasks, two done, three shown: four more are open.
+    // The status is named in the reader's language, not the English default.
+    expect(screen.getAllByRole("img")[0]).toHaveAccessibleName("READY");
     expect(screen.getByText("moreOpen:4").closest("a")).toHaveAttribute(
       "href",
       "/tasks/WEB-1-website-relaunch",

@@ -28,6 +28,7 @@ export function TaskOpenSubtasks({ task, className }: TaskOpenSubtasksProps) {
   const show = useContext(ShowOpenSubtasksContext);
   const t = useTranslations("App.Tasks.Subtasks");
   const tTasks = useTranslations("App.Tasks");
+  const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const open = task.openSubtasks ?? [];
   if (!show || open.length === 0) return null;
 
@@ -51,7 +52,12 @@ export function TaskOpenSubtasks({ task, className }: TaskOpenSubtasksProps) {
       {open.map((subtask) => (
         <li key={subtask.id}>
           <TaskDetailLink href={taskHref(subtask)} className={linkClassName}>
-            <TaskStatusBadge status={subtask.status} showLabel={false} />
+            <TaskStatusBadge
+              status={subtask.status}
+              label={tStatus(subtask.status)}
+              showLabel={false}
+              plain
+            />
             <span className="truncate">{nameOf(subtask.name)}</span>
           </TaskDetailLink>
         </li>
