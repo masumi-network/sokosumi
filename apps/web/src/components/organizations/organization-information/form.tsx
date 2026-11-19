@@ -40,14 +40,14 @@ import {
   organizationInformationFormSchema,
 } from "@/lib/schemas/organization";
 import {
-  cleanupOrganizationLogoBestEffort,
-  getOrganizationLogoUploadErrorMessage,
-  uploadOrganizationLogoDirect,
-} from "@/lib/utils/organization-logo-upload.client";
-import {
   ClientTimeoutError,
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
+import {
+  cleanupOwnedLogoBestEffort,
+  getUserFileUploadErrorMessage,
+  uploadOwnedLogoDirect,
+} from "@/lib/utils/user-file-upload.client";
 
 import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
@@ -102,9 +102,14 @@ export default function OrganizationInformationForm({
       onLogoUploadBusyChange?.(true);
       try {
         const uploadedFile = await raceWithTimeout(
-          uploadOrganizationLogoDirect(organization.id, logoFile, {
-            allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
-            maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+          uploadOwnedLogoDirect({
+            kind: "organization",
+            ownerId: organization.id,
+            file: logoFile,
+            options: {
+              allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+              maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+            },
           }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
@@ -113,7 +118,7 @@ export default function OrganizationInformationForm({
         toast.error(
           error instanceof ClientTimeoutError
             ? t("Fields.Logo.uploadError")
-            : getOrganizationLogoUploadErrorMessage(
+            : getUserFileUploadErrorMessage(
                 error,
                 t("Fields.Logo.uploadError"),
               ),
@@ -186,7 +191,8 @@ export default function OrganizationInformationForm({
         previousPersistedLogo &&
         (logoForApi ?? null) !== previousPersistedLogo
       ) {
-        void cleanupOrganizationLogoBestEffort(
+        void cleanupOwnedLogoBestEffort(
+          "organization",
           organization.id,
           previousPersistedLogo,
         );

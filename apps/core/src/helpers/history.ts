@@ -283,6 +283,8 @@ async function findJobIdsWithResultMatching(
   { q, scope, userContext, workspaceContext }: BuildHistoryWhereParams,
   prismaClient: Pick<HistoryPrismaClient, "job">,
 ): Promise<string[]> {
+  if (!q) return [];
+
   const jobs = await prismaClient.job.findMany({
     where: {
       workspaceId: workspaceContext.workspaceId,

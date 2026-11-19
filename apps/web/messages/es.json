@@ -12411,7 +12411,7 @@
         "failedCheck": "<prefix>Problema:</prefix> {name}",
         "checkedOn": "Comprobado el",
         "diagnostics": "Detalles de la página",
-        "diagnosticsHelp": "Lo que la comprobación midió en tus páginas. Las notas y sugerencias no son errores.",
+        "diagnosticsHelp": "Lo que encontramos en tus páginas.",
         "rank": {
           "absent": "Fuera del top {top}",
           "position": "Posición {position}",
@@ -12507,7 +12507,7 @@
         "otherCode": "Otro código",
         "target": "Página de destino",
         "anyPage": "Sin página de destino",
-        "help": "Las mejores ideas primero. Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
+        "help": "Sigue una para ver su posición en Google después de cada comprobación. El seguimiento es gratis.",
         "dialogHelp": "Seguir una palabra clave es gratis. No inicia ninguna comprobación de posiciones con coste.",
         "searchPlaceholder": "Filtrar consultas y palabras clave",
         "searchConsoleAverage": "{position} de media · {count, plural, one {# impresión} other {# impresiones}}",
@@ -12535,9 +12535,20 @@
           "medium": "Media",
           "low": "Baja"
         },
+        "recommendation": {
+          "mix": "Primero aparecen las ideas con poca competencia que encajan bien con el objetivo de la página. Después se alternan los dos grupos mientras ambos tengan ideas. Abre una fila para ver el motivo.",
+          "both": "Recomendada por su baja competencia y su ajuste al objetivo",
+          "competition": "Recomendada por su baja competencia",
+          "goal": "Recomendada por su ajuste al objetivo",
+          "easeEvidence": "Dificultad {value, number}/100 (inferior a {limit}).",
+          "goalEvidence": "La auditoría estima una probabilidad alta de alcanzar el objetivo de la página.",
+          "legend": "Idea recomendada",
+          "page": "Página auditada",
+          "action": "Objetivo de la página: {action}",
+          "studio": "Redactar en Content Studio (próximamente)"
+        },
         "ideas": {
           "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
-          "why": "Por qué aparece",
           "source": {
             "gap": "De la competencia",
             "opportunity": "Búsqueda relacionada"
@@ -12569,11 +12580,14 @@
           "zoomOut": "Alejar",
           "zoomReset": "Mostrar todo el mapa",
           "yours": "Su palabra clave",
+          "preview": "{volume, number} búsquedas/mes · Dificultad {value, number}/100",
+          "estimatedGain": "Clics adicionales estimados al mes",
+          "rankGain": "Top {rank} {gain}",
           "gainShort": "Clics extra en el top 3",
           "contentTask": "Crear tarea de contenido",
           "ask": "Preguntar al agente SEO",
-          "brief": "Escribe contenido web{site, select, none {} other { para {site}}} que pueda posicionarse en Google para la búsqueda «{keyword}». La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { Destaca esta función del producto: {feature}.}}",
-          "question": "¿Cómo puede {site, select, none {mi sitio} other {{site}}} posicionarse en Google para la búsqueda «{keyword}»? La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).{feature, select, none {} other { La función del producto que encaja: {feature}.}}",
+          "brief": "Escribe contenido web{site, select, none {} other { para {site}}} que pueda posicionarse en Google para la búsqueda «{keyword}».{measured, select, yes { La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).} other { Mercado: {market}.}}{feature, select, none {} other { Destaca esta función del producto: {feature}.}}",
+          "question": "¿Cómo puede {site, select, none {mi sitio} other {{site}}} posicionarse en Google para la búsqueda «{keyword}»?{measured, select, yes { La búsqueda tiene {volume, number} consultas al mes (mercado: {market}) y su dificultad es {difficulty} ({value} de 100).} other { Mercado: {market}.}}{feature, select, none {} other { La función del producto que encaja: {feature}.}}",
           "noGain": "Desconocido"
         },
         "historyShow": "Historial",
@@ -12674,6 +12688,8 @@
       },
       "actions": {
         "title": "Acciones",
+        "listTitle": "Acciones recomendadas",
+        "listHint": "Cambios que recomienda nuestro agente.",
         "empty": "No hay acciones recomendadas",
         "emptyBody": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Ejecuta una comprobación o pregunta al agente SEO qué hacer a continuación.",
         "emptyBodyOff": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Pregunta al agente SEO qué hacer a continuación.",

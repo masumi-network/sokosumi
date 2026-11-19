@@ -72,7 +72,6 @@ export const provideJobInput = withSession<
         id: userId,
       });
 
-      // Set job context
       scope.setTag("action", "submitJobInput");
       scope.setTag("service", "job");
       scope.setContext("job_input_request", {

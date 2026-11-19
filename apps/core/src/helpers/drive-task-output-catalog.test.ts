@@ -44,12 +44,9 @@ describe("fetchDriveTaskOutputRecentsBatch", () => {
       take: 10,
     });
 
-    expect(prismaTaskFileFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        cursor: undefined,
-        skip: undefined,
-      }),
-    );
+    const [query] = prismaTaskFileFindManyMock.mock.calls[0];
+    expect(query).not.toHaveProperty("cursor");
+    expect(query).not.toHaveProperty("skip");
     expect(page.rows).toHaveLength(1);
     expect(page.rows[0]?.id).toBe("tf-1");
     expect(page.hasMore).toBe(false);

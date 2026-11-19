@@ -4,6 +4,16 @@ import { describe, expect, it } from "vitest";
 import { taskCreationEvents } from "./task-creation-events";
 
 describe("taskCreationEvents", () => {
+  it("leaves the initial status event ID for Prisma to generate", () => {
+    const [, status] = taskCreationEvents({
+      status: TaskStatus.READY,
+      channel: Channel.SLACK,
+      actorFields: { userId: "user_123" },
+    });
+
+    expect(status).not.toHaveProperty("id");
+  });
+
   it("returns CREATED, then the status event 1 ms later, which keeps the id", () => {
     const [created, status, ...rest] = taskCreationEvents({
       status: TaskStatus.READY,

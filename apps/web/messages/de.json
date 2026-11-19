@@ -12411,7 +12411,7 @@
         "failedCheck": "<prefix>Problem:</prefix> {name}",
         "checkedOn": "Geprüft am",
         "diagnostics": "Seitendetails",
-        "diagnosticsHelp": "Was die Prüfung auf deinen Seiten gemessen hat. Hinweise und Vorschläge sind keine Fehler.",
+        "diagnosticsHelp": "Was wir auf deinen Seiten gefunden haben.",
         "rank": {
           "absent": "Nicht in den Top {top}",
           "position": "Position {position}",
@@ -12507,7 +12507,7 @@
         "otherCode": "Anderer Code",
         "target": "Zielseite",
         "anyPage": "Keine Zielseite",
-        "help": "Die besten Ideen zuerst. Verfolge eine, um nach jeder Prüfung ihre Google-Position zu sehen. Das Verfolgen ist kostenlos.",
+        "help": "Verfolge eine, um nach jeder Prüfung ihre Google-Position zu sehen. Das Verfolgen ist kostenlos.",
         "dialogHelp": "Ein Keyword zu verfolgen ist kostenlos. Es startet keine kostenpflichtigen Positionsprüfungen.",
         "searchPlaceholder": "Suchanfragen und Keywords filtern",
         "searchConsoleAverage": "Ø {position} · {count, plural, one {# Impression} other {# Impressionen}}",
@@ -12535,9 +12535,20 @@
           "medium": "Mittel",
           "low": "Niedrig"
         },
+        "recommendation": {
+          "mix": "Ideen mit wenig Wettbewerb, die gut zum Seitenziel passen, stehen zuerst. Danach wechseln sich die Gruppen ab, solange beide Ideen enthalten. Öffne eine Zeile für die Begründung.",
+          "both": "Empfohlen: geringer Wettbewerb und passendes Seitenziel",
+          "competition": "Empfohlen: geringer Wettbewerb",
+          "goal": "Empfohlen für das Seitenziel",
+          "easeEvidence": "Schwierigkeit {value, number}/100 (unter {limit}).",
+          "goalEvidence": "Die Prüfung schätzt die Chance, das Seitenziel zu erreichen, als hoch ein.",
+          "legend": "Empfohlene Idee",
+          "page": "Geprüfte Seite",
+          "action": "Seitenziel: {action}",
+          "studio": "Entwurf im Content Studio erstellen (demnächst)"
+        },
         "ideas": {
           "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
-          "why": "Warum es gelistet ist",
           "source": {
             "gap": "Von Wettbewerbern",
             "opportunity": "Verwandte Suche"
@@ -12569,11 +12580,14 @@
           "zoomOut": "Verkleinern",
           "zoomReset": "Ganze Karte zeigen",
           "yours": "Ihr Keyword",
+          "preview": "{volume, number} Suchen/Monat · Schwierigkeit {value, number}/100",
+          "estimatedGain": "Geschätzte zusätzliche Klicks/Monat",
+          "rankGain": "Top {rank} {gain}",
           "gainShort": "Zusätzliche Klicks (Top 3)",
           "contentTask": "Content-Aufgabe erstellen",
           "ask": "SEO-Agent fragen",
-          "brief": "Schreibe Webinhalte{site, select, none {} other { für {site}}}, die bei Google für die Suche „{keyword}“ ranken können. Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
-          "question": "Wie kann {site, select, none {meine Website} other {{site}}} bei Google für die Suche „{keyword}“ ranken? Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).{feature, select, none {} other { Die passende Produktfunktion: {feature}.}}",
+          "brief": "Schreibe Webinhalte{site, select, none {} other { für {site}}}, die bei Google für die Suche „{keyword}“ ranken können.{measured, select, yes { Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).} other { Markt: {market}.}}{feature, select, none {} other { Stelle diese Produktfunktion in den Vordergrund: {feature}.}}",
+          "question": "Wie kann {site, select, none {meine Website} other {{site}}} bei Google für die Suche „{keyword}“ ranken?{measured, select, yes { Die Suche hat {volume, number} Anfragen pro Monat (Markt: {market}), die Schwierigkeit ist {difficulty} ({value} von 100).} other { Markt: {market}.}}{feature, select, none {} other { Die passende Produktfunktion: {feature}.}}",
           "noGain": "Unbekannt"
         },
         "historyShow": "Verlauf",
@@ -12674,6 +12688,8 @@
       },
       "actions": {
         "title": "Aktionen",
+        "listTitle": "Empfohlene Aktionen",
+        "listHint": "Änderungen, die unser Agent empfiehlt.",
         "empty": "Keine empfohlenen Aktionen",
         "emptyBody": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Starte eine Prüfung oder frag den SEO-Agenten, was als Nächstes zu tun ist.",
         "emptyBodyOff": "Aktionen entstehen aus Problemen, die eine Prüfung findet, und aus deinen Search-Console-Suchanfragen. Frag den SEO-Agenten, was als Nächstes zu tun ist.",

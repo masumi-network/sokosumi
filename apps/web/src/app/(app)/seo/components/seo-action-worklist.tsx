@@ -3,7 +3,7 @@
 import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   SEGMENTED_CONTROL_CLASS_NAME,
   SEGMENTED_CONTROL_ITEM_CLASS_NAME,
@@ -45,13 +45,10 @@ export function SeoActionWorklist({
   actions,
   severity,
   model,
-  tools,
 }: {
   actions: ProjectSeoAction[];
   severity: (action: ProjectSeoAction) => SeoIssueSeverity | null;
   model: SeoWorkspaceModel;
-  /** A control at the end of the filter line, such as the export. */
-  tools: ReactNode;
 }) {
   const t = useTranslations("App.Seo");
   const [filter, setFilter] = useState<SeoActionFilter>("all");
@@ -99,11 +96,11 @@ export function SeoActionWorklist({
   if (openKey && !opened) setOpenKey(null);
   return (
     <div ref={root} className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2 px-2">
-        {filters.length > 1 ? (
-          // One control with its parts: the app's segmented look, buttons with a pressed state.
-          // On a phone the parts keep one line and the track scrolls: wrapped, the pills broke into uneven rows.
-          // min-w-0: a fieldset is at least as wide as its content by default, and would not scroll.
+      {filters.length > 1 ? (
+        // One control with its parts: the app's segmented look, buttons with a pressed state.
+        // On a phone the parts keep one line and the track scrolls: wrapped, the pills broke into uneven rows.
+        // min-w-0: a fieldset is at least as wide as its content by default, and would not scroll.
+        <div className="flex px-2">
           <fieldset
             ref={filterLine}
             className={cn(
@@ -140,9 +137,8 @@ export function SeoActionWorklist({
               </button>
             ))}
           </fieldset>
-        ) : null}
-        <div className="ms-auto">{tools}</div>
-      </div>
+        </div>
+      ) : null}
       {/* Suggestions alone keep the line that says they are no errors; the dialog of each one says it too. */}
       {rows.length > 0 &&
       rows.every((action) => action.kind === "opportunity") ? (
