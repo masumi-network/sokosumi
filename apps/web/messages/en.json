@@ -4491,7 +4491,13 @@
       "newVideo": "New video",
       "videoMaking": "Making",
       "videoFailed": "Not made",
-      "you": "You"
+      "you": "You",
+      "videoReady": "Ready",
+      "videoUnavailable": "Unavailable",
+      "loadFailed": "Failed to load video",
+      "loadFailedBody": "Its file did not come through. Try again in a moment.",
+      "tryAgain": "Try again",
+      "checking": "Checking the video. If it does not start, press play."
     },
     "Studio": {
       "back": "Back to project",

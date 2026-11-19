@@ -1395,7 +1395,7 @@ describe("SEO workspace integration", () => {
     expect(screen.getByRole("group", { name: "Quick periods" })).toBeVisible();
   });
 
-  it("puts the runs on a timeline, newest on the right, with the date filter beside its title", async () => {
+  it("puts the runs on a timeline, newest on the right, with the date filter below the checks", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.metrics = [seoTestMetric()];
@@ -1422,10 +1422,10 @@ describe("SEO workspace integration", () => {
         .getAllByRole("button", { pressed: undefined })
         .map((button) => button.textContent),
     ).toEqual([
-      "Other dates",
       "Oct 287 issues",
       "Nov 106 issues",
       "Nov 125 issues",
+      "Other dates",
     ]);
     // The timeline holds the one date filter: the header and the filter block have none.
     expect(screen.queryByRole("button", { name: "Filter by date" })).toBeNull();
@@ -2109,14 +2109,17 @@ describe("SEO workspace integration", () => {
     expect(
       screen.queryByText("Show the check from Jan 3", { ignore: "[hidden]" }),
     ).toBeNull();
-    // The way for the keyboard: the title line opens the details of the day in view, and focus comes back to it.
-    const titleDetails = screen.getByRole("button", {
+    // The way for the keyboard: the footer opens the details of the day in view, and focus comes back to it.
+    const footerDetails = screen.getByRole("button", {
       name: "Details of Jan 5",
     });
-    await user.click(titleDetails);
+    expect(footerDetails.closest("footer")).toContainElement(
+      screen.getByRole("button", { name: "Other dates" }),
+    );
+    await user.click(footerDetails);
     expect(await screen.findByRole("dialog")).toBeVisible();
     await user.keyboard("{Escape}");
-    await waitFor(() => expect(titleDetails).toHaveFocus());
+    await waitFor(() => expect(footerDetails).toHaveFocus());
     // A stop not in view says what a press does: to the keyboard as its description, and in its card.
     expect(
       screen.getByRole("button", { name: /^Jan 3/ }),
@@ -2129,7 +2132,7 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
   });
 
-  it("opens every event of a range set in the calendar from the title line", async () => {
+  it("opens every event of a range set in the calendar from the footer", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.findings = [];
