@@ -23,6 +23,8 @@ export async function zernioRequest(
     body?: unknown;
     signal?: AbortSignal;
     idempotencyKey?: string;
+    /** Extra headers, such as the connect token of a sign-in in progress. */
+    headers?: Record<string, string>;
   } = {},
 ): Promise<unknown> {
   const apiKey = getEnv().ZERNIO_API_KEY;
@@ -36,6 +38,7 @@ export async function zernioRequest(
       ...(options.idempotencyKey && {
         "Idempotency-Key": options.idempotencyKey,
       }),
+      ...options.headers,
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal ?? AbortSignal.timeout(30_000),

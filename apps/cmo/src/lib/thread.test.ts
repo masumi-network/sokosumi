@@ -11,6 +11,7 @@ const channel = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE" as const,
+  personalProfile: false,
 };
 
 it("maps waiting states to needs-you and research to reading", () => {

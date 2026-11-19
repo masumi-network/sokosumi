@@ -72,6 +72,16 @@ export function socialProviderWorkspace(
 }
 
 /**
+/** utxo AG's mainnet workspace, where a network opens before everyone gets it. */
+function isSocialBetaProject(project: SocialProviderProject): boolean {
+  return (
+    process.env.NETWORK === "Mainnet" &&
+    project.workspace.organization?.slug === SOCIAL_BETA_ORGANIZATION_SLUG &&
+    project.workspace.id === UTXO_MAINNET_WORKSPACE_ID
+  );
+}
+
+/**
  * Our own TikTok app (the Composio path) has not passed TikTok's audit, so it
  * stays where it was allowed before (#7443): utxo's mainnet workspace. Every
  * other TikTok connection is a Zernio one.
@@ -79,15 +89,20 @@ export function socialProviderWorkspace(
 export function requireOwnTikTokAppAllowed(
   project: SocialProviderProject,
 ): void {
-  const allowed =
-    process.env.NETWORK === "Mainnet" &&
-    project.workspace.organization?.slug === SOCIAL_BETA_ORGANIZATION_SLUG &&
-    project.workspace.id === UTXO_MAINNET_WORKSPACE_ID;
-  if (!allowed) {
+  if (!isSocialBetaProject(project)) {
     throw badRequest(
       "This TikTok connection is no longer supported. Connect the account again.",
     );
   }
+}
+
+/**
+ * Whether this Project's LinkedIn signs in through Zernio, which reaches the
+ * person's company Pages. Zernio charges per connected account, so it is
+ * utxo AG's for now. THE SWITCH: return true to open it to everyone.
+ */
+export function linkedInPagesEnabled(project: SocialProviderProject): boolean {
+  return isSocialBetaProject(project);
 }
 
 /** Always resolve availability from the owning Project, never the actor's memberships. */

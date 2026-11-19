@@ -14021,6 +14021,10 @@ export type CmoChannel = {
     handle: string | null;
     displayName: string | null;
     status: string;
+    /**
+     * A LinkedIn connection that posts as the person, not as a company Page.
+     */
+    personalProfile: boolean;
 };
 
 export type CmoUpNextItem = {
@@ -14569,6 +14573,36 @@ export type CmoBrandFixRequest = {
      * What is true instead, in the owner's words.
      */
     note: string;
+};
+
+export type CmoSocialConnectionFinalized = {
+    /**
+     * `choose`: the sign-in reaches several accounts; finalize again with the owner's pick.
+     */
+    state: 'connected' | 'choose';
+    choices: Array<CmoSocialAccountChoice>;
+};
+
+export type CmoSocialAccountChoice = {
+    externalAccountId: string;
+    name: string;
+    handle: string | null;
+    kind: 'page' | 'profile';
+};
+
+export type CmoFinalizeSocialConnectionRequest = FinalizeProjectSocialConnectionRequest & {
+    /**
+     * Returned with a LinkedIn sign-in: names the Pages it reaches.
+     */
+    pendingDataToken?: string;
+    /**
+     * Returned with a LinkedIn sign-in: lets Core finish it.
+     */
+    connectToken?: string;
+    /**
+     * The Page or profile the owner picked among the sign-in's accounts.
+     */
+    externalAccountId?: string;
 };
 
 export type SokoBotApiKey = {
@@ -92152,7 +92186,7 @@ export type InitiateCmoSocialConnectionForProjectResponses = {
 export type InitiateCmoSocialConnectionForProjectResponse = InitiateCmoSocialConnectionForProjectResponses[keyof InitiateCmoSocialConnectionForProjectResponses];
 
 export type FinalizeCmoSocialConnectionForProjectData = {
-    body: FinalizeProjectSocialConnectionRequest;
+    body: CmoFinalizeSocialConnectionRequest;
     path: {
         projectId: string;
     };
@@ -92287,10 +92321,10 @@ export type FinalizeCmoSocialConnectionForProjectError = FinalizeCmoSocialConnec
 
 export type FinalizeCmoSocialConnectionForProjectResponses = {
     /**
-     * Project social connection finalized
+     * Project social connection finalized, or the accounts to pick from
      */
     201: {
-        data: ProjectSocialConnection;
+        data: CmoSocialConnectionFinalized;
         meta: {
             timestamp: Date;
             requestId: string;

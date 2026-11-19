@@ -38,7 +38,7 @@ vi.mock("@/services/x-subscription-tier.service", () => ({
 }));
 vi.mock("./zernio-tiktok-connection.service", async (original) => ({
   ...(await original<typeof import("./zernio-tiktok-connection.service")>()),
-  deleteZernioTikTokProfile: provider.deleteZernioProfile,
+  deleteZernioProfile: provider.deleteZernioProfile,
 }));
 
 import prisma from "@/lib/db/prisma";
