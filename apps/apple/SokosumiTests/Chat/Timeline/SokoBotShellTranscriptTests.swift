@@ -68,7 +68,25 @@
 
       @Test func theFailedShellShowsTheUsageLimit() throws {
         let failed = try #require(Self.persisted().first { $0.id == "failed" })
-        #expect(transcriptRow(failed).body == [.failedMention(aiBudgetExceeded: true)])
+        #expect(transcriptRow(failed).body == [.failedMention(aiBudgetExceeded: true, isSokoBot: true)])
+      }
+
+      @Test func anUnknownFailureUsesTheAssistantFallback() throws {
+        let failed = try Self.message("failed", content: "", sender: Self.sokoBot, seconds: 1, metadata: [
+          "mention_failed": true, "mention_id": "mention_1",
+          "mention_failure": ["kind": "GatewayInternalServerError", "message": "Raw provider diagnostic"]
+        ])
+        #expect(transcriptRow(failed).body == [.failedMention(aiBudgetExceeded: false, isSokoBot: true)])
+      }
+
+      @Test func aFailedBackgroundRunUsesTheAssistantFallback() throws {
+        let failed = try Self.message("background", content: "Raw provider diagnostic", sender: Self.sokoBot, seconds: 1, metadata: [
+          "soko_bot": ["turn_id": "turn_1", "background_run_title": "Review", "background_failure_kind": "unknown"]
+        ])
+        #expect(transcriptRow(failed).body == [
+          .thought(startedAt: failed.createdAt, shellWorking: false),
+          .backgroundFailure(title: "Review", kind: .unknown)
+        ])
       }
 
       @Test(arguments: [false, true])

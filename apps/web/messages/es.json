@@ -1,7 +1,11 @@
 {
   "Components": {
     "SokoBotTurnFailure": {
-      "aiBudgetExceeded": "Tu asistente ha alcanzado su límite de uso. Podrá volver a responder cuando se aumente o se restablezca el límite."
+      "aiBudgetExceeded": "Tu asistente ha alcanzado su límite de uso. Podrá volver a responder cuando se aumente o se restablezca el límite.",
+      "generic": "Algo salió mal de nuestro lado. Inténtalo de nuevo. Si el problema persiste, contacta con el equipo de soporte.",
+      "messageSaved": "Tu mensaje se ha guardado.",
+      "backgroundFailed": "La ejecución en segundo plano «{title}» falló antes de poder informar.",
+      "backgroundDeadline": "La ejecución en segundo plano «{title}» se quedó sin tiempo para informar."
     },
     "AuthCaptcha": {
       "error": "No se pudo cargar la comprobación de seguridad. Desactiva los bloqueadores de contenido o vuelve a cargar la página.",
@@ -10789,7 +10793,6 @@
         "answeredIn": "{seconds}s",
         "copy": "Copiar",
         "copied": "Copiado",
-        "failed": "Este turno falló. Inténtalo de nuevo o reformula.",
         "cancelled": "Cancelado.",
         "noAnswer": "No se registró ninguna respuesta para este turno.",
         "stillWorking": "Sigue trabajando",
