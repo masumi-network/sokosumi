@@ -73,10 +73,15 @@
         return try bot("settled", content: "I created the Task and assigned it to Elena.", metadata: metadata, sender: sender)
       }
 
-      private static func failed(sender: Components.Schemas.ChatRoomMessageSender = sokoBot) throws -> Components.Schemas.ChatRoomMessage {
-        try bot("failed", content: "", metadata: [
+      private static func failed(sender: Components.Schemas.ChatRoomMessageSender = sokoBot,
+                                 cancelled: Bool = false) throws -> Components.Schemas.ChatRoomMessage {
+        var metadata: [String: any Sendable] = [
           "in_reply_to_message_id": "source", "mention_id": "mention_3", "mention_failed": true, "soko_bot": ["turn_id": "turn_3"]
-        ], sender: sender)
+        ]
+        if cancelled {
+          metadata["mention_failure"] = ["kind": "turn_cancelled"]
+        }
+        return try bot("failed", content: "", metadata: metadata, sender: sender)
       }
 
       private static func row(_ message: Components.Schemas.ChatRoomMessage, retry: Bool = false) -> MessageRowView {
@@ -103,6 +108,7 @@
 
       /// Heights run on CI, where Vision does not. Each Soko Bot row lays out exactly as the same row from a
       /// coworker (web draws both through one Thought view), and the settled disclosure adds a line.
+      /// The failed-row comparison uses the same cancellation copy for both senders.
       @Test func sokoBotRowsDrawTheCoworkerThoughtView() async throws {
         let withThought = try await Self.height(Self.settled())
         let withoutThought = try await Self.height(Self.settled(reasoning: false))
@@ -110,8 +116,10 @@
         #expect(try await withThought == Self.height(Self.settled(sender: Self.coworker)), "Settled reply")
         let placeholder = try await Self.height(Self.placeholder())
         #expect(try await placeholder == Self.height(Self.placeholder(sender: Self.coworker)), "Placeholder: Thinking and its beats")
-        let failed = try await Self.height(Self.failed())
-        #expect(try await failed == Self.height(Self.failed(sender: Self.coworker)), "Failed turn: Failed to reply")
+        let failed = try await Self.height(Self.failed(cancelled: true))
+        #expect(try await failed == Self.height(Self.failed(sender: Self.coworker, cancelled: true)), "Failed turn: Failed to reply")
+        let unclassified = try await Self.height(Self.failed())
+        #expect(try await unclassified > Self.height(Self.failed(sender: Self.coworker)), "Unclassified Soko Bot failure adds support copy")
       }
 
       @Test(arguments: [false, true])
