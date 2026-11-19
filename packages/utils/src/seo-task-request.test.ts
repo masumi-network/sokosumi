@@ -28,6 +28,16 @@ describe("seoTaskRequestPacket", () => {
     ).toThrow();
   });
 
+  it("counts a marker in any case and after spaces, as the worker does", () => {
+    const one = seoTaskDescription("Summary", "seo_audit", packet);
+    expect(() =>
+      seoTaskRequestPacket(`${one}\n  SEO_AUDIT : {}`, "seo_audit"),
+    ).toThrow();
+    expect(seoTaskRequestPacket(`  SEO_JOB : {"a":1}`, "seo_job")).toEqual({
+      a: 1,
+    });
+  });
+
   it("refuses the wrong marker, a missing line and broken JSON", () => {
     const job = seoTaskDescription("Summary", "seo_job", packet);
     expect(() => seoTaskRequestPacket(job, "seo_audit")).toThrow();
@@ -50,6 +60,9 @@ describe("removeSeoTaskRequest", () => {
     expect(removeSeoTaskRequest(`seo_job: ${JSON.stringify(packet)}`)).toBe("");
     expect(removeSeoTaskRequest("Fix the seo_audit: page title")).toBe(
       "Fix the seo_audit: page title",
+    );
+    expect(removeSeoTaskRequest("SEO_job: rewrite the titles")).toBe(
+      "SEO_job: rewrite the titles",
     );
   });
 });

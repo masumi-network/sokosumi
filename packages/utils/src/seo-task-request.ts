@@ -34,11 +34,25 @@ export function seoTaskRequestPacket(
   return JSON.parse(lines[0].replace(prefix, ""));
 }
 
-/** The description without its machine request line, for display. */
+const isRequestLine = (line: string) => {
+  if (!REQUEST_LINE.test(line)) return false;
+  try {
+    const value: unknown = JSON.parse(line.replace(REQUEST_LINE, ""));
+    return typeof value === "object" && value !== null;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * The description without its machine request lines, for display. Only a
+ * marker with a JSON object counts: prose such as "SEO_job: fix titles" in
+ * an ordinary Task stays visible.
+ */
 export function removeSeoTaskRequest(markdown: string): string {
   return markdown
     .split(LINE_BREAK)
-    .filter((line) => !REQUEST_LINE.test(line))
+    .filter((line) => !isRequestLine(line))
     .join("\n")
     .trim();
 }

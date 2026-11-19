@@ -7,9 +7,6 @@ const KIND_LABELS: Record<RequestSeoAnalysis["kind"], string> = {
   rankings: "SEO ranking check",
   links: "SEO link check",
 };
-/** Pages listed by name; the request line keeps every page. */
-const LISTED_PAGES = 10;
-
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
 /** The readable part of an SEO Task description, above its request line. */
@@ -20,9 +17,6 @@ export function seoTaskSummary(
   >,
   pageUrls: string[],
 ): string {
-  const pages = pageUrls.slice(0, LISTED_PAGES).map((url) => `- ${url}`);
-  if (pageUrls.length > LISTED_PAGES)
-    pages.push(`- and ${pageUrls.length - LISTED_PAGES} more`);
   // A full audit sends only its first keyword (seoTaskPacket).
   const keywords =
     input.kind === "audit_full" ? input.keywords.slice(0, 1) : input.keywords;
@@ -30,7 +24,8 @@ export function seoTaskSummary(
     `Search market: ${input.countryCode}, language: ${input.languageCode}.`,
     ...(keywords.length
       ? [
-          `${keywords.length === 1 ? "Keyword" : "Keywords"}: ${keywords.join(", ")}.`,
+          // Not "Keyword:": the worker reads that label from free-text Tasks.
+          `Target ${keywords.length === 1 ? "keyword" : "keywords"}: ${keywords.join(", ")}.`,
         ]
       : []),
     ...(input.kind === "audit_full"
@@ -38,9 +33,10 @@ export function seoTaskSummary(
       : [`Devices: ${input.devices.join(", ")}.`]),
   ];
   return [
-    `${KIND_LABELS[input.kind]} of ${count(pageUrls.length, "page")}:`,
+    // Selected pages: a full audit can add related pages as it runs.
+    `${KIND_LABELS[input.kind]} of ${count(pageUrls.length, "selected page")}:`,
     "",
-    ...pages,
+    ...pageUrls.map((url) => `- ${url}`),
     "",
     ...details,
   ].join("\n");
