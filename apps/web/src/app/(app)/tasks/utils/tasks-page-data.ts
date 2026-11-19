@@ -31,6 +31,7 @@ import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { taskService } from "@/lib/services/task.service";
 import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
+import { effectiveTasksSort } from "./task-sort";
 
 export interface TasksPageDataInput {
   filterParams: TasksFiltersSearchParams;
@@ -167,7 +168,8 @@ async function readTasksPageData(
     stuck: activeFilters.stuck,
     needsMe: activeFilters.needsMe,
     mentions: activeFilters.mentions,
-    sort: activeFilters.sort,
+    // The order the menu shows, so the first page holds what the board claims.
+    sort: effectiveTasksSort(activeFilters.sort, viewMode),
     coworkersById,
     personalAssistantFallback,
   };
