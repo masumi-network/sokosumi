@@ -63,13 +63,19 @@ vi.mock("@vercel/blob", () => ({
   BlobNotFoundError,
 }));
 
-const { tombstoneManyMock, reconcileMovesMock, tombstoneOneMock } = vi.hoisted(
-  () => ({
-    tombstoneManyMock: vi.fn(),
-    reconcileMovesMock: vi.fn(),
-    tombstoneOneMock: vi.fn(),
-  }),
-);
+const {
+  tombstoneManyMock,
+  reconcileMovesMock,
+  tombstoneOneMock,
+  adoptMock,
+  moveRowMock,
+} = vi.hoisted(() => ({
+  tombstoneManyMock: vi.fn(),
+  reconcileMovesMock: vi.fn(),
+  tombstoneOneMock: vi.fn(),
+  adoptMock: vi.fn(),
+  moveRowMock: vi.fn(),
+}));
 
 vi.mock("@/services/drive-share.service", () => ({
   rebaseDriveFolderShares: vi.fn(async () => undefined),
@@ -78,7 +84,17 @@ vi.mock("@/services/file-catalog.service", () => ({
   tombstoneDriveUploadResources: tombstoneManyMock,
   tombstoneDriveUploadResource: tombstoneOneMock,
   reconcileDriveUploadMoves: reconcileMovesMock,
+  adoptDriveUploadResource: adoptMock,
+  moveDriveUploadResource: moveRowMock,
 }));
+
+/** The catalog row moves the per-file pairs in the order the route asked. */
+function rowMoves() {
+  return moveRowMock.mock.calls.map(([call]) => ({
+    fromPathname: call.fromPathname,
+    toPathname: call.toPathname,
+  }));
+}
 
 vi.mock("@/helpers/drive-file-access", () => ({
   drivePathOf: (pathname: string) => pathname.split("/").slice(3).join("/"),
@@ -140,6 +156,8 @@ beforeEach(() => {
     pathname: to,
   }));
   delMock.mockResolvedValue(undefined);
+  adoptMock.mockImplementation(async ({ key }) => `res:${key.pathname}`);
+  moveRowMock.mockResolvedValue("q1.md");
 });
 
 describe("folder delete", () => {
@@ -199,6 +217,10 @@ describe("folder delete", () => {
 
     expect(response.status).toBe(204);
     expect(tombstoneManyMock).toHaveBeenCalledTimes(1);
+    // Names are released while the old bytes still hold them.
+    expect(tombstoneManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+      delMock.mock.invocationCallOrder[0],
+    );
     expect(tombstoneManyMock.mock.calls[0][0]).toMatchObject({
       workspaceId: "workspace-1",
       scope: "user",
@@ -241,16 +263,19 @@ describe("file move", () => {
 
     expect(response.status).toBe(200);
     expect(renameMock).toHaveBeenCalledTimes(1);
-    expect(reconcileMovesMock).toHaveBeenCalledTimes(1);
-
-    const call = reconcileMovesMock.mock.calls[0][0];
-    expect(call).toMatchObject({ workspaceId: "workspace-1", scope: "user" });
-    expect(call.moves).toEqual([
+    expect(moveRowMock.mock.calls[0][0]).toMatchObject({
+      workspaceId: "workspace-1",
+      scope: "user",
+    });
+    expect(rowMoves()).toEqual([
       {
         fromPathname: `${PREFIX}q1.md`,
         toPathname: "drive/users/user_123/archive/q1.md",
       },
     ]);
+    expect(moveRowMock.mock.invocationCallOrder[0]).toBeLessThan(
+      renameMock.mock.invocationCallOrder[0],
+    );
   });
 });
 
@@ -323,19 +348,23 @@ describe("folder rename", () => {
 
     expect(response.status).toBe(200);
     expect(renameMock).toHaveBeenCalledTimes(1);
-    expect(reconcileMovesMock).toHaveBeenCalledTimes(1);
-
-    const call = reconcileMovesMock.mock.calls[0][0];
-    expect(call).toMatchObject({ workspaceId: "workspace-1", scope: "user" });
-    expect(call.moves).toEqual([
+    expect(reconcileMovesMock).not.toHaveBeenCalled();
+    expect(moveRowMock.mock.calls[0][0]).toMatchObject({
+      workspaceId: "workspace-1",
+      scope: "user",
+    });
+    expect(rowMoves()).toEqual([
       {
         fromPathname: `${PREFIX}q1.md`,
         toPathname: "drive/users/user_123/archive/q1.md",
       },
     ]);
+    expect(moveRowMock.mock.invocationCallOrder[0]).toBeLessThan(
+      renameMock.mock.invocationCallOrder[0],
+    );
   });
 
-  it("reconciles what moved when one file fails part-way", async () => {
+  it("keeps each file's row with its bytes when one file fails part-way", async () => {
     // `Promise.all` rejected before the reconcile line, so a folder that
     // half-moved left every already-renamed document indexed at a pathname
     // it had left — findable, snippet-returning, and with its vacated
@@ -379,14 +408,18 @@ describe("folder rename", () => {
     // The request still fails — the caller must know it did not complete.
     expect(response.status).toBeGreaterThanOrEqual(500);
 
-    // But the two that did move are reconciled, rather than none of them.
-    expect(reconcileMovesMock).toHaveBeenCalledTimes(1);
-    const moves = reconcileMovesMock.mock.calls[0][0].moves as {
-      fromPathname: string;
-    }[];
-    expect(moves.map((move) => move.fromPathname).sort()).toEqual([
-      `${PREFIX}q1.md`,
-      `${PREFIX}q3.md`,
+    // Each row moved before its bytes; the one whose bytes stayed put went
+    // back, so every row is where its bytes are.
+    const archive = "drive/users/user_123/archive/";
+    expect(
+      rowMoves()
+        .map((move) => `${move.fromPathname} > ${move.toPathname}`)
+        .sort(),
+    ).toEqual([
+      `${archive}q2.md > ${PREFIX}q2.md`,
+      `${PREFIX}q1.md > ${archive}q1.md`,
+      `${PREFIX}q2.md > ${archive}q2.md`,
+      `${PREFIX}q3.md > ${archive}q3.md`,
     ]);
   });
 

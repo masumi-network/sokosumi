@@ -68,7 +68,9 @@ describe("uploadDriveFile", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    finalizeDriveFileMock.mockResolvedValue({ data: undefined });
+    finalizeDriveFileMock.mockResolvedValue({
+      data: { data: { resourceId: "file-1", fileUrl: null } },
+    });
     vi.unstubAllGlobals();
     originalXHR = globalThis.XMLHttpRequest;
   });
@@ -81,18 +83,25 @@ describe("uploadDriveFile", () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
+    // The PUT lands on the attempt's staging key; its URL is not the file's.
     const { constructor, getInstance } = mockXHR(
       200,
       JSON.stringify({
-        url: "https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf",
-        pathname: "drive/users/user_123/report.pdf",
+        url: "https://store.public.blob.vercel-storage.com/drive-staging/v/report.pdf",
+        pathname: "drive-staging/v/report.pdf",
       }),
     );
     vi.stubGlobal("XMLHttpRequest", constructor);
     postDriveFilesMock.mockResolvedValue(grantSession());
     const onUploadProgress = vi.fn();
     finalizeDriveFileMock.mockResolvedValue({
-      data: { data: { resourceId: "file-1" } },
+      data: {
+        data: {
+          resourceId: "file-1",
+          fileUrl:
+            "https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf",
+        },
+      },
     });
 
     const uploaded = await uploadDriveFile(file, {
@@ -129,7 +138,7 @@ describe("uploadDriveFile", () => {
     expect(onUploadProgress).toHaveBeenCalledWith({ percentage: 100 });
   });
 
-  it("resolves with a null file URL when the PUT response has none", async () => {
+  it("resolves with a null file URL inside a data room", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
@@ -140,6 +149,42 @@ describe("uploadDriveFile", () => {
     await expect(uploadDriveFile(file, { scope: "me" })).resolves.toEqual({
       pathname: "drive/users/user_123/report.pdf",
       fileUrl: null,
+      resourceId: "file-1",
+    });
+  });
+
+  it("fails when finalize fails: the file is not in Drive until it runs", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const { constructor } = mockXHR(200);
+    vi.stubGlobal("XMLHttpRequest", constructor);
+    postDriveFilesMock.mockResolvedValue(grantSession());
+    finalizeDriveFileMock.mockRejectedValue(new Error("503"));
+
+    await expect(uploadDriveFile(file, { scope: "me" })).rejects.toMatchObject({
+      code: "internal",
+    });
+    expect(finalizeDriveFileMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries finalize once before failing", async () => {
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const { constructor } = mockXHR(200);
+    vi.stubGlobal("XMLHttpRequest", constructor);
+    postDriveFilesMock.mockResolvedValue(grantSession());
+    finalizeDriveFileMock
+      .mockRejectedValueOnce(new Error("network"))
+      .mockResolvedValueOnce({
+        data: { data: { resourceId: "file-1", fileUrl: "https://x/f.pdf" } },
+      });
+
+    await expect(uploadDriveFile(file, { scope: "me" })).resolves.toEqual({
+      pathname: "drive/users/user_123/report.pdf",
+      fileUrl: "https://x/f.pdf",
+      resourceId: "file-1",
     });
   });
 

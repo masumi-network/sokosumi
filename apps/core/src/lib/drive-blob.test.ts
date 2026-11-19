@@ -29,9 +29,12 @@ import {
   driveList,
   drivePut,
   driveRead,
+  driveRename,
   forgetDriveRooms,
   isInDataRoom,
+  promoteStagedUpload,
   publicDriveUrl,
+  stagedUploadPathname,
 } from "./drive-blob";
 
 const OWNER = "drive/organizations/org_1/";
@@ -139,6 +142,82 @@ describe("reads", () => {
     expect(blob.del).toHaveBeenCalledWith([`${OWNER}Series A/deck.pdf`], {
       token: "public-token",
     });
+  });
+});
+
+describe("staged uploads", () => {
+  const STAGED = stagedUploadPathname("ver_1", `${OWNER}Series A/deck.pdf`);
+
+  it("stages an attempt outside every Drive listing, under its own version", () => {
+    expect(STAGED).toBe("drive-staging/ver_1/deck.pdf");
+    expect(STAGED.startsWith("drive/")).toBe(false);
+  });
+
+  it("promotes nothing when the attempt never wrote", async () => {
+    stores({ public: [], private: [] });
+    await expect(promoteStagedUpload(STAGED, `${OWNER}notes.md`)).resolves.toBe(
+      false,
+    );
+    expect(blob.rename).not.toHaveBeenCalled();
+  });
+
+  it("moves the attempt onto its pathname without replacing anything there", async () => {
+    stores({ public: [STAGED], private: [] });
+    blob.rename.mockResolvedValue({ url: "u", pathname: "p" });
+    await expect(promoteStagedUpload(STAGED, `${OWNER}notes.md`)).resolves.toBe(
+      true,
+    );
+    const [from, to, options] = blob.rename.mock.calls[0];
+    expect([from, to]).toEqual([STAGED, `${OWNER}notes.md`]);
+    expect(options).toMatchObject({ token: "public-token" });
+    expect(options.allowOverwrite).toBeUndefined();
+  });
+
+  it("carries the attempt into a room's store without replacing anything there", async () => {
+    stores({ public: [STAGED], private: [] });
+    blob.get.mockResolvedValue({
+      statusCode: 200,
+      stream: "bytes",
+      blob: { contentType: "application/pdf" },
+    });
+    blob.put.mockResolvedValue({ url: "u", pathname: "p" });
+    await promoteStagedUpload(STAGED, `${OWNER}Series A/deck.pdf`);
+    expect(blob.put.mock.calls[0][2]).toMatchObject({
+      access: "private",
+      allowOverwrite: false,
+    });
+    expect(blob.del).toHaveBeenCalledWith(STAGED, { token: "public-token" });
+  });
+
+  it("answers 409, keeping the attempt, when another object holds the pathname", async () => {
+    stores({ public: [STAGED], private: [] });
+    blob.rename.mockRejectedValue(new Error("This blob already exists"));
+    await expect(
+      promoteStagedUpload(STAGED, `${OWNER}notes.md`),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(blob.del).not.toHaveBeenCalled();
+  });
+
+  it("answers false when a concurrent finalize already moved it", async () => {
+    stores({ public: [STAGED], private: [] });
+    blob.rename.mockRejectedValue(new blob.BlobNotFoundError("gone"));
+    await expect(promoteStagedUpload(STAGED, `${OWNER}notes.md`)).resolves.toBe(
+      false,
+    );
+  });
+});
+
+describe("renames", () => {
+  it("never replaces an object when a rename crosses into a room", async () => {
+    stores({ public: [`${OWNER}deck.pdf`], private: [] });
+    blob.get.mockResolvedValue({
+      statusCode: 200,
+      stream: "bytes",
+      blob: { contentType: "application/pdf" },
+    });
+    blob.put.mockResolvedValue({ url: "u", pathname: "p" });
+    await driveRename(`${OWNER}deck.pdf`, `${OWNER}Series A/deck.pdf`);
+    expect(blob.put.mock.calls[0][2]).toMatchObject({ allowOverwrite: false });
   });
 });
 

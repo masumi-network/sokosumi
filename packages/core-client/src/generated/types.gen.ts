@@ -43653,6 +43653,21 @@ export type PostDriveFilesFinalizeErrors = {
         };
     };
     /**
+     * Conflict - another file holds the pathname
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Service Unavailable
      */
     503: {
@@ -43678,6 +43693,7 @@ export type PostDriveFilesFinalizeResponses = {
     200: {
         data: {
             resourceId: string;
+            fileUrl: string | null;
         };
         meta: {
             timestamp: Date;

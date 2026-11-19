@@ -13,18 +13,13 @@ import {
   drivePathOf,
   requireDriveFileAccess,
 } from "@/helpers/drive-file-access";
-import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
+import { relocateDriveFile } from "@/helpers/drive-file-move";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import {
-  driveExists,
-  driveHasAny,
-  driveHead,
-  driveRename,
-} from "@/lib/drive-blob";
+import { driveExists, driveHasAny, driveHead } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -34,14 +29,13 @@ import {
   renameDriveFileRequestSchema,
 } from "@/schemas/drive-file.schema";
 import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
-import { renameDriveUploadResource } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
     method: "patch",
     path: "/rename",
     description: [
-      "Rename a drive file (copy to new pathname, then delete old).",
+      "Rename a drive file: its catalog entry takes the new pathname, then the bytes move.",
       "Personal: owner only.",
       "Organization: any member.",
       "409 if target pathname already exists.",
@@ -135,11 +129,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     let renamedBlob;
     try {
-      renamedBlob = await driveRename(oldPathname, newPathname, {
-        contentType: sourceMetadata.contentType,
-        cacheControlMaxAge: parseCacheControlMaxAge(
-          sourceMetadata.cacheControl,
-        ),
+      // The document is the same document: its row takes the new name
+      // before the bytes move, so nothing is re-extracted, no manual label
+      // is lost, and a name another document holds stops the rename here.
+      renamedBlob = await relocateDriveFile({
+        workspaceId: workspace.workspaceId,
+        scope,
+        ownerId,
+        fromPathname: oldPathname,
+        toPathname: newPathname,
+        source: sourceMetadata,
       });
     } catch (error) {
       if (error instanceof BlobNotFoundError) {
@@ -159,16 +158,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const pathSegments = newPathname.split("/");
     const name = pathSegments[pathSegments.length - 1] || "unnamed";
-
-    // The document is the same document. Only its name and object key move,
-    // so nothing is re-extracted and no manual label is lost.
-    await renameDriveUploadResource({
-      workspaceId: workspace.workspaceId,
-      scope,
-      fromPathname: oldPathname,
-      toPathname: renamedBlob.pathname,
-      displayName: name,
-    });
 
     return ok(
       c,

@@ -2423,7 +2423,9 @@ export const getDriveFiles = <ThrowOnError extends boolean = false>(options: Opt
  * Agent / REST:
  * 1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).
  * 2. PUT raw bytes to `uploadUrl` with `Content-Type` from `headers`.
- * 3. Done — file is immediately available via pathname.
+ * The grant writes a staging key bound to this upload attempt, not `pathname`.
+ * 3. POST `/drive/files/finalize` with `pathname`: it moves the bytes to `pathname`.
+ * The file is not in Drive until then.
  *
  * Max size: 104857600 bytes. MIME allowlist matches user uploads (including SVG for drive).
  */
@@ -2438,12 +2440,14 @@ export const postDriveFiles = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
- * Confirm that an upload's bytes landed, and start indexing it.
+ * Store an upload's bytes at its Drive pathname, and start indexing it.
  *
- * The bytes go client → Blob, so nothing server-side sees them arrive.
- * This verifies the object exists, activates the catalog entry reserved
- * when the grant was minted, and queues extraction. A pathname that no
- * object backs finalizes nothing.
+ * The grant writes to a staging key bound to the catalog version reserved
+ * at mint, so nothing server-side sees the bytes arrive. This moves that
+ * version's staged object onto the pathname (never replacing a file
+ * there), activates the catalog entry and queues extraction. Required:
+ * an upload is not in Drive until it is finalized. A pathname that no
+ * object backs finalizes nothing; 409 when another file holds it.
  */
 export const postDriveFilesFinalize = <ThrowOnError extends boolean = false>(options: Options<PostDriveFilesFinalizeData, ThrowOnError>): RequestResult<PostDriveFilesFinalizeResponses, PostDriveFilesFinalizeErrors, ThrowOnError> => (options.client ?? client).post<PostDriveFilesFinalizeResponses, PostDriveFilesFinalizeErrors, ThrowOnError>({
     responseTransformer: postDriveFilesFinalizeResponseTransformer,
@@ -2495,7 +2499,7 @@ export const patchDriveFilesMove = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Rename a drive file (copy to new pathname, then delete old).
+ * Rename a drive file: its catalog entry takes the new pathname, then the bytes move.
  * Personal: owner only.
  * Organization: any member.
  * 409 if target pathname already exists.

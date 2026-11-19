@@ -96,9 +96,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let cursor: string | undefined;
     let foundAnyBlobs = false;
     const BATCH_SIZE = 100;
-    // Every pathname this request removed, so the catalog can be told about
-    // all of them rather than none.
-    const deleted: string[] = [];
 
     // Resolve the workspace before deleting anything: resolving after the
     // blobs are gone means a failure here leaves them deleted and still
@@ -114,45 +111,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     }
 
-    try {
-      // Never twice: a listing that still shows something already deleted
-      // moves on by cursor instead of starting over for ever.
-      const seen = new Set<string>();
-      for (;;) {
-        const result = await driveList({ prefix, cursor, limit: 1000 });
-        const pathnames = result.blobs
-          .map((b) => b.pathname)
-          .filter((pathname) => !seen.has(pathname));
+    // Never twice: a listing that still shows something already deleted
+    // moves on by cursor instead of starting over for ever.
+    const seen = new Set<string>();
+    for (;;) {
+      const result = await driveList({ prefix, cursor, limit: 1000 });
+      const pathnames = result.blobs
+        .map((b) => b.pathname)
+        .filter((pathname) => !seen.has(pathname));
 
-        if (pathnames.length > 0) {
-          foundAnyBlobs = true;
-          for (const pathname of pathnames) seen.add(pathname);
+      if (pathnames.length > 0) {
+        foundAnyBlobs = true;
+        for (const pathname of pathnames) seen.add(pathname);
 
-          for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
-            const batch = pathnames.slice(i, i + BATCH_SIZE);
-            await driveDel(batch);
-            deleted.push(...batch);
-          }
-          cursor = undefined;
-          continue;
+        for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
+          const batch = pathnames.slice(i, i + BATCH_SIZE);
+          // Tombstone in the same request, batch by batch, so a throw
+          // part-way through leaves no deleted file indexed. Without this
+          // the documents stayed fully indexed: deleted files kept matching
+          // full-text search and kept returning content snippets. Catalog
+          // first, as for one file: the names are released while the old
+          // bytes still occupy them.
+          await tombstoneDriveUploadResources({
+            workspaceId: workspace.workspaceId,
+            scope,
+            pathnames: batch,
+          });
+          await driveDel(batch);
         }
+        cursor = undefined;
+        continue;
+      }
 
-        if (!result.hasMore || !result.cursor) break;
-        cursor = result.cursor;
-      }
-    } finally {
-      // Tombstone in the same request, and tombstone what was *actually*
-      // deleted even when a later batch threw. Without this the documents
-      // stayed fully indexed: deleted files kept matching full-text search
-      // and kept returning content snippets, and a throw part-way through
-      // skipped every batch that had already succeeded.
-      if (deleted.length > 0) {
-        await tombstoneDriveUploadResources({
-          workspaceId: workspace.workspaceId,
-          scope,
-          pathnames: deleted,
-        });
-      }
+      if (!result.hasMore || !result.cursor) break;
+      cursor = result.cursor;
     }
 
     // 404 if no blobs exist under this prefix

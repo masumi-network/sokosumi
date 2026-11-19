@@ -90,7 +90,8 @@ async function removePresenterPhoto(
       })
     : null;
   if (file) {
-    await driveDel([file.sourceId]);
+    // Catalog first, as in the Drive delete route: the pathname is released
+    // only while the old bytes still occupy it.
     await tombstoneDriveUploadResource({
       workspaceId: cuso.workspaceId,
       scope:
@@ -99,6 +100,7 @@ async function removePresenterPhoto(
           : "user",
       pathname: file.sourceId,
     });
+    await driveDel([file.sourceId]);
   }
   await prisma.project.update({
     where: { id: cuso.projectId },

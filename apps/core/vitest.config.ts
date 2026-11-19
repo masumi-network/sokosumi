@@ -27,6 +27,7 @@ const optInPostgresFiles = [
   "src/services/file-suggestions.postgres.test.ts",
   "src/services/file-suggestion-backfill.postgres.test.ts",
   "src/services/drive-copy-catalog.postgres.test.ts",
+  "src/routes/v1/drive/drive-ownership.postgres.test.ts",
   "src/services/file-metadata-labels.postgres.test.ts",
   "src/services/file-table-index.postgres.test.ts",
   "src/services/file-collections.postgres.test.ts",

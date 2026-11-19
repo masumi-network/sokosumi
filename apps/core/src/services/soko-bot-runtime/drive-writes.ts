@@ -228,12 +228,14 @@ export async function deleteFile(
     authorized,
     input.fileId,
   );
-  await driveDel([resource.sourceId]);
+  // Catalog first, as in the Drive delete route: the pathname is released
+  // only while the old bytes still occupy it.
   await tombstoneDriveUploadResource({
     workspaceId: drive.key.workspaceId,
     scope: drive.key.scope,
     pathname: resource.sourceId,
   });
+  await driveDel([resource.sourceId]);
   return runtime.commitReceipt(authorized, toolCallId, resource.id, {
     id: resource.id,
     filename: resource.displayName,

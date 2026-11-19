@@ -94,8 +94,10 @@ export async function reserveDriveUploadResource(input: {
       existing.overrides.length > 0
     ) {
       // A copy's reservation (no person can set an override on a pending
-      // document) at its own minted key. Its grant may still write here, so
-      // the key stays the copy's: only that attempt ever knew the name.
+      // document) at its own minted key. Its grant may still write its
+      // staging key and finalize here, so the key stays the copy's: only that
+      // attempt ever knew the name. Another upload taking this row would also
+      // take the copy's empty pins.
       throw conflict("A copy is being saved at this name");
     }
     if (existing) {
@@ -241,6 +243,94 @@ export async function activateDriveUploadResource(input: {
     resourceId: resource.id,
     labelsPinnedEmpty: pinned.has("category") && pinned.has("tags"),
   };
+}
+
+/**
+ * The version an upload grant for this pathname writes, so finalize can find
+ * that attempt's staged bytes. Null when no live or pending document holds
+ * the pathname.
+ */
+export async function currentDriveUploadVersion(
+  key: DriveResourceKey,
+): Promise<string | null> {
+  const resource = await prisma.fileResource.findUnique({
+    where: {
+      workspaceId_sourceKind_sourceScope_sourceId: {
+        workspaceId: key.workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope: toSourceScope(key.scope),
+        sourceId: key.pathname,
+      },
+    },
+    select: {
+      tombstonedAt: true,
+      versions: {
+        orderBy: { revision: "desc" },
+        take: 1,
+        select: { id: true },
+      },
+    },
+  });
+  if (!resource || resource.tombstonedAt) return null;
+  return resource.versions[0]?.id ?? null;
+}
+
+/**
+ * Moves one document's row to a new pathname before its bytes move. The
+ * pathname is unique per store, so a name any other document holds, a
+ * pending upload included, answers 409 here, before storage changes. 409
+ * too when the row is no longer at `fromPathname`. Returns the display name
+ * the row had, so a failed storage move can put it back.
+ */
+export async function moveDriveUploadResource(input: {
+  workspaceId: string;
+  scope: "user" | "organization";
+  resourceId: string;
+  fromPathname: string;
+  toPathname: string;
+  displayName: string;
+}): Promise<string> {
+  const sourceScope = toSourceScope(input.scope);
+  return prisma
+    .$transaction(async (tx) => {
+      const resource = await tx.fileResource.findFirst({
+        where: {
+          id: input.resourceId,
+          workspaceId: input.workspaceId,
+          sourceKind: FileSourceKind.DRIVE_UPLOAD,
+          sourceScope,
+          sourceId: input.fromPathname,
+          tombstonedAt: null,
+        },
+        select: { contentRevision: true, displayName: true },
+      });
+      if (!resource) throw conflict("The file changed while it was moving");
+      const moved = await tx.fileResource.updateMany({
+        where: { id: input.resourceId, sourceId: input.fromPathname },
+        data: {
+          sourceId: input.toPathname,
+          displayName: input.displayName,
+          normalizedName: normalizeFileResourceName(input.displayName),
+          metadataRevision: { increment: 1 },
+        },
+      });
+      if (moved.count !== 1)
+        throw conflict("The file changed while it was moving");
+      await tx.fileVersion.updateMany({
+        where: {
+          resourceId: input.resourceId,
+          revision: resource.contentRevision,
+        },
+        data: { objectKey: input.toPathname },
+      });
+      return resource.displayName;
+    })
+    .catch((error: unknown) => {
+      if (isPrismaUniqueViolation(error)) {
+        throw conflict("A file already holds that name");
+      }
+      throw error;
+    });
 }
 
 /**

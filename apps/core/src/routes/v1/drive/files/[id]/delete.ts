@@ -83,15 +83,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireNotCmoDriveFile(workspace.workspaceId, pathname);
     }
 
-    await driveDel([pathname]);
-
-    // Tombstone the catalog entry in the same request: a deleted document
-    // must stop matching at once, not when a sweeper next runs.
+    // Tombstone first: a deleted document stops matching at once, and the
+    // pathname is released only while the old bytes still occupy it. A new
+    // upload that takes the name cannot promote onto it (no overwrite) until
+    // the delete below has run, so this delete never removes its bytes.
     await tombstoneDriveUploadResource({
       workspaceId: workspace.workspaceId,
       scope,
       pathname,
     });
+    await driveDel([pathname]);
 
     return c.body(null, 204);
   });

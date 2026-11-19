@@ -9,7 +9,7 @@ import pLimit from "p-limit";
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import { parseCacheControlMaxAge } from "@/helpers/drive-file-move";
+import { relocateDriveFile } from "@/helpers/drive-file-move";
 import { assertDriveFolderPathNotReserved } from "@/helpers/drive-folder-reserved-names";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
@@ -25,7 +25,6 @@ import {
   driveHasAny,
   driveHead,
   driveList,
-  driveRename,
 } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
@@ -206,8 +205,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Bounded-concurrency head + rename (10 concurrent operations)
     const limit = pLimit(10);
 
-    // Pairs that really moved, collected as they succeed so a partial
-    // failure reconciles exactly what happened and nothing more.
+    // Pairs a previous attempt left at the target. Each file this request
+    // moves takes its catalog row with it (`relocateDriveFile`).
     const moved: { fromPathname: string; toPathname: string }[] = [];
 
     const renameTasks = allPathnames.map((sourcePathname) =>
@@ -231,11 +230,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         // Source already moved or deleted, skip (retry-safe)
         if (!sourceMetadata) return;
 
-        const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
         try {
-          await driveRename(sourcePathname, newPathname, {
-            contentType: sourceMetadata.contentType,
-            cacheControlMaxAge: maxAge,
+          await relocateDriveFile({
+            workspaceId: workspace.workspaceId,
+            scope,
+            ownerId,
+            fromPathname: sourcePathname,
+            toPathname: newPathname,
+            source: sourceMetadata,
           });
         } catch (error) {
           if (error instanceof BlobNotFoundError) {
@@ -244,8 +246,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
           throw error;
         }
-
-        moved.push({ fromPathname: sourcePathname, toPathname: newPathname });
       }),
     );
 

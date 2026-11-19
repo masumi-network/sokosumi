@@ -24,7 +24,12 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import { createBlobUploadGrant } from "@/lib/blob-upload-grant";
-import { driveExists, driveHasAny, driveWriteStore } from "@/lib/drive-blob";
+import {
+  driveExists,
+  driveHasAny,
+  driveWriteStore,
+  stagedUploadPathname,
+} from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -48,7 +53,9 @@ const route = withCoworkerContextHeaderParameters(
       "Agent / REST:",
       "1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).",
       "2. PUT raw bytes to `uploadUrl` with `Content-Type` from `headers`.",
-      "3. Done — file is immediately available via pathname.",
+      "   The grant writes a staging key bound to this upload attempt, not `pathname`.",
+      "3. POST `/drive/files/finalize` with `pathname`: it moves the bytes to `pathname`.",
+      "   The file is not in Drive until then.",
       "",
       `Max size: ${FILE_UPLOAD_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads (including SVG for drive).`,
     ].join("\n"),
@@ -151,26 +158,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw conflict("A folder with that name already exists");
     }
 
-    const store = await driveWriteStore(pathname);
-    const grant = await createBlobUploadGrant({
-      pathname,
-      access: store.access,
-      contentType: resolvedContentType,
-      maximumSizeInBytes: body.size,
-      maxSizeBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
-      addRandomSuffix: false,
-      token: store.token,
-    });
-
     // Reserve the document's identity before any bytes exist, so the
     // finalize callback has something to authenticate against and an
-    // abandoned grant is visible rather than invisible.
+    // abandoned grant is visible rather than invisible. The grant writes only
+    // the reserved version's staging key, so its bytes reach `pathname` only
+    // through finalize, and a late write from it never lands on a Drive
+    // pathname.
     const workspace = await resolveDriveTasksWorkspace({
       userContext,
       scope: body.scope,
       organizationId: body.organizationId,
     });
-    await reserveDriveUploadResource({
+    const { versionId } = await reserveDriveUploadResource({
       key: {
         workspaceId: workspace.workspaceId,
         scope: body.scope === "me" ? "user" : "organization",
@@ -178,7 +177,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           body.scope === "me"
             ? userContext.userId
             : (body.organizationId as string),
-        pathname: grant.pathname,
+        pathname,
       },
       displayName,
       mimeType: resolvedContentType,
@@ -188,9 +187,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : undefined,
     });
 
+    const store = await driveWriteStore(pathname);
+    const grant = await createBlobUploadGrant({
+      pathname: stagedUploadPathname(versionId, pathname),
+      access: store.access,
+      contentType: resolvedContentType,
+      maximumSizeInBytes: body.size,
+      maxSizeBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
+      addRandomSuffix: false,
+      token: store.token,
+    });
+
     const session = {
       uploadUrl: grant.uploadUrl,
-      pathname: grant.pathname,
+      pathname,
       access: grant.access,
       method: "PUT" as const,
       headers: {

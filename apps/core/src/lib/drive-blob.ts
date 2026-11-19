@@ -15,7 +15,7 @@ import {
 } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
-import { serviceUnavailable } from "@/helpers/error";
+import { conflict, serviceUnavailable } from "@/helpers/error";
 import { privateBlobReadUrl } from "@/lib/blob-read-url";
 import prisma from "@/lib/db/prisma";
 
@@ -345,7 +345,71 @@ export async function driveRename(
     toStore: target,
     contentType,
     cacheControlMaxAge: options.cacheControlMaxAge,
+    allowOverwrite: false,
   });
+}
+
+/**
+ * Where an upload grant writes: a key bound to one catalog version, outside
+ * the `drive/` namespace. A grant's bytes reach a Drive pathname only when
+ * that version is promoted, and a late write from a grant whose document was
+ * renamed, deleted or replaced lands on a key nothing lists or promotes.
+ */
+export function stagedUploadPathname(
+  versionId: string,
+  pathname: string,
+): string {
+  return `drive-staging/${versionId}/${pathname.split("/").at(-1)}`;
+}
+
+/**
+ * Moves a staged upload onto its Drive pathname, into the store that
+ * pathname belongs in, never replacing an object already there (409). False
+ * when nothing is staged (never written, or already promoted).
+ */
+export async function promoteStagedUpload(
+  staged: string,
+  pathname: string,
+): Promise<boolean> {
+  const target = await driveWriteStore(pathname);
+  const privateStore = privateDriveStore();
+  const stores = privateStore
+    ? [publicDriveStore(), privateStore]
+    : [publicDriveStore()];
+  try {
+    for (const store of stores) {
+      const source = await head(staged, { token: store.token }).catch(
+        (error: unknown) => {
+          if (error instanceof BlobNotFoundError) return null;
+          throw error;
+        },
+      );
+      if (!source) continue;
+      if (store.access === target.access) {
+        await rename(staged, pathname, {
+          token: target.token,
+          access: target.access,
+          addRandomSuffix: false,
+          contentType: source.contentType,
+        });
+      } else {
+        await transferBetweenStores({
+          fromPathname: staged,
+          fromStore: store,
+          toPathname: pathname,
+          toStore: target,
+          allowOverwrite: false,
+        });
+      }
+      return true;
+    }
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return false;
+    if (error instanceof Error && /already exists/i.test(error.message))
+      throw conflict("Another file is already at that path");
+    throw error;
+  }
+  return false;
 }
 
 function storeFor(access: BlobAccessType): DriveBlobStore {
@@ -361,6 +425,8 @@ export async function transferBetweenStores(input: {
   /** Defaults to the source object's own type. */
   contentType?: string;
   cacheControlMaxAge?: number;
+  /** Room migrations replace; a user's rename or upload never does. */
+  allowOverwrite?: boolean;
 }): Promise<{ url: string; pathname: string; access: BlobAccessType }> {
   const source = await get(input.fromPathname, {
     access: input.fromStore.access,
@@ -371,7 +437,7 @@ export async function transferBetweenStores(input: {
     access: input.toStore.access,
     token: input.toStore.token,
     addRandomSuffix: false,
-    allowOverwrite: true,
+    allowOverwrite: input.allowOverwrite ?? true,
     contentType: input.contentType ?? source.blob.contentType,
     cacheControlMaxAge: input.cacheControlMaxAge,
   });

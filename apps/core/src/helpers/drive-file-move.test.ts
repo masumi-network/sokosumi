@@ -21,10 +21,11 @@ vi.mock("@/config/env", () => ({
 }));
 const db = vi.hoisted(() => ({ dataRoom: { findMany: vi.fn() } }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
-const reconcile = vi.hoisted(() => vi.fn());
-vi.mock("@/services/file-catalog.service", () => ({
-  reconcileDriveUploadMoves: reconcile,
+const catalog = vi.hoisted(() => ({
+  adoptDriveUploadResource: vi.fn(),
+  moveDriveUploadResource: vi.fn(),
 }));
+vi.mock("@/services/file-catalog.service", () => catalog);
 
 import { forgetDriveRooms } from "@/lib/drive-blob";
 import { moveDriveFile } from "./drive-file-move";
@@ -46,31 +47,76 @@ describe("moveDriveFile", () => {
       url: `https://public.example/${to}`,
       pathname: to,
     }));
+    catalog.adoptDriveUploadResource.mockResolvedValue("res_1");
+    catalog.moveDriveUploadResource.mockResolvedValue("deck.pdf");
   });
 
-  it("moves into the folder and tells the catalog", async () => {
+  const TARGET = "drive/organizations/org_1/Masumi Fundraising/deck.pdf";
+
+  function sourceOnly() {
     blob.head.mockImplementation(async (pathname: string) => {
       if (pathname === base.sourcePathname)
         return { contentType: "application/pdf", cacheControl: "max-age=60" };
       throw new blob.BlobNotFoundError("missing");
     });
+  }
+
+  it("moves the catalog row first, then the bytes", async () => {
+    sourceOnly();
+    const order: string[] = [];
+    catalog.moveDriveUploadResource.mockImplementation(async () => {
+      order.push("catalog");
+      return "deck.pdf";
+    });
+    blob.rename.mockImplementation(async (_from: string, to: string) => {
+      order.push("storage");
+      return { url: `https://public.example/${to}`, pathname: to };
+    });
     await expect(
       moveDriveFile({ ...base, targetFolderPath: "Masumi Fundraising" }),
-    ).resolves.toBe("drive/organizations/org_1/Masumi Fundraising/deck.pdf");
-    expect(blob.rename).toHaveBeenCalledWith(
-      base.sourcePathname,
-      "drive/organizations/org_1/Masumi Fundraising/deck.pdf",
-      expect.objectContaining({ cacheControlMaxAge: 60 }),
-    );
-    expect(reconcile).toHaveBeenCalledWith({
+    ).resolves.toBe(TARGET);
+    expect(order).toEqual(["catalog", "storage"]);
+    expect(catalog.moveDriveUploadResource).toHaveBeenCalledWith({
       workspaceId: "ws_1",
       scope: "organization",
-      moves: [
-        {
-          fromPathname: base.sourcePathname,
-          toPathname: "drive/organizations/org_1/Masumi Fundraising/deck.pdf",
-        },
-      ],
+      resourceId: "res_1",
+      fromPathname: base.sourcePathname,
+      toPathname: TARGET,
+      displayName: "deck.pdf",
+    });
+    expect(blob.rename).toHaveBeenCalledWith(
+      base.sourcePathname,
+      TARGET,
+      expect.objectContaining({ cacheControlMaxAge: 60 }),
+    );
+  });
+
+  it("leaves the bytes where they are when another document holds the name", async () => {
+    sourceOnly();
+    catalog.moveDriveUploadResource.mockRejectedValue(
+      Object.assign(new Error("A file already holds that name"), {
+        status: 409,
+      }),
+    );
+    await expect(
+      moveDriveFile({ ...base, targetFolderPath: "Masumi Fundraising" }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(blob.rename).not.toHaveBeenCalled();
+  });
+
+  it("puts the row back when storage fails with the source still there", async () => {
+    sourceOnly();
+    blob.rename.mockRejectedValue(new Error("network"));
+    await expect(
+      moveDriveFile({ ...base, targetFolderPath: "Masumi Fundraising" }),
+    ).rejects.toThrow("network");
+    expect(catalog.moveDriveUploadResource).toHaveBeenLastCalledWith({
+      workspaceId: "ws_1",
+      scope: "organization",
+      resourceId: "res_1",
+      fromPathname: TARGET,
+      toPathname: base.sourcePathname,
+      displayName: "deck.pdf",
     });
   });
 
