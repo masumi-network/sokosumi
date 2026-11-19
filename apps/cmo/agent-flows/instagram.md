@@ -2,7 +2,7 @@
 
 **Cuso does**
 
-- Picture posts and carousels in the brand's look, from its own photos and page screenshots.
+- Picture posts and carousels in the look of an old print, in the brand's colours with its logo; a real photo or page screenshot sits inside the print where the post shows it, and each carousel slide carries its own few words.
 - A weekly Reel: presenter or product video with captions, music and B-roll.
 - Daily comment round: up to 20 replies, each checked by Jev; leads, complaints and price questions left for the owner.
 - Weekly reach and saves per post; shifts the mix toward what works.
