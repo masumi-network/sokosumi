@@ -5,7 +5,7 @@ import {
   type ToolSet,
 } from "ai";
 import {
-  REASONING_SUMMARY_OPTIONS,
+  modelReasoningSummaryOptions,
   stepReasoningSummary,
   streamModelCall,
 } from "../lib/soko-bot/stream-model-call";
@@ -77,7 +77,7 @@ export async function runTurnLoop(
       },
       // Ask for the provider's reasoning summary (never raw thoughts) so the
       // chat can show what the bot considered, as Coworker replies do.
-      providerOptions: REASONING_SUMMARY_OPTIONS,
+      providerOptions: modelReasoningSummaryOptions(input.model),
       onStepFinish: async (step) => {
         const summary = stepReasoningSummary(step);
         if (summary) await input.onReasoning?.(summary);
@@ -101,7 +101,9 @@ export async function runTurnLoop(
     )
       ? idleRounds + 1
       : 0;
-    messages = [...messages, ...result.response.messages];
+    // Every step's messages: `response.messages` holds the last step's alone,
+    // and a nudged round that cannot see its own calls does the brief again.
+    messages = [...messages, ...result.responseMessages];
     const keepGoing =
       input.background &&
       !isFinalReport(text) &&

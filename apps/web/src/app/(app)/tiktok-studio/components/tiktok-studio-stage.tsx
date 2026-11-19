@@ -57,7 +57,7 @@ export function StagePreview({
           {t("previewNoPhoto")}
         </p>
       ) : (
-        <p className="bg-scrim text-on-media absolute inset-x-4 bottom-1/6 rounded-md px-3 py-2 text-center text-sm font-semibold">
+        <p className="bg-scrim text-on-media absolute inset-x-4 bottom-1/3 rounded-md px-3 py-2 text-center text-sm font-semibold">
           <span className="line-clamp-3">
             {script || t("captionPlaceholder")}
           </span>

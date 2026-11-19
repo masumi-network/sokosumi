@@ -156,12 +156,19 @@ export const CMO_CHANNELS = {
   tiktok: {
     name: "TikTok",
     group: "social",
-    status: "soon",
+    status: "live",
     owner: "connect",
     formats: {
+      talking_video: {
+        name: "Talking video",
+        what: "A presenter speaks a short script to camera, with captions",
+        image: false,
+        video: true,
+        talking: true,
+      },
       video: {
         name: "Short video",
-        what: "Coming soon",
+        what: "A five-second vertical video made from a brand picture, with a caption",
         image: false,
         video: true,
       },
@@ -261,6 +268,18 @@ export const CMO_CHANNELS = {
   }
 >;
 export type CmoChannelKey = keyof typeof CMO_CHANNELS;
+
+/**
+ * Networks whose rules ask the account's owner to confirm each post: Cuso
+ * makes the post and it waits for the owner's tap; nothing goes out on a
+ * schedule. TikTok requires the creator's consent per video.
+ */
+export const CMO_OWNER_CONFIRMED_CHANNELS: readonly string[] = ["tiktok"];
+
+/** Whether every post on this network waits for the owner's own confirmation. */
+export function isCmoOwnerConfirmedChannel(channel: string): boolean {
+  return CMO_OWNER_CONFIRMED_CHANNELS.includes(channel);
+}
 
 /** Whether a plan may use this channel and format today. */
 export function isCmoChannelFormat(channel: string, format: string): boolean {

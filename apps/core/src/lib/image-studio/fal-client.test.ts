@@ -382,6 +382,20 @@ describe("fetchQueueStatus", () => {
 });
 
 describe("parseMedia", () => {
+  it("reads a cut-out's two videos, colour then alpha", () => {
+    expect(
+      parseMedia({
+        video: [
+          { url: "https://v3b.fal.media/files/a_color.mp4" },
+          { url: "https://v3b.fal.media/files/a_alpha.mp4" },
+        ],
+      }).map((file) => file.url),
+    ).toEqual([
+      "https://v3b.fal.media/files/a_color.mp4",
+      "https://v3b.fal.media/files/a_alpha.mp4",
+    ]);
+  });
+
   it("reads the payload shape the provider actually returns", () => {
     expect(
       parseMedia({

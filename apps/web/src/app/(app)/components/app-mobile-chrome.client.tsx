@@ -1,11 +1,11 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
-
 import { ChatMobileBottomNav } from "@/app/chat/components/chat-mobile-bottom-nav";
 import { chatMobileTabBarClearance } from "@/app/chat/components/chat-mobile-tab-registry";
+import { useChromePathname } from "@/app/chat/components/room-cache-provider";
 import { useChatTabUnreadPresence } from "@/app/chat/components/use-chat-tab-unread-presence";
 import { shouldShowMobileBottomNav } from "@/app/components/mobile-app-chrome";
 import { ChatControlListBridge } from "@/components/chat/chat-control-list-bridge";
@@ -44,7 +44,7 @@ export function AppMobileChrome({
 }
 
 function AppMobileBottomChrome(): React.ReactElement | null {
-  const pathname = usePathname();
+  const pathname = useChromePathname();
   const searchParams = useSearchParams();
   const showBottomNav = shouldShowMobileBottomNav(pathname, searchParams);
   const isApple = useIsApplePlatform();

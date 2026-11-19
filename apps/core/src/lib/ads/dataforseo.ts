@@ -23,6 +23,15 @@ const KEYWORDS_FOR_KEYWORDS =
 const KEYWORD_IDEAS = "/dataforseo_labs/google/keyword_suggestions/live";
 /** Ideas read per search; DataForSEO Labs bills a base fee plus a little per row. */
 const KEYWORD_IDEAS_LIMIT = 50;
+/**
+ * The searches of someone weighing a product against others: its
+ * alternatives, comparisons and price. DataForSEO matches it on the keyword
+ * and honours a word start, but not an optional letter before a word end
+ * ("costs?\\b" returned nothing), so the caller drops what is too wide.
+ */
+const COMPARISON_SEARCHES =
+  "(alternative|competitor|\\bvs\\b|versus|compared|pricing|\\bprice|\\bcost)";
+const COMPARISON_SEARCHES_LIMIT = 100;
 const SERP_TASK_KINDS = {
   organic: "/serp/google/organic",
   ads_search: "/serp/google/ads_search",
@@ -319,7 +328,13 @@ export type KeywordIdea = z.infer<typeof keywordIdeaSchema>;
 const labsKeywordSchema = z.object({
   keyword: z.string().min(1),
   keyword_info: z
-    .object({ search_volume: z.number().nullish(), cpc: z.number().nullish() })
+    .object({
+      search_volume: z.number().nullish(),
+      cpc: z.number().nullish(),
+      competition_level: z.string().nullish(),
+      low_top_of_page_bid: z.number().nullish(),
+      high_top_of_page_bid: z.number().nullish(),
+    })
     .nullish(),
   keyword_properties: z
     .object({ keyword_difficulty: z.number().nullish() })
@@ -374,6 +389,60 @@ export async function fetchKeywordIdeas(query: {
     labsKeywordSchema,
     context,
   ).map(toKeywordIdea);
+}
+
+/** A search with what an ad on it costs. Money is USD. */
+export const comparisonSearchSchema = z.object({
+  keyword: z.string(),
+  searchVolume: z.number().nullable(),
+  cpc: z.number().nullable(),
+  lowTopOfPageBid: z.number().nullable(),
+  highTopOfPageBid: z.number().nullable(),
+  competition: z.enum(COMPETITION_LEVELS).nullable(),
+});
+export type ComparisonSearch = z.infer<typeof comparisonSearchSchema>;
+
+/**
+ * The searches that name one product beside "alternative", "vs", "pricing"
+ * and their like, from DataForSEO Labs keyword suggestions: at most 100, by
+ * search volume. One read per product. Runs on the platform DataForSEO
+ * connection; without it configured, raises a {@link ComposioConfigError}.
+ */
+export async function fetchComparisonSearches(query: {
+  product: string;
+  locationCode: number;
+  languageCode: string;
+}): Promise<ComparisonSearch[]> {
+  const context = "fetch DataForSEO comparison searches";
+  const payload = await callDataForSeo(KEYWORD_IDEAS, context, {
+    method: "POST",
+    tasks: [
+      {
+        keyword: query.product,
+        location_code: query.locationCode,
+        language_code: query.languageCode,
+        limit: COMPARISON_SEARCHES_LIMIT,
+        filters: [["keyword", "regex", COMPARISON_SEARCHES]],
+        order_by: ["keyword_info.search_volume,desc"],
+      },
+    ],
+    timeoutMs: KEYWORDS_TIMEOUT_MS,
+  });
+  return parseToolRows(
+    taskItems(checkedTasks(payload, context), context),
+    labsKeywordSchema,
+    context,
+  ).map((row) => ({
+    keyword: row.keyword,
+    searchVolume: row.keyword_info?.search_volume ?? null,
+    cpc: row.keyword_info?.cpc ?? null,
+    lowTopOfPageBid: row.keyword_info?.low_top_of_page_bid ?? null,
+    highTopOfPageBid: row.keyword_info?.high_top_of_page_bid ?? null,
+    competition:
+      COMPETITION_LEVELS.find(
+        (level) => level === row.keyword_info?.competition_level,
+      ) ?? null,
+  }));
 }
 
 const itemTypeSchema = z.object({ type: z.string().nullish() });

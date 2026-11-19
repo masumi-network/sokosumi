@@ -18,7 +18,6 @@ import {
   Pencil,
   Repeat,
   RotateCcw,
-  SquareArrowRightExit,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,11 +44,25 @@ import { TaskScheduleDialog } from "./task-schedule-dialog";
 import { TaskSendToChatDialog } from "./task-send-to-chat-dialog";
 import { TaskShareButton } from "./task-share-button";
 import {
+  TaskSubtaskMenuDialogs,
+  TaskSubtaskMenuItems,
+} from "./task-subtask-menu";
+import {
   type TaskDetailActionsProps,
   useTaskDetailActions,
 } from "./use-task-detail-actions";
+import { useTaskSubtaskActions } from "./use-task-subtask-actions";
+
+const NO_ANCESTORS: readonly string[] = [];
+
 export function TaskDetailActions(props: TaskDetailActionsProps) {
   const model = useTaskDetailActions(props);
+  const subtaskActions = useTaskSubtaskActions({
+    taskId: props.taskId,
+    parentTaskId: props.parentTaskId ?? null,
+    ancestorIds: props.ancestorIds ?? NO_ANCESTORS,
+    canManageRelations: model.canManageRelations,
+  });
   const {
     taskId,
     share,
@@ -61,13 +74,12 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     personalWorkspaceLabel,
     taskBlueprint,
     sendToChat,
-    tApp,
+    assigneeName,
     tDetailActions,
     router,
     isMobile,
     isStatusPending,
     isLinkPending,
-    isParentRemovalPending,
     isRemoveRelatedPending,
     isDropdownOpen,
     menuTriggerRef,
@@ -75,8 +87,8 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     setIsMoveOpen,
     isTaskPickerOpen,
     setIsTaskPickerOpen,
-    isMarkAsSectionOpen,
-    setIsMarkAsSectionOpen,
+    isLinkToTaskSectionOpen,
+    setIsLinkToTaskSectionOpen,
     isCreateRelatedSectionOpen,
     setIsCreateRelatedSectionOpen,
     isRemoveRelatedSectionOpen,
@@ -108,7 +120,6 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     canMove,
     removableTaskLinks,
     canRemoveRelated,
-    canRemoveParent,
     hasOverflowMenuActions,
     taskPickerOptions,
     createRelatedOptions,
@@ -119,10 +130,13 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
     handleOpenTaskPicker,
     handleOpenCreateRelated,
     handleSelectLinkableTask,
-    handleRemoveParent,
     handleRemoveRelated,
-    actionsDisabled,
   } = model;
+  const actionsDisabled = model.actionsDisabled || subtaskActions.isPending;
+  const returnFocusToMenu = (event: Event) => {
+    event.preventDefault();
+    menuTriggerRef.current?.focus();
+  };
   return (
     <div className="flex items-center gap-2">
       {canArchiveTask ? (
@@ -257,6 +271,10 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
 
             {canManageRelations ? (
               <>
+                <TaskSubtaskMenuItems
+                  model={subtaskActions}
+                  disabled={actionsDisabled}
+                />
                 {isMobile ? (
                   <>
                     <DropdownMenuItem
@@ -264,23 +282,23 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
                       disabled={actionsDisabled}
                       onSelect={(event) => {
                         event.preventDefault();
-                        setIsMarkAsSectionOpen((previous) => !previous);
+                        setIsLinkToTaskSectionOpen((previous) => !previous);
                       }}
                     >
                       <FlagTriangleRight
                         className="size-4 text-muted-foreground"
                         aria-hidden
                       />
-                      <span>{tDetailActions("markAs")}</span>
+                      <span>{tDetailActions("linkToTask")}</span>
                       <ChevronDown
                         className={cn(
                           "ml-auto size-4 text-muted-foreground transition-transform",
-                          isMarkAsSectionOpen ? "rotate-180" : "",
+                          isLinkToTaskSectionOpen ? "rotate-180" : "",
                         )}
                         aria-hidden
                       />
                     </DropdownMenuItem>
-                    {isMarkAsSectionOpen
+                    {isLinkToTaskSectionOpen
                       ? taskPickerOptions.map((option) => (
                           <DropdownMenuItem
                             key={option.id}
@@ -339,7 +357,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
                           className="size-4 text-muted-foreground"
                           aria-hidden
                         />
-                        {tDetailActions("markAs")}
+                        {tDetailActions("linkToTask")}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-56">
                         {taskPickerOptions.map((option) => (
@@ -499,22 +517,6 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
                     </DropdownMenuSub>
                   )
                 ) : null}
-                {canRemoveParent ? (
-                  <DropdownMenuItem
-                    disabled={actionsDisabled}
-                    onSelect={handleRemoveParent}
-                  >
-                    {isParentRemovalPending ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <SquareArrowRightExit className="size-4" aria-hidden />
-                    )}
-                    {tDetailActions("removeParent")}
-                  </DropdownMenuItem>
-                ) : null}
               </>
             ) : null}
 
@@ -562,18 +564,15 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
             setReopenComment("");
           }
         }}
-        labels={{
-          title: labels.reopenToReadyTitle,
-          description: labels.reopenToReadyDescription,
-          commentLabel: labels.reopenToReadyCommentLabel,
-          commentPlaceholder: labels.reopenToReadyCommentPlaceholder,
-          confirm: labels.reopenToReadyConfirm,
-          cancel: tApp("cancel"),
-        }}
+        assigneeName={assigneeName ?? ""}
         comment={reopenComment}
         onCommentChange={setReopenComment}
-        onConfirm={handleReopenConfirm}
-        isPending={isStatusPending && pendingStatusTarget === TaskStatus.READY}
+        onConfirm={() => handleReopenConfirm(TaskStatus.READY)}
+        onReopenAsDraft={() => handleReopenConfirm(TaskStatus.DRAFT)}
+        isPending={isStatusPending && pendingStatusTarget !== null}
+        isDraftPending={
+          isStatusPending && pendingStatusTarget === TaskStatus.DRAFT
+        }
       />
 
       {canMove ? (
@@ -596,10 +595,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
           onClose={() => setChatRooms(null)}
           // The dialog opens from a menu item, which is gone by then; return
           // to the Actions button the user opened it from.
-          onCloseAutoFocus={(event) => {
-            event.preventDefault();
-            menuTriggerRef.current?.focus();
-          }}
+          onCloseAutoFocus={returnFocusToMenu}
         />
       ) : null}
 
@@ -627,6 +623,15 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
         isLinkPending={isLinkPending}
         onSelectTask={handleSelectLinkableTask}
       />
+
+      {canManageRelations ? (
+        <TaskSubtaskMenuDialogs
+          model={subtaskActions}
+          taskId={taskId}
+          assigneeOptions={model.coworkerOptions}
+          onCloseAutoFocus={returnFocusToMenu}
+        />
+      ) : null}
 
       <TaskCreateRelatedModal model={model} />
     </div>

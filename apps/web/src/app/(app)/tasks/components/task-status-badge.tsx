@@ -154,6 +154,8 @@ interface TaskStatusBadgeProps {
   label?: string;
   className?: string;
   showLabel?: boolean;
+  /** No box around the marker and word, for a card that is already a box. */
+  plain?: boolean;
 }
 
 export function TaskStatusBadge({
@@ -161,6 +163,7 @@ export function TaskStatusBadge({
   label,
   className,
   showLabel = true,
+  plain = false,
 }: TaskStatusBadgeProps) {
   const marker = getTaskStatusMarker(status);
   const style = getToneStyle(marker.tone);
@@ -170,16 +173,20 @@ export function TaskStatusBadge({
     <span
       role={showLabel ? undefined : "img"}
       aria-label={showLabel ? undefined : statusLabel}
-      title={showLabel ? undefined : statusLabel}
+      // A plain label can truncate, so it keeps its full text on hover.
+      title={showLabel && !plain ? undefined : statusLabel}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
-        style.box,
-        style.label,
+        "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium",
+        plain
+          ? "text-foreground min-w-0 shrink"
+          : ["rounded-sm border px-2.5 py-1", style.box, style.label],
         className,
       )}
     >
-      <StatusMarker spec={marker} />
-      {showLabel && <span>{statusLabel}</span>}
+      <StatusMarker spec={marker} tone={plain ? style.onSurface : undefined} />
+      {showLabel && (
+        <span className={plain ? "truncate" : undefined}>{statusLabel}</span>
+      )}
     </span>
   );
 }

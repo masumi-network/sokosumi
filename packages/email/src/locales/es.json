@@ -28,10 +28,10 @@
       "footer": "Si no solicitaste esta invitación, puedes ignorar este email."
     },
     "emailCode": {
-      "subject": "Tu código de Sokosumi: {code}",
-      "title": "Tu código de Sokosumi",
+      "subject": "Tu código de {product}: {code}",
+      "title": "Tu código de {product}",
       "greeting": "Hola",
-      "message": "Introduce este código en Sokosumi para continuar. Caduca en {minutes} minutos.",
+      "message": "Introduce este código en {product} para continuar. Caduca en {minutes} minutos.",
       "footer": "Si no pediste este código, puedes ignorar este email. No compartas el código con nadie."
     }
   },

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const pendingTurns: Promise<unknown>[] = [];
 
 const {
-  reconcileTurnMock,
+  reconcileRuntimeCompletionMock,
   authorizeMock,
   createEventMock,
   executeToolMock,
@@ -18,7 +18,7 @@ const {
   waitUntilMock,
 } = vi.hoisted(() => ({
   cmoTurnPartsMock: vi.fn(),
-  reconcileTurnMock: vi.fn(),
+  reconcileRuntimeCompletionMock: vi.fn(),
   authorizeMock: vi.fn(),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
@@ -62,6 +62,7 @@ vi.mock("@/lib/db/prisma", () => {
     evalLane: { findUnique: vi.fn().mockResolvedValue(null) },
     sokoBotTurn: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       findUnique: vi.fn().mockResolvedValue({ source: "CHAT" }),
       findUniqueOrThrow: vi.fn().mockResolvedValue({
         deadlineAt: new Date(Date.now() + 15 * 60 * 1_000),
@@ -78,11 +79,18 @@ vi.mock("@/lib/db/prisma", () => {
     },
   };
 });
+// Jev is not called from a test: the language stays unnamed.
+vi.mock("./jev", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./jev")>()),
+  evaluateWithJev: () => Promise.reject(new Error("No Jev in tests")),
+}));
 vi.mock("./active-background-runs", () => ({
   withActiveBackgroundRuns: async (_turnId: string, text: string) => text,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
+  sokoBotControlPlane: {
+    reconcileRuntimeCompletion: reconcileRuntimeCompletionMock,
+  },
 }));
 vi.mock("@/services/cmo-hiring.service", () => ({
   cmoTurnParts: cmoTurnPartsMock,
@@ -134,6 +142,7 @@ describe("InProcessSokoBotRuntime", () => {
       version: { id: "v11", name: "v11 test", systemPrompt: "Be useful." },
       packet: { memory: { version: 1 } },
     });
+    cmoTurnPartsMock.mockResolvedValue([]);
     streamModelCallMock.mockImplementation(async (options) => {
       // The SDK reports each step through onStepFinish; the drain meters those.
       await options.onStepFinish?.({
@@ -202,6 +211,76 @@ describe("InProcessSokoBotRuntime", () => {
     expect(withheld[0]?.event).toMatchObject({
       replyWithheld: { reason: "claims_unconfirmed_change" },
     });
+  });
+
+  it.each([
+    ["cmo-v1-gemini-25-flash-lite", "google/gemini-2.5-flash-lite", undefined],
+    [
+      "v11",
+      "google/gemini-3.6-flash",
+      { thinkingConfig: { includeThoughts: true } },
+    ],
+  ])(
+    "sends the Google reasoning summary options for %s",
+    async (versionId, modelId, google) => {
+      authorizeMock.mockResolvedValueOnce({
+        turn: { id: TURN_ID, versionId },
+        grant: { capabilities: ["create_task"] },
+      });
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Plan the launch",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+      await Promise.all(pendingTurns);
+
+      const request = streamModelCallMock.mock.calls[0]?.[0];
+      expect(request.model.modelId).toBe(modelId);
+      expect(request.providerOptions.google).toEqual(google);
+    },
+  );
+
+  it("ends a Cuso turn's message with the owner's language, and no other bot's", async () => {
+    const findTurn = vi.mocked(prisma.sokoBotTurn.findUnique);
+    const findAsked = vi.mocked(prisma.sokoBotTurn.findMany);
+    const run = async (versionId: string) => {
+      findTurn.mockResolvedValue({
+        source: "CHAT",
+        sokoBotId: "bot_1",
+        versionId,
+        createdAt: new Date(),
+      } as never);
+      streamModelCallMock.mockClear();
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Wie ranken wir bei Google?",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+      await Promise.all(pendingTurns);
+      return streamModelCallMock.mock.calls[0][0].messages[0].content as string;
+    };
+    findAsked.mockResolvedValue([
+      {
+        id: TURN_ID,
+        userMessage: "Wie ranken wir bei Google?",
+        chatMention: null,
+      },
+    ] as never);
+    try {
+      expect(await run("cmo-v1")).toMatch(
+        /^Wie ranken wir bei Google\?\n\n\[Reply language\. Write to the owner in the language of their new message, which ends: "Wie ranken wir bei Google\?"/,
+      );
+      expect(await run("v33")).toBe("Wie ranken wir bei Google?");
+    } finally {
+      findTurn.mockResolvedValue({ source: "CHAT" } as never);
+      findAsked.mockReset();
+    }
   });
 
   it("runs a Cuso first read's parts side by side, then the turn with their hand-overs", async () => {
@@ -563,6 +642,7 @@ describe("InProcessSokoBotRuntime", () => {
     await new InProcessSokoBotRuntime().createSession({
       sessionId: null,
       turnId: TURN_ID,
+      reconciliationLeaseToken: "launch-lease",
       message: "Plan the launch",
       userId: "user_1",
       sokoBotId: "bot_1",
@@ -571,7 +651,11 @@ describe("InProcessSokoBotRuntime", () => {
 
     await Promise.all(pendingTurns);
 
-    expect(reconcileTurnMock).toHaveBeenCalledWith(TURN_ID);
+    expect(reconcileRuntimeCompletionMock).toHaveBeenCalledWith(
+      TURN_ID,
+      expect.any(String),
+      "launch-lease",
+    );
   });
 
   it("still settles a failed turn so it cannot hang on Thinking", async () => {
@@ -580,6 +664,7 @@ describe("InProcessSokoBotRuntime", () => {
     await new InProcessSokoBotRuntime().createSession({
       sessionId: null,
       turnId: TURN_ID,
+      reconciliationLeaseToken: "launch-lease",
       message: "Plan the launch",
       userId: "user_1",
       sokoBotId: "bot_1",
@@ -588,7 +673,11 @@ describe("InProcessSokoBotRuntime", () => {
 
     await Promise.all(pendingTurns);
 
-    expect(reconcileTurnMock).toHaveBeenCalledWith(TURN_ID);
+    expect(reconcileRuntimeCompletionMock).toHaveBeenCalledWith(
+      TURN_ID,
+      expect.any(String),
+      "launch-lease",
+    );
   });
 
   it("offers only the capabilities the turn granted", async () => {

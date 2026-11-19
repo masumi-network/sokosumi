@@ -127,6 +127,7 @@ export async function generateImage(
             slot: 0,
             businessName: cuso.businessName,
             colours: (await loadStyleBrand(cuso.projectId)).colours,
+            brandPictures: referenceFileIds.length,
           })
         : input.prompt,
     modelId: model.id,
@@ -149,7 +150,7 @@ export async function generateImage(
       note:
         job.status === "SUBMISSION_UNCERTAIN"
           ? uncertain
-          : "Started in the look of that reference. Core checks the picture against it and places the brand's logo; one the check turns down is made again on the next model, at most three tries. It takes a minute or two: wait_for its jobId, then get_image.",
+          : "Started in the look of that reference. Core checks the picture against it and places the brand's logo; one the check turns down is made again, at most four tries. It takes a minute or two: wait_for its jobId, then get_image.",
     };
   return {
     jobId: job.id,
@@ -197,6 +198,7 @@ async function styledChatPicture(
       projectId: true,
       idempotencyKey: true,
       referenceLibraryIds: true,
+      referenceFileIds: true,
       prompt: true,
       error: true,
     },
@@ -262,7 +264,7 @@ async function styledChatPicture(
         : {}),
     },
     referenceAssetIds: [],
-    referenceFileIds: [],
+    referenceFileIds: row.referenceFileIds,
     referenceLibraryIds: [referenceId],
     parentAssetId: null,
     idempotencyKey: `soko-bot:${turnId}:${toolCallId}:style:${attempt + 1}`,
@@ -272,7 +274,7 @@ async function styledChatPicture(
     status: next.status,
     failureReason: null,
     replaces: job.id,
-    note: `The picture did not pass (${problems}), so the next model is making it again. Do not use the old one: wait_for jobId ${next.id}, then get_image with it.`,
+    note: `The picture did not pass (${problems}), so it is being made again. Do not use the old one: wait_for jobId ${next.id}, then get_image with it.`,
   };
 }
 
@@ -357,6 +359,8 @@ export async function generateTalkingVideo(
       voice: input.voice ?? DEFAULT_TALKING_VIDEO_VOICE,
       languageCode: input.languageCode ?? "en",
       presenter,
+      broll: input.broll,
+      music: input.music,
       idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
     });
   } catch (error) {

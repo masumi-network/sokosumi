@@ -1,12 +1,12 @@
 "use client";
 
 import type {
-  CmoCompetitor,
-  CmoCompetitorCreate,
-  CmoCompetitorMeasure,
-  CmoCompetitorSignal,
   CmoCompetitors,
   CmoOverview,
+  ProjectCompetitor,
+  ProjectCompetitorCreate,
+  ProjectCompetitorMeasure,
+  ProjectCompetitorSignal,
 } from "@sokosumi/core-client";
 import {
   type ReactNode,
@@ -26,10 +26,10 @@ import { SubmitButton } from "../submit-button";
 
 export interface CompetitorActions {
   loadCompetitors: () => Promise<CmoCompetitors | null>;
-  addCompetitor: (input: CmoCompetitorCreate) => Promise<CompetitorResult>;
+  addCompetitor: (input: ProjectCompetitorCreate) => Promise<CompetitorResult>;
   updateCompetitor: (
     id: string,
-    input: CmoCompetitorCreate,
+    input: ProjectCompetitorCreate,
   ) => Promise<CompetitorResult>;
   removeCompetitor: (id: string) => Promise<CompetitorResult>;
   addMoveToStrategy: (itemId: string) => Promise<CompetitorResult>;
@@ -70,7 +70,7 @@ export function watchedMap(
   };
 }
 
-const SIGNAL_KINDS: Record<CmoCompetitorSignal["kind"], string> = {
+const SIGNAL_KINDS: Record<ProjectCompetitorSignal["kind"], string> = {
   PRICE_CHANGE: "Price",
   WEBSITE_CHANGE: "Website",
   NEWS: "News",
@@ -165,6 +165,7 @@ export function CompetitorsPage({
       />
       <Scoreboard data={data} />
       <TopPosts data={data} names={names} compose={compose} />
+      <ComparingSearches data={data} compose={compose} />
       <Found data={data} names={names} />
       <Manage data={data} actions={actions} change={change} />
     </div>
@@ -249,7 +250,7 @@ function Sourced({ className, label, children }: SourcedProps) {
 }
 
 interface SourceProps {
-  signal: CmoCompetitorSignal;
+  signal: ProjectCompetitorSignal;
 }
 
 /** A signal's source: title, publisher, date, quote, link. */
@@ -278,7 +279,7 @@ function Source({ signal }: SourceProps) {
 interface ThisWeekProps {
   data: CmoCompetitors;
   names: Map<string, string>;
-  signals: Map<string, CmoCompetitorSignal>;
+  signals: Map<string, ProjectCompetitorSignal>;
   addToStrategy: (itemId: string) => Promise<string | null>;
 }
 
@@ -407,7 +408,7 @@ const COMPACT = new Intl.NumberFormat("en", {
 
 /** One number with where and when it was read; an empty cell is no data. */
 interface CellProps {
-  measure: CmoCompetitorMeasure | null;
+  measure: ProjectCompetitorMeasure | null;
   signed?: boolean;
 }
 
@@ -486,6 +487,44 @@ function Scoreboard({ data }: ScoreboardProps) {
           </p>
         </>
       ) : null}
+    </section>
+  );
+}
+
+/** What Cuso is asked for search ads on the competitors' searches. */
+export const COMPARING_SEARCHES_REQUEST =
+  "Set up Google search ads for the people comparing us with our competitors: the alternative, vs and pricing searches.";
+
+/**
+ * Search ads on what people type when they weigh a competitor: Cuso reads
+ * the searches and writes the ads into the Calendar, where an owner launches
+ * them.
+ */
+function ComparingSearches({
+  data,
+  compose,
+}: Pick<TopPostsProps, "data" | "compose">) {
+  const [first] = data.competitors;
+  if (!first) return null;
+  return (
+    <section className="card">
+      <div className="comp-head">
+        <h3>People comparing you</h3>
+        <button
+          type="button"
+          className="button button-secondary button-small"
+          onClick={() => compose(COMPARING_SEARCHES_REQUEST)}
+        >
+          Ask {AGENT_NAME} for search ads
+        </button>
+      </div>
+      <p className="muted">
+        Someone who searches "{first.name} alternative", "{first.name} vs" or "
+        {first.name} pricing" is choosing right now. {AGENT_NAME} reads what
+        people search for each competitor here and what a click costs, and
+        writes a Google search ad for each search your ad budget pays for. They
+        land in your Calendar. Nothing spends until you press Launch.
+      </p>
     </section>
   );
 }
@@ -596,14 +635,14 @@ const FIELDS = [
   ["instagramHandle", "Instagram", "@calendly"],
   ["facebookHandle", "Facebook Page", "calendly"],
 ] as const satisfies readonly (readonly [
-  keyof CmoCompetitorCreate,
+  keyof ProjectCompetitorCreate,
   string,
   string,
 ])[];
 
 type Draft = Record<(typeof FIELDS)[number][0], string>;
 
-function draftOf(competitor?: CmoCompetitor): Draft {
+function draftOf(competitor?: ProjectCompetitor): Draft {
   return {
     name: competitor?.name ?? "",
     websiteUrl: competitor?.websiteUrl ?? "",
@@ -614,9 +653,9 @@ function draftOf(competitor?: CmoCompetitor): Draft {
 }
 
 interface CompetitorFormProps {
-  competitor?: CmoCompetitor;
+  competitor?: ProjectCompetitor;
   /** Resolves to why it was refused, or null once saved. */
-  save: (input: CmoCompetitorCreate) => Promise<string | null>;
+  save: (input: ProjectCompetitorCreate) => Promise<string | null>;
   cancel?: () => void;
 }
 

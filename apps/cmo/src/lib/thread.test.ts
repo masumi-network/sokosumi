@@ -11,6 +11,7 @@ const channel = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE" as const,
+  personalProfile: false,
 };
 
 it("maps waiting states to needs-you and research to reading", () => {
@@ -32,6 +33,8 @@ it("reports for a day after a filed update once hired and running", () => {
             at: new Date("2026-11-05T09:00:00Z"),
             revertible: false,
             revertedAt: null,
+            posts: [],
+            media: [],
           },
         ],
       }),

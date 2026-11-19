@@ -1,8 +1,8 @@
 import { waitUntil } from "@vercel/functions";
 import type { Hono } from "hono";
-
 import { emitCoreError, runAsBackgroundWork } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { purgeSokoBotSchedules } from "@/services/soko-bot-schedule.service";
 import { sokoBotSchedulesSyncService } from "@/services/soko-bot-schedules-sync.service";
@@ -27,6 +27,8 @@ export default function mount(app: Hono) {
                 sokoBotControlPlane
                   .reconcileTurn(turnId, context.abortSignal, leaseToken)
                   .catch((error) => {
+                    if (reportSokoBotReconciliationLeaseLoss(turnId, error))
+                      return;
                     emitCoreError(
                       {
                         operation: "soko_bot_schedule_reconciliation",

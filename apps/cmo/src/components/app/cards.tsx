@@ -1,6 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import type { CmoCompetitorWeek } from "@sokosumi/utils";
 import { useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import { APPROVED_BY_OWNERS } from "../../lib/approvers";
@@ -8,6 +9,7 @@ import { channelLabel, planRange } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
 import { StatusText } from "../status";
 import { OutOfCredits, type StartTopUp } from "../top-up";
+import { type DraftActions, MadeByCuso } from "./draft-post";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -22,10 +24,18 @@ export interface CardActions {
   /** Puts text in the composer and focuses it. */
   compose: (text: string) => void;
   open: (
-    view: "strategy" | "brain" | "results" | "channels" | "settings",
+    view:
+      | "strategy"
+      | "brain"
+      | "results"
+      | "competitors"
+      | "channels"
+      | "settings",
   ) => void;
   /** The top-up checkout, or null when this Cuso may not top up. */
   topUp: StartTopUp | null;
+  /** Approve, rewrite or decline a post Cuso made outside the month. */
+  drafts: DraftActions;
 }
 
 type BrandBrain = NonNullable<CmoOverview["brandBrain"]>;
@@ -349,6 +359,74 @@ export function ConnectCard({ actions }: { actions: CardActions }) {
   );
 }
 
+/**
+ * The week's competitor moves as one card: a line per move with where it was
+ * read, the big ones with what they mean and what to do. The rest of each
+ * move is on the Competitors tab.
+ */
+export function CompetitorWeekCard({
+  week,
+  actions,
+}: {
+  week: CmoCompetitorWeek;
+  actions: CardActions;
+}) {
+  return (
+    <div className="card">
+      <div className="ch">
+        <b>What your competitors did this week</b>
+      </div>
+      <div className="cb">
+        <ul className="list">
+          {week.moves.map((move) => (
+            <li key={`${move.competitor}:${move.text}`} className="li">
+              <span className="grow">
+                {move.text}
+                {move.source ? (
+                  <>
+                    {" "}
+                    <span className="note">
+                      <a
+                        href={move.source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {move.source.label}
+                      </a>
+                    </span>
+                  </>
+                ) : null}
+                {move.big && move.meaning && move.move ? (
+                  <span className="week-called">
+                    <span>
+                      <b>What this means for you:</b> {move.meaning}
+                    </span>
+                    <span>
+                      <b>Suggested move:</b> {move.move}
+                    </span>
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="cf">
+        <button
+          type="button"
+          className="button button-small"
+          onClick={() => actions.open("competitors")}
+        >
+          See every move
+        </button>
+        <span className="note">
+          Each with what it means for you and what to do.
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ItemList({
   items,
   actions,
@@ -408,9 +486,11 @@ const CHANGE_LABELS = {
 function RequestNote({
   update,
   superseded,
+  drafts,
 }: {
   update: Update;
   superseded: boolean;
+  drafts: DraftActions;
 }) {
   const done = update.done ?? [];
   const upNext = superseded ? [] : (update.upNext ?? []);
@@ -435,6 +515,7 @@ function RequestNote({
           ))}
         </div>
       ) : null}
+      <MadeByCuso update={update} actions={drafts} />
     </div>
   );
 }
@@ -462,7 +543,13 @@ export function UpdateCard({
 }) {
   const [pending, startTransition] = useTransition();
   if (update.kind === "request") {
-    return <RequestNote update={update} superseded={superseded} />;
+    return (
+      <RequestNote
+        update={update}
+        superseded={superseded}
+        drafts={actions.drafts}
+      />
+    );
   }
   return (
     <div className="card">
@@ -473,6 +560,7 @@ export function UpdateCard({
         <span className="note num">{formatTime(update.at)}</span>
       </div>
       <div className="cb">
+        <MadeByCuso update={update} actions={actions.drafts} />
         {changesStrategy(update.kind) ? (
           <div>
             <span className="label">Results</span>

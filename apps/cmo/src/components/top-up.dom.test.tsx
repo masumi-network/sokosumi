@@ -81,6 +81,12 @@ describe("LearningCard after a retry refused for credits", () => {
     compose: () => {},
     open: () => {},
     topUp,
+    drafts: {
+      approve: async () => null,
+      decline: async () => null,
+      edit: async () => null,
+      tikTokCreator: async () => ({ creator: null, error: null }),
+    },
   });
 
   it("offers the top-up", async () => {

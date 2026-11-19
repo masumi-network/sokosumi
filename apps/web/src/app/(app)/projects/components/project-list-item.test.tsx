@@ -28,6 +28,11 @@ vi.mock("@/app/projects/actions", () => ({
 
 vi.mock("@/lib/actions/project/action", () => ({ closeProject: vi.fn() }));
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key} ${JSON.stringify(values)}` : key,
+}));
+
 vi.mock("@/components/time-ago", () => ({
   TimeAgo: ({
     date,
@@ -489,5 +494,64 @@ describe("ProjectListItem in the Closed view", () => {
       "data-title-prefix",
       "Last activity",
     );
+  });
+});
+
+describe("ProjectListItem for a closing project", () => {
+  const closing = {
+    ...project,
+    briefing: "Sell 200 loaves",
+    closingAt: new Date("2026-09-10T08:00:00.000Z"),
+    closedAt: null,
+  };
+
+  it("shows a Closing badge and the scheduled runs still owed, in place of the briefing", () => {
+    render(
+      <ProjectListItem
+        project={{
+          ...closing,
+          closeStatus: { state: "CLOSING", owedOccurrenceCount: 2 },
+        }}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByText("badge")).toHaveAttribute("data-slot", "badge");
+    expect(screen.getByText('remaining {"count":2}')).toBeInTheDocument();
+    expect(screen.queryByText("Sell 200 loaves")).not.toBeInTheDocument();
+  });
+
+  it("says a failed close needs the project opened, not that it is closing", () => {
+    render(
+      <ProjectListItem
+        project={{
+          ...closing,
+          closeStatus: { state: "CLOSE_FAILED", owedOccurrenceCount: 1 },
+        }}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByText("failedBadge")).toBeInTheDocument();
+    expect(screen.getByText("failed")).toBeInTheDocument();
+    expect(screen.queryByText("badge")).not.toBeInTheDocument();
+  });
+
+  it("shows the badge alone when the close status could not be read", () => {
+    render(
+      <ProjectListItem
+        project={{ ...closing, closeStatus: null }}
+        labels={labels}
+      />,
+    );
+
+    expect(screen.getByText("badge")).toBeInTheDocument();
+    expect(screen.queryByText(/^remaining/)).not.toBeInTheDocument();
+  });
+
+  it("shows no closing line on an ordinary Open project", () => {
+    render(<ProjectListItem project={project} labels={labels} />);
+
+    expect(screen.queryByTestId("project-closing")).not.toBeInTheDocument();
   });
 });

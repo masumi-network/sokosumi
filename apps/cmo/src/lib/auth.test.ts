@@ -443,6 +443,36 @@ describe("CMO auth handler", () => {
     expect(url.searchParams.has("prompt")).toBe(false);
   });
 
+  it("asks Sokosumi for a fresh sign-in after a sign out, from the button and the link", async () => {
+    jar.store(
+      new Response(null, { headers: { "set-cookie": "cmo-signed-out=1" } }),
+    );
+
+    const fromButton = new URL(await startSignIn(auth, jar));
+    const fromLink = await followLink(jar, "/signin");
+
+    expect(fromButton.searchParams.get("prompt")).toBe("login");
+    expect(
+      new URL(fromLink.headers.get("location") ?? "").searchParams.get(
+        "prompt",
+      ),
+    ).toBe("login");
+  });
+
+  it("keeps Create account's own prompt after a sign out", async () => {
+    jar.store(
+      new Response(null, { headers: { "set-cookie": "cmo-signed-out=1" } }),
+    );
+
+    const response = await followLink(jar, "/signup");
+
+    expect(
+      new URL(response.headers.get("location") ?? "").searchParams.get(
+        "prompt",
+      ),
+    ).toBe("create");
+  });
+
   it("starts Create account from a link and signs in on the callback", async () => {
     const response = await followLink(jar, "/signup");
 

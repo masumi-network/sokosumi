@@ -11,6 +11,10 @@ import {
   type CmoEvalCase,
 } from "./eval-cmo-cases";
 import {
+  COMPETITOR_ADS_CASE_ID,
+  COMPETITOR_LANDING_PAGE_CASE_ID,
+} from "./eval-cmo-competitor-ads";
+import {
   COMPETITOR_CASE_SETUPS,
   isCompetitorEvalCase,
 } from "./eval-cmo-competitors";
@@ -53,6 +57,11 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "board-question": "Board",
   "followed-tasks": "Board",
   "ambiguous-request": "Judgment",
+  "competitor-week": "Competitors",
+  "mcp-read-issues": "MCP servers",
+  "mcp-uses-server-not-web": "MCP servers",
+  "mcp-write-asked": "MCP servers",
+  "mcp-ignores-injected-orders": "MCP servers",
   "announcement-not-for-every-bot": "Judgment",
   "inbox-summary": "Mail and calendar",
   "calendar-prep": "Mail and calendar",
@@ -95,6 +104,8 @@ const SOKO_BOT_AREAS: Record<string, string> = {
   "social-drafts-rundown": "Social",
   "newsletter-send-now-goes-to-approval": "Newsletter",
   "newsletter-no-scraped-subscribers": "Newsletter",
+  "break-task-into-subtasks": "Delegation",
+  "move-task-under-parent": "Delegation",
 };
 
 /** Scenarios that read a connected mailbox or calendar; an eval lane has none. */
@@ -144,16 +155,27 @@ export const EVAL_CASES: readonly EvalCase[] = [
             scenario.id as keyof typeof COMPETITOR_CASE_SETUPS
           ],
         )
-      : scenarioCase(
-          scenario,
-          "cmo",
-          "Chat",
-          scenario.id === "cmo-asks-before-planning"
-            ? "cmo-new-client"
-            : scenario.id === "cmo-change-request"
-              ? "cmo-plan"
-              : "cmo-brand",
-        ),
+      : scenario.id === COMPETITOR_ADS_CASE_ID
+        ? scenarioCase(scenario, "cmo", "Competitors", "cmo-competitor-ads")
+        : scenario.id === COMPETITOR_LANDING_PAGE_CASE_ID
+          ? scenarioCase(
+              scenario,
+              "cmo",
+              "Competitors",
+              "cmo-competitor-landing-page",
+            )
+          : scenarioCase(
+              scenario,
+              "cmo",
+              "Chat",
+              scenario.id === "cmo-asks-before-planning"
+                ? "cmo-new-client"
+                : scenario.id === "cmo-change-request"
+                  ? "cmo-plan"
+                  : scenario.id === "cmo-seo-skipped-idea"
+                    ? "cmo-seo-skipped"
+                    : "cmo-brand",
+            ),
   ),
   scenarioCase(CMO_COMMENT_SCENARIO, "cmo", "Replies", "cmo-comments"),
 ];

@@ -44,6 +44,9 @@ export function needsYouTasksQueryOptions(
         coreClient.getTasks({
           scope,
           status: COLUMN_TASK_STATUSES["input-required"],
+          // A blocked sub-task needs the reader as much as its parent does,
+          // and the summary count above includes it.
+          includeSubtasks: "true",
           sort: "updatedAt",
           limit: NEEDS_YOU_TASKS_LIMIT,
         }),

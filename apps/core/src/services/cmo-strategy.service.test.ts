@@ -22,6 +22,7 @@ import {
   postFindFirst,
   postFindMany,
   postUpdate,
+  referenceFindMany,
   resetCmoServiceMocks,
   revised,
   seedStrategy,
@@ -31,6 +32,11 @@ import {
   strategyRows,
   turnFindFirst,
 } from "@/test-fixtures/cmo-service";
+
+const libraryAvailable = vi.hoisted(() => vi.fn(() => false));
+vi.mock("@/services/reference-library.service", () => ({
+  referenceLibraryAvailable: libraryAvailable,
+}));
 
 // PostgreSQL's clock is the test clock here.
 vi.mock("@/lib/db/database-now", () => ({
@@ -105,6 +111,7 @@ import {
   keepCalendarWork,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
+  requireCmoStrategyFitted,
   saveCmoStrategy,
   setCmoAdBudget,
   startCmoPlanAfterResearch,
@@ -252,7 +259,9 @@ describe("requestCmoStrategy", () => {
     expect(detectSiteLanguage).not.toHaveBeenCalled();
     const message = JSON.stringify(startTurn.mock.lastCall);
     expect(message).toContain("set contentLanguage to English");
-    expect(message).toContain("This sets only contentLanguage");
+    expect(message).toContain(
+      "Every piece is in it, from its calendar title, brief and story",
+    );
     expect(message).toContain(
       "Write acme.io's marketing strategy for the four weeks",
     );
@@ -586,6 +595,101 @@ describe("saving versions", () => {
     expect(plan(strategyRows[0]!)).toEqual(strategy);
   });
 
+  describe("pictures of the approved month", () => {
+    const STYLE_A = "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9";
+    const STYLE_B = "01a1eb55-a767-7259-af74-b1d86f203752";
+    const picture = (patch: Record<string, unknown>) => ({
+      ...strategy.calendar[0]!,
+      format: "image",
+      visual: "The booking page on a desk",
+      ...patch,
+    });
+    const savePieces = (calendar: unknown[]) =>
+      saveCmoStrategy({ sokoBotId: "bot-1" }, { calendar } as never, {
+        turnId: "turn-2",
+        part: "pieces",
+      });
+
+    beforeEach(() => {
+      cusoFind.mockResolvedValue(HIRE);
+      seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+      libraryAvailable.mockReturnValue(true);
+      referenceFindMany.mockResolvedValue([{ id: STYLE_A }, { id: STYLE_B }]);
+      postFindMany.mockResolvedValue([
+        {
+          id: "01a10b97-d4d3-7264-b4d5-0a396e87c0ad",
+          status: "DRAFT",
+          planning: {
+            id: "other",
+            title: "Styled before",
+            format: "image",
+            styleReferenceId: STYLE_B,
+          },
+        },
+      ]);
+    });
+    afterEach(() => libraryAvailable.mockReturnValue(false));
+
+    it("refuses a picture without a library style, and saves nothing", async () => {
+      await expect(savePieces([picture({ id: "p1" })])).rejects.toThrow(
+        "p1 has a picture and no style",
+      );
+      expect(postCreateMany).not.toHaveBeenCalled();
+      expect(postUpdate).not.toHaveBeenCalled();
+    });
+
+    it("refuses a reference another piece of the month already uses", async () => {
+      await expect(
+        savePieces([picture({ id: "p1", styleReferenceId: STYLE_B })]),
+      ).rejects.toThrow("p1 and other use the same style reference");
+      await expect(
+        savePieces([
+          picture({ id: "p1", styleReferenceId: STYLE_A }),
+          picture({ id: "p2", styleReferenceId: STYLE_A }),
+        ]),
+      ).rejects.toThrow("p2 and p1 use the same style reference");
+    });
+
+    it("refuses a styled carousel without its words per slide, and an id the library lacks", async () => {
+      const carousel = picture({
+        id: "c1",
+        format: "images",
+        styleReferenceId: STYLE_A,
+        slides: ["The board", "The gate"],
+      });
+      await expect(savePieces([carousel])).rejects.toThrow(
+        "c1 needs slideHeadlines, one entry per slide (2)",
+      );
+      referenceFindMany.mockResolvedValue([]);
+      await expect(
+        savePieces([picture({ id: "p1", styleReferenceId: STYLE_A })]),
+      ).rejects.toThrow(`${STYLE_A} is no style reference`);
+    });
+
+    it("saves styled pictures, a plain one where there is no library, and text as before", async () => {
+      referenceFindMany.mockResolvedValue([
+        { id: STYLE_A },
+        { id: "01a1eb1e-6063-70a2-bcc4-03bab65abd2f" },
+      ]);
+      await savePieces([
+        picture({ id: "p1", styleReferenceId: STYLE_A, headline: "Book it" }),
+        picture({
+          id: "c1",
+          format: "images",
+          styleReferenceId: "01a1eb1e-6063-70a2-bcc4-03bab65abd2f",
+          slides: ["The board", "The gate"],
+          slideHeadlines: ["Review the drafts", "Then it goes live"],
+        }),
+        { ...strategy.calendar[0]!, id: "t1", draft: "Words only." },
+      ]);
+      expect(postCreateMany).toHaveBeenCalledTimes(1);
+      postCreateMany.mockClear();
+      libraryAvailable.mockReturnValue(false);
+      await savePieces([picture({ id: "p9" })]);
+      expect(postCreateMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("fills pieces into the approved version's Social posts, not a newer draft", async () => {
     cusoFind.mockResolvedValue(HIRE);
     const running = seedStrategy(strategy, {
@@ -668,11 +772,252 @@ describe("saving versions", () => {
         }),
       ],
     });
-    // Pieces write Social posts only: no version's plan changes, and other
-    // channels are not produced.
+    // A new piece that is a file joins the running version's calendar
+    // without its words, which its file holds; no other version changes.
+    const { draft: _words, ...planned } = newsletter;
     expect(strategyRows).toHaveLength(2);
-    expect(plan(running)).toEqual(strategy);
+    expect(plan(running).calendar).toEqual([...strategy.calendar, planned]);
     expect(plan(draft)).toEqual(revised);
+  });
+
+  it("adds a search ad written in chat to the approved calendar, without its parts", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    const running = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+    const ad = {
+      id: "kw-calendly-alternative",
+      date: "2026-10-22",
+      channel: "google_ads",
+      title: "Calendly alternative search ad",
+      format: "search_ad",
+      status: "draft" as const,
+      campaignId: "competitor-searches",
+      draft: "Headlines:\n- Calendly Alternative",
+      searchAd: {
+        keywords: ["calendly alternative"],
+        headlines: ["Calendly Alternative", "Open Source Scheduling", "Free"],
+        descriptions: ["Scheduling you own.", "Start free in two minutes."],
+        finalUrl: "https://acme.io",
+        location: "United States",
+      },
+    };
+
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [ad] },
+      { turnId: "turn-2", part: "pieces" },
+    );
+    // Sent again, it is already planned and is not added twice.
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { calendar: [ad] },
+      { turnId: "turn-3", part: "pieces" },
+    );
+
+    const { draft: _words, searchAd: _parts, ...planned } = ad;
+    expect(plan(running).calendar).toEqual([...strategy.calendar, planned]);
+  });
+
+  it("refuses a new piece in a format its channel does not have", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    const running = seedStrategy(strategy, {
+      approvedAt: new Date("2026-10-01T09:00:00Z"),
+    });
+
+    await expect(
+      saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: [
+            {
+              id: "page",
+              date: "2026-10-22",
+              channel: "google_ads",
+              title: "Calendly alternative page",
+              format: "landing_page",
+              status: "draft" as const,
+              draft: "# Calendly alternative",
+            },
+          ],
+        },
+        { turnId: "turn-2", part: "pieces" },
+      ),
+    ).rejects.toThrow('google_ads has no format "landing_page"');
+
+    expect(plan(running)).toEqual(strategy);
+  });
+
+  describe("a talking video that also goes out on other networks", () => {
+    const video = {
+      id: "tv",
+      date: "2026-10-23",
+      time: "17:00",
+      channel: "instagram",
+      title: "One link, no emails",
+      format: "talking_video",
+      status: "draft" as const,
+      script:
+        "Stop emailing back and forth. Send one booking link and let people pick a time.",
+      presenter: "maya",
+      voice: "Sarah",
+      alsoOn: ["youtube", "facebook"],
+    };
+    const stored = (planning: object, provider: string, id: string) => ({
+      id,
+      status: "DRAFT",
+      provider,
+      planning: { title: video.title, format: video.format, ...planning },
+    });
+
+    beforeEach(() => {
+      cusoFind.mockResolvedValue(HIRE);
+      seedStrategy(strategy, { approvedAt: new Date("2026-10-01T09:00:00Z") });
+    });
+
+    it("plans one post per network, each showing the one video", async () => {
+      await saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: [video] },
+        { turnId: "turn-2", part: "pieces" },
+      );
+
+      const drafts = postCreateMany.mock.calls[0]?.[0].data;
+      expect(
+        drafts.map((draft: { provider: string; planning: object }) => [
+          draft.provider,
+          draft.planning,
+        ]),
+      ).toEqual([
+        [
+          "instagram",
+          expect.objectContaining({
+            id: "tv",
+            alsoOn: ["youtube", "facebook"],
+          }),
+        ],
+        [
+          "youtube",
+          expect.objectContaining({
+            id: "tv@youtube",
+            videoOf: "tv",
+            script: video.script,
+            presenter: "maya",
+          }),
+        ],
+        [
+          "facebook",
+          expect.objectContaining({ id: "tv@facebook", videoOf: "tv" }),
+        ],
+      ]);
+      expect(drafts[1].planning).not.toHaveProperty("alsoOn");
+      expect(drafts[1].scheduledAt).toEqual(drafts[0].scheduledAt);
+    });
+
+    it("gives every post a new script and cancels a network taken off the list", async () => {
+      postFindMany.mockResolvedValue([
+        stored(
+          { id: "tv", script: video.script, alsoOn: video.alsoOn },
+          "instagram",
+          "p-ig",
+        ),
+        stored(
+          { id: "tv@youtube", videoOf: "tv", script: video.script },
+          "youtube",
+          "p-yt",
+        ),
+        stored(
+          { id: "tv@facebook", videoOf: "tv", script: video.script },
+          "facebook",
+          "p-fb",
+        ),
+      ]);
+      const script = `${video.script} Try it on your next call.`;
+
+      await saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        { calendar: [{ ...video, id: "p-ig", script, alsoOn: ["youtube"] }] },
+        { turnId: "turn-2", part: "pieces" },
+      );
+
+      expect(postUpdate).toHaveBeenCalledWith({
+        where: { id: "p-fb" },
+        data: expect.objectContaining({ status: "CANCELED" }),
+      });
+      expect(postUpdate).toHaveBeenCalledWith({
+        where: { id: "p-yt" },
+        data: expect.objectContaining({
+          planning: expect.objectContaining({ videoOf: "tv", script }),
+        }),
+      });
+      expect(postCreateMany).not.toHaveBeenCalled();
+    });
+
+    it("keeps a copy speaking its entry's script when the copy itself is saved", async () => {
+      postFindMany.mockResolvedValue([
+        stored(
+          { id: "tv@youtube", videoOf: "tv", script: video.script },
+          "youtube",
+          "p-yt",
+        ),
+      ]);
+
+      await saveCmoStrategy(
+        { sokoBotId: "bot-1" },
+        {
+          calendar: [
+            {
+              ...video,
+              id: "p-yt",
+              channel: "youtube",
+              alsoOn: undefined,
+              script:
+                "Another script entirely, which only this post would speak.",
+              hook: "No more email ping-pong",
+            },
+          ],
+        },
+        { turnId: "turn-2", part: "pieces" },
+      );
+
+      expect(postUpdate).toHaveBeenCalledWith({
+        where: { id: "p-yt" },
+        data: expect.objectContaining({
+          planning: expect.objectContaining({
+            videoOf: "tv",
+            script: video.script,
+            hook: "No more email ping-pong",
+          }),
+        }),
+      });
+    });
+
+    it.each([
+      [
+        "a network without talking videos",
+        { ...video, alsoOn: ["youtube", "x"] },
+        /tv cannot also go out on x: alsoOn takes other live networks with a talking_video format \(linkedin, facebook, youtube, tiktok\)/,
+      ],
+      [
+        "its own channel",
+        { ...video, alsoOn: ["instagram"] },
+        /tv cannot also go out on instagram/,
+      ],
+      [
+        "a piece that is not a talking video",
+        { ...video, format: "image", script: undefined },
+        /tv lists alsoOn, which only a talking_video takes/,
+      ],
+    ])("refuses %s, writing nothing", async (_name, entry, message) => {
+      await expect(
+        saveCmoStrategy(
+          { sokoBotId: "bot-1" },
+          { calendar: [entry] },
+          { turnId: "turn-2", part: "pieces" },
+        ),
+      ).rejects.toThrow(message);
+      expect(postCreateMany).not.toHaveBeenCalled();
+    });
   });
 
   it("refuses pieces while no version is approved, writing nothing", async () => {
@@ -1010,6 +1355,46 @@ describe("plan questions", () => {
     );
     expect(kept[0]).toMatchObject({ answer: "no", note: "About 80" });
     expect(kept[1]).not.toHaveProperty("answer");
+  });
+
+  it("drops a check that repeats a Brand Brain question when Cuso saves the strategy", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    brainFindUnique.mockResolvedValue({
+      body: {
+        summary: "Acme sells rockets.",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: ["Founders"],
+        products: ["Rockets"],
+        competitors: [],
+        channels: [],
+        profile: {},
+        questions: [
+          {
+            id: "primary-buyer",
+            question: "Are independent writers the main buyer for Acme?",
+            statement: "Independent writers are the main buyer",
+            section: "customers",
+          },
+        ],
+      },
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      {
+        ...strategy,
+        questions: [
+          question("buyers", {
+            question: "Are independent writers your main buyers?",
+          }),
+          question("orders"),
+        ],
+      },
+      { turnId: "turn-1" },
+    );
+    const saved = strategyRows.at(-1)?.plan as {
+      questions: { id: string }[];
+    };
+    expect(saved.questions.map((asked) => asked.id)).toEqual(["orders"]);
   });
 
   it("turns each no into a change for Cuso, and all yes into none", () => {
@@ -1607,6 +1992,34 @@ describe("changes after the plan", () => {
       clientTurnId: expect.stringMatching(/:patch:/),
     });
     expect(message()).toContain("EUR 300");
+  });
+
+  it("refuses to approve a strategy that still shows an answer the owner said no to", async () => {
+    const question = {
+      id: "q1",
+      question: "Can you spend about $300 on ads?",
+      statement: "Acme spends $300 a month on ads",
+    };
+    const unfitted = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "no" }],
+    });
+    await expect(requireCmoStrategyFitted(HIRE, unfitted.id)).rejects.toThrow(
+      "Update the strategy first",
+    );
+
+    // Cuso fitted it (his changes are listed), or nothing was a no.
+    const fitted = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "no" }],
+      changes: ["Removed Google Ads"],
+    });
+    const confirmed = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "yes" }],
+    });
+    await requireCmoStrategyFitted(HIRE, fitted.id);
+    await requireCmoStrategyFitted(HIRE, confirmed.id);
   });
 
   it("refuses a patch while the plan is still being written", async () => {

@@ -162,6 +162,7 @@
     "UserAvatar": {
       "account": "Account",
       "notifications": "Notifications",
+      "notificationSettings": "Notification settings",
       "billing": "Billing",
       "connections": "Connections",
       "developer": "Developer",
@@ -1264,8 +1265,7 @@
       "termsOfServices": "Terms of Service",
       "privacyPolicy": "Privacy Policy",
       "imprint": "Imprint",
-      "acceptableUse": "Acceptable Use",
-      "usesSokosumi": "Uses your Sokosumi account."
+      "acceptableUse": "Acceptable Use"
     },
     "Aside": {
       "titleLine1": "AI coworkers",
@@ -1281,8 +1281,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Log in / Register",
-        "template": "Sokosumi - %s"
+        "default": "{product} - Log in / Register",
+        "template": "{product} - %s"
       },
       "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
@@ -1323,7 +1323,7 @@
         },
         "Header": {
           "title": "Log in",
-          "description": "Hire agents on our platform",
+          "description": "Your AI coworker for marketing",
           "descriptionFor": "Log in with your Sokosumi account to continue to {client}",
           "titleCmo": "Log in to CMO.xyz",
           "descriptionCmo": "Cuso runs your marketing."
@@ -1383,7 +1383,7 @@
         "Header": {
           "title": "Create your account",
           "viaInvitation": "(via invitation)",
-          "description": "Hire agents on our platform",
+          "description": "Your AI coworker for marketing",
           "descriptionFor": "Create your Sokosumi account to continue to {client}",
           "titleCmo": "Create your CMO.xyz account",
           "descriptionCmo": "Cuso runs your marketing."
@@ -1474,6 +1474,7 @@
       "chooseAccountTitle": "Choose an account",
       "chooseAccountTitleFor": "Choose an account for {client}",
       "signedInAs": "Logged in to Sokosumi as <account>{email}</account>",
+      "signedInAsCmo": "Logged in as <account>{email}</account>",
       "continueAs": "Continue as {account}",
       "useAnotherAccount": "Use another account",
       "accountCheckError": "Could not check your account. Try again.",
@@ -1483,7 +1484,7 @@
       "backTo": "Back to {client}"
     },
     "SignInError": {
-      "accountNotLinked": "This email already has a Sokosumi account. Log in with your password or an email code first, then connect Google or Microsoft under Connections.",
+      "accountNotLinked": "This email already has an account. Log in with your password or an email code first, then connect Google or Microsoft under Connections.",
       "cancelled": "Sign-in was cancelled. Choose how you want to continue.",
       "generic": "We could not log you in. Please try again.",
       "expired": "That sign-in took too long or was started in another browser. Please try again.",
@@ -1812,6 +1813,8 @@
         "searchLabel": "Search archived tasks",
         "searchPlaceholder": "Search by name",
         "noMatches": "No archived tasks match “{query}”.",
+        "searchResults": "{count, plural, =0 {No archived tasks match “{query}”.} one {# archived task matches “{query}”.} other {# archived tasks match “{query}”.}}",
+        "searchResultsLimited": "Showing the latest {shown, number} of {total, number} archived tasks that match “{query}”.",
         "noProject": "No project",
         "archivedOn": "Archived {date}",
         "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
@@ -1846,6 +1849,8 @@
         "loading": "Loading...",
         "loadMore": "Load more"
       },
+      "noTitle": "(No title)",
+      "unansweredMention": "You have an unanswered mention",
       "createTaskFab": "Create task",
       "personalAssistant": "Personal assistant",
       "sokoBot": "Soko Bot",
@@ -1911,14 +1916,17 @@
         "workspaceTags": "Workspace tags",
         "archivedTags": "Archived tags",
         "topicTags": "Default topics",
-        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more"
+        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more",
+        "needsMe": "Needs me",
+        "needsMeHint": "Tasks that wait for a person, where you are the owner or the assignee",
+        "mentions": "Mentions",
+        "mentionsHint": "Tasks where a comment mentions you and you have not commented since"
       },
       "Detail": {
         "back": "Back to tasks",
         "backToCalendar": "Back to calendar",
         "privateBadge": "Private",
         "visibility": "Visibility",
-        "parentTask": "Parent:",
         "properties": "Properties",
         "status": "Status",
         "pendingApproval": "Pending approval",
@@ -1931,6 +1939,8 @@
         "updated": "Updated",
         "description": "Description",
         "context": "Context",
+        "subtasks": "Sub-tasks",
+        "subtaskOf": "Sub-task of",
         "copyIdentifier": "Copy task ID",
         "identifierCopied": "Copied {identifier}",
         "identifierCopyError": "Could not copy the task ID",
@@ -1997,12 +2007,16 @@
           "archive": "Archive",
           "archiveError": "Failed to archive task",
           "reopenToReady": "Reopen to Ready",
-          "reopenToReadyTitle": "Reopen task",
-          "reopenToReadyDescription": "Add a comment so your coworker knows what to do next. The task will move back to Ready.",
-          "reopenToReadyCommentLabel": "Comment",
-          "reopenToReadyCommentPlaceholder": "Describe what still needs to be done…",
           "reopenToReadyCommentRequired": "A comment is required to reopen this task",
-          "reopenToReadyConfirm": "Reopen to Ready",
+          "sendBack": {
+            "title": "Send back to {assignee}?",
+            "description": "Reopening moves it to Ready, and {assignee} starts a new run. Tell {assignee} what to do.",
+            "commentLabel": "What to fix",
+            "commentPlaceholder": "What should {assignee} change or redo?",
+            "confirm": "Send back to {assignee}",
+            "reopenAsDraft": "Reopen as draft",
+            "cancel": "Not now"
+          },
           "cancel": "Cancel",
           "share": "Share",
           "updateStatusSuccess": "Task status updated",
@@ -2015,19 +2029,32 @@
           "moveToWorkspaceCancel": "Cancel",
           "moveToWorkspaceSuccess": "Task moved successfully",
           "moveToWorkspaceError": "Failed to move task",
-          "markAs": "Mark as",
+          "linkToTask": "Link to task",
+          "linkPicker": {
+            "related": {
+              "title": "Link as related",
+              "description": "Pick a task. Each task lists the other under Related."
+            },
+            "blocks": {
+              "title": "Link as blocking",
+              "description": "Pick the task this one blocks. This task lists it under Blocking, and that task lists this one under Blocked by."
+            },
+            "blockedBy": {
+              "title": "Link as blocked by",
+              "description": "Pick the task this one waits on. This task lists it under Blocked by, and that task lists this one under Blocking."
+            },
+            "duplicate": {
+              "title": "Link as duplicate",
+              "description": "Pick the task this one repeats. Each task lists the other under Duplicate. Nothing is copied."
+            }
+          },
           "createRelated": "Create related",
           "removeRelated": "Remove related",
           "removeRelatedSuccess": "Related task removed",
           "removeRelatedError": "Failed to remove related task",
-          "removeParent": "Remove parent",
-          "removeParentSuccess": "Parent removed",
-          "removeParentError": "Failed to remove parent",
           "linkTaskSuccess": "Task linked",
           "linkTaskError": "Failed to link task",
           "createRelatedSuccess": "Related task created",
-          "taskPickerTitle": "{relation}...",
-          "taskPickerDescription": "Choose a task to link with the current task.",
           "taskPickerSearchPlaceholder": "Search tasks...",
           "taskPickerLoading": "Loading tasks...",
           "taskPickerEmpty": "No tasks found.",
@@ -2039,10 +2066,7 @@
             "related": "Related",
             "blocks": "Blocking",
             "blockedBy": "Blocked by",
-            "parent": "Parent task",
-            "subtask": "Sub-task",
-            "duplicate": "Duplicate",
-            "addSubtask": "Add sub-task"
+            "duplicate": "Duplicate"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Start working",
@@ -2053,7 +2077,7 @@
           "markComplete": "Mark complete",
           "repeat": "Repeat",
           "repeatError": "Couldn't open the schedule form. Try again.",
-          "duplicate": "Duplicate as draft",
+          "duplicate": "Copy as draft",
           "sendToChat": {
             "menuItem": "Send to chat",
             "title": "Send task to chat",
@@ -2072,6 +2096,23 @@
             "refused": "This chat can't receive this task anymore. Choose another one.",
             "retry": "Send again",
             "retryHint": "The last send may not have arrived. Sending again won't post it twice; changing the chat or message sends a new one."
+          },
+          "subtasks": {
+            "add": "Add sub-task…",
+            "addExisting": "Add existing Task as sub-task…",
+            "addExistingTitle": "Add existing Task as sub-task",
+            "addExistingDescription": "Choose a task. It becomes the last sub-task of this task.",
+            "addExistingSuccess": "Sub-task added",
+            "moveUnder": "Move under…",
+            "moveUnderTitle": "Move under another Task",
+            "moveUnderDescription": "Choose a task. This task becomes its last sub-task.",
+            "moveUnderSuccess": "Task moved",
+            "removeFromParent": "Remove from parent",
+            "removeFromParentSuccess": "Task removed from its parent",
+            "moveError": "Could not move the Task.",
+            "createSuccess": "Sub-task added",
+            "createError": "Could not add the sub-task.",
+            "serverErrorDescription": "Try again later."
           }
         },
         "ShareModal": {
@@ -2107,7 +2148,6 @@
           "confirm": "Switch workspace",
           "switchError": "Failed to switch workspace. Please try again."
         },
-        "clonedFrom": "Cloned from {name}",
         "VendorGrantApproval": {
           "title": "Vendor access approval required",
           "description": "A coworker created this task but does not have permission to create tasks in this workspace yet. Approve vendor access to activate it.",
@@ -2231,7 +2271,7 @@
         "cancel": "Cancel",
         "ctrl": "Ctrl",
         "taskCreated": "Task created",
-        "taskCreatedHint": "Everything's set up and ready to go.",
+        "taskCreatedHint": "{status, select, DRAFT {It's a draft in Backlog. Nothing starts until you set it to Ready.} QUEUED {It waits in Backlog and starts at the time you set.} other {It's in Todo, ready to start.}}",
         "goToTask": "Bring me to the task",
         "createAnother": "Create another task",
         "close": "Close",
@@ -2315,6 +2355,24 @@
           "tomorrowAt": "Starts tomorrow at {time}",
           "at": "Starts {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} of {total} sub-tasks done",
+        "title": "Sub-tasks",
+        "add": "Add sub-task",
+        "movedTo": "Moved to position {position} of {total}",
+        "reorderHandle": "Reorder {name}. Drag, or press the up and down arrow keys.",
+        "toggleLabel": "{name} done",
+        "agentDoneHint": "Unchecking sends it back to {assignee}",
+        "changeError": "Could not save the sub-task change. Try again.",
+        "truncated": "Showing the first {count} sub-tasks.",
+        "createDescription": "The sub-task goes last in the list.",
+        "name": "Name",
+        "description": "Description (optional)",
+        "assignee": "Assignee",
+        "dueOn": "Due date",
+        "cancel": "Cancel",
+        "create": "Add sub-task"
       },
       "Due": {
         "label": "Due date",
@@ -2578,7 +2636,18 @@
         "filter": {
           "placeholder": "Filter projects",
           "clear": "Clear filter",
-          "noMatches": "No projects match \"{query}\"."
+          "noMatches": "No projects match \"{query}\".",
+          "noMatchesIn": {
+            "open": "No open projects match \"{query}\".",
+            "hidden": "No hidden projects match \"{query}\".",
+            "closed": "No closed projects match \"{query}\"."
+          },
+          "elsewhere": "Matching projects are in another view.",
+          "showIn": {
+            "open": "Show open projects",
+            "hidden": "Show hidden projects",
+            "closed": "Show closed projects"
+          }
         },
         "lastActivity": "Last activity",
         "created": "Created",
@@ -2648,6 +2717,12 @@
           "undo": "Undo",
           "hideError": "Could not hide the project. Try again.",
           "showError": "Could not show the project. Try again."
+        },
+        "closing": {
+          "badge": "Closing",
+          "failedBadge": "Close failed",
+          "remaining": "{count, plural, =0 {Finishing up, then moves to Closed} one {# scheduled run left, then moves to Closed} other {# scheduled runs left, then moves to Closed}}",
+          "failed": "Open the project to retry the close."
         }
       },
       "column": {
@@ -2791,7 +2866,7 @@
           "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app under Connections."
         },
         "errors": {
-          "facebookPage": "Connect a Facebook account that manages exactly one Page. Accounts with no Pages or multiple Pages are not supported yet.",
+          "facebookPage": "That Facebook login manages no Page. Connect again with the login that manages your Page.",
           "inFlight": "Another account action is already in progress.",
           "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
           "timeout": "Authorization took too long. Try again.",
@@ -2804,14 +2879,23 @@
           "finalize": "We could not finish connecting this account. Try again.",
           "disconnect": "We could not disconnect this account. Try again.",
           "notConfigured": "This integration is not configured yet. Contact support to enable it.",
-          "sync": "Couldn't start sync."
+          "sync": "Couldn't start sync.",
+          "youtubeChannel": "That Google sign-in has no YouTube channel. Connect again and choose the channel's account on Google's screen."
         },
         "comingSoon": "Coming soon",
-        "linkedinPersonalOnly": "Personal profile only. Company pages aren't supported yet.",
         "personalProfile": "Personal profile",
         "connectComingSoon": "{provider} (coming soon)",
         "empty": "No accounts yet.",
-        "emptyHint": "Connect one to post."
+        "emptyHint": "Connect one to post.",
+        "choose": {
+          "title": "Which account?",
+          "description": "Your {provider} sign-in reaches more than one account. Posts go out as the one you choose.",
+          "listLabel": "Accounts",
+          "page": "Company page",
+          "profile": "Your personal profile",
+          "cancel": "Cancel",
+          "confirm": "Connect"
+        }
       },
       "SocialPosts": {
         "loadError": {
@@ -4346,9 +4430,11 @@
       }
     },
     "TikTokStudio": {
+      "addMusic": "Add background music (+{credits} credits)",
+      "addBroll": "Open with a generated clip (+{credits} credits)",
+      "showSite": "Show your website in the video",
       "postToTikTok": "Post to TikTok",
       "title": "TikTok Studio",
-      "intro": "A presenter speaks your script, with captions, ready for TikTok, Reels and Shorts.",
       "pickTitle": "Choose a project",
       "pickBody": "A talking video belongs to a project. Its brand writes the scripts and its Files keep the video.",
       "pickUnavailable": "That project is not available in this workspace. Choose another one.",
@@ -5495,6 +5581,161 @@
         "retry": "Try again"
       }
     },
+    "Competitors": {
+      "title": "Competitors",
+      "pickTitle": "Pick a project",
+      "pickBody": "Competitors belong to one project: who it watches and what the weekly check found. Choose a project to open its competitors.",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "loading": "Loading competitors…",
+      "error": {
+        "title": "Failed to load competitors",
+        "description": "Try again in a moment.",
+        "retry": "Try again"
+      },
+      "start": {
+        "title": "See what your competitors changed this week",
+        "body": "Once a week Sokosumi reads their websites, prices, news, ads and Instagram, and shows what changed with its source.",
+        "add": "Add by hand",
+        "price": "Finding competitors is free. The weekly check costs {credits} credits per competitor a week and stays off until you turn it on."
+      },
+      "example": {
+        "label": "Example",
+        "price": {
+          "name": "Acme",
+          "summary": "Pro plan $12 -> $10 per seat a month",
+          "quote": "Pro $10 per seat/month, billed yearly",
+          "source": "acme.com/pricing"
+        },
+        "news": {
+          "name": "Northwind",
+          "summary": "Northwind launched an AI assistant that books meetings",
+          "quote": "The assistant proposes three times that suit everyone.",
+          "source": "TechCrunch"
+        },
+        "website": {
+          "name": "Globex",
+          "summary": "Homepage now leads with sales teams, was freelancers",
+          "quote": "Built for revenue teams",
+          "source": "globex.com"
+        }
+      },
+      "check": {
+        "price": "{count, plural, =0 {It costs {each} credits per competitor a week.} one {It costs {credits} credits a week for # competitor.} other {It costs {credits} credits a week for # competitors, {each} each.}}",
+        "last": "Last check {last}, next {next}.",
+        "sourceFailed": "The last check could not read: {sources}. The next one tries again.",
+        "source": {
+          "pages": "websites",
+          "news": "news",
+          "ads": "ads",
+          "social": "Instagram"
+        },
+        "turnOn": "Turn on weekly check",
+        "turnOff": "Turn off",
+        "runNow": "Check now",
+        "failed": "That did not work. Try again.",
+        "outcome": {
+          "not_due": "A check is already running or was done this week.",
+          "no_competitors": "Add a competitor first.",
+          "paused": "The weekly check is off.",
+          "unfunded": "This check costs {credits} credits and the workspace has fewer. Add credits, then check again."
+        },
+        "status": {
+          "off": "The weekly check is off",
+          "running": "The first check is running",
+          "on": "The weekly check is on"
+        },
+        "running": "What it finds shows here in about a minute."
+      },
+      "list": {
+        "title": "Watching",
+        "count": "{count} of {limit}",
+        "emptyReadOnly": "Nobody yet.",
+        "noWebsite": "No website",
+        "pricingPage": "pricing page",
+        "facebook": "Facebook {handle}",
+        "editNamed": "Edit {name}",
+        "removeNamed": "Remove {name}",
+        "add": "Add competitor",
+        "full": "That is all {limit}. Remove one to watch another.",
+        "failed": "That did not work. Try again."
+      },
+      "form": {
+        "addTitle": "Add a competitor",
+        "editTitle": "Edit competitor",
+        "description": "The name is enough to find news. The website and pricing page let the check see what changed there.",
+        "name": {
+          "label": "Name",
+          "placeholder": "Acme"
+        },
+        "websiteUrl": {
+          "label": "Website",
+          "placeholder": "acme.com"
+        },
+        "pricingUrl": {
+          "label": "Pricing page",
+          "placeholder": "acme.com/pricing"
+        },
+        "instagramHandle": {
+          "label": "Instagram",
+          "placeholder": "@acme"
+        },
+        "facebookHandle": {
+          "label": "Facebook page",
+          "placeholder": "facebook.com/acme"
+        },
+        "cancel": "Cancel",
+        "add": "Add",
+        "save": "Save",
+        "failed": "That did not work. Try again."
+      },
+      "find": {
+        "title": "Find competitors",
+        "description": "Companies that sell what {project} sells, found from its website. Pick the ones to watch.",
+        "searching": "Looking for companies like {project}…",
+        "none": "No competitors found from the website. Add them by hand.",
+        "room": "{count, plural, one {You can add # more.} other {You can add # more.}}",
+        "free": "Finding competitors is free.",
+        "add": "{count, plural, =0 {Add} one {Add # competitor} other {Add # competitors}}",
+        "cancel": "Cancel",
+        "retry": "Search again",
+        "failed": "That did not work. Try again.",
+        "open": "Find competitors"
+      },
+      "thisWeek": {
+        "title": "This week",
+        "checked": "Check of {date}",
+        "quiet": "A quiet week: nothing to report.",
+        "unknown": "A competitor",
+        "big": "Big move",
+        "weak": "Partly backed",
+        "meaning": "What this means for you",
+        "move": "Suggested move",
+        "open": "Still open"
+      },
+      "findings": {
+        "title": "What changed",
+        "nothing": "No changes in the last five weeks.",
+        "kind": {
+          "WEBSITE_CHANGE": "Website",
+          "PRICE_CHANGE": "Price",
+          "NEWS": "News",
+          "AD": "Ads",
+          "SOCIAL": "Instagram"
+        },
+        "preview": "What the weekly check shows",
+        "example": "Example",
+        "running": "Nothing yet. What the first check finds shows here."
+      },
+      "scoreboard": {
+        "title": "Instagram",
+        "account": "Account",
+        "posts": "Posts a week",
+        "engagement": "Likes and comments per post",
+        "followers": "Followers",
+        "growth": "Followers gained in a week",
+        "you": "(you)"
+      }
+    },
     "Newsletter": {
       "title": "Newsletter",
       "description": "Each project has its own newsletter. Choose a project to manage it.",
@@ -5614,6 +5855,7 @@
           "schedules": "Schedules",
           "social": "Social posts",
           "ads": "Ads",
+          "competitors": "Competitors",
           "newsletter": "Newsletter",
           "contacts": "Contacts",
           "groups": {
@@ -5649,7 +5891,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, job results, images or files",
+      "description": "Search for tasks, tags, jobs, job results, images or files",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
@@ -5657,7 +5899,11 @@
       "created": "Created",
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
-      "filesFilenameMatch": "Filename match"
+      "filesFilenameMatch": "Filename match",
+      "tagsGroup": "Tags",
+      "tagTasksGroup": "Tasks tagged {tag}",
+      "tagsError": "Couldn't load tags",
+      "tagTasksError": "Couldn't load these tasks"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",
@@ -9117,6 +9363,7 @@
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back",
+        "backToYou": "Back to You",
         "goHome": "Go to home",
         "home": "Home",
         "searchAgents": "Search agents"
@@ -9745,6 +9992,7 @@
         "you": "You",
         "youNamed": "{name} (you)",
         "description": "Send yourself notes and to-dos. Only you can see them.",
+        "composerPlaceholder": "Write a note to yourself",
         "exclusive": "Self-chat cannot include other recipients."
       },
       "Signals": {
@@ -10880,6 +11128,59 @@
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"
         }
+      },
+      "Mcp": {
+        "title": "MCP servers",
+        "description": "Connect your bot to any remote MCP server. Sokosumi makes every call and keeps the key; the bot never sees it.",
+        "addTitle": "Add a server",
+        "nameLabel": "Name",
+        "namePlaceholder": "Linear",
+        "urlLabel": "Address",
+        "authLabel": "Sign-in",
+        "authBearer": "API key",
+        "authHeader": "Key in a custom header",
+        "authNone": "None",
+        "keyLabel": "Key",
+        "headerNameLabel": "Header name",
+        "connect": "Connect",
+        "addHelp": "Sokosumi reads the server's tools right away.",
+        "added": "{name} is connected",
+        "addError": "Could not connect the server",
+        "toolCount": "{enabled} of {total} tools on",
+        "refresh": "Read {name}'s tools again",
+        "refreshed": "{name}'s tools are up to date",
+        "refreshError": "Could not read the server's tools",
+        "remove": "Remove {name}",
+        "removeError": "Could not remove the server",
+        "reads": "Reads",
+        "changes": "Changes things",
+        "kindLabel": "What {name} does",
+        "enabledLabel": "Let the bot use {name}",
+        "toolError": "Could not change the tool",
+        "authOauth": "Sign in on the server's page",
+        "signIn": "Sign in",
+        "signInNeeded": "Sign in to this server before your bot can use it.",
+        "signInError": "Could not start signing in"
+      },
+      "Shell": {
+        "title": "Command-line tools",
+        "description": "Set up the tools your bot's shell needs. Its sandbox starts empty each turn, so these run again every time.",
+        "commandsTitle": "Setup commands",
+        "commandsHelp": "One command per line, up to ten. They run before each turn that has a shell.",
+        "saveCommands": "Save commands",
+        "commandsSaved": "Setup commands saved",
+        "commandsError": "Could not save the setup commands",
+        "keysTitle": "Keys",
+        "keysHelp": "A key with shell access reaches every command as an environment variable of that name. The bot sees the name, not the value, but a command it runs can read the value, so add only keys you would give to a script.",
+        "keyNameLabel": "Key name",
+        "keyValueLabel": "Key value",
+        "keyValuePlaceholder": "Paste the key",
+        "addKey": "Add key",
+        "keySaved": "{name} saved",
+        "keyError": "Could not save the key",
+        "shellAccess": "Shell access",
+        "shellAccessLabel": "Let shell commands use {name}",
+        "deleteKey": "Delete {name}"
       }
     },
     "SokoBots": {
@@ -11196,6 +11497,21 @@
       "descending": "descending",
       "noHistory": "No changes recorded.",
       "undoBatch": "Undo batch",
+      "findReplace": {
+        "title": "Find and replace",
+        "description": "Change every cell in one column that holds exactly the value you look for, ignoring capitals. It saves as one change you can undo from History and sources.",
+        "column": "Column",
+        "find": "Find",
+        "replace": "Replace with",
+        "replaceEmpty": "Leave empty to clear the cells",
+        "findMatches": "Find matches",
+        "matches": "{count, plural, one {# cell will change.} other {# cells will change.}}",
+        "unchanged": "Every matching cell already holds the new value. Nothing to change.",
+        "none": "No cell in this column holds exactly that value. Check spaces and spelling.",
+        "tooMany": "More than {limit} cells in this column contain that text, and Find and replace checks up to {limit}. Nothing was changed.",
+        "apply": "{count, plural, one {Replace # cell} other {Replace # cells}}",
+        "done": "{count, plural, one {Replaced # cell.} other {Replaced # cells.}} You can undo it from History and sources."
+      },
       "before": "Before",
       "after": "After",
       "openTask": "Open task",
@@ -12522,7 +12838,7 @@
           "search_console": "Searches, clicks and positions in Google Search",
           "ga4": "Visits and page views on your site"
         },
-        "propertyNotMatching": "It does not cover the selected pages, so no statistics load from it."
+        "propertyNotMatching": "No Search Console property covers all selected pages on {sites}. Check this Google account’s property access or select pages from one property."
       },
       "metrics": {
         "page_views": "Page views",
@@ -13805,7 +14121,7 @@
   },
   "CookieConsent": {
     "title": "We use cookies",
-    "body": "Necessary cookies keep Sokosumi working. With your OK we also use analytics and marketing cookies to improve the product.",
+    "body": "Necessary cookies keep {product} working. With your OK we also use analytics and marketing cookies to improve the product.",
     "policyLink": "Cookie Policy",
     "acceptAll": "Accept all",
     "rejectAll": "Reject non-essential",
@@ -13816,7 +14132,7 @@
     "analyticsTitle": "Analytics",
     "analyticsBody": "Usage measurement with Google Analytics. While you are logged in, a pseudonymous account ID links your visits — never your name or email.",
     "marketingTitle": "Marketing",
-    "marketingBody": "Lets us measure ad campaigns and reach people who might find Sokosumi useful.",
+    "marketingBody": "Lets us measure ad campaigns and reach people who might find {product} useful.",
     "settings": "Cookie settings"
   },
   "WorkspaceGate": {

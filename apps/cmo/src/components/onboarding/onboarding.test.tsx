@@ -109,6 +109,19 @@ describe("pre-hire Site", () => {
     expect(html).not.toContain('name="organizationId"');
   });
 
+  it("marks a test copy and leaves out where he goes: Core puts him beside his source", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        organizations={[{ id: "org-1", name: "Agency" }]}
+        testCopyOf="project-source"
+        onboard={async () => ({ attempt: 0, websiteUrl: "", errors: {} })}
+      />,
+    );
+    expect(html).toContain('name="testCopyOf" value="project-source"');
+    expect(html).toContain("Test copy.");
+    expect(html).not.toContain('name="organizationId"');
+  });
+
   it("asks where Cuso goes, with a new organization selected", () => {
     const html = renderToStaticMarkup(
       <Onboarding
@@ -160,6 +173,19 @@ describe("step markers", () => {
 });
 
 describe("Site while Cuso reads", () => {
+  it("shows his steps, never his raw thinking", () => {
+    const html = site({
+      ...reading(),
+      activity: {
+        step: "Comparing competitors",
+        reasoning: "It seems like I might not need to do competitor research.",
+      },
+    });
+    expect(html).toContain("Reading your site");
+    expect(html).not.toContain("It seems like");
+    expect(html).not.toContain("working-why");
+  });
+
   it("shows the read live and says questions come when it lands", () => {
     const html = site(reading());
     expect(html).toContain("Reading acme.io.");
@@ -370,11 +396,33 @@ describe("Brand", () => {
         brandMedia: {
           capturedAt: "2026-10-05T09:02:00Z",
           pages: [
-            { ...shot, label: "Home", device: "desktop" },
-            { ...shot, label: "Home", device: "mobile" },
+            { ...shot, label: "Home", device: "desktop", fullUrl: null },
+            { ...shot, label: "Home", device: "mobile", fullUrl: null },
+            {
+              ...shot,
+              url: "/pricing.jpg",
+              label: "Pricing",
+              pageUrl: "https://acme.io/plans",
+              device: "desktop",
+              fullUrl: null,
+            },
+          ],
+          sections: [
+            {
+              ...shot,
+              url: "/plans.jpg",
+              kind: "pricing",
+              title: "Plans for every launch",
+              pageLabel: "Pricing",
+            },
           ],
           competitors: [],
           pictures: [],
+          logos: {
+            logo: { url: "/logo.png", fileId: null },
+            dark: null,
+            mark: { url: "/mark.png", fileId: null },
+          },
         },
         brandVisual: {
           logoUrl: null,
@@ -389,9 +437,89 @@ describe("Brand", () => {
     expect(html).toContain("Your site");
     expect(html).toContain("acme.io homepage");
     expect(html).toContain("acme.io on a phone");
+    // The pages Cuso read and what he cut from them, under one fold.
+    expect(html).toContain("What I found on your site");
+    expect(html).toContain('alt="Your logo"');
+    expect(html).toContain('alt="Your mark"');
+    expect(html).not.toContain("on a dark background");
+    expect(html).toContain('href="https://acme.io/plans"');
+    expect(html).toContain(
+      "Pricing on the Pricing page: Plans for every launch",
+    );
     expect(html.match(/ob-swatches/g)).toHaveLength(1);
     expect(html.match(/<li style="background:/g)).toHaveLength(5);
     expect(render(draft())).not.toContain("Your site");
+  });
+
+  it("leaves out a voice Cuso could not read, and names the font as a font", () => {
+    const html = render(
+      draft({
+        brandBrain: { ...brain, voice: { ...brain.voice, tone: "Unknown." } },
+        brandVisual: {
+          logoUrl: null,
+          colors: [],
+          fonts: ["Auto Pro"],
+          siteName: "Acme",
+          designMdUrl: null,
+          images: [],
+        },
+      }),
+    );
+    expect(html).not.toContain(">Your voice<");
+    expect(html).not.toContain("Unknown.");
+    expect(html.replace(/<[^>]+>/g, "")).toContain("Font: Auto Pro");
+    // The name stands in its own face where the device has it.
+    expect(html).toContain(
+      "font-family:&quot;Auto Pro&quot;, var(--font-sans)",
+    );
+  });
+
+  it("shows the brand's colours as swatches in the look row, never as hex codes", () => {
+    const html = render(
+      draft({
+        brandVisual: {
+          logoUrl: null,
+          colors: ["#ff51ff", "#0c0c0c"],
+          fonts: [],
+          siteName: "Acme",
+          designMdUrl: null,
+          images: [],
+        },
+      }),
+    );
+    const row = html.slice(html.indexOf(">Your look<"));
+    const detail = row.slice(0, row.indexOf("</button>"));
+    expect(detail).toContain('class="ob-look-dots"');
+    expect(detail).toContain("background:#ff51ff");
+    expect(detail.replace(/<[^>]+>/g, "")).not.toContain("#ff51ff");
+  });
+
+  it("counts an account the owner connected as a profile, and says when the site links to none", () => {
+    const onlySite = {
+      ...brain,
+      channels: [{ name: "Website", url: "https://acme.io" }],
+    };
+    const none = render(draft({ brandBrain: onlySite, channels: [] }));
+    expect(none).toContain("1 profile");
+    expect(none).toContain("No social profile is linked on your site.");
+    const connected = render(
+      draft({
+        brandBrain: onlySite,
+        channels: [
+          {
+            id: "c1",
+            provider: "x",
+            handle: "@acme",
+            displayName: "Acme",
+            status: "ACTIVE",
+            personalProfile: false,
+          },
+        ],
+      }),
+    );
+    expect(connected).toContain("2 profiles");
+    expect(connected).toContain("Website, X");
+    expect(connected).not.toContain("No social profile is linked");
   });
 
   it("counts unanswered questions", () => {
@@ -420,6 +548,23 @@ describe("Plan", () => {
     expect(html).toContain("Your channels");
     expect(html).toContain("Choosing your idea, channels and pillars");
     expect(html).not.toContain("Approve strategy");
+  });
+
+  it("shows his steps while he plans, never his raw thinking", () => {
+    const html = plan(
+      draft({
+        strategy: null,
+        work: work("strategy"),
+        activity: {
+          step: "Planning",
+          reasoning: "I'm thinking about the save_strategy part patch.",
+        },
+      }),
+      "planning",
+    );
+    expect(html).toContain("Your channels");
+    expect(html).not.toContain("save_strategy");
+    expect(html).not.toContain("working-why");
   });
 
   it("shows the plan in the feed as Cuso saves it", () => {
@@ -504,7 +649,7 @@ describe("Plan", () => {
     expect(html).toContain("Why this strategy");
   });
 
-  it("is read-only once approved: answers, pace and budget as text, no change", () => {
+  it("is read-only once approved: answers and budget as text, no change", () => {
     const base = draft(cmoStrategyVersion(new Date()));
     const html = renderToStaticMarkup(
       <PlanStep
@@ -543,8 +688,8 @@ describe("Plan", () => {
     expect(html).toContain("Continue to Launch");
     expect(html).toContain("Do you ship every month?");
     expect(html).toContain("Every quarter");
-    expect(html).toContain("Pace:");
-    expect(html).toContain("two a day on each network");
+    expect(html).not.toContain("Pace:");
+    expect(html).not.toContain("two a day on each network");
     expect(html).toContain("€200 a month for ads");
     for (const live of [
       "Ask for a change",
@@ -597,6 +742,11 @@ describe("Plan", () => {
     const html = plan(questionsOn(["yes", "no"]));
     expect(html).toContain("Update strategy");
     expect(html).not.toContain("Approve strategy");
+    // Said beside the checks, where the owner just answered.
+    expect(html).toContain("still shows your old answer");
+    expect(plan(questionsOn(["yes", "yes"]))).not.toContain(
+      "still shows your old answer",
+    );
     expect(html).toContain("Many more");
   });
 
@@ -615,7 +765,7 @@ describe("Plan", () => {
         },
       },
     });
-    expect(html).toContain("Active");
+    expect(html).toContain("written at the most a plan makes");
     expect(html).toContain("€200 a month for ads");
     expect(html).not.toContain("OK for ads");
   });
@@ -669,13 +819,14 @@ describe("Launch", () => {
     handle: "acme",
     displayName: "Acme",
     status: "ACTIVE",
+    personalProfile: false,
   });
 
   it("offers to connect only the social networks in the plan", () => {
     expect(strategySocialChannels(draft())).toEqual(["linkedin", "x"]);
   });
 
-  it("shows the plan's own ads as optional too", () => {
+  it("shows the month's own ads as planned, never as an optional extra", () => {
     const ad = {
       id: "ad-1",
       date: "2026-10-05",
@@ -685,19 +836,58 @@ describe("Launch", () => {
       status: "idea" as const,
     };
     const ads = feedScreens([ad]).find((screen) => screen.key === "ads");
-    expect(ads).toMatchObject({
-      optional: true,
-      perMonth: 1,
-      name: "Meta ads",
-    });
+    expect(ads).toMatchObject({ name: "Meta ads", ads: "meta_ads" });
+    expect(ads?.optional).toBeUndefined();
   });
 
-  it("makes ads and proposed channels optional, and leaves the newsletter out", () => {
+  it("offers every channel CMO can connect beyond the plan's networks, and leaves the newsletter out", () => {
+    // The plan's ads and Cuso's proposals first, then every other network.
     expect(optionalChannels(approved()).map((channel) => channel.key)).toEqual([
       "meta_ads",
       "google_ads",
       "instagram",
+      "facebook",
+      "youtube",
     ]);
+    const html = render(approved());
+    for (const name of ["Facebook", "YouTube", "Google Ads"])
+      expect(html).toMatch(new RegExp(`button-small[^>]*>${name}[,<]`));
+    expect(html).not.toContain("TikTok");
+  });
+
+  it("offers TikTok where Core lets this Project connect it", () => {
+    expect(
+      optionalChannels(approved({ tiktokEnabled: true })).map(
+        (channel) => channel.key,
+      ),
+    ).toContain("tiktok");
+  });
+
+  it("offers the places Cuso reads the numbers from, until each is connected", () => {
+    const source = (
+      provider: CmoOverview["measurement"][number]["provider"],
+      name: string,
+      status: CmoOverview["measurement"][number]["status"],
+    ) => ({ provider, name, measures: "Visits", status });
+    const overview = approved({
+      measurement: [
+        source("google_analytics", "Google Analytics", "none"),
+        source("google_search_console", "Search Console", "connected"),
+      ] as CmoOverview["measurement"],
+    });
+    const html = renderToStaticMarkup(
+      <LaunchStep
+        overview={overview}
+        onConnect={async () => ({ url: null, error: null })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
+        onGoToday={() => {}}
+      />,
+    );
+    expect(html).toContain(">Google Analytics</button>");
+    expect(html).not.toContain(">Search Console</button>");
   });
 
   it("lists only the plan's networks, with their pieces, and no newsletter", () => {

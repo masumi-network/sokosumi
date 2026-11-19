@@ -18,7 +18,7 @@ interface AppHeaderFallbackProps {
 export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
   return (
     <HeaderChrome className={className}>
-      <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
+      <div className="flex h-8 min-w-8 shrink-0 items-center justify-center md:hidden">
         <Suspense fallback={<HeaderLeadingBrandFallback />}>
           <HeaderLeadingControl />
         </Suspense>

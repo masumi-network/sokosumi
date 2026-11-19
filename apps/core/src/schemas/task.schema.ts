@@ -383,6 +383,26 @@ const taskBaseSchema = z.object({
       "The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.",
     example: "2026-11-20",
   }),
+  parentTaskId: z.string().nullable().openapi({
+    description:
+      "The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.",
+    example: null,
+  }),
+  position: z.number().nullable().openapi({
+    description:
+      "Order among the parent's sub-tasks, ascending. Null when parentTaskId is null.",
+    example: null,
+  }),
+  subtaskProgress: z
+    .object({
+      completed: z.number().int().nonnegative(),
+      total: z.number().int().nonnegative(),
+    })
+    .openapi("TaskSubtaskProgress", {
+      description:
+        "Direct, non-archived sub-tasks: how many are COMPLETED, and how many there are.",
+      example: { completed: 3, total: 5 },
+    }),
   scheduleId: z.string().uuid().nullable().openapi({
     description:
       "Task Schedule whose Run created this Task. Read-only; null when it was created by hand or its schedule was deleted.",
@@ -408,6 +428,13 @@ const taskListItemSchema = taskBaseSchema
       description:
         "When the Task last changed status, or its creation time if it never did.",
     }),
+    // Optional on the wire: only a person has mentions, and a Web build
+    // that reaches a Core without the field (deploy order) reads none.
+    hasUnansweredMention: z.boolean().optional().openapi({
+      example: false,
+      description:
+        "True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.",
+    }),
   })
   .openapi("TaskListItem");
 
@@ -432,6 +459,23 @@ export const taskSchema = taskBaseSchema
       example: [],
       description: "Files uploaded to this task (newest first).",
     }),
+    ancestors: z
+      .array(
+        z
+          .object({
+            id: z.string(),
+            identifier: z.string().nullable(),
+            name: z.string(),
+            status: taskStatusSchema,
+          })
+          .openapi("TaskAncestor"),
+      )
+      .optional()
+      .openapi({
+        example: [],
+        description:
+          "For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.",
+      }),
     selectableStatuses: z.array(taskStatusSchema).openapi({
       example: [TaskStatus.DRAFT, TaskStatus.RUNNING, TaskStatus.COMPLETED],
       description:

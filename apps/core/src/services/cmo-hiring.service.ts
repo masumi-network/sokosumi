@@ -50,9 +50,15 @@ import {
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import {
+  linkTestCopyConnections,
+  requireTestCopySource,
+  tearDownTestCopyFor,
+} from "@/services/cmo-test-copy.service";
+import {
   cmoChangeKind,
   STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
+import { isTestCopyProject } from "@/services/project-test-copy";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -522,12 +528,36 @@ export async function retryCmoOnboarding(
 const UNSENT_POST_STATUSES = ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] as const;
 
 /**
+ * The owner's time zone for this Cuso: his routines keep their local times
+ * ("every day at 09:00") and move to the new zone, next runs included.
+ */
+export async function setCmoTimeZone(
+  target: CusoTarget,
+  timeZone: string,
+): Promise<void> {
+  const cuso = await requireCuso(target);
+  await prisma.sokoBot.updateMany({
+    where: { id: cuso.sokoBotId },
+    data: { ingestTimezone: timeZone },
+  });
+  const { retimeSystemSchedules } = await import(
+    "@/services/soko-bot-proactive.service"
+  );
+  await retimeSystemSchedules(cuso.sokoBotId, timeZone);
+}
+
+/**
  * Lets this person hire Cuso again for another website: the Cuso they work
  * with is archived (his running work stops) and his posts that have not gone
  * out are canceled. His organization, Project and Files stay in Sokosumi.
  * Only an organization owner or admin may (the archive checks).
  */
 export async function startCmoOver(target: CusoTarget): Promise<void> {
+  // Start over on a test copy is its teardown, which whoever made it may do.
+  if (await isTestCopyProject(target.projectId)) {
+    await tearDownTestCopyFor(target);
+    return;
+  }
   const { userId } = target;
   const cuso = await requireCuso(target);
   const { sokoBotControlPlane } = await import(
@@ -793,6 +823,10 @@ export async function startCmoOnboarding(input: {
   userId: string;
   websiteUrl: string;
   organizationId?: string | undefined;
+  /** The owner's time zone, from their browser. */
+  timeZone?: string | undefined;
+  /** Hire a test copy of this Project's Cuso, in his organization (ADR 0073). */
+  testCopyOfProjectId?: string | undefined;
 }): Promise<Cuso> {
   // shortcut: two racing submits can hire twice, in two organizations or in
   // one; the start form submits once. Add a per-person lock if duplicates
@@ -806,25 +840,37 @@ export async function startCmoOnboarding(input: {
     );
   }
   await requireNoUnpaidCuso(input.userId);
+  const sourceProjectId = input.testCopyOfProjectId;
+  // A test copy goes into its source's organization, whatever was asked.
+  const organizationId = sourceProjectId
+    ? await requireTestCopySource({
+        userId: input.userId,
+        sourceProjectId,
+        organizationId: input.organizationId,
+      })
+    : input.organizationId;
   // Organization names take 2 to 50 characters.
   const businessName = cmoBusinessNameFromUrl(input.websiteUrl)
     .slice(0, 50)
     .padEnd(2, ".");
-  const workspace = input.organizationId
+  const workspace = organizationId
     ? await existingOrganizationWorkspace({
         userId: input.userId,
-        organizationId: input.organizationId,
+        organizationId,
       })
     : await newOrganizationWorkspace({ ...input, businessName });
-  const organizationId = workspace.organizationId;
-  if (!organizationId) throw new Error("Cuso's workspace has no organization");
-  await requireHirerSeat(input.userId, organizationId);
+  if (!workspace.organizationId)
+    throw new Error("Cuso's workspace has no organization");
+  await requireHirerSeat(input.userId, workspace.organizationId);
 
   const project = await prisma.project.create({
     data: {
       workspaceId: workspace.id,
-      name: cmoProjectName(businessName),
+      name: sourceProjectId
+        ? `${cmoProjectName(businessName).slice(0, 108)} (test copy)`
+        : cmoProjectName(businessName),
       websiteUrl: input.websiteUrl,
+      testCopyOfProjectId: sourceProjectId ?? null,
     },
     select: { id: true },
   });
@@ -841,11 +887,19 @@ export async function startCmoOnboarding(input: {
       projectId: project.id,
       name: CUSO_NAME,
       versionId: CMO_SOKO_BOT_VERSION_ID,
+      ...(input.timeZone ? { timezone: input.timeZone } : {}),
     });
     sharedRoomId = bot.sharedRoomId;
     const cuso = await findCusoForBot(bot.id);
     if (!cuso) throw new Error("Cuso was not created");
     created = cuso;
+    if (sourceProjectId) {
+      await linkTestCopyConnections({
+        projectId: project.id,
+        sourceProjectId,
+        actorId: input.userId,
+      });
+    }
   } catch (error) {
     // No stray Project, Cuso or room: deleting the Project cascades to his
     // bot, which only lets go of its shared room. The Project is the one made

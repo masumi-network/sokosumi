@@ -5,8 +5,11 @@ import { afterAll, describe, expect, it } from "vitest";
 import {
   citableSources,
   htmlToText,
+  readWorkspaceFile,
   readWorkspaceUpload,
   runCommand,
+  runSetupCommands,
+  setShellSecrets,
   socialLinks,
   WORKSPACE,
   workspacePath,
@@ -114,6 +117,43 @@ describe("commands", () => {
     const result = await runCommand({ command: 'echo "$NODE_EXTRA_CA_CERTS"' });
     delete process.env.NODE_EXTRA_CA_CERTS;
     expect(result.stdout.trim()).toBe("/etc/sandbox-ca.pem");
+  });
+});
+
+describe("shell keys", () => {
+  const KEY = "vercel_tok_8d2f91c4";
+  afterAll(() => setShellSecrets({}));
+
+  it("gives commands the allowed keys and hides their values in the output", async () => {
+    setShellSecrets({ VERCEL_TOKEN: KEY });
+    const result = await runCommand({
+      command: 'echo "token=$VERCEL_TOKEN"; echo "$VERCEL_TOKEN" >&2',
+    });
+    expect(result.stdout.trim()).toBe("token=[secret VERCEL_TOKEN]");
+    expect(result.stderr.trim().split("\n").at(-1)).toBe(
+      "[secret VERCEL_TOKEN]",
+    );
+    expect(JSON.stringify(result)).not.toContain(KEY);
+  });
+
+  it("hides a key a command wrote into a workspace file", async () => {
+    setShellSecrets({ VERCEL_TOKEN: KEY });
+    await runCommand({ command: 'echo "$VERCEL_TOKEN" > .key-test.txt' });
+    const read = await readWorkspaceFile({ path: ".key-test.txt" });
+    await rm(workspacePath(".key-test.txt"));
+    expect(read.content.trim()).toBe("[secret VERCEL_TOKEN]");
+  });
+
+  it("names each setup command that failed, and nothing when all ran", async () => {
+    setShellSecrets({});
+    expect(await runSetupCommands(["true", "echo ok"])).toBeNull();
+    const failed = await runSetupCommands([
+      "true",
+      "echo 'no such package' >&2; exit 3",
+    ]);
+    expect(failed).toContain(
+      "\"echo 'no such package' >&2; exit 3\" (exit 3: no such package)",
+    );
   });
 });
 

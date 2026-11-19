@@ -179,6 +179,8 @@ import type {
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
+  ProjectCompetitorCreate,
+  ProjectCompetitorUpdate,
   PutChatsSignalsMessagesByMessageIdCorrectionsData,
   PutChatsSignalsMessagesByMessageIdLoopData,
   PutJobsByIdShareError,
@@ -203,6 +205,7 @@ import {
   addAdminMatchedChannelParticipant as coreAddAdminMatchedChannelParticipant,
   addAdminMatchedChannelParticipantsFromOrganization as coreAddAdminMatchedChannelParticipantsFromOrganization,
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
+  addProjectCompetitor as coreAddProjectCompetitor,
   aggregateAdminTaskX402PaymentsByAgent as coreAggregateAdminTaskX402PaymentsByAgent,
   archiveAdminMatchedChannel as coreArchiveAdminMatchedChannel,
   assignAdminOrganizationMemberSeat as coreAssignAdminOrganizationMemberSeat,
@@ -334,6 +337,7 @@ import {
   getOrganizationsByIdSubscriptionSeats as coreGetOrganizationsByIdSubscriptionSeats,
   getOrganizationsByIdSubscriptionSeatsPreview as coreGetOrganizationsByIdSubscriptionSeatsPreview,
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
+  getProjectCompetitors as coreGetProjectCompetitors,
   getProjects as coreGetProjects,
   getProjectsActivity as coreGetProjectsActivity,
   getProjectsById as coreGetProjectsById,
@@ -594,19 +598,24 @@ import {
   refundAdminTaskX402Payment as coreRefundAdminTaskX402Payment,
   removeAdminMatchedChannelParticipant as coreRemoveAdminMatchedChannelParticipant,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
+  removeProjectCompetitor as coreRemoveProjectCompetitor,
   resolveAdminTaskX402Payment as coreResolveAdminTaskX402Payment,
   restoreAdminMatchedChannel as coreRestoreAdminMatchedChannel,
   revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
+  runProjectCompetitorCheck as coreRunProjectCompetitorCheck,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
   searchChatSkills as coreSearchChatSkills,
+  setProjectCompetitorChecks as coreSetProjectCompetitorChecks,
   startAdminBadgeCampaign as coreStartAdminBadgeCampaign,
   startAdminImpersonation as coreStartAdminImpersonation,
   stopAdminImpersonation as coreStopAdminImpersonation,
+  suggestProjectCompetitors as coreSuggestProjectCompetitors,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminBadgeCampaign as coreUpdateAdminBadgeCampaign,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
+  updateProjectCompetitor as coreUpdateProjectCompetitor,
   NoticeKind,
 } from "@sokosumi/core-client";
 import {
@@ -618,6 +627,7 @@ import {
 import { createSokoBotClient } from "./core.soko-bot";
 import { createSokoBotAvatarClient } from "./core.soko-bot-avatars";
 import { createTaskInterestClient } from "./core.task-interest";
+import { createTaskSubtasksClient } from "./core.task-subtasks";
 
 export type CoreApiPagination = PaginationMetadata;
 
@@ -5011,6 +5021,77 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectCompetitors(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectCompetitors({ client, path: { id }, cache: "no-store" }),
+      "Failed to fetch Project competitors",
+    );
+  }
+
+  async function addProjectCompetitor(
+    id: string,
+    body: ProjectCompetitorCreate,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreAddProjectCompetitor({ client, path: { id }, body }),
+      "Failed to add competitor",
+    );
+  }
+
+  async function updateProjectCompetitor(
+    id: string,
+    competitorId: string,
+    body: ProjectCompetitorUpdate,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreUpdateProjectCompetitor({
+          client,
+          path: { id, competitorId },
+          body,
+        }),
+      "Failed to change competitor",
+    );
+  }
+
+  async function removeProjectCompetitor(id: string, competitorId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRemoveProjectCompetitor({ client, path: { id, competitorId } }),
+      "Failed to remove competitor",
+    );
+  }
+
+  async function setProjectCompetitorChecks(id: string, on: boolean) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetProjectCompetitorChecks({ client, path: { id }, body: { on } }),
+      "Failed to change the weekly competitor check",
+    );
+  }
+
+  async function runProjectCompetitorCheck(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreRunProjectCompetitorCheck({ client, path: { id } }),
+      "Failed to run the competitor check",
+    );
+  }
+
+  async function suggestProjectCompetitors(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSuggestProjectCompetitors({ client, path: { id } }),
+      "Failed to find competitors",
+    );
+  }
+
   async function getProjectsByIdAdsAccounts(id: string) {
     return executeCoreOperation(
       getClient,
@@ -7399,6 +7480,13 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdClose,
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
+    getProjectCompetitors,
+    addProjectCompetitor,
+    updateProjectCompetitor,
+    removeProjectCompetitor,
+    setProjectCompetitorChecks,
+    runProjectCompetitorCheck,
+    suggestProjectCompetitors,
     getProjectsByIdAdsAccounts,
     getProjectsByIdAdsAccountsByAccountIdCampaigns,
     getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
@@ -7518,6 +7606,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     ...createSokoBotAvatarClient(getClient),
     ...createSokoBotClient(getClient),
     ...createTaskInterestClient(getClient),
+    ...createTaskSubtasksClient(getClient),
     postPublicNewslettersByPublicSlugSubscribe,
     getPublicNewslettersByPublicSlug,
     getPublicNewslettersByPublicSlugIssues,

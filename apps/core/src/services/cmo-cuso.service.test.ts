@@ -214,9 +214,39 @@ describe("cmoBusinessNameFromUrl", () => {
 describe("listCmoChannels", () => {
   it("reads Project Social's lower-case status as ACTIVE", async () => {
     connectionFindMany.mockResolvedValue([
-      { id: "c1", provider: "linkedin", status: "active" },
+      {
+        id: "c1",
+        provider: "linkedin",
+        status: "active",
+        externalAccountId: "9Acyt0wAkf",
+      },
     ]);
     expect((await listCmoChannels("project-1"))[0]?.status).toBe("ACTIVE");
+  });
+
+  it("tells a LinkedIn profile from a company Page", async () => {
+    connectionFindMany.mockResolvedValue([
+      {
+        id: "c1",
+        provider: "linkedin",
+        status: "active",
+        externalAccountId: "9Acyt0wAkf",
+      },
+      {
+        id: "c2",
+        provider: "linkedin",
+        status: "active",
+        externalAccountId: "urn:li:organization:42",
+      },
+      { id: "c3", provider: "x", status: "active", externalAccountId: "1" },
+    ]);
+    const channels = await listCmoChannels("project-1");
+    expect(channels.map((channel) => channel.personalProfile)).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    expect(channels[0]).not.toHaveProperty("externalAccountId");
   });
 });
 

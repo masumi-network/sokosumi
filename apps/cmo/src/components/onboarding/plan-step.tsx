@@ -10,9 +10,8 @@ import { changeIdeas } from "../../lib/change-ideas";
 import { channelInfo } from "../../lib/channels";
 import { strategyApproved } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
-import { ReasoningLine } from "../cuso-trace";
 import { EntrySheet } from "../entry-sheet";
-import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
+import { AdBudget, money } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
@@ -279,7 +278,6 @@ function Planning({
           </p>
         )}
         {elapsed ? <p className="ob-small muted num">{elapsed}</p> : null}
-        {running ? <ReasoningLine activity={overview.activity} /> : null}
         <Checklist items={checklist} />
         <div className="ob-feed" aria-label="What Cuso is writing">
           <p className="ob-feed-title">
@@ -447,9 +445,6 @@ export function PlanReview({
     strategy: { ...strategy, questions },
   });
   const pieces = strategy.calendar.length;
-  const pages =
-    overview.brandMedia?.pages.filter((page) => page.device === "desktop")
-      .length ?? 0;
 
   // Plain async, not a transition: React holds a transition's state updates
   // until it ends, and the re-planning screen must show on the tap. A refusal
@@ -479,13 +474,24 @@ export function PlanReview({
     );
   }
 
-  const written = strategy.contentLanguage
-    ? ` Written in ${strategy.contentLanguage}.`
-    : "";
-  const line =
-    pages > 0
-      ? `${AGENT_NAME} · built from your answers and ${pages} ${pages === 1 ? "page" : "pages"} of your site.${written}`
-      : `${AGENT_NAME} · ${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks.${written}${approved ? "" : " Nothing goes out until you approve the strategy."}`;
+  // Same path as a change, and not in a transition (which would hold the
+  // waiting screen back): the plan waits while Cuso refits it.
+  const update = () => {
+    setRefusal(null);
+    send("Fitting your strategy to your answers", onUpdate).catch(() => {});
+  };
+
+  // What it rests on and the language of the posts, in plain words. No page
+  // count: the screenshots Core keeps are not the pages Cuso read.
+  const line = [
+    `${pieces} ${pieces === 1 ? "post" : "posts"} for the next four weeks, built from your website and your answers.`,
+    strategy.contentLanguage
+      ? `The posts are written in ${strategy.contentLanguage}.`
+      : null,
+    approved ? null : "Nothing goes out until you approve the strategy.",
+  ]
+    .filter(Boolean)
+    .join(" ");
   // The short goal is the headline; the long sentence sits under it.
   const sentence = strategy.idea?.sentence ?? strategy.summary;
   const goal = outcomeLine(strategy) || firstClause(sentence);
@@ -504,12 +510,8 @@ export function PlanReview({
       disabled={going || busy}
       onClick={() => {
         setRefusal(null);
-        // Same path as a change, and not in a transition (which would hold
-        // the waiting screen back): the plan waits while Cuso refits it.
         if (unfitted) {
-          send("Fitting your strategy to your answers", onUpdate).catch(
-            () => {},
-          );
+          update();
           return;
         }
         // A refused approval (a new version on its way) stays here.
@@ -541,7 +543,6 @@ export function PlanReview({
   );
 
   const ads = strategy.ads;
-  const pace = PACES.find((option) => option.level === strategy.pace?.level);
   const hasChecks = questions.length > 0 || strategy.pace || ads;
   // An approval covers what the owner said yes or no to, not what stayed open.
   const answers = approved
@@ -566,7 +567,8 @@ export function PlanReview({
             }
           />
         )}
-        <p className="muted">{line}</p>
+        {/* The app's page opens on the goal; the line follows it there. */}
+        {readOnly ? null : <p className="muted">{line}</p>}
       </div>
 
       {asking && !locked ? (
@@ -653,6 +655,7 @@ export function PlanReview({
           statement={sentence !== goal ? sentence : undefined}
           facts={goalFacts(strategy)}
         />
+        {readOnly ? <p className="note ob-plan-built">{line}</p> : null}
 
         {changes.length > 0 && !writing ? (
           <div className="card ob-changed">
@@ -666,7 +669,7 @@ export function PlanReview({
         ) : null}
 
         {locked ? (
-          answers.length > 0 || strategy.pace || ads ? (
+          answers.length > 0 || ads ? (
             <div className="card ob-checks">
               <h2>{approved ? "What you approved" : "Your answers"}</h2>
               <ul className="ob-approved">
@@ -679,11 +682,7 @@ export function PlanReview({
                       : ""}
                   </li>
                 ))}
-                {pace ? (
-                  <li>
-                    Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
-                  </li>
-                ) : null}
+
                 {ads ? (
                   <li>
                     {ads.monthly > 0
@@ -704,15 +703,24 @@ export function PlanReview({
                 onAnswer={(value, text) => answer(question.id, value, text)}
               />
             ))}
-            {strategy.pace ? (
-              <div className="ob-pace">
-                <PacePicker
-                  pace={strategy.pace}
-                  onAsk={(text, label) =>
-                    send(label ?? text, () => onRequest(text))
-                  }
-                />
+            {unfitted ? (
+              <div className="ob-unfitted" role="status">
+                <p>This strategy still shows your old answer.</p>
+                <button
+                  type="button"
+                  className="button button-secondary button-small"
+                  disabled={busy}
+                  onClick={update}
+                >
+                  Update strategy
+                </button>
               </div>
+            ) : null}
+            {strategy.pace ? (
+              <p className="ob-pace note">
+                This month is written at the most a plan makes. Next you pick
+                your plan, and with it how much of the month {AGENT_NAME} makes.
+              </p>
             ) : null}
             {ads ? (
               <div className="ob-budget">

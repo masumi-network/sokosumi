@@ -28,7 +28,6 @@ import {
   socialPostTextLimit,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
-
 import {
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
@@ -45,6 +44,10 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
+import {
+  socialPostConnectionSelect,
+  socialPostConnectionSummary,
+} from "@/helpers/project-social-connection-summary";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   flagSocialPostQuotes,
@@ -76,6 +79,10 @@ import {
   requireLockedOpenProject,
   requireScopedProject,
 } from "@/services/project-social-connections.service";
+import {
+  scheduleLeadMs,
+  TEST_COPY_SCHEDULE_FLOOR_MESSAGE,
+} from "@/services/project-test-copy";
 import {
   prepareSocialPostMedia,
   requirePreparedSocialPostProvider,
@@ -134,17 +141,7 @@ const socialPostInclude = {
   threadParts: { orderBy: { position: "asc" } },
   quotedPost: { select: socialPostQuoteSelect },
   project: { select: socialProviderProjectSelect },
-  socialConnection: {
-    select: {
-      id: true,
-      provider: true,
-      externalHandle: true,
-      displayName: true,
-      avatarUrl: true,
-      subscriptionType: true,
-      status: true,
-    },
-  },
+  socialConnection: { select: socialPostConnectionSelect },
   creatorUser: { select: { id: true, name: true } },
   creatorCoworker: { select: { id: true, name: true } },
   creatorSokoBot: { select: { id: true, name: true } },
@@ -209,6 +206,7 @@ export interface SocialPostSummary {
     avatarUrl: string | null;
     subscriptionType: string | null;
     status: string;
+    personalProfile: boolean;
   } | null;
   creator: SocialPostCreator;
   scheduledByUserId: string | null;
@@ -449,7 +447,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     status: record.status,
     scheduledAt: record.scheduledAt,
     timezone: record.timezone,
-    socialConnection: record.socialConnection,
+    socialConnection: socialPostConnectionSummary(record.socialConnection),
     creator: mapCreator(record),
     scheduledByUserId: record.scheduledByUserId,
     scheduledByCoworkerId: record.scheduledByCoworkerId,
@@ -693,9 +691,15 @@ export async function ownMessageProblem(
 ): Promise<{ problem: string | null; costUsd: number }> {
   const post = await prisma.socialPost.findFirst({
     where: { id: input.postId, workspaceId: input.workspaceId },
-    select: { marketingStrategyId: true },
+    select: { marketingStrategyId: true, planning: true },
   });
   if (!post?.marketingStrategyId) return { problem: null, costUsd: 0 };
+  // A talking video's posts on several networks say the same thing on purpose.
+  const videoOf = (planning: unknown) => {
+    const plan = planning as { id?: unknown; videoOf?: unknown } | null;
+    return plan?.videoOf ?? plan?.id ?? null;
+  };
+  const video = videoOf(post.planning);
   const siblings = await prisma.socialPost.findMany({
     where: {
       marketingStrategyId: post.marketingStrategyId,
@@ -707,7 +711,11 @@ export async function ownMessageProblem(
   // An idea still shows its plan's brief or title until it is written.
   const written = siblings.filter((sibling) => {
     const planning = sibling.planning as { brief?: unknown; title?: unknown };
-    return sibling.text !== planning?.brief && sibling.text !== planning?.title;
+    return (
+      sibling.text !== planning?.brief &&
+      sibling.text !== planning?.title &&
+      (video === null || videoOf(sibling.planning) !== video)
+    );
   });
   const { repeats, costUsd } = await findRepeats(
     [...written.map((sibling) => sibling.text), input.text],
@@ -900,9 +908,18 @@ function hasStartedThread(post: SocialPostRecord): boolean {
   );
 }
 
-function requireFutureScheduledAt(scheduledAt: Date): void {
-  if (scheduledAt.getTime() <= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS) {
-    throw badRequest("Scheduled time must be in the future");
+/** A time far enough ahead: at once for most, 12 hours for a test copy (ADR 0073). */
+function requireFutureScheduledAt(
+  scheduledAt: Date,
+  project: { testCopyOfProjectId: string | null },
+): void {
+  const leadMs = scheduleLeadMs(project, SOCIAL_POST_MIN_SCHEDULE_LEAD_MS);
+  if (scheduledAt.getTime() <= Date.now() + leadMs) {
+    throw badRequest(
+      project.testCopyOfProjectId
+        ? TEST_COPY_SCHEDULE_FLOOR_MESSAGE
+        : "Scheduled time must be in the future",
+    );
   }
 }
 
@@ -914,6 +931,7 @@ type ConnectionCandidate = Pick<
   | "status"
   | "subscriptionType"
   | "composioConnectedAccountId"
+  | "executorProjectId"
 >;
 
 /** Loads a connection that belongs to the Project. Disconnected rows never qualify. */
@@ -931,6 +949,7 @@ async function requireProjectConnection(
       status: true,
       subscriptionType: true,
       composioConnectedAccountId: true,
+      executorProjectId: true,
       project: { select: socialProviderProjectSelect },
     },
   });
@@ -1219,17 +1238,15 @@ export async function createSocialPost(
       "A social post cannot have both a Coworker and Soko Bot creator",
     );
   }
-  if (input.scheduledAt) {
-    await requireLockedOpenProject(tx, input, {
-      closedMessage: PROJECT_CLOSED_MESSAGE,
-    });
-  } else {
-    await requireScopedProject(input, { client: tx });
-  }
+  const project = input.scheduledAt
+    ? await requireLockedOpenProject(tx, input, {
+        closedMessage: PROJECT_CLOSED_MESSAGE,
+      })
+    : await requireScopedProject(input, { client: tx });
 
   let connection: ConnectionCandidate | null = null;
   if (input.scheduledAt) {
-    requireFutureScheduledAt(input.scheduledAt);
+    requireFutureScheduledAt(input.scheduledAt, project);
     connection = await requireActiveProjectConnection(
       input.projectId,
       input.socialConnectionId,
@@ -1357,7 +1374,7 @@ export async function updateSocialPost(
     }
     return post;
   }
-  await requireScopedProject(input, { client: tx });
+  const project = await requireScopedProject(input, { client: tx });
   const post = await requireScopedPost(input, tx);
   if (post.status === "SCHEDULED" || input.scheduledAt) {
     await requireLockedOpenProject(tx, input, {
@@ -1382,7 +1399,7 @@ export async function updateSocialPost(
     );
   }
   requireRevision(post, input.revision);
-  if (input.scheduledAt) requireFutureScheduledAt(input.scheduledAt);
+  if (input.scheduledAt) requireFutureScheduledAt(input.scheduledAt, project);
 
   const data: Prisma.SocialPostUncheckedUpdateManyInput = repairingDisabledPost
     ? {
@@ -1646,7 +1663,7 @@ export async function scheduleSocialPost(
     }
     return post;
   }
-  await requireLockedOpenProject(tx, input, {
+  const project = await requireLockedOpenProject(tx, input, {
     closedMessage: PROJECT_CLOSED_MESSAGE,
   });
   const post = await requireScopedPost(input, tx);
@@ -1654,7 +1671,7 @@ export async function scheduleSocialPost(
     throw conflict("This post can no longer be scheduled");
   }
   requireRevision(post, input.revision);
-  requireFutureScheduledAt(input.scheduledAt);
+  requireFutureScheduledAt(input.scheduledAt, project);
   if (post.publishingThreadPartPosition != null) {
     throw conflict(
       `Thread part ${post.publishingThreadPartPosition} has an unconfirmed publishing result. Check X before retrying to avoid a duplicate post.`,
@@ -1833,7 +1850,7 @@ export async function approveSocialPost(
     }
     return post;
   }
-  await requireLockedOpenProject(tx, input, {
+  const project = await requireLockedOpenProject(tx, input, {
     closedMessage: PROJECT_CLOSED_MESSAGE,
   });
   const post = await requireScopedPost(input, tx);
@@ -1846,9 +1863,11 @@ export async function approveSocialPost(
   if (post.socialConnection) {
     requireSocialProviderEnabled(post.socialConnection.provider, post.project);
   }
+  // A test copy's approved post sooner than its floor stays a draft.
   const schedule =
     due != null &&
-    due.getTime() >= Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
+    due.getTime() >=
+      Date.now() + scheduleLeadMs(project, SOCIAL_POST_MIN_SCHEDULE_LEAD_MS);
   if (schedule) {
     await requireActiveProjectConnection(
       input.projectId,

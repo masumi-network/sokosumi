@@ -7,6 +7,12 @@ import {
   SOKO_BOT_CMO_RHYTHMS,
   writingSkillsBrief,
 } from "@sokosumi/soko-bot";
+import {
+  type CmoVolumeLevel,
+  cmoMonthAtLevel,
+  cmoVolumeLevelForTier,
+  isCmoOwnerConfirmedChannel,
+} from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -17,8 +23,10 @@ import {
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
+import { scheduleMissingCmoBrandIndex } from "@/services/cmo-brand-media.service";
 import {
   type Cuso,
   cmoRunnerUserId,
@@ -30,9 +38,10 @@ import {
   advanceCmoMedia,
   type CmoMediaJob,
   cmoMediaState,
-  cmoPieceIsVideo,
+  cmoPieceIsTalking,
   cmoPieceNeedsMedia,
   cmoPieceSlides,
+  cmoPieceTakesStyle,
   listCmoMediaJobs,
 } from "@/services/cmo-media-maker.service";
 import {
@@ -88,9 +97,26 @@ function pieceFiles(piece: CmoPiece): string[] {
 }
 
 /**
+ * Whether another piece already counts for one of these files. A talking
+ * video is the exception: its posts on several networks show the one video.
+ */
+function usedElsewhere(
+  piece: CmoPiece,
+  files: readonly string[],
+  used: Set<string>,
+): boolean {
+  if (cmoPieceIsTalking(piece)) return false;
+  if (files.some((file) => used.has(file))) return true;
+  for (const file of files) used.add(file);
+  return false;
+}
+
+/**
  * A finished piece: its words are written, its pictures are made when the
  * format has them, and on a connected network it is scheduled; on any other
- * network it waits for the connection as a finished draft.
+ * network it waits for the connection as a finished draft. On a network the
+ * owner confirms post by post (TikTok) it is finished once made: it waits for
+ * the owner, not for Cuso.
  */
 export function cmoPieceReady(
   piece: CmoPiece,
@@ -104,7 +130,11 @@ export function cmoPieceReady(
     new Set(piece.media).size < Math.max(1, cmoPieceSlides(piece))
   )
     return false;
-  return !connected.has(piece.channel) || piece.status === "scheduled";
+  return (
+    !connected.has(piece.channel) ||
+    piece.status === "scheduled" ||
+    isCmoOwnerConfirmedChannel(piece.channel)
+  );
 }
 
 /** How far each pass of a run got: words first, then pictures. */
@@ -123,9 +153,8 @@ export function cmoProductionSteps(
       pictured += 1;
     } else if (
       files.length >= Math.max(1, cmoPieceSlides(piece)) &&
-      !files.some((file) => used.has(file))
+      !usedElsewhere(piece, files, used)
     ) {
-      for (const file of files) used.add(file);
       pictured += 1;
     }
   }
@@ -151,9 +180,7 @@ export function cmoReadyPieceIds(
   const ready = new Set<string>();
   for (const piece of pieces) {
     if (!cmoPieceReady(piece, connected)) continue;
-    const files = pieceFiles(piece);
-    if (files.some((file) => used.has(file))) continue;
-    for (const file of files) used.add(file);
+    if (usedElsewhere(piece, pieceFiles(piece), used)) continue;
     ready.add(piece.id);
   }
   return ready;
@@ -208,6 +235,10 @@ export interface CmoProductionStatus {
    * share its pieces really have, and whether Cuso is rewriting pieces.
    */
   pillars: { shares: CmoPillarShare[]; rewriting: boolean } | null;
+  /** How much of the month the plan bought makes. */
+  level: CmoVolumeLevel;
+  /** Entries of the month the plan bought does not make; a bigger plan does. */
+  beyondPlan: string[];
 }
 
 async function connectedChannels(projectId: string): Promise<Set<string>> {
@@ -236,15 +267,6 @@ export function cmoMixLedger(
     .join(", ");
 }
 
-/** A single picture: a styled picture carries one headline, a slide its own words. */
-function takesStyle(piece: CmoPiece): boolean {
-  return (
-    cmoPieceNeedsMedia(piece) &&
-    cmoPieceSlides(piece) === 0 &&
-    !cmoPieceIsVideo(piece)
-  );
-}
-
 function pieceLine(piece: CmoPiece, failed: boolean): string {
   const slides = cmoPieceSlides(piece);
   return [
@@ -263,11 +285,21 @@ function pieceLine(piece: CmoPiece, failed: boolean): string {
     slides > 0
       ? `carousel of ${slides} slides: one visual and a line per slide in slides, Core makes each slide`
       : "",
-    cmoPieceNeedsMedia(piece) && !piece.visual
-      ? "(write its visual)"
-      : failed
-        ? "(its picture failed twice: write a different visual)"
-        : "",
+    piece.videoOf
+      ? `(the talking video of ${piece.videoOf} on ${piece.channel}: write only this post's own caption for ${piece.channel}; its script stays on ${piece.videoOf})`
+      : cmoPieceIsTalking(piece)
+        ? piece.script
+          ? failed
+            ? "(its video failed twice: write a different script)"
+            : ""
+          : "(write its script)"
+        : cmoPieceNeedsMedia(piece) && !piece.visual
+          ? "(write its visual)"
+          : failed
+            ? piece.styleReferenceId
+              ? "(its picture failed every try: write a different visual and pick another style reference)"
+              : "(its picture failed twice: write a different visual)"
+            : "",
     isMarketingFilePiece(piece)
       ? piece.fileId
         ? "(file written; finish what is missing)"
@@ -313,7 +345,7 @@ export function cmoProductionMessage(input: {
   proof?: readonly string[];
   /** Pieces whose picture failed twice for its visual. */
   failedMedia?: ReadonlySet<string>;
-  /** The reference library is set up here: pictures can take an old print's look. */
+  /** The reference library is set up here: every picture takes an old print's look. */
   styles?: boolean;
 }): string {
   const { strategy, pending } = input;
@@ -348,8 +380,15 @@ export function cmoProductionMessage(input: {
     ),
     "",
     "As your production skill says: first list each pillar's different messages and give every piece its own, then write every piece's words, then save the visuals of the pieces with a picture or video (visual and visualFileIds from brandPictures) in one save_strategy part pieces call. Core makes and attaches every picture and video; never call generate_image or generate_video.",
-    input.styles && batch.some(takesStyle)
-      ? "Picture styles: before you save the visuals, call find_style_references for the single-picture pieces whose picture should stop a reader rather than show the product or a screen (an announcement, an offer, a how-to, a number), and save each with its styleReferenceId and a headline of at most six words in that same call. When a reference fits, give at least one of them in this run a style, and never the same reference twice. A carousel or multi-image post takes no style: each slide carries its own words, and a styled picture may carry only its headline."
+    input.styles && batch.some(cmoPieceTakesStyle)
+      ? [
+          "Picture styles: every piece with a picture takes the look of an old print, whatever it shows; this replaces your skill's choice per piece. Before you save the visuals, call find_style_references for each such piece with what it is about and the look that suits it, and save each with its styleReferenceId in that same call; Core refuses a save that leaves one without a style.",
+          "- A different reference for every piece, never one twice in the month; vary kinds and eras.",
+          "- A single picture carries headline: at most six words from its hook.",
+          "- A carousel takes one reference for all its slides, and slideHeadlines: one entry per slide, in order, at most six words each, lettered on that slide.",
+          "- When the picture must show the brand's real page, screen or product, name that one picture in visualFileIds: Core sets it inside the style, unchanged and readable. For every other styled piece send visualFileIds as an empty list, or the screenshot lands in a picture that is not about it.",
+          "- Never ask a picture to show a price, number, plan or label the brand's picture does not show: the model invents one, and Core turns the picture down.",
+        ].join("\n")
       : "",
     "",
     writingSkillsBrief(batch.map((piece) => piece.channel)),
@@ -444,19 +483,18 @@ async function startProductionRun(
       destinationRoomId: bot.sharedRoomId,
     },
   });
+  const { reconciliationLeaseToken } = started;
   if (
-    started.reconciliationLeaseToken &&
+    reconciliationLeaseToken &&
     (started.status === "STARTING" || started.status === "RUNNING")
   )
     waitUntil(
       runAsBackgroundWork(() =>
         sokoBotControlPlane
-          .reconcileTurn(
-            started.turnId,
-            undefined,
-            started.reconciliationLeaseToken,
-          )
+          .reconcileTurn(started.turnId, undefined, reconciliationLeaseToken)
           .catch((error: unknown) => {
+            if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+              return;
             // A turn's error can quote its prompt, so only its name and code.
             emitCoreWarning(
               {
@@ -538,6 +576,18 @@ interface ProductionRead {
 }
 
 /** Where the month's production stands; reads only, never starts a run. */
+/**
+ * How much of the month this Cuso's plan makes: its tier's level, or all of
+ * it on Tester credits or before a plan is bought.
+ */
+export async function cmoPlanLevel(projectId: string): Promise<CmoVolumeLevel> {
+  const subscription = await prisma.polarSubscription.findFirst({
+    where: { projectId, endedAt: null },
+    select: { tier: true },
+  });
+  return cmoVolumeLevelForTier(subscription?.tier ?? null);
+}
+
 export async function readCmoProduction(
   cuso: Cuso,
   context: { connected: ReadonlySet<string>; subscribed: boolean; now: Date },
@@ -558,6 +608,8 @@ export async function readCmoProduction(
         needPictures: 0,
         finishedAt: null,
         pillars: null,
+        level: "all_in",
+        beyondPlan: [],
       },
       version: null,
       strategy: plan,
@@ -576,7 +628,21 @@ export async function readCmoProduction(
     withSocialPostCalendar(plan, posts),
     files,
   );
-  const pieces = cmoProductionPieces(posts, now, strategy.calendar);
+  // The month is written at the top volume; the plan bought decides how much
+  // of it is made, and a bigger plan makes more of the same month.
+  const level = await cmoPlanLevel(cuso.projectId);
+  const inPlan = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);
+  const beyondPlan = strategy.calendar
+    .filter(
+      (entry) =>
+        !inPlan.made.has(entry.id) &&
+        entry.status !== "skipped" &&
+        entry.status !== "published",
+    )
+    .map((entry) => entry.id);
+  const pieces = cmoProductionPieces(posts, now, strategy.calendar).filter(
+    (piece) => inPlan.made.has(piece.id),
+  );
   const ready = cmoReadyPieceIds(pieces, connected);
   const unready = pieces.filter((piece) => !ready.has(piece.id));
   const jobs: CmoMediaJob[] = await listCmoMediaJobs(
@@ -630,6 +696,8 @@ export async function readCmoProduction(
               ?.completedAt?.toISOString() ?? null)
           : null,
       pillars: pillarsOf(runs),
+      level,
+      beyondPlan,
     },
     version: approved,
     strategy,
@@ -835,6 +903,48 @@ async function keepCmoSeo(cuso: Cuso, now: Date): Promise<void> {
   }
 }
 
+/** A Cuso that was let go is not in the sync below; his weekly SEO audit is paused here. */
+async function pauseSeoAuditsOfEndedCusos(): Promise<void> {
+  if (!getSeoAnalysisExecution().enabled) return;
+  try {
+    const { pauseCmoSeoAuditsWithoutCuso } = await import(
+      "@/services/cmo-seo-audit.service"
+    );
+    await pauseCmoSeoAuditsWithoutCuso();
+  } catch (error) {
+    recordCoreWarning(
+      { operation: "cmo_seo_sync" },
+      {
+        message: "CMO SEO sync could not pause the audits of ended Cusos",
+        why: "Pausing a weekly SEO audit whose Cuso was archived or deleted threw",
+        fix: "The next sync tries again. Until then the audit can still run and charge 750 credits; pause its Task Schedule by hand if this repeats.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+  }
+}
+
+/** A new Cuso's first competitor check rides on this sync too. */
+async function keepCmoCompetitors(cuso: Cuso, now: Date): Promise<void> {
+  try {
+    const { keepCusoFirstCompetitorCheck } = await import(
+      "@/services/cmo-competitors.service"
+    );
+    await keepCusoFirstCompetitorCheck(cuso, now);
+  } catch (error) {
+    // The error can quote a page or an article.
+    recordCoreWarning(
+      { operation: "cmo_competitor_sync", sokoBot: { id: cuso.sokoBotId } },
+      {
+        message: "CMO production sync skipped a Cuso's first competitor check",
+        why: "Running the first competitor check or starting its watch run threw",
+        fix: "The next sync tries again, and the weekly competitor sync checks him within the hour; a check is charged once. If it repeats, look up the error name and code under failure.",
+      },
+      { failure: messageSafeErrorFields(error) },
+    );
+  }
+}
+
 const SYNC_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
@@ -852,7 +962,10 @@ export async function syncCmoProduction(
   shouldContinue: () => boolean = () => true,
   now: Date = new Date(),
 ): Promise<{ checked: number }> {
+  await pauseSeoAuditsOfEndedCusos();
   const hires = cmoSyncOrder(await listCusosWithApprovedStrategy(), now);
+  // In the background from the start, so it has the whole run.
+  await scheduleMissingCmoBrandIndex(hires).catch(() => undefined);
   let checked = 0;
   for (const cuso of hires) {
     if (!shouldContinue()) break;
@@ -860,6 +973,7 @@ export async function syncCmoProduction(
       await keepCmoRhythmsWithRunner(cuso);
       await advanceCmoProduction(cuso);
       await keepCmoSeo(cuso, now);
+      await keepCmoCompetitors(cuso, now);
       checked += 1;
     } catch (error) {
       // One event per Cuso skipped; the error can quote the plan or a prompt.

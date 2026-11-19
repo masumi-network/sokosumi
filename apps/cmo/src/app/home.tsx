@@ -7,7 +7,6 @@ import {
 } from "@sokosumi/core-client";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-
 import { CmoApp } from "../components/app/cmo-app";
 import { CusoPicker } from "../components/cuso-picker";
 import { NameSetup } from "../components/name-setup";
@@ -15,6 +14,7 @@ import { Onboarding } from "../components/onboarding";
 import { OnboardingFlow } from "../components/onboarding/flow";
 import { SignedIn } from "../components/signed-in";
 import { getAuth } from "../lib/auth";
+import { connectReturnError } from "../lib/connect-return";
 import { asSignedInPersonInPage } from "../lib/core";
 import { LAST_CUSO_COOKIE } from "../lib/last-cuso";
 import { isValidPersonName } from "../lib/person-name";
@@ -29,18 +29,25 @@ import {
   answerPlanQuestion,
   applyPlanAnswers,
   approveBrandBrain,
+  approveDraft,
   approveStrategy,
   askCusoForArticles,
+  changeChannel,
   changePlan,
   clearPresenter,
   connectAds,
   connectChannel,
   connectMeasurement,
   connectSetupChannel,
+  declineDraft,
+  editDraft,
   finishAccounts,
   fixBrandSection,
   launchAd,
   loadAdCampaigns,
+  loadChatWork,
+  loadChatWorkTable,
+  loadChatWorkText,
   loadCompetitors,
   loadCusos,
   loadMessages,
@@ -49,9 +56,11 @@ import {
   loadPlans,
   loadSeo,
   loadState,
+  markLandingPageLive,
   onboard,
   openPortal,
   pauseEntry,
+  readTikTokCreator,
   removeCompetitor,
   requestStrategy,
   retryLearning,
@@ -63,6 +72,7 @@ import {
   setAdCampaignStatus,
   setPresenter,
   setSeoSuggestionStatus,
+  setTimeZone,
   skipBrandQuestions,
   skippedSteps,
   skipSubscription,
@@ -178,6 +188,8 @@ export interface HomeSearchParams {
   cusos?: string | string[];
   /** "Hire a new Cuso" and Start over: the hire form. */
   hire?: string | string[];
+  /** With `hire`: the Project of the Cuso to hire a test copy of. */
+  testCopyOf?: string | string[];
   connect?: string | string[];
   from?: string | string[];
 }
@@ -272,6 +284,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         organizations={organizations}
         signOut={signOut}
         cusoPicker={opened.cusoPicker}
+        testCopyOf={first(params.testCopyOf) || undefined}
         onboard={onboard}
       />
     );
@@ -290,7 +303,7 @@ export async function Home({ searchParams, view }: HomeProps) {
   if (overview.onboardingStep !== "done" || backInHiring) {
     const skipped = await skippedSteps(projectId);
     // The app's pages open once onboarding ends; until then it is the first run.
-    if (view !== "chat") {
+    if (view !== "today") {
       redirect(`/?project=${encodeURIComponent(projectId)}`);
     }
     return (
@@ -302,13 +315,12 @@ export async function Home({ searchParams, view }: HomeProps) {
         messages={await loadMessages(projectId).catch(() => [])}
         initialStep={step === "results" ? "results" : undefined}
         skipped={skipped}
-        // Approving the plan opens Subscribe in place, so the plans load
-        // while the strategy waits for approval too.
+        // The steps up to Subscribe open in place, without this page
+        // rendering again, so the plans load from the first of them.
         plans={
-          overview.onboardingStep === "checkout" ||
-          overview.onboardingStep === "strategy"
-            ? await loadPlans().catch(() => [])
-            : []
+          overview.onboardingStep === "accounts"
+            ? []
+            : await loadPlans().catch(() => [])
         }
         returnedFromCheckout={step === "subscribed"}
         actions={{
@@ -341,33 +353,44 @@ export async function Home({ searchParams, view }: HomeProps) {
     );
   }
   // "Your Cusos" leads somewhere only when there is another Cuso to open.
-  const [messages, manyCusos] = await Promise.all([
+  const [messages, work, { manyCusos, mayHire }] = await Promise.all([
     loadMessages(projectId).catch(() => []),
+    loadChatWork(projectId).catch(() => []),
     loadCusos()
-      .then(({ cusos }) => cusos.length > 1)
-      .catch(() => false),
+      .then(({ cusos, mayHire }) => ({ manyCusos: cusos.length > 1, mayHire }))
+      .catch(() => ({ manyCusos: false, mayHire: false })),
   ]);
   return (
     <CmoApp
       overview={overview}
       manyCusos={manyCusos}
+      mayHire={mayHire}
       plans={
         overview.billing.viewerCanManage && overview.billing.tier
           ? await loadPlans().catch(() => [])
           : []
       }
       messages={messages}
+      work={work}
       name={session.user.name}
       email={session.user.email}
       initialView={step === "connect" ? "channels" : view}
-      connectFailed={step === "connect" && first(params.connect) === "failed"}
+      connectError={
+        step === "connect"
+          ? connectReturnError(first(params.connect) ?? null)
+          : null
+      }
       actions={{
         loadState: loadState.bind(null, projectId),
+        loadChatWork: loadChatWork.bind(null, projectId),
+        loadChatWorkText: loadChatWorkText.bind(null, projectId),
+        loadChatWorkTable: loadChatWorkTable.bind(null, projectId),
         sendMessage: sendMessage.bind(null, projectId),
         loadPieceText: loadPieceText.bind(null, projectId),
         loadSeo: loadSeo.bind(null, projectId),
         searchKeywords: searchKeywords.bind(null, projectId),
         setSeoSuggestionStatus: setSeoSuggestionStatus.bind(null, projectId),
+        markLandingPageLive: markLandingPageLive.bind(null, projectId),
         askCusoForArticles: askCusoForArticles.bind(null, projectId),
         approveStrategy: approveStrategy.bind(null, projectId),
         setAdBudget: setAdBudget.bind(null, projectId),
@@ -375,6 +398,10 @@ export async function Home({ searchParams, view }: HomeProps) {
         retryLearning: retryLearning.bind(null, projectId),
         saveBrandBrain: saveBrandBrain.bind(null, projectId),
         pauseEntry: pauseEntry.bind(null, projectId),
+        approveDraft: approveDraft.bind(null, projectId),
+        readTikTokCreator: readTikTokCreator.bind(null, projectId),
+        declineDraft: declineDraft.bind(null, projectId),
+        editDraft: editDraft.bind(null, projectId),
         competitors: {
           loadCompetitors: loadCompetitors.bind(null, projectId),
           addCompetitor: addCompetitor.bind(null, projectId),
@@ -383,12 +410,14 @@ export async function Home({ searchParams, view }: HomeProps) {
           addMoveToStrategy: addCompetitorMoveToStrategy.bind(null, projectId),
         },
         connectChannel: connectChannel.bind(null, projectId),
+        changeChannel: changeChannel.bind(null, projectId),
         addMailingList: addMailingList.bind(null, projectId),
         connectMeasurement: connectMeasurement.bind(null, projectId),
         connectAds: connectAds.bind(null, projectId),
         launchAd: launchAd.bind(null, projectId),
         setAdCampaignStatus: setAdCampaignStatus.bind(null, projectId),
         loadAdCampaigns: loadAdCampaigns.bind(null, projectId),
+        setTimeZone: setTimeZone.bind(null, projectId),
         startOver: startOver.bind(null, projectId),
         startTopUp: startTopUp.bind(null, projectId),
         skipSubscription: skipSubscription.bind(null, projectId),

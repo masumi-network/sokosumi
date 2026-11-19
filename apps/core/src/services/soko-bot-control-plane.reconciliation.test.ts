@@ -623,6 +623,7 @@ describe("reconciling a turn whose first caller is still starting it", () => {
       status: "STARTING",
       eveSessionId: null,
       eveTurnId: null,
+      createdAt: new Date(),
       reconcilerHeartbeatAt: null,
       leaseExpiresAt: new Date(Date.now() + 60_000),
       ...overrides,

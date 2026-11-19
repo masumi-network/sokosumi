@@ -6,6 +6,7 @@ import {
   isSokoBotNewsletterCapability,
   SOKO_BOT_ANNOUNCEMENT_CAPABILITIES,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_COMPETITOR_CAPABILITIES,
   SOKO_BOT_NEWSLETTER_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   type SokoBotRuntime,
@@ -31,6 +32,10 @@ vi.mock("@/services/soko-bot-avatar-code.service", () => ({
 }));
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const competitorChecksOnForMock = vi.hoisted(() => vi.fn());
+vi.mock("@/services/competitors.service", () => ({
+  competitorChecksOnFor: competitorChecksOnForMock,
+}));
 const newsletterDraftAvailableMock = vi.hoisted(() => vi.fn());
 vi.mock("@/services/newsletter-draft.service", () => ({
   isNewsletterDraftAvailable: newsletterDraftAvailableMock,
@@ -392,6 +397,7 @@ function runtimeWithReset(
 function transactionClient() {
   return {
     $queryRaw: transactionQueryRawMock,
+    $executeRaw: vi.fn().mockResolvedValue(1),
     member: { findFirst: memberFindFirstMock },
     sokoBotIntent: {
       create: vi.fn().mockResolvedValue({ id: "intent-1", revision: 1 }),
@@ -410,6 +416,7 @@ function transactionClient() {
       create: botCreateMock,
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
+      findUniqueOrThrow: botFindUniqueOrThrowMock,
       update: botUpdateMock,
       updateMany: botUpdateManyMock,
     },
@@ -482,6 +489,7 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
 beforeEach(() => {
   jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
   newsletterDraftAvailableMock.mockResolvedValue(false);
+  competitorChecksOnForMock.mockResolvedValue(false);
 });
 
 describe("SokoBotControlPlane lifecycle", () => {
@@ -567,6 +575,51 @@ describe("SokoBotControlPlane lifecycle", () => {
       const granted = turnCreateMock.mock.calls[0]?.[0]?.data
         ?.capabilityNames as string[];
       for (const capability of SOKO_BOT_NEWSLETTER_CAPABILITIES) {
+        expect(result.capabilities.includes(capability)).toBe(available);
+        expect(granted.includes(capability)).toBe(available);
+      }
+      // Unrelated reads stay either way.
+      expect(granted).toContain("list_social_posts");
+    },
+  );
+
+  it.each([true, false])(
+    "offers the competitor tools only while a Project's weekly check is on: %s",
+    async (available) => {
+      competitorChecksOnForMock.mockResolvedValue(available);
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "competitor-turn",
+        leaseToken: "competitor-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "competitor-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      const result = await new SokoBotControlPlane(
+        runtime,
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "competitor-client",
+        message: "What did our competitors do this week?",
+      });
+      expect(competitorChecksOnForMock).toHaveBeenCalledWith({
+        workspaceId: "workspace_1",
+        projectId: undefined,
+      });
+      const granted = turnCreateMock.mock.calls[0]?.[0]?.data
+        ?.capabilityNames as string[];
+      for (const capability of SOKO_BOT_COMPETITOR_CAPABILITIES) {
         expect(result.capabilities.includes(capability)).toBe(available);
         expect(granted.includes(capability)).toBe(available);
       }
@@ -2165,7 +2218,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         eveSessionId: "session_bound_after_lost_response",
       }),
     );
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -2179,7 +2232,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock.mockResolvedValue(released);
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -2220,16 +2276,15 @@ describe("SokoBotControlPlane lifecycle", () => {
       sessionId: "session_bound_after_lost_response",
       status: "RUNNING",
       duplicate: true,
-      reconciliationLeaseToken: "lease_1",
       // This call's own resume acknowledged the start: it owns the drain.
-      acknowledgedByCaller: true,
+      reconciliationLeaseToken: expect.not.stringMatching("lease_1"),
     });
     expect(resetSession).not.toHaveBeenCalled();
   });
 
   it("grants the memory revision persisted in the snapshot when reset happened later", async () => {
     botFindFirstMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -2243,7 +2298,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock.mockResolvedValue(released);
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -2306,10 +2364,13 @@ describe("SokoBotControlPlane lifecycle", () => {
     const acknowledgementBarrier = new Promise<void>((resolve) => {
       releaseAcknowledgement = resolve;
     });
-    turnUpdateManyMock.mockImplementationOnce(async () => {
-      await acknowledgementBarrier;
-      return { count: 0 };
-    });
+    turnUpdateManyMock
+      .mockImplementationOnce(async () => {
+        await acknowledgementBarrier;
+        return { count: 0 };
+      })
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 0 });
     const contextBuilder = {
       build: vi.fn().mockResolvedValue(builtContext()),
     } as ContextPacketBuilder;
@@ -2327,19 +2388,22 @@ describe("SokoBotControlPlane lifecycle", () => {
     await vi.waitFor(() => expect(turnUpdateManyMock).toHaveBeenCalledOnce());
     releaseAcknowledgement();
 
-    await expect(pending).rejects.toThrow(
-      "stopped before runtime acknowledgement",
-    );
+    await expect(pending).resolves.toMatchObject({
+      turnId: replacement.id,
+      status: "STARTING",
+      duplicate: true,
+    });
+    expect((await pending).reconciliationLeaseToken).toBeUndefined();
     expect(resetSession).not.toHaveBeenCalled();
-    expect(turnUpdateManyMock).toHaveBeenCalledOnce();
+    expect(turnUpdateManyMock).toHaveBeenCalledTimes(3);
   });
 
-  // The acknowledgement commits and only its response is lost: the caller
-  // re-reads its own accepted session. It still owns the drain only while
-  // the lease is its own.
+  // The acknowledgement may have committed and only its response was lost.
+  // The caller uses a CAS to renew its own acknowledged lease before draining.
+  // A replacement lease leaves the caller with an observation of the turn.
   it.each([
-    ["still owns the drain under its own lease", true],
-    ["only observes once another worker holds the lease", false],
+    ["renews its acknowledged lease and receives a grant", true],
+    ["only observes under a replacement lease", false],
   ])("after a lost acknowledgement response %s", async (_label, ownLease) => {
     const fresh = {
       id: "turn_fresh",
@@ -2381,9 +2445,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       runtimeVersion: "eve-test",
       acceptedAt: "2026-08-18T12:00:00.000Z",
     });
-    turnUpdateManyMock.mockRejectedValueOnce(
-      new Error("Connection reset after commit"),
-    );
+    turnUpdateManyMock
+      .mockRejectedValueOnce(new Error("Connection reset after commit"))
+      .mockResolvedValueOnce({ count: ownLease ? 1 : 0 })
+      .mockResolvedValueOnce({ count: 0 });
 
     const result = await new SokoBotControlPlane(
       runtime,
@@ -2399,9 +2464,27 @@ describe("SokoBotControlPlane lifecycle", () => {
     });
 
     expect(startLease).not.toBe("");
-    expect(result).toMatchObject({ turnId: "turn_fresh", status: "RUNNING" });
-    expect(result.duplicate).toBe(true);
-    expect(result.acknowledgedByCaller).toBe(ownLease ? true : undefined);
+    expect(result).toMatchObject({
+      turnId: "turn_fresh",
+      status: "RUNNING",
+      duplicate: !ownLease,
+    });
+    expect(result.reconciliationLeaseToken).toBe(
+      ownLease ? startLease : undefined,
+    );
+    expect(turnUpdateManyMock).toHaveBeenNthCalledWith(2, {
+      where: {
+        id: "turn_fresh",
+        leaseToken: startLease,
+        status: { in: ["RUNNING", "CANCEL_REQUESTED"] },
+        startedAt: { not: null },
+        eveSessionId: "accepted_session",
+      },
+      data: {
+        leaseExpiresAt: expect.any(Date),
+        reconcilerHeartbeatAt: expect.any(Date),
+      },
+    });
   });
 
   it("starts no turn at all while an administrator has it switched off", async () => {
@@ -3247,6 +3330,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       sokoBot: adminBot({ status: "RUNNING" }),
     };
     turnFindFirstMock.mockResolvedValue(turn);
+    botFindUniqueOrThrowMock.mockResolvedValue(turn.sokoBot);
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
@@ -3296,7 +3380,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 
   it("rolls back replay acknowledgement when administrator pause wins", async () => {
     botFindFirstMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
-    turnFindUniqueMock.mockResolvedValue({
+    const released = {
       id: "turn_existing",
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
@@ -3310,13 +3394,25 @@ describe("SokoBotControlPlane lifecycle", () => {
       errorKind: "runtime_start_ambiguous",
       leaseToken: "lease_1",
       deadlineAt: new Date("2099-08-18T12:00:00.000Z"),
-    });
+    };
+    turnFindUniqueMock
+      .mockResolvedValueOnce(released)
+      .mockImplementation(async () => ({
+        ...released,
+        leaseToken: turnUpdateManyMock.mock.calls[0]?.[0].data.leaseToken,
+      }));
+    turnFindFirstMock.mockResolvedValue(released);
+    botFindUniqueOrThrowMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
     contextSnapshotFindUniqueMock.mockResolvedValue({
       id: "snapshot_1",
       packet: builtContext().packet,
     });
     memoryFindFirstMock.mockResolvedValue(null);
     botUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+    turnUpdateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 });
     const resetSession = vi.fn<SokoBotRuntime["resetSession"]>();
     const runtime = runtimeWithReset(resetSession);
     runtime.createSession = vi.fn().mockResolvedValue({
@@ -4313,7 +4409,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]);
     const resetSession = vi.fn<SokoBotRuntime["resetSession"]>();
 
-    const detail = await new SokoBotControlPlane(
+    const { detail } = await new SokoBotControlPlane(
       runtimeWithReset(resetSession),
     ).performAdminAction({
       sokoBotId: BOT_ID,
@@ -4359,7 +4455,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]);
     turnFindFirstMock.mockResolvedValue(null);
 
-    const detail = await new SokoBotControlPlane().performAdminAction({
+    const { detail } = await new SokoBotControlPlane().performAdminAction({
       sokoBotId: BOT_ID,
       operatorId: "admin_1",
       action: "RESET_SESSION",
@@ -4374,6 +4470,39 @@ describe("SokoBotControlPlane lifecycle", () => {
         data: expect.objectContaining({ status: "SUCCEEDED" }),
       }),
     );
+  });
+
+  it("returns no drain grant on a successful admin retry replay while its turn has a lease", async () => {
+    const failedTurnId = "01960001-0001-7000-8000-000000000011";
+    const retry = {
+      id: "01960001-0001-7000-8000-000000000012",
+      source: "ADMIN_RETRY",
+      status: "RUNNING",
+      leaseToken: "01960001-0001-7000-8000-000000000013",
+    };
+    const input = {
+      sokoBotId: BOT_ID,
+      operatorId: "admin_1",
+      action: "RETRY_LAST_FAILED" as const,
+      reason: "Retry failed turn",
+      operationId: "successful-retry-replay",
+    };
+    botFindUniqueMock.mockResolvedValue(adminBot({ status: "RUNNING" }));
+    botFindFirstMock.mockResolvedValue(adminBot({ turns: [retry] }));
+    adminActionFindUniqueMock.mockResolvedValue({
+      ...input,
+      userId: "user_1",
+      targetId: failedTurnId,
+    });
+    adminActionFindFirstMock.mockResolvedValue({ status: "SUCCEEDED" });
+    const control = new SokoBotControlPlane();
+    const startTurn = vi.spyOn(control, "startTurn");
+
+    const { detail, reconciliation } = await control.performAdminAction(input);
+
+    expect(detail.turns).toMatchObject([retry]);
+    expect(reconciliation).toBeUndefined();
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("binds retry-last operation replay to its originally resolved failed turn", async () => {
@@ -5228,19 +5357,18 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
   });
 
-  it("settles a no-session cancellation only under its current lease", async () => {
-    turnFindFirstMock.mockResolvedValue({ leaseToken: "cancel-lease-1" });
-    turnFindUniqueMock.mockResolvedValue({
+  it("claims a fresh lease to settle a no-session cancellation", async () => {
+    turnFindUniqueMock.mockImplementation(async () => ({
       sokoBotId: BOT_ID,
       requestedByUserId: "user_1",
       eveSessionId: null,
       startedAt: null,
       costUsdMicros: 0n,
       status: "CANCEL_REQUESTED",
-      leaseToken: "cancel-lease-1",
+      leaseToken: turnUpdateManyMock.mock.calls[0]?.[0].data.leaseToken,
       cancellationRequestedAt: new Date(),
       scheduleRun: null,
-    });
+    }));
 
     const settled =
       await new SokoBotControlPlane().settleUndeliverableCancellation(
@@ -5252,7 +5380,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           id: "turn_cancelled_before_acceptance",
-          leaseToken: "cancel-lease-1",
+          leaseToken: expect.any(String),
           eveSessionId: null,
         }),
         data: expect.objectContaining({ status: "CANCELLED" }),

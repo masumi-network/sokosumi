@@ -10,6 +10,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "hire_agent",
   "provide_job_input",
   "run_integration_tool",
+  "run_mcp_tool",
   "upload_file",
   "publish_social_post",
   // Creates a campaign at Google; never repeated after an unclear failure.
@@ -77,6 +78,7 @@ export const ACTION_CAPABILITIES = new Set([
   "reply_to_task",
   "update_assigned_task",
   "link_tasks",
+  "set_task_parent",
   "stop_following_task",
   "post_chat",
   "open_direct_chat",

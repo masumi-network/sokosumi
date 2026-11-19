@@ -9,6 +9,8 @@ import { getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
+import { getEnv } from "@/config/env";
+
 import { hashStoredOAuthToken } from "./auth-oauth-token-prefixes";
 
 export const oauthRefreshTokenOptions = {
@@ -111,6 +113,18 @@ export async function readOAuthAuthorizeQuery(): Promise<URLSearchParams | null>
     }
   }
   return null;
+}
+
+/**
+ * Whether the sign-in runs inside CMO's OAuth request, so what Core sends for
+ * it carries CMO's name. CMO is its client id, never its redirect (ADR 0066).
+ */
+export async function signsInToCmo(): Promise<boolean> {
+  const cmoClientId = getEnv().CMO_OAUTH_CLIENT_ID;
+  if (!cmoClientId) {
+    return false;
+  }
+  return (await readOAuthAuthorizeQuery())?.get("client_id") === cmoClientId;
 }
 
 /**

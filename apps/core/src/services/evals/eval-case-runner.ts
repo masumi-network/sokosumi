@@ -1,6 +1,7 @@
 import {
   CMO_POST_WITH_PICTURE_SCENARIO_ID,
   evaluateScenario,
+  isSokoBotSandboxCapability,
   type ScenarioCheck,
   type SokoBotJudgeVerdict,
   type SokoBotScenario,
@@ -16,12 +17,29 @@ import {
   startLabScenarioTurn,
 } from "@/services/soko-bot-lab-scenario.service";
 import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
+import {
+  followUpCapabilities,
+  followUpMessage,
+} from "@/services/soko-bot-watches.service";
 import type { EvalCase } from "./eval-cases";
 import type { CmoChatSetup } from "./eval-cmo-cases";
 import {
+  COMPETITOR_ADS_CASE_ID,
+  COMPETITOR_LANDING_PAGE_CASE_ID,
+  competitorAdChecks,
+  competitorLandingPageChecks,
+} from "./eval-cmo-competitor-ads";
+import {
   competitorFeedChecks,
   isCompetitorEvalCase,
+  prepareSokoBotCompetitorCase,
+  SOKO_BOT_COMPETITOR_CASE_ID,
+  sokoBotCompetitorChecks,
 } from "./eval-cmo-competitors";
+import {
+  REPORT_HEADLINE_CASE_ID,
+  reportHeadlineChecks,
+} from "./eval-cmo-report-headline";
 import {
   commentChecks,
   pollCmoCase,
@@ -103,6 +121,53 @@ export function caseError(
   return { status: "ERROR", checks: [], output: {}, error: message, turnIds };
 }
 
+/**
+ * The follow-up of the lane Cuso's chat turn for `ask`, as the watch sync
+ * starts one: a child turn with that turn's tools and Core's brief.
+ */
+async function startFollowUp(
+  trigger: Extract<SokoBotScenario["trigger"], { kind: "follow_up" }>,
+  lane: EvalLaneRecord,
+  clientTurnId: string,
+): Promise<string> {
+  const asked = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: lane.cusoBotId,
+      source: "CHAT",
+      parentTurnId: null,
+      userMessage: trigger.ask,
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, capabilityNames: true, destinationRoomId: true },
+  });
+  if (!asked)
+    throw new Error("No chat turn to follow up: run the case that asks first");
+  const capabilities = followUpCapabilities(
+    "background_run",
+    asked.capabilityNames,
+  );
+  const started = await sokoBotControlPlane.startTurn({
+    userId: lane.userId,
+    workspaceId: lane.workspaceId,
+    sokoBotId: lane.cusoBotId,
+    clientTurnId,
+    message: followUpMessage({ ...trigger, timedOut: false }),
+    source: "CHAT",
+    presetRoute: {
+      route: "DELEGATE_TASK",
+      reason: "Follow-up",
+      capabilities,
+      sandbox: capabilities.some(isSokoBotSandboxCapability),
+    },
+    background: {
+      parentTurnId: asked.id,
+      title: "Follow-up",
+      destinationRoomId: asked.destinationRoomId,
+    },
+  });
+  return started.turnId;
+}
+
 async function startScenario(
   scenario: SokoBotScenario,
   bot: "soko-bot" | "cuso",
@@ -149,6 +214,8 @@ async function startScenario(
       timezone: "Europe/Berlin",
       ...schedule,
     });
+  if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID)
+    await prepareSokoBotCompetitorCase(lane);
   if (seoCase) {
     const prepared = await prepareSeoEvalCase(lane, scenario, context.resultId);
     scenario = prepared.scenario;
@@ -156,15 +223,17 @@ async function startScenario(
   }
   const turnId =
     bot === "cuso"
-      ? (
-          await sokoBotControlPlane.startTurn({
-            userId: lane.userId,
-            workspaceId: lane.workspaceId,
-            sokoBotId,
-            clientTurnId,
-            message: scenario.prompt,
-          })
-        ).turnId
+      ? scenario.trigger?.kind === "follow_up"
+        ? await startFollowUp(scenario.trigger, lane, clientTurnId)
+        : (
+            await sokoBotControlPlane.startTurn({
+              userId: lane.userId,
+              workspaceId: lane.workspaceId,
+              sokoBotId,
+              clientTurnId,
+              message: scenario.prompt,
+            })
+          ).turnId
       : await startLabScenarioTurn(
           scenario,
           {
@@ -237,6 +306,30 @@ async function pollScenario(
       scenario.id,
       context.startedAt,
     );
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === COMPETITOR_ADS_CASE_ID) {
+    const extra = await competitorAdChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === COMPETITOR_LANDING_PAGE_CASE_ID) {
+    const extra = await competitorLandingPageChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === SOKO_BOT_COMPETITOR_CASE_ID) {
+    const extra = await sokoBotCompetitorChecks(lane);
+    result.checks.push(...extra);
+    result.total += extra.length;
+    result.passed += extra.filter((check) => check.pass).length;
+  }
+  if (scenario.id === REPORT_HEADLINE_CASE_ID) {
+    const extra = await reportHeadlineChecks(lane, context.startedAt);
     result.checks.push(...extra);
     result.total += extra.length;
     result.passed += extra.filter((check) => check.pass).length;

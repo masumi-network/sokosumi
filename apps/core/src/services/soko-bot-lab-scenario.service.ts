@@ -3,6 +3,7 @@ import {
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
 import prisma from "@/lib/db/prisma";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   SYSTEM_TURN_ROUTES,
   systemScheduleRoute,
@@ -36,7 +37,9 @@ async function reconciled(started: {
         undefined,
         started.reconciliationLeaseToken,
       )
-      .catch(() => undefined);
+      .catch((error) => {
+        reportSokoBotReconciliationLeaseLoss(started.turnId, error);
+      });
   }
   return started.turnId;
 }

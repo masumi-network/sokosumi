@@ -7,7 +7,7 @@ const objectId = z.string().regex(/^[0-9a-f]{24}$/i);
 const profile = z.object({ _id: objectId });
 const account = z.object({
   _id: objectId,
-  platform: z.literal("tiktok"),
+  platform: z.string(),
   profileId: z.union([objectId, profile.transform((value) => value._id)]),
   isActive: z.boolean(),
   needsReconnection: z.boolean().optional(),
@@ -21,17 +21,35 @@ export function zernioProofDigest(proof: string): string {
   return createHash("sha256").update(proof).digest("hex");
 }
 
-export async function createZernioTikTokIntent(callbackOrigin: string) {
+/** What CMO's return address names, carried back beside the proof. */
+const RETURN_PARAMS = ["project", "from"] as const;
+
+/**
+ * `returnTo` gives the origin the network sends the person back to, at
+ * `/zernio/callback`, and may name a Project (CMO's callbacks do).
+ */
+export async function createZernioIntent(
+  returnTo: string,
+  network: "TikTok" | "LinkedIn",
+) {
   const attempt = randomUUID();
   const result = await zernioRequest("/profiles", {
     method: "POST",
-    body: { name: `Sokosumi TikTok ${attempt}` },
+    body: { name: `Sokosumi ${network} ${attempt}` },
     idempotencyKey: attempt,
   });
   const profileId = z.object({ profile }).parse(result).profile._id;
   const proof = randomBytes(32).toString("base64url");
   const connectionId = `zernio:${profileId}`;
-  const callback = new URL("/zernio/callback", callbackOrigin);
+  const callback = new URL("/zernio/callback", returnTo);
+  for (const name of RETURN_PARAMS) {
+    const value = new URL(returnTo).searchParams.get(name);
+    if (value) callback.searchParams.set(name, value);
+  }
+  // Keeps LinkedIn's token and Page list out of the address it returns to.
+  if (network === "LinkedIn") {
+    callback.searchParams.set("pendingDataOnly", "true");
+  }
   callback.searchParams.set("connection", connectionId);
   callback.searchParams.set("proof", proof);
   return {
@@ -42,22 +60,28 @@ export async function createZernioTikTokIntent(callbackOrigin: string) {
   };
 }
 
-export async function getZernioTikTokAuthUrl(profileId: string, callback: URL) {
+export async function getZernioAuthUrl(
+  platform: "tiktok" | "linkedin",
+  profileId: string,
+  callback: URL,
+) {
   const params = new URLSearchParams({
     profileId,
     redirect_url: callback.href,
+    // LinkedIn comes back with the Pages to pick from instead of Zernio's picker.
+    ...(platform === "linkedin" && {
+      headless: "true",
+      scopes: "posting,analytics,comments",
+    }),
   });
-  const result = await zernioRequest(`/connect/tiktok?${params}`);
+  const result = await zernioRequest(`/connect/${platform}?${params}`);
   return z.object({ authUrl: z.url({ protocol: /^https$/ }) }).parse(result)
     .authUrl;
 }
 
-async function profileTikTokAccounts(profileId: string, signal?: AbortSignal) {
-  const params = new URLSearchParams({
-    profileId,
-    platform: "tiktok",
-    includeOverLimit: "true",
-  });
+/** Every account on one of our profiles; each profile holds one connection. */
+async function zernioProfileAccounts(profileId: string, signal?: AbortSignal) {
+  const params = new URLSearchParams({ profileId, includeOverLimit: "true" });
   const { accounts } = z
     .object({ accounts: z.array(account) })
     .parse(await zernioRequest(`/accounts?${params}`, { signal }));
@@ -65,15 +89,29 @@ async function profileTikTokAccounts(profileId: string, signal?: AbortSignal) {
     accounts.length > 1 ||
     accounts.some((entry) => entry.profileId !== profileId)
   ) {
-    throw conflict("Unexpected accounts on the TikTok connection profile");
+    throw conflict("Unexpected accounts on the connection profile");
   }
   return accounts;
 }
 
-export async function getZernioTikTokIdentity(profileId: string) {
-  const [entry] = await profileTikTokAccounts(profileId);
-  if (!entry?.isActive || entry.needsReconnection || !entry.platformUserId) {
-    throw conflict("TikTok connection is not active");
+/**
+ * The one account a sign-in left on its profile: a TikTok creator, or a
+ * LinkedIn member whose sign-in reached no Page, so Zernio kept it at once.
+ */
+export async function getZernioProfileIdentity(
+  profileId: string,
+  platform: "tiktok" | "linkedin",
+) {
+  const [entry] = await zernioProfileAccounts(profileId);
+  if (
+    entry?.platform !== platform ||
+    !entry.isActive ||
+    entry.needsReconnection ||
+    !entry.platformUserId
+  ) {
+    throw conflict(
+      `${platform === "tiktok" ? "TikTok" : "LinkedIn"} connection is not active`,
+    );
   }
   return {
     connectedAccountId: `zernio:${entry._id}`,
@@ -96,7 +134,7 @@ async function deleteZernioResource(path: string, signal?: AbortSignal) {
 }
 
 /** Zernio requires active accounts to be disconnected before deleting their profile. */
-export async function deleteZernioTikTokProfile(
+export async function deleteZernioProfile(
   profileId: string,
   accountId?: string,
   signal?: AbortSignal,
@@ -107,7 +145,7 @@ export async function deleteZernioTikTokProfile(
       signal,
     );
   } else {
-    const entries = await profileTikTokAccounts(profileId, signal);
+    const entries = await zernioProfileAccounts(profileId, signal);
     for (const entry of entries) {
       await deleteZernioResource(`/accounts/${entry._id}`, signal);
     }

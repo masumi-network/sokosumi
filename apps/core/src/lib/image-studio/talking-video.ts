@@ -1,41 +1,61 @@
 import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
 import {
   creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PRICE,
+  TALKING_VIDEO_PRICE_VERIFIED_AT,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
+  type TalkingVideoExtras,
   type TalkingVideoPriceFigures,
 } from "@sokosumi/utils";
 import sharp from "sharp";
 
+import {
+  type SpokenWord,
+  TALKING_VIDEO_HOOK_MAX_LENGTH,
+} from "./talking-video-edit";
 import type { VideoSettings } from "./video-model";
 
 /**
- * A talking video: a presenter photo speaking a script, with captions.
+ * A talking video: a presenter photo speaking a script, edited and captioned.
  *
  * Three provider steps make one. The voice is spoken first, because its length
- * is the video's length. The presenter model lip-syncs the photo to it. A
- * caption step then burns the spoken words into the picture.
+ * is the video's length, and transcribed for when each word is spoken. The
+ * presenter model lip-syncs the photo to the voice. Core then edits the clip
+ * itself (`talking-video-edit`): pauses cut, a punch-in per sentence, a hook
+ * line and captions, from those word timings.
  *
  * The models are listed by hand, like the video catalog's verified layer:
  * fal's catalog fetch keeps prompt-driven video models only, and these take a
  * photo and a voice instead.
  */
 
-/** Transcribes the finished video and burns the words in. */
-export const TALKING_VIDEO_CAPTION_ENDPOINT =
-  "fal-ai/workflow-utilities/auto-subtitle";
+/**
+ * Times each spoken word of the voice. The voice model's own timings smear a
+ * pause over the words around it, which is too coarse to cut or caption by.
+ */
+export const TALKING_VIDEO_WORDS_ENDPOINT =
+  "fal-ai/elevenlabs/speech-to-text/scribe-v2";
 
 /**
- * Measured, not read off the model page. The page says $0.05 per second at
- * 1080p; fal billed a 6.08 s Turbo clip 22 units at $0.05, so $1.10, on
- * 2026-11-18. With one measurement it is unknown whether part of that is a
- * fixed charge, so a video costs the larger of $1.10 and that clip's rate
- * per second: an upper bound either way. The standard tier is left out until
- * its price is measured too.
+ * Cuts the presenter out of the clip, for standing them over the brand's
+ * site. Asked for h264, it returns the clip and its matte as two files.
  */
-const PRICES_VERIFIED_AT = "2026-11-18";
-const VOICE_PER_1000_CHARACTERS_USD = 0.08;
-const CAPTIONS_PER_MINUTE_USD = 0.03;
+export const TALKING_VIDEO_CUTOUT_ENDPOINT =
+  "veed/video-background-removal/fast";
+
+/** Makes the optional B-roll clip for the hook from a written prompt. */
+export const TALKING_VIDEO_BROLL_ENDPOINT =
+  "fal-ai/wan-25-preview/text-to-video";
+/** Makes the optional instrumental bed. */
+export const TALKING_VIDEO_MUSIC_ENDPOINT = "fal-ai/lyria2";
+
+/**
+ * Transcribes a video and burns the words in. Used only when the voice's
+ * words could not be timed, so Core's own edit has nothing to plan from.
+ */
+export const TALKING_VIDEO_CAPTION_ENDPOINT =
+  "fal-ai/workflow-utilities/auto-subtitle";
 
 /** The only resolution sent. */
 export const TALKING_VIDEO_RESOLUTION = "1080p";
@@ -61,14 +81,11 @@ const MODELS: TalkingVideoModel[] = [
     description: "A presenter speaking your script.",
     endpoint: "heygen/avatar-6/turbo/image-to-video",
     price: {
-      perSecondUsd: 0.181,
-      minimumVideoUsd: 1.1,
-      voicePer1000CharactersUsd: VOICE_PER_1000_CHARACTERS_USD,
-      captionsPerMinuteUsd: CAPTIONS_PER_MINUTE_USD,
+      ...TALKING_VIDEO_PRICE,
       basis:
-        "The larger of $1.10 and $0.181 per second of video at 1080p, from what fal billed for a measured clip, plus the voice ($0.08 per 1,000 characters) and the captions ($0.03 per minute).",
+        "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). Optional: a B-roll clip in the hook ($0.50) and a music bed ($0.10), as fal billed them. The edit itself is made by Core and costs nothing.",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
-      verifiedAt: PRICES_VERIFIED_AT,
+      verifiedAt: TALKING_VIDEO_PRICE_VERIFIED_AT,
     },
   },
 ];
@@ -139,6 +156,15 @@ export function talkingVideoModel(id?: string): TalkingVideoModel {
   return model;
 }
 
+/** The model a stored job names, for pricing it again. */
+export function talkingVideoModelForEndpoint(
+  endpoint: string,
+): TalkingVideoModel {
+  const model = MODELS.find((candidate) => candidate.endpoint === endpoint);
+  if (!model) throw new Error("Unknown talking video model.");
+  return model;
+}
+
 export function findTalkingVideoPresenter(
   id: string,
 ): TalkingVideoPresenter | null {
@@ -151,8 +177,9 @@ export function findTalkingVideoPresenter(
 export function creditsPerTalkingVideo(
   model: TalkingVideoModel,
   script: string,
+  extras: TalkingVideoExtras = {},
 ): number {
-  return creditsPerTalkingVideoCents(model.price, script);
+  return creditsPerTalkingVideoCents(model.price, script, extras);
 }
 
 /**
@@ -191,6 +218,33 @@ export interface TalkingVideoSettings extends VideoSettings {
   presenterId: string | null;
   /** ISO 639-1 language of the script. */
   languageCode: string;
+  /** When each word of the voice is spoken. Empty when they were not timed. */
+  words: SpokenWord[];
+  /** A few words shown over the first seconds, or null for none. */
+  hookLine: string | null;
+  /** The middle sentences show the brand's site. */
+  siteShots: boolean;
+  /** The site's screenshot in the studio's store, once it is taken. */
+  sitePagePathname: string | null;
+  /** A generated clip plays in the hook; its provider request, once sent. */
+  broll: boolean;
+  brollRequestId: string | null;
+  /** Generated music plays under the voice; its provider request, once sent. */
+  music: boolean;
+  musicRequestId: string | null;
+}
+
+function readSpokenWords(value: unknown): SpokenWord[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((word: unknown) => {
+    if (typeof word !== "object" || word === null) return [];
+    const { text, start, end } = word as Record<string, unknown>;
+    return typeof text === "string" &&
+      typeof start === "number" &&
+      typeof end === "number"
+      ? [{ text, start, end }]
+      : [];
+  });
 }
 
 export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
@@ -207,6 +261,20 @@ export function readTalkingVideoSettings(value: unknown): TalkingVideoSettings {
     presenterId: typeof raw.presenterId === "string" ? raw.presenterId : null,
     languageCode:
       typeof raw.languageCode === "string" ? raw.languageCode : "en",
+    words: readSpokenWords(raw.words),
+    hookLine:
+      typeof raw.hookLine === "string" && raw.hookLine.trim()
+        ? raw.hookLine.trim().slice(0, TALKING_VIDEO_HOOK_MAX_LENGTH)
+        : null,
+    siteShots: raw.siteShots === true,
+    sitePagePathname:
+      typeof raw.sitePagePathname === "string" ? raw.sitePagePathname : null,
+    broll: raw.broll === true,
+    brollRequestId:
+      typeof raw.brollRequestId === "string" ? raw.brollRequestId : null,
+    music: raw.music === true,
+    musicRequestId:
+      typeof raw.musicRequestId === "string" ? raw.musicRequestId : null,
   };
 }
 
@@ -238,9 +306,40 @@ export function buildTalkingVideoInput(input: {
 
 /**
  * Bold white words, two at a time, the spoken one in yellow. On this endpoint a
- * positive `y_offset` lifts bottom captions: 200 puts them at about three
- * quarters of the frame's height, above the app's own caption and buttons.
+ * positive `y_offset` lifts bottom captions and 200 is its most: about three
+ * quarters of the frame's height, which is still below TikTok's safe area.
+ * Core's own edit places them inside it; this is the fallback's best.
  */
+/** A five-second vertical clip with nothing written in it. */
+export function buildTalkingVideoBrollInput(input: {
+  prompt: string;
+}): Record<string, unknown> {
+  return {
+    prompt: input.prompt,
+    aspect_ratio: TALKING_VIDEO_ASPECT_RATIO,
+    resolution: "720p",
+    duration: "5",
+    enable_prompt_expansion: false,
+    negative_prompt:
+      "captions, subtitles, text, logos, watermark, cartoon, low quality",
+  };
+}
+
+/** One bed for every video: light, instrumental, out of the voice's way. */
+export function buildTalkingVideoMusicInput(): Record<string, unknown> {
+  return {
+    prompt:
+      "Light, upbeat lo-fi pop instrumental for a short social video, 110 bpm, plucky synth, soft claps, warm bass, friendly and modern, no vocals",
+    negative_prompt: "vocals, singing, speech, low quality",
+  };
+}
+
+export function buildTalkingVideoCutoutInput(input: {
+  videoUrl: string;
+}): Record<string, unknown> {
+  return { video_url: input.videoUrl, output_codec: "h264" };
+}
+
 export function buildTalkingVideoCaptionInput(input: {
   videoUrl: string;
   languageCode: string;

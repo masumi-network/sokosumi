@@ -108,6 +108,7 @@ const activeConnection = {
   id: SOCIAL_CONNECTION_ID,
   projectId: PROJECT_ID,
   provider: "x",
+  externalAccountId: "1384455565187891201",
   externalHandle: "sokosumi",
   subscriptionType: null,
   status: "active",
@@ -206,6 +207,7 @@ const scheduledPost = {
   socialConnection: {
     id: SOCIAL_CONNECTION_ID,
     provider: "x",
+    externalAccountId: "1384455565187891201",
     externalHandle: "sokosumi",
     status: "active",
   },
@@ -597,7 +599,12 @@ describe("social posts service", () => {
           id: TARGET_ID,
           text: "Original",
           media: [IMAGE_REF],
-          account: target.socialConnection,
+          account: {
+            id: target.socialConnection.id,
+            externalHandle: target.socialConnection.externalHandle,
+            status: target.socialConnection.status,
+            personalProfile: false,
+          },
           scheduledAt: FUTURE,
         },
         canPublishNow: false,
@@ -1698,6 +1705,7 @@ describe("social posts service", () => {
         id: true,
         closingAt: true,
         closedAt: true,
+        testCopyOfProjectId: true,
         workspace: {
           select: {
             organization: { select: { slug: true } },
@@ -2930,6 +2938,48 @@ describe("social posts service", () => {
       );
     });
 
+    it("lets one talking video's posts on several networks say the same", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        planning: { id: "tv@youtube", videoOf: "tv" },
+      });
+      socialPostFindManyMock.mockResolvedValue([
+        {
+          text: "No monthly fee on a Studio account. Each token costs 3%.",
+          planning: { id: "tv", title: "Fees" },
+        },
+        {
+          text: "Studio has no monthly fee; minting costs 3% a token.",
+          planning: { id: "tv@facebook", videoOf: "tv", title: "Fees" },
+        },
+      ]);
+      const { ownMessageProblem } = await loadService();
+      const text = "No monthly fee on a Studio account; each token costs 3%.";
+
+      expect(
+        (
+          await ownMessageProblem(
+            { postId: POST_ID, workspaceId: WORKSPACE_ID, text },
+            embed,
+          )
+        ).problem,
+      ).toBeNull();
+
+      // Another entry's post saying it again is still refused.
+      socialPostFindFirstMock.mockResolvedValue({
+        marketingStrategyId: "version-1",
+        planning: { id: "other" },
+      });
+      expect(
+        (
+          await ownMessageProblem(
+            { postId: POST_ID, workspaceId: WORKSPACE_ID, text },
+            embed,
+          )
+        ).problem,
+      ).toContain("Rewrite the post");
+    });
+
     it("lets a post with its own message through", async () => {
       const { ownMessageProblem } = await loadService();
 
@@ -4061,6 +4111,7 @@ describe("social posts service", () => {
           id: true,
           closingAt: true,
           closedAt: true,
+          testCopyOfProjectId: true,
           workspace: {
             select: {
               organization: { select: { slug: true } },

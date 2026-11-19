@@ -162,6 +162,7 @@
     "UserAvatar": {
       "account": "Konto",
       "notifications": "Benachrichtigungen",
+      "notificationSettings": "Benachrichtigungseinstellungen",
       "billing": "Abrechnung",
       "connections": "Verbindungen",
       "developer": "Entwickler",
@@ -1264,8 +1265,7 @@
       "termsOfServices": "Nutzungsbedingungen",
       "privacyPolicy": "Datenschutzrichtlinie",
       "imprint": "Impressum",
-      "acceptableUse": "Zulässige Nutzung",
-      "usesSokosumi": "Nutzt dein Sokosumi-Konto."
+      "acceptableUse": "Zulässige Nutzung"
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1281,8 +1281,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Anmelden / Registrieren",
-        "template": "Sokosumi - %s"
+        "default": "{product} - Anmelden / Registrieren",
+        "template": "{product} - %s"
       },
       "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
@@ -1323,7 +1323,7 @@
         },
         "Header": {
           "title": "Anmelden",
-          "description": "Agents auf unserer Plattform beauftragen",
+          "description": "Dein AI Coworker für Marketing",
           "descriptionFor": "Melde dich mit deinem Sokosumi-Konto an, um mit {client} fortzufahren",
           "titleCmo": "Bei CMO.xyz anmelden",
           "descriptionCmo": "Cuso macht dein Marketing."
@@ -1383,7 +1383,7 @@
         "Header": {
           "title": "Erstelle dein Konto",
           "viaInvitation": "(per Einladung)",
-          "description": "Agents auf unserer Plattform beauftragen",
+          "description": "Dein AI Coworker für Marketing",
           "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren",
           "titleCmo": "Erstelle dein CMO.xyz-Konto",
           "descriptionCmo": "Cuso macht dein Marketing."
@@ -1474,6 +1474,7 @@
       "chooseAccountTitle": "Konto auswählen",
       "chooseAccountTitleFor": "Konto für {client} auswählen",
       "signedInAs": "Bei Sokosumi angemeldet als <account>{email}</account>",
+      "signedInAsCmo": "Angemeldet als <account>{email}</account>",
       "continueAs": "Weiter als {account}",
       "useAnotherAccount": "Anderes Konto verwenden",
       "accountCheckError": "Dein Konto konnte nicht überprüft werden. Versuche es erneut.",
@@ -1483,7 +1484,7 @@
       "backTo": "Zurück zu {client}"
     },
     "SignInError": {
-      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem E-Mail-Code an und verbinde Google oder Microsoft danach unter Verbindungen.",
+      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Konto. Melde dich zuerst mit deinem Passwort oder einem E-Mail-Code an und verbinde Google oder Microsoft danach unter Verbindungen.",
       "cancelled": "Die Anmeldung wurde abgebrochen. Wähle, wie du fortfahren möchtest.",
       "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut.",
       "expired": "Diese Anmeldung hat zu lange gedauert oder wurde in einem anderen Browser gestartet. Bitte versuche es erneut.",
@@ -1812,6 +1813,8 @@
         "searchLabel": "Archivierte Aufgaben durchsuchen",
         "searchPlaceholder": "Nach Name suchen",
         "noMatches": "Keine archivierten Aufgaben passen zu „{query}“.",
+        "searchResults": "{count, plural, =0 {Keine archivierten Aufgaben passen zu „{query}“.} one {# archivierte Aufgabe passt zu „{query}“.} other {# archivierte Aufgaben passen zu „{query}“.}}",
+        "searchResultsLimited": "Die neuesten {shown, number} von {total, number} archivierten Aufgaben, die zu „{query}“ passen.",
         "noProject": "Kein Projekt",
         "archivedOn": "Archiviert am {date}",
         "readOnly": "Archivierte Aufgaben sind schreibgeschützt. Stelle diese wieder her, um sie zu bearbeiten oder auszuführen."
@@ -1846,6 +1849,8 @@
         "loading": "Wird geladen...",
         "loadMore": "Mehr laden"
       },
+      "noTitle": "(Kein Titel)",
+      "unansweredMention": "Du hast eine unbeantwortete Erwähnung",
       "createTaskFab": "Aufgabe erstellen",
       "personalAssistant": "Persönlicher Assistent",
       "sokoBot": "Soko Bot",
@@ -1911,14 +1916,17 @@
         "workspaceTags": "Workspace-Tags",
         "archivedTags": "Archivierte Tags",
         "topicTags": "Standardthemen",
-        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat"
+        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat",
+        "needsMe": "Wartet auf mich",
+        "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
+        "mentions": "Erwähnungen",
+        "mentionsHint": "Tasks, in denen dich ein Kommentar erwähnt und du seitdem nicht kommentiert hast"
       },
       "Detail": {
         "back": "Zurück zu Tasks",
         "backToCalendar": "Zurück zum Kalender",
         "privateBadge": "Privat",
         "visibility": "Sichtbarkeit",
-        "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",
         "status": "Status",
         "organization": "Organisation",
@@ -1930,6 +1938,8 @@
         "updated": "Aktualisiert",
         "description": "Beschreibung",
         "context": "Kontext",
+        "subtasks": "Teilaufgaben",
+        "subtaskOf": "Teilaufgabe von",
         "copyIdentifier": "Task-ID kopieren",
         "identifierCopied": "{identifier} kopiert",
         "identifierCopyError": "Task-ID konnte nicht kopiert werden",
@@ -1996,12 +2006,16 @@
           "archive": "Archivieren",
           "archiveError": "Task konnte nicht archiviert werden",
           "reopenToReady": "Als Bereit wiedereröffnen",
-          "reopenToReadyTitle": "Aufgabe wiedereröffnen",
-          "reopenToReadyDescription": "Füge einen Kommentar hinzu, damit dein Coworker weiß, was als Nächstes zu tun ist. Die Aufgabe wird wieder auf Bereit gesetzt.",
-          "reopenToReadyCommentLabel": "Kommentar",
-          "reopenToReadyCommentPlaceholder": "Beschreibe, was noch zu erledigen ist…",
           "reopenToReadyCommentRequired": "Zum Wiedereröffnen ist ein Kommentar erforderlich",
-          "reopenToReadyConfirm": "Als Bereit wiedereröffnen",
+          "sendBack": {
+            "title": "An {assignee} zurückgeben?",
+            "description": "Die Aufgabe wird wieder bereit, und {assignee} startet einen neuen Lauf. Sag {assignee}, was zu tun ist.",
+            "commentLabel": "Was zu korrigieren ist",
+            "commentPlaceholder": "Was soll {assignee} ändern oder neu machen?",
+            "confirm": "An {assignee} zurückgeben",
+            "reopenAsDraft": "Als Entwurf wieder öffnen",
+            "cancel": "Nicht jetzt"
+          },
           "cancel": "Abbrechen",
           "share": "Share",
           "updateStatusSuccess": "Task-Status aktualisiert",
@@ -2014,19 +2028,32 @@
           "moveToWorkspaceCancel": "Abbrechen",
           "moveToWorkspaceSuccess": "Task wurde verschoben",
           "moveToWorkspaceError": "Task konnte nicht verschoben werden",
-          "markAs": "Markieren als",
+          "linkToTask": "Mit Task verknüpfen",
+          "linkPicker": {
+            "related": {
+              "title": "Als zugehörig verknüpfen",
+              "description": "Wählen Sie einen Task. Jeder Task zeigt den anderen unter Zugehörig."
+            },
+            "blocks": {
+              "title": "Als blockierend verknüpfen",
+              "description": "Wählen Sie den Task, den dieser blockiert. Dieser Task zeigt ihn unter Blockiert, der andere zeigt diesen unter Blockiert durch."
+            },
+            "blockedBy": {
+              "title": "Als blockiert durch verknüpfen",
+              "description": "Wählen Sie den Task, auf den dieser wartet. Dieser Task zeigt ihn unter Blockiert durch, der andere zeigt diesen unter Blockiert."
+            },
+            "duplicate": {
+              "title": "Als Duplikat verknüpfen",
+              "description": "Wählen Sie den Task, den dieser wiederholt. Jeder Task zeigt den anderen unter Duplikat. Es wird nichts kopiert."
+            }
+          },
           "createRelated": "Verknüpften Task erstellen",
           "removeRelated": "Verknüpften Task entfernen",
           "removeRelatedSuccess": "Verknüpfter Task entfernt",
           "removeRelatedError": "Verknüpfter Task konnte nicht entfernt werden",
-          "removeParent": "Übergeordneten Task entfernen",
-          "removeParentSuccess": "Übergeordneter Task entfernt",
-          "removeParentError": "Übergeordneter Task konnte nicht entfernt werden",
           "linkTaskSuccess": "Task verknüpft",
           "linkTaskError": "Task konnte nicht verknüpft werden",
           "createRelatedSuccess": "Verknüpfter Task erstellt",
-          "taskPickerTitle": "Markieren als {relation}",
-          "taskPickerDescription": "Wählen Sie einen Task aus, den Sie mit dem aktuellen Task verknüpfen möchten.",
           "taskPickerSearchPlaceholder": "Tasks suchen...",
           "taskPickerLoading": "Tasks werden geladen...",
           "taskPickerEmpty": "Keine Tasks gefunden.",
@@ -2038,10 +2065,7 @@
             "related": "Zugehörig",
             "blocks": "Blockiert",
             "blockedBy": "Blockiert durch",
-            "parent": "Übergeordnete Aufgabe",
-            "subtask": "Unteraufgabe",
-            "duplicate": "Duplikat",
-            "addSubtask": "Unteraufgabe hinzufügen"
+            "duplicate": "Duplikat"
           },
           "personalWorkspace": "Persönlich",
           "startWorking": "Arbeit beginnen",
@@ -2052,7 +2076,7 @@
           "markComplete": "Als erledigt markieren",
           "repeat": "Wiederholen",
           "repeatError": "Das Zeitplan-Formular ließ sich nicht öffnen. Versuche es erneut.",
-          "duplicate": "Als Entwurf duplizieren",
+          "duplicate": "Als Entwurf kopieren",
           "sendToChat": {
             "menuItem": "In Chat senden",
             "title": "Aufgabe in Chat senden",
@@ -2071,6 +2095,23 @@
             "refused": "Dieser Chat kann diese Aufgabe nicht mehr erhalten. Wähle einen anderen.",
             "retry": "Erneut senden",
             "retryHint": "Das letzte Senden ist vielleicht nicht angekommen. Erneutes Senden postet sie nicht doppelt; wenn du Chat oder Nachricht änderst, wird eine neue gesendet."
+          },
+          "subtasks": {
+            "add": "Teilaufgabe hinzufügen…",
+            "addExisting": "Vorhandenen Task als Teilaufgabe hinzufügen…",
+            "addExistingTitle": "Vorhandenen Task als Teilaufgabe hinzufügen",
+            "addExistingDescription": "Wähle einen Task. Er wird die letzte Teilaufgabe dieses Tasks.",
+            "addExistingSuccess": "Teilaufgabe hinzugefügt",
+            "moveUnder": "Verschieben unter…",
+            "moveUnderTitle": "Unter einen anderen Task verschieben",
+            "moveUnderDescription": "Wähle einen Task. Dieser Task wird seine letzte Teilaufgabe.",
+            "moveUnderSuccess": "Task verschoben",
+            "removeFromParent": "Aus übergeordnetem Task entfernen",
+            "removeFromParentSuccess": "Task aus seinem übergeordneten Task entfernt",
+            "moveError": "Der Task konnte nicht verschoben werden.",
+            "createSuccess": "Teilaufgabe hinzugefügt",
+            "createError": "Die Teilaufgabe konnte nicht hinzugefügt werden.",
+            "serverErrorDescription": "Versuche es später erneut."
           }
         },
         "ShareModal": {
@@ -2106,7 +2147,6 @@
           "confirm": "Arbeitsbereich wechseln",
           "switchError": "Arbeitsbereich konnte nicht gewechselt werden. Bitte versuche es erneut."
         },
-        "clonedFrom": "Geklont von {name}",
         "pendingApproval": "Freigabe ausstehend",
         "VendorGrantApproval": {
           "title": "Freigabe des Vendor-Zugriffs erforderlich",
@@ -2231,7 +2271,7 @@
         "previewUse": "Diesen Task verwenden",
         "previewEmpty": "Noch kein Beispiel verfügbar.",
         "taskCreated": "Task erstellt",
-        "taskCreatedHint": "Alles ist eingerichtet und bereit.",
+        "taskCreatedHint": "{status, select, DRAFT {Er liegt als Entwurf im Backlog. Nichts startet, bis du ihn auf Bereit setzt.} QUEUED {Er wartet im Backlog und startet zur festgelegten Zeit.} other {Er steht unter Offen und kann starten.}}",
         "goToTask": "Zum Task",
         "createAnother": "Weiteren Task erstellen",
         "close": "Schließen",
@@ -2315,6 +2355,24 @@
           "tomorrowAt": "Startet morgen um {time}",
           "at": "Startet {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} von {total} Teilaufgaben erledigt",
+        "title": "Teilaufgaben",
+        "add": "Teilaufgabe hinzufügen",
+        "movedTo": "Auf Position {position} von {total} verschoben",
+        "reorderHandle": "{name} verschieben. Ziehen oder Pfeiltasten nach oben und unten drücken.",
+        "toggleLabel": "{name} erledigt",
+        "agentDoneHint": "Abwählen gibt sie an {assignee} zurück",
+        "changeError": "Die Änderung an der Teilaufgabe wurde nicht gespeichert. Versuche es erneut.",
+        "truncated": "Die ersten {count} Teilaufgaben werden angezeigt.",
+        "createDescription": "Die Teilaufgabe kommt ans Ende der Liste.",
+        "name": "Name",
+        "description": "Beschreibung (optional)",
+        "assignee": "Zuständig",
+        "dueOn": "Fälligkeitsdatum",
+        "cancel": "Abbrechen",
+        "create": "Teilaufgabe hinzufügen"
       },
       "Due": {
         "label": "Fälligkeitsdatum",
@@ -2578,7 +2636,18 @@
         "filter": {
           "placeholder": "Projekte filtern",
           "clear": "Filter zurücksetzen",
-          "noMatches": "Keine Projekte passen zu „{query}“."
+          "noMatches": "Keine Projekte passen zu „{query}“.",
+          "noMatchesIn": {
+            "open": "Keine offenen Projekte passen zu „{query}“.",
+            "hidden": "Keine ausgeblendeten Projekte passen zu „{query}“.",
+            "closed": "Keine geschlossenen Projekte passen zu „{query}“."
+          },
+          "elsewhere": "Passende Projekte sind in einer anderen Ansicht.",
+          "showIn": {
+            "open": "Offene Projekte anzeigen",
+            "hidden": "Ausgeblendete Projekte anzeigen",
+            "closed": "Geschlossene Projekte anzeigen"
+          }
         },
         "lastActivity": "Letzte Aktivität",
         "created": "Erstellt",
@@ -2648,6 +2717,12 @@
           "undo": "Rückgängig",
           "hideError": "Das Projekt konnte nicht ausgeblendet werden. Versuche es erneut.",
           "showError": "Das Projekt konnte nicht eingeblendet werden. Versuche es erneut."
+        },
+        "closing": {
+          "badge": "Wird geschlossen",
+          "failedBadge": "Schließen fehlgeschlagen",
+          "remaining": "{count, plural, =0 {Wird abgeschlossen, dann unter „Geschlossen“} one {# geplante Ausführung offen, dann unter „Geschlossen“} other {# geplante Ausführungen offen, dann unter „Geschlossen“}}",
+          "failed": "Öffne das Projekt, um das Schließen erneut zu versuchen."
         }
       },
       "column": {
@@ -2791,7 +2866,7 @@
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
-          "facebookPage": "Verbinde ein Facebook-Konto, das genau eine Seite verwaltet. Konten ohne Seiten oder mit mehreren Seiten werden noch nicht unterstützt.",
+          "facebookPage": "Dieses Facebook-Login verwaltet keine Seite. Verbinde dich erneut mit dem Login, das deine Seite verwaltet.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
@@ -2804,14 +2879,23 @@
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
           "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren.",
-          "sync": "Synchronisierung konnte nicht gestartet werden."
+          "sync": "Synchronisierung konnte nicht gestartet werden.",
+          "youtubeChannel": "Diese Google-Anmeldung hat keinen YouTube-Kanal. Verbinde dich erneut und wähle auf dem Google-Bildschirm das Konto des Kanals."
         },
         "comingSoon": "Bald verfügbar",
-        "linkedinPersonalOnly": "Nur persönliches Profil. Unternehmensseiten werden noch nicht unterstützt.",
         "personalProfile": "Persönliches Profil",
         "connectComingSoon": "{provider} (bald verfügbar)",
         "empty": "Noch keine Konten.",
-        "emptyHint": "Verbinde eines, um zu posten."
+        "emptyHint": "Verbinde eines, um zu posten.",
+        "choose": {
+          "title": "Welches Konto?",
+          "description": "Deine {provider}-Anmeldung erreicht mehr als ein Konto. Beiträge erscheinen unter dem Konto, das du auswählst.",
+          "listLabel": "Konten",
+          "page": "Unternehmensseite",
+          "profile": "Dein persönliches Profil",
+          "cancel": "Abbrechen",
+          "confirm": "Verbinden"
+        }
       },
       "SocialPosts": {
         "loadError": {
@@ -4346,9 +4430,11 @@
       }
     },
     "TikTokStudio": {
+      "addMusic": "Hintergrundmusik hinzufügen (+{credits} Credits)",
+      "addBroll": "Mit einem generierten Clip beginnen (+{credits} Credits)",
+      "showSite": "Deine Website im Video zeigen",
       "postToTikTok": "Auf TikTok posten",
       "title": "TikTok Studio",
-      "intro": "Eine Person spricht dein Skript, mit Untertiteln, fertig für TikTok, Reels und Shorts.",
       "pickTitle": "Projekt auswählen",
       "pickBody": "Ein Sprechvideo gehört zu einem Projekt. Dessen Marke schreibt die Skripte, und dessen Dateien bewahren das Video auf.",
       "pickUnavailable": "Dieses Projekt ist in diesem Workspace nicht verfügbar. Wähle ein anderes.",
@@ -5495,6 +5581,161 @@
         "retry": "Erneut versuchen"
       }
     },
+    "Competitors": {
+      "title": "Wettbewerber",
+      "pickTitle": "Projekt wählen",
+      "pickBody": "Wettbewerber gehören zu einem Projekt: wen es beobachtet und was die wöchentliche Prüfung gefunden hat. Wähle ein Projekt, um seine Wettbewerber zu öffnen.",
+      "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes.",
+      "loading": "Wettbewerber werden geladen…",
+      "error": {
+        "title": "Wettbewerber konnten nicht geladen werden",
+        "description": "Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      },
+      "start": {
+        "title": "Sieh, was deine Wettbewerber diese Woche geändert haben",
+        "body": "Einmal pro Woche liest Sokosumi ihre Websites, Preise, News, Anzeigen und Instagram und zeigt, was sich geändert hat, mit Quelle.",
+        "add": "Von Hand hinzufügen",
+        "price": "Wettbewerber finden ist kostenlos. Der wöchentliche Check kostet {credits} Credits pro Wettbewerber und Woche und bleibt aus, bis du ihn einschaltest."
+      },
+      "example": {
+        "label": "Beispiel",
+        "price": {
+          "name": "Acme",
+          "summary": "Pro-Tarif $12 -> $10 pro Platz im Monat",
+          "quote": "Pro $10 pro Platz/Monat, jährliche Abrechnung",
+          "source": "acme.com/pricing"
+        },
+        "news": {
+          "name": "Northwind",
+          "summary": "Northwind hat einen KI-Assistenten vorgestellt, der Termine bucht",
+          "quote": "Der Assistent schlägt drei Zeiten vor, die allen passen.",
+          "source": "TechCrunch"
+        },
+        "website": {
+          "name": "Globex",
+          "summary": "Startseite richtet sich jetzt an Vertriebsteams, vorher an Freelancer",
+          "quote": "Gemacht für Vertriebsteams",
+          "source": "globex.com"
+        }
+      },
+      "check": {
+        "price": "{count, plural, =0 {Er kostet {each} Credits pro Wettbewerber und Woche.} one {Er kostet {credits} Credits pro Woche für # Wettbewerber.} other {Er kostet {credits} Credits pro Woche für # Wettbewerber, je {each}.}}",
+        "last": "Letzter Check {last}, nächster {next}.",
+        "sourceFailed": "Die letzte Prüfung konnte nicht lesen: {sources}. Die nächste versucht es erneut.",
+        "source": {
+          "pages": "Websites",
+          "news": "Nachrichten",
+          "ads": "Anzeigen",
+          "social": "Instagram"
+        },
+        "turnOn": "Wöchentlichen Check einschalten",
+        "turnOff": "Ausschalten",
+        "runNow": "Jetzt prüfen",
+        "failed": "Das hat nicht geklappt. Versuche es erneut.",
+        "outcome": {
+          "not_due": "Eine Prüfung läuft bereits oder wurde diese Woche gemacht.",
+          "no_competitors": "Füge zuerst einen Wettbewerber hinzu.",
+          "paused": "Die wöchentliche Prüfung ist aus.",
+          "unfunded": "Diese Prüfung kostet {credits} Credits, der Workspace hat weniger. Lade Credits auf und prüfe dann erneut."
+        },
+        "status": {
+          "off": "Der wöchentliche Check ist aus",
+          "running": "Der erste Check läuft",
+          "on": "Der wöchentliche Check ist an"
+        },
+        "running": "Was er findet, steht in etwa einer Minute hier."
+      },
+      "list": {
+        "title": "Beobachtet",
+        "count": "{count} von {limit}",
+        "emptyReadOnly": "Noch niemand.",
+        "noWebsite": "Keine Website",
+        "pricingPage": "Preisseite",
+        "facebook": "Facebook {handle}",
+        "editNamed": "{name} bearbeiten",
+        "removeNamed": "{name} entfernen",
+        "add": "Wettbewerber hinzufügen",
+        "full": "Das sind alle {limit}. Entferne einen, um einen anderen zu beobachten.",
+        "failed": "Das hat nicht geklappt. Versuche es erneut."
+      },
+      "form": {
+        "addTitle": "Wettbewerber hinzufügen",
+        "editTitle": "Wettbewerber bearbeiten",
+        "description": "Der Name reicht, um Nachrichten zu finden. Mit Website und Preisseite sieht die Prüfung, was sich dort geändert hat.",
+        "name": {
+          "label": "Name",
+          "placeholder": "Acme"
+        },
+        "websiteUrl": {
+          "label": "Website",
+          "placeholder": "acme.com"
+        },
+        "pricingUrl": {
+          "label": "Preisseite",
+          "placeholder": "acme.com/preise"
+        },
+        "instagramHandle": {
+          "label": "Instagram",
+          "placeholder": "@acme"
+        },
+        "facebookHandle": {
+          "label": "Facebook-Seite",
+          "placeholder": "facebook.com/acme"
+        },
+        "cancel": "Abbrechen",
+        "add": "Hinzufügen",
+        "save": "Speichern",
+        "failed": "Das hat nicht geklappt. Versuche es erneut."
+      },
+      "find": {
+        "title": "Wettbewerber finden",
+        "description": "Unternehmen, die verkaufen, was {project} verkauft, gefunden über die Website. Wähle aus, wen du beobachten willst.",
+        "searching": "Suche Unternehmen wie {project}…",
+        "none": "Über die Website wurden keine Wettbewerber gefunden. Füge sie von Hand hinzu.",
+        "room": "{count, plural, one {Du kannst noch # hinzufügen.} other {Du kannst noch # hinzufügen.}}",
+        "free": "Wettbewerber finden ist kostenlos.",
+        "add": "{count, plural, =0 {Hinzufügen} one {# Wettbewerber hinzufügen} other {# Wettbewerber hinzufügen}}",
+        "cancel": "Abbrechen",
+        "retry": "Erneut suchen",
+        "failed": "Das hat nicht geklappt. Versuch es noch einmal.",
+        "open": "Wettbewerber finden"
+      },
+      "thisWeek": {
+        "title": "Diese Woche",
+        "checked": "Prüfung vom {date}",
+        "quiet": "Eine ruhige Woche: nichts zu berichten.",
+        "unknown": "Ein Wettbewerber",
+        "big": "Großer Schritt",
+        "weak": "Teilweise belegt",
+        "meaning": "Was das für dich bedeutet",
+        "move": "Vorgeschlagener Schritt",
+        "open": "Noch offen"
+      },
+      "findings": {
+        "title": "Was sich geändert hat",
+        "nothing": "Keine Änderungen in den letzten fünf Wochen.",
+        "kind": {
+          "WEBSITE_CHANGE": "Website",
+          "PRICE_CHANGE": "Preis",
+          "NEWS": "Nachrichten",
+          "AD": "Anzeigen",
+          "SOCIAL": "Instagram"
+        },
+        "preview": "Was der wöchentliche Check zeigt",
+        "example": "Beispiel",
+        "running": "Noch nichts. Was der erste Check findet, steht dann hier."
+      },
+      "scoreboard": {
+        "title": "Instagram",
+        "account": "Konto",
+        "posts": "Beiträge pro Woche",
+        "engagement": "Likes und Kommentare pro Beitrag",
+        "followers": "Follower",
+        "growth": "Neue Follower in einer Woche",
+        "you": "(du)"
+      }
+    },
     "Newsletter": {
       "title": "Newsletter",
       "description": "Jedes Projekt hat seinen eigenen Newsletter. Wähle ein Projekt aus, um ihn zu verwalten.",
@@ -5614,6 +5855,7 @@
           "schedules": "Zeitpläne",
           "social": "Social-Media-Beiträge",
           "ads": "Ads",
+          "competitors": "Wettbewerber",
           "newsletter": "Newsletter",
           "contacts": "Kontakte",
           "groups": {
@@ -5649,7 +5891,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -5657,7 +5899,11 @@
       "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
-      "filesFilenameMatch": "Treffer im Dateinamen"
+      "filesFilenameMatch": "Treffer im Dateinamen",
+      "tagsGroup": "Tags",
+      "tagTasksGroup": "Aufgaben mit dem Tag {tag}",
+      "tagsError": "Tags konnten nicht geladen werden",
+      "tagTasksError": "Diese Aufgaben konnten nicht geladen werden"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",
@@ -9117,6 +9363,7 @@
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
         "back": "Zurück",
+        "backToYou": "Zurück zu „Du“",
         "goHome": "Zur Startseite",
         "home": "Startseite",
         "searchAgents": "Agenten suchen"
@@ -9745,6 +9992,7 @@
         "you": "Du",
         "youNamed": "{name} (du)",
         "description": "Schreibe dir Notizen und To-dos. Nur du kannst sie sehen.",
+        "composerPlaceholder": "Schreibe dir eine Notiz",
         "exclusive": "Dein Chat mit dir selbst kann keine weiteren Empfänger enthalten."
       },
       "Signals": {
@@ -10880,6 +11128,59 @@
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"
         }
+      },
+      "Mcp": {
+        "title": "MCP-Server",
+        "description": "Verbinde deinen Bot mit einem beliebigen entfernten MCP-Server. Sokosumi führt jeden Aufruf aus und verwahrt den Schlüssel; der Bot sieht ihn nie.",
+        "addTitle": "Server hinzufügen",
+        "nameLabel": "Name",
+        "namePlaceholder": "Linear",
+        "urlLabel": "Adresse",
+        "authLabel": "Anmeldung",
+        "authBearer": "API-Schlüssel",
+        "authHeader": "Schlüssel in eigenem Header",
+        "authNone": "Keine",
+        "keyLabel": "Schlüssel",
+        "headerNameLabel": "Header-Name",
+        "connect": "Verbinden",
+        "addHelp": "Sokosumi liest die Tools des Servers sofort.",
+        "added": "{name} ist verbunden",
+        "addError": "Der Server konnte nicht verbunden werden",
+        "toolCount": "{enabled} von {total} Tools an",
+        "refresh": "Tools von {name} neu lesen",
+        "refreshed": "Die Tools von {name} sind aktuell",
+        "refreshError": "Die Tools des Servers konnten nicht gelesen werden",
+        "remove": "{name} entfernen",
+        "removeError": "Der Server konnte nicht entfernt werden",
+        "reads": "Liest",
+        "changes": "Ändert etwas",
+        "kindLabel": "Was {name} tut",
+        "enabledLabel": "Bot darf {name} nutzen",
+        "toolError": "Das Tool konnte nicht geändert werden",
+        "authOauth": "Auf der Seite des Servers anmelden",
+        "signIn": "Anmelden",
+        "signInNeeded": "Melde dich bei diesem Server an, bevor dein Bot ihn nutzen kann.",
+        "signInError": "Die Anmeldung konnte nicht gestartet werden"
+      },
+      "Shell": {
+        "title": "Kommandozeilen-Tools",
+        "description": "Richte die Tools ein, die die Shell deines Bots braucht. Seine Sandbox startet in jedem Durchgang leer, deshalb laufen diese jedes Mal neu.",
+        "commandsTitle": "Einrichtungsbefehle",
+        "commandsHelp": "Ein Befehl pro Zeile, höchstens zehn. Sie laufen vor jedem Durchgang mit Shell.",
+        "saveCommands": "Befehle speichern",
+        "commandsSaved": "Einrichtungsbefehle gespeichert",
+        "commandsError": "Die Einrichtungsbefehle konnten nicht gespeichert werden",
+        "keysTitle": "Schlüssel",
+        "keysHelp": "Ein Schlüssel mit Shell-Zugriff erreicht jeden Befehl als Umgebungsvariable mit diesem Namen. Der Bot sieht den Namen, nicht den Wert, aber ein Befehl, den er ausführt, kann den Wert lesen. Füge also nur Schlüssel hinzu, die du auch einem Skript geben würdest.",
+        "keyNameLabel": "Name des Schlüssels",
+        "keyValueLabel": "Wert des Schlüssels",
+        "keyValuePlaceholder": "Schlüssel einfügen",
+        "addKey": "Schlüssel hinzufügen",
+        "keySaved": "{name} gespeichert",
+        "keyError": "Der Schlüssel konnte nicht gespeichert werden",
+        "shellAccess": "Shell-Zugriff",
+        "shellAccessLabel": "Shell-Befehle dürfen {name} nutzen",
+        "deleteKey": "{name} löschen"
       }
     },
     "SokoBots": {
@@ -11196,6 +11497,21 @@
       "descending": "absteigend",
       "noHistory": "Keine Änderungen erfasst.",
       "undoBatch": "Stapel rückgängig",
+      "findReplace": {
+        "title": "Suchen und ersetzen",
+        "description": "Ändert jede Zelle einer Spalte, die genau den gesuchten Wert enthält, egal ob groß oder klein geschrieben. Wird als eine Änderung gespeichert, die du in Verlauf und Quellen rückgängig machen kannst.",
+        "column": "Spalte",
+        "find": "Suchen",
+        "replace": "Ersetzen durch",
+        "replaceEmpty": "Leer lassen, um die Zellen zu leeren",
+        "findMatches": "Treffer suchen",
+        "matches": "{count, plural, one {# Zelle wird geändert.} other {# Zellen werden geändert.}}",
+        "unchanged": "Jede passende Zelle enthält schon den neuen Wert. Nichts zu ändern.",
+        "none": "Keine Zelle in dieser Spalte enthält genau diesen Wert. Prüfe Leerzeichen und Schreibweise.",
+        "tooMany": "Mehr als {limit} Zellen in dieser Spalte enthalten diesen Text, und Suchen und ersetzen prüft höchstens {limit}. Nichts wurde geändert.",
+        "apply": "{count, plural, one {# Zelle ersetzen} other {# Zellen ersetzen}}",
+        "done": "{count, plural, one {# Zelle ersetzt.} other {# Zellen ersetzt.}} Du kannst es in Verlauf und Quellen rückgängig machen."
+      },
       "before": "Vorher",
       "after": "Nachher",
       "openTask": "Aufgabe öffnen",
@@ -12522,7 +12838,7 @@
           "search_console": "Suchanfragen, Klicks und Positionen in der Google-Suche",
           "ga4": "Besuche und Seitenaufrufe auf deiner Website"
         },
-        "propertyNotMatching": "Diese Property deckt die ausgewählten Seiten nicht ab, daher werden keine Statistiken daraus geladen."
+        "propertyNotMatching": "Keine Search Console-Property deckt alle ausgewählten Seiten auf {sites} ab. Prüfe die Zugriffsrechte dieses Google-Kontos oder wähle Seiten aus einer einzigen Property."
       },
       "metrics": {
         "page_views": "Seitenaufrufe",
@@ -13805,7 +14121,7 @@
   },
   "CookieConsent": {
     "title": "Wir verwenden Cookies",
-    "body": "Notwendige Cookies halten Sokosumi funktionsfähig. Mit deiner Zustimmung nutzen wir außerdem Analyse- und Marketing-Cookies, um das Produkt zu verbessern.",
+    "body": "Notwendige Cookies halten {product} funktionsfähig. Mit deiner Zustimmung nutzen wir außerdem Analyse- und Marketing-Cookies, um das Produkt zu verbessern.",
     "policyLink": "Cookie-Richtlinie",
     "acceptAll": "Alle akzeptieren",
     "rejectAll": "Nicht notwendige ablehnen",
@@ -13816,7 +14132,7 @@
     "analyticsTitle": "Analyse",
     "analyticsBody": "Nutzungsmessung mit Google Analytics. Wenn du angemeldet bist, verknüpft eine pseudonyme Konto-ID deine Besuche — niemals dein Name oder deine E-Mail-Adresse.",
     "marketingTitle": "Marketing",
-    "marketingBody": "Ermöglicht die Messung von Werbekampagnen und das Erreichen von Personen, für die Sokosumi nützlich sein könnte.",
+    "marketingBody": "Ermöglicht die Messung von Werbekampagnen und das Erreichen von Personen, für die {product} nützlich sein könnte.",
     "settings": "Cookie-Einstellungen"
   },
   "WorkspaceGate": {

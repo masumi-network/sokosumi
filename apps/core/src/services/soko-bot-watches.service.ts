@@ -15,6 +15,7 @@ import {
   runAsBackgroundWork,
 } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
+import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeValidationError,
@@ -56,6 +57,17 @@ const RUN_MANAGEMENT_TOOLS = new Set<SokoBotCapability>([
   "start_background_run",
   "stop_background_run",
 ]);
+
+/** A Coworker's reply carries `streaming` in its metadata while it is written. */
+function isBeingWritten(message: { metadata: unknown }): boolean {
+  const { metadata } = message;
+  return (
+    typeof metadata === "object" &&
+    metadata !== null &&
+    "streaming" in metadata &&
+    metadata.streaming === true
+  );
+}
 
 function clip(text: string, max = OUTCOME_CHARS): string {
   const flat = text.trim();
@@ -123,6 +135,8 @@ export async function watchOutcome(watch: {
       roomId: watch.targetId,
       createdAt: { gt: watch.createdAt },
       deletedAt: null,
+      // A Coworker's reply starts empty and fills as it is written.
+      content: { not: "" },
       OR: [
         { senderSokoBotId: null },
         { senderSokoBotId: { not: watch.sokoBotId } },
@@ -132,12 +146,14 @@ export async function watchOutcome(watch: {
     take: 10,
     select: {
       content: true,
+      metadata: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
       senderSokoBot: { select: { name: true } },
     },
   });
-  if (replies.length === 0) return null;
+  // A reply still being written is no answer yet: the next check reads it.
+  if (replies.length === 0 || replies.some(isBeingWritten)) return null;
   return clip(
     `New in the chat (room ${watch.targetId}):\n${replies
       .map(
@@ -530,8 +546,9 @@ export async function syncSokoBotWatches(input: {
         data: { firedTurnId: started.turnId },
       });
       result.fired += 1;
+      const { reconciliationLeaseToken } = started;
       if (
-        started.reconciliationLeaseToken &&
+        reconciliationLeaseToken &&
         (started.status === "STARTING" || started.status === "RUNNING")
       )
         waitUntil(
@@ -540,9 +557,11 @@ export async function syncSokoBotWatches(input: {
               .reconcileTurn(
                 started.turnId,
                 undefined,
-                started.reconciliationLeaseToken,
+                reconciliationLeaseToken,
               )
               .catch((error: unknown) => {
+                if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))
+                  return;
                 const log = createCoreLogger({
                   operation: OPERATION,
                   watch: { id: watch.id },

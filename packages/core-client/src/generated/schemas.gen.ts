@@ -7639,6 +7639,25 @@ export const TaskSchema = {
             description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
             example: '2026-11-20'
         },
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.',
+            example: null
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Order among the parent\'s sub-tasks, ascending. Null when parentTaskId is null.',
+            example: null
+        },
+        subtaskProgress: {
+            $ref: '#/components/schemas/TaskSubtaskProgress'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -7712,6 +7731,14 @@ export const TaskSchema = {
             example: [],
             description: 'Files uploaded to this task (newest first).'
         },
+        ancestors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskAncestor'
+            },
+            example: [],
+            description: 'For a sub-task, the Tasks above it, root first. Sent only by GET /tasks/{id}, and empty for coworker viewers.'
+        },
         selectableStatuses: {
             type: 'array',
             items: {
@@ -7759,6 +7786,9 @@ export const TaskSchema = {
         'pendingVendorGrantId',
         'runAt',
         'dueOn',
+        'parentTaskId',
+        'position',
+        'subtaskProgress',
         'scheduleId',
         'archivedAt',
         'credits',
@@ -8196,6 +8226,29 @@ export const TaskPrioritySchema = {
     ],
     example: 'NONE',
     description: 'URGENT, HIGH, MEDIUM, LOW, or NONE (default).'
+} as const;
+
+export const TaskSubtaskProgressSchema = {
+    type: 'object',
+    properties: {
+        completed: {
+            type: 'integer',
+            minimum: 0
+        },
+        total: {
+            type: 'integer',
+            minimum: 0
+        }
+    },
+    required: [
+        'completed',
+        'total'
+    ],
+    description: 'Direct, non-archived sub-tasks: how many are COMPLETED, and how many there are.',
+    example: {
+        completed: 3,
+        total: 5
+    }
 } as const;
 
 export const TaskEventSchema = {
@@ -9267,6 +9320,33 @@ export const TaskFileUploaderSokoBotSchema = {
         'type',
         'id',
         'sokoBot'
+    ]
+} as const;
+
+export const TaskAncestorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        }
+    },
+    required: [
+        'id',
+        'identifier',
+        'name',
+        'status'
     ]
 } as const;
 
@@ -22161,13 +22241,19 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                             perSecondUsd: {
                                 type: 'number'
                             },
-                            minimumVideoUsd: {
-                                type: 'number'
-                            },
                             voicePer1000CharactersUsd: {
                                 type: 'number'
                             },
                             captionsPerMinuteUsd: {
+                                type: 'number'
+                            },
+                            cutoutPerSecondUsd: {
+                                type: 'number'
+                            },
+                            brollUsd: {
+                                type: 'number'
+                            },
+                            musicUsd: {
                                 type: 'number'
                             },
                             basis: {
@@ -22182,9 +22268,11 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                         },
                         required: [
                             'perSecondUsd',
-                            'minimumVideoUsd',
                             'voicePer1000CharactersUsd',
                             'captionsPerMinuteUsd',
+                            'cutoutPerSecondUsd',
+                            'brollUsd',
+                            'musicUsd',
                             'basis',
                             'sourceUrl',
                             'verifiedAt'
@@ -22771,12 +22859,24 @@ export const ProjectTalkingVideoSchema = {
         },
         languageCode: {
             type: 'string'
+        },
+        siteShots: {
+            type: 'boolean'
+        },
+        broll: {
+            type: 'boolean'
+        },
+        music: {
+            type: 'boolean'
         }
     },
     required: [
         'voice',
         'presenterId',
-        'languageCode'
+        'languageCode',
+        'siteShots',
+        'broll',
+        'music'
     ]
 } as const;
 
@@ -30766,6 +30866,691 @@ export const BrandBrainRequestSchema = {
     ]
 } as const;
 
+export const ProjectCompetitorsSchema = {
+    type: 'object',
+    properties: {
+        competitors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitor'
+            }
+        },
+        feed: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                checkDay: {
+                    type: 'string',
+                    description: 'The day of the check it was written from.'
+                },
+                savedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                items: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ProjectCompetitorFeedItem'
+                    }
+                },
+                openQuestions: {
+                    type: 'array',
+                    items: {
+                        type: 'string'
+                    },
+                    description: 'What the sources could not settle this week.'
+                }
+            },
+            required: [
+                'checkDay',
+                'savedAt',
+                'items',
+                'openQuestions'
+            ],
+            description: 'This week: null until a bot wrote one.'
+        },
+        limit: {
+            type: 'integer',
+            description: 'How many competitors can be tracked.'
+        },
+        signals: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorSignal'
+            },
+            description: 'What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.'
+        },
+        scoreboard: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorScoreRow'
+            },
+            description: 'Instagram numbers: the business first, then each competitor. A null cell has no data.'
+        },
+        topPosts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectCompetitorTopPost'
+            },
+            description: 'Each competitor\'s three strongest Instagram posts.'
+        },
+        check: {
+            type: 'object',
+            properties: {
+                on: {
+                    type: 'boolean',
+                    description: 'Whether the weekly check runs: a member turned it on, or the Project is a CMO Project, whose check runs while its Cuso is paid for.'
+                },
+                lastCheckedAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                nextCheckAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                creditsPerCompetitor: {
+                    type: 'number',
+                    description: 'What one competitor costs in one weekly check, in credits.'
+                },
+                sources: {
+                    type: 'object',
+                    properties: {
+                        pages: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        news: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        ads: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        },
+                        social: {
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
+                        }
+                    },
+                    required: [
+                        'pages',
+                        'news',
+                        'ads',
+                        'social'
+                    ]
+                }
+            },
+            required: [
+                'on',
+                'lastCheckedAt',
+                'nextCheckAt',
+                'creditsPerCompetitor',
+                'sources'
+            ]
+        }
+    },
+    required: [
+        'competitors',
+        'feed',
+        'limit',
+        'signals',
+        'scoreboard',
+        'topPosts',
+        'check'
+    ]
+} as const;
+
+export const ProjectCompetitorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        source: {
+            type: 'string',
+            enum: [
+                'RESEARCH',
+                'MEMBER'
+            ],
+            description: 'Who put it on the list: Brand Brain research, or a member.'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'websiteUrl',
+        'pricingUrl',
+        'instagramHandle',
+        'facebookHandle',
+        'source',
+        'createdAt'
+    ]
+} as const;
+
+export const ProjectCompetitorFeedItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        facts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    signalIds: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        description: 'The signals that back it; their sources show on hover.'
+                    },
+                    support: {
+                        type: 'string',
+                        enum: [
+                            'strong',
+                            'weak'
+                        ],
+                        description: 'weak: the sources back it only in part.'
+                    }
+                },
+                required: [
+                    'text',
+                    'signalIds',
+                    'support'
+                ]
+            }
+        },
+        meaning: {
+            type: 'string',
+            description: 'What this means for you.'
+        },
+        move: {
+            type: 'string',
+            description: 'One suggested move.'
+        },
+        big: {
+            type: 'boolean',
+            description: 'A price change, launch or ad burst, told in chat at once.'
+        },
+        addedToStrategyAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'facts',
+        'meaning',
+        'move',
+        'big',
+        'addedToStrategyAt'
+    ]
+} as const;
+
+export const ProjectCompetitorSignalSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'WEBSITE_CHANGE',
+                'PRICE_CHANGE',
+                'NEWS',
+                'AD',
+                'SOCIAL'
+            ]
+        },
+        summary: {
+            type: 'string',
+            description: 'What happened, in one line.'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourceTitle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourcePublisher: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        quote: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The source\'s own words that back the summary.'
+        }
+    },
+    required: [
+        'id',
+        'competitorId',
+        'kind',
+        'summary',
+        'observedAt',
+        'sourceUrl',
+        'sourceTitle',
+        'sourcePublisher',
+        'quote'
+    ]
+} as const;
+
+export const ProjectCompetitorScoreRowSchema = {
+    type: 'object',
+    properties: {
+        competitorId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Null for the business itself.'
+        },
+        name: {
+            type: 'string'
+        },
+        postsPerWeek: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        engagementPerPost: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Likes and comments per post over the week\'s posts.'
+        },
+        followers: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        followerGrowth: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectCompetitorMeasure'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Followers gained since the reading a week before.'
+        }
+    },
+    required: [
+        'competitorId',
+        'name',
+        'postsPerWeek',
+        'engagementPerPost',
+        'followers',
+        'followerGrowth'
+    ]
+} as const;
+
+export const ProjectCompetitorMeasureSchema = {
+    type: 'object',
+    properties: {
+        value: {
+            type: 'number'
+        },
+        sourceUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'value',
+        'sourceUrl',
+        'observedAt'
+    ]
+} as const;
+
+export const ProjectCompetitorTopPostSchema = {
+    type: 'object',
+    properties: {
+        competitorId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        signalId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        url: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        type: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        postedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        likes: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        comments: {
+            type: [
+                'number',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'competitorId',
+        'signalId',
+        'url',
+        'caption',
+        'type',
+        'postedAt',
+        'likes',
+        'comments'
+    ]
+} as const;
+
+export const ProjectCompetitorSourceSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'ok',
+                'not_configured',
+                'not_connected',
+                'failed'
+            ],
+            description: 'not_configured: Core lacks access to this source. not_connected: the owner has not connected the account it is read through. failed: the last check could not read it.'
+        },
+        needs: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'What it takes to read this source, when it cannot be read.'
+        }
+    },
+    required: [
+        'status',
+        'needs'
+    ]
+} as const;
+
+export const ProjectCompetitorCreateSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'Its website. A bare domain is read as https.'
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'The page that lists its prices.'
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Instagram account: the handle or its address.'
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Facebook Page: the name in its address, or the address.'
+        },
+        suggested: {
+            type: 'boolean',
+            description: 'true when the member picked it from the suggestions and typed nothing: the weekly check then fills its pricing page and accounts from its homepage, as it never does for fields a member set.'
+        }
+    },
+    required: [
+        'name'
+    ]
+} as const;
+
+export const ProjectCompetitorUpdateSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'Its website. A bare domain is read as https.'
+        },
+        pricingUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            description: 'The page that lists its prices.'
+        },
+        instagramHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Instagram account: the handle or its address.'
+        },
+        facebookHandle: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            description: 'Its Facebook Page: the name in its address, or the address.'
+        }
+    }
+} as const;
+
+export const ProjectCompetitorChecksSchema = {
+    type: 'object',
+    properties: {
+        on: {
+            type: 'boolean',
+            description: 'true turns the weekly check on: 3 credits per competitor a week, charged to the Project\'s organization (or the person, in a personal workspace). false turns it off and keeps what the checks found.'
+        }
+    },
+    required: [
+        'on'
+    ]
+} as const;
+
+export const ProjectCompetitorCheckRunSchema = {
+    type: 'object',
+    properties: {
+        outcome: {
+            type: 'string',
+            enum: [
+                'checked',
+                'not_due',
+                'no_competitors',
+                'paused',
+                'unfunded'
+            ],
+            description: 'checked: the check ran. not_due: the last one is under a week old, or one is running. no_competitors: nothing is tracked. paused: the weekly check is off. unfunded: there are not enough credits for it.'
+        },
+        competitors: {
+            $ref: '#/components/schemas/ProjectCompetitors'
+        }
+    },
+    required: [
+        'outcome',
+        'competitors'
+    ]
+} as const;
+
+export const ProjectCompetitorSuggestionsSchema = {
+    type: 'object',
+    properties: {
+        suggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    websiteUrl: {
+                        type: 'string',
+                        description: 'The company\'s homepage.'
+                    },
+                    why: {
+                        type: 'string',
+                        description: 'What it sells, in one line.'
+                    }
+                },
+                required: [
+                    'name',
+                    'websiteUrl',
+                    'why'
+                ]
+            }
+        }
+    },
+    required: [
+        'suggestions'
+    ]
+} as const;
+
 export const QuestionAnswerRequestSchema = {
     type: 'object',
     properties: {
@@ -32104,6 +32889,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 10
                                     },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
+                                        },
+                                        maxItems: 10
+                                    },
                                     script: {
                                         type: 'string',
                                         minLength: 20,
@@ -32123,6 +32917,19 @@ export const MarketingStrategySchema = {
                                         type: 'string',
                                         minLength: 2,
                                         maxLength: 2
+                                    },
+                                    alsoOn: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4
+                                    },
+                                    videoOf: {
+                                        type: 'string',
+                                        maxLength: 64
                                     },
                                     story: {
                                         type: 'string',
@@ -32450,6 +33257,15 @@ export const MarketingStrategySchema = {
                                                 },
                                                 maxItems: 10
                                             },
+                                            slideHeadlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 60
+                                                },
+                                                maxItems: 10
+                                            },
                                             script: {
                                                 type: 'string',
                                                 minLength: 20,
@@ -32469,6 +33285,19 @@ export const MarketingStrategySchema = {
                                                 type: 'string',
                                                 minLength: 2,
                                                 maxLength: 2
+                                            },
+                                            alsoOn: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                maxItems: 4
+                                            },
+                                            videoOf: {
+                                                type: 'string',
+                                                maxLength: 64
                                             },
                                             story: {
                                                 type: 'string',
@@ -33893,6 +34722,15 @@ export const MarketingStrategyRequestSchema = {
                                 },
                                 maxItems: 10
                             },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
+                                },
+                                maxItems: 10
+                            },
                             script: {
                                 type: 'string',
                                 minLength: 20,
@@ -33912,6 +34750,19 @@ export const MarketingStrategyRequestSchema = {
                                 type: 'string',
                                 minLength: 2,
                                 maxLength: 2
+                            },
+                            alsoOn: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 4
+                            },
+                            videoOf: {
+                                type: 'string',
+                                maxLength: 64
                             },
                             story: {
                                 type: 'string',
@@ -34239,6 +35090,15 @@ export const MarketingStrategyRequestSchema = {
                                         },
                                         maxItems: 10
                                     },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
+                                        },
+                                        maxItems: 10
+                                    },
                                     script: {
                                         type: 'string',
                                         minLength: 20,
@@ -34258,6 +35118,19 @@ export const MarketingStrategyRequestSchema = {
                                         type: 'string',
                                         minLength: 2,
                                         maxLength: 2
+                                    },
+                                    alsoOn: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4
+                                    },
+                                    videoOf: {
+                                        type: 'string',
+                                        maxLength: 64
                                     },
                                     story: {
                                         type: 'string',
@@ -37337,6 +38210,10 @@ export const ProjectSocialConnectionSchema = {
             ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -37348,7 +38225,8 @@ export const ProjectSocialConnectionSchema = {
         'avatarUrl',
         'status',
         'connectedAt',
-        'disconnectedAt'
+        'disconnectedAt',
+        'personalProfile'
     ]
 } as const;
 
@@ -38154,6 +39032,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -38180,6 +39062,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -38206,6 +39092,10 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     format: 'uri',
                     description: 'Where the provider sends the person back: a page of a first-party app (Sokosumi or CMO.xyz). Defaults to Sokosumi\'s popup callback.',
                     example: 'https://app.cmo.xyz/connect/callback'
+                },
+                accountChoice: {
+                    type: 'boolean',
+                    description: 'The caller lets the person pick the account the sign-in connects (finalize with `offerChoice`). Where company Pages are open, LinkedIn then signs in through a provider that reaches the person\'s Pages.'
                 }
             },
             required: [
@@ -38213,6 +39103,54 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                 'socialConnectionId'
             ]
         }
+    ]
+} as const;
+
+export const SocialAccountChoicesSchema = {
+    type: 'object',
+    properties: {
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountChoice'
+            },
+            minItems: 2
+        }
+    },
+    required: [
+        'choices'
+    ]
+} as const;
+
+export const SocialAccountChoiceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Names this account within this sign-in only; send it back as `accountChoiceId`.'
+        },
+        name: {
+            type: 'string'
+        },
+        handle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'page',
+                'profile'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'handle',
+        'kind'
     ]
 } as const;
 
@@ -38229,6 +39167,28 @@ export const FinalizeProjectSocialConnectionRequestSchema = {
             type: 'string',
             minLength: 1,
             example: 'ca_123'
+        },
+        pendingDataToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: names the Pages it reaches.'
+        },
+        connectToken: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4096,
+            description: 'Returned with a LinkedIn sign-in that waits for its account: lets Core finish it.'
+        },
+        accountChoiceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The `id` of the account the person picked among the sign-in\'s accounts (`SocialAccountChoices`).'
+        },
+        offerChoice: {
+            type: 'boolean',
+            description: 'Answer 200 with the accounts to pick from when the sign-in reaches several and none is picked. Without it such a sign-in is refused, or LinkedIn connects the person\'s profile.'
         }
     },
     required: [
@@ -40519,6 +41479,15 @@ export const SocialPostSchema = {
                     },
                     maxItems: 10
                 },
+                slideHeadlines: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
+                    },
+                    maxItems: 10
+                },
                 script: {
                     type: 'string',
                     minLength: 20,
@@ -40538,6 +41507,19 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 2,
                     maxLength: 2
+                },
+                alsoOn: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    maxItems: 4
+                },
+                videoOf: {
+                    type: 'string',
+                    maxLength: 64
                 },
                 story: {
                     type: 'string',
@@ -40917,6 +41899,10 @@ export const SocialPostSocialConnectionSchema = {
                 'disconnected'
             ],
             example: 'active'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -40925,7 +41911,8 @@ export const SocialPostSocialConnectionSchema = {
         'displayName',
         'avatarUrl',
         'subscriptionType',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -42559,6 +43546,17 @@ export const CreateProjectTalkingVideoJobRequestSchema = {
                 }
             ]
         },
+        siteShots: {
+            type: 'boolean'
+        },
+        broll: {
+            type: 'boolean',
+            default: false
+        },
+        music: {
+            type: 'boolean',
+            default: false
+        },
         idempotencyKey: {
             type: 'string',
             minLength: 8,
@@ -43956,6 +44954,11 @@ export const ProjectSeoMetricSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        selectedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         coverage: {
             type: 'string',
             enum: [
@@ -44625,6 +45628,12 @@ export const ProjectSeoIndexAssessedPageSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        googleReturnedUnknown: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
         },
         auditPageUrl: {
             type: 'string',
@@ -50023,6 +51032,10 @@ export const CmoOverviewSchema = {
                 $ref: '#/components/schemas/CmoRoutine'
             }
         },
+        timeZone: {
+            type: 'string',
+            description: 'The time zone Cuso\'s routines run in, as the owner set it.'
+        },
         brandBrain: {
             anyOf: [
                 {
@@ -52340,6 +53353,13 @@ export const CmoOverviewSchema = {
             },
             description: 'The image or video Cuso attached to each calendar piece, by entry id.'
         },
+        postRevisions: {
+            type: 'object',
+            additionalProperties: {
+                type: 'integer'
+            },
+            description: 'The revision of each Social post of the month, by post id: what an owner\'s edit of its words names (PATCH drafts/{postId}).'
+        },
         strategyVersion: {
             anyOf: [
                 {
@@ -52377,6 +53397,13 @@ export const CmoOverviewSchema = {
                 $ref: '#/components/schemas/CmoUpdate'
             }
         },
+        drafts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoDraft'
+            },
+            description: 'Social posts Cuso made that wait for the owner\'s approval, newest first.'
+        },
         channels: {
             type: 'array',
             items: {
@@ -52392,14 +53419,15 @@ export const CmoOverviewSchema = {
         connectChannelUrl: {
             type: 'string'
         },
+        tiktokEnabled: {
+            type: 'boolean',
+            description: 'TikTok may be connected to this Cuso\'s Project. Cuso plans no TikTok posts yet.'
+        },
         adProviders: {
             type: 'array',
             items: {
                 type: 'string'
             }
-        },
-        connectAdsUrl: {
-            type: 'string'
         },
         measurement: {
             type: 'array',
@@ -52558,6 +53586,7 @@ export const CmoOverviewSchema = {
         'presenterSet',
         'onboardingStep',
         'routines',
+        'timeZone',
         'brandBrain',
         'brandBrainUpdatedAt',
         'brandBrainConfirmedAt',
@@ -52565,15 +53594,17 @@ export const CmoOverviewSchema = {
         'strategy',
         'approvedStrategy',
         'media',
+        'postRevisions',
         'strategyVersion',
         'strategyVersions',
         'hiredAt',
         'updates',
+        'drafts',
         'channels',
         'upNext',
         'connectChannelUrl',
+        'tiktokEnabled',
         'adProviders',
-        'connectAdsUrl',
         'measurement',
         'production',
         'mailingListSize',
@@ -52919,6 +53950,17 @@ export const CmoBrandMediaSchema = {
                             'desktop',
                             'mobile'
                         ]
+                    },
+                    fullUrl: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ],
+                        description: 'The page from the top, several screens down.'
                     }
                 },
                 required: [
@@ -52926,10 +53968,64 @@ export const CmoBrandMediaSchema = {
                     'fileId',
                     'label',
                     'pageUrl',
-                    'device'
+                    'device',
+                    'fullUrl'
                 ]
             },
-            description: 'The brand\'s own pages, home first, then home on a phone.'
+            description: 'The brand\'s own pages Cuso read, home first, each on a desktop and then on a phone.'
+        },
+        sections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string'
+                    },
+                    fileId: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'hero',
+                            'pricing',
+                            'testimonials',
+                            'customers',
+                            'faq',
+                            'product',
+                            'features',
+                            'cta',
+                            'section'
+                        ]
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    pageLabel: {
+                        type: 'string'
+                    },
+                    pageUrl: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'url',
+                    'fileId',
+                    'kind',
+                    'title',
+                    'pageLabel',
+                    'pageUrl'
+                ]
+            },
+            description: 'Each page cut into its sections, in page order: the hero, pricing cards, testimonials, customer logos, product shots, feature grids, the closing call to action.'
         },
         competitors: {
             type: 'array',
@@ -52994,13 +54090,113 @@ export const CmoBrandMediaSchema = {
                 ]
             },
             description: 'The large pictures on the brand\'s pages: products, screens, people.'
+        },
+        logos: {
+            type: 'object',
+            properties: {
+                logo: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                dark: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                mark: {
+                    anyOf: [
+                        {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string'
+                                },
+                                fileId: {
+                                    anyOf: [
+                                        {
+                                            type: 'string'
+                                        },
+                                        {
+                                            type: 'null'
+                                        }
+                                    ]
+                                }
+                            },
+                            required: [
+                                'url',
+                                'fileId'
+                            ]
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                }
+            },
+            required: [
+                'logo',
+                'dark',
+                'mark'
+            ],
+            description: 'The brand\'s logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.'
         }
     },
     required: [
         'capturedAt',
         'pages',
+        'sections',
         'competitors',
-        'pictures'
+        'pictures',
+        'logos'
     ]
 } as const;
 
@@ -54231,6 +55427,15 @@ export const CmoPlanSchema = {
                         },
                         maxItems: 10
                     },
+                    slideHeadlines: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 60
+                        },
+                        maxItems: 10
+                    },
                     script: {
                         type: 'string',
                         minLength: 20,
@@ -54250,6 +55455,19 @@ export const CmoPlanSchema = {
                         type: 'string',
                         minLength: 2,
                         maxLength: 2
+                    },
+                    alsoOn: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        maxItems: 4
+                    },
+                    videoOf: {
+                        type: 'string',
+                        maxLength: 64
                     },
                     story: {
                         type: 'string',
@@ -54577,6 +55795,15 @@ export const CmoPlanSchema = {
                                 },
                                 maxItems: 10
                             },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
+                                },
+                                maxItems: 10
+                            },
                             script: {
                                 type: 'string',
                                 minLength: 20,
@@ -54596,6 +55823,19 @@ export const CmoPlanSchema = {
                                 type: 'string',
                                 minLength: 2,
                                 maxLength: 2
+                            },
+                            alsoOn: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 4
+                            },
+                            videoOf: {
+                                type: 'string',
+                                maxLength: 64
                             },
                             story: {
                                 type: 'string',
@@ -54876,6 +56116,20 @@ export const CmoUpdateSchema = {
                     type: 'null'
                 }
             ]
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoDraft'
+            },
+            description: 'The Social posts the report\'s turn made, as they are now.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoMediaItem'
+            },
+            description: 'Pictures and videos the report\'s turn made that are on none of its posts.'
         }
     },
     required: [
@@ -54884,7 +56138,93 @@ export const CmoUpdateSchema = {
         'id',
         'at',
         'revertible',
-        'revertedAt'
+        'revertedAt',
+        'posts',
+        'media'
+    ]
+} as const;
+
+export const CmoDraftSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            description: 'The Social post\'s status. NEEDS_APPROVAL waits for the owner; SCHEDULED goes out at scheduledAt.'
+        },
+        revision: {
+            type: 'integer'
+        },
+        scheduledAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        publishedUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoMediaItem'
+            }
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'text',
+        'status',
+        'revision',
+        'scheduledAt',
+        'publishedUrl',
+        'media'
+    ]
+} as const;
+
+export const CmoMediaItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video'
+            ]
+        },
+        url: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'kind',
+        'url',
+        'name'
     ]
 } as const;
 
@@ -54919,6 +56259,10 @@ export const CmoChannelSchema = {
         },
         status: {
             type: 'string'
+        },
+        personalProfile: {
+            type: 'boolean',
+            description: 'A LinkedIn connection that posts as the person, not as a company Page.'
         }
     },
     required: [
@@ -54926,7 +56270,8 @@ export const CmoChannelSchema = {
         'provider',
         'handle',
         'displayName',
-        'status'
+        'status',
+        'personalProfile'
     ]
 } as const;
 
@@ -55078,6 +56423,22 @@ export const CmoProductionSchema = {
                 }
             ],
             description: 'Once the made month was read: each pillar\'s planned share beside the share its pieces really have, and whether Cuso is rewriting pieces off their pillar.'
+        },
+        level: {
+            type: 'string',
+            enum: [
+                'steady',
+                'active',
+                'all_in'
+            ],
+            description: 'How much of the month the CMO plan bought makes: Starter steady, Growth active, Scale all_in; all_in on Tester credits.'
+        },
+        beyondPlan: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'Calendar entries the plan bought does not make. A bigger plan makes them.'
         }
     },
     required: [
@@ -55088,7 +56449,9 @@ export const CmoProductionSchema = {
         'pictured',
         'needPictures',
         'finishedAt',
-        'pillars'
+        'pillars',
+        'level',
+        'beyondPlan'
     ],
     description: 'After approval Cuso makes the whole month at once: how many of its pieces are made.'
 } as const;
@@ -55179,6 +56542,17 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             minLength: 1,
             description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
+        },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The owner\'s time zone, from their browser: Cuso\'s routines run at their local times in it. Without it he works on Europe/Berlin time.'
+        },
+        testCopyOfProjectId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Hire a test copy of this Project\'s Cuso (ADR 0073), into his organization: `organizationId` may be left out and must match when given. The caller is one of its owners or admins, or a tester who belongs to it. The copy\'s Social connections are links to the source\'s connected accounts.'
         }
     },
     required: [
@@ -55330,13 +56704,279 @@ export const CmoPieceTextSchema = {
     ]
 } as const;
 
+export const CmoChatWorkSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChatWorkItem'
+            }
+        }
+    },
+    required: [
+        'items'
+    ]
+} as const;
+
+export const CmoChatWorkItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'The tool call that started it; a weekly audit\'s own id.'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video',
+                'audio',
+                'file',
+                'task',
+                'agent',
+                'table',
+                'contacts',
+                'run',
+                'question',
+                'seo',
+                'audit'
+            ],
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist\'s weekly audit of the site (audit).'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'making',
+                'waiting',
+                'ready',
+                'failed',
+                'stopped'
+            ],
+            description: 'making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Cuso started it.'
+        },
+        title: {
+            type: 'string',
+            description: 'What it is: the prompt, the words spoken, the file\'s or the work\'s name.'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the finished file plays or downloads from.'
+        },
+        by: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Who does handed work: the Coworker or the Agent.'
+        },
+        text: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Handed work: what is asked while it waits, the start of the result once done.'
+        },
+        readable: {
+            type: 'boolean',
+            description: 'Its full words are at /chat-work/{id}/text.'
+        },
+        files: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    url: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'name',
+                    'url'
+                ]
+            },
+            description: 'Files handed work came back with.'
+        },
+        table: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoChatTable'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A table\'s columns and first rows.'
+        },
+        people: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    detail: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'name',
+                    'detail'
+                ]
+            },
+            description: 'The first people of a contact list or a lookup.'
+        },
+        total: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Everyone that list or lookup holds, shown or not.'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    label: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'done',
+                            'now',
+                            'next'
+                        ]
+                    }
+                },
+                required: [
+                    'label',
+                    'state'
+                ]
+            },
+            description: 'A running background run\'s plan.'
+        },
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A background run\'s own turn: its report in the room is this card.'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'state',
+        'at',
+        'title',
+        'url',
+        'by',
+        'text',
+        'readable',
+        'files',
+        'table',
+        'people',
+        'total',
+        'steps',
+        'turnId'
+    ]
+} as const;
+
+export const CmoChatTableSchema = {
+    type: 'object',
+    properties: {
+        columns: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'array',
+                items: {
+                    type: 'string'
+                }
+            }
+        },
+        total: {
+            type: 'integer',
+            description: 'Every row the table holds.'
+        }
+    },
+    required: [
+        'columns',
+        'rows',
+        'total'
+    ]
+} as const;
+
+export const CmoChatWorkTableSchema = {
+    type: 'object',
+    properties: {
+        title: {
+            type: 'string'
+        },
+        table: {
+            $ref: '#/components/schemas/CmoChatTable'
+        }
+    },
+    required: [
+        'title',
+        'table'
+    ]
+} as const;
+
 export const CmoCompetitorsSchema = {
     type: 'object',
     properties: {
         competitors: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/CmoCompetitor'
+                $ref: '#/components/schemas/ProjectCompetitor'
             }
         },
         feed: {
@@ -55357,7 +56997,7 @@ export const CmoCompetitorsSchema = {
                 items: {
                     type: 'array',
                     items: {
-                        $ref: '#/components/schemas/CmoCompetitorFeedItem'
+                        $ref: '#/components/schemas/ProjectCompetitorFeedItem'
                     }
                 },
                 openQuestions: {
@@ -55374,43 +57014,40 @@ export const CmoCompetitorsSchema = {
                 'items',
                 'openQuestions'
             ],
-            description: 'Cuso\'s This week: null until he wrote one.'
+            description: 'This week: null until a bot wrote one.'
         },
         limit: {
             type: 'integer',
             description: 'How many competitors can be tracked.'
         },
-        mapPlayers: {
-            type: 'array',
-            items: {
-                type: 'string'
-            },
-            description: 'The Brand Brain market map\'s players that are still watched, in the map\'s spelling.'
-        },
         signals: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/CmoCompetitorSignal'
+                $ref: '#/components/schemas/ProjectCompetitorSignal'
             },
             description: 'What the checks of the last 35 days found, newest first: every signal a feed fact can cite, Instagram readings included.'
         },
         scoreboard: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/CmoCompetitorScoreRow'
+                $ref: '#/components/schemas/ProjectCompetitorScoreRow'
             },
             description: 'Instagram numbers: the business first, then each competitor. A null cell has no data.'
         },
         topPosts: {
             type: 'array',
             items: {
-                $ref: '#/components/schemas/CmoCompetitorTopPost'
+                $ref: '#/components/schemas/ProjectCompetitorTopPost'
             },
             description: 'Each competitor\'s three strongest Instagram posts.'
         },
         check: {
             type: 'object',
             properties: {
+                on: {
+                    type: 'boolean',
+                    description: 'Whether the weekly check runs: a member turned it on, or the Project is a CMO Project, whose check runs while its Cuso is paid for.'
+                },
                 lastCheckedAt: {
                     type: [
                         'string',
@@ -55428,22 +57065,23 @@ export const CmoCompetitorsSchema = {
                     example: '2021-01-01T00:00:00.000Z'
                 },
                 creditsPerCompetitor: {
-                    type: 'number'
+                    type: 'number',
+                    description: 'What one competitor costs in one weekly check, in credits.'
                 },
                 sources: {
                     type: 'object',
                     properties: {
                         pages: {
-                            $ref: '#/components/schemas/CmoCompetitorSource'
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
                         },
                         news: {
-                            $ref: '#/components/schemas/CmoCompetitorSource'
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
                         },
                         ads: {
-                            $ref: '#/components/schemas/CmoCompetitorSource'
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
                         },
                         social: {
-                            $ref: '#/components/schemas/CmoCompetitorSource'
+                            $ref: '#/components/schemas/ProjectCompetitorSource'
                         }
                     },
                     required: [
@@ -55455,492 +57093,31 @@ export const CmoCompetitorsSchema = {
                 }
             },
             required: [
+                'on',
                 'lastCheckedAt',
                 'nextCheckAt',
                 'creditsPerCompetitor',
                 'sources'
             ]
+        },
+        mapPlayers: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The Brand Brain market map\'s players that are still watched, in the map\'s spelling.'
         }
     },
     required: [
         'competitors',
         'feed',
         'limit',
-        'mapPlayers',
         'signals',
         'scoreboard',
         'topPosts',
-        'check'
+        'check',
+        'mapPlayers'
     ]
-} as const;
-
-export const CmoCompetitorSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        name: {
-            type: 'string'
-        },
-        websiteUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        pricingUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        instagramHandle: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        facebookHandle: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        source: {
-            type: 'string',
-            enum: [
-                'RESEARCH',
-                'MEMBER'
-            ],
-            description: 'Who put it on the list: Brand Brain research, or a member.'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'websiteUrl',
-        'pricingUrl',
-        'instagramHandle',
-        'facebookHandle',
-        'source',
-        'createdAt'
-    ]
-} as const;
-
-export const CmoCompetitorFeedItemSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        competitorId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        facts: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    text: {
-                        type: 'string'
-                    },
-                    signalIds: {
-                        type: 'array',
-                        items: {
-                            type: 'string',
-                            format: 'uuid'
-                        },
-                        description: 'The signals that back it; their sources show on hover.'
-                    },
-                    support: {
-                        type: 'string',
-                        enum: [
-                            'strong',
-                            'weak'
-                        ],
-                        description: 'weak: the sources back it only in part.'
-                    }
-                },
-                required: [
-                    'text',
-                    'signalIds',
-                    'support'
-                ]
-            }
-        },
-        meaning: {
-            type: 'string',
-            description: 'What this means for you.'
-        },
-        move: {
-            type: 'string',
-            description: 'One suggested move.'
-        },
-        big: {
-            type: 'boolean',
-            description: 'A price change, launch or ad burst, told in chat at once.'
-        },
-        addedToStrategyAt: {
-            type: [
-                'string',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'id',
-        'competitorId',
-        'facts',
-        'meaning',
-        'move',
-        'big',
-        'addedToStrategyAt'
-    ]
-} as const;
-
-export const CmoCompetitorSignalSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        competitorId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'WEBSITE_CHANGE',
-                'PRICE_CHANGE',
-                'NEWS',
-                'AD',
-                'SOCIAL'
-            ]
-        },
-        summary: {
-            type: 'string',
-            description: 'What happened, in one line.'
-        },
-        observedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        sourceUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        sourceTitle: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        sourcePublisher: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        quote: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'The source\'s own words that back the summary.'
-        }
-    },
-    required: [
-        'id',
-        'competitorId',
-        'kind',
-        'summary',
-        'observedAt',
-        'sourceUrl',
-        'sourceTitle',
-        'sourcePublisher',
-        'quote'
-    ]
-} as const;
-
-export const CmoCompetitorScoreRowSchema = {
-    type: 'object',
-    properties: {
-        competitorId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'Null for the business itself.'
-        },
-        name: {
-            type: 'string'
-        },
-        postsPerWeek: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/CmoCompetitorMeasure'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        engagementPerPost: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/CmoCompetitorMeasure'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Likes and comments per post over the week\'s posts.'
-        },
-        followers: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/CmoCompetitorMeasure'
-                },
-                {
-                    type: 'null'
-                }
-            ]
-        },
-        followerGrowth: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/CmoCompetitorMeasure'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Followers gained since the reading a week before.'
-        }
-    },
-    required: [
-        'competitorId',
-        'name',
-        'postsPerWeek',
-        'engagementPerPost',
-        'followers',
-        'followerGrowth'
-    ]
-} as const;
-
-export const CmoCompetitorMeasureSchema = {
-    type: 'object',
-    properties: {
-        value: {
-            type: 'number'
-        },
-        sourceUrl: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        observedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        }
-    },
-    required: [
-        'value',
-        'sourceUrl',
-        'observedAt'
-    ]
-} as const;
-
-export const CmoCompetitorTopPostSchema = {
-    type: 'object',
-    properties: {
-        competitorId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        signalId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        url: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        caption: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        type: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        postedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        likes: {
-            type: [
-                'number',
-                'null'
-            ]
-        },
-        comments: {
-            type: [
-                'number',
-                'null'
-            ]
-        }
-    },
-    required: [
-        'competitorId',
-        'signalId',
-        'url',
-        'caption',
-        'type',
-        'postedAt',
-        'likes',
-        'comments'
-    ]
-} as const;
-
-export const CmoCompetitorSourceSchema = {
-    type: 'object',
-    properties: {
-        status: {
-            type: 'string',
-            enum: [
-                'ok',
-                'not_configured',
-                'not_connected',
-                'failed'
-            ],
-            description: 'not_configured: CMO lacks access to this source. not_connected: the owner has not connected the account it is read through. failed: the last check could not read it.'
-        },
-        needs: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'What it takes to read this source, when it cannot be read.'
-        }
-    },
-    required: [
-        'status',
-        'needs'
-    ]
-} as const;
-
-export const CmoCompetitorCreateSchema = {
-    type: 'object',
-    properties: {
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 80
-        },
-        websiteUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 500,
-            description: 'Its website. A bare domain is read as https.'
-        },
-        pricingUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 500,
-            description: 'The page that lists its prices.'
-        },
-        instagramHandle: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 200,
-            description: 'Its Instagram account: the handle or its address.'
-        },
-        facebookHandle: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 200,
-            description: 'Its Facebook Page: the name in its address, or the address.'
-        }
-    },
-    required: [
-        'name'
-    ]
-} as const;
-
-export const CmoCompetitorUpdateSchema = {
-    type: 'object',
-    properties: {
-        name: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 80
-        },
-        websiteUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 500,
-            description: 'Its website. A bare domain is read as https.'
-        },
-        pricingUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 500,
-            description: 'The page that lists its prices.'
-        },
-        instagramHandle: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 200,
-            description: 'Its Instagram account: the handle or its address.'
-        },
-        facebookHandle: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 200,
-            description: 'Its Facebook Page: the name in its address, or the address.'
-        }
-    }
 } as const;
 
 export const CmoCheckoutSchema = {
@@ -56008,6 +57185,122 @@ export const CmoCustomerPortalSchema = {
     ]
 } as const;
 
+export const CmoTestCopyCheckSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Project whose connected accounts the copy uses.'
+        },
+        tornDownAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        clean: {
+            type: 'boolean',
+            description: 'Nothing is left: no unsent post, linked account, run or Cuso.'
+        },
+        left: {
+            type: 'object',
+            properties: {
+                unsentPosts: {
+                    type: 'integer'
+                },
+                linkedAccounts: {
+                    type: 'integer'
+                },
+                activeTurns: {
+                    type: 'integer'
+                },
+                liveCuso: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'unsentPosts',
+                'linkedAccounts',
+                'activeTurns',
+                'liveCuso'
+            ]
+        },
+        publishedPosts: {
+            type: 'integer',
+            description: 'Posts of the copy that went out. Always 0.'
+        },
+        providerRevocations: {
+            type: 'integer',
+            description: 'Accounts ended at the provider through the copy. Always 0.'
+        }
+    },
+    required: [
+        'projectId',
+        'sourceProjectId',
+        'tornDownAt',
+        'clean',
+        'left',
+        'publishedPosts',
+        'providerRevocations'
+    ]
+} as const;
+
+export const CmoTestCopyTeardownSchema = {
+    type: 'object',
+    properties: {
+        removed: {
+            type: 'object',
+            properties: {
+                canceledPosts: {
+                    type: 'integer'
+                },
+                unlinkedAccounts: {
+                    type: 'integer'
+                },
+                stoppedTurns: {
+                    type: 'integer'
+                },
+                archivedCuso: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'canceledPosts',
+                'unlinkedAccounts',
+                'stoppedTurns',
+                'archivedCuso'
+            ]
+        },
+        check: {
+            $ref: '#/components/schemas/CmoTestCopyCheck'
+        }
+    },
+    required: [
+        'removed',
+        'check'
+    ]
+} as const;
+
+export const CmoTimeZoneSchema = {
+    type: 'object',
+    properties: {
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'timeZone'
+    ]
+} as const;
+
 export const CmoSeoSchema = {
     type: 'object',
     properties: {
@@ -56038,6 +57331,12 @@ export const CmoSeoSchema = {
                 $ref: '#/components/schemas/CmoSeoSuggestion'
             }
         },
+        landingPages: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoSeoSuggestion'
+            }
+        },
         keywordSearches: {
             type: 'array',
             items: {
@@ -56056,6 +57355,7 @@ export const CmoSeoSchema = {
         'searchConsole',
         'articles',
         'pageChanges',
+        'landingPages',
         'keywordSearches',
         'keywordSearchesLeft'
     ]
@@ -56108,6 +57408,37 @@ export const CmoSeoAuditSchema = {
                 },
                 passed: {
                     type: 'integer'
+                },
+                failedChecks: {
+                    type: 'integer'
+                },
+                readingChecks: {
+                    type: 'integer'
+                },
+                readings: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            title: {
+                                type: 'string'
+                            },
+                            pageUrl: {
+                                type: 'string'
+                            },
+                            detail: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ]
+                            }
+                        },
+                        required: [
+                            'title',
+                            'pageUrl',
+                            'detail'
+                        ]
+                    }
                 },
                 issues: {
                     type: 'array',
@@ -56174,6 +57505,9 @@ export const CmoSeoAuditSchema = {
                 'observedAt',
                 'checked',
                 'passed',
+                'failedChecks',
+                'readingChecks',
+                'readings',
                 'issues',
                 'fixes'
             ]
@@ -56370,7 +57704,8 @@ export const CmoSeoSuggestionSchema = {
             type: 'string',
             enum: [
                 'article',
-                'page_change'
+                'page_change',
+                'landing_page'
             ]
         },
         source: {
@@ -56412,6 +57747,28 @@ export const CmoSeoSuggestionSchema = {
                 'string',
                 'null'
             ]
+        },
+        sources: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    text: {
+                        type: 'string'
+                    },
+                    sourceUrl: {
+                        type: 'string'
+                    },
+                    quote: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'text',
+                    'sourceUrl',
+                    'quote'
+                ]
+            }
         },
         evidence: {
             type: 'array',
@@ -56458,6 +57815,7 @@ export const CmoSeoSuggestionSchema = {
         'body',
         'newText',
         'draft',
+        'sources',
         'evidence',
         'status',
         'createdAt',
@@ -56644,6 +58002,41 @@ export const CmoSeoSuggestionStatusRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const CmoLandingPageLiveSchema = {
+    type: 'object',
+    properties: {
+        page: {
+            $ref: '#/components/schemas/CmoSeoSuggestion'
+        },
+        adsUpdated: {
+            type: 'integer'
+        },
+        adsLaunched: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'page',
+        'adsUpdated',
+        'adsLaunched'
+    ]
+} as const;
+
+export const CmoLandingPageLiveRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            maxLength: 500,
+            format: 'uri'
+        }
+    },
+    required: [
+        'url'
+    ],
+    additionalProperties: false
+} as const;
+
 export const CmoPresenterPhotoSchema = {
     type: 'object',
     properties: {
@@ -56707,6 +58100,99 @@ export const CmoTopUpCheckoutSchema = {
     ]
 } as const;
 
+export const CmoDraftApproveSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CmoDraftRevision'
+        },
+        {
+            type: 'object',
+            properties: {
+                tikTokSettings: {
+                    allOf: [
+                        {
+                            $ref: '#/components/schemas/TikTokPostSettings'
+                        },
+                        {
+                            description: 'A TikTok video only: who sees it, what viewers may do, and the owner\'s confirmation of this video (`previewConsent`) and of TikTok\'s Music Usage Confirmation. Required for TikTok, which posts the video at once.'
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+} as const;
+
+export const CmoDraftRevisionSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            description: 'The draft\'s revision as shown; a changed draft is refused.'
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const CmoTikTokCreatorSchema = {
+    type: 'object',
+    properties: {
+        creator_nickname: {
+            type: 'string'
+        },
+        privacy_level_options: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            description: 'The audiences TikTok allows now. Empty: no post is possible right now.'
+        },
+        comment_disabled: {
+            type: 'boolean'
+        },
+        duet_disabled: {
+            type: 'boolean'
+        },
+        stitch_disabled: {
+            type: 'boolean'
+        },
+        max_video_post_duration_sec: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'creator_nickname',
+        'privacy_level_options',
+        'comment_disabled',
+        'duet_disabled',
+        'stitch_disabled',
+        'max_video_post_duration_sec'
+    ]
+} as const;
+
+export const CmoDraftEditSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CmoDraftRevision'
+        },
+        {
+            type: 'object',
+            properties: {
+                text: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 25000
+                }
+            },
+            required: [
+                'text'
+            ]
+        }
+    ]
+} as const;
+
 export const CmoBrandFixStartedSchema = {
     type: 'object',
     properties: {
@@ -56765,6 +58251,30 @@ export const CmoBrandFixRequestSchema = {
     required: [
         'section',
         'note'
+    ]
+} as const;
+
+export const CmoSocialConnectionFinalizedSchema = {
+    type: 'object',
+    properties: {
+        state: {
+            type: 'string',
+            enum: [
+                'connected',
+                'choose'
+            ],
+            description: '`choose`: the sign-in reaches several accounts; finalize again with the owner\'s pick.'
+        },
+        choices: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialAccountChoice'
+            }
+        }
+    },
+    required: [
+        'state',
+        'choices'
     ]
 } as const;
 
@@ -58779,6 +60289,325 @@ export const SokoBotScopeSchema = {
     ]
 } as const;
 
+export const SokoBotSecretSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            example: 'VERCEL_TOKEN'
+        },
+        shellAccess: {
+            type: 'boolean',
+            description: 'Whether shell commands get this key as an env variable'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'shellAccess',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SaveSokoBotSecretRequestSchema = {
+    type: 'object',
+    properties: {
+        value: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 8000,
+            description: 'The key. Required for a new name; leave out to keep the saved value.'
+        },
+        shellAccess: {
+            type: 'boolean'
+        }
+    }
+} as const;
+
+export const SokoBotSandboxSetupSchema = {
+    type: 'object',
+    properties: {
+        commands: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 500
+            },
+            maxItems: 10,
+            example: [
+                'npm install -g vercel'
+            ]
+        }
+    },
+    required: [
+        'commands'
+    ]
+} as const;
+
+export const SokoBotMcpServerSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            example: 'Linear'
+        },
+        url: {
+            type: 'string',
+            example: 'https://mcp.linear.app/mcp'
+        },
+        authKind: {
+            type: 'string',
+            example: 'header'
+        },
+        tools: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotMcpTool'
+            }
+        },
+        toolsRefreshedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastError: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'url',
+        'authKind',
+        'tools',
+        'toolsRefreshedAt',
+        'lastError',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SokoBotMcpToolSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'search_issues'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        inputSchema: {},
+        readOnly: {
+            type: 'boolean',
+            description: 'Reads when true; changes things when false'
+        },
+        enabled: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'name',
+        'description',
+        'readOnly',
+        'enabled'
+    ]
+} as const;
+
+export const AddedSokoBotMcpServerSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/SokoBotMcpServer'
+        },
+        {
+            type: 'object',
+            properties: {
+                authorizationUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    description: 'The server\'s sign-in page to send the owner to; null when no sign-in is needed'
+                }
+            },
+            required: [
+                'authorizationUrl'
+            ]
+        }
+    ]
+} as const;
+
+export const AddSokoBotMcpServerRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            pattern: '^[A-Za-z0-9][A-Za-z0-9 ._-]{0,39}$',
+            example: 'Linear'
+        },
+        url: {
+            type: 'string',
+            maxLength: 2000,
+            example: 'https://mcp.linear.app/mcp'
+        },
+        auth: {
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'none'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'oauth'
+                            ]
+                        }
+                    },
+                    required: [
+                        'type'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'bearer'
+                            ]
+                        },
+                        token: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 8000
+                        }
+                    },
+                    required: [
+                        'type',
+                        'token'
+                    ]
+                },
+                {
+                    type: 'object',
+                    properties: {
+                        type: {
+                            type: 'string',
+                            enum: [
+                                'header'
+                            ]
+                        },
+                        name: {
+                            type: 'string',
+                            pattern: '^[A-Za-z0-9-]{1,64}$'
+                        },
+                        value: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 8000
+                        }
+                    },
+                    required: [
+                        'type',
+                        'name',
+                        'value'
+                    ]
+                }
+            ]
+        }
+    },
+    required: [
+        'name',
+        'url',
+        'auth'
+    ]
+} as const;
+
+export const SokoBotMcpSignInSchema = {
+    type: 'object',
+    properties: {
+        authorizationUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'authorizationUrl'
+    ]
+} as const;
+
+export const UpdateSokoBotMcpToolRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1
+        },
+        enabled: {
+            type: 'boolean'
+        },
+        readOnly: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'name'
+    ]
+} as const;
+
 export const CoworkerSchema = {
     type: 'object',
     properties: {
@@ -59606,6 +61435,25 @@ export const TaskListItemSchema = {
             description: 'The day the Task should be done by (YYYY-MM-DD), with no time or timezone. Null when no due date is set.',
             example: '2026-11-20'
         },
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one is a sub-task of. Null for a Task on the board. Not a Task link: PARENT links are separate.',
+            example: null
+        },
+        position: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Order among the parent\'s sub-tasks, ascending. Null when parentTaskId is null.',
+            example: null
+        },
+        subtaskProgress: {
+            $ref: '#/components/schemas/TaskSubtaskProgress'
+        },
         scheduleId: {
             type: [
                 'string',
@@ -59642,6 +61490,11 @@ export const TaskListItemSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
             description: 'When the Task last changed status, or its creation time if it never did.'
+        },
+        hasUnansweredMention: {
+            type: 'boolean',
+            example: false,
+            description: 'True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.'
         }
     },
     required: [
@@ -59678,6 +61531,9 @@ export const TaskListItemSchema = {
         'pendingVendorGrantId',
         'runAt',
         'dueOn',
+        'parentTaskId',
+        'position',
+        'subtaskProgress',
         'scheduleId',
         'archivedAt',
         'workspace',
@@ -60829,8 +62685,6 @@ export const UserWritableTaskLinkRelationSchema = {
         'related',
         'blocks',
         'blocked_by',
-        'parent',
-        'child',
         'duplicate'
     ],
     example: 'blocked_by'
@@ -61238,6 +63092,9 @@ export const ProjectSeoIndexAssessmentSchema = {
                 maxLength: 2000
             },
             maxItems: 20
+        },
+        publicEvidenceAvailable: {
+            type: 'boolean'
         }
     },
     required: [
@@ -61375,6 +63232,28 @@ export const TaskWorkspaceSchema = {
         'workspaceId',
         'organizationId'
     ]
+} as const;
+
+export const MoveTaskRequestSchema = {
+    type: 'object',
+    properties: {
+        parentTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Task this one goes under. A different Task attaches it or moves it to that parent, with its own sub-tasks. null detaches it, and it keeps its project. Omitted or equal to the current parent keeps the parent.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        afterTaskId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The sibling sub-task this one goes directly after, or null to make it first. Omitted keeps the order, or puts it last under a new parent.',
+            example: '01960001-0001-7001-8001-000000000003'
+        }
+    }
 } as const;
 
 export const TaskEventsPaginationMetadataSchema = {

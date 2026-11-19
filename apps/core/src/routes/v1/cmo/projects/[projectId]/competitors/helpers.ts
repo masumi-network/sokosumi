@@ -1,5 +1,5 @@
 import { cmoCompetitorsSchema } from "@/schemas/cmo-competitors.schema";
-import { getCmoCompetitors } from "@/services/cmo-competitors-overview.service";
+import { getCmoCompetitors } from "@/services/cmo-competitors.service";
 import type { CusoTarget } from "@/services/cmo-cuso.service";
 
 import { rethrow } from "../../../helpers.js";

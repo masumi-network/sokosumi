@@ -9,7 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -170,6 +170,9 @@ export function TaskMetadata({
             status={task.status}
             selectableStatuses={task.selectableStatuses}
             statusSince={task.statusSince}
+            agentAssigneeName={
+              task.assignee?.type === "user" ? null : (assignee?.name ?? null)
+            }
             labels={statusFieldLabels}
           />
         ) : (
@@ -250,50 +253,57 @@ export function TaskMetadata({
           </div>
         ) : null}
 
-        {assigneeField ?? (
-          <PropertyRow
-            label={labels.assignee}
-            value={assignee?.name ?? labels.noAssignee}
-            icon={
-              assignee ? (
-                <PersonAvatar person={assignee} />
+        {/* Each slot gets its own key: callers key their fields by Task id
+            to reset them on a new Task, and same-keyed siblings duplicated
+            rows when the status changed. */}
+        <Fragment key="assignee">
+          {assigneeField ?? (
+            <PropertyRow
+              label={labels.assignee}
+              value={assignee?.name ?? labels.noAssignee}
+              icon={
+                assignee ? (
+                  <PersonAvatar person={assignee} />
+                ) : (
+                  <UserRound className="text-muted-foreground size-4" />
+                )
+              }
+            >
+              {assignee ? (
+                <span className="truncate">{assignee.name}</span>
               ) : (
-                <UserRound className="text-muted-foreground size-4" />
-              )
-            }
-          >
-            {assignee ? (
-              <span className="truncate">{assignee.name}</span>
-            ) : (
-              <span className="text-muted-foreground truncate">
-                {labels.noAssignee}
-              </span>
-            )}
-          </PropertyRow>
-        )}
+                <span className="text-muted-foreground truncate">
+                  {labels.noAssignee}
+                </span>
+              )}
+            </PropertyRow>
+          )}
+        </Fragment>
 
-        {participants}
+        <Fragment key="participants">{participants}</Fragment>
 
-        {projectField ?? (
-          <PropertyRow
-            label={labels.project}
-            value={project?.name ?? labels.noProject}
-            icon={<FolderKanban className="text-muted-foreground size-4" />}
-          >
-            {project ? (
-              <Link
-                href={`/projects/${project.id}`}
-                className="hover:text-foreground truncate transition-colors"
-              >
-                {project.name}
-              </Link>
-            ) : (
-              <span className="text-muted-foreground truncate">
-                {labels.noProject}
-              </span>
-            )}
-          </PropertyRow>
-        )}
+        <Fragment key="project">
+          {projectField ?? (
+            <PropertyRow
+              label={labels.project}
+              value={project?.name ?? labels.noProject}
+              icon={<FolderKanban className="text-muted-foreground size-4" />}
+            >
+              {project ? (
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="hover:text-foreground truncate transition-colors"
+                >
+                  {project.name}
+                </Link>
+              ) : (
+                <span className="text-muted-foreground truncate">
+                  {labels.noProject}
+                </span>
+              )}
+            </PropertyRow>
+          )}
+        </Fragment>
 
         {schedule ? (
           <PropertyRow

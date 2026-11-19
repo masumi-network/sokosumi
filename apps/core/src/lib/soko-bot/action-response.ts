@@ -31,6 +31,7 @@ export const HELD_BACK_REPLY =
   "I held back this reply because it could not be checked just now.";
 
 export const ACTION_LABELS: Record<string, string> = {
+  save_competitor_feed: "Saved this week's competitor moves",
   add_seo_page: "Added SEO page",
   save_seo_scope: "Saved SEO page group",
   save_seo_keyword: "Saved SEO keyword",
@@ -65,6 +66,7 @@ export const ACTION_LABELS: Record<string, string> = {
   reply_to_task: "Added a task comment",
   update_assigned_task: "Updated assigned task",
   link_tasks: "Linked tasks",
+  set_task_parent: "Changed a task's parent",
   stop_following_task: "Stopped following task",
   post_chat: "Queued chat message",
   open_direct_chat: "Queued direct message",
@@ -74,6 +76,9 @@ export const ACTION_LABELS: Record<string, string> = {
   log_contact_interaction: "Logged a contact interaction",
   merge_contacts: "Merged contacts",
   manage_contact_lists: "Updated contact list",
+  bulk_update_contacts: "Updated contacts",
+  update_company: "Updated company",
+  export_contacts_to_table: "Exported contacts to a table",
   find_people: "Found people",
   enrich_contact: "Enriched contact",
   create_project: "Created project",
@@ -85,6 +90,7 @@ export const ACTION_LABELS: Record<string, string> = {
   hire_agent: "Hired agent",
   provide_job_input: "Submitted job input",
   run_integration_tool: "Integration acknowledged operation",
+  run_mcp_tool: "Ran a tool on an MCP server",
   upload_file: "Uploaded file",
   generate_voiceover: "Made voice-over",
   move_file: "Moved file",
@@ -556,12 +562,16 @@ export async function buildActionResponse(
   // card does not carry, still follow as lines.
   // One read of the turn serves every question about it below.
   let turnRow:
-    | Promise<{ source: string | null; versionId: string | null } | null>
+    | Promise<{
+        source: string | null;
+        versionId: string | null;
+        parentTurnId: string | null;
+      } | null>
     | undefined;
   const turnInfo = () => {
     turnRow ??= tx.sokoBotTurn.findUnique({
       where: { id: turnId },
-      select: { source: true, versionId: true },
+      select: { source: true, versionId: true, parentTurnId: true },
     });
     return turnRow;
   };
@@ -720,19 +730,38 @@ export async function buildActionResponse(
       !question &&
       (narrative?.kind === "SILENT" ||
         isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
-  const text = silent
-    ? "Nothing to add."
-    : calls.length || narrativeText.length
-      ? [
-          actionText.join("\n"),
-          reportedByCard ? "" : attachments.join("\n"),
-          narrativeText.join("\n"),
-        ]
-          .filter(Boolean)
-          .join("\n\n") || "Nothing to add."
-      : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
-        ? "Nothing was changed in this turn."
-        : answerText;
+  // A background run of Cuso's (a follow-up once a video is ready) that
+  // filed its card has delivered: its closing words would be a second
+  // message saying the same.
+  const cardSaysIt =
+    reportedByCard &&
+    !actionText.length &&
+    !question &&
+    Boolean((await turnInfo())?.parentTurnId);
+  const text =
+    silent || cardSaysIt
+      ? "Nothing to add."
+      : calls.length || narrativeText.length
+        ? [
+            actionText.join("\n"),
+            reportedByCard ? "" : attachments.join("\n"),
+            narrativeText.join("\n"),
+          ]
+            .filter(Boolean)
+            .join("\n\n") || "Nothing to add."
+        : reportedByCard
+          ? // The card says what Cuso did; a line beside it would only repeat
+            // it, or call a delivered video "nothing changed".
+            "Nothing to add."
+          : actionRequested &&
+              !(await cmoSavedRecord(tx, turnId, await isCmo()))
+            ? (await isCmo()) && Boolean((await turnInfo())?.parentTurnId)
+              ? // A follow-up of Cuso's that changed nothing (it fetched a
+                // finished picture) has nothing to tell: CMO's chat already
+                // shows what was made, where he started it.
+                "Nothing to add."
+              : "Nothing was changed in this turn."
+            : answerText;
   return {
     appliedReceiptIds,
     narrative,

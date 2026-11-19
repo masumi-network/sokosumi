@@ -225,7 +225,7 @@ function AccountChoice({
             : t("chooseAccountTitle")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {t.rich("signedInAs", {
+          {t.rich(client?.brand === "cmo" ? "signedInAsCmo" : "signedInAs", {
             email: account.email,
             account: (chunks: ReactNode) => (
               <span className="font-medium text-foreground">{chunks}</span>

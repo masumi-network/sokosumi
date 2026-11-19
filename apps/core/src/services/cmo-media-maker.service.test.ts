@@ -1,13 +1,16 @@
 import { Hono } from "hono";
+import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   jobFindMany,
   jobCount,
   postFindUnique,
+  postUpdateMany,
   fileUpdateMany,
   createImageJob,
   createVideoJob,
+  createTalkingVideoJob,
   ensureDriveFile,
   updateSocialPost,
   scheduleSocialPost,
@@ -16,9 +19,11 @@ const {
   jobFindMany: vi.fn(),
   jobCount: vi.fn(),
   postFindUnique: vi.fn(),
+  postUpdateMany: vi.fn(),
   fileUpdateMany: vi.fn(),
   createImageJob: vi.fn(),
   createVideoJob: vi.fn(),
+  createTalkingVideoJob: vi.fn(),
   ensureDriveFile: vi.fn(),
   updateSocialPost: vi.fn(),
   scheduleSocialPost: vi.fn(),
@@ -29,7 +34,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findUnique: async () => null },
     projectImageJob: { findMany: jobFindMany, count: jobCount },
-    socialPost: { findUnique: postFindUnique },
+    socialPost: { findUnique: postFindUnique, updateMany: postUpdateMany },
     marketingStrategyFile: { updateMany: fileUpdateMany },
   },
 }));
@@ -45,6 +50,7 @@ vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob,
   createVideoJob,
+  createTalkingVideoJob,
   DEFAULT_SETTINGS: {
     aspectRatio: "1:1",
     resolution: "1K",
@@ -59,8 +65,12 @@ vi.mock("@/services/social-posts.service", () => ({
   updateSocialPost,
   scheduleSocialPost,
 }));
+vi.mock("@/services/cmo-presenter.service", () => ({
+  talkingVideoPresenter: async () => ({ kind: "stock", id: "maya" }),
+}));
 vi.mock("@/services/cmo-brand-media.service", () => ({
   listCmoBrandPictures: brandPictures,
+  readCmoBrandLogo: async () => ({ logo: null, dark: null }),
 }));
 vi.mock("@/services/cuso-project-files.service", () => ({
   cusoDrive: async () => ({
@@ -93,10 +103,13 @@ import {
   type CmoMediaPiece,
   cmoImagePrompt,
   cmoMediaState,
+  cmoPictureStyleProblem,
   cmoPieceSlides,
   cmoSlotAction,
+  cmoStyleHeadline,
   cmoStylePrompt,
   cmoVisualKey,
+  logoForPicture,
   REFERENCE_STYLE_MODELS,
 } from "./cmo-media-maker.service";
 
@@ -243,7 +256,10 @@ describe("a picture in a reference library style", () => {
     expect(prompt).toContain("Copy none of its words");
     expect(prompt).toContain('"Fresh minted"');
     expect(prompt).toContain("#11F250, #021205");
-    expect(prompt).toContain("Keep the lower-right corner plain");
+    // The logo once covered the end of a headline set along the bottom.
+    expect(prompt).toContain(
+      "Keep the lower-right corner plain and every word clear of it",
+    );
     expect(
       cmoStylePrompt({
         piece: styled({ headline: undefined }),
@@ -252,6 +268,81 @@ describe("a picture in a reference library style", () => {
         colours: [],
       }),
     ).toContain("No words, letters or numbers");
+  });
+
+  it("sets the brand's own picture inside the style, and letters each slide with its own words", () => {
+    const withSite = cmoStylePrompt({
+      piece: styled(),
+      slot: 0,
+      businessName: "NMKR",
+      colours: [],
+      brandPictures: 1,
+    });
+    expect(withSite).toContain("The second image is NMKR's own picture");
+    expect(withSite).toContain("Invent no price, number, plan");
+    expect(withSite).toContain(
+      "Besides what stands in the brand's own picture",
+    );
+    const carousel = styled({
+      channel: "linkedin",
+      format: "images",
+      slides: ["A draft board", "An approval gate"],
+      slideHeadlines: ["Review the drafts", "Then it goes live"],
+    });
+    const second = cmoStylePrompt({
+      piece: carousel,
+      slot: 1,
+      businessName: "NMKR",
+      colours: [],
+    });
+    // Naming the slide made Muse Image letter "SLIDE 2 OF 2" into it.
+    expect(second).not.toMatch(/slide \d of \d/i);
+    expect(second).toContain("Draw no slide number");
+    expect(second).toContain('"Then it goes live"');
+    expect(second).not.toContain("Fresh minted");
+    expect(cmoStyleHeadline(carousel, 0)).toBe("Review the drafts");
+    expect(cmoVisualKey(carousel)).not.toBe(
+      cmoVisualKey({ ...carousel, slideHeadlines: ["Other", "Words"] }),
+    );
+  });
+
+  it("asks for a style on every picture and slide, once per reference", () => {
+    const one = { ...styled({ id: "a" }), visual: "A desk" };
+    expect(cmoPictureStyleProblem([one], [])).toBeNull();
+    expect(
+      cmoPictureStyleProblem([{ ...one, styleReferenceId: undefined }], []),
+    ).toContain("a has a picture and no style");
+    // Text, a video and a piece whose visual is not written yet need none.
+    expect(
+      cmoPictureStyleProblem(
+        [
+          piece({ id: "t", format: "post", styleReferenceId: undefined }),
+          piece({ id: "v", format: "video", styleReferenceId: undefined }),
+          piece({ id: "n", visual: undefined }),
+        ],
+        [],
+      ),
+    ).toBeNull();
+    expect(
+      cmoPictureStyleProblem(
+        [one],
+        [{ id: "b", styleReferenceId: one.styleReferenceId }],
+      ),
+    ).toContain("a and b use the same style reference");
+    expect(
+      cmoPictureStyleProblem(
+        [
+          {
+            ...one,
+            channel: "linkedin",
+            format: "images",
+            slides: ["One", "Two"],
+            slideHeadlines: ["Only one"],
+          },
+        ],
+        [],
+      ),
+    ).toContain("needs slideHeadlines, one entry per slide (2)");
   });
 
   it("tries each style model once, and a picture the check turned down counts as a try", () => {
@@ -387,6 +478,85 @@ describe("advanceCmoMedia", () => {
     expect(createImageJob.mock.calls[1]?.[0]).toMatchObject({
       referenceFileIds: ["f-photo"],
     });
+  });
+
+  it("starts each piece without named pictures at another of the brand's own", async () => {
+    jobFindMany.mockResolvedValue([]);
+    jobCount.mockResolvedValue(0);
+    brandPictures.mockResolvedValue([
+      { fileId: "f-home", alt: "Home page screenshot" },
+      { fileId: "f-pricing", alt: "Pricing cards, Home page: plans" },
+      { fileId: "f-quotes", alt: "Testimonials, Home page: what they say" },
+      { fileId: "f-photo", alt: "studio dashboard" },
+    ]);
+    await advanceCmoMedia(context, [
+      piece({ id: "a", socialPostId: "a" }),
+      piece({ id: "b", socialPostId: "b" }),
+      piece({ id: "c", socialPostId: "c" }),
+    ]);
+    const used = createImageJob.mock.calls.map(([job]) => job.referenceFileIds);
+    expect(used).toEqual([
+      ["f-quotes", "f-home"],
+      ["f-photo", "f-home"],
+      ["f-pricing", "f-home"],
+    ]);
+  });
+
+  it("makes a styled picture on Muse Image twice before the dearer models", async () => {
+    const styled = piece({
+      styleReferenceId: "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9",
+      headline: "Mint in minutes",
+    });
+    const models: string[] = [];
+    for (let tried = 0; tried < REFERENCE_STYLE_MODELS.length; tried += 1) {
+      createImageJob.mockClear();
+      jobFindMany.mockResolvedValue(
+        Array.from({ length: tried }, (_, at) => ({
+          id: `job-${at}`,
+          idempotencyKey: `cmo-media:version-1:post-1:0:image:${cmoVisualKey(styled)}:${at + 1}`,
+          status: "SUCCEEDED",
+          prompt: "prompt",
+          error: "Style check: extra words",
+          asset: { id: `asset-${at}` },
+        })),
+      );
+      await advanceCmoMedia(context, [styled]);
+      models.push(createImageJob.mock.calls[0]?.[0].modelId);
+    }
+    expect(models).toEqual([
+      "muse-image",
+      "muse-image",
+      "gpt-image-2-6",
+      "nano-banana-2-1",
+    ]);
+  });
+
+  it("gives a styled picture only the brand pictures its visual names", async () => {
+    jobFindMany.mockResolvedValue([]);
+    jobCount.mockResolvedValue(0);
+    const style = "01a1eb53-3608-720e-8fa1-84dcd2eb5ec9";
+    await advanceCmoMedia(context, [
+      piece({ id: "a", socialPostId: "a", styleReferenceId: style }),
+      piece({
+        id: "b",
+        socialPostId: "b",
+        styleReferenceId: "01a1eb55-a767-7259-af74-b1d86f203752",
+        visualFileIds: ["f-home", "f-unknown"],
+      }),
+    ]);
+    expect(createImageJob.mock.calls[0]?.[0]).toMatchObject({
+      referenceLibraryIds: [style],
+      referenceFileIds: [],
+    });
+    expect(createImageJob.mock.calls[0]?.[0].prompt).not.toContain(
+      "own picture",
+    );
+    expect(createImageJob.mock.calls[1]?.[0]).toMatchObject({
+      referenceFileIds: ["f-home"],
+    });
+    expect(createImageJob.mock.calls[1]?.[0].prompt).toContain(
+      "The second image is NMKR's own picture",
+    );
   });
 
   it("keeps attaching finished pictures after the studio refuses a start", async () => {
@@ -533,6 +703,27 @@ describe("advanceCmoMedia", () => {
     expect(createImageJob).not.toHaveBeenCalled();
   });
 
+  it("hands a finished TikTok video to the owner instead of scheduling it", async () => {
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "tiktok",
+      text: "Three things nobody tells you about minting.",
+      revision: 4,
+      status: "DRAFT",
+      scheduledAt: new Date(Date.now() + 86_400_000),
+      planning: { title: "Minting myths" },
+    });
+    await advanceCmoMedia(
+      { ...context, connected: new Set([...context.connected, "tiktok"]) },
+      [piece({ channel: "tiktok", format: "video", media: ["file-1"] })],
+    );
+    expect(scheduleSocialPost).not.toHaveBeenCalled();
+    expect(postUpdateMany).toHaveBeenCalledWith({
+      where: { id: "post-1", status: "DRAFT", revision: 4 },
+      data: { status: "NEEDS_APPROVAL", revision: { increment: 1 } },
+    });
+  });
+
   it("puts slides on in order and hands back a carousel whose cover failed twice", async () => {
     const carousel = piece({
       channel: "instagram",
@@ -564,6 +755,101 @@ describe("advanceCmoMedia", () => {
         job({ visualKey: key, slot: 2 }),
       ]),
     ).toBe("failed");
+  });
+
+  describe("a talking video on several networks", () => {
+    const script =
+      "Stop emailing back and forth. Send one booking link and let people pick a time. Try it on your next call.";
+    const reel = piece({
+      id: "reel",
+      socialPostId: "reel",
+      channel: "instagram",
+      format: "talking_video",
+      visual: undefined,
+      script,
+      presenter: "maya",
+      voice: "Sarah",
+    });
+    const short = {
+      ...reel,
+      id: "short",
+      socialPostId: "short",
+      channel: "youtube",
+    };
+    const key = cmoVisualKey(reel);
+
+    it("is made once for all its posts", async () => {
+      jobFindMany.mockResolvedValue([]);
+      await advanceCmoMedia(context, [reel, short]);
+      expect(createTalkingVideoJob).toHaveBeenCalledTimes(1);
+      expect(createTalkingVideoJob.mock.calls[0]?.[0]).toMatchObject({
+        script,
+        music: true,
+        broll: true,
+        idempotencyKey: `cmo-media:version-1:video:0:talking:${key}:1`,
+      });
+    });
+
+    it("waits on every post while the one job runs", async () => {
+      jobFindMany.mockResolvedValue([
+        {
+          id: "job-1",
+          idempotencyKey: `cmo-media:version-1:video:0:talking:${key}:1`,
+          status: "RUNNING",
+          prompt: script,
+          asset: null,
+        },
+      ]);
+      await advanceCmoMedia(context, [reel, short]);
+      expect(createTalkingVideoJob).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["the shared job", "video"],
+      ["a job started for one post before posts shared it", "reel"],
+    ])("goes on every post from %s", async (_name, pieceId) => {
+      jobFindMany.mockResolvedValue([
+        {
+          id: "job-1",
+          idempotencyKey: `cmo-media:version-1:${pieceId}:0:talking:${key}:1`,
+          status: "SUCCEEDED",
+          prompt: script,
+          asset: { id: "asset-1" },
+        },
+      ]);
+      ensureDriveFile.mockResolvedValue({
+        id: "file-1",
+        name: "booking-link.mp4",
+        pathname: "drive/booking-link.mp4",
+        mimeType: "video/mp4",
+        size: 10,
+      });
+      postFindUnique.mockImplementation(async ({ where }) => ({
+        id: where.id,
+        provider: where.id === "reel" ? "instagram" : "youtube",
+        text: "One link instead of five emails.",
+        media: [],
+        revision: 1,
+        status: "DRAFT",
+        scheduledAt: null,
+        planning: { title: "Booking link" },
+      }));
+      updateSocialPost.mockResolvedValue({
+        media: [{ pathname: "drive/booking-link.mp4" }],
+        revision: 2,
+      });
+      await advanceCmoMedia(context, [reel, short]);
+      expect(createTalkingVideoJob).not.toHaveBeenCalled();
+      expect(
+        updateSocialPost.mock.calls.map(([input]) => input.postId),
+      ).toEqual(["reel", "short"]);
+      expect(updateSocialPost.mock.calls[1]?.[0].media).toEqual([
+        expect.objectContaining({
+          pathname: "drive/booking-link.mp4",
+          kind: "video",
+        }),
+      ]);
+    });
   });
 
   it("puts a finished picture on its post and schedules it on a connected network", async () => {
@@ -615,5 +901,29 @@ describe("advanceCmoMedia", () => {
       expect.objectContaining({ revision: 4, scheduledAt: at }),
     );
     expect(createImageJob).not.toHaveBeenCalled();
+  });
+});
+
+describe("logoForPicture", () => {
+  const plain = (background: string) =>
+    sharp({ create: { width: 400, height: 300, channels: 3, background } })
+      .jpeg()
+      .toBuffer();
+  const logo = new Uint8Array([1]);
+  const darkLogo = new Uint8Array([2]);
+
+  it("puts the light logo on a dark corner and the dark one on a light corner", async () => {
+    expect(
+      await logoForPicture(await plain("#0c0c0c"), { logo, darkLogo }),
+    ).toBe(darkLogo);
+    expect(
+      await logoForPicture(await plain("#f4f4f4"), { logo, darkLogo }),
+    ).toBe(logo);
+  });
+
+  it("keeps the one logo a site has", async () => {
+    expect(
+      await logoForPicture(await plain("#0c0c0c"), { logo, darkLogo: null }),
+    ).toBe(logo);
   });
 });

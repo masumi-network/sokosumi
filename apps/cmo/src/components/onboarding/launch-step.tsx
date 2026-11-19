@@ -7,6 +7,7 @@ import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
   isSocialProvider,
+  SOCIAL_PROVIDERS,
   type SocialProvider,
 } from "../../lib/calendar";
 import { channelInfo, channelKey } from "../../lib/channels";
@@ -15,7 +16,7 @@ import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { cusoArt } from "../cuso";
 import { StatusDisc } from "../status";
-import { money, PACES } from "../strategy-core";
+import { money } from "../strategy-core";
 import { CusoScene } from "./cuso-scene";
 import { PresenterCard } from "./presenter-card";
 
@@ -44,9 +45,11 @@ export function strategySocialChannels(
 const isOptionalKey = (key: string) => key !== "seo" && key !== "newsletter";
 
 /**
- * What the founder may add but need not: the plan's ads and the channels
- * Cuso proposed adding, with how much each would bring a month. The
- * newsletter is not set up while hiring.
+ * What the founder may add but need not: every channel CMO can connect that
+ * the strategy's networks above do not cover. The plan's ads and the channels
+ * Cuso proposed come first, with how much each would bring a month, then the
+ * other social networks (TikTok where Core lets this Project connect it) and
+ * both ad accounts. The newsletter is not set up while hiring.
  */
 export function optionalChannels(
   overview: CmoOverview,
@@ -71,9 +74,28 @@ export function optionalChannels(
       ? [{ key, perMonth: proposal.perMonth }]
       : [];
   });
-  return [...own, ...proposed].filter(
+  const everything = [
+    // TikTok only where Core can connect it.
+    ...SOCIAL_PROVIDERS.filter(
+      (key) => key !== "tiktok" || overview.tiktokEnabled,
+    ),
+    "google_ads",
+    "meta_ads",
+  ]
+    .filter((key) => !planned.includes(key) || !isSocialProvider(key))
+    .map((key) => ({ key, perMonth: null }));
+  return [...own, ...proposed, ...everything].filter(
     (channel, index, all) =>
       all.findIndex((other) => other.key === channel.key) === index,
+  );
+}
+
+type Source = CmoOverview["measurement"][number];
+
+/** Where Cuso reads the numbers, not connected yet. */
+export function measurementToConnect(overview: CmoOverview): Source[] {
+  return (overview.measurement ?? []).filter(
+    (source) => source.status !== "connected",
   );
 }
 
@@ -83,9 +105,13 @@ const isAds = (key: string): key is "google_ads" | "meta_ads" =>
 interface LaunchStepProps {
   overview: CmoOverview;
   onConnect: (
-    provider: SocialProvider,
+    provider: SocialProvider | "tiktok",
   ) => Promise<{ url: string | null; error: string | null }>;
   onConnectAds: AdActions["connectAds"];
+  /** Connects Google Analytics, Search Console or Shopify to Cuso. */
+  onConnectMeasurement?: (
+    provider: Source["provider"],
+  ) => Promise<{ url: string | null; error: string | null }>;
   onSetPresenter: (photo: string) => Promise<{ error: string | null }>;
   onClearPresenter: () => Promise<{ error: string | null }>;
   /** Records the finish and opens the app. */
@@ -104,6 +130,7 @@ export function LaunchStep({
   overview,
   onConnect,
   onConnectAds,
+  onConnectMeasurement,
   onSetPresenter,
   onClearPresenter,
   onGoToday,
@@ -119,6 +146,7 @@ export function LaunchStep({
       .filter((channel) => channel.status.toUpperCase() === "ACTIVE")
       .map((channel) => channel.provider.toLowerCase()),
   );
+  const sources = onConnectMeasurement ? measurementToConnect(overview) : [];
   const [pending, setPending] = useState<string | null>(null);
   // Undefined until the founder acts: then the return notice no longer shows.
   const [error, setError] = useState<string | null | undefined>(undefined);
@@ -136,11 +164,14 @@ export function LaunchStep({
     setError(null);
     startTransition(async () => {
       try {
+        const source = sources.find((item) => item.provider === key);
         const result = isAds(key)
           ? await onConnectAds(key, "onboarding")
-          : isSocialProvider(key)
+          : isSocialProvider(key) || key === "tiktok"
             ? await onConnect(key)
-            : { url: null, error: null };
+            : source && onConnectMeasurement
+              ? await onConnectMeasurement(source.provider)
+              : { url: null, error: null };
         if (result.url) {
           window.location.assign(result.url);
           return;
@@ -155,14 +186,14 @@ export function LaunchStep({
   }
 
   if (celebrating) {
-    const pace = PACES.find((option) => option.level === plan?.pace?.level);
     const ads = plan?.ads;
     const summary = [
       {
-        term: "Pace",
-        value: pace
-          ? `${pace.name}, ${plan?.pace?.perWeek ?? 0} posts a week`
-          : "",
+        term: "This month",
+        value:
+          overview.production.total > 0
+            ? `${overview.production.total} posts and ads${overview.production.beyondPlan.length > 0 ? `, ${overview.production.beyondPlan.length} more with a bigger plan` : ""}`
+            : "",
       },
       {
         term: "Ad budget",
@@ -312,9 +343,11 @@ export function LaunchStep({
         />
       ) : null}
 
-      {later.length > 0 ? (
+      {later.length > 0 || sources.length > 0 ? (
         <div className="ob-later">
-          <p className="ob-small muted">Add later</p>
+          <p className="ob-small muted">
+            Add later, here or on the Channels page
+          </p>
           <div className="ob-later-chips">
             {later.map(({ key, perMonth }) => {
               // What connecting it adds: the plan's own pieces, or Cuso's proposal.
@@ -344,6 +377,17 @@ export function LaunchStep({
                 </button>
               );
             })}
+            {sources.map((source) => (
+              <button
+                key={source.provider}
+                type="button"
+                className="button button-secondary button-small"
+                disabled={pending !== null}
+                onClick={() => connect(source.provider)}
+              >
+                {source.name}
+              </button>
+            ))}
           </div>
         </div>
       ) : null}

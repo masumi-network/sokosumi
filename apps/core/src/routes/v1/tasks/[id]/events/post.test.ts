@@ -290,6 +290,10 @@ interface TransactionMock {
     findMany: ReturnType<typeof vi.fn>;
     createMany: ReturnType<typeof vi.fn>;
   };
+  taskEventMention?: {
+    updateMany: ReturnType<typeof vi.fn>;
+    createMany: ReturnType<typeof vi.fn>;
+  };
 }
 
 function createTask(
@@ -411,6 +415,10 @@ function mockTransaction(tx: TransactionMock) {
   };
   tx.taskParticipant ??= {
     findMany: vi.fn().mockResolvedValue([]),
+    createMany: vi.fn().mockResolvedValue({ count: 0 }),
+  };
+  tx.taskEventMention ??= {
+    updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     createMany: vi.fn().mockResolvedValue({ count: 0 }),
   };
 
@@ -4370,6 +4378,19 @@ describe("POST /{id}/events", () => {
       data: [{ taskId: TASK_ID, userId: "user_alice" }],
       skipDuplicates: true,
     });
+    // The comment answers the author's open mentions on this Task, and
+    // records a mention of every member it names, on the stored event.
+    expect(tx.taskEventMention?.updateMany).toHaveBeenCalledExactlyOnceWith({
+      where: { taskId: TASK_ID, userId: USER_ID, answeredAt: null },
+      data: { answeredAt: expect.any(Date) },
+    });
+    const storedEvent = await tx.taskEvent.create.mock.results[0]?.value;
+    expect(tx.taskEventMention?.createMany).toHaveBeenCalledExactlyOnceWith({
+      data: [
+        { taskId: TASK_ID, taskEventId: storedEvent.id, userId: "user_alice" },
+      ],
+      skipDuplicates: true,
+    });
     await Promise.all(waitUntilCapturedPromises);
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -4624,6 +4645,8 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
+    // A coworker is not a person: its comment answers nobody's mention.
+    expect(tx.taskEventMention?.updateMany).not.toHaveBeenCalled();
     expect(tx.taskParticipant?.createMany).toHaveBeenCalledWith({
       data: [{ taskId: TASK_ID, userId: "user_alice" }],
       skipDuplicates: true,

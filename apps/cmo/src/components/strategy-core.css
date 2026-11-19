@@ -1,24 +1,3 @@
-/* The strategy's four parts under its sentence */
-.sc-parts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px 24px;
-  margin: 12px 0 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-}
-
-.sc-parts dt {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.sc-parts dd {
-  margin: 2px 0 0;
-  font-weight: 500;
-  line-height: 1.35;
-}
-
 /* The offer ladder: first step, main offer, then */
 .sc-ladder {
   display: grid;
@@ -43,71 +22,117 @@
   border-color: var(--line);
 }
 
-/* The funnel: stages narrow toward the sale */
-/* A funnel: one band a stage, each as wide at its top as the last one's end. */
+/*
+ * The funnel: each stage is a slice of one shape that narrows toward the
+ * sale, with what happens at the stage beside it (under it on a phone).
+ */
 .sc-funnel {
   display: grid;
-  gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* The app holds a list item to reading width; a stage spans the panel. */
+.sc-funnel > .sc-stage {
+  max-width: none;
+}
+
 .sc-stage {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  gap: 32px;
+  grid-template-columns: minmax(220px, 30%) minmax(0, 1fr);
+  gap: 0 32px;
 }
 
-.sc-band {
-  --sc-in-top: calc((100% - var(--sc-top, 100%)) / 2);
-  --sc-in-bottom: calc((100% - var(--sc-bottom, 100%)) / 2);
+.sc-segment {
+  position: relative;
   display: grid;
-  place-content: center;
+  place-items: center;
+  min-height: 148px;
+  padding: 16px calc(var(--sc-inset) + 12px);
+  color: var(--primary-foreground);
+  text-align: center;
+}
+
+.sc-segment svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.sc-segment polygon {
+  fill: var(--primary);
+  stroke: var(--line);
+  stroke-width: var(--line-width);
+  stroke-linejoin: round;
+}
+
+.sc-segment.paper {
+  color: var(--foreground);
+}
+
+.sc-segment.paper polygon {
+  fill: var(--card);
+}
+
+.sc-segment.yellow polygon {
+  fill: var(--warn);
+}
+
+.sc-segment.green polygon {
+  fill: var(--ok);
+}
+
+.sc-segment-text {
+  position: relative;
+  display: grid;
   justify-items: center;
   gap: 2px;
-  min-height: 88px;
-  padding: 12px calc(var(--sc-in-bottom) + 4px);
-  background: var(--foreground);
-  color: var(--background);
-  text-align: center;
-  clip-path: polygon(
-    var(--sc-in-top) 0,
-    calc(100% - var(--sc-in-top)) 0,
-    calc(100% - var(--sc-in-bottom)) 100%,
-    var(--sc-in-bottom) 100%
-  );
 }
 
-/* Lighter where the owner does part of the work, lightest where it is theirs. */
-.sc-stage.shared .sc-band {
-  background: var(--muted);
+.sc-stage-number {
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
-.sc-stage.you .sc-band {
-  background: var(--border);
-  color: var(--foreground);
+.sc-stage-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.sc-stage-people {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-wrap: balance;
 }
 
 .sc-stage-body {
   display: grid;
   align-content: center;
-  gap: 10px;
-  padding: 16px 0;
+  gap: 16px;
+  padding: 24px 0;
 }
 
 .sc-stage + .sc-stage .sc-stage-body {
   border-top: 1px solid var(--border);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .sc-stage {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0;
   }
 
-  .sc-band {
-    min-height: 56px;
+  .sc-segment {
+    min-height: 76px;
+    padding-block: 10px;
+  }
+
+  .sc-stage-body {
+    padding: 16px 0 24px;
   }
 
   .sc-stage + .sc-stage .sc-stage-body {
@@ -115,139 +140,73 @@
   }
 }
 
-.sc-step {
-  font-size: 0.75rem;
-  font-weight: 500;
-  opacity: 0.7;
-}
-
-.sc-stage-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-
-.sc-icons {
-  display: flex;
-  gap: 8px;
-}
-
-/* The detail of a stage, closed until asked for. */
-.sc-how {
-  display: grid;
-  gap: 10px;
-}
-
-.sc-how > summary {
-  width: max-content;
-  color: var(--muted);
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.sc-how[open] > summary {
-  margin-bottom: 10px;
-}
-
-.sc-stage-name {
-  font-size: 1rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.sc-owner {
-  padding: 2px 8px;
-  border-radius: var(--radius-mark);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.sc-owner.you,
-.sc-owner.shared {
-  background: var(--foreground);
-  color: var(--background);
-}
-
 .sc-goal {
   margin: 0;
-  font-weight: 500;
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
+  letter-spacing: -0.005em;
   text-wrap: pretty;
 }
 
-.sc-plays {
+/* The same three answers at every stage, so the columns line up down the page. */
+.sc-stage-parts {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 24px;
+  margin: 0;
+}
+
+.sc-stage-parts dt {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.sc-stage-parts dd,
+.sc-stage-parts p {
+  margin: 0;
+}
+
+.sc-plays,
+.sc-ideas {
+  display: grid;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.sc-plays li {
+.sc-plays li,
+.sc-ideas li {
   display: grid;
-  grid-template-columns: 16px max-content minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.sc-plays svg {
-  align-self: center;
+  gap: 2px;
 }
 
 .sc-play-channel {
-  font-weight: 500;
-}
-
-.sc-cadence {
-  color: var(--muted);
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-@media (max-width: 640px) {
-  .sc-plays li {
-    grid-template-columns: 16px minmax(0, 1fr);
-  }
-
-  .sc-plays li > span:not(.sc-play-channel) {
-    grid-column: 2;
-  }
-}
-
-.sc-fixes {
-  display: grid;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
-  margin: 0;
-  padding: 12px 16px;
-  border-radius: var(--radius-card);
-  background: var(--surface);
-  list-style: none;
-}
-
-.sc-fixes li {
-  display: grid;
+  font-weight: 600;
 }
 
 .sc-measure {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 10px;
-  margin: 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-  font-size: 0.875rem;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
 }
 
-.sc-basis {
-  color: var(--muted);
-  font-size: 0.75rem;
+.sc-measure b {
+  font-size: 1.5rem;
+  font-weight: 300;
+  line-height: 1.75rem;
 }
 
-.sc-basis.measured {
-  color: var(--foreground);
+@media (max-width: 640px) {
+  .sc-stage-parts {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Before and after, one row a channel */
@@ -302,68 +261,9 @@
   }
 }
 
-/* Pace: three choices, Cuso's pick marked */
-.sc-pace {
-  display: grid;
-  gap: 10px;
-}
-
-.sc-pace-options {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.sc-pace-option {
-  display: grid;
-  gap: 2px;
-  padding: 14px 16px;
-  border: var(--line-width) solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--background);
-  color: var(--foreground);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 150ms;
-}
-
-.sc-pace-option span {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.sc-pace-option:hover:not(:disabled) {
-  border-color: var(--foreground);
-}
-
-/* The picked pace is filled with Iris and takes the hard shadow. */
-.sc-pace-option.current {
-  background: var(--primary);
-  box-shadow: var(--shadow);
-  color: var(--primary-foreground);
-  cursor: default;
-}
-
-.sc-pace-option.current span {
-  color: var(--primary-foreground);
-}
-
-.sc-pace-option:disabled:not(.current) {
-  cursor: default;
-  opacity: 0.6;
-}
-
-.sc-pace-option:focus-visible,
 .sc-link:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
-}
-
-@media (max-width: 640px) {
-  .sc-pace-options {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Ad budget */

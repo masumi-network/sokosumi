@@ -375,7 +375,9 @@ function labJudgePayload(scenario: SokoBotScenario, transcript: Transcript) {
           ? `Coworker set the task to ${scenario.trigger.status}: ${scenario.trigger.comment}`
           : scenario.trigger?.kind === "ingest"
             ? `Self-started ${scenario.trigger.beat} turn built from the connected mail and calendar (see the packet in the prompt).`
-            : scenario.prompt,
+            : scenario.trigger?.kind === "follow_up"
+              ? `The owner had asked: ${scenario.trigger.ask}\nCore then started this follow-up: ${scenario.trigger.outcome} Cuso's plan: ${scenario.trigger.then}`
+              : scenario.prompt,
     },
     turn: transcript,
   };

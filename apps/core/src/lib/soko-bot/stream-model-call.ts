@@ -9,14 +9,37 @@ import { type LanguageModelMiddleware, streamText } from "ai";
 
 type StreamTextOptions = Parameters<typeof streamText>[0];
 
+// Gateway chat model IDs with thinking on by default.
+const GOOGLE_MODELS_WITH_DEFAULT_THINKING = new Set([
+  "google/gemini-2.5-flash",
+  "google/gemini-2.5-pro",
+  "google/gemini-3-flash",
+  "google/gemini-3.1-flash-lite",
+  "google/gemini-3.1-pro-preview",
+  "google/gemini-3.5-flash-lite",
+  "google/gemini-3.6-flash",
+  "google/gemini-3.8-flash",
+  "google/gemini-4-argon",
+  "google/gemini-4-carbon",
+  "google/gemini-4-hydrogen",
+  "google/gemini-4-neon",
+]);
+
 /**
  * Each provider's switch for a returned reasoning summary (never raw
  * thoughts); other providers ignore it.
  */
-export const REASONING_SUMMARY_OPTIONS = {
-  openai: { reasoningSummary: "auto" },
-  google: { thinkingConfig: { includeThoughts: true } },
-};
+export function modelReasoningSummaryOptions(
+  model: StreamTextOptions["model"],
+) {
+  const modelId = typeof model === "string" ? model : model.modelId;
+  return {
+    openai: { reasoningSummary: "auto" },
+    ...(GOOGLE_MODELS_WITH_DEFAULT_THINKING.has(modelId)
+      ? { google: { thinkingConfig: { includeThoughts: true } } }
+      : {}),
+  };
+}
 
 /**
  * A step's reasoning summary, one paragraph per part; undefined when the
@@ -47,16 +70,16 @@ export async function streamModelCall(options: StreamTextOptions) {
       failure ??= error;
     },
   });
-  const [text, finishReason, steps, response] = await Promise.all([
+  const [text, finishReason, steps, responseMessages] = await Promise.all([
     result.text,
     result.finishReason,
     result.steps,
-    result.response,
+    result.responseMessages,
   ]).catch((error: unknown) => {
     throw failure ?? error;
   });
   if (failure !== undefined) throw failure;
-  return { text, finishReason, steps, response };
+  return { text, finishReason, steps, responseMessages };
 }
 
 type WrapStream = NonNullable<LanguageModelMiddleware["wrapStream"]>;

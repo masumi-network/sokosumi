@@ -10,6 +10,7 @@ import {
 import { CMO_SOKO_BOT_VERSION_IDS } from "@sokosumi/soko-bot";
 import { CORE_API_ERROR_KINDS, type CoreApiErrorKind } from "@sokosumi/utils";
 import { conflict } from "@/helpers/error";
+import { postsAsPerson } from "@/helpers/linkedin-person";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccessForUser } from "@/lib/image-studio/access";
 import { type PresetRoute } from "@/lib/soko-bot/classifier";
@@ -505,11 +506,16 @@ export async function listCmoChannels(projectId: string) {
     select: {
       id: true,
       provider: true,
+      externalAccountId: true,
       externalHandle: true,
       displayName: true,
       status: true,
     },
   });
   // Project Social stores "active"; CMO reads statuses upper case.
-  return rows.map((row) => ({ ...row, status: row.status.toUpperCase() }));
+  return rows.map(({ externalAccountId, ...row }) => ({
+    ...row,
+    status: row.status.toUpperCase(),
+    personalProfile: postsAsPerson(row.provider, externalAccountId),
+  }));
 }

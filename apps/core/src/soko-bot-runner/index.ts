@@ -44,8 +44,10 @@ import {
   readWorkspaceFile,
   readWorkspaceUpload,
   runCommand,
+  runSetupCommands,
   saveDownloadToWorkspace,
   searchWorkspace,
+  setShellSecrets,
   writeWorkspaceFile,
 } from "./local-tools";
 import { runTurnLoop } from "./loop";
@@ -62,6 +64,10 @@ interface TurnStart {
   background?: boolean;
   /** Briefs to run side by side before the message; an older Core sends none. */
   parts?: TurnPart[];
+  /** Tool descriptions written for this bot; an older Core sends none. */
+  toolDescriptions?: Partial<Record<SokoBotCapability, string>>;
+  /** The owner's setup commands and the keys shell commands get (ADR 0074). */
+  shell?: { setupCommands: string[]; env: Record<string, string> };
 }
 
 class CoreRejected extends Error {
@@ -233,7 +239,11 @@ function buildTools(
   capabilities: readonly SokoBotCapability[],
   gateway: ReturnType<typeof createGateway>,
   model: string,
-  options: { forSubagent: boolean },
+  options: {
+    forSubagent: boolean;
+    /** Descriptions written for this bot, where they differ. */
+    descriptions?: Partial<Record<SokoBotCapability, string>>;
+  },
 ): ToolSet {
   const tools: ToolSet = {};
   const local: Partial<
@@ -271,7 +281,9 @@ function buildTools(
     if (options.forSubagent && !subagentAllowed.has(capability)) continue;
     const runLocal = local[capability];
     tools[capability] = tool({
-      description: SOKO_BOT_TOOL_DESCRIPTIONS[capability],
+      description:
+        options.descriptions?.[capability] ??
+        SOKO_BOT_TOOL_DESCRIPTIONS[capability],
       inputSchema: SOKO_BOT_TOOL_INPUT_SCHEMAS[capability],
       async execute(input: unknown, callOptions: { toolCallId: string }) {
         if (runLocal)
@@ -428,9 +440,15 @@ async function main(): Promise<void> {
     30_000,
     Date.parse(start.deadlineAt) - Date.now() - 20_000,
   );
+  if (start.shell) {
+    setShellSecrets(start.shell.env);
+    const failed = await runSetupCommands(start.shell.setupCommands);
+    if (failed) start.message = `${start.message}\n\n${failed}`;
+  }
   try {
     const tools = buildTools(start.capabilities, gateway, start.model, {
       forSubagent: false,
+      descriptions: start.toolDescriptions,
     });
     const deadline = Date.now() + budgetMs;
     const message = await withPartHandOvers(

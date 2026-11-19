@@ -14,7 +14,7 @@ import { normalizeSeoUrl } from "./project-seo-store";
 /** What the metric rows of one workspace read add up to. Rows come newest first. */
 export interface SeoMetricsProjection {
   metrics: ProjectSeoWorkspace["metrics"];
-  timeline: ProjectSeoWorkspace["timeline"];
+  collections: Map<string, ProjectSeoWorkspace["timeline"][number]>;
   searchSources: SearchEvidenceSource[];
   indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }>;
   /** Organic key events per landing page from the newest Google Analytics sync in view. */
@@ -72,8 +72,14 @@ export function projectSeoMetricsRow(
       data.notes.push(SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE);
   }
   // A verdict belongs to one page, so any sync that inspected a selected page counts.
-  if (data.indexedPages)
-    out.indexSources.push({ at: row.observedAt, pages: data.indexedPages });
+  const collectedAt = data.collectedAt ?? row.observedAt.toISOString();
+  for (const page of data.indexedPages ?? [])
+    out.indexSources.push({
+      at: new Date(
+        data.inspectionCache?.checkedAt[page.pageUrl] ?? collectedAt,
+      ),
+      pages: [page],
+    });
   // Distinct-user totals cannot be sliced or added from an incompatible page group.
   if (
     data.pageUrls.length !== selectedUrls.size ||
@@ -86,17 +92,26 @@ export function projectSeoMetricsRow(
     data.provider === "search_console" ? (data.searchType ?? "web") : null;
   if (searchType && searchType !== (query.searchType ?? "web")) return;
   if (data.provider === "search_console") out.searchSources.push({ row, data });
-  out.timeline.push({
-    id: `metrics:${row.id}`,
-    kind: "metrics",
-    title: `${data.provider === "ga4" ? "Analytics" : "Search Console"} statistics synced`,
-    at: row.createdAt.toISOString(),
-    pageIds: row.pageIds,
-    observationId: row.id,
-    taskId: null,
-    status: data.coverage,
-    detail: `${data.from} to ${data.to}. ${data.channel}${searchType && searchType !== "web" ? ` ${searchType}` : ""}. ${data.notes.join(" ")}`,
-  });
+  const collection = data.collectionFingerprint
+    ? JSON.stringify([row.ownerId, data.collectionFingerprint, collectedAt])
+    : row.id;
+  const reactivated = row.observedAt.getTime() !== Date.parse(collectedAt);
+  // A replay represents its original collection until the original row itself is encountered.
+  if (!reactivated || !out.collections.has(collection)) {
+    out.collections.set(collection, {
+      id: `metrics:${row.id}`,
+      kind: "metrics",
+      title: `${data.provider === "ga4" ? "Analytics" : "Search Console"} statistics synced`,
+      at: data.collectionFingerprint
+        ? collectedAt
+        : row.createdAt.toISOString(),
+      pageIds: row.pageIds,
+      observationId: row.id,
+      taskId: null,
+      status: data.coverage,
+      detail: `${data.from} to ${data.to}. ${data.channel}${searchType && searchType !== "web" ? ` ${searchType}` : ""}. ${data.notes.join(" ")}`,
+    });
+  }
   const group = JSON.stringify([
     data.provider,
     data.propertyId,
@@ -113,7 +128,7 @@ export function projectSeoMetricsRow(
       propertyId: data.propertyId,
       from: data.from,
       to: data.to,
-      observedAt: row.observedAt.toISOString(),
+      observedAt: collectedAt,
     };
   if (out.seenGroups.has(group)) return;
   out.seenGroups.add(group);
@@ -127,7 +142,10 @@ export function projectSeoMetricsRow(
       to: data.to,
       timeZone: data.timeZone,
       channel: data.channel,
-      observedAt: row.observedAt.toISOString(),
+      observedAt: collectedAt,
+      ...(reactivated && {
+        selectedAt: row.observedAt.toISOString(),
+      }),
       coverage: data.coverage,
       notes: data.notes,
       ...(searchType ? { searchType } : {}),

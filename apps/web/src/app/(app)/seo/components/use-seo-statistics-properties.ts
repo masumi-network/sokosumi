@@ -101,8 +101,17 @@ export function useSeoStatisticsProperties(
   const propertyId = candidates.some((property) => property.id === wanted)
     ? (wanted ?? "")
     : seoMatchingProperty(provider, candidates, pages[0]?.url);
+  const sitesWithoutProperty =
+    provider === "search_console" &&
+    !properties.isError &&
+    properties.data?.status === "available" &&
+    candidates.length === 0
+      ? [...new Set(pages.map((page) => new URL(page.url).host))]
+      : [];
   return {
     properties,
+    eligibleProperties: candidates,
+    sitesWithoutProperty,
     propertyId,
     setPropertyId: (value: string) => client.setQueryData(selectionKey, value),
     propertiesUnavailable:

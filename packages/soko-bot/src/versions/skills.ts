@@ -1,4 +1,5 @@
 import { CMO_SKILLS } from "./cmo-skills.js";
+import { cmoV4Skills } from "./cmo-v4-skills.js";
 import { COMPACT_SOKO_BOT_SKILLS } from "./compact-skills.js";
 
 /**
@@ -14,7 +15,7 @@ export interface SokoBotSkill {
   content: string;
 }
 
-export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
+const GENERAL_SKILLS: readonly SokoBotSkill[] = [
   {
     id: "chained-work",
     name: "Chained work",
@@ -187,7 +188,7 @@ Coworker Tasks are the main way work gets done; you are their project manager on
 - Always \`get_task_status\` before acting on a Task: it carries the Coworker's latest comments (questions, results, failure reasons), files, and links.
 - \`INPUT_REQUIRED\` means the Coworker asked something. Answer with \`reply_to_task\` (status \`READY\`) when the answer is in the Task, Project, Context, or memory. Ask the owner only when it is genuinely their call, and then ask exactly one question.
 - \`FAILED\`: read the reason. Restart with \`reply_to_task\` (status \`READY\`) and concrete guidance when it is fixable, create a new linked Task when the scope must change, or report when the owner must decide.
-- \`COMPLETED\`: read the result. When the request implied next steps (review, follow-up, dependent work), create the follow-up Task and \`link_tasks\` it (\`parent\`/\`child\` or \`blocked_by\`) so the chain is visible on the Taskboard.
+- \`COMPLETED\`: read the result. When the request implied next steps (review, follow-up, dependent work), create the follow-up Task. A step of the same Task is its sub-task (\`create_task\` with \`parentTaskId\`, or \`set_task_parent\` for a Task that already exists): it is not on the Taskboard and shows in its parent's checklist. Work that waits on another Task is linked with \`link_tasks\` (\`blocked_by\`) so the chain is visible on the Taskboard.
 - Multi-step work: create every Task in the same turn, link dependencies with \`link_tasks\` (\`blocks\`/\`blocked_by\`), start what can start now (READY), keep the rest DRAFT with their assignee and project already set, and add a schedule to move the chain along.
 - Never re-create a Task that already exists; comment on it instead.
 - Tasks carry \`creditsCharged\`, what was actually billed. When one finishes, compare it with what the owner approved, and tell them plainly when it went over; nothing stops a Coworker at a stated cap.
@@ -384,6 +385,11 @@ Server monitoring and deployment alerts (DigitalOcean, Vercel, CI) are never urg
 - It reads only what you pass in and changes nothing: it never marks mail read, labels, moves or sends anything.
 `,
   },
+];
+
+export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
+  ...GENERAL_SKILLS,
+  ...cmoV4Skills(GENERAL_SKILLS),
 ];
 
 export function getSokoBotSkill(id: string): SokoBotSkill {

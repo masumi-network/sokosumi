@@ -14,6 +14,7 @@ import {
   fetchTaskJobs,
   fetchTaskLinks,
   fetchTasks,
+  moveTask,
   resolveTaskId,
   type TaskFields,
   updateTask,
@@ -39,10 +40,48 @@ const LINK_RELATIONS = [
   "related",
   "blocks",
   "blocked_by",
-  "parent",
-  "child",
   "duplicate",
 ] as const;
+
+/** Core refuses these link writes: a parent is now a sub-task's parent. */
+const SUBTASK_RELATIONS = ["parent", "child"];
+
+/**
+ * The link relation from --relation. A link write with parent or child points
+ * to `tasks move`; `tasks unlink` still selects them, to delete a leftover one.
+ */
+function linkRelation(
+  options: CommandOptions | undefined,
+  command: string,
+): string | undefined {
+  if (command === "unlink")
+    return validateChoice(
+      option(options, "relation"),
+      [...LINK_RELATIONS, ...SUBTASK_RELATIONS],
+      "--relation",
+    );
+  const raw = optionString(options, "relation")?.trim().toLowerCase();
+  if (raw !== undefined && SUBTASK_RELATIONS.includes(raw))
+    throw new Error(
+      "Parent links are now sub-tasks. Use `tasks move TASK_ID --parent PARENT_ID` to set a parent, or `tasks move TASK_ID --detach` to remove it.",
+    );
+  return validateChoice(
+    option(options, "relation"),
+    LINK_RELATIONS,
+    "--relation",
+  );
+}
+
+/** A Task id option that, when given, must not be blank. */
+function taskIdOption(
+  options: CommandOptions | undefined,
+  name: string,
+): string | undefined {
+  const value = optionString(options, name);
+  if (value !== undefined && !value.trim())
+    throw new Error(`--${name} needs a Task id`);
+  return value;
+}
 
 const SORTS = ["createdAt", "updatedAt", "priority"];
 
@@ -57,6 +96,8 @@ const TASK_ID_COMMANDS = [
   "unlink",
   "relink",
   "archive",
+  "subtasks",
+  "move",
 ];
 
 export interface TasksCommandContext extends CommandContext {
@@ -88,6 +129,8 @@ function restoreLinkCommand(
     const apiUrl = optionString(options, "api-url");
     if (apiUrl !== undefined) parts.push("--api-url", shellSingleQuote(apiUrl));
   }
+  const slug = optionString(options, "organization-slug");
+  const workspace = slug === undefined ? [] : ["--organization-slug", slug];
   parts.push(
     "tasks",
     "link",
@@ -96,9 +139,8 @@ function restoreLinkCommand(
     shellSingleQuote(relation),
     "--to",
     peerId,
+    ...workspace,
   );
-  const slug = optionString(options, "organization-slug");
-  if (slug !== undefined) parts.push("--organization-slug", slug);
   if (note !== undefined) parts.push("--note", shellSingleQuote(note));
   return parts.join(" ");
 }
@@ -267,6 +309,7 @@ async function readTaskFields(
     coworkerId,
     assigneeUserId,
     projectId: optionString(options, "project-id"),
+    dueOn: optionString(options, "due"),
     priority: validateChoice(
       option(options, "priority"),
       PRIORITIES,
@@ -320,6 +363,7 @@ export async function runTasksCommand({
 }: TasksCommandContext): Promise<void> {
   const command = subcommand || "list";
   if (command === "list") {
+    const parent = optionString(options, "parent");
     const limit = parsePositiveInteger(option(options, "limit"), "--limit");
     const sort = validateChoice(option(options, "sort"), SORTS, "--sort");
     // Core warns that updatedAt/priority order moves rows mid-page; draining
@@ -337,6 +381,8 @@ export async function runTasksCommand({
         coworkerId: optionString(options, "coworker-id"),
         assigneeUserId: optionString(options, "assignee-user-id"),
         projectId: optionString(options, "project-id"),
+        parentTaskId: parent && (await resolveTaskId(client, parent, signal)),
+        includeSubtasks: optionBoolean(options, "include-subtasks"),
         sort,
         take: limit,
       },
@@ -369,10 +415,16 @@ export async function runTasksCommand({
       throw new Error(
         "Personal Workspace is missing. Use coworkers register --personal or connect --personal first.",
       );
+    const parent = taskIdOption(options, "parent");
+    const after = taskIdOption(options, "after");
+    if (after !== undefined && parent === undefined)
+      throw new Error("--after needs --parent");
     const { task, response } = await createTask(
       client,
       {
         ...fields,
+        parentTaskId: parent && (await resolveTaskId(client, parent, signal)),
+        afterTaskId: after && (await resolveTaskId(client, after, signal)),
         status: validateChoice(
           option(options, "status"),
           ["DRAFT", "READY"],
@@ -480,10 +532,50 @@ export async function runTasksCommand({
     }
     if (Object.values(fields).every((value) => value === undefined))
       throw new Error(
-        "Pass at least one of --name, --description, --description-file, --priority, --project-id, --clear-project, --coworker-id, --assignee-user-id, or --unassign",
+        "Pass at least one of --name, --description, --description-file, --priority, --project-id, --clear-project, --due, --coworker-id, --assignee-user-id, or --unassign",
       );
     const id = await resolveTaskId(client, ref, signal);
     const { task } = await updateTask(client, id, fields, signal);
+    if (json) writeJson(stdout, { task });
+    else printTask(stdout, task, {});
+    return;
+  }
+  if (command === "subtasks") {
+    const id = await resolveTaskId(client, ref, signal);
+    const { tasks } = await fetchTasks(client, { parentTaskId: id }, signal);
+    if (json) writeJson(stdout, { tasks });
+    else printTaskList(stdout, tasks);
+    return;
+  }
+  if (command === "move") {
+    const parent = taskIdOption(options, "parent");
+    const detach = optionBoolean(options, "detach");
+    const after = taskIdOption(options, "after");
+    const first = optionBoolean(options, "first");
+    if (parent !== undefined && detach)
+      throw new Error("Pass either --parent TASK_ID or --detach, not both");
+    if (after !== undefined && first)
+      throw new Error("Pass either --after SIBLING_ID or --first, not both");
+    if (detach && (after !== undefined || first))
+      throw new Error("--detach takes no --after or --first");
+    // Without a new parent, the move only reorders, so it needs a position.
+    if (parent === undefined && !detach && after === undefined && !first)
+      throw new Error(
+        "Pass --parent TASK_ID, --detach, or a position: --after SIBLING_ID or --first",
+      );
+    const { task } = await moveTask(
+      client,
+      await resolveTaskId(client, ref, signal),
+      {
+        parentTaskId: detach
+          ? null
+          : parent && (await resolveTaskId(client, parent, signal)),
+        afterTaskId: first
+          ? null
+          : after && (await resolveTaskId(client, after, signal)),
+      },
+      signal,
+    );
     if (json) writeJson(stdout, { task });
     else printTask(stdout, task, {});
     return;
@@ -498,11 +590,7 @@ export async function runTasksCommand({
   if (command === "link") {
     const to = optionString(options, "to");
     if (!to) throw new Error("--to is required for `tasks link`");
-    const relation = validateChoice(
-      option(options, "relation"),
-      LINK_RELATIONS,
-      "--relation",
-    );
+    const relation = linkRelation(options, command);
     if (!relation)
       throw new Error(
         `--relation must be one of: ${LINK_RELATIONS.join(", ")}`,
@@ -534,11 +622,7 @@ export async function runTasksCommand({
   // unlink and relink act on the one existing link between TASK_ID and --to.
   const to = optionString(options, "to");
   if (!to) throw new Error(`--to is required for \`tasks ${command}\``);
-  const relation = validateChoice(
-    option(options, "relation"),
-    LINK_RELATIONS,
-    "--relation",
-  );
+  const relation = linkRelation(options, command);
   if (command === "relink" && !relation)
     throw new Error(`--relation must be one of: ${LINK_RELATIONS.join(", ")}`);
   const id = await resolveTaskId(client, ref, signal);
@@ -568,15 +652,14 @@ export async function runTasksCommand({
     if (json) writeJson(stdout, { link });
     else printLinks(stdout, [link]);
   } catch (error) {
-    const restore = restoreLinkCommand(
-      options,
-      id,
-      String(existing.relation),
-      peerId,
-      oldNote,
-    );
+    const oldRelation = String(existing.relation);
+    // Core refuses a new parent or child link, and a move is not the same
+    // as the old link, so there is no command to give back.
+    const restore = SUBTASK_RELATIONS.includes(oldRelation)
+      ? `The old ${oldRelation} link cannot be recreated as a link.`
+      : `Restore it with: ${restoreLinkCommand(options, id, oldRelation, peerId, oldNote)}`;
     throw new Error(
-      `Removed the ${String(existing.relation)} link but could not create the ${String(relation)} link: ${error instanceof Error ? error.message : String(error)}. Restore it with: ${restore}`,
+      `Removed the ${oldRelation} link but could not create the ${String(relation)} link: ${error instanceof Error ? error.message : String(error)}. ${restore}`,
     );
   }
 }

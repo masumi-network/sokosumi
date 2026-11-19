@@ -69,7 +69,7 @@ export function useTaskTagSuggestions({
   useLayoutEffect(() => {
     generation.current += 1;
   }, [wordKey, eligible]);
-  const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [request, setRequest] = useState<{
     key: string;
     status: "loading" | "unavailable";
@@ -85,15 +85,20 @@ export function useTaskTagSuggestions({
       controller.current?.abort();
     };
   }, []);
-  const attempted = useRef(new Set<string>());
   const nextRequestAt = useRef(0);
   const failures = useRef(0);
-  const current =
-    eligible && suggestion?.wordKey === wordKey ? suggestion : null;
+  const current = eligible
+    ? suggestions.find((suggestion) => suggestion.wordKey === wordKey)
+    : undefined;
+  const lastShown = useRef<Suggestion | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (current) lastShown.current = current;
+  }, [current]);
+  const shouldRequest = eligible && !current && request?.key !== wordKey;
   const tags = [...new Set(current?.tags ?? [])].slice(0, 5);
 
   useEffect(() => {
-    if (!eligible || inFlight.current || attempted.current.has(wordKey)) return;
+    if (!shouldRequest || inFlight.current) return;
     const requestGeneration = generation.current;
     const isCurrent = () =>
       mounted.current && requestGeneration === generation.current;
@@ -101,7 +106,6 @@ export function useTaskTagSuggestions({
       async () => {
         if (inFlight.current) return;
         inFlight.current = true;
-        attempted.current.add(wordKey);
         nextRequestAt.current = Date.now() + REQUEST_INTERVAL_MS;
         setRequest({ key: wordKey, status: "loading" });
         controller.current = new AbortController();
@@ -123,11 +127,9 @@ export function useTaskTagSuggestions({
             const value: TaskTagSuggestion = await response.json();
             failures.current = 0;
             if (isCurrent()) {
-              setSuggestion({
-                inputKey,
-                wordKey,
-                ...value,
-              });
+              const next = { inputKey, wordKey, ...value };
+              const previous = lastShown.current;
+              setSuggestions(previous ? [next, previous] : [next]);
               setRequest(null);
             }
           } else {
@@ -166,7 +168,7 @@ export function useTaskTagSuggestions({
       window.clearTimeout(timer);
     };
   }, [
-    eligible,
+    shouldRequest,
     inputKey,
     wordKey,
     normalizedName,

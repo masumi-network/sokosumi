@@ -204,6 +204,7 @@ const scheduledPost = {
     avatarUrl: null,
     subscriptionType: null,
     status: "active",
+    personalProfile: false,
   },
   scheduledByUserId: USER_ID,
   revision: 1,
@@ -748,7 +749,11 @@ describe("Project social post routes", () => {
       data: {
         status: "SCHEDULED",
         scheduledAt: SCHEDULED_AT,
-        socialConnection: { id: SOCIAL_CONNECTION_ID, status: "active" },
+        socialConnection: {
+          id: SOCIAL_CONNECTION_ID,
+          status: "active",
+          personalProfile: false,
+        },
       },
     });
     expect(createSocialPostMock).toHaveBeenCalledWith({

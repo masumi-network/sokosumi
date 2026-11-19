@@ -191,6 +191,8 @@ describe("POST /projects/{id}/tasks", () => {
         task: {
           findFirst: taskFindFirstMock,
           updateMany: taskUpdateManyMock,
+          // No sub-tasks follow the Task to another Project.
+          findMany: async () => [],
         },
       }),
     );

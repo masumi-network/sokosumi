@@ -5,7 +5,23 @@ import {
 } from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { unpaidCuso } = vi.hoisted(() => ({ unpaidCuso: vi.fn() }));
+const { unpaidCuso, testCopy } = vi.hoisted(() => ({
+  unpaidCuso: vi.fn(),
+  testCopy: {
+    requireSource: vi.fn(),
+    link: vi.fn(),
+    tearDown: vi.fn(),
+    is: vi.fn(async () => false),
+  },
+}));
+vi.mock("@/services/cmo-test-copy.service", () => ({
+  requireTestCopySource: testCopy.requireSource,
+  linkTestCopyConnections: testCopy.link,
+  tearDownTestCopyFor: testCopy.tearDown,
+}));
+vi.mock("@/services/project-test-copy", () => ({
+  isTestCopyProject: testCopy.is,
+}));
 
 import {
   archiveBot,
@@ -30,6 +46,7 @@ import {
   projectDelete,
   resetCmoServiceMocks,
   sokoBotFindUnique,
+  sokoBotUpdateMany,
   startTurn,
   toolCallFindFirst,
   turnFindFirst,
@@ -128,6 +145,7 @@ import {
   describeCmoStep,
   mayHireCuso,
   retryCmoOnboarding,
+  setCmoTimeZone,
   startCmoOnboarding,
   startCmoOver,
   startCmoResearch,
@@ -332,7 +350,7 @@ describe("activity", () => {
   it("never names a tool: one without its own words reads as working", async () => {
     turnFindFirst.mockResolvedValue(running);
     toolCallFindFirst.mockResolvedValue({
-      capability: "create_task",
+      capability: "link_tasks",
       input: {},
     });
     eventFindFirst.mockResolvedValue(null);
@@ -449,6 +467,16 @@ describe("research groups", () => {
 });
 
 describe("starting over", () => {
+  it("tears a test copy down on Start over, without archiving as the caller", async () => {
+    testCopy.is.mockResolvedValueOnce(true);
+    await startCmoOver({ projectId: "project-1", userId: "user-1" });
+    expect(testCopy.tearDown).toHaveBeenCalledWith({
+      projectId: "project-1",
+      userId: "user-1",
+    });
+    expect(archiveBot).not.toHaveBeenCalled();
+  });
+
   it("archives the Cuso and cancels his unsent posts", async () => {
     cusoFind.mockResolvedValue({ sokoBotId: "bot-1", workspaceId: "ws-1" });
     postFindMany.mockResolvedValue([{ id: "post-1", revision: 3 }]);
@@ -583,6 +611,16 @@ describe("research feed", () => {
   });
 });
 
+const { retimeSystemSchedules } = vi.hoisted(() => ({
+  retimeSystemSchedules: vi.fn(async () => undefined),
+}));
+vi.mock("@/services/soko-bot-proactive.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/soko-bot-proactive.service")
+  >()),
+  retimeSystemSchedules,
+}));
+
 describe("startCmoOnboarding", () => {
   const input = {
     userId: "user-1",
@@ -632,6 +670,72 @@ describe("startCmoOnboarding", () => {
       failure: { errorName: "Error" },
     });
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PROMPT");
+  });
+
+  it("hires Cuso in the owner's time zone, and on the default without one", async () => {
+    await startCmoOnboarding({ ...input, timeZone: "America/Los_Angeles" });
+    expect(createBot.mock.lastCall?.[0]).toMatchObject({
+      timezone: "America/Los_Angeles",
+    });
+    await startCmoOnboarding(input);
+    expect(createBot.mock.lastCall?.[0]).not.toHaveProperty("timezone");
+  });
+
+  it("moves Cuso and his routines to a new time zone", async () => {
+    cusoFind.mockResolvedValue({ sokoBotId: "bot-1", projectId: "project-1" });
+    await setCmoTimeZone(
+      { userId: "user-1", projectId: "project-1" },
+      "Asia/Tokyo",
+    );
+    expect(sokoBotUpdateMany).toHaveBeenCalledWith({
+      where: { id: "bot-1" },
+      data: { ingestTimezone: "Asia/Tokyo" },
+    });
+    expect(retimeSystemSchedules).toHaveBeenCalledWith("bot-1", "Asia/Tokyo");
+  });
+
+  it("hires a test copy into its source's organization and links the source's accounts", async () => {
+    testCopy.requireSource.mockResolvedValue("org-team");
+    const copy = { ...input, testCopyOfProjectId: "project-source" };
+    await expect(startCmoOnboarding(copy)).resolves.toMatchObject({
+      sokoBotId: "bot-1",
+    });
+    expect(testCopy.requireSource).toHaveBeenCalledWith({
+      userId: "user-1",
+      sourceProjectId: "project-source",
+      organizationId: undefined,
+    });
+    expect(getUserWorkspace).toHaveBeenLastCalledWith("user-1", {
+      organizationId: "org-team",
+    });
+    expect(projectCreate.mock.lastCall?.[0].data).toMatchObject({
+      name: "CMO.xyz · acme.io (test copy)",
+      testCopyOfProjectId: "project-source",
+    });
+    expect(testCopy.link).toHaveBeenCalledWith({
+      projectId: "project-1",
+      sourceProjectId: "project-source",
+      actorId: "user-1",
+    });
+  });
+
+  it("creates nothing when the test copy is refused, and links nothing on a plain hire", async () => {
+    testCopy.requireSource.mockRejectedValue(new Error("refused"));
+    await expect(
+      startCmoOnboarding({
+        ...input,
+        organizationId: "org-team",
+        testCopyOfProjectId: "project-source",
+      }),
+    ).rejects.toThrow("refused");
+    expect(projectCreate).not.toHaveBeenCalled();
+
+    await startCmoOnboarding(input);
+    expect(projectCreate.mock.lastCall?.[0].data).toMatchObject({
+      name: "CMO.xyz · acme.io",
+      testCopyOfProjectId: null,
+    });
+    expect(testCopy.link).not.toHaveBeenCalled();
   });
 
   it("hires into an organization with no credits and grants no credits", async () => {

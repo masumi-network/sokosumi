@@ -11,7 +11,7 @@ import {
   Search,
   ShoppingBag,
 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { type ReactNode, useEffect, useState, useTransition } from "react";
 
 import { channelLabel } from "../lib/calendar";
 import { channelKey } from "../lib/channels";
@@ -29,26 +29,6 @@ const SOURCE_ICONS = {
   shopify: ShoppingBag,
 } as const;
 
-/** The four parts of the strategy, under the sentence that joins them. */
-export function IdeaParts({ idea }: { idea: NonNullable<Strategy["idea"]> }) {
-  const parts: [string, string][] = [
-    ["Who", idea.who],
-    ["Positioned as", idea.position],
-    ["How they find you", idea.attract],
-    ["The offer", idea.offer],
-  ];
-  return (
-    <dl className="sc-parts">
-      {parts.map(([label, value]) => (
-        <div key={label}>
-          <dt>{label}</dt>
-          <dd>{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
 /** The other strategies Cuso weighed; one tap asks him to switch. */
 export function Alternatives({
   alternatives,
@@ -57,7 +37,8 @@ export function Alternatives({
   alternatives: NonNullable<Strategy["alternatives"]>;
   onAsk?: (text: string, label?: string) => Promise<void>;
 }) {
-  // Plain state, not a transition, for the same reason as PacePicker.
+  // Plain state, not a transition: the host shows its re-planning screen at
+  // once, and a refusal stays here instead of throwing.
   const [picked, setPicked] = useState<string | null>(null);
   const switching = picked !== null;
   return (
@@ -123,30 +104,23 @@ export function OfferLadder({
   );
 }
 
-const OWNERS: Record<NonNullable<Stage["owner"]>, string> = {
-  cuso: `${AGENT_NAME} runs this`,
-  you: "On your side",
-  shared: `${AGENT_NAME} and you`,
+/** The classic funnel step each stage is, and what people do there. */
+const STAGES: Record<Stage["stage"], { label: string; people: string }> = {
+  awareness: { label: "Awareness", people: "People who could buy hear of you" },
+  consideration: { label: "Consideration", people: "They weigh you up" },
+  conversion: { label: "Conversion", people: "They buy or sign up" },
+  loyalty: { label: "Loyalty", people: "They come back" },
 };
 
-/** The classic funnel step each stage is, in plain words. */
-const STEPS: Record<Stage["stage"], string> = {
-  awareness: "Get seen",
-  consideration: "Get considered",
-  conversion: "Get chosen",
-  loyalty: "Keep them",
-};
-
-const BASES = {
-  measured: "Measured",
-  estimated: "Estimate",
-  unknown: "Not measured yet",
-} as const;
+/** The classic name of a stage: "Awareness". */
+export function stageLabel(stage: Stage["stage"]): string {
+  return STAGES[stage].label;
+}
 
 /**
- * The funnel at a glance: one band a stage, narrowing toward the sale, each
- * with its step, its goal in one line and the channels that do it. How each
- * channel works it, the owner's part and today's number open on a tap.
+ * The funnel, one card a stage: the classic step, the goal, what Cuso does
+ * there on which channels, the owner's part, and the number that shows it
+ * works with how that number is known. Nothing is folded away.
  */
 export function FunnelPlan({
   stages,
@@ -158,84 +132,36 @@ export function FunnelPlan({
   return (
     <ol className="sc-funnel">
       {stages.map((stage, index) => {
-        const plays = stage.plays ?? [];
-        const owner = stage.owner ?? "cuso";
-        const channels = [
-          ...new Set(
-            (plays.length > 0
-              ? plays.map((play) => play.channel)
-              : (stage.channels ?? [])
-            ).map((channel) => channelKey(channel) ?? channel),
-          ),
-        ];
+        const { label, people } = STAGES[stage.stage];
         return (
-          <li
-            key={stage.stage}
-            className={`sc-stage ${owner}`}
-            style={{
-              // Each band starts as wide as the one above it ends.
-              ["--sc-top" as string]: `${funnelWidth(index, stages.length)}%`,
-              ["--sc-bottom" as string]: `${funnelWidth(index + 1, stages.length)}%`,
-            }}
-          >
-            <div className="sc-band">
-              <span className="sc-step">{STEPS[stage.stage]}</span>
-              <span className="sc-stage-name">{stage.name}</span>
-            </div>
+          <li key={stage.stage} className="sc-stage">
+            <FunnelSegment index={index} of={stages.length}>
+              <span className="sc-stage-number num">{index + 1}</span>
+              <h3 className="sc-stage-name">{label}</h3>
+              <span className="sc-stage-people">{people}</span>
+            </FunnelSegment>
             <div className="sc-stage-body">
               <p className="sc-goal">{stage.goal}</p>
-              <div className="sc-stage-meta">
-                <span className="sc-icons">
-                  {channels.map((channel) => (
-                    <ChannelIcon key={channel} channel={channel} size={16} />
-                  ))}
-                </span>
-                {owner === "cuso" ? null : (
-                  <span className={`sc-owner ${owner}`}>{OWNERS[owner]}</span>
-                )}
-              </div>
-              <details className="sc-how">
-                <summary>How</summary>
-                {plays.length > 0 ? (
-                  <ul className="sc-plays">
-                    {plays.map((play) => (
-                      <li key={`${play.channel}:${play.what}`}>
-                        <ChannelIcon
-                          channel={channelKey(play.channel) ?? play.channel}
-                          size={16}
-                        />
-                        <span className="sc-play-channel">
-                          {channelLabel(play.channel)}
-                        </span>
-                        <span>{play.what}</span>
-                        {play.cadence ? (
-                          <span className="sc-cadence">{play.cadence}</span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                {owner === "cuso" ? null : (
-                  <StageImprovements
-                    stage={stage}
-                    improvements={improvements}
-                  />
-                )}
-                <p className="sc-measure">
-                  <span>{stage.metric}</span>
-                  {stage.measure?.value ? (
-                    <b className="num">{stage.measure.value}</b>
-                  ) : null}
-                  <span
-                    className={`sc-basis ${stage.measure?.basis ?? "unknown"}`}
-                  >
-                    {BASES[stage.measure?.basis ?? "unknown"]}
-                    {stage.measure?.basis === "measured" && stage.measure.source
-                      ? ` · ${stage.measure.source}`
-                      : ""}
-                  </span>
-                </p>
-              </details>
+              <dl className="sc-stage-parts">
+                <div>
+                  <dt>What {AGENT_NAME} does</dt>
+                  <dd>
+                    <CusoPart stage={stage} />
+                  </dd>
+                </div>
+                <div>
+                  <dt>What you do</dt>
+                  <dd>
+                    <OwnerPart stage={stage} improvements={improvements} />
+                  </dd>
+                </div>
+                <div>
+                  <dt>How we know it works</dt>
+                  <dd>
+                    <MeasurePart stage={stage} />
+                  </dd>
+                </div>
+              </dl>
             </div>
           </li>
         );
@@ -244,37 +170,153 @@ export function FunnelPlan({
   );
 }
 
-/** The funnel narrows from full width to this share at its last stage's end. */
-const FUNNEL_END = 55;
+/** How wide the funnel still is, in percent, where its last stage ends. */
+const FUNNEL_END = 40;
+/** A stage's fill, top to bottom; the last one, the sale, is always green. */
+const SEGMENT_FILLS = ["paper", "iris", "yellow"] as const;
 
-function funnelWidth(edge: number, stages: number): number {
-  return 100 - (edge * (100 - FUNNEL_END)) / Math.max(stages, 1);
+/**
+ * One stage's slice of the funnel: as wide at its top as the stage above
+ * ends, narrower at its bottom, so the stages stack into one funnel.
+ */
+function FunnelSegment({
+  index,
+  of,
+  children,
+}: {
+  index: number;
+  of: number;
+  children: ReactNode;
+}) {
+  const edge = (at: number) =>
+    ((100 - FUNNEL_END) / 2) * (at / Math.max(of, 1));
+  const [top, bottom] = [edge(index), edge(index + 1)];
+  const fill = index === of - 1 ? "green" : (SEGMENT_FILLS[index] ?? "yellow");
+  return (
+    <div
+      className={`sc-segment ${fill}`}
+      style={{ ["--sc-inset" as string]: `${bottom}%` }}
+    >
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <polygon
+          points={`${top},0 ${100 - top},0 ${100 - bottom},100 ${bottom},100`}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <div className="sc-segment-text">{children}</div>
+    </div>
+  );
 }
 
-/** The owner's own pages at a conversion stage: Cuso suggests, they decide. */
-function StageImprovements({
+/** Cuso's work at a stage, one line a channel. */
+function CusoPart({ stage }: { stage: Stage }) {
+  const plays = stage.plays ?? [];
+  if (plays.length > 0) {
+    return (
+      <ul className="sc-plays">
+        {plays.map((play) => (
+          <li key={`${play.channel}:${play.what}`}>
+            <span className="sc-play-channel">
+              <ChannelIcon
+                channel={channelKey(play.channel) ?? play.channel}
+                size={16}
+              />
+              {channelLabel(play.channel)}
+            </span>
+            <span>{play.what}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  const channels = stage.channels ?? [];
+  if (stage.owner === "you" || channels.length === 0) {
+    return <p>Nothing here. This step is yours.</p>;
+  }
+  return (
+    <ul className="sc-plays">
+      {channels.map((channel) => (
+        <li key={channel}>
+          <span className="sc-play-channel">
+            <ChannelIcon channel={channelKey(channel) ?? channel} size={16} />
+            {channelLabel(channel)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The owner's part: their own pages at the sale, with Cuso's ideas for them. */
+function OwnerPart({
   stage,
   improvements,
 }: {
   stage: Stage;
   improvements: NonNullable<Strategy["improvements"]>;
 }) {
-  const relevant =
+  const owner = stage.owner ?? "cuso";
+  if (owner === "cuso") return <p>Nothing. {AGENT_NAME} runs this step.</p>;
+  const ideas =
     stage.stage === "conversion"
       ? improvements.filter((item) =>
           ["landing", "pricing", "checkout"].includes(item.area),
         )
       : [];
-  if (relevant.length === 0) return null;
+  if (ideas.length === 0) {
+    return (
+      <p>
+        {owner === "you"
+          ? "This step happens on your own pages, product or sales."
+          : `Your pages and offer do the rest. ${AGENT_NAME} suggests changes, you decide.`}
+      </p>
+    );
+  }
   return (
-    <ul className="sc-fixes">
-      {relevant.map((item) => (
+    <ul className="sc-ideas">
+      {ideas.map((item) => (
         <li key={item.idea}>
-          <b>{item.idea}</b>
+          <span>{item.idea}</span>
           <span className="note">{item.why}</span>
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * A value short enough to stand as a big number: "About 400 a month". A
+ * sentence ("X has 33.4K followers; visits are not reported.") reads as words.
+ */
+function isFigure(value: string): boolean {
+  return value.trim().split(/\s+/).length <= 5;
+}
+
+/** The stage's number, today's value and whether it is measured or estimated. */
+function MeasurePart({ stage }: { stage: Stage }) {
+  const { measure } = stage;
+  return (
+    <div className="sc-measure">
+      <span>{stage.metric}</span>
+      {measure?.value && measure.basis !== "unknown" ? (
+        isFigure(measure.value) ? (
+          <b className="num">{measure.value}</b>
+        ) : (
+          <span>{measure.value}</span>
+        )
+      ) : null}
+      {measure?.basis === "measured" ? (
+        <StatusText>
+          {measure.source ? `Measured in ${measure.source}` : "Measured"}
+        </StatusText>
+      ) : (
+        <span className="note">
+          {measure?.basis === "estimated"
+            ? `${AGENT_NAME}'s estimate`
+            : "Not measured yet"}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -319,60 +361,6 @@ export const PACES: { level: Pace; name: string; does: string }[] = [
     does: "Up to three a day on each network",
   },
 ];
-
-/** How hard the plan publishes: Cuso's pick, one tap to change. */
-export function PacePicker({
-  pace,
-  onAsk,
-}: {
-  pace: NonNullable<Strategy["pace"]>;
-  onAsk?: (text: string, label?: string) => Promise<void>;
-}) {
-  // Plain state, not a transition: the host shows its re-planning screen the
-  // moment this is tapped, and a refusal stays here instead of throwing.
-  const [asked, setAsked] = useState<Pace | null>(null);
-  const changing = asked !== null;
-  return (
-    <div className="sc-pace">
-      <div className="sc-pace-options" role="group" aria-label="Pace">
-        {PACES.map((option) => {
-          const current = option.level === pace.level;
-          return (
-            <button
-              key={option.level}
-              type="button"
-              className={current ? "sc-pace-option current" : "sc-pace-option"}
-              aria-pressed={current}
-              disabled={!onAsk || current || changing}
-              onClick={async () => {
-                setAsked(option.level);
-                try {
-                  await onAsk?.(
-                    `Change the pace to ${option.name} (${option.does.toLowerCase()}) and re-plan the calendar to match.`,
-                    `${option.name} pace`,
-                  );
-                } catch {
-                  // The host shows the refusal.
-                } finally {
-                  setAsked(null);
-                }
-              }}
-            >
-              <b>{option.name}</b>
-              <span>{option.does}</span>
-              {changing && asked === option.level ? (
-                <Loader2 size={14} className="spin" aria-hidden="true" />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-      <p className="note">
-        {pace.perWeek} posts a week. {pace.why}
-      </p>
-    </div>
-  );
-}
 
 export function money(amount: number, currency: string): string {
   try {

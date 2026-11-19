@@ -84,6 +84,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 import { conflict } from "@/helpers/error";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { SokoBotRuntimeUnavailableError } from "@/lib/soko-bot/runtime-errors";
+import { PERSON_SCHEDULE_CAPABILITIES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   SokoBotNoDestinationError,
@@ -299,6 +300,10 @@ describe("SokoBotSchedulesSyncService", () => {
       message: dueSchedule.prompt,
       source: "SCHEDULE",
       ownScheduleId: dueSchedule.id,
+      presetRoute: expect.objectContaining({
+        route: "DELEGATE_TASK",
+        capabilities: PERSON_SCHEDULE_CAPABILITIES,
+      }),
       scheduleReservation: {
         runId: claimedRun.id,
         attempt: claimedRun.attempt,
@@ -319,6 +324,26 @@ describe("SokoBotSchedulesSyncService", () => {
       },
       data: { status: "RUNNING" },
     });
+  });
+
+  it("links a scheduled duplicate without enqueueing a drain", async () => {
+    const enqueueReconciliation = vi.fn();
+    startTurnMock.mockResolvedValue({
+      turnId: "turn_1",
+      status: "RUNNING",
+      duplicate: true,
+    });
+
+    const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+      enqueueReconciliation,
+    });
+
+    expect(result).toMatchObject({ deferred: 1, failed: 0 });
+    expect(runUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "RUNNING" } }),
+    );
+    expect(enqueueReconciliation).not.toHaveBeenCalled();
   });
 
   it("runs a follow-up the bot wrote with its writing turn's tools", async () => {

@@ -47,12 +47,6 @@ export default async function TikTokStudioPage({
       )}
     >
       <RefreshPrefetchedPage />
-      <header className="px-2 pt-1">
-        <h1 className="text-lg font-semibold text-balance">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm text-pretty">
-          {t("intro")}
-        </p>
-      </header>
       {project?.cmo ? <CmoProjectBanner projectId={project.id} /> : null}
       {project ? (
         <TikTokStudio
@@ -60,6 +54,7 @@ export default async function TikTokStudioPage({
           initialVideos={videos}
           // Remounted per project: no draft or selection survives the switch.
           key={project.id}
+          hasWebsite={Boolean(project.websiteUrl)}
           projectId={project.id}
           readOnly={project.cmo}
         />

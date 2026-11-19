@@ -1,16 +1,19 @@
+import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import sharp from "sharp";
 
 import { unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { driveDel } from "@/lib/drive-blob";
 import {
   findTalkingVideoPresenter,
   TALKING_VIDEO_PRESENTERS,
 } from "@/lib/image-studio/talking-video";
-import { requireCuso } from "@/services/cmo-cuso.service";
+import { type Cuso, requireCuso } from "@/services/cmo-cuso.service";
 import {
   cusoDrive,
   saveCusoProjectFile,
 } from "@/services/cuso-project-files.service";
+import { tombstoneDriveUploadResource } from "@/services/file-catalog.service";
 
 /** A phone selfie, scaled down in the browser first, fits well within this. */
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
@@ -40,6 +43,7 @@ export async function setCmoPresenter(input: {
   }
   const drive = await cusoDrive(cuso);
   if (!drive) throw unprocessableEntity("Cuso's files are not available.");
+  await removePresenterPhoto(cuso);
   const fileId = await saveCusoProjectFile(
     drive,
     { folder: "Presenter", filename: `presenter-${Date.now()}.jpg` },
@@ -59,7 +63,43 @@ export async function clearCmoPresenter(input: {
   userId: string;
   projectId: string;
 }): Promise<void> {
-  const cuso = await requireCuso(input);
+  await removePresenterPhoto(await requireCuso(input));
+}
+
+/**
+ * Deletes the Project's presenter photo from Files, then forgets it. The
+ * file goes first: a delete that fails leaves the photo set, so removing it
+ * again still finds it.
+ */
+async function removePresenterPhoto(
+  cuso: Pick<Cuso, "projectId" | "workspaceId">,
+): Promise<void> {
+  const project = await prisma.project.findUnique({
+    where: { id: cuso.projectId },
+    select: { presenterFileId: true },
+  });
+  const file = project?.presenterFileId
+    ? await prisma.fileResource.findFirst({
+        where: {
+          id: project.presenterFileId,
+          workspaceId: cuso.workspaceId,
+          sourceKind: FileSourceKind.DRIVE_UPLOAD,
+          tombstonedAt: null,
+        },
+        select: { sourceId: true, sourceScope: true },
+      })
+    : null;
+  if (file) {
+    await driveDel([file.sourceId]);
+    await tombstoneDriveUploadResource({
+      workspaceId: cuso.workspaceId,
+      scope:
+        file.sourceScope === FileSourceScope.ORGANIZATION
+          ? "organization"
+          : "user",
+      pathname: file.sourceId,
+    });
+  }
   await prisma.project.update({
     where: { id: cuso.projectId },
     data: { presenterFileId: null, presenterConsentAt: null },

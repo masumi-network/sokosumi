@@ -17,6 +17,7 @@ const reply = cmoChatMessage({
 function chat(overview = cmoOverview(), messages = [reply]) {
   return renderToStaticMarkup(
     <CmoApp
+      initialView="chat"
       overview={overview}
       messages={toCusoMessages(messages)}
       name="Alice"

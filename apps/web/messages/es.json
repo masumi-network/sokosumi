@@ -162,6 +162,7 @@
     "UserAvatar": {
       "account": "Cuenta",
       "notifications": "Notificaciones",
+      "notificationSettings": "Ajustes de notificaciones",
       "billing": "Facturación",
       "connections": "Conexiones",
       "developer": "Desarrollador",
@@ -1264,8 +1265,7 @@
       "termsOfServices": "Términos de uso",
       "privacyPolicy": "Política de privacidad",
       "imprint": "Aviso legal",
-      "acceptableUse": "Uso aceptable",
-      "usesSokosumi": "Usa tu cuenta de Sokosumi."
+      "acceptableUse": "Uso aceptable"
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1281,8 +1281,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Iniciar sesión / Registrarse",
-        "template": "Sokosumi - %s"
+        "default": "{product} - Iniciar sesión / Registrarse",
+        "template": "{product} - %s"
       },
       "description": "Usa coworkers de IA para tus tareas más complejas"
     },
@@ -1323,7 +1323,7 @@
         },
         "Header": {
           "title": "Iniciar sesión",
-          "description": "Contrata Agents en nuestra plataforma",
+          "description": "Tu AI Coworker para marketing",
           "descriptionFor": "Inicia sesión con tu cuenta de Sokosumi para continuar a {client}",
           "titleCmo": "Inicia sesión en CMO.xyz",
           "descriptionCmo": "Cuso lleva tu marketing."
@@ -1383,7 +1383,7 @@
         "Header": {
           "title": "Crea tu cuenta",
           "viaInvitation": "(por invitación)",
-          "description": "Contrata Agents en nuestra plataforma",
+          "description": "Tu AI Coworker para marketing",
           "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}",
           "titleCmo": "Crea tu cuenta de CMO.xyz",
           "descriptionCmo": "Cuso lleva tu marketing."
@@ -1474,6 +1474,7 @@
       "chooseAccountTitle": "Elige una cuenta",
       "chooseAccountTitleFor": "Elige una cuenta para {client}",
       "signedInAs": "Sesión iniciada en Sokosumi como <account>{email}</account>",
+      "signedInAsCmo": "Sesión iniciada como <account>{email}</account>",
       "continueAs": "Continuar como {account}",
       "useAnotherAccount": "Usar otra cuenta",
       "accountCheckError": "No se pudo comprobar tu cuenta. Inténtalo de nuevo.",
@@ -1483,7 +1484,7 @@
       "backTo": "Volver a {client}"
     },
     "SignInError": {
-      "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
+      "accountNotLinked": "Este correo ya tiene una cuenta. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
       "cancelled": "Se canceló el inicio de sesión. Elige cómo quieres continuar.",
       "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo.",
       "expired": "Ese inicio de sesión tardó demasiado o se inició en otro navegador. Inténtalo de nuevo.",
@@ -1812,6 +1813,8 @@
         "searchLabel": "Buscar tareas archivadas",
         "searchPlaceholder": "Buscar por nombre",
         "noMatches": "Ninguna tarea archivada coincide con «{query}».",
+        "searchResults": "{count, plural, =0 {Ninguna tarea archivada coincide con «{query}».} one {# tarea archivada coincide con «{query}».} other {# tareas archivadas coinciden con «{query}».}}",
+        "searchResultsLimited": "Se muestran las {shown, number} más recientes de {total, number} tareas archivadas que coinciden con «{query}».",
         "noProject": "Sin proyecto",
         "archivedOn": "Archivada el {date}",
         "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
@@ -1846,6 +1849,8 @@
         "loading": "Cargando...",
         "loadMore": "Cargar más"
       },
+      "noTitle": "(Sin título)",
+      "unansweredMention": "Tienes una mención sin responder",
       "createTaskFab": "Crear tarea",
       "personalAssistant": "Asistente personal",
       "sokoBot": "Soko Bot",
@@ -1911,14 +1916,17 @@
         "workspaceTags": "Etiquetas del espacio de trabajo",
         "archivedTags": "Etiquetas archivadas",
         "topicTags": "Temas predeterminados",
-        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más"
+        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más",
+        "needsMe": "Me necesita",
+        "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
+        "mentions": "Menciones",
+        "mentionsHint": "Tareas en las que un comentario te menciona y no has comentado desde entonces"
       },
       "Detail": {
         "back": "Volver a Tasks",
         "backToCalendar": "Volver al calendario",
         "privateBadge": "Privada",
         "visibility": "Visibilidad",
-        "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
         "organization": "Organización",
@@ -1930,6 +1938,8 @@
         "updated": "Actualizado",
         "description": "Descripción",
         "context": "Contexto",
+        "subtasks": "Subtareas",
+        "subtaskOf": "Subtarea de",
         "copyIdentifier": "Copiar ID de la tarea",
         "identifierCopied": "{identifier} copiado",
         "identifierCopyError": "No se pudo copiar el ID de la tarea",
@@ -1996,12 +2006,16 @@
           "archive": "Archivar",
           "archiveError": "No se pudo archivar la tarea",
           "reopenToReady": "Reabrir como Lista",
-          "reopenToReadyTitle": "Reabrir tarea",
-          "reopenToReadyDescription": "Añade un comentario para que tu coworker sepa qué hacer a continuación. La tarea volverá a Lista.",
-          "reopenToReadyCommentLabel": "Comentario",
-          "reopenToReadyCommentPlaceholder": "Describe lo que aún hay que hacer…",
           "reopenToReadyCommentRequired": "Se requiere un comentario para reabrir esta tarea",
-          "reopenToReadyConfirm": "Reabrir como Lista",
+          "sendBack": {
+            "title": "¿Devolver a {assignee}?",
+            "description": "La tarea vuelve a Lista y {assignee} inicia una nueva ejecución. Dile a {assignee} qué hacer.",
+            "commentLabel": "Qué corregir",
+            "commentPlaceholder": "¿Qué debe cambiar o rehacer {assignee}?",
+            "confirm": "Devolver a {assignee}",
+            "reopenAsDraft": "Reabrir como borrador",
+            "cancel": "Ahora no"
+          },
           "cancel": "Cancelar",
           "share": "Share",
           "updateStatusSuccess": "Estado del Task actualizado",
@@ -2014,19 +2028,32 @@
           "moveToWorkspaceCancel": "Cancelar",
           "moveToWorkspaceSuccess": "Tarea movida correctamente",
           "moveToWorkspaceError": "No se pudo mover la tarea",
-          "markAs": "Marcar como",
+          "linkToTask": "Vincular a tarea",
+          "linkPicker": {
+            "related": {
+              "title": "Vincular como relacionada",
+              "description": "Elige una tarea. Cada tarea muestra la otra en Relacionada."
+            },
+            "blocks": {
+              "title": "Vincular como bloqueando",
+              "description": "Elige la tarea que esta bloquea. Esta tarea la muestra en Bloqueando y la otra muestra esta en Bloqueada por."
+            },
+            "blockedBy": {
+              "title": "Vincular como bloqueada por",
+              "description": "Elige la tarea que esta espera. Esta tarea la muestra en Bloqueada por y la otra muestra esta en Bloqueando."
+            },
+            "duplicate": {
+              "title": "Vincular como duplicada",
+              "description": "Elige la tarea que esta repite. Cada tarea muestra la otra en Duplicada. No se copia nada."
+            }
+          },
           "createRelated": "Crear tarea relacionada",
           "removeRelated": "Quitar tarea relacionada",
           "removeRelatedSuccess": "Tarea relacionada quitada",
           "removeRelatedError": "No se pudo quitar la tarea relacionada",
-          "removeParent": "Quitar tarea principal",
-          "removeParentSuccess": "Tarea principal quitada",
-          "removeParentError": "No se pudo quitar la tarea principal",
           "linkTaskSuccess": "Tarea vinculada",
           "linkTaskError": "No se pudo vincular la tarea",
           "createRelatedSuccess": "Tarea relacionada creada",
-          "taskPickerTitle": "Marcar como {relation}",
-          "taskPickerDescription": "Elige una tarea para vincularla con la tarea actual.",
           "taskPickerSearchPlaceholder": "Buscar tareas...",
           "taskPickerLoading": "Cargando tareas...",
           "taskPickerEmpty": "No se encontraron tareas.",
@@ -2038,10 +2065,7 @@
             "related": "Relacionada",
             "blocks": "Bloqueando",
             "blockedBy": "Bloqueada por",
-            "parent": "Tarea principal",
-            "subtask": "Subtarea",
-            "duplicate": "Duplicada",
-            "addSubtask": "Agregar subtarea"
+            "duplicate": "Duplicada"
           },
           "personalWorkspace": "Personal",
           "startWorking": "Empezar a trabajar",
@@ -2052,7 +2076,7 @@
           "markComplete": "Marcar como completada",
           "repeat": "Repetir",
           "repeatError": "No se pudo abrir el formulario de programación. Inténtalo de nuevo.",
-          "duplicate": "Duplicar como borrador",
+          "duplicate": "Copiar como borrador",
           "sendToChat": {
             "menuItem": "Enviar al chat",
             "title": "Enviar tarea al chat",
@@ -2071,6 +2095,23 @@
             "refused": "Este chat ya no puede recibir esta tarea. Elige otro.",
             "retry": "Enviar de nuevo",
             "retryHint": "Puede que el último envío no haya llegado. Enviar de nuevo no la publicará dos veces; si cambias el chat o el mensaje, se envía uno nuevo."
+          },
+          "subtasks": {
+            "add": "Añadir subtarea…",
+            "addExisting": "Añadir tarea existente como subtarea…",
+            "addExistingTitle": "Añadir tarea existente como subtarea",
+            "addExistingDescription": "Elige una tarea. Pasa a ser la última subtarea de esta tarea.",
+            "addExistingSuccess": "Subtarea añadida",
+            "moveUnder": "Mover debajo de…",
+            "moveUnderTitle": "Mover debajo de otra tarea",
+            "moveUnderDescription": "Elige una tarea. Esta tarea pasa a ser su última subtarea.",
+            "moveUnderSuccess": "Tarea movida",
+            "removeFromParent": "Quitar de la tarea principal",
+            "removeFromParentSuccess": "Tarea quitada de su tarea principal",
+            "moveError": "No se pudo mover la tarea.",
+            "createSuccess": "Subtarea añadida",
+            "createError": "No se pudo añadir la subtarea.",
+            "serverErrorDescription": "Inténtalo de nuevo más tarde."
           }
         },
         "ShareModal": {
@@ -2106,7 +2147,6 @@
           "confirm": "Cambiar espacio de trabajo",
           "switchError": "No se pudo cambiar de espacio de trabajo. Inténtalo de nuevo."
         },
-        "clonedFrom": "Clonada de {name}",
         "pendingApproval": "Aprobación pendiente",
         "VendorGrantApproval": {
           "title": "Se requiere aprobación de acceso del proveedor",
@@ -2231,7 +2271,7 @@
         "previewUse": "Usar esta tarea",
         "previewEmpty": "Aún no hay salida de ejemplo disponible.",
         "taskCreated": "Tarea creada",
-        "taskCreatedHint": "Todo está configurado y listo.",
+        "taskCreatedHint": "{status, select, DRAFT {Está como borrador en Pendiente. Nada empieza hasta que la pases a Listo.} QUEUED {Espera en Pendiente y empieza a la hora que elegiste.} other {Está en Por hacer, lista para empezar.}}",
         "goToTask": "Ir a la tarea",
         "createAnother": "Crear otra tarea",
         "close": "Cerrar",
@@ -2315,6 +2355,24 @@
           "tomorrowAt": "Empieza mañana a las {time}",
           "at": "Empieza {datetime}"
         }
+      },
+      "Subtasks": {
+        "progressLabel": "{completed} de {total} subtareas completadas",
+        "title": "Subtareas",
+        "add": "Añadir subtarea",
+        "movedTo": "Movida a la posición {position} de {total}",
+        "reorderHandle": "Reordenar {name}. Arrastra o pulsa las flechas arriba y abajo.",
+        "toggleLabel": "{name} hecha",
+        "agentDoneHint": "Al desmarcarla vuelve a {assignee}",
+        "changeError": "No se pudo guardar el cambio de la subtarea. Inténtalo de nuevo.",
+        "truncated": "Se muestran las primeras {count} subtareas.",
+        "createDescription": "La subtarea va al final de la lista.",
+        "name": "Nombre",
+        "description": "Descripción (opcional)",
+        "assignee": "Responsable",
+        "dueOn": "Fecha límite",
+        "cancel": "Cancelar",
+        "create": "Añadir subtarea"
       },
       "Due": {
         "label": "Fecha límite",
@@ -2578,7 +2636,18 @@
         "filter": {
           "placeholder": "Filtrar proyectos",
           "clear": "Borrar filtro",
-          "noMatches": "Ningún proyecto coincide con «{query}»."
+          "noMatches": "Ningún proyecto coincide con «{query}».",
+          "noMatchesIn": {
+            "open": "Ningún proyecto abierto coincide con «{query}».",
+            "hidden": "Ningún proyecto oculto coincide con «{query}».",
+            "closed": "Ningún proyecto cerrado coincide con «{query}»."
+          },
+          "elsewhere": "Hay proyectos que coinciden en otra vista.",
+          "showIn": {
+            "open": "Ver proyectos abiertos",
+            "hidden": "Ver proyectos ocultos",
+            "closed": "Ver proyectos cerrados"
+          }
         },
         "lastActivity": "Última actividad",
         "created": "Creado",
@@ -2648,6 +2717,12 @@
           "undo": "Deshacer",
           "hideError": "No se pudo ocultar el proyecto. Inténtalo de nuevo.",
           "showError": "No se pudo mostrar el proyecto. Inténtalo de nuevo."
+        },
+        "closing": {
+          "badge": "Cerrándose",
+          "failedBadge": "Cierre fallido",
+          "remaining": "{count, plural, =0 {Terminando; luego pasa a Cerrados} one {Queda # ejecución programada; luego pasa a Cerrados} other {Quedan # ejecuciones programadas; luego pasa a Cerrados}}",
+          "failed": "Abre el proyecto para reintentar el cierre."
         }
       },
       "column": {
@@ -2791,7 +2866,7 @@
           "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca la app en Conexiones."
         },
         "errors": {
-          "facebookPage": "Conecta una cuenta de Facebook que gestione exactamente una página. Las cuentas sin páginas o con varias páginas aún no son compatibles.",
+          "facebookPage": "Ese inicio de sesión de Facebook no gestiona ninguna página. Vuelve a conectar con el inicio de sesión que gestiona tu página.",
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
@@ -2804,14 +2879,23 @@
           "finalize": "No pudimos terminar de conectar esta cuenta. Inténtalo de nuevo.",
           "disconnect": "No pudimos desconectar esta cuenta. Inténtalo de nuevo.",
           "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla.",
-          "sync": "No se pudo iniciar la sincronización."
+          "sync": "No se pudo iniciar la sincronización.",
+          "youtubeChannel": "Ese inicio de sesión de Google no tiene canal de YouTube. Vuelve a conectar y elige la cuenta del canal en la pantalla de Google."
         },
         "comingSoon": "Próximamente",
-        "linkedinPersonalOnly": "Solo perfil personal. Las páginas de empresa aún no son compatibles.",
         "personalProfile": "Perfil personal",
         "connectComingSoon": "{provider} (próximamente)",
         "empty": "Aún no hay cuentas.",
-        "emptyHint": "Conecta una para publicar."
+        "emptyHint": "Conecta una para publicar.",
+        "choose": {
+          "title": "¿Qué cuenta?",
+          "description": "Tu inicio de sesión de {provider} da acceso a más de una cuenta. Las publicaciones salen con la que elijas.",
+          "listLabel": "Cuentas",
+          "page": "Página de empresa",
+          "profile": "Tu perfil personal",
+          "cancel": "Cancelar",
+          "confirm": "Conectar"
+        }
       },
       "SocialPosts": {
         "loadError": {
@@ -4346,9 +4430,11 @@
       }
     },
     "TikTokStudio": {
+      "addMusic": "Añadir música de fondo (+{credits} créditos)",
+      "addBroll": "Empezar con un clip generado (+{credits} créditos)",
+      "showSite": "Mostrar tu sitio web en el vídeo",
       "postToTikTok": "Publicar en TikTok",
       "title": "TikTok Studio",
-      "intro": "Una persona dice tu guion, con subtítulos, listo para TikTok, Reels y Shorts.",
       "pickTitle": "Elige un proyecto",
       "pickBody": "Un vídeo con presentador pertenece a un proyecto. Su marca escribe los guiones y sus Archivos guardan el vídeo.",
       "pickUnavailable": "Ese proyecto no está disponible en este espacio de trabajo. Elige otro.",
@@ -5495,6 +5581,161 @@
         "retry": "Reintentar"
       }
     },
+    "Competitors": {
+      "title": "Competidores",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Los competidores pertenecen a un proyecto: a quién observa y qué encontró la revisión semanal. Elige un proyecto para abrir sus competidores.",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "loading": "Cargando competidores…",
+      "error": {
+        "title": "No se pudieron cargar los competidores",
+        "description": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      },
+      "start": {
+        "title": "Mira qué han cambiado tus competidores esta semana",
+        "body": "Una vez por semana Sokosumi lee sus sitios web, precios, noticias, anuncios e Instagram y muestra qué ha cambiado, con su fuente.",
+        "add": "Añadir a mano",
+        "price": "Buscar competidores es gratis. La revisión semanal cuesta {credits} créditos por competidor a la semana y sigue apagada hasta que la actives."
+      },
+      "example": {
+        "label": "Ejemplo",
+        "price": {
+          "name": "Acme",
+          "summary": "Plan Pro $12 -> $10 por puesto al mes",
+          "quote": "Pro $10 por puesto/mes, facturación anual",
+          "source": "acme.com/pricing"
+        },
+        "news": {
+          "name": "Northwind",
+          "summary": "Northwind lanzó un asistente de IA que reserva reuniones",
+          "quote": "El asistente propone tres horas que convienen a todos.",
+          "source": "TechCrunch"
+        },
+        "website": {
+          "name": "Globex",
+          "summary": "La página de inicio se dirige ahora a equipos de ventas, antes a autónomos",
+          "quote": "Hecho para equipos de ventas",
+          "source": "globex.com"
+        }
+      },
+      "check": {
+        "price": "{count, plural, =0 {Cuesta {each} créditos por competidor a la semana.} one {Cuesta {credits} créditos a la semana por # competidor.} other {Cuesta {credits} créditos a la semana por # competidores, {each} cada uno.}}",
+        "last": "Última revisión {last}, próxima {next}.",
+        "sourceFailed": "La última revisión no pudo leer: {sources}. La próxima lo intenta de nuevo.",
+        "source": {
+          "pages": "sitios web",
+          "news": "noticias",
+          "ads": "anuncios",
+          "social": "Instagram"
+        },
+        "turnOn": "Activar revisión semanal",
+        "turnOff": "Desactivar",
+        "runNow": "Revisar ahora",
+        "failed": "No funcionó. Inténtalo de nuevo.",
+        "outcome": {
+          "not_due": "Ya hay una revisión en curso o se hizo esta semana.",
+          "no_competitors": "Añade primero un competidor.",
+          "paused": "La revisión semanal está desactivada.",
+          "unfunded": "Esta revisión cuesta {credits} créditos y el espacio de trabajo tiene menos. Añade créditos y revisa de nuevo."
+        },
+        "status": {
+          "off": "La revisión semanal está apagada",
+          "running": "La primera revisión está en marcha",
+          "on": "La revisión semanal está activa"
+        },
+        "running": "Lo que encuentre aparecerá aquí en un minuto."
+      },
+      "list": {
+        "title": "En seguimiento",
+        "count": "{count} de {limit}",
+        "emptyReadOnly": "Nadie todavía.",
+        "noWebsite": "Sin sitio web",
+        "pricingPage": "página de precios",
+        "facebook": "Facebook {handle}",
+        "editNamed": "Editar {name}",
+        "removeNamed": "Quitar {name}",
+        "add": "Añadir competidor",
+        "full": "Son los {limit}. Quita uno para observar otro.",
+        "failed": "No funcionó. Inténtalo de nuevo."
+      },
+      "form": {
+        "addTitle": "Añadir un competidor",
+        "editTitle": "Editar competidor",
+        "description": "El nombre basta para encontrar noticias. Con el sitio web y la página de precios la revisión ve qué cambió allí.",
+        "name": {
+          "label": "Nombre",
+          "placeholder": "Acme"
+        },
+        "websiteUrl": {
+          "label": "Sitio web",
+          "placeholder": "acme.com"
+        },
+        "pricingUrl": {
+          "label": "Página de precios",
+          "placeholder": "acme.com/precios"
+        },
+        "instagramHandle": {
+          "label": "Instagram",
+          "placeholder": "@acme"
+        },
+        "facebookHandle": {
+          "label": "Página de Facebook",
+          "placeholder": "facebook.com/acme"
+        },
+        "cancel": "Cancelar",
+        "add": "Añadir",
+        "save": "Guardar",
+        "failed": "No funcionó. Inténtalo de nuevo."
+      },
+      "find": {
+        "title": "Buscar competidores",
+        "description": "Empresas que venden lo que vende {project}, encontradas a partir de su sitio web. Elige a cuáles seguir.",
+        "searching": "Buscando empresas como {project}…",
+        "none": "No se encontraron competidores a partir del sitio web. Añádelos a mano.",
+        "room": "{count, plural, one {Puedes añadir # más.} other {Puedes añadir # más.}}",
+        "free": "Buscar competidores es gratis.",
+        "add": "{count, plural, =0 {Añadir} one {Añadir # competidor} other {Añadir # competidores}}",
+        "cancel": "Cancelar",
+        "retry": "Buscar de nuevo",
+        "failed": "No ha funcionado. Inténtalo de nuevo.",
+        "open": "Buscar competidores"
+      },
+      "thisWeek": {
+        "title": "Esta semana",
+        "checked": "Revisión del {date}",
+        "quiet": "Una semana tranquila: nada que contar.",
+        "unknown": "Un competidor",
+        "big": "Movimiento grande",
+        "weak": "Respaldado en parte",
+        "meaning": "Qué significa para ti",
+        "move": "Movimiento sugerido",
+        "open": "Sigue abierto"
+      },
+      "findings": {
+        "title": "Qué ha cambiado",
+        "nothing": "Sin cambios en las últimas cinco semanas.",
+        "kind": {
+          "WEBSITE_CHANGE": "Sitio web",
+          "PRICE_CHANGE": "Precio",
+          "NEWS": "Noticias",
+          "AD": "Anuncios",
+          "SOCIAL": "Instagram"
+        },
+        "preview": "Lo que muestra la revisión semanal",
+        "example": "Ejemplo",
+        "running": "Nada todavía. Lo que encuentre la primera revisión aparecerá aquí."
+      },
+      "scoreboard": {
+        "title": "Instagram",
+        "account": "Cuenta",
+        "posts": "Publicaciones por semana",
+        "engagement": "Me gusta y comentarios por publicación",
+        "followers": "Seguidores",
+        "growth": "Seguidores ganados en una semana",
+        "you": "(tú)"
+      }
+    },
     "Newsletter": {
       "title": "Boletín",
       "description": "Cada proyecto tiene su propio boletín. Elige un proyecto para gestionarlo.",
@@ -5614,6 +5855,7 @@
           "schedules": "Programaciones",
           "social": "Publicaciones sociales",
           "ads": "Anuncios",
+          "competitors": "Competidores",
           "newsletter": "Boletín",
           "contacts": "Contactos",
           "groups": {
@@ -5649,7 +5891,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, trabajos, resultados de trabajos, imágenes o archivos",
+      "description": "Buscar tareas, etiquetas, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
@@ -5657,7 +5899,11 @@
       "created": "Creado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
-      "filesFilenameMatch": "Coincide el nombre"
+      "filesFilenameMatch": "Coincide el nombre",
+      "tagsGroup": "Etiquetas",
+      "tagTasksGroup": "Tareas con la etiqueta {tag}",
+      "tagsError": "No se pudieron cargar las etiquetas",
+      "tagTasksError": "No se pudieron cargar estas tareas"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",
@@ -9117,6 +9363,7 @@
         "ariaLabel": "Navegación principal",
         "backToChats": "Volver a chats",
         "back": "Volver",
+        "backToYou": "Volver a «Tú»",
         "goHome": "Ir al inicio",
         "home": "Inicio",
         "searchAgents": "Buscar agentes"
@@ -9745,6 +9992,7 @@
         "you": "Tú",
         "youNamed": "{name} (tú)",
         "description": "Envíate notas y tareas pendientes. Solo tú puedes verlas.",
+        "composerPlaceholder": "Escríbete una nota",
         "exclusive": "Tu chat personal no puede incluir otros destinatarios."
       },
       "Signals": {
@@ -10880,6 +11128,59 @@
           "google_ads": "Google Ads",
           "meta_ads": "Meta Ads"
         }
+      },
+      "Mcp": {
+        "title": "Servidores MCP",
+        "description": "Conecta tu bot a cualquier servidor MCP remoto. Sokosumi hace cada llamada y guarda la clave; el bot nunca la ve.",
+        "addTitle": "Añadir un servidor",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "Linear",
+        "urlLabel": "Dirección",
+        "authLabel": "Inicio de sesión",
+        "authBearer": "Clave de API",
+        "authHeader": "Clave en una cabecera propia",
+        "authNone": "Ninguno",
+        "keyLabel": "Clave",
+        "headerNameLabel": "Nombre de la cabecera",
+        "connect": "Conectar",
+        "addHelp": "Sokosumi lee las herramientas del servidor de inmediato.",
+        "added": "{name} está conectado",
+        "addError": "No se pudo conectar el servidor",
+        "toolCount": "{enabled} de {total} herramientas activas",
+        "refresh": "Volver a leer las herramientas de {name}",
+        "refreshed": "Las herramientas de {name} están al día",
+        "refreshError": "No se pudieron leer las herramientas del servidor",
+        "remove": "Quitar {name}",
+        "removeError": "No se pudo quitar el servidor",
+        "reads": "Lee",
+        "changes": "Cambia cosas",
+        "kindLabel": "Qué hace {name}",
+        "enabledLabel": "Permitir que el bot use {name}",
+        "toolError": "No se pudo cambiar la herramienta",
+        "authOauth": "Iniciar sesión en la página del servidor",
+        "signIn": "Iniciar sesión",
+        "signInNeeded": "Inicia sesión en este servidor para que tu bot pueda usarlo.",
+        "signInError": "No se pudo iniciar la sesión"
+      },
+      "Shell": {
+        "title": "Herramientas de línea de comandos",
+        "description": "Prepara las herramientas que necesita la terminal de tu bot. Su sandbox empieza vacío en cada turno, así que se vuelven a ejecutar cada vez.",
+        "commandsTitle": "Comandos de preparación",
+        "commandsHelp": "Un comando por línea, hasta diez. Se ejecutan antes de cada turno con terminal.",
+        "saveCommands": "Guardar comandos",
+        "commandsSaved": "Comandos de preparación guardados",
+        "commandsError": "No se pudieron guardar los comandos de preparación",
+        "keysTitle": "Claves",
+        "keysHelp": "Una clave con acceso a la terminal llega a cada comando como variable de entorno con ese nombre. El bot ve el nombre, no el valor, pero un comando que ejecute puede leer el valor, así que añade solo claves que darías a un script.",
+        "keyNameLabel": "Nombre de la clave",
+        "keyValueLabel": "Valor de la clave",
+        "keyValuePlaceholder": "Pega la clave",
+        "addKey": "Añadir clave",
+        "keySaved": "{name} guardada",
+        "keyError": "No se pudo guardar la clave",
+        "shellAccess": "Acceso a la terminal",
+        "shellAccessLabel": "Permitir que los comandos usen {name}",
+        "deleteKey": "Eliminar {name}"
       }
     },
     "SokoBots": {
@@ -11196,6 +11497,21 @@
       "descending": "descendente",
       "noHistory": "No hay cambios registrados.",
       "undoBatch": "Deshacer lote",
+      "findReplace": {
+        "title": "Buscar y reemplazar",
+        "description": "Cambia cada celda de una columna que contenga exactamente el valor que buscas, sin distinguir mayúsculas. Se guarda como un solo cambio que puedes deshacer desde Historial y fuentes.",
+        "column": "Columna",
+        "find": "Buscar",
+        "replace": "Reemplazar por",
+        "replaceEmpty": "Déjalo vacío para vaciar las celdas",
+        "findMatches": "Buscar coincidencias",
+        "matches": "{count, plural, one {Cambiará # celda.} other {Cambiarán # celdas.}}",
+        "unchanged": "Todas las celdas que coinciden ya tienen el nuevo valor. No hay nada que cambiar.",
+        "none": "Ninguna celda de esta columna contiene exactamente ese valor. Revisa espacios y ortografía.",
+        "tooMany": "Más de {limit} celdas de esta columna contienen ese texto y Buscar y reemplazar revisa como máximo {limit}. No se cambió nada.",
+        "apply": "{count, plural, one {Reemplazar # celda} other {Reemplazar # celdas}}",
+        "done": "{count, plural, one {Se reemplazó # celda.} other {Se reemplazaron # celdas.}} Puedes deshacerlo desde Historial y fuentes."
+      },
       "before": "Antes",
       "after": "Después",
       "openTask": "Abrir tarea",
@@ -12522,7 +12838,7 @@
           "search_console": "Búsquedas, clics y posiciones en la Búsqueda de Google",
           "ga4": "Visitas y páginas vistas en tu sitio"
         },
-        "propertyNotMatching": "No cubre las páginas seleccionadas, así que no se cargan estadísticas de ella."
+        "propertyNotMatching": "Ninguna propiedad de Search Console cubre todas las páginas seleccionadas de {sites}. Comprueba los permisos de esta cuenta de Google o selecciona páginas de una sola propiedad."
       },
       "metrics": {
         "page_views": "Vistas de página",
@@ -13805,7 +14121,7 @@
   },
   "CookieConsent": {
     "title": "Usamos cookies",
-    "body": "Las cookies necesarias mantienen Sokosumi en funcionamiento. Con tu permiso, también usamos cookies de análisis y marketing para mejorar el producto.",
+    "body": "Las cookies necesarias mantienen {product} en funcionamiento. Con tu permiso, también usamos cookies de análisis y marketing para mejorar el producto.",
     "policyLink": "Política de cookies",
     "acceptAll": "Aceptar todo",
     "rejectAll": "Rechazar las no esenciales",
@@ -13816,7 +14132,7 @@
     "analyticsTitle": "Análisis",
     "analyticsBody": "Medición de uso con Google Analytics. Mientras tienes la sesión iniciada, un identificador seudónimo de cuenta vincula tus visitas, nunca tu nombre ni tu correo electrónico.",
     "marketingTitle": "Marketing",
-    "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que Sokosumi podría resultar útil.",
+    "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que {product} podría resultar útil.",
     "settings": "Configuración de cookies"
   },
   "WorkspaceGate": {

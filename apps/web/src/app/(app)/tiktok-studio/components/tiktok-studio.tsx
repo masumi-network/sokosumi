@@ -93,13 +93,43 @@ async function fetchTalkingVideos(
   return (await response.json()) as ProjectTalkingVideos;
 }
 
+/** One thing a video can have besides its presenter. */
+function Extra({
+  id,
+  label,
+  checked,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <Checkbox
+        checked={checked}
+        className="mt-0.5"
+        id={id}
+        onCheckedChange={(value) => onChange(value === true)}
+      />
+      <Label className="text-sm leading-normal font-normal" htmlFor={id}>
+        {label}
+      </Label>
+    </div>
+  );
+}
+
 export function TikTokStudio({
   projectId,
+  hasWebsite,
   catalog,
   initialVideos,
   readOnly,
 }: {
   projectId: string;
+  /** The Project has a website a video can show. */
+  hasWebsite: boolean;
   catalog: ProjectImageStudioTalkingVideoCatalog;
   initialVideos: ProjectTalkingVideos;
   /** A CMO Project is changed in CMO only. */
@@ -113,6 +143,9 @@ export function TikTokStudio({
   const voiceId = useId();
   const languageId = useId();
   const consentId = useId();
+  const showSiteId = useId();
+  const musicId = useId();
+  const brollId = useId();
   const makeHintId = useId();
   const queryClient = useQueryClient();
   const queryKey = ["talking-videos", projectId];
@@ -128,6 +161,10 @@ export function TikTokStudio({
     previewUrl: string;
   } | null>(null);
   const [consent, setConsent] = useState(false);
+  const [showSite, setShowSite] = useState(true);
+  const siteShots = hasWebsite && showSite;
+  const [music, setMusic] = useState(false);
+  const [broll, setBroll] = useState(false);
   const [voice, setVoice] = useState(catalog.defaultVoice);
   const [languageCode, setLanguageCode] = useState<string>(
     SCRIPT_LANGUAGES.find((code) => locale.startsWith(code)) ?? "en",
@@ -272,6 +309,9 @@ export function TikTokStudio({
           ownPhoto && photo
             ? { kind: "file", fileId: photo.id, consent: true }
             : { kind: "stock", id: presenterId },
+        siteShots,
+        broll,
+        music,
         idempotencyKey,
       });
       if (!result.ok) {
@@ -591,6 +631,36 @@ export function TikTokStudio({
         </Step>
 
         <Step number={3} title={t("stepMake")}>
+          <div className="flex flex-col gap-2">
+            {hasWebsite ? (
+              <Extra
+                checked={showSite}
+                id={showSiteId}
+                label={t("showSite")}
+                onChange={(checked) => edit(() => setShowSite(checked))}
+              />
+            ) : null}
+            {model ? (
+              <>
+                <Extra
+                  checked={music}
+                  id={musicId}
+                  label={t("addMusic", {
+                    credits: Math.round(model.price.musicUsd * 100),
+                  })}
+                  onChange={(checked) => edit(() => setMusic(checked))}
+                />
+                <Extra
+                  checked={broll}
+                  id={brollId}
+                  label={t("addBroll", {
+                    credits: Math.round(model.price.brollUsd * 100),
+                  })}
+                  onChange={(checked) => edit(() => setBroll(checked))}
+                />
+              </>
+            ) : null}
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
             <p className="text-sm tabular-nums" id={makeHintId}>
               {missing || !model ? (
@@ -599,7 +669,11 @@ export function TikTokStudio({
                 <>
                   <span className="font-medium">
                     {tStudio("creditsCount", {
-                      count: creditsPerTalkingVideoCents(model.price, trimmed),
+                      count: creditsPerTalkingVideoCents(model.price, trimmed, {
+                        siteShots,
+                        broll,
+                        music,
+                      }),
                     })}
                   </span>
                   <span className="text-muted-foreground">

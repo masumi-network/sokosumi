@@ -6,11 +6,11 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
 import { markTaskArchivedRead } from "@/helpers/task-notifications";
-import prisma from "@/lib/db/prisma";
+import { retriedTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { taskSchema } from "@/schemas/task.schema";
-import { archiveTaskRecord } from "@/services/task-domain.service";
+import { archiveTaskRecord } from "@/services/task-domain-archive";
 import { buildTaskIncludeForViewer } from "@/types/task";
 
 const paramsSchema = z.object({
@@ -45,7 +45,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await retriedTransaction(async (tx) => {
       const currentTask = await requireTaskWriteAccess(userContext, id, tx, {
         right: "manage",
       });
@@ -63,7 +63,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }),
         workspaceId: currentTask.workspaceId,
       };
-    });
+    }, "Task changed while archiving it. Retry.");
     await deliverCalendarInvalidationsNow(result.workspaceId);
 
     // An archived task can no longer be opened, so every row still asking

@@ -13,6 +13,7 @@ import { dispatchAnnouncementTools } from "./dispatch-announcements";
 import { dispatchChatTools } from "./dispatch-chat";
 import { dispatchFilesTools } from "./dispatch-files";
 import { dispatchIntegrationsTools } from "./dispatch-integrations";
+import { dispatchMcpTools } from "./dispatch-mcp";
 import { dispatchNewsletterTools } from "./dispatch-newsletter";
 import { dispatchOtherTools } from "./dispatch-other";
 import { dispatchSchedulesTools } from "./dispatch-schedules";
@@ -140,6 +141,7 @@ export async function executeAuthorizedTool(
       return dispatchOtherTools(runtime, input, authorized);
     case "read_seo":
     case "research_keywords":
+    case "research_competitor_keywords":
     case "check_search_rankings":
     case "save_seo_suggestions":
       return executeCmoSeoTool(input, authorized);
@@ -161,6 +163,7 @@ export async function executeAuthorizedTool(
     case "update_assigned_task":
     case "reply_to_task":
     case "link_tasks":
+    case "set_task_parent":
     case "find_agents":
     case "get_agent_input_schema":
     case "hire_agent":
@@ -202,5 +205,9 @@ export async function executeAuthorizedTool(
     case "run_integration_tool":
     case "list_calendar_events":
       return dispatchIntegrationsTools(runtime, input, authorized);
+    case "list_mcp_tools":
+    case "read_mcp_tool":
+    case "run_mcp_tool":
+      return dispatchMcpTools(input, authorized);
   }
 }
