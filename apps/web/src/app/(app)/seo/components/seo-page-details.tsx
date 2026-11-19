@@ -370,7 +370,7 @@ export function SeoPageDetails({
     <details className={cn(HOLDER_ITEM_CLASS, "group/details text-sm")}>
       {/* The same shape as an action row: the rail, the name, its counts as marks, and the arrow at the end. */}
       {/* A grid, not wrappers: a summary holds phrasing content and a heading, so the heading is its own child. */}
-      {/* Without counts the grid has no counts column and no second row on a phone. */}
+      {/* Without counts the grid has no counts column. The hint is the second row; on a phone the counts are a third. */}
       <summary
         className={cn(
           "focus-visible:ring-ring grid cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-[calc(var(--radius-lg)-1px)] px-3 py-2.5 hover:bg-accent focus-visible:ring-2 group-open/details:rounded-b-none focus-visible:outline-none [&::-webkit-details-marker]:hidden",
@@ -380,17 +380,20 @@ export function SeoPageDetails({
         <span
           aria-hidden
           className={cn(
-            "w-1 self-stretch rounded-full forced-colors:bg-[CanvasText]",
-            counted && "max-sm:row-span-2",
+            "row-span-2 w-1 self-stretch rounded-full forced-colors:bg-[CanvasText]",
+            counted && "max-sm:row-span-3",
             suggestions ? PAGE_DETAIL_MARK.suggestion : "bg-border",
           )}
         />
         <Heading className="min-w-0 text-sm font-medium break-words">
           {t("overview.diagnostics")}
         </Heading>
+        <span className="text-muted-foreground col-start-2 row-start-2 text-xs">
+          {t("overview.diagnosticsHint")}
+        </span>
         {counted ? (
           // On a phone the counts are a line of their own under the name.
-          <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs max-sm:col-start-2 max-sm:row-start-2">
+          <span className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs max-sm:col-start-2 max-sm:row-start-3 sm:row-span-2">
             {suggestions ? (
               <span className="inline-flex items-center gap-1.5">
                 <span
@@ -423,7 +426,7 @@ export function SeoPageDetails({
         ) : null}
         <ChevronDown
           aria-hidden
-          className="text-muted-foreground size-4 shrink-0 max-sm:col-start-3 max-sm:row-start-1 transition-transform duration-150 ease-out group-open/details:rotate-180 motion-reduce:transition-none"
+          className="text-muted-foreground row-span-2 size-4 shrink-0 max-sm:col-start-3 max-sm:row-start-1 transition-transform duration-150 ease-out group-open/details:rotate-180 motion-reduce:transition-none"
         />
       </summary>
       <div className="border-border space-y-5 border-t p-4">

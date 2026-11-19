@@ -12402,6 +12402,7 @@
         "failedCheck": "<prefix>Nicht bestanden:</prefix> {name}",
         "checkedOn": "Geprüft am",
         "diagnostics": "Titel, Beschreibung und weitere Seitendetails",
+        "diagnosticsHint": "Was die Prüfungen erfasst haben.",
         "rank": {
           "absent": "Nicht in den Top {top}",
           "position": "Position {position}",

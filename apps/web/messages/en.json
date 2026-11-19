@@ -12402,6 +12402,7 @@
         "failedCheck": "<prefix>Not passed:</prefix> {name}",
         "checkedOn": "Checked",
         "diagnostics": "Title, description and other page details",
+        "diagnosticsHint": "What the checks recorded.",
         "rank": {
           "absent": "Not in the top {top}",
           "position": "Position {position}",

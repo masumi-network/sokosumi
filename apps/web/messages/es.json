@@ -12402,6 +12402,7 @@
         "failedCheck": "<prefix>No superada:</prefix> {name}",
         "checkedOn": "Comprobado el",
         "diagnostics": "Título, descripción y otros detalles de la página",
+        "diagnosticsHint": "Lo que registraron las comprobaciones.",
         "rank": {
           "absent": "Fuera del top {top}",
           "position": "Posición {position}",
