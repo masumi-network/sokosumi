@@ -17,6 +17,19 @@ describe("cmoCapabilityLabel", () => {
     expect(cmoCapabilityLabel(null)).toBe("Working");
   });
 
+  it("says when Cuso hands work on, and to whom", () => {
+    expect(cmoCapabilityLabel("check_search_rankings")).toBe(
+      "Asking the SEO specialist",
+    );
+    expect(cmoCapabilityLabel("create_task")).toBe("Handing work to a helper");
+    expect(cmoCapabilityLabel("hire_agent")).toBe("Hiring a helper");
+    expect(cmoCapabilityLabel("reply_to_task")).toBe("Answering a helper");
+    expect(cmoCapabilityLabel("get_job_status")).toBe(
+      "Checking on handed work",
+    );
+    expect(cmoCapabilityLabel("wait_for")).toBe("Noting to check back");
+  });
+
   it("never shows a tool's name or a Sokosumi feature", () => {
     for (const capability of [...SOKO_BOT_CAPABILITIES, "some_new_tool"]) {
       const label = cmoCapabilityLabel(capability);

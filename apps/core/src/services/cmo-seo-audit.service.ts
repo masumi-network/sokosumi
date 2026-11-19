@@ -409,6 +409,86 @@ export async function readCmoSeoAudit(cuso: Cuso): Promise<CmoSeoAudit> {
   };
 }
 
+/** An audit takes about ten minutes; one still running after this never ends. */
+const AUDIT_GIVE_UP_MS = 3 * 60 * 60 * 1000;
+
+/** One weekly audit as the chat shows it: when it started and where it stands. */
+export interface CmoSeoAuditRun {
+  id: string;
+  startedAt: Date;
+  state: "running" | "done" | "failed";
+  /** What it found, once done: checks passed of those run, and things to fix. */
+  found: { checked: number; passed: number; fixes: number } | null;
+}
+
+/** The Project's weekly audits since `since`, newest first. */
+export async function listCmoSeoAuditRuns(
+  projectId: string,
+  since: Date,
+  now: Date = new Date(),
+): Promise<CmoSeoAuditRun[]> {
+  const analyses = await prisma.projectSeoAnalysis.findMany({
+    where: { projectId, kind: "audit_full", createdAt: { gte: since } },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+    select: { id: true, status: true, createdAt: true, taskId: true },
+  });
+  const taskIds = analyses.flatMap((row) => (row.taskId ? [row.taskId] : []));
+  const [tasks, reports] = await Promise.all([
+    taskIds.length
+      ? prisma.task.findMany({
+          where: { id: { in: taskIds } },
+          select: { id: true, status: true },
+        })
+      : [],
+    taskIds.length
+      ? prisma.projectSeoObservation.findMany({
+          where: {
+            projectId,
+            kind: "audit_full",
+            ownerId: null,
+            sourceTaskId: { in: taskIds },
+          },
+          select: { sourceTaskId: true, observedAt: true, payload: true },
+        })
+      : [],
+  ]);
+  return analyses.map((analysis) => {
+    const task = tasks.find((row) => row.id === analysis.taskId);
+    const report = reports.find((row) => row.sourceTaskId === analysis.taskId);
+    const parsed = report
+      ? publicSeoPayloadSchema.safeParse(report.payload)
+      : null;
+    const summary = parsed?.success
+      ? cmoAuditSummary(report!.observedAt, parsed.data)
+      : null;
+    const failed =
+      analysis.status === "failed" ||
+      task?.status === "FAILED" ||
+      task?.status === "CANCELED" ||
+      (analysis.status === "completed" && !summary) ||
+      (analysis.status !== "completed" &&
+        now.getTime() - analysis.createdAt.getTime() > AUDIT_GIVE_UP_MS);
+    return {
+      id: analysis.id,
+      startedAt: analysis.createdAt,
+      state: failed
+        ? "failed"
+        : analysis.status === "completed"
+          ? "done"
+          : "running",
+      found:
+        !failed && summary
+          ? {
+              checked: summary.checked,
+              passed: summary.passed,
+              fixes: summary.fixes.length,
+            }
+          : null,
+    };
+  });
+}
+
 const UNSEEN_TAGS = new Set(["script", "style", "noscript", "template"]);
 const flat = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
 
