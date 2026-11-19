@@ -454,6 +454,23 @@ describe("Plan", () => {
     expect(html).not.toContain("Approve strategy");
   });
 
+  it("shows his steps while he plans, never his raw thinking", () => {
+    const html = plan(
+      draft({
+        strategy: null,
+        work: work("strategy"),
+        activity: {
+          step: "Planning",
+          reasoning: "I'm thinking about the save_strategy part patch.",
+        },
+      }),
+      "planning",
+    );
+    expect(html).toContain("Your channels");
+    expect(html).not.toContain("save_strategy");
+    expect(html).not.toContain("working-why");
+  });
+
   it("shows the plan in the feed as Cuso saves it", () => {
     const before = plan(
       draft({ strategy: null, work: work("strategy") }),
