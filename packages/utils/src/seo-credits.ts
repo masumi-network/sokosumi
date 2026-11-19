@@ -13,7 +13,7 @@
  */
 
 /** The owner's price for paid data: its cost plus 50%. */
-const SEO_MARKUP_PERCENT = 150;
+export const PAID_DATA_MARKUP_PERCENT = 150;
 /** Fixed customer price for each newly approved full audit. */
 export const SEO_FULL_AUDIT_CREDITS = 750;
 /** Provider spending bound for a newly priced full audit. */
@@ -41,7 +41,7 @@ export type SeoCreditCeilingInput =
 export function seoCreditsForCents(cents: number): number {
   if (!Number.isSafeInteger(cents) || cents < 0)
     throw new Error("SEO cost must be a whole number of cents");
-  return Math.floor((cents * SEO_MARKUP_PERCENT + PERCENT - 1) / PERCENT);
+  return Math.floor((cents * PAID_DATA_MARKUP_PERCENT + PERCENT - 1) / PERCENT);
 }
 
 /** The ceiling of one check: 0 for a check that reads no paid data. */
