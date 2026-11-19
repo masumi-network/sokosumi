@@ -2040,38 +2040,14 @@ button.card-focus {
 }
 
 @media (max-width: 860px) {
+  /* A phone: the page, and the tab bar under the thumb. */
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
   }
 
   .side {
-    flex-direction: row;
-    align-items: center;
-    overflow-x: auto;
-    border-right: 0;
-    border-bottom: var(--line-width) solid var(--line);
-  }
-
-  .side .grow,
-  .cuso-status,
-  .side .ob-who {
     display: none;
-  }
-
-  .business {
-    flex: none;
-    margin: 8px 0 8px 8px;
-    padding: 6px 10px;
-  }
-
-  .business-text .note {
-    display: none;
-  }
-
-  .nav {
-    flex-direction: row;
-    padding: 8px;
   }
 
   .grid4,
@@ -4811,5 +4787,277 @@ button.today-ask:active {
 
   .week-posts {
     flex: 1;
+  }
+}
+
+/* ── Tab bar: the phone's navigation ── */
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 860px) {
+  .tabbar {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    border-top: var(--line-width) solid var(--line);
+    background: var(--surface);
+  }
+}
+
+.tab {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 52px;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: var(--clear);
+}
+
+/* The icon sits on a pill; the page you are on fills it with Iris. */
+.tab-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 30px;
+  border: var(--line-width-small) solid var(--clear);
+  border-radius: var(--radius-pill);
+  transition:
+    background-color 150ms,
+    transform 150ms;
+}
+
+.tab.active {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.tab.active .tab-icon {
+  border-color: var(--line);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Pressed: the pill gives under the thumb at once. */
+.tab:active .tab-icon {
+  transform: scale(0.92);
+}
+
+.tab-icon .count {
+  position: absolute;
+  top: -6px;
+  right: 2px;
+}
+
+.tabbar-more {
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 8px);
+  left: 8px;
+  z-index: 20;
+  display: grid;
+  padding: 6px;
+  border: var(--line-width) solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--card);
+  transform-origin: bottom right;
+}
+
+.tabbar-more a,
+.tabbar-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tabbar-more a:hover,
+.tabbar-more-item:hover {
+  background: var(--surface);
+}
+
+.tabbar-more a.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+
+.tabbar-more form {
+  border-top: 1px solid var(--border);
+}
+
+.tab:focus-visible,
+.tabbar-more a:focus-visible,
+.tabbar-more-item:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tabbar-more {
+    animation: more-in 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes more-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+/* ── A post approved: Cuso's thumbs-up on green ── */
+.card .cf.draft-done {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  background: var(--ok);
+  color: var(--primary-foreground);
+}
+
+.draft-done-cuso {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  padding: 4px 3px 0;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: 50%;
+  background: var(--stage);
+  object-fit: contain;
+  object-position: 50% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .draft-done {
+    animation: done-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* He pops up from where the button was, with a little overshoot. */
+  .draft-done-cuso {
+    animation: cuso-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both 80ms;
+  }
+}
+
+@keyframes done-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cuso-pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.6) rotate(-8deg);
+  }
+}
+
+/* ── Calendar: this week and today ── */
+.cal-now {
+  padding: 2px 10px;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+}
+
+.cal-this-week {
+  scroll-margin-top: 16px;
+}
+
+.cal-when-today {
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
+
+/* ── Results: the month by network ── */
+.results-month {
+  display: grid;
+  gap: 16px;
+}
+
+.results-month .month {
+  padding: 0;
+  border: 0;
+}
+
+.netbars {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.netbars li {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 12px;
+  max-width: none;
+}
+
+.netbars-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+/* The whole month is the outline; what is out fills it in its colour. */
+.netbars-track {
+  display: flex;
+  height: 20px;
+  overflow: hidden;
+  border: var(--line-width-small) solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.netbars-out {
+  border-right: var(--line-width-small) solid var(--line);
+  transform-origin: left center;
+}
+
+.netbars-count {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .netbars-out {
+    animation: month-grow 600ms cubic-bezier(0.2, 0.8, 0.2, 1) both 200ms;
+  }
+}
+
+@media (max-width: 560px) {
+  .netbars li {
+    grid-template-columns: 96px minmax(0, 1fr) 52px;
+    gap: 8px;
   }
 }
