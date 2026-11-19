@@ -10,7 +10,7 @@ import {
   type SocialCommentContext,
 } from "@/clients/social-post-providers/comments";
 import prisma from "@/lib/db/prisma";
-import { projectExecutorUserId } from "@/services/project-social-connections.service";
+import { connectionExecutorUserId } from "@/services/project-social-connections.service";
 
 const DAY_MS = 86_400_000;
 /** Posts younger than this are checked for new comments. */
@@ -42,7 +42,7 @@ async function contextFor(
   return {
     provider,
     connectedAccountId: connection.composioConnectedAccountId,
-    executorUserId: projectExecutorUserId(projectId),
+    executorUserId: connectionExecutorUserId(connection),
     externalAccountId: connection.externalAccountId,
   };
 }

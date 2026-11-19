@@ -170,6 +170,21 @@ describe("onboard", () => {
     );
   });
 
+  it("hires a test copy of the Cuso the hire form names", async () => {
+    const data = form("acme.io");
+    data.set("testCopyOf", "project-source");
+    await expect(onboard(EMPTY, data)).rejects.toThrow("redirect");
+
+    expect(startCmoOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          websiteUrl: "https://acme.io/",
+          testCopyOfProjectId: "project-source",
+        },
+      }),
+    );
+  });
+
   it("hires Cuso into the organization the person chose", async () => {
     await expect(onboard(EMPTY, form("acme.io", "org-team"))).rejects.toThrow(
       "redirect",

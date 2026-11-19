@@ -119,6 +119,19 @@ export function projectExecutorUserId(projectId: string): string {
   return `sokosumi:project-executor:${projectId}`;
 }
 
+/**
+ * The executor of one connection: a test copy's link runs as the Project the
+ * account was granted to (ADR 0073), every other row as its own Project.
+ */
+export function connectionExecutorUserId(connection: {
+  projectId: string;
+  executorProjectId?: string | null;
+}): string {
+  return projectExecutorUserId(
+    connection.executorProjectId ?? connection.projectId,
+  );
+}
+
 function activeExternalAccountKey(
   provider: string,
   externalAccountId: string,
@@ -279,6 +292,7 @@ export async function requireScopedProject(
       id: true,
       closingAt: true,
       closedAt: true,
+      testCopyOfProjectId: true,
       ...socialProviderProjectSelect,
     },
   });
@@ -326,6 +340,9 @@ export async function initiateProjectSocialConnection(
   input: InitiateProjectSocialConnectionInput,
 ): Promise<{ connectionId: string; redirectUrl: string }> {
   const project = await requireScopedProject(input, { requireOpen: true });
+  if (project.testCopyOfProjectId) {
+    throw conflict("A test copy uses the accounts of the Cuso it copies");
+  }
   if (input.action === "connect" && input.socialConnectionId) {
     throw conflict("A new connection cannot target an existing social account");
   }
@@ -688,11 +705,18 @@ export async function finalizeProjectSocialConnection(
 async function revokeRetiredProjectSocialConnection(
   input: RetiredProjectSocialConnection,
 ): Promise<"revoked" | "skipped_shared" | "failed"> {
+  // A test copy's link is never the account's owner: only the Project that
+  // connected the account may end it at the provider (ADR 0073).
   const stillReferenced = await prisma.projectSocialConnection.findFirst({
     where: {
-      composioConnectedAccountId: input.connectedAccountId,
-      status: { not: "disconnected" },
-      NOT: { id: input.socialConnectionId },
+      OR: [
+        { id: input.socialConnectionId, executorProjectId: { not: null } },
+        {
+          composioConnectedAccountId: input.connectedAccountId,
+          status: { not: "disconnected" },
+          NOT: { id: input.socialConnectionId },
+        },
+      ],
     },
     select: { id: true },
   });
@@ -1022,6 +1046,7 @@ export async function backfillLinkedInAccountProfile(connection: {
   provider: string;
   status: string;
   composioConnectedAccountId: string;
+  executorProjectId?: string | null;
   externalAccountId: string;
   avatarUrl: string | null;
 }): Promise<boolean> {
@@ -1037,7 +1062,7 @@ export async function backfillLinkedInAccountProfile(connection: {
     const identity = await getConnectedSocialIdentity({
       provider: "linkedin",
       connectedAccountId: connection.composioConnectedAccountId,
-      executorUserId: projectExecutorUserId(connection.projectId),
+      executorUserId: connectionExecutorUserId(connection),
     });
     if (
       linkedInPersonKey(identity.id) !==

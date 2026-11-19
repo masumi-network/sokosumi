@@ -924,6 +924,7 @@ type ConnectionCandidate = Pick<
   | "status"
   | "subscriptionType"
   | "composioConnectedAccountId"
+  | "executorProjectId"
 >;
 
 /** Loads a connection that belongs to the Project. Disconnected rows never qualify. */
@@ -941,6 +942,7 @@ async function requireProjectConnection(
       status: true,
       subscriptionType: true,
       composioConnectedAccountId: true,
+      executorProjectId: true,
       project: { select: socialProviderProjectSelect },
     },
   });

@@ -219,6 +219,7 @@ export async function onboard(
 ): Promise<OnboardFormState> {
   const typed = String(formData.get("websiteUrl") ?? "").trim();
   const organizationId = String(formData.get("organizationId") ?? "");
+  const testCopyOf = String(formData.get("testCopyOf") ?? "");
   const result = {
     attempt: previous.attempt + 1,
     websiteUrl: typed,
@@ -240,6 +241,7 @@ export async function onboard(
     body: {
       websiteUrl,
       ...(organizationId ? { organizationId } : {}),
+      ...(testCopyOf ? { testCopyOfProjectId: testCopyOf } : {}),
       ...(timeZone ? { timeZone } : {}),
     },
   });
