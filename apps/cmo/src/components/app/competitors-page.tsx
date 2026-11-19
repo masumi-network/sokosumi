@@ -165,6 +165,7 @@ export function CompetitorsPage({
       />
       <Scoreboard data={data} />
       <TopPosts data={data} names={names} compose={compose} />
+      <ComparingSearches data={data} compose={compose} />
       <Found data={data} names={names} />
       <Manage data={data} actions={actions} change={change} />
     </div>
@@ -486,6 +487,44 @@ function Scoreboard({ data }: ScoreboardProps) {
           </p>
         </>
       ) : null}
+    </section>
+  );
+}
+
+/** What Cuso is asked for search ads on the competitors' searches. */
+export const COMPARING_SEARCHES_REQUEST =
+  "Set up Google search ads for the people comparing us with our competitors: the alternative, vs and pricing searches.";
+
+/**
+ * Search ads on what people type when they weigh a competitor: Cuso reads
+ * the searches and writes the ads into the Calendar, where an owner launches
+ * them.
+ */
+function ComparingSearches({
+  data,
+  compose,
+}: Pick<TopPostsProps, "data" | "compose">) {
+  const [first] = data.competitors;
+  if (!first) return null;
+  return (
+    <section className="card">
+      <div className="comp-head">
+        <h3>People comparing you</h3>
+        <button
+          type="button"
+          className="button button-secondary button-small"
+          onClick={() => compose(COMPARING_SEARCHES_REQUEST)}
+        >
+          Ask {AGENT_NAME} for search ads
+        </button>
+      </div>
+      <p className="muted">
+        Someone who searches "{first.name} alternative", "{first.name} vs" or "
+        {first.name} pricing" is choosing right now. {AGENT_NAME} reads what
+        people search for each competitor here and what a click costs, and
+        writes a Google search ad for each search your ad budget pays for. They
+        land in your Calendar. Nothing spends until you press Launch.
+      </p>
     </section>
   );
 }
