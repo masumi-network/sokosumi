@@ -1539,7 +1539,9 @@ describe("a cmo-v5 month at the top volume, whose funnel says what it plans", ()
           { channel: "instagram", what: "Moments, including weekly video" },
           { channel: "facebook", what: "Community updates and weekly video" },
         ]),
-        stage("desire", [{ channel: "x", what: "Customer evidence" }]),
+        stage("desire", [
+          { channel: "x", what: "Short workflow notes for tech buyers" },
+        ]),
         stage("action", [{ channel: "linkedin", what: "Signup prompt" }]),
       ],
       calendar: [0, 1, 2, 3].map(video),

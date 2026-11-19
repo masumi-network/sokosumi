@@ -537,8 +537,8 @@ export function cmoTopVolumeProblems(
   return problems;
 }
 
-/** Whether a funnel play promises video. */
-const PROMISES_VIDEO = /\b(videos?|shorts?|reels?|clips?)\b/i;
+/** Whether a funnel play promises video; "Short" alone is an adjective ("Short workflow notes"). */
+const PROMISES_VIDEO = /\b(videos?|shorts|reels?|clips?)\b/i;
 
 function isTalkingVideo(entry: { channel: string; format: string }): boolean {
   const channel = (
