@@ -1,6 +1,8 @@
 import { SOKO_BOT_VOICEOVER_VOICES } from "@sokosumi/soko-bot";
 import {
   creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PRICE,
+  TALKING_VIDEO_PRICE_VERIFIED_AT,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
   type TalkingVideoExtras,
@@ -55,28 +57,6 @@ export const TALKING_VIDEO_MUSIC_ENDPOINT = "fal-ai/lyria2";
 export const TALKING_VIDEO_CAPTION_ENDPOINT =
   "fal-ai/workflow-utilities/auto-subtitle";
 
-/**
- * What fal bills, read from its billing events (`/v1/models/billing-events`)
- * on 2026-11-18: one $0.05 unit per started second of a 1080p Turbo clip and
- * no minimum. Seven clips: 4.48 s was 5 units, 6.08 s 7, 9.68 s 10, 12.72 s
- * 13, 14.16 s 15. That is the model page's $0.05 per second. The standard
- * tier is left out until its billing is read the same way.
- */
-const PRICES_VERIFIED_AT = "2026-11-18";
-const VOICE_PER_1000_CHARACTERS_USD = 0.08;
-/** Timing the spoken words for the captions, on `TALKING_VIDEO_WORDS_ENDPOINT`. */
-const CAPTIONS_PER_MINUTE_USD = 0.008;
-/**
- * One five-second 720p clip on `TALKING_VIDEO_BROLL_ENDPOINT`. fal lists
- * $0.05 a second and bills 720p as two units a second: 10 units for a 5 s
- * clip on 2026-11-18.
- */
-const BROLL_USD = 0.5;
-/** One clip on `TALKING_VIDEO_MUSIC_ENDPOINT`: fal billed one $0.10 unit. */
-const MUSIC_USD = 0.1;
-/** fal's price for `TALKING_VIDEO_CUTOUT_ENDPOINT`, per 30 frames. */
-const CUTOUT_PER_30_FRAMES_USD = 0.008;
-
 /** The only resolution sent. */
 export const TALKING_VIDEO_RESOLUTION = "1080p";
 export const TALKING_VIDEO_ASPECT_RATIO = "9:16";
@@ -101,18 +81,11 @@ const MODELS: TalkingVideoModel[] = [
     description: "A presenter speaking your script.",
     endpoint: "heygen/avatar-6/turbo/image-to-video",
     price: {
-      perSecondUsd: 0.05,
-      voicePer1000CharactersUsd: VOICE_PER_1000_CHARACTERS_USD,
-      captionsPerMinuteUsd: CAPTIONS_PER_MINUTE_USD,
-      // fal billed 18 units for a 14.16 s clip of this model (354 frames at
-      // 25 a second), on 2026-11-18: one and a half units per 30 frames.
-      cutoutPerSecondUsd: (CUTOUT_PER_30_FRAMES_USD * 18) / 14.16,
-      brollUsd: BROLL_USD,
-      musicUsd: MUSIC_USD,
+      ...TALKING_VIDEO_PRICE,
       basis:
         "$0.05 per started second of video at 1080p, as fal's billing events show, plus the voice ($0.08 per 1,000 characters) and timing its words for the captions ($0.008 per minute). Showing the brand's site behind the presenter adds the cut-out (about $0.01 per second, as fal billed a measured clip). Optional: a B-roll clip in the hook ($0.50) and a music bed ($0.10), as fal billed them. The edit itself is made by Core and costs nothing.",
       sourceUrl: "https://fal.ai/models/heygen/avatar-6/turbo/image-to-video",
-      verifiedAt: PRICES_VERIFIED_AT,
+      verifiedAt: TALKING_VIDEO_PRICE_VERIFIED_AT,
     },
   },
 ];

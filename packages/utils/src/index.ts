@@ -589,6 +589,10 @@ export { encodeTableCsv, parseTableCsv, readCsvRows } from "./table-csv.js";
 export { validateTableValues } from "./table-value-validation.js";
 export {
   creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PLANNED_CREDITS,
+  TALKING_VIDEO_PLANNED_SCRIPT,
+  TALKING_VIDEO_PRICE,
+  TALKING_VIDEO_PRICE_VERIFIED_AT,
   TALKING_VIDEO_SCRIPT_MAX_LENGTH,
   TALKING_VIDEO_SCRIPT_MIN_LENGTH,
   type TalkingVideoExtras,
