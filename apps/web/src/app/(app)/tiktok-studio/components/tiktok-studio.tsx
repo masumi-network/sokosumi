@@ -20,8 +20,10 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { RadioGroup } from "radix-ui";
 import { type ReactNode, useId, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
+import { APP_MAIN_MOBILE_SCROLL_MT_CLASS } from "@/app/components/app-shell-safe-area";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -56,6 +58,7 @@ import {
 import { TikTokStudioLibrary } from "./tiktok-studio-library";
 import {
   ACTIVE_STATUSES,
+  type Playback,
   StageJob,
   StagePreview,
   type TalkingVideoAsset,
@@ -165,7 +168,9 @@ export function TikTokStudio({
   const siteShots = hasWebsite && showSite;
   const [music, setMusic] = useState(false);
   const [broll, setBroll] = useState(false);
-  const [voice, setVoice] = useState(catalog.defaultVoice);
+  const [voice, setVoice] = useState(
+    catalog.presenters[0]?.voice ?? catalog.defaultVoice,
+  );
   const [languageCode, setLanguageCode] = useState<string>(
     SCRIPT_LANGUAGES.find((code) => locale.startsWith(code)) ?? "en",
   );
@@ -187,8 +192,11 @@ export function TikTokStudio({
       initialVideos.jobs.find((job) => ACTIVE_STATUSES.has(job.status))?.id ??
       null,
   );
+  /** What the stage player found for each finished video's file, by asset. */
+  const [playback, setPlayback] = useState<Record<string, Playback>>({});
   const photoInput = useRef<HTMLInputElement>(null);
   const stage = useRef<HTMLElement>(null);
+  const form = useRef<HTMLFormElement>(null);
 
   const { data: videos } = useQuery({
     queryKey,
@@ -212,6 +220,12 @@ export function TikTokStudio({
   const assetFor = (job: ProjectImageJob): TalkingVideoAsset | null =>
     videos.assets.find((asset) => asset.jobId === job.id) ?? null;
   const stageJob = videos.jobs.find((job) => job.id === stageJobId) ?? null;
+  const stageAsset = stageJob ? assetFor(stageJob) : null;
+  const playbackFor = (asset: TalkingVideoAsset) => playback[asset.id];
+  const markPlayback = (asset: TalkingVideoAsset, next: Playback) =>
+    setPlayback((current) =>
+      current[asset.id] === next ? current : { ...current, [asset.id]: next },
+    );
 
   /** What still stands between the person and the button, if anything. */
   const missing =
@@ -231,8 +245,17 @@ export function TikTokStudio({
   }
 
   function showOnStage(jobId: string | null) {
-    setStageJobId(jobId);
+    // Render first: on a phone the stage moves to the top when it shows a
+    // video, and a scroll before that lands where it used to be.
+    flushSync(() => setStageJobId(jobId));
     stage.current?.scrollIntoView({ block: "nearest" });
+  }
+
+  /** Clears the stage and takes the person to the form for a new video. */
+  function startNew() {
+    flushSync(() => setStageJobId(null));
+    form.current?.scrollIntoView({ block: "start" });
+    form.current?.focus({ preventScroll: true });
   }
 
   async function handlePhoto(file: File) {
@@ -380,6 +403,7 @@ export function TikTokStudio({
       setScript(job.prompt);
       const presenter = job.talkingVideo?.presenterId;
       if (presenterImage(presenter) && presenter) setPresenterId(presenter);
+      if (job.talkingVideo?.voice) setVoice(job.talkingVideo.voice);
     });
   }
 
@@ -398,9 +422,85 @@ export function TikTokStudio({
 
   return (
     <div className="grid min-w-0 items-start gap-2 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {videos.jobs.length > 0 ? (
+        <TikTokStudioLibrary
+          assetFor={assetFor}
+          jobs={videos.jobs}
+          onNew={readOnly ? undefined : startNew}
+          onSelect={(job) => showOnStage(job.id)}
+          playbackFor={playbackFor}
+          selectedId={stageJob?.id ?? null}
+        />
+      ) : null}
+      <section
+        aria-label={stageJob ? t("stageVideo") : t("preview")}
+        className={cn(
+          HOLDER_CLASS,
+          // The library and the form share the first column; the stage stays beside
+          // both. It comes before the form so the keyboard reaches it first.
+          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1",
+          APP_MAIN_MOBILE_SCROLL_MT_CLASS,
+          // On a phone a started video leads the page; the preview follows the steps.
+          stageJob ? "max-lg:order-first" : "max-lg:order-last",
+        )}
+        ref={stage}
+      >
+        <div className="mx-auto flex w-full max-w-72 flex-col gap-2 lg:max-w-none">
+          {stageJob ? (
+            <StageJob
+              asset={stageAsset}
+              // Each video's own retry: a failure elsewhere never takes focus.
+              key={stageJob.id}
+              onPlayback={(next) => {
+                if (stageAsset) markPlayback(stageAsset, next);
+              }}
+              playback={stageAsset ? playbackFor(stageAsset) : undefined}
+              image={presenterImage(stageJob.talkingVideo?.presenterId)}
+              job={stageJob}
+              onPost={readOnly ? undefined : handlePost}
+              postLabel={t(tikTokEnabled ? "postToTikTok" : "post")}
+              onReuse={() => reuse(stageJob)}
+              posting={posting}
+            />
+          ) : (
+            <StagePreview
+              image={ownPhoto ? photo?.previewUrl : presenterImage(presenterId)}
+              missingPhoto={ownPhoto && !photo}
+              script={trimmed}
+            />
+          )}
+          <div className="flex min-h-8 items-center justify-between gap-2 px-1">
+            <p className="text-muted-foreground line-clamp-2 text-xs">
+              {stageJob
+                ? stageJob.prompt
+                : t("previewMeta", {
+                    voice,
+                    language: languageNames.of(languageCode) ?? languageCode,
+                  })}
+            </p>
+            {stageJob ? (
+              <Button
+                className="shrink-0"
+                // A read-only project has no form to go to.
+                onClick={readOnly ? () => setStageJobId(null) : startNew}
+                size="sm"
+                variant="ghost"
+              >
+                {t("newVideo")}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </section>
       <form
         aria-label={t("formLabel")}
-        className={cn(HOLDER_CLASS, "flex min-w-0 flex-col gap-2")}
+        className={cn(
+          HOLDER_CLASS,
+          "focus-visible:ring-ring focus-visible:ring-offset-background flex min-w-0 scroll-mt-2 flex-col gap-2 outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+          APP_MAIN_MOBILE_SCROLL_MT_CLASS,
+        )}
+        ref={form}
+        tabIndex={-1}
         onSubmit={(event) => {
           event.preventDefault();
           handleCreate();
@@ -411,7 +511,16 @@ export function TikTokStudio({
             aria-label={t("presenter")}
             className="grid grid-cols-5 gap-2 sm:grid-cols-10"
             disabled={readOnly}
-            onValueChange={(id) => edit(() => setPresenterId(id))}
+            onValueChange={(id) =>
+              edit(() => {
+                setPresenterId(id);
+                // Each presenter comes with a voice that sounds like them.
+                const presenterVoice = catalog.presenters.find(
+                  (presenter) => presenter.id === id,
+                )?.voice;
+                if (presenterVoice) setVoice(presenterVoice);
+              })
+            }
             value={presenterId}
           >
             {catalog.presenters.map((presenter) => (
@@ -698,57 +807,6 @@ export function TikTokStudio({
         </Step>
       </form>
 
-      <section
-        aria-label={stageJob ? t("stageVideo") : t("preview")}
-        className={cn(
-          HOLDER_CLASS,
-          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:row-span-2",
-          // On a phone a started video leads the page; the preview follows the steps.
-          stageJob && "max-lg:order-first",
-        )}
-        ref={stage}
-      >
-        <div className="mx-auto flex w-full max-w-72 flex-col gap-2 lg:max-w-none">
-          {stageJob ? (
-            <StageJob
-              asset={assetFor(stageJob)}
-              image={presenterImage(stageJob.talkingVideo?.presenterId)}
-              job={stageJob}
-              onPost={readOnly ? undefined : handlePost}
-              postLabel={t(tikTokEnabled ? "postToTikTok" : "post")}
-              onReuse={() => reuse(stageJob)}
-              posting={posting}
-            />
-          ) : (
-            <StagePreview
-              image={ownPhoto ? photo?.previewUrl : presenterImage(presenterId)}
-              missingPhoto={ownPhoto && !photo}
-              script={trimmed}
-            />
-          )}
-          <div className="flex min-h-8 items-center justify-between gap-2 px-1">
-            <p className="text-muted-foreground line-clamp-2 text-xs">
-              {stageJob
-                ? stageJob.prompt
-                : t("previewMeta", {
-                    voice,
-                    language: languageNames.of(languageCode) ?? languageCode,
-                  })}
-            </p>
-            {stageJob ? (
-              <Button
-                className="shrink-0"
-                onClick={() => setStageJobId(null)}
-                size="sm"
-                variant="ghost"
-              >
-                {t("newVideo")}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </section>
-
       {composeVideo ? (
         <TikTokComposer
           open
@@ -769,14 +827,6 @@ export function TikTokStudio({
           }}
           onError={(error) => toast.error(error.message || t("postFailed"))}
           onSaved={() => router.refresh()}
-        />
-      ) : null}
-      {videos.jobs.length > 0 ? (
-        <TikTokStudioLibrary
-          assetFor={assetFor}
-          jobs={videos.jobs}
-          onSelect={(job) => showOnStage(job.id)}
-          selectedId={stageJob?.id ?? null}
         />
       ) : null}
     </div>

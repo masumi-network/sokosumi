@@ -5,8 +5,10 @@ import type {
 } from "@sokosumi/soko-bot";
 import { parseBrandBrain } from "@/services/brand-brain.service";
 import {
+  CMO_LIVE_NETWORKS,
   cmoPlanProblems,
   cmoPlanRuleProblems,
+  type PlanReviewOptions,
 } from "@/services/cmo-plan-review.service";
 import { parseMarketingPlan } from "@/services/marketing-strategy.service";
 import type { CmoEvalBrand } from "./eval-cmo-cases";
@@ -70,6 +72,7 @@ const PIECE_LANGUAGE_SHARE = 0.4;
 export function strategyChecks(
   brand: CmoEvalBrand,
   saved: unknown,
+  options: PlanReviewOptions = {},
 ): { strategy: MarketingStrategyPlan | null; checks: ScenarioCheck[] } {
   const strategy = parseMarketingPlan(saved) as MarketingStrategyPlan | null;
   if (!strategy)
@@ -134,9 +137,11 @@ export function strategyChecks(
       actual: `${titles.length - other.length} of ${titles.length} titles${other.length ? `; not: ${other.slice(0, 4).join(" · ")}` : ""}`,
     });
   }
+  if (brand.websiteOnly) checks.push(...websiteOnlyChecks(strategy));
+  if (options.everyNetwork) checks.push(firstStrategyAdsCheck(strategy));
   const problems = [
     ...cmoPlanRuleProblems(strategy),
-    ...cmoPlanProblems(strategy),
+    ...cmoPlanProblems(strategy, options),
   ];
   checks.push({
     label: "Keeps the strategy skill's rules",
@@ -147,6 +152,74 @@ export function strategyChecks(
 }
 
 /** Failed checks as the lab's findings list. */
+/**
+ * A business with no profile anywhere: every live network is planned or left
+ * out with a reason, and each planned one says the owner opens the account.
+ */
+function websiteOnlyChecks(strategy: MarketingStrategyPlan): ScenarioCheck[] {
+  const planned = strategy.channels.filter((channel) =>
+    CMO_LIVE_NETWORKS.includes(channel.channel.toLowerCase()),
+  );
+  const leftOut = (strategy.leftOut ?? []).map((item) => item.channel);
+  const missing = CMO_LIVE_NETWORKS.filter(
+    (network) =>
+      !planned.some((channel) => channel.channel.toLowerCase() === network) &&
+      !leftOut.includes(network),
+  );
+  const notNew = planned.filter((channel) => !/^new:/i.test(channel.why ?? ""));
+  const proposed = strategy.proposals
+    .map((proposal) => proposal.channel)
+    .filter((channel) => CMO_LIVE_NETWORKS.includes(channel));
+  return [
+    {
+      label: "Every live network is planned or left out with a reason",
+      pass: missing.length === 0 && planned.length >= 3,
+      actual: `planned: ${planned.map((channel) => channel.channel).join(", ") || "none"}; left out: ${leftOut.join(", ") || "none"}${missing.length ? `; missing: ${missing.join(", ")}` : ""}`,
+    },
+    {
+      label: "Each planned network says the owner opens the account",
+      pass: notNew.length === 0,
+      actual: notNew.length
+        ? `no "New:" on ${notNew.map((channel) => channel.channel).join(", ")}`
+        : "all new",
+    },
+    {
+      label: "No social network is parked in proposals",
+      pass: proposed.length === 0,
+      actual: proposed.join(", ") || "none",
+    },
+  ];
+}
+
+/** A first strategy plans no ads: they wait for the owner's yes. */
+function firstStrategyAdsCheck(strategy: MarketingStrategyPlan): ScenarioCheck {
+  const ads = ["google_ads", "meta_ads"];
+  const planned = [
+    ...strategy.channels
+      .filter((channel) => ads.includes(channel.channel))
+      .map((channel) => `channel ${channel.channel}`),
+    ...strategy.calendar
+      .filter(
+        (entry) => ads.includes(entry.channel) && entry.status !== "skipped",
+      )
+      .map((entry) => `piece ${entry.id}`),
+    ...strategy.questions
+      .filter((question) =>
+        /\bads?\b|advertis|ad budget/i.test(question.question),
+      )
+      .map((question) => `question "${question.question}"`),
+  ];
+  return {
+    label: "Plans no ads and asks nothing about them before the owner's yes",
+    pass: planned.length === 0 && (strategy.ads?.monthly ?? 0) === 0,
+    actual:
+      planned.slice(0, 5).join(" · ") ||
+      (strategy.ads?.monthly
+        ? `monthly ${strategy.ads.monthly}`
+        : `no ads; would start with ${strategy.ads?.suggest ? `${strategy.ads.suggest.channel} at ${strategy.ads.suggest.monthly}` : "nothing"}`),
+  };
+}
+
 export function findings(checks: readonly ScenarioCheck[]): string[] {
   return checks
     .filter((check) => !check.pass)

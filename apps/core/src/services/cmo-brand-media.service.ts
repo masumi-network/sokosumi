@@ -693,26 +693,41 @@ export async function captureCmoHomepage(
  * named, pages cited). A second essentials save in the same research, or one
  * while a capture runs here, does not start another.
  */
+/** A Cuso whose capture read no page is tried again after this long. */
+const RETRY_INDEX_AFTER_MS = 6 * 60 * 60_000;
+
 /**
  * Starts the index for one Cuso who has none: hired before the index, or his
- * capture did not finish. One per call, so the backlog clears a Cuso a sync
- * without crowding the capture browser.
+ * capture read no page. A Project counts as indexed once it has a page from
+ * the top down (`Full pages/`), which only a capture that read a page saves;
+ * a Project whose research files changed in the last six hours waits, so a
+ * site that never loads is tried four times a day, not every sync. One per
+ * call, so the backlog clears a Cuso a sync without crowding the browser.
  */
 export async function scheduleMissingCmoBrandIndex(
   cusos: Pick<Cuso, "projectId" | "sokoBotId">[],
+  now: Date = new Date(),
 ): Promise<void> {
   if (cusos.length === 0) return;
-  const indexed = await prisma.fileProjectLink.findMany({
+  const links = await prisma.fileProjectLink.findMany({
     where: {
       projectId: { in: cusos.map((cuso) => cuso.projectId) },
-      resource: {
-        sourceId: { endsWith: `/${CMO_BRAND_MEDIA_FOLDER}/${INDEX_FILE}` },
-      },
+      OR: [
+        {
+          resource: {
+            sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/Full pages/` },
+          },
+        },
+        {
+          updatedAt: { gte: new Date(now.getTime() - RETRY_INDEX_AFTER_MS) },
+          resource: { sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` } },
+        },
+      ],
     },
     select: { projectId: true },
   });
-  const done = new Set(indexed.map((link) => link.projectId));
-  const next = cusos.find((cuso) => !done.has(cuso.projectId));
+  const skip = new Set(links.map((link) => link.projectId));
+  const next = cusos.find((cuso) => !skip.has(cuso.projectId));
   if (next) scheduleCmoBrandMedia(next.sokoBotId);
 }
 
@@ -855,8 +870,13 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     return true;
   };
 
+  /** Where the capture is, so a failure says which step it ended in. */
+  let step = "browser";
+  let ownPagesMissed = 0;
+  let stopped = false;
   try {
     const media = await withBrowser(async (browser: Browser) => {
+      step = "home";
       const home = robots.allows("/")
         ? await capturePage(browser, site.href, {
             ...DESKTOP,
@@ -865,6 +885,8 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
           })
         : null;
       if (home) await saveOwnPage("Home", home);
+      else if (robots.allows("/")) ownPagesMissed += 1;
+      step = "pages";
       // The site's own header and footer say which pages matter; its sitemap
       // fills in what they leave out.
       const found = home
@@ -883,11 +905,13 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
           fullScreens: FULL_PAGE_SCREENS,
           sections: PAGE_SECTIONS,
         });
+        if (!capture) ownPagesMissed += 1;
         return capture && (await saveOwnPage(page.label, capture))
           ? capture
           : null;
       });
       const own = [home, ...rest];
+      step = "phones";
       await inBatches(index.pages, async (page) => {
         if (!inTime()) return;
         const phone = await capturePage(browser, page.url, MOBILE);
@@ -901,6 +925,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
           );
         }
       });
+      step = "competitors";
       await inBatches(competitorPages, async (page) => {
         if (!inTime() || !(await readRobots(page.url)).allows("/")) return;
         const capture = await capturePage(browser, page.url);
@@ -914,6 +939,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
           );
         }
       });
+      step = "pictures";
       const seen = new Set<string>();
       const candidates = own
         .flatMap((capture) => capture?.images ?? [])
@@ -932,6 +958,7 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
       }
       return { pictures };
     });
+    step = "save pictures";
     for (const [index, { image, body }] of media.pictures.entries()) {
       const slot = String(index + 1).padStart(2, "0");
       // The alt text names the picture, so Cuso finds a product's photo.
@@ -946,10 +973,32 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
         failures,
       );
     }
+  } catch (error) {
+    stopped = true;
+    // Pages can carry what the brand wrote: only the step, the counts and
+    // the error's safe fields are logged.
+    emitCoreWarning(
+      {
+        operation: "cmo_brand_media",
+        sokoBot: { id: sokoBotId },
+        brandMedia: {
+          step,
+          pagesRead: index.pages.length,
+          sections: index.sections.length,
+          ownPagesMissed,
+        },
+        failure: messageSafeErrorFields(error),
+      },
+      {
+        message: "The brand capture stopped partway",
+        why: "A step of the capture threw; what it saved before is kept",
+        fix: "brandMedia.step names the step; at browser, the headless Chromium did not start. Cuso's next essentials save captures again.",
+      },
+    );
   } finally {
     await logo;
-    // Written last and always, also after a capture that threw: it marks
-    // the Project as indexed, so the backfill moves on to the next Cuso.
+    // Written last and always, also after a capture that threw: it names
+    // what was read. The backfill counts a page from the top down, not this.
     await saveFile(
       drive,
       { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
@@ -957,6 +1006,24 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
       "application/json",
       failures,
     );
+    if (!stopped && ownPagesMissed > 0) {
+      emitCoreWarning(
+        {
+          operation: "cmo_brand_media",
+          sokoBot: { id: sokoBotId },
+          brandMedia: {
+            step: "pages",
+            pagesRead: index.pages.length,
+            ownPagesMissed,
+          },
+        },
+        {
+          message: "Some of the brand's pages did not load for the capture",
+          why: "The headless browser returned no capture for them",
+          fix: "The capture kept every page that loaded. If no page loads for any site, check the headless Chromium on Core.",
+        },
+      );
+    }
     if (failures.length > 0) {
       const first = failures[0] as SaveFailure;
       emitCoreWarning(

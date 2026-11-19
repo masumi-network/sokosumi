@@ -4,15 +4,15 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 
 ## Setup
 
-| Flow                                            | State (2026-11-19)                        |
-| ----------------------------------------------- | ----------------------------------------- |
-| [Hire and research](setup-hire-and-research.md) | Works; invite-only (`CMO_HIRE_ALLOWLIST`) |
-| [Brand](setup-brand.md)                         | Works                                     |
-| [Strategy](setup-strategy.md)                   | Works; AIDA funnel on cmo-v5 in progress  |
-| [Subscribe](setup-subscribe.md)                 | Works                                     |
-| [Launch](setup-launch.md)                       | Works; needs one connected network        |
-| [Later changes](setup-later-changes.md)         | Works                                     |
-| [Daily test copy](test-copy.md)                 | Works; for testers only                   |
+| Flow                                            | State (2026-11-19)                                 |
+| ----------------------------------------------- | -------------------------------------------------- |
+| [Hire and research](setup-hire-and-research.md) | Works; invite-only (`CMO_HIRE_ALLOWLIST`)          |
+| [Brand](setup-brand.md)                         | Works                                              |
+| [Strategy](setup-strategy.md)                   | Works; every network and the AIDA funnel on cmo-v5 |
+| [Subscribe](setup-subscribe.md)                 | Works                                              |
+| [Launch](setup-launch.md)                       | Works; needs one connected network                 |
+| [Later changes](setup-later-changes.md)         | Works                                              |
+| [Daily test copy](test-copy.md)                 | Works; for testers only                            |
 
 ## After setup
 
@@ -28,3 +28,4 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 | [SEO pages](seo-pages.md)                                 | The owner's website                 | Text only; the owner publishes it                |
 | [Newsletter](newsletter.md)                               | Email                               | Not finished: no sending from CMO                |
 | [Month review](month-review.md)                           | All                                 | Works                                            |
+| [Chat usage limit](chat-usage-limit.md)                   | Chat                                | Shows why Cuso cannot answer                     |

@@ -111,15 +111,16 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     channel: parseAsStringLiteral(SEO_TRAFFIC_CHANNELS),
     searchType: parseAsStringLiteral(SEO_SEARCH_TYPES),
   });
-  // The search type is a Traffic control: every other tab reads web search, and leaving Traffic clears it.
+  // The search type and the channel are Traffic controls: every other tab reads web search in every
+  // channel, and leaving Traffic clears both. A channel kept there hid organic Search Console data.
   const filters =
     urlFilters.tab === "traffic"
       ? urlFilters
-      : { ...urlFilters, searchType: null };
+      : { ...urlFilters, searchType: null, channel: null };
   const setFilters: typeof setUrlFilters = (values, options) =>
     setUrlFilters(
       typeof values !== "function" && values?.tab && values.tab !== "traffic"
-        ? { ...values, searchType: null }
+        ? { ...values, searchType: null, channel: null }
         : values,
       options,
     );
