@@ -10,6 +10,7 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 import { z } from "zod";
 import { conflict, notFound } from "@/helpers/error";
 import { literalSubstringPattern } from "@/helpers/project-activity";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { emitCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -252,7 +253,7 @@ async function moveCompany(
         domain: stat.domain,
         website,
         inactiveSince: null,
-        ...(moved ? { enrichedAt: null } : {}),
+        ...(moved ? { enrichedAt: null, lookupFailures: 0 } : {}),
         ...(moved || stat.domain !== row.domain
           ? { version: { increment: 1 } }
           : {}),
@@ -564,7 +565,9 @@ export async function updateCompanyFacts(
   input: z.infer<typeof companyUpdateSchema>,
 ): Promise<void> {
   const { version, ...facts } = input;
-  await requireCompany(actor, id, db);
+  const row = await requireCompany(actor, id, db);
+  const websiteChanged =
+    facts.website !== undefined && (facts.website || null) !== row.website;
   const changed = await db.contactCompany.updateMany({
     where: { id, workspaceId: actor.workspaceId, version },
     data: {
@@ -573,7 +576,7 @@ export async function updateCompanyFacts(
       ),
       ...(facts.name ? { name: facts.name } : {}),
       // A new website is read again in the background.
-      ...(facts.website ? { enrichedAt: null } : {}),
+      ...(websiteChanged ? { enrichedAt: null, lookupFailures: 0 } : {}),
       version: { increment: 1 },
     },
   });
@@ -604,6 +607,7 @@ Return one JSON object and nothing else:
 Use null for anything the page does not say. Never guess.`;
 
 const MAX_SITE_BYTES = 1_500_000;
+const MAX_LOOKUP_ATTEMPTS = 3;
 
 /** What of a page is worth reading: its head and the start of its body. */
 const MAX_PAGE_CHARS = 200_000;
@@ -695,10 +699,10 @@ const defaultLookupDeps: CompanyLookupDeps = {
 };
 
 /**
- * Reads the website of up to `limit` companies never looked up, biggest
+ * Reads the website of up to `limit` companies with a lookup due, biggest
  * first, and fills their empty facts. One page and one small model call per
- * company; a site that fails is marked looked-up and left alone. A fact
- * someone wrote meanwhile always wins.
+ * company per run; a failed lookup stays due for a later run until it hits
+ * the attempt limit. A fact someone wrote meanwhile always wins.
  */
 export async function enrichCompanies(
   workspaceId: string,
@@ -716,7 +720,12 @@ export async function enrichCompanies(
   const rows = await ensureCompanyRows(workspaceId, stats, { complete: true });
   const people = new Map(stats.map((stat) => [stat.key, stat.people]));
   const pending = [...rows.values()]
-    .filter((row) => row.enrichedAt === null && (row.website || row.domain))
+    .filter(
+      (row) =>
+        row.enrichedAt === null &&
+        row.lookupFailures < MAX_LOOKUP_ATTEMPTS &&
+        (row.website || row.domain),
+    )
     .sort((a, b) => (people.get(b.key) ?? 0) - (people.get(a.key) ?? 0))
     .slice(0, options.limit);
   for (const row of pending) {
@@ -741,31 +750,47 @@ export async function enrichCompanies(
       });
       result.costUsd += answer.costUsd;
       const parsed = parseJsonObject(answer.text, siteAnswerSchema);
+      if (!parsed) throw new Error("Invalid company lookup response");
       for (const key of [
         "description",
         "industry",
         "size",
         "headquarters",
       ] as const) {
-        const value = parsed?.[key];
+        const value = parsed[key];
         if (value) facts[key] = value;
       }
     } catch (error) {
+      const [failed] = await prisma.contactCompany.updateManyAndReturn({
+        where: {
+          id: row.id,
+          website: row.website,
+          domain: row.domain,
+          enrichedAt: null,
+          inactiveSince: null,
+          lookupFailures: { lt: MAX_LOOKUP_ATTEMPTS },
+        },
+        data: { lookupFailures: { increment: 1 } },
+        select: { lookupFailures: true },
+      });
+      if (error instanceof AiGatewayBudgetError) break;
       // Runs in the contact capture cron. The page and the model answer are
       // the company's site text, so content-free metadata only.
-      emitCoreWarning(
-        {
-          operation: "contact_company_lookup",
-          workspace: { id: workspaceId },
-          contactCompany: { id: row.id },
-        },
-        {
-          message: "Could not look up a company's website",
-          why: "Fetching or reading the company's site failed",
-          fix: "The company keeps what was already known. Nothing to do unless it repeats for many companies.",
-        },
-        { failure: messageSafeErrorFields(error) },
-      );
+      if (failed?.lookupFailures === MAX_LOOKUP_ATTEMPTS)
+        emitCoreWarning(
+          {
+            operation: "contact_company_lookup",
+            workspace: { id: workspaceId },
+            contactCompany: { id: row.id },
+          },
+          {
+            message: "Could not look up a company's website",
+            why: "Fetching or reading the company's site reached the failure limit",
+            fix: "The company keeps what was already known. Correct its website if the address is wrong.",
+          },
+          { failure: messageSafeErrorFields(error) },
+        );
+      continue;
     }
     // Fills only what is still empty at write time, in one statement, and
     // bumps the version when it filled something.
@@ -784,8 +809,11 @@ export async function enrichCompanies(
           ("linkedinUrl" IS NULL AND ${facts.linkedinUrl ?? null}::text IS NOT NULL)
           THEN 1 ELSE 0 END,
         "enrichedAt" = now(),
+        "lookupFailures" = 0,
         "updatedAt" = now()
       WHERE id = ${row.id}::uuid
+        AND "enrichedAt" IS NULL
+        AND "inactiveSince" IS NULL
         -- A website edited meanwhile stays queued for its own lookup.
         AND website IS NOT DISTINCT FROM ${row.website}
         AND domain IS NOT DISTINCT FROM ${row.domain}
@@ -796,7 +824,7 @@ export async function enrichCompanies(
   return result;
 }
 
-/** Workspaces with a company whose website nobody has read yet. */
+/** Workspaces with an active company whose website lookup is still due. */
 export async function workspacesWithPendingCompanies(
   limit: number,
 ): Promise<string[]> {
@@ -804,6 +832,7 @@ export async function workspacesWithPendingCompanies(
     where: {
       enrichedAt: null,
       inactiveSince: null,
+      lookupFailures: { lt: MAX_LOOKUP_ATTEMPTS },
       OR: [{ domain: { not: null } }, { website: { not: null } }],
     },
     distinct: ["workspaceId"],

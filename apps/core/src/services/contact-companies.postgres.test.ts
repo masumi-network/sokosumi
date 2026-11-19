@@ -4,9 +4,19 @@
  * (with a fake page and model).
  */
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from "vitest";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { runContactTool } from "@/lib/soko-bot/contact-tools";
+import { expectCoreLog } from "@/test/core-log";
 import {
   companyWarmth,
   enrichCompanies,
@@ -40,11 +50,14 @@ const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const actor: ContactActor = { workspaceId, userId: alice, sokoBotId: null };
 
-function create(input: Partial<Parameters<typeof upsertContact>[2]>) {
+function create(
+  input: Partial<Parameters<typeof upsertContact>[2]>,
+  contactActor: ContactActor = actor,
+) {
   return inContactTransaction(
     async (tx) =>
       (
-        await upsertContact(tx, actor, {
+        await upsertContact(tx, contactActor, {
           channels: [],
           upsert: false,
           ...input,
@@ -261,7 +274,24 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     ).rejects.toThrow(/changed meanwhile/);
   });
 
-  it("reads a company's website once and fills only empty facts", async () => {
+  it("looks up a company again after a Gateway budget refusal", async () => {
+    expectCoreLog("warn", "Could not look up a company's website", 0);
+    const failed = await enrichCompanies(workspaceId, {
+      limit: 5,
+      usd: 1,
+      deps: {
+        fetchPage: async () =>
+          `<a href="https://linkedin.com/company/acme">in</a>`,
+        generate: async () => {
+          throw new AiGatewayBudgetError();
+        },
+      },
+    });
+    const [pending] = (await listCompanies(actor, { limit: 1 })).items;
+    expect(pending).toMatchObject({ enrichedAt: null, linkedinUrl: null });
+    expect(failed).toEqual({ looked: 1, filled: 0, costUsd: 0 });
+    expect(await workspacesWithPendingCompanies(100)).toContain(workspaceId);
+
     const fetched: string[] = [];
     const result = await enrichCompanies(workspaceId, {
       limit: 5,
@@ -288,10 +318,83 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
       headquarters: "Zurich, Switzerland",
       linkedinUrl: "https://linkedin.com/company/acme",
       whyItMatters: "Our first hardware partner.",
+      enrichedAt: expect.any(Date),
     });
     expect(
       (await enrichCompanies(workspaceId, { limit: 5, usd: 1 })).looked,
     ).toBe(0);
+  });
+
+  it("stops scheduling an exhausted lookup and completes an empty lookup after a website edit", async () => {
+    const { id } = await prisma.workspace.create({ data: { userId: alice } });
+    onTestFinished(async () => {
+      await prisma.workspace.delete({ where: { id } });
+    });
+    const lookupActor = { ...actor, workspaceId: id };
+    await create(
+      {
+        name: "Toni Vale",
+        organization: "Quiet Company",
+        channels: [{ type: "EMAIL", value: "toni@quiet.example" }],
+      },
+      lookupActor,
+    );
+    const [company] = (await listCompanies(lookupActor, { limit: 1 })).items;
+    if (!company) throw new Error("Missing Quiet Company fixture");
+    const warnings = expectCoreLog(
+      "warn",
+      "Could not look up a company's website",
+    );
+    const deps = {
+      fetchPage: vi
+        .fn()
+        .mockImplementationOnce(async () => {
+          await updateCompany(lookupActor, company.id, {
+            version: company.version,
+            website: "https://updated.example",
+          });
+          throw new Error("The old site failed");
+        })
+        .mockResolvedValueOnce("<p>Quiet Company</p>")
+        .mockRejectedValueOnce(
+          new DOMException("Site timed out", "TimeoutError"),
+        )
+        .mockResolvedValue("<p>Quiet Company</p>"),
+      generate: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Provider unavailable"))
+        .mockResolvedValueOnce({ text: "invalid JSON", costUsd: 0.001 })
+        .mockResolvedValue({ text: "{}", costUsd: 0 }),
+    };
+    const run = () => enrichCompanies(id, { deps, limit: 5, usd: 1 });
+    const read = async () =>
+      (await getCompany(lookupActor, company.id)).company;
+    const isPending = async () =>
+      (await workspacesWithPendingCompanies(100)).includes(id);
+
+    expect((await run()).looked).toBe(1); // A stale failure leaves the new site its full allowance.
+    for (const costUsd of [0, 0, 0.001]) {
+      expect(await isPending()).toBe(true);
+      expect(await run()).toEqual({ looked: 1, filled: 0, costUsd });
+      expect((await read()).enrichedAt).toBeNull();
+    }
+    expect(warnings).toHaveLength(1);
+    expect(await isPending()).toBe(false);
+    expect((await run()).looked).toBe(0);
+
+    await updateCompany(lookupActor, company.id, {
+      version: (await read()).version,
+      website: null,
+    });
+    expect(await isPending()).toBe(true);
+    expect(await run()).toEqual({ looked: 1, filled: 0, costUsd: 0 });
+    expect(deps.fetchPage).toHaveBeenLastCalledWith("https://quiet.example");
+    expect(await read()).toMatchObject({
+      enrichedAt: expect.any(Date),
+      description: null,
+    });
+    expect(await isPending()).toBe(false);
+    expect((await run()).looked).toBe(0);
   });
 
   it("lets a Soko Bot find a company and read its people compactly", async () => {
