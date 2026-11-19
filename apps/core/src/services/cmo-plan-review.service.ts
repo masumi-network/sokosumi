@@ -158,6 +158,9 @@ export function cmoPlanProblems(
   if (options.everyNetwork)
     problems.push(
       ...networkProblems(strategy),
+      ...cmoLeftOutProblems(strategy),
+      ...cmoTopVolumeProblems(strategy),
+      ...cmoFunnelPlanProblems(strategy),
       ...unaskedAdProblems(strategy),
       ...askedForNothingProblems(strategy),
     );
@@ -460,6 +463,176 @@ function networkProblems(strategy: MarketingStrategyPlan): string[] {
 }
 
 /**
+ * An account's state is never a reason to leave a network out: Cuso makes
+ * it active. NMKR's YouTube was left out once for "quiet for about two years".
+ */
+const ACCOUNT_STATE_REASON =
+  /\b(quiet|inactive|dormant|abandoned|unused|stale|idle|no (recent )?(posts?|activity|uploads?|account)|not (been )?(active|used|posting)|has(n't| not) (posted|been active))\b/i;
+
+/**
+ * Short how-to videos reach every buyer who learns from a screen, companies
+ * and builders too; NMKR's TikTok was left out once as "built for younger
+ * consumer discovery".
+ */
+const WEAK_VIDEO_NETWORK_REASON =
+  /\b(young(er)?|teens?|gen ?z|consumers?|b2b|business buyers?|professionals?|developers?|builders?|entertainment|not where)\b/i;
+
+/** The networks a talking video goes out on with no extra cost (alsoOn). */
+const VIDEO_ONLY_NETWORKS = ["youtube", "tiktok"];
+
+export function cmoLeftOutProblems(strategy: MarketingStrategyPlan): string[] {
+  return (strategy.leftOut ?? []).flatMap(({ channel, why }) => {
+    const key = channel.toLowerCase();
+    if (ACCOUNT_STATE_REASON.test(why))
+      return [
+        `leftOut leaves ${key} out for its account ("${why}"); a quiet or missing account is never a reason, you make it active. Plan ${key}.`,
+      ];
+    if (
+      VIDEO_ONLY_NETWORKS.includes(key) &&
+      WEAK_VIDEO_NETWORK_REASON.test(why)
+    )
+      return [
+        `leftOut leaves ${key} out for its audience ("${why}"); short how-to videos fit company buyers and builders too. Plan ${key} with the cadence "1 a week" and list it in every talking video's alsoOn.`,
+      ];
+    return [];
+  });
+}
+
+/** The top volume per network, a month's pieces (cmo-v3's all_in pace). */
+const TOP_VOLUME = {
+  x: { pieces: 3 * 28, cadence: "3 a day" },
+  main: { pieces: 2 * 28, cadence: "2 a day" },
+  side: { pieces: 3 * 4, cadence: "3 a week" },
+};
+
+/**
+ * Cuso writes every month at the top volume, and the plan the owner buys
+ * decides how much of it is made (#7602). NMKR's month once came back
+ * steady, one a day on X and LinkedIn, 20 posts against the 76 before.
+ */
+export function cmoTopVolumeProblems(
+  strategy: MarketingStrategyPlan,
+): string[] {
+  const problems: string[] = [];
+  if (strategy.pace && strategy.pace.level !== "all_in")
+    problems.push(
+      `pace is ${strategy.pace.level}; write every strategy all_in: the plan the owner buys decides how much of it is made. Never lower the pace or a cadence to clear another problem.`,
+    );
+  for (const channel of strategy.channels) {
+    const key = channel.channel.toLowerCase();
+    if (!CMO_LIVE_NETWORKS.includes(key) || VIDEO_ONLY_NETWORKS.includes(key))
+      continue;
+    const range = cadenceRange(channel.cadence);
+    const top =
+      channel.role === "side"
+        ? TOP_VOLUME.side
+        : key === "x"
+          ? TOP_VOLUME.x
+          : TOP_VOLUME.main;
+    if (range && range[1] < top.pieces)
+      problems.push(
+        `${key} has the cadence "${channel.cadence}"; at the top volume a ${channel.role === "side" ? "side" : "main"} ${key} takes ${top.cadence}. Set it and plan its pieces.`,
+      );
+  }
+  return problems;
+}
+
+/** Whether a funnel play promises video; "Short" alone is an adjective ("Short workflow notes"). */
+const PROMISES_VIDEO = /\b(videos?|shorts|reels?|clips?)\b/i;
+
+function isTalkingVideo(entry: { channel: string; format: string }): boolean {
+  const channel = (
+    CMO_CHANNELS as Record<
+      string,
+      { formats: Record<string, { talking?: boolean }> }
+    >
+  )[entry.channel.toLowerCase()];
+  return Boolean(channel?.formats[entry.format]?.talking);
+}
+
+/**
+ * The funnel tells the owner what Cuso does, so it says what the channels
+ * and the calendar hold, and nothing else. NMKR's funnel once promised three
+ * X posts a day, two LinkedIn lessons a day and a weekly YouTube video, while
+ * the plan held one a day on each and left YouTube out.
+ */
+export function cmoFunnelPlanProblems(
+  strategy: MarketingStrategyPlan,
+): string[] {
+  const channels = new Map(
+    strategy.channels.map((channel) => [
+      channel.channel.toLowerCase(),
+      channel,
+    ]),
+  );
+  const leftOut = new Set(
+    (strategy.leftOut ?? []).map((item) => item.channel.toLowerCase()),
+  );
+  const pieces = strategy.calendar.filter(
+    (entry) => entry.status !== "skipped",
+  );
+  const complete = pieces.length > 0 && calendarWeeks(pieces) >= 4;
+  const problems: string[] = [];
+  const named = new Set<string>();
+  for (const stage of strategy.funnel) {
+    const keys = new Set(
+      [...stage.channels, ...stage.plays.map((play) => play.channel)].map(
+        (channel) => channel.toLowerCase(),
+      ),
+    );
+    for (const key of keys) {
+      named.add(key);
+      if (key === "seo" || channels.has(key)) continue;
+      // Ads before the owner's yes have their own problem.
+      if (AD_CHANNELS.includes(key) && (strategy.ads?.monthly ?? 0) <= 0)
+        continue;
+      problems.push(
+        leftOut.has(key)
+          ? `the funnel's ${stage.stage} stage names ${key}, which leftOut leaves out; take it out of the funnel, or plan it.`
+          : `the funnel's ${stage.stage} stage names ${key}, which is not in channels; plan it, or take it out of the funnel.`,
+      );
+    }
+    for (const play of stage.plays) {
+      const key = play.channel.toLowerCase();
+      const channel = channels.get(key);
+      if (!channel) continue;
+      const said = play.cadence ? cadenceRange(play.cadence) : null;
+      const planned = cadenceRange(channel.cadence);
+      if (said && planned && (said[1] < planned[0] || said[0] > planned[1]))
+        problems.push(
+          `the funnel's ${stage.stage} play on ${key} says "${play.cadence}", but ${key}'s cadence is "${channel.cadence}"; say the same in both.`,
+        );
+      if (
+        complete &&
+        PROMISES_VIDEO.test(play.what) &&
+        !pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key))
+      )
+        problems.push(
+          `the funnel's ${stage.stage} play on ${key} promises video ("${play.what}"), but no talking video in the calendar goes out on ${key}; plan one with ${key} in its alsoOn, or take video out of the play.`,
+        );
+    }
+  }
+  const unnamed = [...channels.keys()].filter(
+    (key) => CMO_LIVE_NETWORKS.includes(key) && !named.has(key),
+  );
+  if (strategy.funnel.length > 0 && unnamed.length > 0)
+    problems.push(
+      `${unnamed.join(", ")} ${unnamed.length === 1 ? "is" : "are"} in channels but in no funnel stage; name ${unnamed.length === 1 ? "it" : "each"} with a play at the stage it serves.`,
+    );
+  if (complete)
+    for (const key of VIDEO_ONLY_NETWORKS) {
+      if (
+        channels.has(key) &&
+        !pieces.some((entry) => isTalkingVideo(entry) && goesOutOn(entry, key))
+      )
+        problems.push(
+          `${key} is in channels, but no talking video in the calendar goes out on it; list ${key} in the talking videos' alsoOn.`,
+        );
+    }
+  return problems;
+}
+
+/**
  * What a funnel breaks. A Cuso on the AIDA skill gives exactly the four
  * classic stages in order, each with what he does there; one before it gave
  * three or four of his own choosing, and strategies saved then still pass.
@@ -518,6 +691,14 @@ function goesOutOn(
     entry.channel.toLowerCase() === key ||
     (entry.alsoOn ?? []).some((network) => network.toLowerCase() === key)
   );
+}
+
+/** The weeks a month's calendar covers so far: 0 without a piece. */
+export function cmoCalendarWeeks(
+  calendar: MarketingStrategyPlan["calendar"],
+): number {
+  const pieces = calendar.filter((entry) => entry.status !== "skipped");
+  return pieces.length === 0 ? 0 : calendarWeeks(pieces);
 }
 
 /** Whole or started weeks from the calendar's first piece to its last. */

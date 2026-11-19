@@ -63,6 +63,7 @@ import {
   ChatUnreadsFilterChip,
 } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
+import { limitSidebarChannels } from "./limit-sidebar-section-rooms";
 import {
   listOrganizationChatRoomsAction,
   reorderPinnedOrganizationChatRoomsAction,
@@ -311,6 +312,7 @@ export function OrganizationChatList({
     namedChannels,
     channelsShowAll,
     keepInSection,
+    limitSidebarChannels,
   );
   const externalRows = search.limited(
     externalJoined,

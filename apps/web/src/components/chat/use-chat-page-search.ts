@@ -66,10 +66,11 @@ export function useChatPageSearch({
     rows: ChatRoom[],
     showAll: boolean,
     alwaysShow: (room: ChatRoom) => boolean,
+    limit: typeof limitSidebarSectionRooms<ChatRoom> = limitSidebarSectionRooms,
   ) {
     return active
       ? { visible: matching(rows), hiddenCount: 0 }
-      : limitSidebarSectionRooms(rows, { showAll, alwaysShow });
+      : limit(rows, { showAll, alwaysShow });
   }
   return { active, matching, limited, invitations: matchingInvitations };
 }

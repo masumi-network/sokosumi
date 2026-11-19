@@ -10,7 +10,6 @@ import {
 import {
   type CmoVolumeLevel,
   cmoMonthAtLevel,
-  cmoVolumeLevelForTier,
   isCmoOwnerConfirmedChannel,
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
@@ -25,7 +24,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { getSeoAnalysisExecution } from "@/lib/seo/analysis-executor-config";
 import { reportSokoBotReconciliationLeaseLoss } from "@/lib/soko-bot/reconciliation-lease";
 import { getBrandBrain, parseBrandBrain } from "@/services/brand-brain.service";
-import { isCmoSubscribed } from "@/services/cmo-billing.service";
+import { cmoPlanLevel, isCmoSubscribed } from "@/services/cmo-billing.service";
 import { scheduleMissingCmoBrandIndex } from "@/services/cmo-brand-media.service";
 import {
   type Cuso,
@@ -576,18 +575,6 @@ interface ProductionRead {
 }
 
 /** Where the month's production stands; reads only, never starts a run. */
-/**
- * How much of the month this Cuso's plan makes: its tier's level, or all of
- * it on Tester credits or before a plan is bought.
- */
-export async function cmoPlanLevel(projectId: string): Promise<CmoVolumeLevel> {
-  const subscription = await prisma.polarSubscription.findFirst({
-    where: { projectId, endedAt: null },
-    select: { tier: true },
-  });
-  return cmoVolumeLevelForTier(subscription?.tier ?? null);
-}
-
 export async function readCmoProduction(
   cuso: Cuso,
   context: { connected: ReadonlySet<string>; subscribed: boolean; now: Date },
@@ -630,7 +617,7 @@ export async function readCmoProduction(
   );
   // The month is written at the top volume; the plan bought decides how much
   // of it is made, and a bigger plan makes more of the same month.
-  const level = await cmoPlanLevel(cuso.projectId);
+  const level = await cmoPlanLevel(cuso.projectId, now);
   const inPlan = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);
   const beyondPlan = strategy.calendar
     .filter(

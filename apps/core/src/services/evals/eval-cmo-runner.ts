@@ -4,6 +4,7 @@ import {
   type MarketingStrategyPlan,
   type ScenarioCheck,
 } from "@sokosumi/soko-bot";
+import { cmoMonthAtLevel } from "@sokosumi/utils";
 import { isProjectSocialProvider } from "@/config/social-providers";
 import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
 import { jsonInput } from "@/helpers/prisma-json";
@@ -11,13 +12,20 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
 import {
+  cmoPlanLevel,
+  grantCmoTesterCredits,
+} from "@/services/cmo-billing.service";
+import {
   CMO_BRAND_MEDIA_FOLDER,
   captureCmoHomepage,
 } from "@/services/cmo-brand-media.service";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
-import { cmoStrategyRules } from "@/services/cmo-plan-review.service";
+import {
+  cmoCalendarWeeks,
+  cmoStrategyRules,
+} from "@/services/cmo-plan-review.service";
 import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
@@ -28,6 +36,7 @@ import {
   newestMarketingStrategy,
   parseMarketingPlan,
   parseSocialPostPlanning,
+  STRATEGY_TURN_PREFIX,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
 import { referenceLibraryAvailable } from "@/services/reference-library.service";
@@ -695,6 +704,11 @@ export async function startCmoCase(
     return { kind: "started", turnId, state: {} };
   }
   await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
+  if (evalCase.brand.testerCredits)
+    await grantCmoTesterCredits({
+      projectId: lane.cusoProjectId,
+      organizationId: lane.organizationId,
+    });
   const { turnId } = await requestCmoStrategy({
     userId: lane.userId,
     projectId: lane.cusoProjectId,
@@ -703,10 +717,21 @@ export async function startCmoCase(
   return { kind: "started", turnId, state: {} };
 }
 
+/** How long after the plan turn settles a finish turn may take to start. */
+const FINISH_START_GRACE_MS = 60_000;
+
+/** The lane's newest draft covers fewer than four weeks. */
+async function monthStillShort(lane: EvalLaneRecord): Promise<boolean> {
+  const saved = await newestMarketingStrategy(lane.cusoProjectId);
+  const plan = parseMarketingPlan(saved?.plan);
+  return plan !== null && cmoCalendarWeeks(plan.calendar) < 4;
+}
+
 async function settledTurn(turnId: string) {
   return prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: turnId },
     select: {
+      updatedAt: true,
       status: true,
       errorKind: true,
       errorDetail: true,
@@ -1076,6 +1101,35 @@ export async function pollCmoCase(
       },
     };
   }
+  // A month left short of four weeks gets finish turns after the plan turn
+  // (afterCmoTurn); the case is the whole month, so it waits for them.
+  const finishes =
+    evalCase.kind === "cmo-strategy"
+      ? await prisma.sokoBotTurn.findMany({
+          where: {
+            sokoBotId: lane.cusoBotId,
+            clientTurnId: {
+              startsWith: `${STRATEGY_TURN_PREFIX}${lane.cusoBotId}:finish:`,
+            },
+            createdAt: { gte: context.startedAt },
+          },
+          select: { id: true, status: true },
+        })
+      : [];
+  if (
+    finishes.some((finish) => !SETTLED_TURN_STATUSES.includes(finish.status)) &&
+    (await databaseNow()).getTime() - context.startedAt.getTime() <
+      CMO_TURN_TIMEOUT_MS
+  )
+    return { kind: "waiting" };
+  if (
+    evalCase.kind === "cmo-strategy" &&
+    finishes.length === 0 &&
+    (await monthStillShort(lane)) &&
+    (await databaseNow()).getTime() - (turn.updatedAt?.getTime() ?? 0) <
+      FINISH_START_GRACE_MS
+  )
+    return { kind: "waiting" };
   const infrastructure = infrastructureCaseOutcome(result.turnId, turn, {
     answer: turn.finalAnswer,
     turnStatus: turn.status,
@@ -1111,6 +1165,19 @@ export async function pollCmoCase(
         ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
         : {},
     );
+    if (evalCase.brand.testerCredits && strategy) {
+      const level = await cmoPlanLevel(projectId, await databaseNow());
+      const made = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);
+      const live = strategy.calendar.filter(
+        (entry) => entry.status !== "skipped",
+      );
+      checks.push({
+        label: "Core makes the whole month on Tester credits",
+        // A piece past the month's video cap is the review's to name.
+        pass: level === "all_in",
+        actual: `${level}: ${made.made.size} of ${live.length} pieces`,
+      });
+    }
     outcome = {
       checks: [completed, ...checks],
       output: {
@@ -1133,7 +1200,7 @@ export async function pollCmoCase(
     outcome: {
       ...outcome,
       status: outcome.checks.every((check) => check.pass) ? "PASSED" : "FAILED",
-      turnIds: [result.turnId],
+      turnIds: [result.turnId, ...finishes.map((finish) => finish.id)],
     },
   };
 }
