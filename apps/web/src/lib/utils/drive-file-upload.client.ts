@@ -89,6 +89,8 @@ type DriveFileUploadOptions = DriveWorkspaceStore & {
   folder?: string;
   /** Make a copy: a new personal file no model labels (409 if the name is held). */
   pinLabelsEmpty?: boolean;
+  /** Skip staging: the fallback when a staged session cannot be finalized. */
+  released?: boolean;
   onUploadProgress?: (progress: DriveFileUploadProgress) => void;
 };
 
@@ -132,7 +134,7 @@ export async function uploadDriveFile(
         ...(options.pinLabelsEmpty ? { pinLabelsEmpty: true } : {}),
         // A Core that predates staging ignores this and answers with a
         // released session (no attemptId), which is handled below.
-        staged: true,
+        ...(options.released ? {} : { staged: true }),
       },
       // Not thrown: the thrown error is the response body, which drops the
       // HTTP status that says "this name is taken".
@@ -251,6 +253,16 @@ export async function uploadDriveFile(
               resourceId: finalized.data.data.resourceId,
             });
           } catch {
+            // A Core rolled back to before staging cannot publish this
+            // attempt: upload once more the released way. Never for a copy,
+            // which would then be labelled like any upload.
+            if (!options.pinLabelsEmpty && !options.released) {
+              uploadDriveFile(file, { ...options, released: true }).then(
+                resolve,
+                reject,
+              );
+              return;
+            }
             reject(
               new DriveFileUploadError(
                 "internal",

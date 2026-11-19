@@ -11,7 +11,7 @@ import {
 
 import { normalizeFileResourceName } from "@sokosumi/utils";
 
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { isStagedUploadPathname, stagedUploadPathname } from "@/lib/drive-blob";
@@ -64,19 +64,40 @@ function deletingRowsAt(pathname: string) {
 }
 
 /**
- * Row-locks the document at a pathname for the rest of the transaction, so
- * reservation and staged publication of one pathname run one at a time.
- * Returns whether a live row is there.
+ * Serializes every catalog writer of one Drive pathname (reservation,
+ * staged publication, released activation, adoption and the deletion hold)
+ * for the rest of the transaction, whether or not a row holds it yet: what
+ * each one checked is still true when it writes.
  */
-async function lockDriveResource(
+async function lockDrivePathname(
   tx: Prisma.TransactionClient,
-  key: DriveResourceKey,
-): Promise<boolean> {
-  const locked = await tx.fileResource.updateMany({
-    where: { ...sourceKeyOf(key), tombstonedAt: null },
-    data: { updatedAt: new Date() },
-  });
-  return locked.count > 0;
+  key: Pick<DriveResourceKey, "workspaceId" | "scope" | "pathname">,
+): Promise<void> {
+  const lock = `drive-pathname:${key.workspaceId}:${key.scope}:${key.pathname}`;
+  await tx.$executeRaw`
+    SELECT pg_advisory_xact_lock(hashtextextended(${lock}::TEXT, 0))
+  `;
+}
+
+/** The current version's object key and promotion claim. */
+const CURRENT_VERSION = {
+  orderBy: { revision: "desc" },
+  take: 1,
+  select: { id: true, objectKey: true, etag: true },
+} as const;
+
+/**
+ * A staged attempt whose promotion has started: its object key is still the
+ * staging key, and the staged ETag recorded when promotion began marks it.
+ * From then until finalize resolves it, the attempt alone owns the pathname,
+ * because a move to the pathname may still be in flight.
+ */
+function isClaimedPromotion(
+  version: { objectKey: string; etag: string | null } | undefined,
+): boolean {
+  return Boolean(
+    version && isStagedUploadPathname(version.objectKey) && version.etag,
+  );
 }
 
 /**
@@ -110,7 +131,7 @@ export async function reserveDriveUploadResource(input: {
     : key.pathname;
 
   return prisma.$transaction(async (tx) => {
-    await lockDriveResource(tx, key);
+    await lockDrivePathname(tx, key);
     const evidenceScope = await ensureEvidenceScope(
       {
         workspaceId: key.workspaceId,
@@ -135,9 +156,13 @@ export async function reserveDriveUploadResource(input: {
         contentRevision: true,
         lifecycle: true,
         overrides: { select: { id: true }, take: 1 },
+        versions: CURRENT_VERSION,
       },
     });
 
+    if (isClaimedPromotion(existing?.versions[0])) {
+      throw conflict("An upload is being saved at this name");
+    }
     const pin = input.pinLabelsEmpty;
     if (existing && pin) {
       throw conflict("A file already holds that name");
@@ -247,41 +272,33 @@ export async function activateDriveUploadResource(input: {
   sizeBytes: number;
   mimeType: string;
 }): Promise<{ resourceId: string; labelsPinnedEmpty: boolean } | null> {
-  const sourceScope = toSourceScope(input.key.scope);
+  return prisma.$transaction(async (tx) => {
+    // Locked, so a staged re-mint or a deletion hold cannot commit between
+    // this check and the write.
+    await lockDrivePathname(tx, input.key);
+    const resource = await tx.fileResource.findUnique({
+      where: {
+        workspaceId_sourceKind_sourceScope_sourceId: sourceKeyOf(input.key),
+      },
+      select: {
+        id: true,
+        contentRevision: true,
+        tombstonedAt: true,
+        versions: CURRENT_VERSION,
+        // A copy's reservation (see reserveDriveUploadResource).
+        overrides: {
+          where: { labelId: null, decision: FileFieldOverrideDecision.PIN },
+          select: { field: true },
+        },
+      },
+    });
+    if (!resource || resource.tombstonedAt) return null;
+    // A staged attempt is published only by finalize with its own id; bytes
+    // at the pathname are not its bytes.
+    if (isStagedUploadPathname(resource.versions[0]?.objectKey ?? "")) {
+      return null;
+    }
 
-  const resource = await prisma.fileResource.findUnique({
-    where: {
-      workspaceId_sourceKind_sourceScope_sourceId: {
-        workspaceId: input.key.workspaceId,
-        sourceKind: FileSourceKind.DRIVE_UPLOAD,
-        sourceScope,
-        sourceId: input.key.pathname,
-      },
-    },
-    select: {
-      id: true,
-      contentRevision: true,
-      tombstonedAt: true,
-      versions: {
-        orderBy: { revision: "desc" },
-        take: 1,
-        select: { objectKey: true },
-      },
-      // A copy's reservation (see reserveDriveUploadResource).
-      overrides: {
-        where: { labelId: null, decision: FileFieldOverrideDecision.PIN },
-        select: { field: true },
-      },
-    },
-  });
-  if (!resource || resource.tombstonedAt) return null;
-  // A staged attempt is published only by finalize with its own id; bytes at
-  // the pathname are not its bytes.
-  if (isStagedUploadPathname(resource.versions[0]?.objectKey ?? "")) {
-    return null;
-  }
-
-  await prisma.$transaction(async (tx) => {
     await tx.fileResource.update({
       where: { id: resource.id },
       data: {
@@ -302,39 +319,64 @@ export async function activateDriveUploadResource(input: {
       },
       tx,
     );
-  });
 
-  // Both fields pinned empty: nothing about this upload is for the paid
-  // labelling model, so its finalize has no reason to drain that queue.
-  const pinned = new Set(resource.overrides.map((override) => override.field));
-  return {
-    resourceId: resource.id,
-    labelsPinnedEmpty: pinned.has("category") && pinned.has("tags"),
-  };
+    // Both fields pinned empty: nothing about this upload is for the paid
+    // labelling model, so its finalize has no reason to drain that queue.
+    const pinned = new Set(
+      resource.overrides.map((override) => override.field),
+    );
+    return {
+      resourceId: resource.id,
+      labelsPinnedEmpty: pinned.has("category") && pinned.has("tags"),
+    };
+  });
 }
 
-/** What finalize's storage step reports about one staged attempt. */
+/** Finalize's storage steps for one staged attempt. */
 export interface StagedUploadStorage {
   /** ETag of the staged object, or null when nothing is staged. */
   observe(staged: string): Promise<string | null>;
   /**
-   * Moves the staged object onto the pathname and describes what is there.
-   * `etag` is the staged object's, recorded before any move, so bytes an
-   * earlier call already moved can be recognised. Null: nothing uploaded.
+   * Moves the staged object onto the pathname if it is still staged, never
+   * replacing anything there, and reports what each location holds after.
    */
-  promote(
-    staged: string,
-    etag: string | null,
-  ): Promise<{ sizeBytes: number; mimeType: string } | null>;
+  promote(staged: string): Promise<{
+    stillStaged: boolean;
+    stored: { sizeBytes: number; mimeType: string } | null;
+  }>;
+}
+
+/** The attempt whose promotion holds this pathname, if any. */
+export async function claimedDriveUploadAttempt(
+  key: DriveResourceKey,
+): Promise<string | null> {
+  const resource = await prisma.fileResource.findUnique({
+    where: { workspaceId_sourceKind_sourceScope_sourceId: sourceKeyOf(key) },
+    select: { tombstonedAt: true, versions: CURRENT_VERSION },
+  });
+  const version = resource?.versions[0];
+  return !resource?.tombstonedAt && isClaimedPromotion(version)
+    ? (version?.id ?? null)
+    : null;
 }
 
 /**
- * Publishes one staged upload attempt and activates it, as one decision. The
- * row stays locked from the attempt check through the storage move to
- * activation, so a re-mint cannot slip a newer version in between: either
- * this attempt is still current and its bytes become the document, or it was
- * replaced and no storage is touched (409). Repeating a finished publication
- * changes nothing.
+ * Publishes one staged upload attempt and activates it.
+ *
+ * 1. Claim, locked: the attempt must be current. The staged ETag is recorded
+ *    on its version. From here no reservation can replace it (409), so the
+ *    pathname is this attempt's alone however the move below ends.
+ * 2. Move, with no transaction open: the staged object onto the pathname.
+ * 3. Resolve, locked: staging empty and the pathname filled means the move
+ *    happened (only this attempt's move empties its staging key, and nothing
+ *    else may write the pathname while the claim holds), so the document goes
+ *    live. Staging still full beside other bytes at the pathname: those are
+ *    not this attempt's, the claim is released and the answer is 409. Both
+ *    empty: nothing uploaded, claim released. Staging full and pathname
+ *    empty: the move did not happen yet; the claim stays for a retry.
+ *
+ * A move that outlives its request is harmless: the claim still holds, and
+ * the next finalize, or the next mint of the pathname, resolves it.
  */
 export async function publishStagedDriveUpload(input: {
   key: DriveResourceKey;
@@ -342,66 +384,72 @@ export async function publishStagedDriveUpload(input: {
   storage: StagedUploadStorage;
 }): Promise<{ resourceId: string; labelsPinnedEmpty: boolean }> {
   const { key, attemptId } = input;
-  const attempt = await prisma.fileVersion.findFirst({
-    where: {
-      id: attemptId,
-      resource: { ...sourceKeyOf(key), tombstonedAt: null },
-    },
-    select: { objectKey: true, etag: true },
-  });
-  if (!attempt) throw notFound("No upload is pending at that path");
-  // Recorded outside the lock and before any move, so it survives a
-  // publication whose move landed but whose activation rolled back.
-  if (isStagedUploadPathname(attempt.objectKey) && !attempt.etag) {
-    const etag = await input.storage.observe(attempt.objectKey);
-    if (etag) {
-      await prisma.fileVersion.updateMany({
-        where: { id: attemptId, objectKey: attempt.objectKey },
-        data: { etag },
-      });
-    }
+
+  const current = (tx: Prisma.TransactionClient) =>
+    tx.fileResource.findUnique({
+      where: { workspaceId_sourceKind_sourceScope_sourceId: sourceKeyOf(key) },
+      select: {
+        id: true,
+        contentRevision: true,
+        tombstonedAt: true,
+        versions: CURRENT_VERSION,
+        overrides: {
+          where: { labelId: null, decision: FileFieldOverrideDecision.PIN },
+          select: { field: true },
+        },
+      },
+    });
+  type Current = NonNullable<Awaited<ReturnType<typeof current>>>;
+  const resultOf = (resource: Current) => {
+    const pinned = new Set(resource.overrides.map((o) => o.field));
+    return {
+      resourceId: resource.id,
+      labelsPinnedEmpty: pinned.has("category") && pinned.has("tags"),
+    };
+  };
+  /** The attempt's current state, or why it cannot be published. */
+  const attemptIn = (resource: Current | null) => {
+    if (!resource || resource.tombstonedAt)
+      throw notFound("No upload is pending at that path");
+    const version = resource.versions[0];
+    if (version?.id !== attemptId)
+      throw conflict("A newer upload replaced this one");
+    if (
+      version.objectKey !== key.pathname &&
+      !isStagedUploadPathname(version.objectKey)
+    )
+      throw conflict("This upload is not a staged upload");
+    return version;
+  };
+
+  const before = attemptIn(await current(prisma));
+  if (before.objectKey === key.pathname) {
+    return resultOf((await current(prisma)) as Current);
   }
+  const staged = before.objectKey;
+  const observed = before.etag ? null : await input.storage.observe(staged);
 
-  return prisma.$transaction(
-    async (tx) => {
-      if (!(await lockDriveResource(tx, key)))
-        throw notFound("No upload is pending at that path");
-      const resource = await tx.fileResource.findUniqueOrThrow({
-        where: {
-          workspaceId_sourceKind_sourceScope_sourceId: sourceKeyOf(key),
-        },
-        select: {
-          id: true,
-          contentRevision: true,
-          versions: {
-            orderBy: { revision: "desc" },
-            take: 1,
-            select: { id: true, objectKey: true, etag: true },
-          },
-          overrides: {
-            where: { labelId: null, decision: FileFieldOverrideDecision.PIN },
-            select: { field: true },
-          },
-        },
-      });
-      const pinned = new Set(resource.overrides.map((o) => o.field));
-      const result = {
-        resourceId: resource.id,
-        labelsPinnedEmpty: pinned.has("category") && pinned.has("tags"),
-      };
-      const version = resource.versions[0];
-      if (version?.id !== attemptId)
-        throw conflict("A newer upload replaced this one");
-      if (version.objectKey === key.pathname) return result;
-      if (!isStagedUploadPathname(version.objectKey))
-        throw conflict("This upload is not a staged upload");
+  await prisma.$transaction(async (tx) => {
+    await lockDrivePathname(tx, key);
+    const version = attemptIn(await current(tx));
+    if (version.objectKey === key.pathname || version.etag) return;
+    if (!observed) throw notFound("No uploaded file for this upload");
+    await tx.fileVersion.update({
+      where: { id: version.id },
+      data: { etag: observed },
+    });
+  });
 
-      const stored = await input.storage.promote(
-        version.objectKey,
-        version.etag,
-      );
-      if (!stored) throw notFound("No uploaded file for this upload");
+  const outcome = await input.storage.promote(staged);
 
+  const resolved = await prisma.$transaction(async (tx) => {
+    await lockDrivePathname(tx, key);
+    const resource = await current(tx);
+    const version = attemptIn(resource);
+    const live = resource as Current;
+    if (version.objectKey === key.pathname) return resultOf(live);
+    const { stillStaged, stored } = outcome;
+    if (!stillStaged && stored) {
       await tx.fileVersion.update({
         where: { id: version.id },
         data: {
@@ -411,7 +459,7 @@ export async function publishStagedDriveUpload(input: {
         },
       });
       await tx.fileResource.update({
-        where: { id: resource.id },
+        where: { id: live.id },
         data: {
           lifecycle: FileResourceLifecycle.ACTIVE,
           sizeBytes: stored.sizeBytes,
@@ -420,18 +468,28 @@ export async function publishStagedDriveUpload(input: {
       });
       await enqueueFileIndexJob(
         {
-          resourceId: resource.id,
+          resourceId: live.id,
           pipeline: FileIndexJobPipeline.EXTRACT,
-          contentRevision: resource.contentRevision,
+          contentRevision: live.contentRevision,
         },
         tx,
       );
-      return result;
-    },
-    // ponytail: the lock spans one same-store Blob rename; widen if Blob
-    // renames of large objects ever take longer.
-    { maxWait: 5_000, timeout: 60_000 },
-  );
+      return resultOf(live);
+    }
+    if (stillStaged && !stored) return "retry" as const;
+    // Committed before the answer: the attempt no longer holds the name.
+    await tx.fileVersion.update({
+      where: { id: version.id },
+      data: { etag: null },
+    });
+    return stored ? ("occupied" as const) : ("empty" as const);
+  });
+  if (resolved === "retry")
+    throw serviceUnavailable("The upload is still being saved; try again");
+  if (resolved === "occupied")
+    throw conflict("Another file is already at that path");
+  if (resolved === "empty") throw notFound("No uploaded file for this upload");
+  return resolved;
 }
 
 /**
@@ -544,11 +602,6 @@ export async function tombstoneDriveUploadResource(input: {
   workspaceId: string;
   scope: "user" | "organization";
   pathname: string;
-  /**
-   * Storage deletion follows: keep the bytes owned by this document until
-   * {@link settleDriveUploadDeletes} confirms them gone.
-   */
-  deleting?: boolean;
 }): Promise<void> {
   const sourceScope = toSourceScope(input.scope);
 
@@ -565,39 +618,129 @@ export async function tombstoneDriveUploadResource(input: {
       select: { id: true },
     });
     if (!resource) return;
+    // Release the pathname. A later upload to the same path is a
+    // different document and must get its own identity — it does not
+    // inherit this one's labels by coincidence of name, and this one
+    // cannot be resurrected by re-uploading over it.
+    await tombstoneIn(
+      tx,
+      resource.id,
+      `${input.pathname}#tombstoned:${resource.id}`,
+    );
+  });
+}
 
-    await tx.fileResource.update({
-      where: { id: resource.id },
-      data: {
-        lifecycle: FileResourceLifecycle.TOMBSTONED,
-        tombstonedAt: new Date(),
-        aclRevision: { increment: 1 },
-        // Release the pathname. A later upload to the same path is a
-        // different document and must get its own identity — it does not
-        // inherit this one's labels by coincidence of name, and this one
-        // cannot be resurrected by re-uploading over it.
-        sourceId: input.deleting
-          ? `${deletingSourceIdPrefix(input.pathname)}${resource.id}`
-          : `${input.pathname}#tombstoned:${resource.id}`,
+async function tombstoneIn(
+  tx: Prisma.TransactionClient,
+  resourceId: string,
+  sourceId: string,
+): Promise<void> {
+  await tx.fileResource.update({
+    where: { id: resourceId },
+    data: {
+      lifecycle: FileResourceLifecycle.TOMBSTONED,
+      tombstonedAt: new Date(),
+      aclRevision: { increment: 1 },
+      sourceId,
+    },
+  });
+
+  // Chunks go now: a tombstoned document must stop matching immediately,
+  // not when a sweeper next runs.
+  await tx.fileChunk.deleteMany({
+    where: { version: { resourceId } },
+  });
+  await tx.fileIndexJob.updateMany({
+    where: { resourceId, state: { in: ["QUEUED", "LEASED"] } },
+    data: { state: "CANCELLED", lastError: "resource tombstoned" },
+  });
+  await tx.fileIndexArtifact.updateMany({
+    where: { job: { resourceId }, state: "ACTIVE" },
+    data: { state: "ABANDONED" },
+  });
+  // The store's evidence scope is deliberately left alone. Deleting one
+  // file does not change who may read the store, and bumping the scope
+  // version would invalidate every other document's chunks with it.
+}
+
+/** The live document at a pathname, as a delete observes it. */
+export async function driveDocumentAt(
+  key: DriveResourceKey,
+): Promise<{ resourceId: string; revision: number } | null> {
+  const resource = await prisma.fileResource.findFirst({
+    where: { ...sourceKeyOf(key), tombstonedAt: null },
+    select: { id: true, contentRevision: true },
+  });
+  return resource
+    ? { resourceId: resource.id, revision: resource.contentRevision }
+    : null;
+}
+
+/**
+ * Tombstones the document a delete observed, and only while it is still
+ * that document at that revision: it stops matching at once, but keeps
+ * owning its bytes (a `#deleting:` source id) until storage confirms them
+ * gone. False when the document changed since, so nothing was touched.
+ */
+export async function holdDriveUploadForDelete(input: {
+  key: DriveResourceKey;
+  resourceId: string;
+  revision: number;
+}): Promise<boolean> {
+  const { key, resourceId } = input;
+  return prisma.$transaction(async (tx) => {
+    await lockDrivePathname(tx, key);
+    const resource = await tx.fileResource.findFirst({
+      where: {
+        ...sourceKeyOf(key),
+        id: resourceId,
+        contentRevision: input.revision,
+        tombstonedAt: null,
       },
+      select: { id: true },
     });
+    if (!resource) return false;
+    await tombstoneIn(
+      tx,
+      resourceId,
+      `${deletingSourceIdPrefix(key.pathname)}${resourceId}`,
+    );
+    return true;
+  });
+}
 
-    // Chunks go now: a tombstoned document must stop matching immediately,
-    // not when a sweeper next runs.
-    await tx.fileChunk.deleteMany({
-      where: { version: { resourceId: resource.id } },
-    });
-    await tx.fileIndexJob.updateMany({
-      where: { resourceId: resource.id, state: { in: ["QUEUED", "LEASED"] } },
-      data: { state: "CANCELLED", lastError: "resource tombstoned" },
-    });
-    await tx.fileIndexArtifact.updateMany({
-      where: { job: { resourceId: resource.id }, state: "ACTIVE" },
-      data: { state: "ABANDONED" },
-    });
-    // The store's evidence scope is deliberately left alone. Deleting one
-    // file does not change who may read the store, and bumping the scope
-    // version would invalidate every other document's chunks with it.
+/**
+ * Storage confirmed the bytes at a pathname no live document owns are gone:
+ * every earlier delete's hold there is released (a retried delete).
+ */
+export async function releaseDriveUploadDeleteHolds(
+  key: DriveResourceKey,
+): Promise<void> {
+  const held = await prisma.fileResource.findMany({
+    where: {
+      workspaceId: key.workspaceId,
+      sourceKind: FileSourceKind.DRIVE_UPLOAD,
+      sourceScope: toSourceScope(key.scope),
+      sourceId: deletingRowsAt(key.pathname),
+    },
+    select: { id: true },
+  });
+  for (const { id } of held)
+    await releaseDriveUploadDeleteHold({ key, resourceId: id });
+}
+
+/** Storage confirmed this delete's bytes gone: the hold is released. */
+export async function releaseDriveUploadDeleteHold(input: {
+  key: DriveResourceKey;
+  resourceId: string;
+}): Promise<void> {
+  const { key, resourceId } = input;
+  await prisma.fileResource.updateMany({
+    where: {
+      id: resourceId,
+      sourceId: `${deletingSourceIdPrefix(key.pathname)}${resourceId}`,
+    },
+    data: { sourceId: `${key.pathname}#tombstoned:${resourceId}` },
   });
 }
 
@@ -612,9 +755,25 @@ export async function adoptDriveUploadResource(input: {
   mimeType: string | null;
   sizeBytes: number;
   uploadedAt: Date;
-  client?: Prisma.TransactionClient;
 }): Promise<string | null> {
-  const client = input.client ?? prisma;
+  // Locked, so a deletion hold or a staged re-mint cannot commit between
+  // these checks and the write.
+  return prisma.$transaction(async (client) => {
+    await lockDrivePathname(client, input.key);
+    return adoptIn(client, input);
+  });
+}
+
+async function adoptIn(
+  client: Prisma.TransactionClient,
+  input: {
+    key: DriveResourceKey;
+    displayName: string;
+    mimeType: string | null;
+    sizeBytes: number;
+    uploadedAt: Date;
+  },
+): Promise<string | null> {
   const sourceScope = toSourceScope(input.key.scope);
 
   // Bytes a deleted document still owns are not a new document.
@@ -742,14 +901,12 @@ export async function tombstoneDriveUploadResources(input: {
   workspaceId: string;
   scope: "user" | "organization";
   pathnames: readonly string[];
-  deleting?: boolean;
 }): Promise<void> {
   for (const pathname of input.pathnames) {
     await tombstoneDriveUploadResource({
       workspaceId: input.workspaceId,
       scope: input.scope,
       pathname,
-      deleting: input.deleting,
     });
   }
 }

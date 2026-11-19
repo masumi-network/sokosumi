@@ -8,7 +8,7 @@ import {
 } from "@sokosumi/utils";
 import { head } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
-import { deleteObservedDriveFiles } from "@/helpers/drive-file-delete";
+import { deleteDriveFiles } from "@/helpers/drive-file-delete";
 import { moveDriveFile } from "@/helpers/drive-file-move";
 import prisma from "@/lib/db/prisma";
 import {
@@ -22,7 +22,6 @@ import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
   activateDriveUploadResource,
   reserveDriveUploadResource,
-  tombstoneDriveUploadResource,
 } from "@/services/file-catalog.service";
 import {
   type AuthorizedSokoBotRuntime,
@@ -230,26 +229,10 @@ export async function deleteFile(
   );
   // Recoverably, and only the object observed here, as in the Drive delete
   // route; a file whose bytes are already gone is only tombstoned.
-  const observed = await driveHead(resource.sourceId);
-  if (observed) {
-    await deleteObservedDriveFiles({
-      workspaceId: drive.key.workspaceId,
-      scope: drive.key.scope,
-      objects: [
-        {
-          pathname: resource.sourceId,
-          access: observed.access,
-          etag: observed.etag,
-        },
-      ],
-    });
-  } else {
-    await tombstoneDriveUploadResource({
-      workspaceId: drive.key.workspaceId,
-      scope: drive.key.scope,
-      pathname: resource.sourceId,
-    });
-  }
+  await deleteDriveFiles({
+    ...drive.key,
+    pathnames: [resource.sourceId],
+  });
   return runtime.commitReceipt(authorized, toolCallId, resource.id, {
     id: resource.id,
     filename: resource.displayName,

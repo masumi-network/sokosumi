@@ -12,6 +12,7 @@ import {
   driveHasAny,
   driveHead,
   driveRename,
+  TransferCleanupError,
 } from "@/lib/drive-blob";
 import {
   adoptDriveUploadResource,
@@ -25,10 +26,9 @@ import {
  * An object the catalog has never seen is adopted first, so it has a row to
  * move; bytes a deleted document still owns are not moved (409).
  *
- * When storage fails, the row follows the bytes: back to the source when
- * the destination never got them; kept at the destination when a transfer
- * wrote it and then failed to remove the source, which is then removed only
- * if it is still the object this request read.
+ * When storage fails, the row follows the bytes: kept at the destination
+ * only when the transfer reports it wrote it (its source is then removed
+ * only while it is the object streamed); otherwise back to the source.
  */
 export async function relocateDriveFile(input: {
   workspaceId: string;
@@ -46,7 +46,7 @@ export async function relocateDriveFile(input: {
     sizeBytes: source.size,
     uploadedAt: source.uploadedAt,
   });
-  if (!resourceId) throw conflict("This file is being deleted");
+  if (!resourceId) throw conflict("This file is being saved or deleted");
   const displayName = await moveDriveUploadResource({
     workspaceId,
     scope,
@@ -61,13 +61,13 @@ export async function relocateDriveFile(input: {
       cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
     });
   } catch (error) {
-    // A destination someone else filled is not this transfer's.
-    const occupied =
-      error instanceof Error && /already exists/i.test(error.message);
-    const landed = occupied ? null : await driveHead(toPathname);
-    if (landed && landed.size === source.size) {
-      await driveDelIfMatch(fromPathname, source);
-      return { url: landed.url, pathname: toPathname, access: landed.access };
+    // The transfer wrote the destination itself: those bytes are the moved
+    // document's. Its source is removed only while it is the object streamed.
+    if (error instanceof TransferCleanupError) {
+      await driveDelIfMatch(error.source.pathname, error.source).catch(
+        () => undefined,
+      );
+      return error.written;
     }
     if (await driveExists(fromPathname)) {
       await moveDriveUploadResource({

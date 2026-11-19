@@ -70,6 +70,8 @@ const {
   adoptMock,
   moveRowMock,
   settleMock,
+  documentMock,
+  holdMock,
 } = vi.hoisted(() => ({
   tombstoneManyMock: vi.fn(),
   reconcileMovesMock: vi.fn(),
@@ -77,6 +79,8 @@ const {
   adoptMock: vi.fn(),
   moveRowMock: vi.fn(),
   settleMock: vi.fn(),
+  documentMock: vi.fn(),
+  holdMock: vi.fn(),
 }));
 
 vi.mock("@/services/drive-share.service", () => ({
@@ -88,7 +92,9 @@ vi.mock("@/services/file-catalog.service", () => ({
   reconcileDriveUploadMoves: reconcileMovesMock,
   adoptDriveUploadResource: adoptMock,
   moveDriveUploadResource: moveRowMock,
-  settleDriveUploadDeletes: settleMock,
+  driveDocumentAt: documentMock,
+  holdDriveUploadForDelete: holdMock,
+  releaseDriveUploadDeleteHold: settleMock,
 }));
 
 /** The catalog row moves the per-file pairs in the order the route asked. */
@@ -206,15 +212,22 @@ describe("folder delete", () => {
     expect(delMock).not.toHaveBeenCalled();
   });
 
-  it("tombstones every pathname it removed", async () => {
+  it("holds each observed document before deleting its observed object", async () => {
     listMock.mockResolvedValueOnce({
-      blobs: [
-        { pathname: `${PREFIX}q1.md`, etag: '"1"' },
-        { pathname: `${PREFIX}q2.md`, etag: '"2"' },
-      ],
+      blobs: [{ pathname: `${PREFIX}q1.md` }, { pathname: `${PREFIX}q2.md` }],
       hasMore: false,
     });
     listMock.mockResolvedValue({ blobs: [], hasMore: false });
+    headMock.mockImplementation(async (pathname: string) => ({
+      contentType: "text/markdown",
+      cacheControl: "",
+      etag: `"${pathname.slice(-5, -3)}"`,
+    }));
+    documentMock.mockImplementation(async ({ pathname }) => ({
+      resourceId: `res:${pathname}`,
+      revision: 1,
+    }));
+    holdMock.mockResolvedValue(true);
 
     const response = await appWith(mountFolderDelete).request("/delete", {
       method: "DELETE",
@@ -223,26 +236,24 @@ describe("folder delete", () => {
     });
 
     expect(response.status).toBe(204);
-    expect(tombstoneManyMock).toHaveBeenCalledTimes(1);
-    // Names are released while the old bytes still hold them.
-    expect(tombstoneManyMock.mock.invocationCallOrder[0]).toBeLessThan(
+    expect(holdMock).toHaveBeenCalledTimes(2);
+    expect(holdMock).toHaveBeenCalledWith({
+      key: expect.objectContaining({ pathname: `${PREFIX}q1.md` }),
+      resourceId: `res:${PREFIX}q1.md`,
+      revision: 1,
+    });
+    // Held while the old bytes still exist.
+    expect(holdMock.mock.invocationCallOrder[0]).toBeLessThan(
       delMock.mock.invocationCallOrder[0],
     );
-    expect(tombstoneManyMock.mock.calls[0][0]).toMatchObject({
-      workspaceId: "workspace-1",
-      scope: "user",
-      pathnames: [`${PREFIX}q1.md`, `${PREFIX}q2.md`],
-      deleting: true,
-    });
-    // Only the objects the listing showed, each by its ETag.
+    // Only the object observed, by its ETag.
     expect(delMock).toHaveBeenCalledWith(`${PREFIX}q1.md`, {
       token: "test-token",
-      ifMatch: '"1"',
+      ifMatch: '"q1"',
     });
     expect(settleMock).toHaveBeenCalledWith({
-      workspaceId: "workspace-1",
-      scope: "user",
-      pathnames: [`${PREFIX}q1.md`, `${PREFIX}q2.md`],
+      key: expect.objectContaining({ pathname: `${PREFIX}q1.md` }),
+      resourceId: `res:${PREFIX}q1.md`,
     });
   });
 
@@ -256,7 +267,7 @@ describe("folder delete", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(tombstoneManyMock).not.toHaveBeenCalled();
+    expect(holdMock).not.toHaveBeenCalled();
   });
 });
 

@@ -60,6 +60,8 @@ const fake = vi.hoisted(() => {
     beforeRename?: Hook;
     afterRename?: Hook;
     beforeDel?: Hook;
+    /** Runs after a head of this pathname read the object, before it returns. */
+    afterHead?: { pathname: string; skip: number; run: Hook };
   } = {};
   let writes = 0;
   const meta = (pathname: string, object: FakeObject) => ({
@@ -102,7 +104,16 @@ const fake = vi.hoisted(() => {
       head: async (pathname: string) => {
         const object = objects.get(pathname);
         if (!object) throw new BlobNotFoundError("not found");
-        return meta(pathname, object);
+        const result = meta(pathname, object);
+        const hook = hooks.afterHead;
+        if (hook?.pathname === pathname) {
+          if (hook.skip > 0) hook.skip -= 1;
+          else {
+            delete hooks.afterHead;
+            await hook.run();
+          }
+        }
+        return result;
       },
       list: async (options: { prefix?: string }) => ({
         blobs: [...objects.entries()]
@@ -143,7 +154,8 @@ const fake = vi.hoisted(() => {
         if (objects.has(to))
           throw new Error("Vercel Blob: This blob already exists");
         objects.delete(from);
-        objects.set(to, object);
+        writes += 1;
+        objects.set(to, { ...object, etag: `"w${writes}"` });
         await hooks.afterRename?.();
         return { url: `https://blob.test/${to}`, pathname: to };
       },
@@ -784,8 +796,202 @@ describe.skipIf(!enabled)("Drive pathname ownership", () => {
         pathname: session.pathname,
       });
 
-      expect(deleted.status).toBe(204);
+      // The request says the file changed instead of claiming a delete.
+      expect(deleted.status).toBe(409);
       expect(at(session.pathname)).toBe("new bytes");
+      // The deleted document's hold ended with the bytes it observed.
+      expect(
+        await prisma.fileResource.count({
+          where: {
+            workspaceId: owner.workspaceId,
+            sourceId: { startsWith: `${session.pathname}#deleting:` },
+          },
+        }),
+      ).toBe(0);
+    });
+  });
+
+  describe("round 2 interleavings", () => {
+    function currentVersion(pathname: string) {
+      return prisma.fileResource.findFirst({
+        where: { workspaceId: owner.workspaceId, sourceId: pathname },
+        select: {
+          lifecycle: true,
+          versions: {
+            orderBy: { revision: "desc" },
+            take: 1,
+            select: { id: true },
+          },
+        },
+      });
+    }
+
+    it("a stale delete leaves the document that replaced its observed one alone", async () => {
+      const { session } = await upload("stale.md", "old bytes");
+      let replacement: { resourceId: string; jobs: number } | undefined;
+      // The delete's storage read (after the route's 404 check) sees the old
+      // object; then another delete and a re-upload (a copy) complete.
+      fake.hooks.afterHead = {
+        pathname: session.pathname,
+        skip: 1,
+        run: async () => {
+          expect(
+            (await call("DELETE", "/delete", { pathname: session.pathname }))
+              .status,
+          ).toBe(204);
+          const again = await upload("stale.md", "new bytes");
+          replacement = {
+            resourceId: again.resourceId,
+            jobs: await prisma.fileIndexJob.count({
+              where: { resourceId: again.resourceId, state: "QUEUED" },
+            }),
+          };
+        },
+      };
+
+      const stale = await call("DELETE", "/delete", {
+        pathname: session.pathname,
+      });
+
+      expect(stale.status).toBe(409);
+      expect(at(session.pathname)).toBe("new bytes");
+      const live = replacement as { resourceId: string; jobs: number };
+      expect(await row(session.pathname)).toEqual({
+        id: live.resourceId,
+        lifecycle: "ACTIVE",
+      });
+      expect(
+        await prisma.fileIndexJob.count({
+          where: { resourceId: live.resourceId, state: "QUEUED" },
+        }),
+      ).toBe(live.jobs);
+    });
+
+    it("a stale delete never holds a copy that replaced its observed document", async () => {
+      const { session: original, resourceId: originalId } = await upload(
+        "held.md",
+        "old bytes",
+      );
+      const { resourceId: copyId } = await upload("copy.md", "copy bytes", {
+        pinLabelsEmpty: true,
+      });
+      // The original document is gone; the copy now holds that pathname.
+      await prisma.fileResource.update({
+        where: { id: originalId },
+        data: {
+          sourceId: `${original.pathname}#tombstoned:${originalId}`,
+          tombstonedAt: new Date(),
+          lifecycle: "TOMBSTONED",
+        },
+      });
+      await prisma.fileResource.update({
+        where: { id: copyId },
+        data: { sourceId: original.pathname },
+      });
+      const { holdDriveUploadForDelete } = await import(
+        "@/services/file-catalog.service"
+      );
+
+      await expect(
+        holdDriveUploadForDelete({
+          key: {
+            workspaceId: owner.workspaceId,
+            scope: "user",
+            ownerId: owner.userId,
+            pathname: original.pathname,
+          },
+          resourceId: originalId,
+          revision: 1,
+        }),
+      ).resolves.toBe(false);
+      expect(await row(original.pathname)).toEqual({
+        id: copyId,
+        lifecycle: "ACTIVE",
+      });
+      expect(await pins(copyId)).toBe(2);
+      expect(await suggestionsAsked(copyId)).toBe(0);
+    });
+
+    it("a released finalize racing a staged re-mint never activates the stale version", async () => {
+      const legacy = await mint("racy.md", { staged: false });
+      put(legacy, "legacy bytes");
+      let staged: Session | undefined;
+      // The released finalize has read the bytes; a staged re-mint commits.
+      fake.hooks.afterHead = {
+        pathname: legacy.pathname,
+        skip: 0,
+        run: async () => {
+          // The bytes block a re-mint, so it is a staged reservation made
+          // through the catalog directly, as a re-mint from before the PUT.
+          const { reserveDriveUploadResource } = await import(
+            "@/services/file-catalog.service"
+          );
+          const reserved = await reserveDriveUploadResource({
+            key: {
+              workspaceId: owner.workspaceId,
+              scope: "user",
+              ownerId: owner.userId,
+              pathname: legacy.pathname,
+            },
+            displayName: "racy.md",
+            mimeType: "text/markdown",
+            sizeBytes: 3,
+            staged: true,
+          });
+          staged = { ...legacy, attemptId: reserved.versionId };
+        },
+      };
+      const before = evaluator.calls;
+
+      expect((await finalize(legacy)).status).toBe(404);
+      const state = await currentVersion(legacy.pathname);
+      expect(state?.lifecycle).toBe("PENDING");
+      expect(state?.versions[0]?.id).toBe(staged?.attemptId);
+      expect(evaluator.calls).toBe(before);
+    });
+
+    it("lets no re-mint take a name while a promotion is in flight", async () => {
+      const first = await mint("inflight.md");
+      put(first, "first attempt");
+      let remint: Response | undefined;
+      // The move is still on its way when another upload of the name mints.
+      fake.hooks.beforeRename = async () => {
+        delete fake.hooks.beforeRename;
+        remint = await requestMint("inflight.md");
+      };
+
+      const finalized = await finalize(first);
+
+      expect(remint?.status).toBe(409);
+      expect(finalized.status).toBe(200);
+      expect(at(first.pathname)).toBe("first attempt");
+      const state = await currentVersion(first.pathname);
+      expect(state?.lifecycle).toBe("ACTIVE");
+      expect(state?.versions[0]?.id).toBe(first.attemptId);
+    });
+
+    it("a re-mint after an ambiguous move finishes it instead of replacing it", async () => {
+      const first = await mint("ambiguous.md", { pinLabelsEmpty: true });
+      put(first, "copy bytes");
+      fake.hooks.afterRename = () => {
+        delete fake.hooks.afterRename;
+        throw new Error("connection reset after the move");
+      };
+      expect((await finalize(first)).status).toBe(500);
+      expect(at(first.pathname)).toBe("copy bytes");
+
+      // Another upload of the name: the claim is resolved first.
+      const competing = await requestMint(baseName(first.pathname), {
+        staged: false,
+      });
+
+      expect(competing.status).toBe(409);
+      const state = await currentVersion(first.pathname);
+      expect(state?.lifecycle).toBe("ACTIVE");
+      expect(state?.versions[0]?.id).toBe(first.attemptId);
+      const resourceId = (await row(first.pathname))?.id as string;
+      expect(await pins(resourceId)).toBe(2);
+      expect(await suggestionsAsked(resourceId)).toBe(0);
     });
   });
 });

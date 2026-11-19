@@ -14,6 +14,7 @@ import {
   requireOrganizationDriveFileUploadAccess,
   requireUserDriveFileUploadAccess,
 } from "@/helpers/drive-file-access";
+import { publishStagedUpload } from "@/helpers/drive-staged-upload";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
@@ -38,7 +39,10 @@ import {
   createDriveFileUploadSessionRequestSchema,
   driveFileUploadSessionSchema,
 } from "@/schemas/drive-file.schema";
-import { reserveDriveUploadResource } from "@/services/file-catalog.service";
+import {
+  claimedDriveUploadAttempt,
+  reserveDriveUploadResource,
+} from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -154,6 +158,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Invalid scope. Must be 'me' or 'org'.");
     }
 
+    const workspace = await resolveDriveTasksWorkspace({
+      userContext,
+      scope: body.scope,
+      organizationId: body.organizationId,
+    });
+    const key = {
+      workspaceId: workspace.workspaceId,
+      scope:
+        body.scope === "me" ? ("user" as const) : ("organization" as const),
+      ownerId:
+        body.scope === "me"
+          ? userContext.userId
+          : (body.organizationId as string),
+      pathname,
+    };
+    // An earlier staged publication that its request never resolved still
+    // owns this name; finish it first, so the name is never stuck and its
+    // bytes are never mistaken for this upload's. Failing that, the
+    // reservation below answers 409.
+    const claimed = await claimedDriveUploadAttempt(key);
+    if (claimed) await publishStagedUpload(key, claimed).catch(() => undefined);
+
     if (await driveExists(pathname)) {
       throw conflict("Target pathname already exists");
     }
@@ -168,21 +194,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // only through finalize, and a late write from it never lands on a Drive
     // pathname. A copy is always staged.
     const staged = body.staged === true || body.pinLabelsEmpty === true;
-    const workspace = await resolveDriveTasksWorkspace({
-      userContext,
-      scope: body.scope,
-      organizationId: body.organizationId,
-    });
     const { versionId } = await reserveDriveUploadResource({
-      key: {
-        workspaceId: workspace.workspaceId,
-        scope: body.scope === "me" ? "user" : "organization",
-        ownerId:
-          body.scope === "me"
-            ? userContext.userId
-            : (body.organizationId as string),
-        pathname,
-      },
+      key,
       displayName,
       mimeType: resolvedContentType,
       sizeBytes: body.size,

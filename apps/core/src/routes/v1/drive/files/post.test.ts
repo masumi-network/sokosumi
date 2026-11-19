@@ -22,6 +22,8 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const mocks = vi.hoisted(() => ({
   grant: vi.fn(),
   reserve: vi.fn(),
+  claimed: vi.fn(),
+  resolve: vi.fn(),
 }));
 
 vi.mock("@/helpers/drive-file-access", () => ({
@@ -48,6 +50,10 @@ vi.mock("@/lib/blob-upload-grant", () => ({
 }));
 vi.mock("@/services/file-catalog.service", () => ({
   reserveDriveUploadResource: mocks.reserve,
+  claimedDriveUploadAttempt: mocks.claimed,
+}));
+vi.mock("@/helpers/drive-staged-upload", () => ({
+  publishStagedUpload: mocks.resolve,
 }));
 
 import mountPost from "./post.js";
@@ -92,6 +98,7 @@ beforeEach(() => {
     expiresAt: "2026-11-18T12:00:00.000Z",
   }));
   mocks.reserve.mockResolvedValue({ resourceId: "r", versionId: ATTEMPT });
+  mocks.claimed.mockResolvedValue(null);
 });
 
 describe("minting an upload", () => {
@@ -137,6 +144,23 @@ describe("minting an upload", () => {
       pathname: "drive/users/user_123/briefs/weekly.md",
       attemptId: ATTEMPT,
     });
+  });
+
+  it("finishes a publication an earlier request left claimed before minting", async () => {
+    mocks.claimed.mockResolvedValue("earlier-attempt");
+    mocks.resolve.mockRejectedValue(new Error("still moving"));
+
+    await mint({ filename: "weekly.md", staged: true });
+
+    expect(mocks.resolve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "drive/users/user_123/briefs/weekly.md",
+      }),
+      "earlier-attempt",
+    );
+    expect(mocks.resolve.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.reserve.mock.invocationCallOrder[0],
+    );
   });
 
   it("mints no grant when the name is held", async () => {

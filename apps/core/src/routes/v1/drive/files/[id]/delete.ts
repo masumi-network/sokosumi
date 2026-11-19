@@ -5,10 +5,10 @@ import {
   drivePathOf,
   requireDriveFileAccess,
 } from "@/helpers/drive-file-access";
-import { deleteObservedDriveFiles } from "@/helpers/drive-file-delete";
+import { deleteDriveFiles } from "@/helpers/drive-file-delete";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
-import { notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { driveHead } from "@/lib/drive-blob";
 import {
@@ -70,8 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       changes: [drivePathOf(pathname)],
     });
 
-    const observed = await driveHead(pathname);
-    if (!observed) {
+    if (!(await driveHead(pathname))) {
       throw notFound("Drive file not found");
     }
 
@@ -85,13 +84,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // Tombstone in the same request: a deleted document must stop matching
-    // at once, not when a sweeper next runs. Recoverably, and only the
-    // object observed here: see `deleteObservedDriveFiles`.
-    await deleteObservedDriveFiles({
+    // at once, not when a sweeper next runs. Recoverably, and bound to the
+    // document and object observed here: see `deleteDriveFiles`.
+    const deleted = await deleteDriveFiles({
       workspaceId: workspace.workspaceId,
       scope,
-      objects: [{ pathname, access: observed.access, etag: observed.etag }],
+      ownerId,
+      pathnames: [pathname],
     });
+    if (deleted.length === 0) {
+      throw conflict("The file changed while it was being deleted");
+    }
 
     return c.body(null, 204);
   });

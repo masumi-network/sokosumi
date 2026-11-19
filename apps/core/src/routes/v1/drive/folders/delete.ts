@@ -7,7 +7,7 @@ import {
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import { deleteObservedDriveFiles } from "@/helpers/drive-file-delete";
+import { deleteDriveFiles } from "@/helpers/drive-file-delete";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { badRequest, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
@@ -128,12 +128,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           // part-way through leaves no deleted file indexed. Without this
           // the documents stayed fully indexed: deleted files kept matching
           // full-text search and kept returning content snippets.
-          // Recoverably, and only the objects listed here: see
-          // `deleteObservedDriveFiles`.
-          await deleteObservedDriveFiles({
+          // Recoverably, and bound to what was observed: see
+          // `deleteDriveFiles`.
+          await deleteDriveFiles({
             workspaceId: workspace.workspaceId,
             scope,
-            objects: batch,
+            ownerId,
+            pathnames: batch.map((blob) => blob.pathname),
           });
         }
         cursor = undefined;

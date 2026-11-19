@@ -150,7 +150,35 @@ describe("uploadDriveFile", () => {
     expect(onUploadProgress).toHaveBeenCalledWith({ percentage: 100 });
   });
 
-  it("fails a staged upload when finalize fails twice: it is not in Drive yet", async () => {
+  it("uploads once more the released way when a staged finalize keeps failing", async () => {
+    // A Core rolled back mid-session cannot publish the staged attempt.
+    const file = new File(["hello"], "report.pdf", {
+      type: "application/pdf",
+    });
+    const { constructor } = mockXHR(
+      200,
+      JSON.stringify({ url: "https://blob.example/drive/users/u/report.pdf" }),
+    );
+    vi.stubGlobal("XMLHttpRequest", constructor);
+    postDriveFilesMock
+      .mockResolvedValueOnce(grantSession({ attemptId: ATTEMPT }))
+      .mockResolvedValueOnce(grantSession());
+    finalizeDriveFileMock
+      .mockRejectedValueOnce(new Error("404"))
+      .mockRejectedValueOnce(new Error("404"))
+      .mockResolvedValueOnce({ data: { data: { resourceId: "file-1" } } });
+
+    await expect(uploadDriveFile(file, { scope: "me" })).resolves.toEqual({
+      pathname: "drive/users/user_123/report.pdf",
+      fileUrl: "https://blob.example/drive/users/u/report.pdf",
+      resourceId: "file-1",
+    });
+    expect(postDriveFilesMock.mock.calls[1][0].body).not.toHaveProperty(
+      "staged",
+    );
+  });
+
+  it("never falls back for a copy: it fails instead", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
@@ -159,10 +187,11 @@ describe("uploadDriveFile", () => {
     postDriveFilesMock.mockResolvedValue(grantSession({ attemptId: ATTEMPT }));
     finalizeDriveFileMock.mockRejectedValue(new Error("503"));
 
-    await expect(uploadDriveFile(file, { scope: "me" })).rejects.toMatchObject({
-      code: "internal",
-    });
+    await expect(
+      uploadDriveFile(file, { scope: "me", pinLabelsEmpty: true }),
+    ).rejects.toMatchObject({ code: "internal" });
     expect(finalizeDriveFileMock).toHaveBeenCalledTimes(2);
+    expect(postDriveFilesMock).toHaveBeenCalledTimes(1);
   });
 
   it("retries a staged finalize once before failing", async () => {

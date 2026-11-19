@@ -1,10 +1,10 @@
 import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import sharp from "sharp";
 
-import { deleteObservedDriveFiles } from "@/helpers/drive-file-delete";
+import { deleteDriveFiles } from "@/helpers/drive-file-delete";
 import { unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import { driveHead } from "@/lib/drive-blob";
+import { driveOwnerOf } from "@/lib/drive-blob";
 import {
   findTalkingVideoPresenter,
   TALKING_VIDEO_PRESENTERS,
@@ -14,7 +14,6 @@ import {
   cusoDrive,
   saveCusoProjectFile,
 } from "@/services/cuso-project-files.service";
-import { tombstoneDriveUploadResource } from "@/services/file-catalog.service";
 
 /** A phone selfie, scaled down in the browser first, fits well within this. */
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
@@ -95,28 +94,14 @@ async function removePresenterPhoto(
       file.sourceScope === FileSourceScope.ORGANIZATION
         ? "organization"
         : "user";
-    // Recoverably, and only the object observed here, as in the Drive
-    // delete route; a file whose bytes are already gone is only tombstoned.
-    const observed = await driveHead(file.sourceId);
-    if (observed) {
-      await deleteObservedDriveFiles({
-        workspaceId: cuso.workspaceId,
-        scope,
-        objects: [
-          {
-            pathname: file.sourceId,
-            access: observed.access,
-            etag: observed.etag,
-          },
-        ],
-      });
-    } else {
-      await tombstoneDriveUploadResource({
-        workspaceId: cuso.workspaceId,
-        scope,
-        pathname: file.sourceId,
-      });
-    }
+    // Bound to the document and object observed, as in the Drive delete
+    // route.
+    await deleteDriveFiles({
+      workspaceId: cuso.workspaceId,
+      scope,
+      ownerId: driveOwnerOf(file.sourceId)?.ownerId ?? "",
+      pathnames: [file.sourceId],
+    });
   }
   await prisma.project.update({
     where: { id: cuso.projectId },

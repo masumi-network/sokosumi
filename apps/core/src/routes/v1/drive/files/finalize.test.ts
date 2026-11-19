@@ -4,7 +4,6 @@ import { notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import type { StagedUploadStorage } from "@/services/file-catalog.service";
 
 /**
  * Finalize checks the destination against the caller's Drive access before
@@ -49,12 +48,12 @@ vi.mock("@/helpers/drive-file-access", () => ({
 vi.mock("@/lib/drive-blob", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/drive-blob")>()),
   driveHead: mocks.head,
-  promoteStagedUpload: mocks.promote,
-  stagedUploadEtag: mocks.etag,
+}));
+vi.mock("@/helpers/drive-staged-upload", () => ({
+  publishStagedUpload: mocks.publish,
 }));
 vi.mock("@/services/file-catalog.service", () => ({
   activateDriveUploadResource: mocks.activate,
-  publishStagedDriveUpload: mocks.publish,
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: mocks.indexing,
@@ -169,67 +168,21 @@ describe("the released flow (no attemptId)", () => {
 });
 
 describe("the staged flow (attemptId)", () => {
-  async function storageFor(): Promise<StagedUploadStorage> {
-    await finalize({ attemptId: ATTEMPT });
-    return mocks.publish.mock.calls[0][0].storage;
-  }
-
   it("publishes exactly the named attempt", async () => {
     const response = await finalize({ attemptId: ATTEMPT });
 
     expect(response.status).toBe(200);
     expect(mocks.publish).toHaveBeenCalledWith(
-      expect.objectContaining({
-        attemptId: ATTEMPT,
-        key: {
-          workspaceId: "workspace-1",
-          scope: "user",
-          ownerId: "user_123",
-          pathname: PATHNAME,
-        },
-      }),
+      {
+        workspaceId: "workspace-1",
+        scope: "user",
+        ownerId: "user_123",
+        pathname: PATHNAME,
+      },
+      ATTEMPT,
     );
     expect(mocks.activate).not.toHaveBeenCalled();
     expect((await response.json()).data.fileUrl).toBe(STORED.url);
-  });
-
-  it("describes the bytes its own move just put on the pathname", async () => {
-    const storage = await storageFor();
-
-    await expect(
-      storage.promote("drive-staging/a/x.md", null),
-    ).resolves.toEqual({ sizeBytes: 42, mimeType: "text/markdown" });
-  });
-
-  it("recognises bytes an earlier call moved by the recorded ETag", async () => {
-    const storage = await storageFor();
-    mocks.promote.mockResolvedValue(false);
-
-    await expect(
-      storage.promote("drive-staging/a/x.md", '"e1"'),
-    ).resolves.toMatchObject({ sizeBytes: 42 });
-  });
-
-  it("never takes another writer's bytes for the attempt's", async () => {
-    const storage = await storageFor();
-    mocks.promote.mockResolvedValue(false);
-
-    await expect(
-      storage.promote("drive-staging/a/x.md", '"other"'),
-    ).rejects.toMatchObject({ status: 409 });
-    await expect(
-      storage.promote("drive-staging/a/x.md", null),
-    ).rejects.toMatchObject({ status: 409 });
-  });
-
-  it("reports nothing uploaded when neither staging nor pathname has bytes", async () => {
-    const storage = await storageFor();
-    mocks.promote.mockResolvedValue(false);
-    mocks.head.mockResolvedValue(null);
-
-    await expect(storage.promote("drive-staging/a/x.md", null)).resolves.toBe(
-      null,
-    );
   });
 
   it("hands out no URL for a file in a data room", async () => {

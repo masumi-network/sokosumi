@@ -371,16 +371,17 @@ export function isStagedUploadPathname(pathname: string): boolean {
 
 /**
  * Moves a staged upload onto its Drive pathname with one rename inside the
- * store that pathname belongs in, never replacing an object there (409).
+ * store that pathname belongs in, never replacing an object there
+ * ("occupied").
  * A grant stages in the store its pathname belonged in at mint; when a data
  * room has since moved that boundary, nothing is touched (409: upload again),
- * so promotion never needs a two-step copy that can half succeed. False when
- * nothing is staged (never written, or already promoted).
+ * so promotion never needs a two-step copy that can half succeed.
+ * "nothing-staged": never written, or already moved.
  */
 export async function promoteStagedUpload(
   staged: string,
   pathname: string,
-): Promise<boolean> {
+): Promise<"moved" | "nothing-staged" | "occupied"> {
   const target = await driveWriteStore(pathname);
   const found = (store: DriveBlobStore) =>
     head(staged, { token: store.token }).catch((error: unknown) => {
@@ -393,7 +394,7 @@ export async function promoteStagedUpload(
       target.access === "public" ? privateDriveStore() : publicDriveStore();
     if (other && (await found(other)))
       throw conflict("This folder changed while uploading; upload again");
-    return false;
+    return "nothing-staged";
   }
   try {
     await rename(staged, pathname, {
@@ -402,28 +403,40 @@ export async function promoteStagedUpload(
       addRandomSuffix: false,
       contentType: source.contentType,
     });
-    return true;
+    return "moved";
   } catch (error) {
-    if (error instanceof BlobNotFoundError) return false;
+    if (error instanceof BlobNotFoundError) return "nothing-staged";
     if (error instanceof Error && /already exists/i.test(error.message))
-      throw conflict("Another file is already at that path");
+      return "occupied";
     throw error;
   }
 }
 
-/** ETag of a staged upload in the store its pathname belongs in, or null. */
+/**
+ * ETag of a staged upload in the store its pathname belongs in, or null when
+ * nothing is staged. 409 when it sits in the other store (a data room
+ * boundary moved since mint), so nothing is claimed or moved.
+ */
 export async function stagedUploadEtag(
   staged: string,
   pathname: string,
 ): Promise<string | null> {
   const target = await driveWriteStore(pathname);
-  return head(staged, { token: target.token }).then(
-    (meta) => meta.etag,
-    (error: unknown) => {
-      if (error instanceof BlobNotFoundError) return null;
-      throw error;
-    },
-  );
+  const other =
+    target.access === "public" ? privateDriveStore() : publicDriveStore();
+  const etagIn = (store: DriveBlobStore) =>
+    head(staged, { token: store.token }).then(
+      (meta) => meta.etag,
+      (error: unknown) => {
+        if (error instanceof BlobNotFoundError) return null;
+        throw error;
+      },
+    );
+  const etag = await etagIn(target);
+  if (etag) return etag;
+  if (other && (await etagIn(other)))
+    throw conflict("This folder changed while uploading; upload again");
+  return null;
 }
 
 /**
@@ -451,7 +464,32 @@ function storeFor(access: BlobAccessType): DriveBlobStore {
   return access === "private" ? requirePrivateStore() : publicDriveStore();
 }
 
-/** Streams an object from one store to the other, then removes the source. */
+/**
+ * A transfer wrote its destination but could not remove its source. Carries
+ * what was written and which source object was streamed, so a caller can
+ * keep the destination as the moved object and retry the cleanup bound to
+ * that source.
+ */
+export class TransferCleanupError extends Error {
+  constructor(
+    readonly written: { url: string; pathname: string; access: BlobAccessType },
+    readonly source: {
+      pathname: string;
+      access: BlobAccessType;
+      etag: string;
+    },
+    readonly cause: unknown,
+  ) {
+    super("The file was copied but its old location could not be removed");
+    this.name = "TransferCleanupError";
+  }
+}
+
+/**
+ * Streams an object from one store to the other, then removes the source,
+ * but only while it is still the object streamed: a source replaced during
+ * the transfer is a newer object and stays.
+ */
 export async function transferBetweenStores(input: {
   fromPathname: string;
   fromStore: DriveBlobStore;
@@ -476,12 +514,22 @@ export async function transferBetweenStores(input: {
     contentType: input.contentType ?? source.blob.contentType,
     cacheControlMaxAge: input.cacheControlMaxAge,
   });
-  await del(input.fromPathname, { token: input.fromStore.token });
-  return {
+  const written = {
     url: result.url,
     pathname: result.pathname,
     access: input.toStore.access,
   };
+  const streamed = {
+    pathname: input.fromPathname,
+    access: input.fromStore.access,
+    etag: source.blob.etag,
+  };
+  try {
+    await driveDelIfMatch(streamed.pathname, streamed);
+  } catch (error) {
+    throw new TransferCleanupError(written, streamed, error);
+  }
+  return written;
 }
 
 /** The most blobs one merged listing reads before it stops. */

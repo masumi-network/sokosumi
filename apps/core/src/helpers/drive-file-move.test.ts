@@ -228,8 +228,13 @@ describe("moveDriveFile", () => {
       ]);
     });
 
-    it("keeps the row with the bytes that landed and removes the observed source", async () => {
+    it("keeps the row with the bytes it wrote and retries the streamed source's cleanup", async () => {
       const objects = twoStores();
+      blob.get.mockResolvedValue({
+        statusCode: 200,
+        stream: new ReadableStream(),
+        blob: { contentType: "application/pdf", etag: '"src"' },
+      });
       // The transfer's own source delete fails; the retry succeeds.
       blob.del
         .mockRejectedValueOnce(new Error("store 503"))
@@ -247,6 +252,51 @@ describe("moveDriveFile", () => {
         ifMatch: '"src"',
       });
       expect(objects["public-token"].has(base.sourcePathname)).toBe(false);
+    });
+
+    it("never takes a same-size object it did not write for the moved file", async () => {
+      const objects = twoStores();
+      // The source read fails before any write, while an unrelated
+      // same-size object lands at the destination.
+      blob.get.mockImplementation(async () => {
+        objects["private-token"].set(ROOM_TARGET, { size: 9, etag: '"x"' });
+        throw new Error("read reset");
+      });
+
+      await expect(
+        moveDriveFile({ ...base, targetFolderPath: "Series A" }),
+      ).rejects.toThrow("read reset");
+
+      expect(objects["public-token"].has(base.sourcePathname)).toBe(true);
+      expect(blob.del).not.toHaveBeenCalled();
+      expect(catalog.moveDriveUploadResource).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fromPathname: ROOM_TARGET,
+          toPathname: base.sourcePathname,
+        }),
+      );
+    });
+
+    it("keeps a source replaced during the transfer", async () => {
+      const objects = twoStores();
+      blob.get.mockResolvedValue({
+        statusCode: 200,
+        stream: new ReadableStream(),
+        blob: { contentType: "application/pdf", etag: '"src"' },
+      });
+      blob.del.mockImplementation(
+        async (pathname: string, options: { ifMatch?: string }) => {
+          // Replaced mid-transfer: the precondition no longer holds.
+          if (options.ifMatch === '"src"')
+            throw new blob.BlobPreconditionFailedError("etag");
+          objects["public-token"].delete(pathname);
+        },
+      );
+
+      await expect(
+        moveDriveFile({ ...base, targetFolderPath: "Series A" }),
+      ).resolves.toBe(ROOM_TARGET);
+      expect(objects["public-token"].has(base.sourcePathname)).toBe(true);
     });
 
     it("puts the row back when the destination never got the bytes", async () => {

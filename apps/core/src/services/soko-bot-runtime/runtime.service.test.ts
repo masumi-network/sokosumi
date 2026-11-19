@@ -175,6 +175,8 @@ const {
     resourceFindFirst: vi.fn(),
     del: vi.fn(),
     tombstone: vi.fn(),
+    document: vi.fn(),
+    hold: vi.fn(),
     settle: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
@@ -484,8 +486,9 @@ vi.mock("@/services/file-catalog.service", () => ({
   reserveDriveUploadResource: files.reserve,
   activateDriveUploadResource: files.activate,
   tombstoneDriveUploadResource: files.tombstone,
-  tombstoneDriveUploadResources: files.tombstone,
-  settleDriveUploadDeletes: files.settle,
+  driveDocumentAt: files.document,
+  holdDriveUploadForDelete: files.hold,
+  releaseDriveUploadDeleteHold: files.settle,
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: files.nudge,
@@ -10231,26 +10234,28 @@ describe("Drive file tools", () => {
         )
         .mockImplementation((...args) => args[3]);
       files.head.mockResolvedValueOnce({ etag: '"e1"' });
+      files.document.mockResolvedValue({ resourceId: "file-1", revision: 1 });
+      files.hold.mockResolvedValue(true);
       await expect(
         service["deleteFile"](asked as never, { fileId: "file-1" }, "call-1"),
       ).resolves.toEqual({ id: "file-1", filename: "meta.pdf", deleted: true });
-      // Tombstoned as still owning its bytes, then only the observed object
-      // is deleted, then the hold is released.
-      expect(files.tombstone).toHaveBeenCalledWith({
+      // The observed document is held, only the observed object is deleted,
+      // then the hold is released.
+      const key = expect.objectContaining({
         workspaceId: "personal-workspace",
         scope: "user",
-        pathnames: ["drive/u/meta.pdf"],
-        deleting: true,
+        pathname: "drive/u/meta.pdf",
+      });
+      expect(files.hold).toHaveBeenCalledWith({
+        key,
+        resourceId: "file-1",
+        revision: 1,
       });
       expect(files.del).toHaveBeenCalledWith("drive/u/meta.pdf", {
         token: "token",
         ifMatch: '"e1"',
       });
-      expect(files.settle).toHaveBeenCalledWith({
-        workspaceId: "personal-workspace",
-        scope: "user",
-        pathnames: ["drive/u/meta.pdf"],
-      });
+      expect(files.settle).toHaveBeenCalledWith({ key, resourceId: "file-1" });
       commit.mockRestore();
     });
 

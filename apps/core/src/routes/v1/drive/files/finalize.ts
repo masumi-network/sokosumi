@@ -1,16 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { FileSourceScope } from "@sokosumi/database";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
-import { conflict, notFound } from "@/helpers/error";
+import { publishStagedUpload } from "@/helpers/drive-staged-upload";
+import { notFound } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import {
-  driveHead,
-  driveOwnerOf,
-  promoteStagedUpload,
-  stagedUploadEtag,
-} from "@/lib/drive-blob";
+import { driveHead, driveOwnerOf } from "@/lib/drive-blob";
 import {
   nudgeFileExtraction,
   nudgeFileIndexing,
@@ -20,10 +16,7 @@ import {
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
-import {
-  activateDriveUploadResource,
-  publishStagedDriveUpload,
-} from "@/services/file-catalog.service";
+import { activateDriveUploadResource } from "@/services/file-catalog.service";
 
 const bodySchema = z.object({
   scope: driveFileScopeSchema,
@@ -115,26 +108,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     let activated: { resourceId: string; labelsPinnedEmpty: boolean } | null;
     if (body.attemptId) {
-      activated = await publishStagedDriveUpload({
-        key,
-        attemptId: body.attemptId,
-        storage: {
-          observe: (staged) => stagedUploadEtag(staged, body.pathname),
-          promote: async (staged, etag) => {
-            const moved = await promoteStagedUpload(staged, body.pathname);
-            const stored = await driveHead(body.pathname);
-            if (!stored) return null;
-            // Not moved now: only bytes an earlier call moved are this
-            // attempt's, recognised by the ETag recorded before that move.
-            if (!moved && (!etag || stored.etag !== etag))
-              throw conflict("Another file is already at that path");
-            return {
-              sizeBytes: stored.size,
-              mimeType: stored.contentType ?? "application/octet-stream",
-            };
-          },
-        },
-      });
+      activated = await publishStagedUpload(key, body.attemptId);
     } else {
       const metadata = await driveHead(body.pathname);
       if (!metadata) throw notFound("No uploaded file at that path");
