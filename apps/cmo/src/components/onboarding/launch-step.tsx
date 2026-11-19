@@ -16,7 +16,7 @@ import type { AdActions } from "../ads";
 import { ChannelIcon } from "../channel-icon";
 import { cusoArt } from "../cuso";
 import { StatusDisc } from "../status";
-import { money, PACES } from "../strategy-core";
+import { money } from "../strategy-core";
 import { CusoScene } from "./cuso-scene";
 import { PresenterCard } from "./presenter-card";
 
@@ -184,14 +184,14 @@ export function LaunchStep({
   }
 
   if (celebrating) {
-    const pace = PACES.find((option) => option.level === plan?.pace?.level);
     const ads = plan?.ads;
     const summary = [
       {
-        term: "Pace",
-        value: pace
-          ? `${pace.name}, ${plan?.pace?.perWeek ?? 0} posts a week`
-          : "",
+        term: "This month",
+        value:
+          overview.production.total > 0
+            ? `${overview.production.total} posts and ads${overview.production.beyondPlan.length > 0 ? `, ${overview.production.beyondPlan.length} more with a bigger plan` : ""}`
+            : "",
       },
       {
         term: "Ad budget",
