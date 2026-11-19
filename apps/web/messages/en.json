@@ -162,6 +162,7 @@
     "UserAvatar": {
       "account": "Account",
       "notifications": "Notifications",
+      "notificationSettings": "Notification settings",
       "billing": "Billing",
       "connections": "Connections",
       "developer": "Developer",
@@ -9301,6 +9302,7 @@
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back",
+        "backToYou": "Back to You",
         "goHome": "Go to home",
         "home": "Home",
         "searchAgents": "Search agents"
