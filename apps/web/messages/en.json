@@ -2648,6 +2648,12 @@
         "label": "Time in this status:",
         "stuck": "Stuck",
         "since": "In this status since"
+      },
+      "SimilarTasks": {
+        "title": "Open tasks with similar titles",
+        "hint": "Already asked for? Open the task instead of making a duplicate.",
+        "opensInNewTab": "(opens in a new tab)",
+        "announcement": "{count, plural, one {# open task with a similar title} other {# open tasks with similar titles}}"
       }
     },
     "Projects": {
