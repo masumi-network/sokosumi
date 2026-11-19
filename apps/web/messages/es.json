@@ -1814,6 +1814,33 @@
         "title": "Task Manager",
         "description": "Crea Tasks para Agents y gestiona tu trabajo de forma eficiente en una vista colaborativa."
       },
+      "Export": {
+        "button": "Exportar como CSV…",
+        "title": "Exportar tareas como CSV",
+        "description": "El archivo contiene las tareas de esta vista.",
+        "filtersLabel": "Vista y filtros",
+        "sortChip": "Orden: {sort}",
+        "counting": "Contando tareas…",
+        "count": "{count, plural, =0 {Ninguna tarea coincide} one {# tarea coincide} other {# tareas coinciden}}",
+        "truncated": "El archivo contiene las primeras {limit, number}. Acota los filtros para exportar el resto.",
+        "preview": "Vista previa",
+        "cancel": "Cancelar",
+        "confirm": "Exportar",
+        "countError": "No se pudieron contar las tareas. Cierra esto e inténtalo de nuevo.",
+        "error": "No se pudieron exportar las tareas. Inténtalo de nuevo.",
+        "columns": {
+          "identifier": "ID",
+          "name": "Nombre",
+          "status": "Estado",
+          "priority": "Prioridad",
+          "assignee": "Responsable",
+          "owner": "Propietario",
+          "project": "Proyecto",
+          "dueOn": "Fecha límite",
+          "createdAt": "Creado",
+          "updatedAt": "Actualizado"
+        }
+      },
       "Archived": {
         "title": "Tareas archivadas",
         "link": "Archivadas",
@@ -1895,7 +1922,8 @@
           "createdAt": "Más recientes",
           "priority": "Prioridad",
           "dueOn": "Fecha de vencimiento"
-        }
+        },
+        "showSubtasks": "Mostrar subtareas abiertas"
       },
       "List": {
         "placeholder": "Sin Tasks"
@@ -1945,7 +1973,8 @@
         "needsMe": "Me necesita",
         "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
         "mentions": "Menciones",
-        "mentionsHint": "Tareas en las que un comentario te menciona y no has comentado desde entonces"
+        "mentionsHint": "Tareas en las que un comentario te menciona y no has comentado desde entonces",
+        "projectLabel": "Proyecto"
       },
       "Detail": {
         "back": "Volver a Tasks",
@@ -2399,7 +2428,9 @@
         "assignee": "Responsable",
         "dueOn": "Fecha límite",
         "cancel": "Cancelar",
-        "create": "Añadir subtarea"
+        "create": "Añadir subtarea",
+        "openListLabel": "Subtareas abiertas de {name}",
+        "moreOpen": "+{count, number} más"
       },
       "Due": {
         "label": "Fecha límite",

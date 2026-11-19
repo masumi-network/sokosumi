@@ -9,7 +9,7 @@ import {
   Tag,
   Users,
 } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 import {
@@ -22,6 +22,7 @@ import {
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   hasActiveTasksFilters,
+  hasTasksViewParams,
   type ProjectFilterOption,
   STUCK_AFTER_DAYS,
   type TasksFilters,
@@ -34,6 +35,7 @@ import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
 import { TaskTagDot } from "./task-tag-colors";
+import { replaceTasksQuery, useTasksSearchParams } from "./tasks-search-params";
 import {
   getTasksView,
   getTasksViewPatch,
@@ -63,8 +65,11 @@ interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
   /** The viewer, for the view switcher; without one it is hidden. */
   userId?: string | null;
-  /** The view options menu, shown after the Filters menu. */
-  display?: React.ReactNode;
+  /**
+   * The view options menu, shown after the Filters menu. As a function it
+   * gets the view and filters in effect, each named for a reader.
+   */
+  display?: React.ReactNode | ((activeFilters: string[]) => React.ReactNode);
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   labels: {
@@ -120,7 +125,7 @@ export function TasksViewFilters({
   );
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const searchParams = useTasksSearchParams();
 
   const filters = useMemo(
     () =>
@@ -140,11 +145,14 @@ export function TasksViewFilters({
 
   const handleFilterChange = useCallback(
     (patch: Partial<TasksFilters>) => {
-      const paramsForMerge = new URLSearchParams(
-        typeof window !== "undefined"
-          ? window.location.search
-          : searchParams.toString(),
+      const windowParams = new URLSearchParams(
+        typeof window !== "undefined" ? window.location.search : "",
       );
+      // The address bar can lag behind a restored saved view; then the view
+      // lives only in the restored search params.
+      const paramsForMerge = hasTasksViewParams(windowParams)
+        ? windowParams
+        : new URLSearchParams(searchParams.toString());
       const current = getTasksFiltersFromSearchParams(
         paramsForMerge,
         activeOrganizationId,
@@ -152,14 +160,12 @@ export function TasksViewFilters({
         projectOptions,
       );
       const nextFilters: TasksFilters = { ...current, ...patch };
-      const nextSearchParams = buildTasksFiltersSearchParams(
-        paramsForMerge,
-        nextFilters,
+      replaceTasksQuery(
+        router,
+        pathname,
+        buildTasksFiltersSearchParams(paramsForMerge, nextFilters),
         activeOrganizationId,
       );
-      const nextQuery = nextSearchParams.toString();
-
-      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     },
     [
       activeOrganizationId,
@@ -399,6 +405,22 @@ export function TasksViewFilters({
     },
   ].filter((chip) => !!chip);
 
+  const currentView = getTasksView(filters, userId);
+  const project = projectOptions.find(
+    (option) => option.id === filters.projectId,
+  );
+  const viewName = {
+    all: labels.all,
+    mine: labels.assignedToMe,
+    "needs-me": t("needsMe"),
+    mentions: t("mentions"),
+  }[currentView];
+  const activeFilters = [
+    t("chip", { label: t("viewLabel"), value: viewName }),
+    project && t("chip", { label: t("projectLabel"), value: project.name }),
+    ...chips.map((chip) => t("chip", { label: chip.label, value: chip.value })),
+  ].filter((name): name is string => !!name);
+
   return (
     // Anchored to the board's left edge: the view switcher first, then what
     // is active, because those are what a reader changes most. Chips wrap
@@ -407,7 +429,7 @@ export function TasksViewFilters({
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
       {userId ? (
         <TasksViewSwitcher
-          value={getTasksView(filters, userId)}
+          value={currentView}
           onChange={(view) =>
             handleFilterChange(getTasksViewPatch(view, filters, userId))
           }
@@ -471,7 +493,7 @@ export function TasksViewFilters({
           }
         />
       </span>
-      {display}
+      {typeof display === "function" ? display(activeFilters) : display}
     </div>
   );
 }

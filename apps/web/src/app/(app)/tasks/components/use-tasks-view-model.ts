@@ -12,7 +12,7 @@ import {
   CORE_API_ERROR_KINDS,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -62,6 +62,7 @@ import {
   isTaskDnDDraggable,
   statusForColumn,
 } from "./task-dnd";
+import { useTasksSearchParams } from "./tasks-search-params";
 import type { TasksViewProps } from "./tasks-view";
 import { usePendingCreatedTasks } from "./use-pending-created-tasks";
 
@@ -126,7 +127,7 @@ export function useTasksViewModel({
   const router = useRouter();
   const pathname = usePathname();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
-  const searchParams = useSearchParams();
+  const searchParams = useTasksSearchParams();
   const tTasks = useTranslations("App.Tasks");
   /**
    * The board already restored the card by the time this runs. A refused move

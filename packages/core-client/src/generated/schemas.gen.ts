@@ -62418,6 +62418,14 @@ export const TaskListItemSchema = {
             type: 'boolean',
             example: false,
             description: 'True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.'
+        },
+        openSubtasks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskOpenSubtask'
+            },
+            example: [],
+            description: 'The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.'
         }
     },
     required: [
@@ -62463,6 +62471,33 @@ export const TaskListItemSchema = {
         'jobsCount',
         'commentsCount',
         'statusSince'
+    ]
+} as const;
+
+export const TaskOpenSubtaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        }
+    },
+    required: [
+        'id',
+        'identifier',
+        'name',
+        'status'
     ]
 } as const;
 
@@ -62530,6 +62565,39 @@ export const TaskActivitySummarySchema = {
         'createdByOtherHumans',
         'workedMinutes',
         'previous'
+    ]
+} as const;
+
+export const TaskViewPreferenceSchema = {
+    type: 'object',
+    properties: {
+        query: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Tasks page query string the person last chose in this workspace, without the leading `?`. Empty when they cleared every filter. Null when they never chose one.',
+            example: 'status=READY&sort=priority'
+        }
+    },
+    required: [
+        'query'
+    ]
+} as const;
+
+export const TaskViewPreferenceWriteSchema = {
+    type: 'object',
+    properties: {
+        query: {
+            type: 'string',
+            maxLength: 1000,
+            pattern: '^[A-Za-z0-9\\-._~%+=&*]*$',
+            description: 'The Tasks page query string to restore, URL-encoded, without the leading `?`. Web owns its keys.',
+            example: 'status=READY&sort=priority'
+        }
+    },
+    required: [
+        'query'
     ]
 } as const;
 

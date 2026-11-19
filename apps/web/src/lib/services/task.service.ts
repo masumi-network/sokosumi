@@ -510,7 +510,19 @@ export const taskService = (() => {
     }
   }
 
+  /** The saved Tasks page query, or null when the person never chose one. */
+  async function getSavedTasksViewQuery(): Promise<string | null> {
+    const result = await coreClient.getTasksView();
+    return result.data?.query ?? null;
+  }
+
+  async function saveTasksViewQuery(query: string): Promise<void> {
+    await coreClient.putTasksView(query);
+  }
+
   return {
+    getSavedTasksViewQuery,
+    saveTasksViewQuery,
     getActivitySummary,
     getWorkspaceCalendar,
     getWorkspaceCalendarSources,

@@ -173,6 +173,7 @@ model Workspace {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   jobs                     Job[]
+  taskViewPreferences      TaskViewPreference[]
   tasks                    Task[]
   socialPosts              SocialPost[]
   newsletters              Newsletter[]

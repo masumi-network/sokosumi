@@ -112,7 +112,11 @@ function createApp() {
 }
 
 interface Page {
-  data: Array<{ name: string }>;
+  data: Array<{
+    name: string;
+    openSubtasks?: Array<{ name: string; status: string }>;
+    subtaskProgress: { completed: number; total: number };
+  }>;
   meta: { pagination: { total: number; nextCursor: string | null } };
 }
 
@@ -231,6 +235,50 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
     expect(second.data.map((task) => task.name)).toEqual(["Due 6"]);
     expect(second.meta.pagination.total).toBe(6);
     expect(second.meta.pagination.nextCursor).toBeNull();
+  });
+
+  it("names a parent's first three open sub-tasks in sub-task order", async () => {
+    const parent = await prisma.task.create({
+      data: {
+        workspaceId,
+        ownerId: adaId,
+        name: "Parent with steps",
+        // Not READY and no due day, so the other lists here never show it.
+        status: TaskStatus.RUNNING,
+      },
+    });
+    await prisma.task.createMany({
+      data: [
+        { name: "C", position: 3 },
+        { name: "A", position: 1 },
+        { name: "B done", position: 2, status: TaskStatus.COMPLETED },
+        { name: "D", position: 4 },
+        { name: "E", position: 5 },
+        { name: "Archived", position: 0.5, archivedAt: new Date() },
+      ].map((subtask) => ({
+        workspaceId,
+        ownerId: adaId,
+        parentTaskId: parent.id,
+        status: TaskStatus.READY,
+        ...subtask,
+      })),
+    });
+
+    const params = new URLSearchParams({
+      scope: "mine",
+      q: "Parent with steps",
+    });
+    const response = await createApp().request(`http://localhost/?${params}`);
+    const body = (await response.json()) as Page;
+
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.data.map((task) => task.name)).toEqual(["Parent with steps"]);
+    expect(body.data[0]?.subtaskProgress).toEqual({ completed: 1, total: 5 });
+    expect(body.data[0]?.openSubtasks?.map((task) => task.name)).toEqual([
+      "A",
+      "C",
+      "D",
+    ]);
   });
 
   // Sort by Due date on the Tasks board pages past the dated Tasks into the

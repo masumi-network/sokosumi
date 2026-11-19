@@ -389,7 +389,7 @@ describe("SokoBotHome", () => {
       screen
         .getByRole("link", { name: 'awaiting:{"count":3}' })
         .getAttribute("href"),
-    ).toBe("/tasks?view=board#input-required");
+    ).toBe("/tasks?view=board&scope=workspace#input-required");
     cleanup();
     await renderHome({ summary: { ...summary, awaitingInput: 0 } });
     expect(screen.queryByText(/awaiting/)).toBeNull();
@@ -411,7 +411,7 @@ describe("SokoBotHome", () => {
         screen
           .getByRole("link", { name: 'awaitingTeam:{"count":9}' })
           .getAttribute("href"),
-      ).toBe("/tasks?view=board#input-required");
+      ).toBe("/tasks?view=board&scope=workspace#input-required");
       expect(
         screen
           .getByRole("link", { name: 'needsYou:{"count":2}' })

@@ -568,12 +568,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             ).map((mention) => mention.taskId),
           )
         : null;
-    const mappedTasks = pageTasks.map((task) => ({
-      ...mapTaskListItem(task),
-      ...(unansweredTaskIds
-        ? { hasUnansweredMention: unansweredTaskIds.has(task.id) }
-        : {}),
-    }));
+    const mappedTasks = pageTasks.map((task) => {
+      const { openSubtasks, ...item } = mapTaskListItem(task);
+      return {
+        ...item,
+        // Sub-task names go to people only: a coworker or a Soko Bot can
+        // read a Task without being able to read each of its sub-tasks.
+        ...(mentionViewerId ? { openSubtasks } : {}),
+        ...(unansweredTaskIds
+          ? { hasUnansweredMention: unansweredTaskIds.has(task.id) }
+          : {}),
+      };
+    });
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,

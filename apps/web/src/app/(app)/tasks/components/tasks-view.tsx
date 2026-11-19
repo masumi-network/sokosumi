@@ -40,9 +40,11 @@ import { TaskCard } from "./task-card";
 import { isTaskDnDDraggable } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
+import { ShowOpenSubtasksContext } from "./task-open-subtasks";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
+import { replaceTasksQuery } from "./tasks-search-params";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
 import { TasksKeyboard } from "./use-board-keyboard";
@@ -76,6 +78,11 @@ function TasksRealtimeListener({
   return null;
 }
 
+// Only the URL changes: Core already sends each Task's open sub-tasks, so a
+// display switch needs no server reload. Next keeps useSearchParams in step.
+const URL_ONLY_NAVIGATOR = {
+  replace: (href: string) => window.history.replaceState(null, "", href),
+};
 export interface TasksViewProps {
   tasks: TaskWithCoworker[];
   listNextCursor: string | null;
@@ -117,6 +124,7 @@ export interface TasksViewProps {
       layout: string;
       sortBy: string;
       sortOptions: Record<TasksSort, string>;
+      showSubtasks: string;
       list: string;
       board: string;
       density: string;
@@ -245,23 +253,32 @@ export function TasksView(props: TasksViewProps) {
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
   const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
-  const handleSortChange = (sort: TasksSort) => {
-    const nextQuery = buildTasksFiltersSearchParams(
-      searchParams,
-      { ...routeFilters, sort },
+  const replaceRouteFilters = (
+    patch: Partial<TasksFilters>,
+    navigator: { replace: (href: string) => void } = router,
+  ) => {
+    replaceTasksQuery(
+      navigator,
+      pathname,
+      buildTasksFiltersSearchParams(searchParams, {
+        ...routeFilters,
+        ...patch,
+      }),
       activeOrganizationId,
-    ).toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    );
   };
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const handleClearFilters = () => {
-    const nextQuery = buildTasksFiltersSearchParams(
-      searchParams,
-      clearTasksFilters(routeFilters, activeOrganizationId),
+    replaceTasksQuery(
+      router,
+      pathname,
+      buildTasksFiltersSearchParams(
+        searchParams,
+        clearTasksFilters(routeFilters, activeOrganizationId),
+      ),
       activeOrganizationId,
-    ).toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    );
     focusToolbarControl(toolbarRef.current);
   };
 
@@ -287,9 +304,13 @@ export function TasksView(props: TasksViewProps) {
             density,
             onDensityChange: handleDensityChange,
             sort: shownSort,
-            onSortChange: handleSortChange,
+            onSortChange: (sort) => replaceRouteFilters({ sort }),
+            showSubtasks: routeFilters.subtasks === true,
+            onShowSubtasksChange: (subtasks) =>
+              replaceRouteFilters({ subtasks }, URL_ONLY_NAVIGATOR),
             labels: labels.display,
           }}
+          exportFilters={{ ...routeFilters, sort: shownSort }}
         />
       </div>
 
@@ -441,7 +462,9 @@ export function TasksView(props: TasksViewProps) {
         {/* The page's seat check is fresher than the layout's after a soft navigation. */}
         <OrganizationSeatContext value={canCreateTask}>
           <TasksKeyboard />
-          {content}
+          <ShowOpenSubtasksContext value={routeFilters.subtasks === true}>
+            {content}
+          </ShowOpenSubtasksContext>
         </OrganizationSeatContext>
         {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
         <CreateTaskModal

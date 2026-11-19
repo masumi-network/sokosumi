@@ -16,12 +16,14 @@ import {
   type TasksSort,
 } from "@/app/tasks/utils/task-sort";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverClose,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import useIsClient from "@/hooks/use-is-client";
 import type { TasksDensity } from "@/lib/ui-preferences/tasks-density";
@@ -45,12 +47,17 @@ export interface ViewModeSwitchProps {
     compact: string;
     sortBy: string;
     sortOptions: Record<TasksSort, string>;
+    showSubtasks: string;
   };
   /** The order in effect, the layout's default until the reader picks one. */
   sort: TasksSort;
   onSortChange: (value: TasksSort) => void;
+  showSubtasks: boolean;
+  onShowSubtasksChange: (value: boolean) => void;
   /** Rows under the display options: view actions and where else the Tasks can be seen. */
   children?: React.ReactNode;
+  /** The menu button, for a dialog opened from the menu to return focus to. */
+  triggerRef?: React.Ref<HTMLButtonElement>;
 }
 
 export function ViewModeSwitch({
@@ -61,10 +68,14 @@ export function ViewModeSwitch({
   labels,
   sort,
   onSortChange,
+  showSubtasks,
+  onShowSubtasksChange,
   children,
+  triggerRef,
 }: ViewModeSwitchProps) {
   const isClient = useIsClient();
   const sortLabelId = useId();
+  const subtasksSwitchId = useId();
   const handleChange = useCallback(
     (next: string) => {
       if (next === "board" || next === "list") {
@@ -87,6 +98,7 @@ export function ViewModeSwitch({
     <Popover>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           size="sm"
           className="shrink-0 hit-area"
@@ -196,6 +208,18 @@ export function ViewModeSwitch({
                 </RadioGroup.Item>
               ))}
             </RadioGroup.Root>
+          </div>
+          <div className={VIEW_MENU_SECTION_CLASS}>
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor={subtasksSwitchId} className="text-sm font-medium">
+                {labels.showSubtasks}
+              </Label>
+              <Switch
+                id={subtasksSwitchId}
+                checked={showSubtasks}
+                onCheckedChange={onShowSubtasksChange}
+              />
+            </div>
           </div>
           {children ? (
             <div className="space-y-1 border-t pt-3">{children}</div>

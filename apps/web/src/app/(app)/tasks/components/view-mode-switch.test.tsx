@@ -19,6 +19,7 @@ const labels = {
     priority: "Priority",
     dueOn: "Due date",
   },
+  showSubtasks: "Show open sub-tasks",
 };
 
 describe("ViewModeSwitch sort", () => {
@@ -33,6 +34,8 @@ describe("ViewModeSwitch sort", () => {
         labels={labels}
         sort="updatedAt"
         onSortChange={onSortChange}
+        showSubtasks={false}
+        onShowSubtasksChange={vi.fn()}
       />,
     );
 
