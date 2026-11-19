@@ -46,17 +46,25 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
     <div className="space-y-5">
       <SeoBriefPagePriority model={model} />
       <SeoSection
-        title={t("actions.title")}
-        description={tracked ? t("actions.help") : undefined}
-        // The strategy actions under the list have a title: the list keeps its own then.
-        titleHidden={!tracked && !strategyFollows}
+        title={t("actions.listTitle")}
+        description={
+          tracked
+            ? t("actions.help")
+            : overview.actions.length
+              ? t("actions.listHint")
+              : undefined
+        }
+        // The export stands on the title line, so the list starts with its rows.
+        actions={overview.actions.length ? csv : undefined}
+        // An empty list says its state in its own title, so the section title would say it twice.
+        // An empty list with strategy actions under it returns early above, with the strategy title.
+        titleHidden={!overview.actions.length}
       >
         {overview.actions.length ? (
           <SeoActionWorklist
             actions={overview.actions}
             severity={overview.actionSeverity}
             model={model}
-            tools={csv}
           />
         ) : (
           <SeoEmpty
