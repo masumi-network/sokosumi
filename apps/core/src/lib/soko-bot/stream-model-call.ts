@@ -47,16 +47,16 @@ export async function streamModelCall(options: StreamTextOptions) {
       failure ??= error;
     },
   });
-  const [text, finishReason, steps, response] = await Promise.all([
+  const [text, finishReason, steps, responseMessages] = await Promise.all([
     result.text,
     result.finishReason,
     result.steps,
-    result.response,
+    result.responseMessages,
   ]).catch((error: unknown) => {
     throw failure ?? error;
   });
   if (failure !== undefined) throw failure;
-  return { text, finishReason, steps, response };
+  return { text, finishReason, steps, responseMessages };
 }
 
 type WrapStream = NonNullable<LanguageModelMiddleware["wrapStream"]>;

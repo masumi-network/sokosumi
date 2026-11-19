@@ -25,6 +25,9 @@ import {
   SOCIAL_POST_THREAD_MAX_PARTS,
   SOCIAL_PUBLIC_PROVIDERS,
   socialPostProviderLabel,
+  TALKING_VIDEO_PLANNED_CREDITS,
+  TALKING_VIDEO_PLANNED_SCRIPT,
+  TALKING_VIDEO_PRICE,
   tableBatchSchema,
   tableMutationSchema,
   tableQuerySchema,
@@ -1659,6 +1662,16 @@ const SOCIAL_X_THREADS_AND_QUOTES = `X only: threadParts adds up to ${SOCIAL_POS
 
 const ADS_NEVER_CONNECT = `Ads run only through the Project's connected ad account (the Ads page); you never connect Google Ads or Meta Ads yourself, and a person connects accounts there.`;
 
+const tenth = (credits: number): string =>
+  String(Math.round(credits * 10) / 10);
+/** What a talking video costs per character, as its description words it. */
+const TALKING_VIDEO_COST = {
+  perCharacter: tenth(TALKING_VIDEO_PLANNED_CREDITS.perCharacter),
+  sitePerCharacter: tenth(TALKING_VIDEO_PLANNED_CREDITS.sitePerCharacter),
+  music: Math.ceil(TALKING_VIDEO_PRICE.musicUsd * 100),
+  broll: Math.ceil(TALKING_VIDEO_PRICE.brollUsd * 100),
+};
+
 export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   ...SOKO_BOT_SEO_DESCRIPTIONS,
   start_background_run:
@@ -1767,9 +1780,9 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   research_keywords:
     'Keyword research for one topic in the brand\'s market, from a real search data provider: up to 50 searches with monthly volume, difficulty (0 to 100, higher is harder), intent and where the site ranks today. Topics are short ("battery health app", "zurich wedding photographer"); try two or three to cover a question. Takes seconds, and the owner\'s SEO tab shows the same search. Quote only numbers it returned, with the date.',
   check_search_rankings:
-    "Ask the SEO specialist where the site ranks on Google today for up to five searches, and who ranks above it. It is a paid check of a few credits and takes a few minutes: Core wakes you with the result and your `then`, and the follow-up's reply appears in this chat by itself. Put in `then` only what the answer must contain and in which language (the positions, who ranks above, the next steps), never where to post it or a chat's name. After calling it, end your turn and tell the owner in one sentence that you asked the SEO specialist and will answer here once the result is in. The same searches checked in the last day are not checked again: you get that result at once. If it says the check is unavailable, busy or out of credits, answer with the data you have and say what is missing.",
+    "Ask the SEO specialist where the site ranks on Google today for up to five searches, and who ranks above it. It is a paid check of a few credits and takes a few minutes: Core wakes you with the result and your `then`, and the follow-up's reply appears in this chat by itself. Put in `then` only what the answer must contain and in which language (the positions, who ranks above, the next steps), never where to post it or a chat's name. After calling it, end your turn and tell the owner in one sentence that you asked the SEO specialist and will answer here once the result is in. The same searches checked in the last day are not checked again: you get that result at once. A check that failed runs again when you call this again with the same searches. If it says the check is unavailable, busy or out of credits, answer with the data you have and say what is missing.",
   save_seo_suggestions:
-    "Save article ideas and page changes to the owner's SEO tab (never to the strategy calendar). An article: title, the target keyword exactly as research_keywords or read_seo returned it, why (the business reason), an outline, and draft only when the owner asked for the full text (the whole article in Markdown, following the seo writing skill). A page change: the page URL on the brand's site, what to change, newText (the exact new title, description, heading or paragraph, ready to copy) and why. Core attaches the measured numbers itself and refuses a suggestion it has no data for; send id to update one. At most five at a time.",
+    "Save article ideas and page changes to the owner's SEO tab (never to the strategy calendar). An article: title, the target keyword exactly as research_keywords or read_seo returned it, why (the business reason), an outline, and draft only when the owner asked for the full text (the whole article in Markdown, following the seo writing skill). A page change: the page URL on the brand's site, what to change, newText (the exact new title, description, heading or paragraph, ready to copy) and why. Core attaches the measured numbers itself. refused lists what was not saved and why: a suggestion Core has no data for, one the owner skipped (suggest something else, never the same again), or a new one while 30 are open. Send id to update one. At most five at a time.",
   handle_social_comment:
     "Act on one comment from list_social_comments: reply posts your reply under it in the brand's name (at most 300 characters, the brand voice, facts from the Brand Brain only); skip marks spam, bots or a thread a reply would not help; owner hands it to the owner (a complaint, refund, legal or press question, an angry customer, or anything you would have to guess) with a one-line note. Every reply is checked for safety before it posts; a refused reply goes to the owner instead. One reply per person per post.",
   ...COMPETITOR_TOOL_DESCRIPTIONS,
@@ -1856,7 +1869,19 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   generate_video:
     "Generate a short video (5, 10 or 15 seconds; 9:16 by default for Reels, Shorts and TikTok) in a Project's Content Studio from a prompt, or animate a finished image by passing its generate_image jobId as imageJobId. It spends the owner's credits: set maxCredits, and it refuses when the video would cost more. Only for a request the owner made in this chat. Generation takes a few minutes: to act on the result, call wait_for with its jobId and end your turn; get_video tells you where it stands now.",
   generate_talking_video:
-    'Make a talking video for TikTok, Reels, Shorts or LinkedIn: a generated presenter speaks the script to camera, with captions, 9:16, in a Project\'s Content Studio. Write the script yourself in the brand\'s voice: one hook sentence first, then one point and one next step, 150 to 400 characters for 15 to 30 seconds. Never as a customer: no "I bought", "I tried", "as a customer" or invented results; Core refuses such a script. presenter is \"owner\" when your context says the owner gave a photo for their videos (ownerPresenter), which then fronts it; otherwise a stock presenter id: maya, jonas, aisha, leo, elena, david, mei or omar (all generated, no real person). Pick one that fits the audience and a matching voice. It spends the owner\'s credits, about 0.4 credits per character of script (a 150-character script costs about 62): set maxCredits and fit the script to it, since Core refuses a video that would cost more. Core edits the video itself: jump cuts, a hook line, captions, the Project\'s website behind the presenter when it has one (about 0.1 credits per character more), and its logo at the end. Two extras, only when the owner asks for them: music: true lays instrumental music under the voice (10 credits), broll: true opens on a generated clip under the first sentence (50 credits). Only for a request the owner made in this chat. It takes a few minutes: call wait_for with its jobId and end your turn; get_video tells you where it stands.',
+    'Make a talking video for TikTok, Reels, Shorts or LinkedIn: a generated presenter speaks the script to camera, with captions, 9:16, in a Project\'s Content Studio. Write the script yourself in the brand\'s voice: one hook sentence first, then one point and one next step, 150 to 400 characters for 15 to 30 seconds. Never as a customer: no "I bought", "I tried", "as a customer" or invented results; Core refuses such a script. presenter is \"owner\" when your context says the owner gave a photo for their videos (ownerPresenter), which then fronts it; otherwise a stock presenter id: maya, jonas, aisha, leo, elena, david, mei or omar (all generated, no real person). Pick one that fits the audience and a matching voice. It spends the owner\'s credits, about ' +
+    TALKING_VIDEO_COST.perCharacter +
+    " credits per character of script (a " +
+    TALKING_VIDEO_PLANNED_SCRIPT.shortest +
+    "-character script costs about " +
+    TALKING_VIDEO_PLANNED_CREDITS.shortest +
+    "): set maxCredits and fit the script to it, since Core refuses a video that would cost more. Core edits the video itself: jump cuts, a hook line, captions, the Project's website behind the presenter when it has one (about " +
+    TALKING_VIDEO_COST.sitePerCharacter +
+    " credits per character more), and its logo at the end. Two extras, only when the owner asks for them: music: true lays instrumental music under the voice (" +
+    TALKING_VIDEO_COST.music +
+    " credits), broll: true opens on a generated clip under the first sentence (" +
+    TALKING_VIDEO_COST.broll +
+    " credits). Only for a request the owner made in this chat. It takes a few minutes: call wait_for with its jobId and end your turn; get_video tells you where it stands.",
   get_video:
     "Check a video started with generate_video or generate_talking_video: its status and, once it is ready, a link to it in Content Studio and a copy in the owner's Files (fileId, link). Use that fileId as the video in create_social_post or update_social_post.",
   read_file:

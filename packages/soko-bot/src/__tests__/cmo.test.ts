@@ -1,3 +1,7 @@
+import {
+  creditsPerTalkingVideoCents,
+  TALKING_VIDEO_PRICE,
+} from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -664,5 +668,31 @@ describe("pictures in chat", () => {
       "find_style_references",
       "generate_image",
     ]);
+  });
+});
+
+describe("what Cuso is told a talking video costs", () => {
+  const credits = (length: number, siteShots = false) =>
+    creditsPerTalkingVideoCents(TALKING_VIDEO_PRICE, "x".repeat(length), {
+      siteShots,
+    });
+
+  it("tells the strategy the price a 150 to 400 character script is charged", () => {
+    const strategy = CMO_SKILLS.filter((skill) =>
+      skill.id.startsWith("cmo-strategy"),
+    );
+    expect(strategy.length).toBeGreaterThan(0);
+    const from = Math.round(credits(150) / 10) * 10;
+    const to = Math.round(credits(400, true) / 10) * 10;
+    for (const skill of strategy) {
+      expect(skill.content).toContain(`costs about ${from} to ${to} credits`);
+      expect(skill.content).not.toContain("200 to 450 credits");
+    }
+  });
+
+  it("quotes the same price in the tool that makes one", () => {
+    expect(SOKO_BOT_TOOL_DESCRIPTIONS.generate_talking_video).toContain(
+      `a 150-character script costs about ${credits(150)})`,
+    );
   });
 });

@@ -27,6 +27,7 @@ function settings(billing: Partial<CmoOverview["billing"]> = {}) {
       name="Ada"
       email="ada@acme.io"
       startOver={async () => null}
+      setTimeZone={async () => null}
       signOut={async () => {}}
       topUp={null}
       plans={cmoPlans}
@@ -36,6 +37,30 @@ function settings(billing: Partial<CmoOverview["billing"]> = {}) {
     />,
   ).replace(/<[^>]+>/g, " ");
 }
+
+describe("Settings: the time zone", () => {
+  it("says which time zone Cuso's routines run in, and offers to change it", () => {
+    const overview = cmoOverview();
+    const text = renderToStaticMarkup(
+      <SettingsPage
+        overview={{ ...overview, timeZone: "America/Los_Angeles" }}
+        compose={() => {}}
+        name="Ada"
+        email="ada@acme.io"
+        startOver={async () => null}
+        setTimeZone={async () => null}
+        signOut={async () => {}}
+        topUp={null}
+        plans={cmoPlans}
+        changePlan={async () => ({ change: null, error: null })}
+        openPortal={async () => ({ url: null, error: null })}
+        subscribe={async () => ({ url: null, error: null })}
+      />,
+    ).replace(/<[^>]+>/g, " ");
+    expect(text).toContain(`${AGENT_NAME} works on America/Los Angeles time.`);
+    expect(text).toContain("Change");
+  });
+});
 
 describe("Settings: the CMO subscription", () => {
   it("shows the tier, the interval, the renewal date and the credits left", () => {

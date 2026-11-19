@@ -66,7 +66,10 @@ describe("SokoBotTurnsSyncService", () => {
     turnFindManyMock.mockResolvedValue([]);
     turnUpdateManyMock.mockResolvedValue({ count: 1 });
     expireTurnMock.mockResolvedValue(true);
-    recoverStartingTurnMock.mockResolvedValue({ turnId: "recovered" });
+    recoverStartingTurnMock.mockResolvedValue({
+      turnId: "turn_abandoned",
+      reconciliationLeaseToken: "recovered_lease",
+    });
     reconcileTurnMock.mockResolvedValue(undefined);
     settleUndeliverableCancellationMock.mockResolvedValue(true);
   });
@@ -156,6 +159,11 @@ describe("SokoBotTurnsSyncService", () => {
       interrupted: 0,
     });
     expect(recoverStartingTurnMock).toHaveBeenCalledWith("turn_abandoned");
+    expect(reconcileTurnMock).toHaveBeenCalledWith(
+      "turn_abandoned",
+      expect.any(AbortSignal),
+      "recovered_lease",
+    );
     expect(expireTurnMock).not.toHaveBeenCalled();
   });
 

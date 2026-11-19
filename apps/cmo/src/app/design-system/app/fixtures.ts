@@ -85,6 +85,18 @@ const plan: Plan = {
 
 const at = (iso: string) => new Date(`2026-11-${iso}Z`);
 
+/** A post Cuso made on request, outside the month: it waits for the owner. */
+const WAITING_DRAFT: CmoOverview["drafts"][number] = {
+  id: "d1",
+  provider: "x",
+  text: "Every engine we ship runs on the test stand first.\n\nHere is what a full burn looks like from two metres away.",
+  status: "NEEDS_APPROVAL",
+  revision: 0,
+  scheduledAt: null,
+  publishedUrl: null,
+  media: [{ kind: "image", url: PICTURE, name: "test-stand.jpg" }],
+};
+
 export const overview: CmoOverview = cmoOverview({
   ...cmoStrategyVersion(new Date("2026-11-01T09:10:00Z")),
   businessName: "Acme",
@@ -166,6 +178,7 @@ export const overview: CmoOverview = cmoOverview({
       rewriting: false,
     },
   },
+  timeZone: "Europe/Berlin",
   routines: [
     {
       key: "cmo-daily-run",
@@ -246,6 +259,8 @@ export const overview: CmoOverview = cmoOverview({
       at: at("04T09:05:00"),
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     },
     {
       id: "u2",
@@ -257,6 +272,8 @@ export const overview: CmoOverview = cmoOverview({
       at: at("03T09:00:00"),
       revertible: true,
       revertedAt: null,
+      posts: [],
+      media: [],
     },
     {
       id: "u3",
@@ -267,8 +284,23 @@ export const overview: CmoOverview = cmoOverview({
       at: at("04T10:03:40"),
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
+    },
+    {
+      id: "u4",
+      kind: "request",
+      headline: "Test stand post ready for you",
+      done: ["Made the picture", "Wrote the post for X"],
+      upNext: [],
+      at: at("04T11:20:00"),
+      revertible: false,
+      revertedAt: null,
+      posts: [WAITING_DRAFT],
+      media: [],
     },
   ],
+  drafts: [WAITING_DRAFT],
   measurement: [
     {
       provider: "google_analytics",

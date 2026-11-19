@@ -531,8 +531,9 @@ export async function syncSokoBotWatches(input: {
         data: { firedTurnId: started.turnId },
       });
       result.fired += 1;
+      const { reconciliationLeaseToken } = started;
       if (
-        started.reconciliationLeaseToken &&
+        reconciliationLeaseToken &&
         (started.status === "STARTING" || started.status === "RUNNING")
       )
         waitUntil(
@@ -541,7 +542,7 @@ export async function syncSokoBotWatches(input: {
               .reconcileTurn(
                 started.turnId,
                 undefined,
-                started.reconciliationLeaseToken,
+                reconciliationLeaseToken,
               )
               .catch((error: unknown) => {
                 if (reportSokoBotReconciliationLeaseLoss(started.turnId, error))

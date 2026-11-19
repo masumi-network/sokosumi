@@ -792,13 +792,41 @@ export async function saveCmoSeoSuggestions(
   });
   const saved: Array<{ id: string; title: string }> = [];
   const refused: string[] = [];
-  const existing = async (id: string | undefined, kind: string) =>
-    id
-      ? prisma.projectSeoSuggestion.findFirst({
-          where: { id, projectId: cuso.projectId, kind },
-          select: { id: true },
-        })
-      : null;
+  let added = 0;
+  /**
+   * Where a suggestion goes: the row Cuso named or the one with its key, a
+   * new row, or nowhere, with the reason for Cuso.
+   */
+  const place = async (
+    suggestion: { id?: string; title: string },
+    kind: string,
+    key: string,
+  ): Promise<{ id: string | null } | { refusal: string }> => {
+    const select = { id: true, status: true } as const;
+    const row =
+      (suggestion.id
+        ? await prisma.projectSeoSuggestion.findFirst({
+            where: { id: suggestion.id, projectId: cuso.projectId, kind },
+            select,
+          })
+        : null) ??
+      (await prisma.projectSeoSuggestion.findUnique({
+        where: { projectId_key: { projectId: cuso.projectId, key } },
+        select,
+      }));
+    // read_seo hides what the owner skipped, so Cuso cannot know.
+    if (row?.status === "dismissed")
+      return {
+        refusal: `"${suggestion.title}": the owner skipped this one, so it was not saved. Suggest something else.`,
+      };
+    if (row) return { id: row.id };
+    if (open + added >= OPEN_SUGGESTIONS_MAX)
+      return {
+        refusal: `"${suggestion.title}": the list already holds ${OPEN_SUGGESTIONS_MAX} open suggestions.`,
+      };
+    added += 1;
+    return { id: null };
+  };
   for (const article of articles) {
     const evidence = await keywordEvidence(cuso.projectId, article.keyword);
     if (!evidence.some((item) => item.metric !== "intent")) {
@@ -815,29 +843,25 @@ export async function saveCmoSeoSuggestions(
       evidence,
       ...(article.draft ? { draft: article.draft } : {}),
     };
-    const update = await existing(article.id, "article");
-    if (!update && open + saved.length >= OPEN_SUGGESTIONS_MAX) {
-      refused.push(
-        `"${article.title}": the list already holds ${OPEN_SUGGESTIONS_MAX} open suggestions.`,
-      );
+    const key = `article:${normalizeKeyword(article.keyword)}`;
+    const placed = await place(article, "article", key);
+    if ("refusal" in placed) {
+      refused.push(placed.refusal);
       continue;
     }
-    const key = `article:${normalizeKeyword(article.keyword)}`;
-    const row = update
+    const row = placed.id
       ? await prisma.projectSeoSuggestion.update({
-          where: { id: update.id },
+          where: { id: placed.id },
           data,
         })
-      : await prisma.projectSeoSuggestion.upsert({
-          where: { projectId_key: { projectId: cuso.projectId, key } },
-          create: {
+      : await prisma.projectSeoSuggestion.create({
+          data: {
             projectId: cuso.projectId,
             kind: "article",
             key,
             source: "cuso",
             ...data,
           },
-          update: data,
         });
     saved.push({ id: row.id, title: row.title });
   }
@@ -869,23 +893,25 @@ export async function saveCmoSeoSuggestions(
       keyword: change.keyword ?? null,
       evidence,
     };
-    const update = await existing(change.id, "page_change");
     const key = `page:${normalizeSeoUrl(change.pageUrl)}:${hash(normalizeKeyword(change.title))}`;
-    const row = update
+    const placed = await place(change, "page_change", key);
+    if ("refusal" in placed) {
+      refused.push(placed.refusal);
+      continue;
+    }
+    const row = placed.id
       ? await prisma.projectSeoSuggestion.update({
-          where: { id: update.id },
+          where: { id: placed.id },
           data,
         })
-      : await prisma.projectSeoSuggestion.upsert({
-          where: { projectId_key: { projectId: cuso.projectId, key } },
-          create: {
+      : await prisma.projectSeoSuggestion.create({
+          data: {
             projectId: cuso.projectId,
             kind: "page_change",
             key,
             source: "cuso",
             ...data,
           },
-          update: data,
         });
     saved.push({ id: row.id, title: row.title });
   }
