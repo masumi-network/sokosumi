@@ -273,26 +273,24 @@ img { max-width: 100%; display: block; }
 .hero__meta { font-size: 0.9rem; color: var(--ink-soft); }
 
 .hero__visual { position: relative; display: grid; place-items: center; min-height: 340px; }
-.hero__visual img {
+/* Cuso walks in from behind the copy (cuso.js). Under reduced motion, or before his poses load, the still shows. */
+.hero__text { position: relative; z-index: 2; }
+.cuso {
   position: relative;
   z-index: 1;
-  width: min(380px, 78vw);
-  filter: drop-shadow(0 24px 60px rgba(0, 0, 0, 0.45));
-}
-
-/* Interactive 3D mascot */
-.hero__model {
-  position: relative;
-  z-index: 1;
+  display: block;
   width: min(440px, 84vw);
-  height: min(540px, 90vw);
-  --poster-color: transparent;
-  background: transparent;
-  cursor: grab;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.hero__model:active { cursor: grabbing; }
-/* model-viewer's default UI — keep it minimal */
-.hero__model::part(default-progress-bar) { display: none; }
+.cuso__still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; }
+.cuso__fig { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 97%; }
+.cuso__shadow { position: absolute; left: 23%; bottom: 1%; width: 54%; height: 4.4%; border-radius: 50%; background: #000; opacity: 0; }
+.cuso-anim .cuso__still { display: none; }
 .orb {
   position: absolute;
   width: min(440px, 88vw);
@@ -948,7 +946,7 @@ img { max-width: 100%; display: block; }
 .has-anim:not(.reduced) .hero__meta,
 .has-anim:not(.reduced) .hero__visual { opacity: 0; }
 
-.hero__visual, .hero__visual img, .hero .orb, .cta .orb--sm { will-change: transform, opacity; }
+.hero__visual, .hero .orb, .cta .orb--sm { will-change: transform, opacity; }
 
 /* Lenis smooth scroll */
 html.lenis, html.lenis body { height: auto; }
@@ -990,7 +988,7 @@ html.lenis, html.lenis body { height: auto; }
   .hero .lead { margin-inline: auto; }
   .hero__cta { justify-content: center; }
   .hero__visual { order: -1; min-height: 260px; }
-  .hero__visual img { width: min(260px, 62vw); }
+  .cuso { width: min(300px, 70vw); }
   .nav__links { display: none; }
   .nav__actions .link-quiet { display: none; }
 }
