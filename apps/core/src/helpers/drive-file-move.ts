@@ -7,6 +7,7 @@ import {
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import {
   type DriveHeadResult,
+  driveDelIfMatch,
   driveExists,
   driveHasAny,
   driveHead,
@@ -22,7 +23,12 @@ import {
  * row takes the destination before any bytes move, so a pathname another
  * document holds (a pending upload too) answers 409 with the source intact.
  * An object the catalog has never seen is adopted first, so it has a row to
- * move. When storage fails and the source is still there, the row goes back.
+ * move; bytes a deleted document still owns are not moved (409).
+ *
+ * When storage fails, the row follows the bytes: back to the source when
+ * the destination never got them; kept at the destination when a transfer
+ * wrote it and then failed to remove the source, which is then removed only
+ * if it is still the object this request read.
  */
 export async function relocateDriveFile(input: {
   workspaceId: string;
@@ -40,6 +46,7 @@ export async function relocateDriveFile(input: {
     sizeBytes: source.size,
     uploadedAt: source.uploadedAt,
   });
+  if (!resourceId) throw conflict("This file is being deleted");
   const displayName = await moveDriveUploadResource({
     workspaceId,
     scope,
@@ -54,6 +61,14 @@ export async function relocateDriveFile(input: {
       cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
     });
   } catch (error) {
+    // A destination someone else filled is not this transfer's.
+    const occupied =
+      error instanceof Error && /already exists/i.test(error.message);
+    const landed = occupied ? null : await driveHead(toPathname);
+    if (landed && landed.size === source.size) {
+      await driveDelIfMatch(fromPathname, source);
+      return { url: landed.url, pathname: toPathname, access: landed.access };
+    }
     if (await driveExists(fromPathname)) {
       await moveDriveUploadResource({
         workspaceId,

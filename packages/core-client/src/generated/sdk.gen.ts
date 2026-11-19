@@ -2423,9 +2423,12 @@ export const getDriveFiles = <ThrowOnError extends boolean = false>(options: Opt
  * Agent / REST:
  * 1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).
  * 2. PUT raw bytes to `uploadUrl` with `Content-Type` from `headers`.
- * The grant writes a staging key bound to this upload attempt, not `pathname`.
- * 3. POST `/drive/files/finalize` with `pathname`: it moves the bytes to `pathname`.
- * The file is not in Drive until then.
+ * 3. Done — file is immediately available via pathname.
+ *
+ * Staged (opt in with `staged: true`; always for `pinLabelsEmpty`): the PUT
+ * writes a staging key bound to the session's `attemptId`, and the file is
+ * in Drive only after `POST /drive/files/finalize` with `pathname` and
+ * `attemptId`. A late write from that grant never reaches a Drive pathname.
  *
  * Max size: 104857600 bytes. MIME allowlist matches user uploads (including SVG for drive).
  */
@@ -2440,14 +2443,17 @@ export const postDriveFiles = <ThrowOnError extends boolean = false>(options: Op
 });
 
 /**
- * Store an upload's bytes at its Drive pathname, and start indexing it.
+ * Confirm that an upload's bytes landed, and start indexing it.
  *
- * The grant writes to a staging key bound to the catalog version reserved
- * at mint, so nothing server-side sees the bytes arrive. This moves that
- * version's staged object onto the pathname (never replacing a file
- * there), activates the catalog entry and queues extraction. Required:
- * an upload is not in Drive until it is finalized. A pathname that no
- * object backs finalizes nothing; 409 when another file holds it.
+ * Released flow (no `attemptId`): the bytes were PUT to `pathname` and are
+ * already in Drive; this activates the catalog entry and queues
+ * extraction. A pathname that no object backs finalizes nothing.
+ *
+ * Staged flow (`attemptId` from a session minted with `staged: true`):
+ * moves that attempt's staged object onto `pathname`, never replacing a
+ * file there, and activates it; the file is in Drive only after this.
+ * 409 when a newer upload replaced the attempt or another file holds the
+ * pathname. Repeating a finished finalize is harmless.
  */
 export const postDriveFilesFinalize = <ThrowOnError extends boolean = false>(options: Options<PostDriveFilesFinalizeData, ThrowOnError>): RequestResult<PostDriveFilesFinalizeResponses, PostDriveFilesFinalizeErrors, ThrowOnError> => (options.client ?? client).post<PostDriveFilesFinalizeResponses, PostDriveFilesFinalizeErrors, ThrowOnError>({
     responseTransformer: postDriveFilesFinalizeResponseTransformer,

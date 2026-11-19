@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const blob = vi.hoisted(() => {
   class BlobNotFoundError extends Error {}
+  class BlobPreconditionFailedError extends Error {}
   return {
     BlobNotFoundError,
+    BlobPreconditionFailedError,
     head: vi.fn(),
     list: vi.fn(),
     rename: vi.fn(),
@@ -173,5 +175,106 @@ describe("moveDriveFile", () => {
     expect(blob.del).toHaveBeenCalledWith(base.sourcePathname, {
       token: "public-token",
     });
+  });
+
+  describe("a transfer into a room that half succeeds", () => {
+    const ROOM_TARGET = "drive/organizations/org_1/Series A/deck.pdf";
+
+    /** Separate public and private stores, by token. */
+    function twoStores() {
+      const objects: Record<
+        string,
+        Map<string, { size: number; etag: string }>
+      > = {
+        "public-token": new Map([
+          [base.sourcePathname, { size: 9, etag: '"src"' }],
+        ]),
+        "private-token": new Map(),
+      };
+      blob.head.mockImplementation(
+        async (pathname: string, options: { token: string }) => {
+          const object = objects[options.token].get(pathname);
+          if (!object) throw new blob.BlobNotFoundError("missing");
+          return {
+            ...object,
+            url: `https://${options.token}/${pathname}`,
+            contentType: "application/pdf",
+            cacheControl: "",
+            uploadedAt: new Date(0),
+          };
+        },
+      );
+      blob.get.mockResolvedValue({
+        statusCode: 200,
+        stream: new ReadableStream(),
+        blob: { contentType: "application/pdf" },
+      });
+      blob.put.mockImplementation(
+        async (
+          pathname: string,
+          _body: unknown,
+          options: { token: string },
+        ) => {
+          objects[options.token].set(pathname, { size: 9, etag: '"dst"' });
+          return { url: `https://private/${pathname}`, pathname };
+        },
+      );
+      return objects;
+    }
+
+    beforeEach(() => {
+      db.dataRoom.findMany.mockResolvedValue([
+        { folderPath: "Series A", storage: "PRIVATE" },
+      ]);
+    });
+
+    it("keeps the row with the bytes that landed and removes the observed source", async () => {
+      const objects = twoStores();
+      // The transfer's own source delete fails; the retry succeeds.
+      blob.del
+        .mockRejectedValueOnce(new Error("store 503"))
+        .mockImplementationOnce(async (pathname: string) => {
+          objects["public-token"].delete(pathname);
+        });
+
+      await expect(
+        moveDriveFile({ ...base, targetFolderPath: "Series A" }),
+      ).resolves.toBe(ROOM_TARGET);
+
+      expect(catalog.moveDriveUploadResource).toHaveBeenCalledTimes(1);
+      expect(blob.del).toHaveBeenLastCalledWith(base.sourcePathname, {
+        token: "public-token",
+        ifMatch: '"src"',
+      });
+      expect(objects["public-token"].has(base.sourcePathname)).toBe(false);
+    });
+
+    it("puts the row back when the destination never got the bytes", async () => {
+      twoStores();
+      blob.put.mockRejectedValue(new Error("store 503"));
+
+      await expect(
+        moveDriveFile({ ...base, targetFolderPath: "Series A" }),
+      ).rejects.toThrow("store 503");
+
+      expect(catalog.moveDriveUploadResource).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          fromPathname: ROOM_TARGET,
+          toPathname: base.sourcePathname,
+        }),
+      );
+      expect(blob.del).not.toHaveBeenCalled();
+    });
+  });
+
+  it("moves no bytes a deleted document still owns", async () => {
+    sourceOnly();
+    catalog.adoptDriveUploadResource.mockResolvedValue(null);
+
+    await expect(
+      moveDriveFile({ ...base, targetFolderPath: "Masumi Fundraising" }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(catalog.moveDriveUploadResource).not.toHaveBeenCalled();
+    expect(blob.rename).not.toHaveBeenCalled();
   });
 });

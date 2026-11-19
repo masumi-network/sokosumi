@@ -69,12 +69,14 @@ const {
   tombstoneOneMock,
   adoptMock,
   moveRowMock,
+  settleMock,
 } = vi.hoisted(() => ({
   tombstoneManyMock: vi.fn(),
   reconcileMovesMock: vi.fn(),
   tombstoneOneMock: vi.fn(),
   adoptMock: vi.fn(),
   moveRowMock: vi.fn(),
+  settleMock: vi.fn(),
 }));
 
 vi.mock("@/services/drive-share.service", () => ({
@@ -86,6 +88,7 @@ vi.mock("@/services/file-catalog.service", () => ({
   reconcileDriveUploadMoves: reconcileMovesMock,
   adoptDriveUploadResource: adoptMock,
   moveDriveUploadResource: moveRowMock,
+  settleDriveUploadDeletes: settleMock,
 }));
 
 /** The catalog row moves the per-file pairs in the order the route asked. */
@@ -204,10 +207,14 @@ describe("folder delete", () => {
   });
 
   it("tombstones every pathname it removed", async () => {
-    listMock.mockResolvedValue({
-      blobs: [{ pathname: `${PREFIX}q1.md` }, { pathname: `${PREFIX}q2.md` }],
+    listMock.mockResolvedValueOnce({
+      blobs: [
+        { pathname: `${PREFIX}q1.md`, etag: '"1"' },
+        { pathname: `${PREFIX}q2.md`, etag: '"2"' },
+      ],
       hasMore: false,
     });
+    listMock.mockResolvedValue({ blobs: [], hasMore: false });
 
     const response = await appWith(mountFolderDelete).request("/delete", {
       method: "DELETE",
@@ -222,6 +229,17 @@ describe("folder delete", () => {
       delMock.mock.invocationCallOrder[0],
     );
     expect(tombstoneManyMock.mock.calls[0][0]).toMatchObject({
+      workspaceId: "workspace-1",
+      scope: "user",
+      pathnames: [`${PREFIX}q1.md`, `${PREFIX}q2.md`],
+      deleting: true,
+    });
+    // Only the objects the listing showed, each by its ETag.
+    expect(delMock).toHaveBeenCalledWith(`${PREFIX}q1.md`, {
+      token: "test-token",
+      ifMatch: '"1"',
+    });
+    expect(settleMock).toHaveBeenCalledWith({
       workspaceId: "workspace-1",
       scope: "user",
       pathnames: [`${PREFIX}q1.md`, `${PREFIX}q2.md`],

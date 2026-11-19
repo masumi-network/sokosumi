@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const blob = vi.hoisted(() => {
   class BlobNotFoundError extends Error {}
+  class BlobPreconditionFailedError extends Error {}
   return {
     BlobNotFoundError,
+    BlobPreconditionFailedError,
     head: vi.fn(),
     list: vi.fn(),
     get: vi.fn(),
@@ -25,6 +27,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: db }));
 
 import {
   driveDel,
+  driveDelIfMatch,
   driveHead,
   driveList,
   drivePut,
@@ -173,20 +176,26 @@ describe("staged uploads", () => {
     expect(options.allowOverwrite).toBeUndefined();
   });
 
-  it("carries the attempt into a room's store without replacing anything there", async () => {
+  it("touches nothing when the attempt sits in another store than the pathname now belongs in", async () => {
+    // Staged public, but the folder became a data room before finalize.
     stores({ public: [STAGED], private: [] });
-    blob.get.mockResolvedValue({
-      statusCode: 200,
-      stream: "bytes",
-      blob: { contentType: "application/pdf" },
+    await expect(
+      promoteStagedUpload(STAGED, `${OWNER}Series A/deck.pdf`),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(blob.rename).not.toHaveBeenCalled();
+    expect(blob.put).not.toHaveBeenCalled();
+    expect(blob.del).not.toHaveBeenCalled();
+  });
+
+  it("promotes inside a room within the room's own store", async () => {
+    stores({ public: [], private: [STAGED] });
+    blob.rename.mockResolvedValue({ url: "u", pathname: "p" });
+    await expect(
+      promoteStagedUpload(STAGED, `${OWNER}Series A/deck.pdf`),
+    ).resolves.toBe(true);
+    expect(blob.rename.mock.calls[0][2]).toMatchObject({
+      token: "private-token",
     });
-    blob.put.mockResolvedValue({ url: "u", pathname: "p" });
-    await promoteStagedUpload(STAGED, `${OWNER}Series A/deck.pdf`);
-    expect(blob.put.mock.calls[0][2]).toMatchObject({
-      access: "private",
-      allowOverwrite: false,
-    });
-    expect(blob.del).toHaveBeenCalledWith(STAGED, { token: "public-token" });
   });
 
   it("answers 409, keeping the attempt, when another object holds the pathname", async () => {
@@ -204,6 +213,27 @@ describe("staged uploads", () => {
     await expect(promoteStagedUpload(STAGED, `${OWNER}notes.md`)).resolves.toBe(
       false,
     );
+  });
+});
+
+describe("deleting the object a request observed", () => {
+  it("deletes only while the object still carries the observed ETag", async () => {
+    await expect(
+      driveDelIfMatch(`${OWNER}notes.md`, { access: "public", etag: '"e1"' }),
+    ).resolves.toBe(true);
+    expect(blob.del).toHaveBeenCalledWith(`${OWNER}notes.md`, {
+      token: "public-token",
+      ifMatch: '"e1"',
+    });
+  });
+
+  it("leaves a newer object alone and reports the observed one gone", async () => {
+    blob.del.mockRejectedValueOnce(
+      new blob.BlobPreconditionFailedError("etag"),
+    );
+    await expect(
+      driveDelIfMatch(`${OWNER}notes.md`, { access: "public", etag: '"e1"' }),
+    ).resolves.toBe(false);
   });
 });
 

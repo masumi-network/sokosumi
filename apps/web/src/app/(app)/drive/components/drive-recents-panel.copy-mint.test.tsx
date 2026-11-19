@@ -92,7 +92,7 @@ beforeEach(() => {
     const url = new URL(request.url);
     if (url.pathname === "/v1/drive/files/finalize")
       return json(200, {
-        data: { resourceId: "res_2" },
+        data: { resourceId: "res_2", fileUrl: null },
         meta: { timestamp: "2026-11-18T12:00:00.000Z" },
       });
     const body = (await request.json()) as {
@@ -110,6 +110,8 @@ beforeEach(() => {
         uploadUrl: "https://blob.test/upload?sig=1",
         // Core mints the copy's own name per attempt.
         pathname: "drive/users/u1/briefs/weekly_copyNameLabel_2_0a1b2c3d4e.md",
+        // A copy is always staged.
+        attemptId: "0f9d2c1e-8b7a-4c3d-9e1f-2a3b4c5d6e7f",
         access: "public",
         method: "PUT",
         headers: { "Content-Type": "text/markdown" },

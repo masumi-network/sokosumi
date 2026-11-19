@@ -2,6 +2,7 @@ import { DataRoomStorage, FileSourceScope } from "@sokosumi/database";
 import {
   type BlobAccessType,
   BlobNotFoundError,
+  BlobPreconditionFailedError,
   del,
   get,
   type HeadBlobResult,
@@ -359,57 +360,91 @@ export function stagedUploadPathname(
   versionId: string,
   pathname: string,
 ): string {
-  return `drive-staging/${versionId}/${pathname.split("/").at(-1)}`;
+  return `${STAGED_UPLOAD_PREFIX}${versionId}/${pathname.split("/").at(-1)}`;
+}
+
+const STAGED_UPLOAD_PREFIX = "drive-staging/";
+
+export function isStagedUploadPathname(pathname: string): boolean {
+  return pathname.startsWith(STAGED_UPLOAD_PREFIX);
 }
 
 /**
- * Moves a staged upload onto its Drive pathname, into the store that
- * pathname belongs in, never replacing an object already there (409). False
- * when nothing is staged (never written, or already promoted).
+ * Moves a staged upload onto its Drive pathname with one rename inside the
+ * store that pathname belongs in, never replacing an object there (409).
+ * A grant stages in the store its pathname belonged in at mint; when a data
+ * room has since moved that boundary, nothing is touched (409: upload again),
+ * so promotion never needs a two-step copy that can half succeed. False when
+ * nothing is staged (never written, or already promoted).
  */
 export async function promoteStagedUpload(
   staged: string,
   pathname: string,
 ): Promise<boolean> {
   const target = await driveWriteStore(pathname);
-  const privateStore = privateDriveStore();
-  const stores = privateStore
-    ? [publicDriveStore(), privateStore]
-    : [publicDriveStore()];
+  const found = (store: DriveBlobStore) =>
+    head(staged, { token: store.token }).catch((error: unknown) => {
+      if (error instanceof BlobNotFoundError) return null;
+      throw error;
+    });
+  const source = await found(target);
+  if (!source) {
+    const other =
+      target.access === "public" ? privateDriveStore() : publicDriveStore();
+    if (other && (await found(other)))
+      throw conflict("This folder changed while uploading; upload again");
+    return false;
+  }
   try {
-    for (const store of stores) {
-      const source = await head(staged, { token: store.token }).catch(
-        (error: unknown) => {
-          if (error instanceof BlobNotFoundError) return null;
-          throw error;
-        },
-      );
-      if (!source) continue;
-      if (store.access === target.access) {
-        await rename(staged, pathname, {
-          token: target.token,
-          access: target.access,
-          addRandomSuffix: false,
-          contentType: source.contentType,
-        });
-      } else {
-        await transferBetweenStores({
-          fromPathname: staged,
-          fromStore: store,
-          toPathname: pathname,
-          toStore: target,
-          allowOverwrite: false,
-        });
-      }
-      return true;
-    }
+    await rename(staged, pathname, {
+      token: target.token,
+      access: target.access,
+      addRandomSuffix: false,
+      contentType: source.contentType,
+    });
+    return true;
   } catch (error) {
     if (error instanceof BlobNotFoundError) return false;
     if (error instanceof Error && /already exists/i.test(error.message))
       throw conflict("Another file is already at that path");
     throw error;
   }
-  return false;
+}
+
+/** ETag of a staged upload in the store its pathname belongs in, or null. */
+export async function stagedUploadEtag(
+  staged: string,
+  pathname: string,
+): Promise<string | null> {
+  const target = await driveWriteStore(pathname);
+  return head(staged, { token: target.token }).then(
+    (meta) => meta.etag,
+    (error: unknown) => {
+      if (error instanceof BlobNotFoundError) return null;
+      throw error;
+    },
+  );
+}
+
+/**
+ * Deletes the object a request observed, and only that one: false when the
+ * pathname now holds a different object (ETag changed), which stays.
+ */
+export async function driveDelIfMatch(
+  pathname: string,
+  observed: { access: BlobAccessType; etag: string },
+): Promise<boolean> {
+  try {
+    await del(pathname, {
+      token: storeFor(observed.access).token,
+      ifMatch: observed.etag,
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof BlobPreconditionFailedError) return false;
+    if (error instanceof BlobNotFoundError) return true;
+    throw error;
+  }
 }
 
 function storeFor(access: BlobAccessType): DriveBlobStore {

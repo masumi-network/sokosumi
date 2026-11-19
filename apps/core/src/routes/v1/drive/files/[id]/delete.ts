@@ -5,18 +5,18 @@ import {
   drivePathOf,
   requireDriveFileAccess,
 } from "@/helpers/drive-file-access";
+import { deleteObservedDriveFiles } from "@/helpers/drive-file-delete";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
-import { driveDel, driveExists } from "@/lib/drive-blob";
+import { driveHead } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
 import { deleteDriveFileRequestSchema } from "@/schemas/drive-file.schema";
 import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
-import { tombstoneDriveUploadResource } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -70,7 +70,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       changes: [drivePathOf(pathname)],
     });
 
-    if (!(await driveExists(pathname))) {
+    const observed = await driveHead(pathname);
+    if (!observed) {
       throw notFound("Drive file not found");
     }
 
@@ -83,16 +84,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await requireNotCmoDriveFile(workspace.workspaceId, pathname);
     }
 
-    // Tombstone first: a deleted document stops matching at once, and the
-    // pathname is released only while the old bytes still occupy it. A new
-    // upload that takes the name cannot promote onto it (no overwrite) until
-    // the delete below has run, so this delete never removes its bytes.
-    await tombstoneDriveUploadResource({
+    // Tombstone in the same request: a deleted document must stop matching
+    // at once, not when a sweeper next runs. Recoverably, and only the
+    // object observed here: see `deleteObservedDriveFiles`.
+    await deleteObservedDriveFiles({
       workspaceId: workspace.workspaceId,
       scope,
-      pathname,
+      objects: [{ pathname, access: observed.access, etag: observed.etag }],
     });
-    await driveDel([pathname]);
 
     return c.body(null, 204);
   });

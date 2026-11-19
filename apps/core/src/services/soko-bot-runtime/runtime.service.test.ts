@@ -175,6 +175,7 @@ const {
     resourceFindFirst: vi.fn(),
     del: vi.fn(),
     tombstone: vi.fn(),
+    settle: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
@@ -483,6 +484,8 @@ vi.mock("@/services/file-catalog.service", () => ({
   reserveDriveUploadResource: files.reserve,
   activateDriveUploadResource: files.activate,
   tombstoneDriveUploadResource: files.tombstone,
+  tombstoneDriveUploadResources: files.tombstone,
+  settleDriveUploadDeletes: files.settle,
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: files.nudge,
@@ -10227,16 +10230,26 @@ describe("Drive file tools", () => {
           "commitReceipt",
         )
         .mockImplementation((...args) => args[3]);
+      files.head.mockResolvedValueOnce({ etag: '"e1"' });
       await expect(
         service["deleteFile"](asked as never, { fileId: "file-1" }, "call-1"),
       ).resolves.toEqual({ id: "file-1", filename: "meta.pdf", deleted: true });
-      expect(files.del).toHaveBeenCalledWith(["drive/u/meta.pdf"], {
-        token: "token",
-      });
+      // Tombstoned as still owning its bytes, then only the observed object
+      // is deleted, then the hold is released.
       expect(files.tombstone).toHaveBeenCalledWith({
         workspaceId: "personal-workspace",
         scope: "user",
-        pathname: "drive/u/meta.pdf",
+        pathnames: ["drive/u/meta.pdf"],
+        deleting: true,
+      });
+      expect(files.del).toHaveBeenCalledWith("drive/u/meta.pdf", {
+        token: "token",
+        ifMatch: '"e1"',
+      });
+      expect(files.settle).toHaveBeenCalledWith({
+        workspaceId: "personal-workspace",
+        scope: "user",
+        pathnames: ["drive/u/meta.pdf"],
       });
       commit.mockRestore();
     });

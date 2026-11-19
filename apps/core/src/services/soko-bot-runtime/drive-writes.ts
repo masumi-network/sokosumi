@@ -8,10 +8,10 @@ import {
 } from "@sokosumi/utils";
 import { head } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
+import { deleteObservedDriveFiles } from "@/helpers/drive-file-delete";
 import { moveDriveFile } from "@/helpers/drive-file-move";
 import prisma from "@/lib/db/prisma";
 import {
-  driveDel,
   driveExists,
   driveHead,
   drivePut,
@@ -228,14 +228,28 @@ export async function deleteFile(
     authorized,
     input.fileId,
   );
-  // Catalog first, as in the Drive delete route: the pathname is released
-  // only while the old bytes still occupy it.
-  await tombstoneDriveUploadResource({
-    workspaceId: drive.key.workspaceId,
-    scope: drive.key.scope,
-    pathname: resource.sourceId,
-  });
-  await driveDel([resource.sourceId]);
+  // Recoverably, and only the object observed here, as in the Drive delete
+  // route; a file whose bytes are already gone is only tombstoned.
+  const observed = await driveHead(resource.sourceId);
+  if (observed) {
+    await deleteObservedDriveFiles({
+      workspaceId: drive.key.workspaceId,
+      scope: drive.key.scope,
+      objects: [
+        {
+          pathname: resource.sourceId,
+          access: observed.access,
+          etag: observed.etag,
+        },
+      ],
+    });
+  } else {
+    await tombstoneDriveUploadResource({
+      workspaceId: drive.key.workspaceId,
+      scope: drive.key.scope,
+      pathname: resource.sourceId,
+    });
+  }
   return runtime.commitReceipt(authorized, toolCallId, resource.id, {
     id: resource.id,
     filename: resource.displayName,

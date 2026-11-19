@@ -53,9 +53,12 @@ const route = withCoworkerContextHeaderParameters(
       "Agent / REST:",
       "1. POST this endpoint with `filename`, `contentType`, `size`, and `scope` (+ `organizationId` if scope=org).",
       "2. PUT raw bytes to `uploadUrl` with `Content-Type` from `headers`.",
-      "   The grant writes a staging key bound to this upload attempt, not `pathname`.",
-      "3. POST `/drive/files/finalize` with `pathname`: it moves the bytes to `pathname`.",
-      "   The file is not in Drive until then.",
+      "3. Done — file is immediately available via pathname.",
+      "",
+      "Staged (opt in with `staged: true`; always for `pinLabelsEmpty`): the PUT",
+      "writes a staging key bound to the session's `attemptId`, and the file is",
+      "in Drive only after `POST /drive/files/finalize` with `pathname` and",
+      "`attemptId`. A late write from that grant never reaches a Drive pathname.",
       "",
       `Max size: ${FILE_UPLOAD_MAX_SIZE_BYTES} bytes. MIME allowlist matches user uploads (including SVG for drive).`,
     ].join("\n"),
@@ -160,10 +163,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Reserve the document's identity before any bytes exist, so the
     // finalize callback has something to authenticate against and an
-    // abandoned grant is visible rather than invisible. The grant writes only
-    // the reserved version's staging key, so its bytes reach `pathname` only
-    // through finalize, and a late write from it never lands on a Drive
-    // pathname.
+    // abandoned grant is visible rather than invisible. A staged grant writes
+    // only the reserved version's staging key, so its bytes reach `pathname`
+    // only through finalize, and a late write from it never lands on a Drive
+    // pathname. A copy is always staged.
+    const staged = body.staged === true || body.pinLabelsEmpty === true;
     const workspace = await resolveDriveTasksWorkspace({
       userContext,
       scope: body.scope,
@@ -185,11 +189,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pinLabelsEmpty: body.pinLabelsEmpty
         ? { decidedByUserId: userContext.userId }
         : undefined,
+      staged,
     });
 
     const store = await driveWriteStore(pathname);
     const grant = await createBlobUploadGrant({
-      pathname: stagedUploadPathname(versionId, pathname),
+      pathname: staged ? stagedUploadPathname(versionId, pathname) : pathname,
       access: store.access,
       contentType: resolvedContentType,
       maximumSizeInBytes: body.size,
@@ -201,6 +206,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const session = {
       uploadUrl: grant.uploadUrl,
       pathname,
+      ...(staged ? { attemptId: versionId } : {}),
       access: grant.access,
       method: "PUT" as const,
       headers: {

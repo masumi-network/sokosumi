@@ -34,6 +34,8 @@ function grantSession(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const ATTEMPT = "0f9d2c1e-8b7a-4c3d-9e1f-2a3b4c5d6e7f";
+
 function mockXHR(status: number, responseText = "") {
   let lastInstance: Record<string, unknown> | null = null;
 
@@ -79,7 +81,7 @@ describe("uploadDriveFile", () => {
     globalThis.XMLHttpRequest = originalXHR;
   });
 
-  it("mints a session and PUTs the file to the presigned URL", async () => {
+  it("mints a staged session and PUTs the file to the presigned URL", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
@@ -92,7 +94,7 @@ describe("uploadDriveFile", () => {
       }),
     );
     vi.stubGlobal("XMLHttpRequest", constructor);
-    postDriveFilesMock.mockResolvedValue(grantSession());
+    postDriveFilesMock.mockResolvedValue(grantSession({ attemptId: ATTEMPT }));
     const onUploadProgress = vi.fn();
     finalizeDriveFileMock.mockResolvedValue({
       data: {
@@ -123,9 +125,19 @@ describe("uploadDriveFile", () => {
         contentType: "application/pdf",
         size: 5,
         scope: "me",
+        staged: true,
       },
       throwOnError: false,
     });
+    expect(finalizeDriveFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          scope: "me",
+          pathname: "drive/users/user_123/report.pdf",
+          attemptId: ATTEMPT,
+        },
+      }),
+    );
     expect(xhrInstance?.open).toHaveBeenCalledWith(
       "PUT",
       "https://blob.example/upload?sig=1",
@@ -138,28 +150,13 @@ describe("uploadDriveFile", () => {
     expect(onUploadProgress).toHaveBeenCalledWith({ percentage: 100 });
   });
 
-  it("resolves with a null file URL inside a data room", async () => {
+  it("fails a staged upload when finalize fails twice: it is not in Drive yet", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
     const { constructor } = mockXHR(200);
     vi.stubGlobal("XMLHttpRequest", constructor);
-    postDriveFilesMock.mockResolvedValue(grantSession());
-
-    await expect(uploadDriveFile(file, { scope: "me" })).resolves.toEqual({
-      pathname: "drive/users/user_123/report.pdf",
-      fileUrl: null,
-      resourceId: "file-1",
-    });
-  });
-
-  it("fails when finalize fails: the file is not in Drive until it runs", async () => {
-    const file = new File(["hello"], "report.pdf", {
-      type: "application/pdf",
-    });
-    const { constructor } = mockXHR(200);
-    vi.stubGlobal("XMLHttpRequest", constructor);
-    postDriveFilesMock.mockResolvedValue(grantSession());
+    postDriveFilesMock.mockResolvedValue(grantSession({ attemptId: ATTEMPT }));
     finalizeDriveFileMock.mockRejectedValue(new Error("503"));
 
     await expect(uploadDriveFile(file, { scope: "me" })).rejects.toMatchObject({
@@ -168,13 +165,13 @@ describe("uploadDriveFile", () => {
     expect(finalizeDriveFileMock).toHaveBeenCalledTimes(2);
   });
 
-  it("retries finalize once before failing", async () => {
+  it("retries a staged finalize once before failing", async () => {
     const file = new File(["hello"], "report.pdf", {
       type: "application/pdf",
     });
     const { constructor } = mockXHR(200);
     vi.stubGlobal("XMLHttpRequest", constructor);
-    postDriveFilesMock.mockResolvedValue(grantSession());
+    postDriveFilesMock.mockResolvedValue(grantSession({ attemptId: ATTEMPT }));
     finalizeDriveFileMock
       .mockRejectedValueOnce(new Error("network"))
       .mockResolvedValueOnce({
@@ -185,6 +182,60 @@ describe("uploadDriveFile", () => {
       pathname: "drive/users/user_123/report.pdf",
       fileUrl: "https://x/f.pdf",
       resourceId: "file-1",
+    });
+  });
+
+  describe("against a Core that only knows the released flow", () => {
+    it("keeps the PUT URL and treats finalize as best effort", async () => {
+      const file = new File(["hello"], "report.pdf", {
+        type: "application/pdf",
+      });
+      const { constructor } = mockXHR(
+        200,
+        JSON.stringify({
+          url: "https://blob.example/drive/users/u/report.pdf",
+        }),
+      );
+      vi.stubGlobal("XMLHttpRequest", constructor);
+      postDriveFilesMock.mockResolvedValue(grantSession());
+      finalizeDriveFileMock.mockRejectedValue(new Error("503"));
+
+      await expect(uploadDriveFile(file, { scope: "me" })).resolves.toEqual({
+        pathname: "drive/users/user_123/report.pdf",
+        fileUrl: "https://blob.example/drive/users/u/report.pdf",
+      });
+      expect(finalizeDriveFileMock.mock.calls[0][0].body).not.toHaveProperty(
+        "attemptId",
+      );
+    });
+
+    it("resolves with a null file URL when the PUT response has none", async () => {
+      const file = new File(["hello"], "report.pdf", {
+        type: "application/pdf",
+      });
+      const { constructor } = mockXHR(200);
+      vi.stubGlobal("XMLHttpRequest", constructor);
+      postDriveFilesMock.mockResolvedValue(grantSession());
+      finalizeDriveFileMock.mockResolvedValue({ data: undefined });
+
+      await expect(uploadDriveFile(file, { scope: "me" })).resolves.toEqual({
+        pathname: "drive/users/user_123/report.pdf",
+        fileUrl: null,
+      });
+    });
+
+    it("never PUTs a copy, which would be labelled like any upload", async () => {
+      const file = new File(["hello"], "report.pdf", {
+        type: "application/pdf",
+      });
+      const { constructor, getInstance } = mockXHR(200);
+      vi.stubGlobal("XMLHttpRequest", constructor);
+      postDriveFilesMock.mockResolvedValue(grantSession());
+
+      await expect(
+        uploadDriveFile(file, { scope: "me", pinLabelsEmpty: true }),
+      ).rejects.toMatchObject({ code: "internal" });
+      expect(getInstance()).toBeNull();
     });
   });
 
@@ -255,6 +306,7 @@ describe("uploadDriveFile", () => {
         size: 1,
         scope: "org",
         organizationId: "org_123",
+        staged: true,
       },
       throwOnError: false,
     });

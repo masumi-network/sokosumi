@@ -1,9 +1,10 @@
 import { FileSourceKind, FileSourceScope } from "@sokosumi/database";
 import sharp from "sharp";
 
+import { deleteObservedDriveFiles } from "@/helpers/drive-file-delete";
 import { unprocessableEntity } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-import { driveDel } from "@/lib/drive-blob";
+import { driveHead } from "@/lib/drive-blob";
 import {
   findTalkingVideoPresenter,
   TALKING_VIDEO_PRESENTERS,
@@ -90,17 +91,32 @@ async function removePresenterPhoto(
       })
     : null;
   if (file) {
-    // Catalog first, as in the Drive delete route: the pathname is released
-    // only while the old bytes still occupy it.
-    await tombstoneDriveUploadResource({
-      workspaceId: cuso.workspaceId,
-      scope:
-        file.sourceScope === FileSourceScope.ORGANIZATION
-          ? "organization"
-          : "user",
-      pathname: file.sourceId,
-    });
-    await driveDel([file.sourceId]);
+    const scope =
+      file.sourceScope === FileSourceScope.ORGANIZATION
+        ? "organization"
+        : "user";
+    // Recoverably, and only the object observed here, as in the Drive
+    // delete route; a file whose bytes are already gone is only tombstoned.
+    const observed = await driveHead(file.sourceId);
+    if (observed) {
+      await deleteObservedDriveFiles({
+        workspaceId: cuso.workspaceId,
+        scope,
+        objects: [
+          {
+            pathname: file.sourceId,
+            access: observed.access,
+            etag: observed.etag,
+          },
+        ],
+      });
+    } else {
+      await tombstoneDriveUploadResource({
+        workspaceId: cuso.workspaceId,
+        scope,
+        pathname: file.sourceId,
+      });
+    }
   }
   await prisma.project.update({
     where: { id: cuso.projectId },

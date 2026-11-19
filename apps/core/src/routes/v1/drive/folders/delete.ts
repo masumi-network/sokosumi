@@ -7,11 +7,12 @@ import {
 
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import { deleteObservedDriveFiles } from "@/helpers/drive-file-delete";
 import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { badRequest, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import { empty } from "@/helpers/response";
-import { driveDel, driveList } from "@/lib/drive-blob";
+import { driveList } from "@/lib/drive-blob";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -19,7 +20,6 @@ import {
 import { deleteDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
 import { requireNotCmoDriveFile } from "@/services/cmo-cuso.service";
 import { deleteDataRoomsUnder } from "@/services/data-room-paths.service";
-import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 
 const route = withCoworkerContextHeaderParameters(
   createRoute({
@@ -116,28 +116,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const seen = new Set<string>();
     for (;;) {
       const result = await driveList({ prefix, cursor, limit: 1000 });
-      const pathnames = result.blobs
-        .map((b) => b.pathname)
-        .filter((pathname) => !seen.has(pathname));
+      const blobs = result.blobs.filter((blob) => !seen.has(blob.pathname));
 
-      if (pathnames.length > 0) {
+      if (blobs.length > 0) {
         foundAnyBlobs = true;
-        for (const pathname of pathnames) seen.add(pathname);
+        for (const blob of blobs) seen.add(blob.pathname);
 
-        for (let i = 0; i < pathnames.length; i += BATCH_SIZE) {
-          const batch = pathnames.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < blobs.length; i += BATCH_SIZE) {
+          const batch = blobs.slice(i, i + BATCH_SIZE);
           // Tombstone in the same request, batch by batch, so a throw
           // part-way through leaves no deleted file indexed. Without this
           // the documents stayed fully indexed: deleted files kept matching
-          // full-text search and kept returning content snippets. Catalog
-          // first, as for one file: the names are released while the old
-          // bytes still occupy them.
-          await tombstoneDriveUploadResources({
+          // full-text search and kept returning content snippets.
+          // Recoverably, and only the objects listed here: see
+          // `deleteObservedDriveFiles`.
+          await deleteObservedDriveFiles({
             workspaceId: workspace.workspaceId,
             scope,
-            pathnames: batch,
+            objects: batch,
           });
-          await driveDel(batch);
         }
         cursor = undefined;
         continue;

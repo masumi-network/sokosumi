@@ -1,12 +1,15 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { notFound } from "@/helpers/error";
+import { FileSourceScope } from "@sokosumi/database";
+import { requireDriveFileAccess } from "@/helpers/drive-file-access";
+import { conflict, notFound } from "@/helpers/error";
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
   driveHead,
+  driveOwnerOf,
   promoteStagedUpload,
-  stagedUploadPathname,
+  stagedUploadEtag,
 } from "@/lib/drive-blob";
 import {
   nudgeFileExtraction,
@@ -19,13 +22,18 @@ import {
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
   activateDriveUploadResource,
-  currentDriveUploadVersion,
+  publishStagedDriveUpload,
 } from "@/services/file-catalog.service";
 
 const bodySchema = z.object({
   scope: driveFileScopeSchema,
   organizationId: z.string().optional(),
   pathname: z.string().min(1).max(1_000),
+  /**
+   * The staged upload attempt, from the upload session. Given: publishes
+   * exactly that attempt. Omitted: the released flow, bytes PUT to pathname.
+   */
+  attemptId: z.string().uuid().optional(),
 });
 
 const responseSchema = z.object({
@@ -39,14 +47,17 @@ const route = withCoworkerContextHeaderParameters(
     method: "post",
     path: "/finalize",
     description: [
-      "Store an upload's bytes at its Drive pathname, and start indexing it.",
+      "Confirm that an upload's bytes landed, and start indexing it.",
       "",
-      "The grant writes to a staging key bound to the catalog version reserved",
-      "at mint, so nothing server-side sees the bytes arrive. This moves that",
-      "version's staged object onto the pathname (never replacing a file",
-      "there), activates the catalog entry and queues extraction. Required:",
-      "an upload is not in Drive until it is finalized. A pathname that no",
-      "object backs finalizes nothing; 409 when another file holds it.",
+      "Released flow (no `attemptId`): the bytes were PUT to `pathname` and are",
+      "already in Drive; this activates the catalog entry and queues",
+      "extraction. A pathname that no object backs finalizes nothing.",
+      "",
+      "Staged flow (`attemptId` from a session minted with `staged: true`):",
+      "moves that attempt's staged object onto `pathname`, never replacing a",
+      "file there, and activates it; the file is in Drive only after this.",
+      "409 when a newer upload replaced the attempt or another file holds the",
+      "pathname. Repeating a finished finalize is harmless.",
     ].join("\n"),
     tags: ["Drive"],
     request: {
@@ -77,30 +88,62 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationId: body.organizationId,
     });
 
+    // The pathname must be in the store just authorized, and outside any
+    // data room this caller is not in, before any storage is read or moved:
+    // room access can change between mint and finalize.
+    const owner = driveOwnerOf(body.pathname);
+    if (
+      !owner ||
+      owner.ownerId !== context.ownerId ||
+      owner.sourceScope !==
+        (context.scope === "user"
+          ? FileSourceScope.USER
+          : FileSourceScope.ORGANIZATION)
+    ) {
+      throw notFound("No upload is pending at that path");
+    }
+    await requireDriveFileAccess(authContext, context.scope, context.ownerId, {
+      into: [owner.path.split("/").slice(0, -1).join("/")],
+    });
+
     const key = {
       workspaceId: context.workspaceId,
       scope: context.scope,
       ownerId: context.ownerId,
       pathname: body.pathname,
     };
-    const versionId = await currentDriveUploadVersion(key);
-    if (!versionId) throw notFound("No upload is pending at that path");
 
-    // Only this version's grant could write its staged key. Nothing staged:
-    // already promoted, or a grant minted before staging wrote the pathname.
-    await promoteStagedUpload(
-      stagedUploadPathname(versionId, body.pathname),
-      body.pathname,
-    );
-
-    const metadata = await driveHead(body.pathname);
-    if (!metadata) throw notFound("No uploaded file at that path");
-
-    const activated = await activateDriveUploadResource({
-      key,
-      sizeBytes: metadata.size,
-      mimeType: metadata.contentType ?? "application/octet-stream",
-    });
+    let activated: { resourceId: string; labelsPinnedEmpty: boolean } | null;
+    if (body.attemptId) {
+      activated = await publishStagedDriveUpload({
+        key,
+        attemptId: body.attemptId,
+        storage: {
+          observe: (staged) => stagedUploadEtag(staged, body.pathname),
+          promote: async (staged, etag) => {
+            const moved = await promoteStagedUpload(staged, body.pathname);
+            const stored = await driveHead(body.pathname);
+            if (!stored) return null;
+            // Not moved now: only bytes an earlier call moved are this
+            // attempt's, recognised by the ETag recorded before that move.
+            if (!moved && (!etag || stored.etag !== etag))
+              throw conflict("Another file is already at that path");
+            return {
+              sizeBytes: stored.size,
+              mimeType: stored.contentType ?? "application/octet-stream",
+            };
+          },
+        },
+      });
+    } else {
+      const metadata = await driveHead(body.pathname);
+      if (!metadata) throw notFound("No uploaded file at that path");
+      activated = await activateDriveUploadResource({
+        key,
+        sizeBytes: metadata.size,
+        mimeType: metadata.contentType ?? "application/octet-stream",
+      });
+    }
 
     if (!activated) throw notFound("No upload is pending at that path");
 
@@ -111,11 +154,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (activated.labelsPinnedEmpty) nudgeFileExtraction();
     else nudgeFileIndexing();
 
+    const stored = await driveHead(body.pathname);
     return ok(
       c,
       responseSchema.parse({
         resourceId: activated.resourceId,
-        fileUrl: metadata.access === "public" ? metadata.url : null,
+        fileUrl: stored?.access === "public" ? stored.url : null,
       }),
     );
   });

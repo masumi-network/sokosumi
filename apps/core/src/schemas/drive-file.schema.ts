@@ -47,7 +47,11 @@ export const createDriveFileUploadSessionRequestSchema = z
     }),
     pinLabelsEmpty: z.boolean().optional().openapi({
       description:
-        "Make a copy: pin category and tags empty so no model labels this file. Personal scope only. The name must be new: 409 if any document holds it.",
+        "Make a copy: pin category and tags empty so no model labels this file. Personal scope only. The name must be new: 409 if any document holds it. Always staged.",
+    }),
+    staged: z.boolean().optional().openapi({
+      description:
+        "Opt in to staged upload: the grant writes a staging key bound to this attempt, and the file is in Drive only after `POST /drive/files/finalize` with the session's `attemptId`. Omitted: the released flow, bytes PUT straight to `pathname`.",
     }),
   })
   .refine((data) => !data.pinLabelsEmpty || data.scope === "me", {
@@ -98,6 +102,10 @@ export const driveFileUploadSessionSchema = z
       example: "drive/users/user_123/report.pdf",
       description:
         "Server-generated upload pathname (no random suffix for Drive)",
+    }),
+    attemptId: z.string().uuid().optional().openapi({
+      description:
+        "Staged sessions only: the attempt finalize publishes. Absent: the PUT writes `pathname` directly.",
     }),
     access: z.enum(["public", "private"]).openapi({
       example: "public",

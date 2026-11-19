@@ -98,7 +98,7 @@ export async function backfillDriveStore(input: {
       const segments = blob.pathname.split("/");
       const displayName = segments[segments.length - 1] ?? blob.pathname;
 
-      await adoptDriveUploadResource({
+      const adoptedId = await adoptDriveUploadResource({
         key: {
           workspaceId: input.workspaceId,
           scope: input.scope,
@@ -111,7 +111,7 @@ export async function backfillDriveStore(input: {
         uploadedAt: blob.uploadedAt,
       });
       known.add(blob.pathname);
-      adopted += 1;
+      if (adoptedId) adopted += 1;
     }
 
     cursor = page.hasMore ? page.cursor : undefined;

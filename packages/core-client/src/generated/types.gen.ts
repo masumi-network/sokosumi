@@ -5059,6 +5059,10 @@ export type DriveFileUploadSession = {
      */
     pathname: string;
     /**
+     * Staged sessions only: the attempt finalize publishes. Absent: the PUT writes `pathname` directly.
+     */
+    attemptId?: string;
+    /**
      * Blob access level for the upload: private inside a data room.
      */
     access: 'public' | 'private';
@@ -5112,9 +5116,13 @@ export type CreateDriveFileUploadSessionRequest = {
      */
     folder?: string;
     /**
-     * Make a copy: pin category and tags empty so no model labels this file. Personal scope only. The name must be new: 409 if any document holds it.
+     * Make a copy: pin category and tags empty so no model labels this file. Personal scope only. The name must be new: 409 if any document holds it. Always staged.
      */
     pinLabelsEmpty?: boolean;
+    /**
+     * Opt in to staged upload: the grant writes a staging key bound to this attempt, and the file is in Drive only after `POST /drive/files/finalize` with the session's `attemptId`. Omitted: the released flow, bytes PUT straight to `pathname`.
+     */
+    staged?: boolean;
 };
 
 export type DriveGoogleSheet = {
@@ -43571,6 +43579,7 @@ export type PostDriveFilesFinalizeData = {
         scope: 'me' | 'org';
         organizationId?: string;
         pathname: string;
+        attemptId?: string;
     };
     headers?: {
         /**

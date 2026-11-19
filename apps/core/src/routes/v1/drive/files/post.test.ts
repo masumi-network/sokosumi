@@ -6,9 +6,9 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 /**
  * Minting an upload: an ordinary file keeps the exact name it was given; a
- * copy (`pinLabelsEmpty`) gets one server-minted name per attempt. Either
- * way the grant writes only the reserved version's staging key, never the
- * Drive pathname.
+ * copy (`pinLabelsEmpty`) gets one server-minted name per attempt. The
+ * released flow (no `staged`) keeps its grant on the Drive pathname. A staged
+ * session, and every copy, writes only the reserved attempt's staging key.
  */
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -52,6 +52,8 @@ vi.mock("@/services/file-catalog.service", () => ({
 
 import mountPost from "./post.js";
 
+const ATTEMPT = "0f9d2c1e-8b7a-4c3d-9e1f-2a3b4c5d6e7f";
+
 const USER: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
@@ -89,11 +91,11 @@ beforeEach(() => {
     access: "public",
     expiresAt: "2026-11-18T12:00:00.000Z",
   }));
-  mocks.reserve.mockResolvedValue({ resourceId: "r", versionId: "ver_1" });
+  mocks.reserve.mockResolvedValue({ resourceId: "r", versionId: ATTEMPT });
 });
 
 describe("minting an upload", () => {
-  it("keeps an ordinary file's exact name and grant", async () => {
+  it("keeps the released flow: exact name, grant on the Drive pathname", async () => {
     const response = await mint({ filename: "weekly (copy).md" });
 
     expect(response.status).toBe(201);
@@ -103,20 +105,38 @@ describe("minting an upload", () => {
           pathname: "drive/users/user_123/briefs/weekly_copy.md",
         }),
         pinLabelsEmpty: undefined,
+        staged: false,
       }),
     );
     expect(mocks.grant).toHaveBeenCalledWith(
       expect.objectContaining({
-        pathname: "drive-staging/ver_1/weekly_copy.md",
+        pathname: "drive/users/user_123/briefs/weekly_copy.md",
         addRandomSuffix: false,
       }),
+    );
+    const { data } = await response.json();
+    expect(data.pathname).toBe("drive/users/user_123/briefs/weekly_copy.md");
+    expect(data.attemptId).toBeUndefined();
+  });
+
+  it("stages an opted-in upload under its own attempt", async () => {
+    const response = await mint({ filename: "weekly.md", staged: true });
+
+    expect(response.status).toBe(201);
+    expect(mocks.reserve).toHaveBeenCalledWith(
+      expect.objectContaining({ staged: true }),
+    );
+    expect(mocks.grant.mock.calls[0][0].pathname).toBe(
+      `drive-staging/${ATTEMPT}/weekly.md`,
     );
     expect(mocks.reserve.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.grant.mock.invocationCallOrder[0],
     );
-    expect((await response.json()).data.pathname).toBe(
-      "drive/users/user_123/briefs/weekly_copy.md",
-    );
+    const { data } = await response.json();
+    expect(data).toMatchObject({
+      pathname: "drive/users/user_123/briefs/weekly.md",
+      attemptId: ATTEMPT,
+    });
   });
 
   it("mints no grant when the name is held", async () => {
@@ -151,7 +171,10 @@ describe("minting an upload", () => {
       }),
     );
     expect(mocks.grant.mock.calls[0][0].pathname).toBe(
-      `drive-staging/ver_1/weekly_copy_${id}.md`,
+      `drive-staging/${ATTEMPT}/weekly_copy_${id}.md`,
+    );
+    expect(mocks.reserve).toHaveBeenCalledWith(
+      expect.objectContaining({ staged: true }),
     );
     expect((await response.json()).data.pathname).toBe(pathname);
   });

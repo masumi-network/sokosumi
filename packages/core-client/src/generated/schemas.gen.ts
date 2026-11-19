@@ -18278,6 +18278,11 @@ export const DriveFileUploadSessionSchema = {
             example: 'drive/users/user_123/report.pdf',
             description: 'Server-generated upload pathname (no random suffix for Drive)'
         },
+        attemptId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Staged sessions only: the attempt finalize publishes. Absent: the PUT writes `pathname` directly.'
+        },
         access: {
             type: 'string',
             enum: [
@@ -18383,7 +18388,11 @@ export const CreateDriveFileUploadSessionRequestSchema = {
         },
         pinLabelsEmpty: {
             type: 'boolean',
-            description: 'Make a copy: pin category and tags empty so no model labels this file. Personal scope only. The name must be new: 409 if any document holds it.'
+            description: 'Make a copy: pin category and tags empty so no model labels this file. Personal scope only. The name must be new: 409 if any document holds it. Always staged.'
+        },
+        staged: {
+            type: 'boolean',
+            description: 'Opt in to staged upload: the grant writes a staging key bound to this attempt, and the file is in Drive only after `POST /drive/files/finalize` with the session\'s `attemptId`. Omitted: the released flow, bytes PUT straight to `pathname`.'
         }
     },
     required: [

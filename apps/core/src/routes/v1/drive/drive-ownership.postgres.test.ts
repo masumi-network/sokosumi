@@ -42,12 +42,26 @@ interface FakeObject {
   body: string;
   contentType: string;
   uploadedAt: Date;
+  etag: string;
 }
 
-/** One public Blob store: no overwrite unless asked, like Vercel Blob. */
+type Hook = () => Promise<void> | void;
+
+/**
+ * One public Blob store: no overwrite unless asked, ETags per write kept
+ * through a rename, conditional deletes, and hooks that run inside a call
+ * to interleave another request or fail after the work is done.
+ */
 const fake = vi.hoisted(() => {
   class BlobNotFoundError extends Error {}
+  class BlobPreconditionFailedError extends Error {}
   const objects = new Map<string, FakeObject>();
+  const hooks: {
+    beforeRename?: Hook;
+    afterRename?: Hook;
+    beforeDel?: Hook;
+  } = {};
+  let writes = 0;
   const meta = (pathname: string, object: FakeObject) => ({
     pathname,
     url: `https://blob.test/${pathname}`,
@@ -57,7 +71,7 @@ const fake = vi.hoisted(() => {
     uploadedAt: object.uploadedAt,
     cacheControl: "public, max-age=60",
     contentDisposition: "",
-    etag: `"${object.body.length}"`,
+    etag: object.etag,
   });
   const write = (
     pathname: string,
@@ -67,13 +81,24 @@ const fake = vi.hoisted(() => {
   ) => {
     if (objects.has(pathname) && !allowOverwrite)
       throw new Error("Vercel Blob: This blob already exists");
-    objects.set(pathname, { body, contentType, uploadedAt: new Date() });
+    writes += 1;
+    objects.set(pathname, {
+      body,
+      contentType,
+      uploadedAt: new Date(),
+      etag: `"w${writes}"`,
+    });
   };
+  /** Every mutation, so a test can assert none happened. */
+  const mutations: string[] = [];
   return {
     objects,
+    hooks,
+    mutations,
     write,
     module: {
       BlobNotFoundError,
+      BlobPreconditionFailedError,
       head: async (pathname: string) => {
         const object = objects.get(pathname);
         if (!object) throw new BlobNotFoundError("not found");
@@ -101,6 +126,7 @@ const fake = vi.hoisted(() => {
         body: string,
         options: { contentType?: string; allowOverwrite?: boolean },
       ) => {
+        mutations.push(`put ${pathname}`);
         write(
           pathname,
           String(body),
@@ -110,16 +136,29 @@ const fake = vi.hoisted(() => {
         return { url: `https://blob.test/${pathname}`, pathname };
       },
       rename: async (from: string, to: string) => {
+        mutations.push(`rename ${from} ${to}`);
+        await hooks.beforeRename?.();
         const object = objects.get(from);
         if (!object) throw new BlobNotFoundError("not found");
         if (objects.has(to))
           throw new Error("Vercel Blob: This blob already exists");
         objects.delete(from);
         objects.set(to, object);
+        await hooks.afterRename?.();
         return { url: `https://blob.test/${to}`, pathname: to };
       },
-      del: async (pathnames: string | string[]) => {
-        for (const pathname of [pathnames].flat()) objects.delete(pathname);
+      del: async (
+        pathnames: string | string[],
+        options: { ifMatch?: string } = {},
+      ) => {
+        mutations.push(`del ${[pathnames].flat().join(",")}`);
+        await hooks.beforeDel?.();
+        for (const pathname of [pathnames].flat()) {
+          const object = objects.get(pathname);
+          if (options.ifMatch && object && object.etag !== options.ifMatch)
+            throw new BlobPreconditionFailedError("etag changed");
+          objects.delete(pathname);
+        }
       },
       issueSignedToken: async () => "signed",
       presignUrl: async (_token: string, options: { pathname: string }) => ({
@@ -143,9 +182,10 @@ vi.mock("@/config/env", async (importOriginal) => {
 });
 
 const owner = vi.hoisted(() => ({ userId: "", workspaceId: "" }));
+const access = vi.hoisted(() => ({ requireDriveFileAccess: vi.fn() }));
 vi.mock("@/helpers/drive-file-access", () => ({
   drivePathOf: (pathname: string) => pathname.split("/").slice(3).join("/"),
-  requireDriveFileAccess: vi.fn().mockResolvedValue({ hiddenRoomFolders: [] }),
+  requireDriveFileAccess: access.requireDriveFileAccess,
   requireUserDriveFileUploadAccess: vi.fn(),
   requireOrganizationDriveFileUploadAccess: vi.fn(),
 }));
@@ -250,19 +290,33 @@ function call(method: string, path: string, body: unknown, on = app) {
 interface Session {
   uploadUrl: string;
   pathname: string;
+  attemptId?: string;
 }
 
-async function mint(
-  filename: string,
-  options: { pinLabelsEmpty?: boolean; folder?: string } = {},
-): Promise<Session> {
-  const response = await call("POST", "/", {
+interface MintOptions {
+  pinLabelsEmpty?: boolean;
+  folder?: string;
+  /** False: the released flow an old Web bundle uses. */
+  staged?: boolean;
+}
+
+function requestMint(filename: string, options: MintOptions = {}) {
+  const { staged = true, ...rest } = options;
+  return call("POST", "/", {
     filename,
     contentType: "text/markdown",
     size: 64,
     scope: "me",
-    ...options,
+    ...(staged ? { staged: true } : {}),
+    ...rest,
   });
+}
+
+async function mint(
+  filename: string,
+  options: MintOptions = {},
+): Promise<Session> {
+  const response = await requestMint(filename, options);
   expect(response.status).toBe(201);
   return (await response.json()).data;
 }
@@ -276,18 +330,22 @@ function put(session: Session, body: string) {
   );
 }
 
-function finalize(pathname: string) {
-  return call("POST", "/finalize", { scope: "me", pathname });
+function finalize(session: { pathname: string; attemptId?: string }) {
+  return call("POST", "/finalize", {
+    scope: "me",
+    pathname: session.pathname,
+    ...(session.attemptId ? { attemptId: session.attemptId } : {}),
+  });
 }
 
 async function upload(
   filename: string,
   body: string,
-  options: { pinLabelsEmpty?: boolean; folder?: string } = {},
+  options: MintOptions = {},
 ) {
   const session = await mint(filename, options);
   put(session, body);
-  const response = await finalize(session.pathname);
+  const response = await finalize(session);
   expect(response.status).toBe(200);
   return { session, resourceId: (await response.json()).data.resourceId };
 }
@@ -371,6 +429,11 @@ describe.skipIf(!enabled)("Drive pathname ownership", () => {
 
   beforeEach(() => {
     fake.objects.clear();
+    fake.mutations.length = 0;
+    for (const key of Object.keys(fake.hooks) as (keyof typeof fake.hooks)[])
+      delete fake.hooks[key];
+    access.requireDriveFileAccess.mockReset();
+    access.requireDriveFileAccess.mockResolvedValue({ hiddenRoomFolders: [] });
   });
 
   afterAll(async () => {
@@ -390,7 +453,7 @@ describe.skipIf(!enabled)("Drive pathname ownership", () => {
     expect(session.uploadUrl).toMatch(/^fake-put:\/\/drive-staging\//);
     expect(at(session.pathname)).toBeUndefined();
 
-    const response = await finalize(session.pathname);
+    const response = await finalize(session);
 
     expect(response.status).toBe(200);
     expect((await response.json()).data.fileUrl).toBe(
@@ -418,7 +481,7 @@ describe.skipIf(!enabled)("Drive pathname ownership", () => {
     expect(at(copy.pathname)).toBeUndefined();
 
     put(copy, "copy bytes");
-    const finalized = await finalize(copy.pathname);
+    const finalized = await finalize(copy);
     expect(finalized.status).toBe(200);
     const { resourceId } = (await finalized.json()).data;
     expect(at(copy.pathname)).toBe("copy bytes");
@@ -467,7 +530,7 @@ describe.skipIf(!enabled)("Drive pathname ownership", () => {
 
     put(session, "late bytes");
 
-    expect((await finalize(session.pathname)).status).toBe(404);
+    expect((await finalize(session)).status).toBe(404);
     expect(at(session.pathname)).toBeUndefined();
     // A store whose backfill never ran adopts nothing from the late write.
     await prisma.fileEvidenceScope.updateMany({
@@ -494,11 +557,11 @@ describe.skipIf(!enabled)("Drive pathname ownership", () => {
 
     put(session, "late bytes");
 
-    expect((await finalize(session.pathname)).status).toBe(404);
+    expect((await finalize(session)).status).toBe(404);
     expect(at(session.pathname)).toBeUndefined();
     // Finalizing the new name finds no staged attempt of its own: the late
     // write is never promoted, and the renamed copy keeps its bytes.
-    await finalize(drivePath("kept-copy.md"));
+    await finalize({ ...session, pathname: drivePath("kept-copy.md") });
     expect(at(drivePath("kept-copy.md"))).toBe("copy bytes");
     expect(
       [...fake.objects.keys()].filter((key) => key.startsWith("drive/")),
@@ -515,11 +578,11 @@ describe.skipIf(!enabled)("Drive pathname ownership", () => {
     const second = await mint("retry.md");
     put(first, "first attempt");
 
-    expect((await finalize(first.pathname)).status).toBe(404);
+    expect((await finalize(first)).status).toBe(409);
     expect(at(first.pathname)).toBeUndefined();
 
     put(second, "second attempt");
-    expect((await finalize(second.pathname)).status).toBe(200);
+    expect((await finalize(second)).status).toBe(200);
     expect(at(second.pathname)).toBe("second attempt");
   });
 
@@ -541,5 +604,188 @@ describe.skipIf(!enabled)("Drive pathname ownership", () => {
     });
     // A pending upload has no bytes to move; it keeps its own name.
     expect(await row(pending.pathname)).toMatchObject({ lifecycle: "PENDING" });
+  });
+
+  describe("one authorized attempt per publication", () => {
+    it("lets a re-mint wait for a publication in flight, never slip in", async () => {
+      const first = await mint("race.md");
+      put(first, "first attempt");
+      let remint: Promise<Response> | undefined;
+      // Mid-publication, inside the storage move, a second attempt mints.
+      fake.hooks.beforeRename = async () => {
+        remint = Promise.resolve(requestMint("race.md"));
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      };
+
+      const finalized = await finalize(first);
+      const reminted = await (remint as Promise<Response>);
+
+      expect(finalized.status).toBe(200);
+      expect(at(first.pathname)).toBe("first attempt");
+      // The re-mint saw the published file and could not replace it.
+      expect(reminted.status).toBe(409);
+      expect(await row(first.pathname)).toMatchObject({ lifecycle: "ACTIVE" });
+    });
+
+    it("touches no storage for an attempt a newer one replaced", async () => {
+      const first = await mint("later.md");
+      put(first, "first attempt");
+      const second = await mint("later.md");
+      fake.mutations.length = 0;
+
+      expect((await finalize(first)).status).toBe(409);
+      expect(fake.mutations).toEqual([]);
+      expect(at(first.pathname)).toBeUndefined();
+
+      put(second, "second attempt");
+      expect((await finalize(second)).status).toBe(200);
+      expect(at(second.pathname)).toBe("second attempt");
+    });
+
+    it("finishes a publication whose move landed but whose activation rolled back", async () => {
+      const session = await mint("flaky.md");
+      put(session, "flaky bytes");
+      fake.hooks.afterRename = () => {
+        delete fake.hooks.afterRename;
+        throw new Error("connection reset after the move");
+      };
+
+      expect((await finalize(session)).status).toBe(500);
+      expect(at(session.pathname)).toBe("flaky bytes");
+      expect(await row(session.pathname)).toMatchObject({
+        lifecycle: "PENDING",
+      });
+
+      expect((await finalize(session)).status).toBe(200);
+      expect(await row(session.pathname)).toMatchObject({
+        lifecycle: "ACTIVE",
+      });
+    });
+
+    it("re-checks room access at finalize and touches no storage when it is gone", async () => {
+      const session = await mint("room.md", { folder: "deal" });
+      put(session, "room bytes");
+      fake.mutations.length = 0;
+      // Access to the destination was taken away after the mint.
+      access.requireDriveFileAccess.mockImplementation(
+        async (...args: unknown[]) => {
+          const paths = args[3] as { into?: string[] } | undefined;
+          if (paths?.into?.includes("deal"))
+            throw Object.assign(new Error("File not found"), { status: 404 });
+          return { hiddenRoomFolders: [] };
+        },
+      );
+
+      expect((await finalize(session)).status).not.toBe(200);
+      expect(fake.mutations).toEqual([]);
+      expect(at(session.pathname)).toBeUndefined();
+    });
+  });
+
+  describe("rollout: released clients keep the released flow", () => {
+    it("puts an old client's upload in Drive at PUT, and finalizes it", async () => {
+      const session = await mint("legacy.md", { staged: false });
+
+      expect(session.attemptId).toBeUndefined();
+      expect(session.uploadUrl).toBe(`fake-put://${session.pathname}`);
+      put(session, "legacy bytes");
+      expect(at(session.pathname)).toBe("legacy bytes");
+
+      const response = await finalize(session);
+      expect(response.status).toBe(200);
+      expect((await response.json()).data.fileUrl).toBe(
+        `https://blob.test/${session.pathname}`,
+      );
+      expect(await row(session.pathname)).toMatchObject({
+        lifecycle: "ACTIVE",
+      });
+    });
+
+    it("never activates an old grant's bytes as a newer staged attempt", async () => {
+      const legacy = await mint("mixed.md", { staged: false });
+      const staged = await mint("mixed.md");
+      // The old grant lands late, straight on the pathname.
+      put(legacy, "legacy bytes");
+
+      // The released finalize cannot activate: the current upload is staged.
+      expect((await finalize(legacy)).status).toBe(404);
+      // The staged attempt cannot claim bytes it did not write.
+      put(staged, "staged bytes");
+      expect((await finalize(staged)).status).toBe(409);
+      expect(at(staged.pathname)).toBe("legacy bytes");
+      expect(await row(staged.pathname)).toMatchObject({
+        lifecycle: "PENDING",
+      });
+    });
+  });
+
+  describe("deleting", () => {
+    it("keeps failed-delete bytes owned, so nothing relabels them, and finishes on retry", async () => {
+      const { session, resourceId } = await upload("keep.md", "copy bytes", {
+        pinLabelsEmpty: true,
+      });
+      fake.hooks.beforeDel = () => {
+        delete fake.hooks.beforeDel;
+        throw new Error("store 503");
+      };
+
+      const failed = await call("DELETE", "/delete", {
+        pathname: session.pathname,
+      });
+      expect(failed.status).toBe(500);
+      expect(at(session.pathname)).toBe("copy bytes");
+
+      // An incomplete backfill and a rename both leave the leftover alone.
+      await prisma.fileEvidenceScope.updateMany({
+        where: { workspaceId: owner.workspaceId },
+        data: { backfilledAt: null, backfillCursor: null },
+      });
+      const backfill = await backfillDriveStore({
+        workspaceId: owner.workspaceId,
+        scope: "user",
+        ownerId: owner.userId,
+      });
+      expect(backfill.adopted).toBe(0);
+      const renamed = await call("PATCH", "/rename", {
+        oldPathname: session.pathname,
+        newFilename: "revived.md",
+      });
+      expect(renamed.status).toBe(409);
+      expect(await row(session.pathname)).toBeNull();
+      const before = evaluator.calls;
+
+      const retried = await call("DELETE", "/delete", {
+        pathname: session.pathname,
+      });
+      expect(retried.status).toBe(204);
+      expect(at(session.pathname)).toBeUndefined();
+      expect(
+        await prisma.fileResource.findUniqueOrThrow({
+          where: { id: resourceId },
+          select: { lifecycle: true, sourceId: true },
+        }),
+      ).toEqual({
+        lifecycle: "TOMBSTONED",
+        sourceId: `${session.pathname}#tombstoned:${resourceId}`,
+      });
+      expect(evaluator.calls).toBe(before);
+    });
+
+    it("leaves a newer object alone when a slow delete finally runs", async () => {
+      const { session } = await upload("swap.md", "old bytes");
+      // Between this delete's read and its storage call, a server writer
+      // replaces the bytes (Soko Bot's overwrite).
+      fake.hooks.beforeDel = () => {
+        delete fake.hooks.beforeDel;
+        fake.write(session.pathname, "new bytes", "text/markdown", true);
+      };
+
+      const deleted = await call("DELETE", "/delete", {
+        pathname: session.pathname,
+      });
+
+      expect(deleted.status).toBe(204);
+      expect(at(session.pathname)).toBe("new bytes");
+    });
   });
 });

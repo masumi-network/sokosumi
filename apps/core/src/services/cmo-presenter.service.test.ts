@@ -22,7 +22,11 @@ vi.mock("@/lib/db/prisma", () => ({
     fileResource: { findFirst: fileFindFirstMock },
   },
 }));
-vi.mock("@/lib/drive-blob", () => ({ driveDel: driveDelMock }));
+const headMock = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/drive-blob", () => ({ driveHead: headMock }));
+vi.mock("@/helpers/drive-file-delete", () => ({
+  deleteObservedDriveFiles: driveDelMock,
+}));
 vi.mock("@/services/file-catalog.service", () => ({
   tombstoneDriveUploadResource: tombstoneMock,
 }));
@@ -56,6 +60,8 @@ beforeEach(() => {
   fileFindFirstMock.mockReset();
   driveDelMock.mockReset();
   tombstoneMock.mockReset();
+  headMock.mockReset();
+  headMock.mockResolvedValue({ access: "public", etag: '"e1"' });
   saveFileMock.mockReset();
 });
 
@@ -71,16 +77,28 @@ describe("removing the owner's photo", () => {
   it("deletes the photo from Files, then forgets it", async () => {
     await clearCmoPresenter(scope);
 
-    expect(driveDelMock).toHaveBeenCalledWith([photoPath]);
-    expect(tombstoneMock).toHaveBeenCalledWith({
+    expect(driveDelMock).toHaveBeenCalledWith({
       workspaceId: "workspace-1",
       scope: "organization",
-      pathname: photoPath,
+      objects: [{ pathname: photoPath, access: "public", etag: '"e1"' }],
     });
     expect(projectUpdateMock).toHaveBeenCalledWith({
       where: { id: "project-1" },
       data: { presenterFileId: null, presenterConsentAt: null },
       select: { id: true },
+    });
+  });
+
+  it("only tombstones a photo whose bytes are already gone", async () => {
+    headMock.mockResolvedValue(null);
+
+    await clearCmoPresenter(scope);
+
+    expect(driveDelMock).not.toHaveBeenCalled();
+    expect(tombstoneMock).toHaveBeenCalledWith({
+      workspaceId: "workspace-1",
+      scope: "organization",
+      pathname: photoPath,
     });
   });
 
@@ -101,7 +119,11 @@ describe("removing the owner's photo", () => {
 
     await setCmoPresenter({ ...scope, photo: new Uint8Array(photo) });
 
-    expect(driveDelMock).toHaveBeenCalledWith([photoPath]);
+    expect(driveDelMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        objects: [expect.objectContaining({ pathname: photoPath })],
+      }),
+    );
     expect(projectUpdateMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ presenterFileId: "file-2" }),

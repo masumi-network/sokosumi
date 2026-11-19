@@ -77,7 +77,7 @@ interface DriveFileUploadProgress {
 
 /**
  * Stored Drive file: pathname is the Core identity, fileUrl the public Blob
- * URL finalize reports (null inside a data room).
+ * URL (null inside a data room, or when the released flow's PUT carried none).
  */
 export interface DriveFileUploadResult {
   pathname: string;
@@ -91,6 +91,19 @@ type DriveFileUploadOptions = DriveWorkspaceStore & {
   pinLabelsEmpty?: boolean;
   onUploadProgress?: (progress: DriveFileUploadProgress) => void;
 };
+
+/** Public Blob URL from the presigned PUT response, or null when absent. */
+function parseUploadedBlobUrl(responseText: string): string | null {
+  try {
+    const body = JSON.parse(responseText) as { url?: unknown };
+    if (typeof body.url === "string" && body.url) {
+      return body.url;
+    }
+  } catch {
+    // Fall through to null: caller reports the missing URL.
+  }
+  return null;
+}
 
 export async function uploadDriveFile(
   file: File,
@@ -117,6 +130,9 @@ export async function uploadDriveFile(
         ...(scope === "org" ? { organizationId: options.organizationId } : {}),
         ...(folder ? { folder } : {}),
         ...(options.pinLabelsEmpty ? { pinLabelsEmpty: true } : {}),
+        // A Core that predates staging ignores this and answers with a
+        // released session (no attemptId), which is handled below.
+        staged: true,
       },
       // Not thrown: the thrown error is the response body, which drops the
       // HTTP status that says "this name is taken".
@@ -154,7 +170,16 @@ export async function uploadDriveFile(
   }
 
   const session = mintResponse.data.data;
-  const { uploadUrl, headers } = session;
+  const { uploadUrl, headers, attemptId } = session;
+
+  // A copy's free labelling rests on staging: a Core that answered with a
+  // released session would label it like any upload, so it is never sent.
+  if (options.pinLabelsEmpty && !attemptId) {
+    throw new DriveFileUploadError(
+      "internal",
+      "Making a copy is not available yet",
+    );
+  }
 
   if (!uploadUrl) {
     throw new DriveFileUploadError(
@@ -200,11 +225,6 @@ export async function uploadDriveFile(
       stopFallbackProgress();
       if (xhr.status >= 200 && xhr.status < 300) {
         onUploadProgress?.({ percentage: 100 });
-        // The bytes went client → Blob, so Core never saw them land. Tell it,
-        // so the file gets a catalog identity and starts being indexed. The
-        // PUT wrote the attempt's staging key: the file is in Drive only once
-        // finalize has moved it, so a finalize that fails twice fails the
-        // upload.
         const finalize = () =>
           postDriveFilesFinalize({
             client: getBrowserCoreClient(),
@@ -214,24 +234,53 @@ export async function uploadDriveFile(
                 ? { organizationId: options.organizationId }
                 : {}),
               pathname: session.pathname,
+              ...(attemptId ? { attemptId } : {}),
             },
             throwOnError: true,
           });
-        try {
-          const finalized = await finalize().catch(finalize);
-          resolve({
-            pathname: session.pathname,
-            fileUrl: finalized.data.data.fileUrl,
-            resourceId: finalized.data.data.resourceId,
-          });
-        } catch {
-          reject(
-            new DriveFileUploadError(
-              "internal",
-              "Failed to save the uploaded file",
-            ),
-          );
+
+        if (attemptId) {
+          // Staged: the PUT wrote this attempt's staging key, so the file is
+          // in Drive only once finalize has moved it. A finalize that fails
+          // twice fails the upload, and only finalize knows the file's URL.
+          try {
+            const finalized = await finalize().catch(finalize);
+            resolve({
+              pathname: session.pathname,
+              fileUrl: finalized.data.data.fileUrl,
+              resourceId: finalized.data.data.resourceId,
+            });
+          } catch {
+            reject(
+              new DriveFileUploadError(
+                "internal",
+                "Failed to save the uploaded file",
+              ),
+            );
+          }
+          return;
         }
+
+        // The bytes went client → Blob, so Core never saw them land. Tell it,
+        // so the file gets a catalog identity and starts being indexed. A
+        // failure here does not fail the upload: the file is on disk, and the
+        // next search adopts it.
+        let resourceId: string | undefined;
+        try {
+          const finalized = await finalize();
+          resourceId = finalized.data?.data.resourceId;
+        } catch {
+          // Intentionally quiet: indexing catches up on its own.
+        }
+        // Resolving with the blob's location is main's shape, kept: the
+        // finalize above is an extra step on the way out, not a change to
+        // what the caller is handed for locating the blob. Consumers that
+        // need a catalog entry can use the optional id from finalization.
+        resolve({
+          pathname: session.pathname,
+          fileUrl: parseUploadedBlobUrl(xhr.responseText),
+          ...(resourceId ? { resourceId } : {}),
+        });
         return;
       }
 
