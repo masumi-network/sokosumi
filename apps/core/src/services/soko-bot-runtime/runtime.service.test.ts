@@ -6571,7 +6571,17 @@ describe("post_chat chain depth", () => {
       roomId: "room_1",
       content: "@jarvis can you check the upload?",
     });
-    expect(transactionChatMessageCreateMock).toHaveBeenCalled();
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledTimes(1);
+
+    // So is the link Core posts for a table the turn created: refusing it
+    // failed create_table on every chat turn.
+    await new SokoBotRuntimeService()["postChat"](authorized, {
+      toolCallId: "call_3:table-link:chat",
+      roomId: "room_1",
+      content: "[Content tracker](/drive/tables/t-1)",
+      publicationId: "11111111-1111-5111-8111-111111111111",
+    });
+    expect(transactionChatMessageCreateMock).toHaveBeenCalledTimes(2);
 
     // So is a post into another room.
     transactionChatMessageCreateMock.mockClear();
