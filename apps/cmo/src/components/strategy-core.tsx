@@ -290,7 +290,9 @@ function MeasurePart({ stage }: { stage: Stage }) {
   return (
     <div className="sc-measure">
       <span>{stage.metric}</span>
-      {measure?.value ? <b className="num">{measure.value}</b> : null}
+      {measure?.value && measure.basis !== "unknown" ? (
+        <b className="num">{measure.value}</b>
+      ) : null}
       {measure?.basis === "measured" ? (
         <StatusText>
           {measure.source ? `Measured in ${measure.source}` : "Measured"}

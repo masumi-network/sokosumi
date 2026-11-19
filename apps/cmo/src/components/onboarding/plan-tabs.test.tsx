@@ -72,6 +72,7 @@ it("shows each stage's classic step, Cuso's part, the owner's part and its numbe
           goal: "Teams try it",
           metric: "Trial starts",
           owner: "shared",
+          measure: { value: "No baseline in the brief", basis: "unknown" },
         },
       ]}
       improvements={[]}
@@ -90,6 +91,8 @@ it("shows each stage's classic step, Cuso's part, the owner's part and its numbe
     /Profile visits.*About 400 a month.*Cuso&#x27;s estimate/,
   );
   expect(html).toMatch(/Trial starts.*Not measured yet/);
+  // Words in place of a number that is not known are not shown as one.
+  expect(html).not.toContain("No baseline in the brief");
 });
 
 it("names each tracked step by its classic stage, never a name of Cuso's own", () => {

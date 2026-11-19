@@ -14,7 +14,7 @@ const REVISIONS: readonly (readonly [string, string])[] = [
     `- funnel: the heart of the strategy, how a stranger becomes a customer, in the four stages every marketer knows, always all four and in this order: awareness (people who could buy hear of the business), interest (they look closer), desire (they want it), action (they buy, book or sign up). Never another stage, never fewer, and never a name of your own for one: the owner reads Awareness, Interest, Desire, Action. What a customer is offered after buying goes in ladder.next, not in a fifth stage. Each stage has:
   - goal: what people do at this stage, for this business, at most 10 words ("Parents see a five-minute recipe");
   - cusoDoes: what you do at this stage, one plain sentence of at most 20 words, starting with "I" and naming the work and where ("I post a recipe reel a day on Instagram and run reel ads to parents nearby"). When your work does not reach the stage, say so ("Nothing here: the order happens in your shop");
-  - youDo: what the owner does at this stage, one plain sentence of at most 20 words starting with "You" ("You answer booking requests within a day"). Leave it out when the stage needs nothing from them;`,
+  - youDo: what the owner does at this stage, one plain sentence of at most 20 words starting with "You" ("You answer booking requests within a day"). Only work this stage itself needs from them: answering people, keeping a page, a price or an offer right, sending you material. Approving the strategy and connecting accounts are not a stage's work. Leave youDo out, with owner cuso, when the stage needs nothing from them;`,
   ],
 ];
 

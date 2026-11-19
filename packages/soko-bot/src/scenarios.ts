@@ -1279,7 +1279,9 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Cuso saves the strategy's funnel with save_strategy as exactly four stages in this order: awareness, interest, desire, action, each with one plain sentence on what he does there, and what the owner does where the stage needs them. His answer names Awareness, Interest, Desire and Action and says his part and the owner's part at each, in plain words. The rest of the strategy stays as it was. A stage name of his own, three or five stages, another order, calling the strategy the plan, or describing the funnel without a successful save_strategy, fails.",
     expect: {
-      routes: ["MANAGE_WORK", "MIXED"],
+      // Explaining the funnel is most of the answer, so the classifier may
+      // read the turn as a reply; the save is checked on its own.
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
       tools: ["save_strategy"],
       allowFailedTools: ["save_strategy"],
       forbiddenTools: ["create_task", "hire_agent", "publish_social_post"],
