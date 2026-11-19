@@ -1739,6 +1739,11 @@ button.card-focus {
   border-top: 1px solid var(--border);
 }
 
+/* A table Cuso wrote in the chat: as wide as his words, scrolling inside. */
+.chat-table {
+  max-width: 62ch;
+}
+
 .seo-table td.num {
   font-variant-numeric: tabular-nums;
 }
