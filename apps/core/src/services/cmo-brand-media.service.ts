@@ -5,7 +5,7 @@ import {
 } from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
 import { type BrandBrain, brandBrainSchema } from "@sokosumi/soko-bot";
-import { list } from "@vercel/blob";
+import { head, list } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
 import type { Browser } from "puppeteer-core";
 import { z } from "zod";
@@ -35,6 +35,14 @@ import {
 
 /** Where the material lands: the Project's files, in this Drive folder. */
 export const CMO_BRAND_MEDIA_FOLDER = "Brand research";
+
+/** Where the brand's logo files live, and what each is called (".png"). */
+export const CMO_BRAND_LOGO_FOLDER = `${CMO_BRAND_MEDIA_FOLDER}/Logo`;
+export const CMO_BRAND_LOGO_FILES = {
+  src: "logo",
+  srcDark: "logo-dark",
+  mark: "mark",
+} as const;
 
 /** Screenshot file names (without ".jpg") and how CMO labels them, in order. */
 const PAGE_LABELS: Record<string, string> = {
@@ -82,9 +90,9 @@ type BrandIndex = z.infer<typeof brandIndexSchema>;
 interface ResearchFile {
   fileId: string;
   pathname: string;
-  /** "", "Competitors", "Pictures", "Sections" or "Full pages". */
+  /** "", "Competitors", "Pictures", "Sections", "Full pages" or "Logo". */
   folder: string;
-  /** The file name without ".jpg". */
+  /** The file name without ".jpg" or ".png". */
   name: string;
 }
 
@@ -143,7 +151,7 @@ async function listResearchFiles(projectId: string): Promise<ResearchFile[]> {
         fileId: resource.id,
         pathname: resource.sourceId,
         folder: slash === -1 ? "" : path.slice(0, slash),
-        name: path.slice(slash + 1).replace(/\.jpg$/, ""),
+        name: path.slice(slash + 1).replace(/\.(jpg|png)$/, ""),
       },
     ];
   });
@@ -221,6 +229,35 @@ export async function listCmoBrandPictures(
       alt: pictureAlt(file.name),
     })),
   ];
+}
+
+/**
+ * The brand's full logo from the Project's files, and its version for a dark
+ * background: what goes onto a picture. Null where research saved none.
+ */
+export async function readCmoBrandLogo(
+  projectId: string,
+): Promise<{ logo: Uint8Array | null; dark: Uint8Array | null }> {
+  const files = await listResearchFiles(projectId);
+  const bytes = async (name: string) => {
+    const file = files.find(
+      (candidate) => candidate.folder === "Logo" && candidate.name === name,
+    );
+    if (!file) return null;
+    try {
+      // Our own Blob store: its bot check refuses the SSRF-safe fetch.
+      const response = await fetch((await head(file.pathname)).url, {
+        signal: AbortSignal.timeout(15_000),
+      });
+      return response.ok ? new Uint8Array(await response.arrayBuffer()) : null;
+    } catch {
+      return null;
+    }
+  };
+  return {
+    logo: await bytes(CMO_BRAND_LOGO_FILES.src),
+    dark: await bytes(CMO_BRAND_LOGO_FILES.srcDark),
+  };
 }
 
 const indexes = new Map<string, BrandIndex | null>();
@@ -362,6 +399,12 @@ export async function cmoBrandMedia(input: {
     const saved = shown(file);
     return saved ? [{ ...saved, alt: pictureAlt(file.name) }] : [];
   });
+  const logoFile = (name: string) => {
+    const file = files.find(
+      (candidate) => candidate.folder === "Logo" && candidate.name === name,
+    );
+    return (file && shown(file)) ?? null;
+  };
   const stamps = [...blobs.values()].map((blob) => blob.uploadedAt.getTime());
   if (stamps.length === 0) return null;
   return {
@@ -370,6 +413,11 @@ export async function cmoBrandMedia(input: {
     sections,
     competitors,
     pictures,
+    logos: {
+      logo: logoFile(CMO_BRAND_LOGO_FILES.src),
+      dark: logoFile(CMO_BRAND_LOGO_FILES.srcDark),
+      mark: logoFile(CMO_BRAND_LOGO_FILES.mark),
+    },
   };
 }
 
@@ -607,6 +655,29 @@ export async function captureCmoHomepage(
  * named, pages cited). A second essentials save in the same research, or one
  * while a capture runs here, does not start another.
  */
+/**
+ * Starts the index for one Cuso who has none: hired before the index, or his
+ * capture did not finish. One per call, so the backlog clears a Cuso a sync
+ * without crowding the capture browser.
+ */
+export async function scheduleMissingCmoBrandIndex(
+  cusos: Pick<Cuso, "projectId" | "sokoBotId">[],
+): Promise<void> {
+  if (cusos.length === 0) return;
+  const indexed = await prisma.fileProjectLink.findMany({
+    where: {
+      projectId: { in: cusos.map((cuso) => cuso.projectId) },
+      resource: {
+        sourceId: { endsWith: `/${CMO_BRAND_MEDIA_FOLDER}/${INDEX_FILE}` },
+      },
+    },
+    select: { projectId: true },
+  });
+  const done = new Set(indexed.map((link) => link.projectId));
+  const next = cusos.find((cuso) => !done.has(cuso.projectId));
+  if (next) scheduleCmoBrandMedia(next.sokoBotId);
+}
+
 export function scheduleCmoBrandMedia(sokoBotId: string): void {
   if (capturing.has(sokoBotId)) return;
   capturing.add(sokoBotId);
@@ -676,6 +747,20 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
   const site = new URL("/", cuso.websiteUrl);
   const robots = await readRobots(site.origin);
   const competitorPages = cmoCompetitorPages(brain.data);
+  // A Project without logo files gets the site's logo read again, beside
+  // the capture: a Cuso hired before DESIGN.md named the full logo.
+  const hasLogo = await prisma.fileProjectLink.findFirst({
+    where: {
+      projectId: cuso.projectId,
+      resource: { sourceId: { contains: `/${CMO_BRAND_LOGO_FOLDER}/` } },
+    },
+    select: { id: true },
+  });
+  const logo = hasLogo
+    ? null
+    : import("@/services/cmo-brand-visual.service")
+        .then(({ refreshCmoBrandLogo }) => refreshCmoBrandLogo(cuso))
+        .catch(() => 0);
   const deadline = Date.now() + CAPTURE_BUDGET_MS;
   const inTime = () => Date.now() < deadline;
   const index: BrandIndex = { pages: [], sections: [] };
@@ -798,14 +883,14 @@ export async function captureCmoBrandMedia(sokoBotId: string): Promise<void> {
     return { pictures };
   });
 
-  if (index.pages.length > 0) {
-    await saveCusoProjectFile(
-      drive,
-      { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
-      Buffer.from(JSON.stringify(index, null, 2)),
-      "application/json",
-    );
-  }
+  await logo;
+  // Written last and always: it marks the Project as indexed.
+  await saveCusoProjectFile(
+    drive,
+    { folder: CMO_BRAND_MEDIA_FOLDER, filename: INDEX_FILE },
+    Buffer.from(JSON.stringify(index, null, 2)),
+    "application/json",
+  );
   for (const [index, { image, body }] of media.pictures.entries()) {
     const slot = String(index + 1).padStart(2, "0");
     // The alt text names the picture, so Cuso finds a product's photo.

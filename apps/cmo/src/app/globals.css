@@ -2969,6 +2969,40 @@ button.card-focus {
   white-space: nowrap;
 }
 
+/* The logo on the page's own ground; its dark version on the strip. */
+.bm-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bm-logos li {
+  display: grid;
+  place-items: center;
+  height: 88px;
+  padding: 16px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--card);
+}
+
+.bm-logos li.bm-logo-dark {
+  background: var(--strip);
+}
+
+.bm-logos img {
+  display: block;
+  max-width: 220px;
+  max-height: 56px;
+}
+
+.bm-logos li.bm-logo-mark img {
+  max-width: 56px;
+}
+
 .bm-gallery h3 {
   margin: 0 0 12px;
   font-size: 0.875rem;

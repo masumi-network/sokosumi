@@ -13733,6 +13733,23 @@ export type CmoBrandMedia = {
         fileId: string | null;
         alt: string;
     }>;
+    /**
+     * The brand's logo as its site shows it, read from its DESIGN.md: the full logo, its version for a dark background and the square mark, each a PNG. Null where the site gave none.
+     */
+    logos: {
+        logo: {
+            url: string;
+            fileId: string | null;
+        } | null;
+        dark: {
+            url: string;
+            fileId: string | null;
+        } | null;
+        mark: {
+            url: string;
+            fileId: string | null;
+        } | null;
+    };
 };
 
 export type CmoPlan = {

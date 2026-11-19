@@ -9,6 +9,10 @@ const db = vi.hoisted(() => ({
   fileResource: { findUnique: vi.fn() },
   fileProjectLink: { findFirst: vi.fn(), findMany: vi.fn() },
 }));
+const logo = vi.hoisted(() => ({ refresh: vi.fn() }));
+vi.mock("@/services/cmo-brand-visual.service", () => ({
+  refreshCmoBrandLogo: logo.refresh,
+}));
 const files = vi.hoisted(() => ({
   put: vi.fn(),
   list: vi.fn(),
@@ -112,6 +116,7 @@ import {
   cmoOwnPages,
   listCmoBrandPictures,
   scheduleCmoBrandMedia,
+  scheduleMissingCmoBrandIndex,
 } from "./cmo-brand-media.service";
 
 const finding = (sourceUrl: string) => ({
@@ -341,7 +346,10 @@ describe("captureCmoBrandMedia", () => {
       workspaceId: "ws-1",
       websiteUrl: "https://acme.io",
     });
-    expect(files.put).not.toHaveBeenCalled();
+    // Only the index, which marks the site as read so it is not tried again.
+    expect(files.put.mock.calls.map(([pathname]) => pathname)).toEqual([
+      `${ORG}/index.json`,
+    ]);
   });
 
   it("keeps one copy of a page two addresses lead to", async () => {
@@ -373,6 +381,34 @@ describe("captureCmoBrandMedia", () => {
       failure: { errorName: "Error" },
     });
     expect(JSON.stringify(coreLogEvents())).not.toContain("SENTINEL-PAGE");
+  });
+
+  it("reads the site's logo again only for a Project without logo files", async () => {
+    // First lookup: a recent capture (none); second: logo files (none).
+    db.fileProjectLink.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    await captureCmoBrandMedia("bot-1");
+    expect(logo.refresh).toHaveBeenCalledTimes(1);
+
+    logo.refresh.mockClear();
+    db.fileProjectLink.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "logo-link" });
+    await captureCmoBrandMedia("bot-1");
+    expect(logo.refresh).not.toHaveBeenCalled();
+  });
+
+  it("starts the index for one Cuso a sync, the first without one", async () => {
+    db.fileProjectLink.findMany.mockResolvedValue([{ projectId: "project-1" }]);
+    await scheduleMissingCmoBrandIndex([
+      { projectId: "project-1", sokoBotId: "bot-1" },
+      { projectId: "project-2", sokoBotId: "bot-2" },
+      { projectId: "project-3", sokoBotId: "bot-3" },
+    ]);
+    expect(vi.mocked(waitUntil)).toHaveBeenCalledTimes(1);
+    await vi.mocked(waitUntil).mock.calls[0]?.[0];
+    expect(cuso.findForBot).toHaveBeenCalledWith("bot-2");
   });
 
   it("does not capture again within minutes of the last capture", async () => {
@@ -569,6 +605,7 @@ describe("the Project's brand research", () => {
           alt: "",
         },
       ],
+      logos: { logo: null, dark: null, mark: null },
     });
   });
 

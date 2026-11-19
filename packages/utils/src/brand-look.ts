@@ -267,3 +267,35 @@ export function designMdBrandLook(content: string): DesignMdBrandLook {
     tone: tone ?? null,
   };
 }
+
+/** The logo a DESIGN.md names in its front matter. */
+export interface DesignMdLogo {
+  /** The fullest logo the site shows: its lockup when it has one. */
+  src: string;
+  /** The same logo for a dark background. */
+  srcDark?: string;
+  /** The square symbol alone, when `src` is a lockup. */
+  mark?: string;
+}
+
+/**
+ * The `logo:` block of a DESIGN.md's front matter, each address as written
+ * (http or https only). Null when the file names no logo.
+ */
+export function designMdLogo(content: string): DesignMdLogo | null {
+  const frontMatter = content.match(/^---\n([\s\S]*?)\n---/)?.[1];
+  const block = frontMatter?.match(/^logo:\s*\n((?:[ \t]+.*\n?)+)/m)?.[1];
+  if (!block) return null;
+  const read = (key: string) => {
+    const value = block
+      .match(new RegExp(`^[ \\t]+${key}:\\s*(.+)$`, "m"))?.[1]
+      ?.trim()
+      .replace(/^(["'])(.*)\1$/, "$2");
+    return value && /^https?:\/\//i.test(value) ? value : undefined;
+  };
+  const src = read("src");
+  if (!src) return null;
+  const srcDark = read("srcDark");
+  const mark = read("mark");
+  return { src, ...(srcDark ? { srcDark } : {}), ...(mark ? { mark } : {}) };
+}
