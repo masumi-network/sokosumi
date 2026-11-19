@@ -43,7 +43,7 @@ export function mountSokoBotEventRoutes(app: OpenAPIHonoWithAuth): void {
   app.openapi(route, async (c) => {
     const auth = requireSokoBotAuthContext(c.var.authContext);
     const query = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(query);
+    const { cursor, take } = parseCursorPagination(query);
     const takePlusOne = take + 1;
     // A shared bot sees only PUBLIC Tasks in its scope, even assigned ones.
     const scope = isSharedSokoBotAuthContext(auth)
@@ -61,8 +61,7 @@ export function mountSokoBotEventRoutes(app: OpenAPIHonoWithAuth): void {
       prisma.taskEvent.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         include: taskEventApiInclude,
       }),

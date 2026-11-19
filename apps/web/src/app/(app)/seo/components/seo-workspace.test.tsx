@@ -1359,7 +1359,7 @@ describe("SEO workspace integration", () => {
       sourceRef: "html:head",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
-    // The same rule on a second page: its guidance shows once.
+    // The same rule on a second page, outside the range: the first listed title row carries the guidance.
     workspace.findings.push({
       id: "measured-title-old",
       observationId: "check-title-old",
@@ -1392,13 +1392,13 @@ describe("SEO workspace integration", () => {
       sourceRef: "robots",
       observedAt: new Date("2026-01-03T12:00:00Z"),
     });
-    // An older check measured a title outside the range; the newest check is in range,
-    // so that row is no suggestion and offers no fix.
+    // An older check measured the mobile title outside the range. Only the newest check of a
+    // page's title counts as a suggestion, so this row is no suggestion and offers no fix.
     workspace.findings.push({
       id: "measured-title-older",
       observationId: "check-title-older",
       pageUrl: workspace.pages[0].url,
-      device: "desktop",
+      device: "mobile",
       rowId: "title-length",
       title: "Raw HTML: Title length",
       severity: "measure",
@@ -1450,7 +1450,9 @@ describe("SEO workspace integration", () => {
     expect(detailsHeading.closest("details")).toHaveAttribute("open");
     // A measurement is one line; its value drops the words its name says.
     expect(screen.getAllByText("Title length:")[0]).toBeVisible();
-    expect(screen.getByText("56 characters")).toBeVisible();
+    expect(screen.getByText("80 characters")).toBeVisible();
+    // A value inside every tool range asks nothing, so it is left out.
+    expect(screen.queryByText("56 characters")).toBeNull();
     // Notes sit under their own heading, so a rule name does not read as a claim about the page.
     expect(
       screen.getByRole("heading", {
@@ -1485,7 +1487,7 @@ describe("SEO workspace integration", () => {
     );
     // Rows from different checks keep their own date.
     expect(within(details).queryByText(/Checked on/)).toBeNull();
-    expect(details.querySelectorAll("time")).toHaveLength(5);
+    expect(details.querySelectorAll("time")).toHaveLength(4);
     expect(
       screen.getByRole("heading", {
         name: "robots.txt blocks AI search bots",
@@ -1496,8 +1498,6 @@ describe("SEO workspace integration", () => {
     expect(
       screen.getByText("Ranges SEO tools use: Ahrefs under 70"),
     ).toBeVisible();
-    // Each page's value says where it sits against the tools' ranges.
-    expect(screen.getByText(/within the tool range/)).toBeVisible();
     // Only the newest check's value outside a range is a suggestion; the older one is history.
     expect(
       screen.getAllByText(/outside the tool range \(Ahrefs\)/),
@@ -1562,6 +1562,32 @@ describe("SEO workspace integration", () => {
     );
     // Nothing is sent until the owner sends it.
     expect(asked).toEqual([]);
+  });
+
+  it("shows no page details when every value is inside every tool range", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "measured-title",
+      observationId: "check-title",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Raw HTML: Title length",
+      severity: "measure",
+      evidence: [
+        "title 56 characters",
+        "vendor tools: Ahrefs under 70 (N1-246)",
+      ],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=health");
+    expect(await screen.findByRole("tab", { name: "Actions" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Page details" })).toBeNull();
   });
 
   it("offers one fix per suggestion and drafts it in the chat", async () => {

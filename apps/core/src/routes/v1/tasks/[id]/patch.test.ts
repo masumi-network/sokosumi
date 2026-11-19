@@ -633,11 +633,9 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(taskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ priority: TaskPriority.URGENT }),
-      }),
-    );
+    expect(taskUpdateMock.mock.lastCall?.[0].data).toStrictEqual({
+      priority: TaskPriority.URGENT,
+    });
   });
 
   it("stores dueOn as the calendar day it names", async () => {

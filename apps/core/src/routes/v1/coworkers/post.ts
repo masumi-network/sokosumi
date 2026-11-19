@@ -92,7 +92,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("Coworker priority requires platform admin access");
     }
 
-    const metadata = normalizeCoworkerMetadata(body.metadata);
+    const metadata = nullableJsonInput(
+      normalizeCoworkerMetadata(body.metadata),
+    );
     const slug = slugify(body.name, {
       lower: true,
       strict: true,
@@ -147,7 +149,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             capabilities: body.capabilities,
             image: null,
             priority: body.priority ?? 0,
-            metadata: nullableJsonInput(metadata),
+            ...(metadata !== undefined && { metadata }),
             isWhitelisted: false,
           },
           include: coworkerInclude,

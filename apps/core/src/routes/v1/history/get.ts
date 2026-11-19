@@ -144,7 +144,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
+    const { cursor, take } = parseCursorPagination(queryParams);
     const types =
       queryParams.types?.map((type) => historyKindByQueryType[type]) ??
       allHistoryKinds;
@@ -181,8 +181,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.history.findMany({
         where,
         take: takePlusOne,
-        skip: cursorHistoryId ? 1 : skip,
-        cursor: cursorHistoryId ? { id: cursorHistoryId } : undefined,
+        ...(cursorHistoryId
+          ? { cursor: { id: cursorHistoryId }, skip: 1 }
+          : {}),
         orderBy: [{ sortAt: "desc" }, { id: "desc" }],
       }),
       prisma.history.count({ where }),

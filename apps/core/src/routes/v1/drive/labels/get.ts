@@ -58,7 +58,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const labels = await prisma.workspaceLabel.findMany({
       where: {
         workspaceId: context.workspaceId,
-        kind: query.kind,
+        ...(query.kind !== undefined && { kind: query.kind }),
         mergedIntoId: null,
         ...(query.includeArchived === "true" ? {} : { archivedAt: null }),
       },

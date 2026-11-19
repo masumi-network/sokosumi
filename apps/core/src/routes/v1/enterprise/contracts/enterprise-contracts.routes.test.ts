@@ -335,10 +335,12 @@ describe("enterprise contract admin routes", () => {
         expect.objectContaining({
           data: expect.objectContaining({
             oneTimeCents: convertCreditsToCents(5_000),
-            oneTimeExpiresAt: undefined,
           }),
         }),
       );
+      expect(
+        enterpriseContractCreateMock.mock.lastCall?.[0].data,
+      ).not.toHaveProperty("oneTimeExpiresAt");
     });
   });
 

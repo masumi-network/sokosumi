@@ -41,7 +41,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     requireAdminAuthContext(c.var.authContext);
     const query = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(query);
+    const { cursor, take } = parseCursorPagination(query);
     const where: Prisma.TaskX402PaymentWhereInput = {
       ...(query.status ? { status: query.status } : {}),
       ...(query.agentId ? { agentId: query.agentId } : {}),
@@ -52,8 +52,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma.taskX402Payment.findMany({
         where,
         take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         // Explicit column select — NEVER `include` / a whole-row select. The
         // signed `xPaymentHeader` (and the raw signed-payload fields) are a
