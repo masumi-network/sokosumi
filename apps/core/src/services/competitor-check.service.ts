@@ -30,6 +30,7 @@ import {
   profileHandle,
   readCompetitorPage,
 } from "@/lib/competitors/page-read";
+import { COMPETITOR_CHECK_CREDITS } from "@/lib/competitors/price";
 import { bareHost } from "@/lib/competitors/text";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -42,12 +43,6 @@ import {
   type TrackedCompetitorRow,
 } from "@/services/competitors.service";
 
-/**
- * The price of one competitor in one weekly check, in credits: its two
- * pages read and compared, a news search, its new ads and its Instagram
- * week. Five competitors cost 15 credits a week.
- */
-export const COMPETITOR_CHECK_CREDITS = 3;
 /**
  * How long after a check the next one is due: a week, less half a day, so
  * the hourly cron's slot moving never pushes a check to day eight.

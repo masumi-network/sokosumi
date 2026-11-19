@@ -148,11 +148,13 @@ async function requireFreeName(
 
 /**
  * A member adds a competitor. One the member removed before comes back as
- * the same row, so its earlier signals stay with it.
+ * the same row, so its earlier signals stay with it. One picked from the
+ * suggestions (`suggested`) keeps its empty fields open for the weekly check
+ * to fill from its homepage.
  */
 export async function addTrackedCompetitor(
   projectId: string,
-  input: TrackedCompetitorInput & { name: string },
+  input: TrackedCompetitorInput & { name: string; suggested?: boolean },
 ): Promise<void> {
   const name = input.name.trim();
   const nameKey = competitorNameKey(name);
@@ -170,7 +172,8 @@ export async function addTrackedCompetitor(
     const data = {
       name,
       ...fields,
-      memberEditedAt: new Date(),
+      // A picked suggestion is nobody's typing: the check may still fill it.
+      memberEditedAt: input.suggested ? null : new Date(),
       removedAt: null,
     };
     if (removed)

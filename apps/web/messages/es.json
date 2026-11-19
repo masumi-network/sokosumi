@@ -5640,6 +5640,19 @@
         "save": "Guardar",
         "failed": "No funcionó. Inténtalo de nuevo."
       },
+      "find": {
+        "title": "Buscar competidores",
+        "description": "Empresas que venden lo que vende {project}, encontradas a partir de su sitio web. Elige a cuáles seguir.",
+        "searching": "Buscando empresas como {project}…",
+        "none": "No se encontraron competidores a partir del sitio web. Añádelos a mano.",
+        "room": "{count, plural, one {Puedes añadir # más.} other {Puedes añadir # más.}}",
+        "free": "Buscar competidores es gratis.",
+        "add": "{count, plural, =0 {Añadir} one {Añadir # competidor} other {Añadir # competidores}}",
+        "cancel": "Cancelar",
+        "retry": "Buscar de nuevo",
+        "failed": "No ha funcionado. Inténtalo de nuevo.",
+        "open": "Buscar competidores"
+      },
       "thisWeek": {
         "title": "Esta semana",
         "checked": "Revisión del {date}",

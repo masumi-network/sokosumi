@@ -21,6 +21,8 @@ import { CompetitorsWatchList } from "./competitors-watch-list";
 
 vi.mock("@/lib/actions/competitors/action", () => ({
   addCompetitor: vi.fn(),
+  addSuggestedCompetitors: vi.fn(),
+  findCompetitors: vi.fn(),
   removeCompetitor: vi.fn(),
   runCompetitorCheck: vi.fn(),
   setCompetitorChecks: vi.fn(),
@@ -139,6 +141,7 @@ describe("CompetitorsWatchList", () => {
         competitors={competitors}
         limit={limit}
         projectId={PROJECT_ID}
+        projectName="Cal.com"
         readOnly={readOnly}
       />,
     );
@@ -214,6 +217,9 @@ describe("CompetitorsWatchList", () => {
   it("offers no Add at the limit and no controls on a CMO Project", () => {
     const { unmount } = list([CALENDLY], false, 1);
     expect(screen.queryByRole("button", { name: "Add competitor" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Find competitors" }),
+    ).toBeNull();
     expect(
       screen.getByText("That is all 1. Remove one to watch another."),
     ).toBeVisible();

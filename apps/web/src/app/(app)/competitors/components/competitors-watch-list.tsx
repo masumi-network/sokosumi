@@ -13,6 +13,7 @@ import {
   CompetitorsItem,
   CompetitorsPanel,
 } from "./competitors-panel";
+import { FindCompetitors } from "./find-competitors";
 
 function host(url: string): string {
   return URL.parse(url)?.hostname.replace(/^www\./, "") ?? url;
@@ -23,11 +24,13 @@ export function CompetitorsWatchList({
   competitors,
   limit,
   projectId,
+  projectName,
   readOnly,
 }: {
   competitors: ProjectCompetitor[];
   limit: number;
   projectId: string;
+  projectName: string;
   readOnly: boolean;
 }) {
   const t = useTranslations("App.Competitors.list");
@@ -123,7 +126,12 @@ export function CompetitorsWatchList({
           {t("full", { limit })}
         </p>
       ) : (
-        <div className="px-1 pb-1">
+        <div className="flex flex-wrap gap-2 px-1 pb-1">
+          <FindCompetitors
+            projectId={projectId}
+            projectName={projectName}
+            room={limit - competitors.length}
+          />
           <Button onClick={() => setEditing("new")} size="sm">
             {t("add")}
           </Button>

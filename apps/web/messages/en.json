@@ -5640,6 +5640,19 @@
         "save": "Save",
         "failed": "That did not work. Try again."
       },
+      "find": {
+        "title": "Find competitors",
+        "description": "Companies that sell what {project} sells, found from its website. Pick the ones to watch.",
+        "searching": "Looking for companies like {project}…",
+        "none": "No competitors found from the website. Add them by hand.",
+        "room": "{count, plural, one {You can add # more.} other {You can add # more.}}",
+        "free": "Finding competitors is free.",
+        "add": "{count, plural, =0 {Add} one {Add # competitor} other {Add # competitors}}",
+        "cancel": "Cancel",
+        "retry": "Search again",
+        "failed": "That did not work. Try again.",
+        "open": "Find competitors"
+      },
       "thisWeek": {
         "title": "This week",
         "checked": "Check of {date}",
