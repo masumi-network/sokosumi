@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Columns3,
-  LayoutGrid,
-  List,
-  Rows3,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Columns3, Ellipsis, LayoutGrid, List, Rows3 } from "lucide-react";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,14 +19,16 @@ export interface ViewModeSwitchProps {
   density: TasksDensity;
   onDensityChange: (value: TasksDensity) => void;
   labels: {
+    /** The trigger's name: it opens layout, density and view actions. */
     button: string;
+    layout: string;
     list: string;
     board: string;
     density: string;
     normal: string;
     compact: string;
   };
-  /** Rows under the display options, for where else the Tasks can be seen. */
+  /** Rows under the display options: view actions and where else the Tasks can be seen. */
   children?: React.ReactNode;
 }
 
@@ -73,13 +69,13 @@ export function ViewModeSwitch({
           aria-label={labels.button}
           title={labels.button}
         >
-          <SlidersHorizontal className="size-4" aria-hidden />
+          <Ellipsis className="size-4" aria-hidden />
         </Button>
       </PopoverTrigger>
       {isClient ? (
         <PopoverContent align="end" className="w-56 space-y-3">
           <div className="space-y-3">
-            <p className="text-sm font-medium">{labels.button}</p>
+            <p className="text-sm font-medium">{labels.layout}</p>
             <ToggleGroup
               type="single"
               value={value}

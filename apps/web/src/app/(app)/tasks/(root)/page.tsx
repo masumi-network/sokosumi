@@ -229,6 +229,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           },
           display: {
             button: t("Display.button"),
+            layout: t("Display.layout"),
             list: t("Display.list"),
             board: t("Display.board"),
             density: t("Display.density"),

@@ -110,6 +110,7 @@ export interface TasksViewProps {
     columns: Record<KanbanColumnId, string>;
     display: {
       button: string;
+      layout: string;
       list: string;
       board: string;
       density: string;

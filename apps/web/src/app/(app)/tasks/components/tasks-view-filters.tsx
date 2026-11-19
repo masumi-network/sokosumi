@@ -63,7 +63,7 @@ interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
   /** The viewer, for the My tasks toggle; hidden when they are not an option. */
   userId?: string | null;
-  /** The Display control, shown after the quick filters. */
+  /** The view options menu, shown after the Filters menu. */
   display?: React.ReactNode;
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
@@ -396,10 +396,10 @@ export function TasksViewFilters({
   ].filter((chip) => !!chip);
 
   return (
-    // Anchored to the board's left edge: the quick filters first, then how
-    // the Tasks are shown, then what is active, because those are what a
-    // reader changes most. Chips wrap under them. The menu holds the rest
-    // and sits at the right edge.
+    // Anchored to the board's left edge: the quick filters first, then what
+    // is active, because those are what a reader changes most. Chips wrap
+    // under them. The Filters menu holds the rest and sits at the right
+    // edge, with the view options menu after it.
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
       {me ? (
         <Button
@@ -459,7 +459,6 @@ export function TasksViewFilters({
           <span className="max-lg:sr-only">{t("mentions")}</span>
         </Button>
       ) : null}
-      {display}
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {
@@ -516,6 +515,7 @@ export function TasksViewFilters({
           }
         />
       </span>
+      {display}
     </div>
   );
 }

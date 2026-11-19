@@ -16,17 +16,17 @@ interface TasksViewToolbarActionsProps {
 }
 
 /**
- * The Tasks tab toolbar: the quick filters lead, Display follows them and
- * the Filters menu takes the right edge. Archived
- * Tasks are another way to see Tasks, so their link lives in the Display
- * popover. New task is the sidebar header's action; below md the create FAB
- * covers creation.
+ * The Tasks tab toolbar: the quick filters lead, and the Filters menu and
+ * the view options menu take the right edge. Archived Tasks are another
+ * way to see Tasks, so their link lives in the view options menu. New task
+ * is the sidebar header's action; below md the create FAB covers creation.
  */
 export function TasksViewToolbarActions({
   filters,
   display,
 }: TasksViewToolbarActionsProps) {
   const t = useTranslations("App.Tasks.Archived");
+
   return (
     <TasksViewFilters
       {...filters}

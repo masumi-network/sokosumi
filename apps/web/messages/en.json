@@ -1873,7 +1873,8 @@
         "date": "Date"
       },
       "Display": {
-        "button": "Display",
+        "button": "View options",
+        "layout": "Layout",
         "list": "List",
         "board": "Board",
         "density": "Density",
