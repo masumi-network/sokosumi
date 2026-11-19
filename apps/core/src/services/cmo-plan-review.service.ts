@@ -33,7 +33,11 @@ const MIN_FORMATS = 6;
 const MAX_SUMMARY_WORDS = 20;
 /** How far, in points, the calendar's shares may stray from the mix and the pillars. */
 export const CMO_SHARE_TOLERANCE = 7;
-/** Videos a month: each costs about four pictures, and a plan once asked for eight. */
+/**
+ * Videos a month: a moving video costs about four pictures and a talking
+ * video two to six times that (`TALKING_VIDEO_PLANNED_CREDITS`), and a plan
+ * once asked for eight.
+ */
 export const CMO_MAX_VIDEOS_PER_MONTH = 4;
 
 function isVideoFormat(entry: { channel: string; format: string }): boolean {
@@ -239,7 +243,7 @@ export function cmoPlanProblems(
     const videos = pieces.filter(isVideoFormat).length;
     if (videos > CMO_MAX_VIDEOS_PER_MONTH)
       problems.push(
-        `calendar has ${videos} videos; plan at most ${CMO_MAX_VIDEOS_PER_MONTH} a month. Each costs about as much as four pictures: keep video for what moves.`,
+        `calendar has ${videos} videos; plan at most ${CMO_MAX_VIDEOS_PER_MONTH} a month. Each costs at least as much as four pictures: keep video for what moves.`,
       );
   }
   return problems;
