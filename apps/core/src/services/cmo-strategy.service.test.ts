@@ -411,6 +411,59 @@ describe("the plan starts when the research ends", () => {
     expect(cusoFind).toHaveBeenCalledTimes(1);
   });
 
+  it("finishes a weekly month the plan turn left short of four weeks, twice at most", async () => {
+    seedStrategy(strategy);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    startTurn.mockResolvedValue({ turnId: "finish-1" });
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:strategy:bot-1:1",
+      }),
+    ).resolves.toEqual({ turnId: "finish-1" });
+    const started = startTurn.mock.calls[0]?.[0] as {
+      clientTurnId: string;
+      message: string;
+    };
+    expect(started.clientTurnId).toMatch(/^cmo:strategy:bot-1:finish:\d+:1$/);
+    expect(started.message).toContain(
+      "Finish acme.io's marketing strategy: its calendar covers 3 of four weeks, up to 2026-10-20.",
+    );
+
+    startTurn.mockClear();
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: started.clientTurnId.replace(/:1$/, ":2"),
+      }),
+    ).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("finishes nothing for a whole month, an approved one, or a Cuso who saves in two calls", async () => {
+    const day = (week: number) => ({
+      ...strategy.calendar[0],
+      id: `w${week}`,
+      date: `2026-10-${String(1 + week * 7).padStart(2, "0")}`,
+    });
+    seedStrategy({ ...strategy, calendar: [0, 1, 2, 3].map(day) });
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
+    const ended = {
+      sokoBotId: "bot-1",
+      userId: "user-1",
+      clientTurnId: "cmo:strategy:bot-1:1",
+    };
+    await expect(afterCmoTurn(ended)).resolves.toBeNull();
+    seedStrategy(strategy, { approvedAt: new Date() });
+    await expect(afterCmoTurn(ended)).resolves.toBeNull();
+    seedStrategy(strategy);
+    sokoBotFindUnique.mockResolvedValue({ versionId: "cmo-v2" });
+    await expect(afterCmoTurn(ended)).resolves.toBeNull();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
   it("starts no plan in an eval lane: its strategy cases ask for their own", async () => {
     isEvalCusoProject.mockResolvedValueOnce(true);
 

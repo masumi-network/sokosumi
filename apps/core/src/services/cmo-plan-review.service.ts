@@ -693,6 +693,14 @@ function goesOutOn(
   );
 }
 
+/** The weeks a month's calendar covers so far: 0 without a piece. */
+export function cmoCalendarWeeks(
+  calendar: MarketingStrategyPlan["calendar"],
+): number {
+  const pieces = calendar.filter((entry) => entry.status !== "skipped");
+  return pieces.length === 0 ? 0 : calendarWeeks(pieces);
+}
+
 /** Whole or started weeks from the calendar's first piece to its last. */
 function calendarWeeks(pieces: MarketingStrategyPlan["calendar"]): number {
   const days = pieces

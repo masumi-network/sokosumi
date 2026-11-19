@@ -46,6 +46,7 @@ import {
 } from "@/services/cmo-cuso.service";
 import { cmoPictureStyleProblem } from "@/services/cmo-media-maker.service";
 import {
+  cmoCalendarWeeks,
   cmoPlanRulesBrokenSince,
   cmoStrategyRules,
 } from "@/services/cmo-plan-review.service";
@@ -373,8 +374,71 @@ export async function afterCmoTurn(input: {
     cmoChangeKind(input.clientTurnId) === "fix";
   return (
     (mayPlan ? await startCmoPlanAfterResearch(input, cuso) : null) ??
+    (await startCmoMonthFinish(input, cuso)) ??
     (await startNextCmoChange(input, cuso))
   );
+}
+
+const FINISH_KIND = "finish";
+
+/** Finish turns in a row after a plan turn, so a month that cannot be finished still ends. */
+export const CMO_MONTH_FINISH_TURNS = 2;
+
+/** How many finish turns came before this one in a row; -1 for a turn that is no plan. */
+function finishRound(clientTurnId: string | null): number {
+  if (!clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)) return -1;
+  if (cmoChangeKind(clientTurnId) !== null) return -1;
+  const parts = clientTurnId.split(":");
+  return parts[3] === FINISH_KIND ? Number(parts[5] ?? 1) : 0;
+}
+
+/**
+ * A weekly Cuso saves his month a week a call, and once ended his turn with
+ * week one saved although the review asked for the rest: NMKR's month came
+ * back with 20 posts. A draft still short of four weeks when a plan turn ends
+ * gets a short turn that saves the missing weeks.
+ */
+async function startCmoMonthFinish(
+  input: { userId: string | null; clientTurnId: string | null },
+  cuso: Cuso,
+): Promise<{ turnId: string } | null> {
+  const round = finishRound(input.clientTurnId);
+  if (round < 0 || round >= CMO_MONTH_FINISH_TURNS) return null;
+  const [bot, version] = await Promise.all([
+    prisma.sokoBot.findUnique({
+      where: { id: cuso.sokoBotId },
+      select: { versionId: true },
+    }),
+    newestMarketingStrategy(cuso.projectId),
+  ]);
+  if (
+    !bot?.versionId ||
+    !cmoStrategyRules(getSokoBotVersion(bot.versionId).skills).weekly
+  )
+    return null;
+  const plan = version?.approvedAt ? null : parseMarketingPlan(version?.plan);
+  if (!plan) return null;
+  const weeks = cmoCalendarWeeks(plan.calendar);
+  if (weeks >= 4) return null;
+  const userId = input.userId ?? (await cmoRunnerUserId(cuso));
+  if (!userId) return null;
+  const last = plan.calendar
+    .filter((entry) => entry.status !== "skipped")
+    .map((entry) => entry.date)
+    .sort()
+    .at(-1);
+  return startCmoTurn(cuso, userId, {
+    clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${FINISH_KIND}:${Date.now()}:${round + 1}`,
+    message: [
+      `Finish ${cuso.businessName}'s marketing strategy: its calendar covers ${weeks} of four weeks${last ? `, up to ${last}` : ""}.`,
+      weeks === 0
+        ? "Save week one with save_strategy part calendar, then each later week with part patch (only that week's entries, new ids)."
+        : "Save each missing week with save_strategy part patch, one week a call (only that week's entries, new ids), until the calendar covers four weeks from its first day.",
+      "Every week holds the pace's perWeek pieces at each channel's cadence and role, in the mix and pillar shares. Change nothing already saved. When a save is refused or names problems, fix them and save again.",
+      "Then tell the owner in one sentence that the month is complete. The strategy card is your report: do not call report_update.",
+    ].join("\n"),
+    route: CMO_STRATEGY_ROUTE,
+  });
 }
 
 /**
