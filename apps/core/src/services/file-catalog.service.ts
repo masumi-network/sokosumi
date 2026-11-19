@@ -36,41 +36,28 @@ function toSourceScope(scope: "user" | "organization"): FileSourceScope {
 }
 
 /**
- * A Drive copy being published: pending, with category and tags pinned
- * empty (see reserveDriveCopyResource). A claim only ever becomes ACTIVE or
- * is deleted, and no other row ever becomes one, so a writer that read a
- * row and saw no claim can rely on that for the rest of its transaction.
- */
-const COPY_CLAIM = {
-  lifecycle: FileResourceLifecycle.PENDING,
-  overrides: {
-    some: { labelId: null, decision: FileFieldOverrideDecision.PIN },
-  },
-} satisfies Prisma.FileResourceWhereInput;
-
-function isCopyClaim(id: string, client: Prisma.TransactionClient = prisma) {
-  return client.fileResource
-    .count({ where: { id, ...COPY_CLAIM } })
-    .then((count) => count > 0);
-}
-
-/**
  * Reserve identity for an upload that has not happened yet. Called when the
  * Blob grant is minted, so a finalize callback has something to authenticate
  * against and an abandoned grant is visible as a pending resource rather than
  * as nothing at all.
+ *
+ * `pinLabelsEmpty` (Make a copy): category and tags are pinned empty in the
+ * same transaction, so no paid model ever labels the file; the reader can
+ * lift the pins like any other. Only on a new document: a name any row
+ * holds answers 409 rather than pinning someone else's document.
  */
 export async function reserveDriveUploadResource(input: {
   key: DriveResourceKey;
   displayName: string;
   mimeType: string;
   sizeBytes: number;
+  pinLabelsEmpty?: { decidedByUserId: string };
 }): Promise<{ resourceId: string; versionId: string }> {
   const { key } = input;
   const sourceScope = toSourceScope(key.scope);
 
   return prisma.$transaction(async (tx) => {
-    await ensureEvidenceScope(
+    const evidenceScope = await ensureEvidenceScope(
       {
         workspaceId: key.workspaceId,
         sourceKind: FileSourceKind.DRIVE_UPLOAD,
@@ -92,8 +79,9 @@ export async function reserveDriveUploadResource(input: {
       select: { id: true, contentRevision: true },
     });
 
-    if (existing && (await isCopyClaim(existing.id, tx))) {
-      throw conflict("A copy is being made at this name");
+    const pin = input.pinLabelsEmpty;
+    if (existing && pin) {
+      throw conflict("A file already holds that name");
     }
     if (existing) {
       // Replacing the bytes at a live pathname is a new version of the same
@@ -144,180 +132,25 @@ export async function reserveDriveUploadResource(input: {
             mimeType: input.mimeType,
           },
         },
+        overrides: pin
+          ? {
+              create: (["category", "tags"] as const).map((field) => ({
+                field,
+                labelId: null,
+                decision: FileFieldOverrideDecision.PIN,
+                evidenceScopeId: evidenceScope.id,
+                contentRevision: 1,
+                vocabularyVersion: 1,
+                decidedByUserId: pin.decidedByUserId,
+              })),
+            }
+          : undefined,
       },
       select: { id: true, versions: { select: { id: true } } },
     });
 
     return { resourceId: resource.id, versionId: resource.versions[0].id };
   });
-}
-
-/**
- * Reserve identity for one Drive copy before its bytes exist: a pending row
- * with category and tags pinned empty, so whoever lists the bytes first
- * finds a claim that no upload, finalize or backfill takes over, and no
- * paid model ever labels the copy. A plain create: a name any row holds
- * fails with P2002 and the caller tries the next name.
- */
-export async function reserveDriveCopyResource(input: {
-  key: DriveResourceKey;
-  displayName: string;
-  mimeType: string;
-  sizeBytes: number;
-  decidedByUserId: string;
-}): Promise<string> {
-  const { key } = input;
-  const sourceScope = toSourceScope(key.scope);
-
-  return prisma.$transaction(async (tx) => {
-    const scope = await ensureEvidenceScope(
-      {
-        workspaceId: key.workspaceId,
-        sourceKind: FileSourceKind.DRIVE_UPLOAD,
-        sourceScope,
-        sourceId: key.ownerId,
-      },
-      tx,
-    );
-    const { id } = await tx.fileResource.create({
-      data: {
-        workspaceId: key.workspaceId,
-        sourceKind: FileSourceKind.DRIVE_UPLOAD,
-        sourceScope,
-        sourceId: key.pathname,
-        ownerUserId: key.scope === "user" ? key.ownerId : null,
-        ownerOrganizationId: key.scope === "organization" ? key.ownerId : null,
-        displayName: input.displayName,
-        normalizedName: normalizeFileResourceName(input.displayName),
-        mimeType: input.mimeType,
-        sizeBytes: input.sizeBytes,
-        lifecycle: FileResourceLifecycle.PENDING,
-        versions: {
-          create: {
-            revision: 1,
-            objectKey: key.pathname,
-            sizeBytes: input.sizeBytes,
-            mimeType: input.mimeType,
-          },
-        },
-        overrides: {
-          create: (["category", "tags"] as const).map((field) => ({
-            field,
-            labelId: null,
-            decision: FileFieldOverrideDecision.PIN,
-            evidenceScopeId: scope.id,
-            contentRevision: 1,
-            vocabularyVersion: 1,
-            decidedByUserId: input.decidedByUserId,
-          })),
-        },
-      },
-      select: { id: true },
-    });
-    return id;
-  });
-}
-
-/**
- * Record the write a copy proved its own: the ETag its no-overwrite copy
- * call returned, checked against the target and an unchanged source. Once,
- * and only on this claim at this pathname. From here the write is the
- * claim's, so a relocation no longer takes the name and the reconciler may
- * finish publishing it.
- */
-export async function recordDriveCopyWrite(input: {
-  resourceId: string;
-  pathname: string;
-  etag: string;
-}): Promise<boolean> {
-  const { count } = await prisma.fileVersion.updateMany({
-    where: {
-      resourceId: input.resourceId,
-      revision: 1,
-      etag: null,
-      resource: { sourceId: input.pathname, tombstonedAt: null, ...COPY_CLAIM },
-    },
-    data: { etag: input.etag },
-  });
-  return count > 0;
-}
-
-/**
- * Make a copy live with the metadata of its recorded write, and queue its
- * extraction, in one transaction. Only while it is still this claim at this
- * pathname with this write recorded: anything else publishes nothing.
- */
-export async function publishDriveCopyResource(input: {
-  resourceId: string;
-  pathname: string;
-  etag: string;
-  sizeBytes: number;
-  mimeType: string;
-}): Promise<boolean> {
-  const metadata = { sizeBytes: input.sizeBytes, mimeType: input.mimeType };
-  return prisma.$transaction(async (tx) => {
-    const { count } = await tx.fileResource.updateMany({
-      where: {
-        id: input.resourceId,
-        sourceId: input.pathname,
-        tombstonedAt: null,
-        ...COPY_CLAIM,
-        versions: { some: { revision: 1, etag: input.etag } },
-      },
-      data: { lifecycle: FileResourceLifecycle.ACTIVE, ...metadata },
-    });
-    if (count === 0) return false;
-    await tx.fileVersion.updateMany({
-      where: { resourceId: input.resourceId, revision: 1 },
-      data: metadata,
-    });
-    await enqueueFileIndexJob(
-      {
-        resourceId: input.resourceId,
-        pipeline: FileIndexJobPipeline.EXTRACT,
-        contentRevision: 1,
-      },
-      tx,
-    );
-    return true;
-  });
-}
-
-/** Give back a claim whose pathname is known to hold no bytes. */
-export async function releaseDriveCopyResource(claim: {
-  resourceId: string;
-  pathname: string;
-}): Promise<void> {
-  await prisma.fileResource.deleteMany({
-    where: { id: claim.resourceId, sourceId: claim.pathname, ...COPY_CLAIM },
-  });
-}
-
-/**
- * Claims with a recorded write that their request did not publish, oldest
- * first. Age only schedules: a claim with no recorded write is never here.
- */
-export async function recordedDriveCopyClaims(olderThan: Date, take: number) {
-  const claims = await prisma.fileResource.findMany({
-    where: {
-      ...COPY_CLAIM,
-      tombstonedAt: null,
-      createdAt: { lt: olderThan },
-      versions: { some: { revision: 1, etag: { not: null } } },
-    },
-    select: {
-      id: true,
-      sourceId: true,
-      versions: { where: { revision: 1 }, select: { etag: true } },
-    },
-    orderBy: { createdAt: "asc" },
-    take,
-  });
-  return claims.map((claim) => ({
-    resourceId: claim.id,
-    pathname: claim.sourceId,
-    etag: claim.versions[0]?.etag ?? "",
-  }));
 }
 
 /**
@@ -344,8 +177,6 @@ export async function activateDriveUploadResource(input: {
     select: { id: true, contentRevision: true, tombstonedAt: true },
   });
   if (!resource || resource.tombstonedAt) return null;
-  // A copy is published only by its own protocol, never as an upload.
-  if (await isCopyClaim(resource.id)) return null;
 
   await prisma.$transaction(async (tx) => {
     await tx.fileResource.update({
@@ -387,19 +218,6 @@ export async function renameDriveUploadResource(input: {
   const sourceScope = toSourceScope(input.scope);
 
   await prisma.$transaction(async (tx) => {
-    // The relocation's bytes are already at the destination, and storage
-    // never overwrites, so a copy claimed there has not written and cannot.
-    // Its claim yields; one with a recorded write keeps the name (P2002).
-    await tx.fileResource.deleteMany({
-      where: {
-        workspaceId: input.workspaceId,
-        sourceKind: FileSourceKind.DRIVE_UPLOAD,
-        sourceScope,
-        sourceId: input.toPathname,
-        ...COPY_CLAIM,
-        versions: { some: { revision: 1, etag: null } },
-      },
-    });
     const resource = await tx.fileResource.findUnique({
       where: {
         workspaceId_sourceKind_sourceScope_sourceId: {
@@ -517,10 +335,7 @@ export async function adoptDriveUploadResource(input: {
   });
 
   if (existing) {
-    if (
-      existing.lifecycle === FileResourceLifecycle.PENDING &&
-      !(await isCopyClaim(existing.id, client))
-    ) {
+    if (existing.lifecycle === FileResourceLifecycle.PENDING) {
       await client.fileResource.update({
         where: { id: existing.id },
         data: { lifecycle: FileResourceLifecycle.ACTIVE },

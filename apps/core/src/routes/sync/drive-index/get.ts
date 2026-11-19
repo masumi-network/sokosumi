@@ -1,12 +1,11 @@
 import type { Hono } from "hono";
-import { recordCoreWarning } from "@/lib/evlog";
+
 import {
   backfillMissingSuggestionJobs,
   reviveFailedSuggestionJobs,
 } from "@/lib/files/index-jobs";
 import { pruneExpiredAdmissions } from "@/lib/files/jev-admission";
 import { pruneExpiredResultWindows } from "@/lib/files/search-session";
-import { reconcileStaleDriveCopies } from "@/services/drive-copy-reconcile";
 import { processFileIndexJobs } from "@/services/file-index.service";
 import { processFileSuggestionJobs } from "@/services/file-suggestions.service";
 import { processStaleTableIndexes } from "@/services/file-table-index.service";
@@ -83,21 +82,9 @@ export default function mount(app: Hono) {
         // ordering. `@@index([expiresAt])` existed for this sweep before
         // the sweep did.
         const prunedResultWindows = await pruneExpiredResultWindows();
-        // Last and on its own: a copy that cannot be settled never holds up
-        // the indexing above. A published copy is extracted next tick.
-        const copies = await reconcileStaleDriveCopies({
-          shouldContinue: context.shouldContinue,
-        }).catch((error: unknown) => {
-          recordCoreWarning(
-            { job: "drive-index-sync" },
-            { message: "Drive copy sweep failed", cause: error },
-          );
-          return null;
-        });
         context.log.set({
           result: {
             revived,
-            copies,
             backfilled,
             extraction,
             suggestions,

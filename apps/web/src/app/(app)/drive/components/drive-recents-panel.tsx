@@ -1,11 +1,10 @@
 "use client";
 
+import type { DriveItem, DriveRecentsItem } from "@sokosumi/core-client";
 import {
-  type DriveItem,
-  type DriveRecentsItem,
-  postDriveFilesCopy,
-} from "@sokosumi/core-client";
-import { getExtensionFromUrl } from "@sokosumi/utils";
+  driveFolderPathFromSourceId,
+  getExtensionFromUrl,
+} from "@sokosumi/utils";
 import {
   Copy,
   CopyPlus,
@@ -63,11 +62,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
-import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { copyName } from "@/lib/utils/drive-copy-name";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
+import {
+  isDriveFileUploadDuplicate,
+  uploadDriveFile,
+} from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveRecentsPage } from "@/lib/utils/drive-recents-list.client";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
@@ -314,17 +317,41 @@ export function DriveRecentsPanel({
     await loadRecents();
   }
 
-  async function handleMakeCopy(item: { pathname: string; name: string }) {
+  /**
+   * A copy is an ordinary upload of the file's bytes beside it, with its
+   * category and tags pinned empty so no model labels it. Personal, non-room
+   * files only, so the public URL serves the bytes.
+   */
+  async function handleMakeCopy(item: {
+    pathname: string;
+    name: string;
+    fileUrl: string;
+  }) {
     if (copying.has(item.pathname)) return;
     setCopying((now) => new Set(now).add(item.pathname));
     const toastId = toast.loading(t("copying", { name: item.name }));
     try {
-      const { data } = await postDriveFilesCopy({
-        client: getBrowserCoreClient(),
-        body: { pathname: item.pathname, label: t("copyNameLabel") },
-        throwOnError: true,
-      });
-      toast.success(t("copyMade", { name: data.data.name }), { id: toastId });
+      const response = await fetch(item.fileUrl);
+      if (!response.ok) throw new Error(`Read failed: ${response.status}`);
+      const bytes = await response.blob();
+      const folder = driveFolderPathFromSourceId(item.pathname) ?? undefined;
+      // One name at a time: the next is tried only once this one is taken.
+      const uploadAt = async (attempt: number): Promise<string> => {
+        if (attempt > 20) throw new Error("No free name for the copy");
+        const candidate = copyName(item.name, t("copyNameLabel"), attempt);
+        try {
+          await uploadDriveFile(
+            new File([bytes], candidate, { type: bytes.type }),
+            { scope: "me", folder, pinLabelsEmpty: true },
+          );
+          return candidate;
+        } catch (error) {
+          if (!isDriveFileUploadDuplicate(error)) throw error;
+          return uploadAt(attempt + 1);
+        }
+      };
+      const name = await uploadAt(1);
+      toast.success(t("copyMade", { name }), { id: toastId });
     } catch (error) {
       console.error("Failed to copy Drive file", error);
       toast.error(t("copyError"), { id: toastId });

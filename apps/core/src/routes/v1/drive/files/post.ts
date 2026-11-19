@@ -177,6 +177,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       displayName,
       mimeType: resolvedContentType,
       sizeBytes: body.size,
+      pinLabelsEmpty: body.pinLabelsEmpty
+        ? { decidedByUserId: userContext.userId }
+        : undefined,
     });
 
     const session = {

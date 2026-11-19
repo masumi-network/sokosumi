@@ -22,6 +22,7 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 
 const { fetchRecentsMock, copyMock, toastMock } = vi.hoisted(() => ({
   fetchRecentsMock: vi.fn(),
+  /** The existing upload path; a copy is an upload of the file's bytes. */
   copyMock: vi.fn(),
   toastMock: {
     loading: vi.fn(() => "toast-1"),
@@ -34,11 +35,15 @@ vi.mock("@/lib/utils/drive-recents-list.client", () => ({
   fetchDriveRecentsPage: fetchRecentsMock,
 }));
 
-vi.mock("@sokosumi/core-client", () => ({ postDriveFilesCopy: copyMock }));
-
-vi.mock("@/lib/clients/core.browser.client", () => ({
-  getBrowserCoreClient: () => "core-client",
+vi.mock("@/lib/utils/drive-file-upload.client", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/utils/drive-file-upload.client")
+  >()),
+  uploadDriveFile: copyMock,
 }));
+
+const fetchMock = vi.fn();
+vi.stubGlobal("fetch", fetchMock);
 
 vi.mock("sonner", () => ({ toast: toastMock }));
 
@@ -84,7 +89,14 @@ function renderPanel(
 beforeEach(() => {
   vi.clearAllMocks();
   fetchRecentsMock.mockResolvedValue({ items: [FILE], nextCursor: null });
+  fetchMock.mockResolvedValue(
+    new Response(new Blob(["# weekly"], { type: "text/markdown" })),
+  );
 });
+
+/** Names of the files handed to the upload, in order. */
+const uploadedNames = () =>
+  copyMock.mock.calls.map(([file]) => (file as File).name);
 
 describe("Make a copy", () => {
   it("lets a Recents name wrap to two lines on a phone, so its end stays visible", async () => {
@@ -96,10 +108,8 @@ describe("Make a copy", () => {
     );
   });
 
-  it("copies the file beside itself and reloads the list", async () => {
-    copyMock.mockResolvedValue({
-      data: { data: { name: "weekly (copy).md" } },
-    });
+  it("uploads the file's bytes beside it as a new, label-free file and reloads the list", async () => {
+    copyMock.mockResolvedValue({ pathname: "p", fileUrl: "u" });
     const user = userEvent.setup();
     const onItemsChanged = renderPanel();
 
@@ -108,24 +118,46 @@ describe("Make a copy", () => {
     );
     await user.click(screen.getByRole("menuitem", { name: "makeCopyAction" }));
 
-    await waitFor(() =>
-      expect(copyMock).toHaveBeenCalledWith({
-        client: "core-client",
-        body: {
-          pathname: "drive/users/u1/briefs/weekly.md",
-          label: "copyNameLabel",
-        },
-        throwOnError: true,
-      }),
-    );
+    await waitFor(() => expect(copyMock).toHaveBeenCalledTimes(1));
+    expect(fetchMock).toHaveBeenCalledWith(FILE.fileUrl);
+    const [file, options] = copyMock.mock.calls[0];
+    expect((file as File).name).toBe("weekly (copyNameLabel).md");
+    expect(await (file as File).text()).toBe("# weekly");
+    expect(options).toEqual({
+      scope: "me",
+      folder: "briefs",
+      pinLabelsEmpty: true,
+    });
     await waitFor(() =>
       expect(toastMock.success).toHaveBeenCalledWith(
-        "copyMade:weekly (copy).md",
+        "copyMade:weekly (copyNameLabel).md",
         { id: "toast-1" },
       ),
     );
     expect(onItemsChanged).toHaveBeenCalled();
     expect(fetchRecentsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("takes the next name when one is already taken", async () => {
+    const { DriveFileUploadError } = await import(
+      "@/lib/utils/drive-file-upload.client"
+    );
+    copyMock
+      .mockRejectedValueOnce(new DriveFileUploadError("duplicate", "taken"))
+      .mockResolvedValueOnce({ pathname: "p", fileUrl: "u" });
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(
+      await screen.findByRole("button", { name: "moreActions" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "makeCopyAction" }));
+
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+    expect(uploadedNames()).toEqual([
+      "weekly (copyNameLabel).md",
+      "weekly (copyNameLabel) 2.md",
+    ]);
   });
 
   it("says so when the copy fails and keeps the list", async () => {
@@ -170,7 +202,7 @@ describe("Make a copy", () => {
     await user.click(item);
     expect(copyMock).toHaveBeenCalledTimes(1);
 
-    finish({ data: { data: { name: "weekly (copy).md" } } });
+    finish({ pathname: "p", fileUrl: "u" });
     await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
   });
 

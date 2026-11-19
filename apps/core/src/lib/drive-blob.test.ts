@@ -29,7 +29,6 @@ import {
   driveList,
   drivePut,
   driveRead,
-  driveRename,
   forgetDriveRooms,
   isInDataRoom,
   publicDriveUrl,
@@ -111,25 +110,6 @@ describe("writes", () => {
     await drivePut(`${OWNER}Series A/deck.pdf`, "x");
     expect(db.dataRoom.findMany).not.toHaveBeenCalled();
     expect(blob.put.mock.calls[0][2]).toMatchObject({ access: "public" });
-  });
-});
-
-describe("moves", () => {
-  it("never overwrites the destination when a move crosses stores", async () => {
-    stores({ public: [`${OWNER}deck.pdf`], private: [] });
-    blob.get.mockResolvedValue({
-      statusCode: 200,
-      stream: "bytes",
-      blob: { contentType: "application/pdf" },
-    });
-    blob.put.mockResolvedValue({ url: "u", pathname: "p" });
-
-    await driveRename(`${OWNER}deck.pdf`, `${OWNER}Series A/deck.pdf`);
-
-    expect(blob.put.mock.calls[0][2]).toMatchObject({
-      access: "private",
-      allowOverwrite: false,
-    });
   });
 });
 

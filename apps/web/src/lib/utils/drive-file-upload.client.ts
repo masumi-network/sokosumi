@@ -87,6 +87,8 @@ export interface DriveFileUploadResult {
 
 type DriveFileUploadOptions = DriveWorkspaceStore & {
   folder?: string;
+  /** Make a copy: a new personal file no model labels (409 if the name is held). */
+  pinLabelsEmpty?: boolean;
   onUploadProgress?: (progress: DriveFileUploadProgress) => void;
 };
 
@@ -127,6 +129,7 @@ export async function uploadDriveFile(
         scope,
         ...(scope === "org" ? { organizationId: options.organizationId } : {}),
         ...(folder ? { folder } : {}),
+        ...(options.pinLabelsEmpty ? { pinLabelsEmpty: true } : {}),
       },
       throwOnError: true,
     });

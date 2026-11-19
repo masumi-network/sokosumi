@@ -2,7 +2,6 @@ import { DataRoomStorage, FileSourceScope } from "@sokosumi/database";
 import {
   type BlobAccessType,
   BlobNotFoundError,
-  copy,
   del,
   get,
   type HeadBlobResult,
@@ -346,34 +345,7 @@ export async function driveRename(
     toStore: target,
     contentType,
     cacheControlMaxAge: options.cacheControlMaxAge,
-    // A user's move never replaces what is already at the destination.
-    allowOverwrite: false,
   });
-}
-
-/**
- * Copies one public-store object to a new pathname and keeps the source.
- * Never overwrites: a pathname that is already taken fails, so the bytes at
- * the target are this call's or the call threw. Data rooms are not copied.
- */
-export async function driveCopy(
-  fromPathname: string,
-  toPathname: string,
-  options: { contentType: string; cacheControlMaxAge?: number },
-): Promise<{ url: string; etag: string }> {
-  const { url, etag } = await copy(fromPathname, toPathname, {
-    token: publicDriveStore().token,
-    access: "public",
-    addRandomSuffix: false,
-    allowOverwrite: false,
-    ...options,
-  });
-  return { url, etag };
-}
-
-/** Deletes a copy's bytes only while they are still the write with `etag`. */
-export async function driveUncopy(pathname: string, etag: string) {
-  await del(pathname, { token: publicDriveStore().token, ifMatch: etag });
 }
 
 function storeFor(access: BlobAccessType): DriveBlobStore {
@@ -389,8 +361,6 @@ export async function transferBetweenStores(input: {
   /** Defaults to the source object's own type. */
   contentType?: string;
   cacheControlMaxAge?: number;
-  /** Defaults to true: a room migration rewrites the same pathname. */
-  allowOverwrite?: boolean;
 }): Promise<{ url: string; pathname: string; access: BlobAccessType }> {
   const source = await get(input.fromPathname, {
     access: input.fromStore.access,
@@ -401,7 +371,7 @@ export async function transferBetweenStores(input: {
     access: input.toStore.access,
     token: input.toStore.token,
     addRandomSuffix: false,
-    allowOverwrite: input.allowOverwrite ?? true,
+    allowOverwrite: true,
     contentType: input.contentType ?? source.blob.contentType,
     cacheControlMaxAge: input.cacheControlMaxAge,
   });

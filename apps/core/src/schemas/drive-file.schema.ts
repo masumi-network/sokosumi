@@ -45,6 +45,14 @@ export const createDriveFileUploadSessionRequestSchema = z
       description:
         "Target folder path relative to scope root (empty/omit for root)",
     }),
+    pinLabelsEmpty: z.boolean().optional().openapi({
+      description:
+        "Make a copy: pin category and tags empty so no model labels this file. Personal scope only. The name must be new: 409 if any document holds it.",
+    }),
+  })
+  .refine((data) => !data.pinLabelsEmpty || data.scope === "me", {
+    message: "pinLabelsEmpty is for personal files only",
+    path: ["pinLabelsEmpty"],
   })
   .refine(
     (data) => {
@@ -173,29 +181,6 @@ export const renameDriveFileRequestSchema = z
     }),
   })
   .openapi("RenameDriveFileRequest");
-
-/**
- * Copy drive file request.
- */
-export const copyDriveFileRequestSchema = z
-  .object({
-    pathname: z.string().min(1).openapi({
-      example: "drive/users/user_123/report.pdf",
-      description: "Blob pathname of the file to copy",
-    }),
-    label: z
-      .string()
-      .trim()
-      .min(1)
-      .max(32)
-      .refine((label) => !label.includes("/"), "A label has no slash")
-      .openapi({
-        example: "copy",
-        description:
-          "Word for copy in the reader's language. The copy is named `<name> (<label>).<ext>`, numbered when taken.",
-      }),
-  })
-  .openapi("CopyDriveFileRequest");
 
 /**
  * Delete drive file request.

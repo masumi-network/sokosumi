@@ -18380,6 +18380,10 @@ export const CreateDriveFileUploadSessionRequestSchema = {
             maxLength: 1000,
             example: 'Projects/2026',
             description: 'Target folder path relative to scope root (empty/omit for root)'
+        },
+        pinLabelsEmpty: {
+            type: 'boolean',
+            description: 'Make a copy: pin category and tags empty so no model labels this file. Personal scope only. The name must be new: 409 if any document holds it.'
         }
     },
     required: [
@@ -18687,29 +18691,6 @@ export const MoveDriveItemRequestSchema = {
         'sourcePathname',
         'targetFolderPath',
         'itemType'
-    ]
-} as const;
-
-export const CopyDriveFileRequestSchema = {
-    type: 'object',
-    properties: {
-        pathname: {
-            type: 'string',
-            minLength: 1,
-            example: 'drive/users/user_123/report.pdf',
-            description: 'Blob pathname of the file to copy'
-        },
-        label: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 32,
-            example: 'copy',
-            description: 'Word for copy in the reader\'s language. The copy is named `<name> (<label>).<ext>`, numbered when taken.'
-        }
-    },
-    required: [
-        'pathname',
-        'label'
     ]
 } as const;
 
