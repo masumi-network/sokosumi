@@ -176,6 +176,59 @@ describe("meetingCalendarEvents", () => {
     ]);
   });
 
+  it("drops the attendee name when the same organizer address has another name", async () => {
+    const email = "shared@studio.example";
+    const organizer = { email, displayName: "Mira" };
+    const otherName = { email, displayName: "Avery" };
+    const start = { dateTime: from.toISOString() };
+    const raw = [
+      { id: "organizer-conflict", start, organizer, attendees: [otherName] },
+      {
+        id: "duplicate-conflict",
+        start,
+        organizer,
+        attendees: [organizer, otherName],
+      },
+    ];
+    readPage.mockResolvedValue({
+      raw,
+      events: raw.map(({ id }) => ({
+        id,
+        startsAt: from.toISOString(),
+        attendees: [],
+      })),
+    });
+    const events = await meetingCalendarEvents("bot", from, to, 10);
+    expect(events.map(({ guests }) => guests)).toEqual([
+      [{ email, name: null }],
+      [{ email, name: null }],
+    ]);
+  });
+
+  it("keeps owner flags and guest names when a provider flattens each emailAddress", async () => {
+    const event = {
+      id: "flat-recipients",
+      start: { dateTime: from.toISOString() },
+      attendees: [
+        { emailAddress: "alias@host.example", name: "Robin", self: true },
+        { emailAddress: "team@studio.example", displayName: "Mira" },
+        { emailAddress: "visitor@other.example" },
+      ],
+    };
+    readPage.mockResolvedValue({
+      raw: [event],
+      events: [{ id: event.id, startsAt: from.toISOString(), attendees: [] }],
+    });
+    const [meeting] = await meetingCalendarEvents("bot", from, to, 10);
+    expect(meeting?.selfEmails).toContain("alias@host.example");
+    expect(meeting?.guests).toEqual(
+      expect.arrayContaining([
+        { email: "team@studio.example", name: "Mira" },
+        { email: "visitor@other.example", name: null },
+      ]),
+    );
+  });
+
   it("preserves guests from a flattened provider roster, including quoted names", async () => {
     const attendees =
       'Avery <team@studio.example>, "Baker, Robin" <robin@other.example>';

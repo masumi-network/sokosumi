@@ -13,7 +13,7 @@ struct MessageMarkdownView: View {
   var diagrams = true
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openURL) private var openURL
-  @State private var selectedProfile: ChatParticipantProfile?
+  @State private var selectedProfile: MessageProfile?
   var body: some View {
     MessageMarkdownContent(source: source, room: room, channels: channels, preparedDocument: preparedDocument, diagrams: diagrams)
       .textSelection(.enabled)
@@ -21,6 +21,10 @@ struct MessageMarkdownView: View {
       .tint(.primary)
       .frame(maxWidth: .infinity, alignment: .leading)
       .environment(\.openURL, OpenURLAction { url in
+        if case let .contact(mention) = ChatLink(url: url, webBaseURL: CoreSettings.webBaseURL) {
+          selectedProfile = .contact(mention, workspaces.compositionContext)
+          return .handled
+        }
         if url.scheme == "sokosumi-channel" {
           if let id = MessageChannels.roomId(for: url, channels: workspaces.composerChannels) {
             Task { @MainActor in
@@ -34,11 +38,18 @@ struct MessageMarkdownView: View {
           return .handled
         }
         if let room {
-          selectedProfile = ChatParticipantProfile.resolving(url, in: room)
+          selectedProfile = ChatParticipantProfile.resolving(url, in: room).map(MessageProfile.participant)
         }
         return .handled
       })
-      .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
+      .popover(item: $selectedProfile) { profile in
+        switch profile {
+        case let .participant(participant):
+          ParticipantDetailsView(profile: participant)
+        case let .contact(mention, context):
+          ContactMentionView(mention: mention, context: context, openInContacts: { openURL($0) })
+        }
+      }
   }
 }
 

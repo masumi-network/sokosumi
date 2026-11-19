@@ -176,6 +176,8 @@ export interface SokoBotCalendarEvent {
   allDay: boolean;
   location: string | null;
   attendees: string[];
+  /** The provider omitted invitees or the list was shortened for this response. */
+  attendeesIncomplete?: boolean;
   organizer: string | null;
   description: string | null;
   link: string | null;

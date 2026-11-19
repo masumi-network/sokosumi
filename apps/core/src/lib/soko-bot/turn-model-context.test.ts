@@ -1,11 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { contextBlock, latestExchange } from "./turn-model-context";
+import { randomUUID } from "node:crypto";
+import { describe, expect, it, vi } from "vitest";
+import * as env from "@/config/env";
+import {
+  contextBlock,
+  latestExchange,
+  modelContextBlock,
+} from "./turn-model-context";
 
 describe("contextBlock", () => {
   it("states the reply language last, after the packet and the latest exchange", () => {
     const now = Date.parse("2026-09-30T21:27:00Z");
     const lines = contextBlock(
       {
+        memory: "Standup auf Deutsch",
         recentTurns: [
           {
             source: "CHAT",
@@ -15,7 +22,6 @@ describe("contextBlock", () => {
           },
         ],
       },
-      '{"memory":"Standup auf Deutsch"}',
       now,
     );
     const language = lines.findIndex((line) =>
@@ -25,6 +31,68 @@ describe("contextBlock", () => {
     expect(lines.findIndex((line) => line.startsWith("You: Soll ich"))).toBe(
       language - 2,
     );
+  });
+});
+
+describe("modelContextBlock", () => {
+  it("keeps a prior assistant claim as conversation history and directs ordinary identity questions to their source", () => {
+    const staleClaim = "Micah Vale works at Cerise Paper.";
+    const packet = {
+      recentTurns: [{ source: "SCHEDULE", finalAnswer: staleClaim }],
+    };
+    const chat = modelContextBlock(packet, false).join("\n");
+    expect(chat).toContain(staleClaim);
+    expect(chat).toMatch(/search_contacts/);
+    expect(chat).toMatch(/list_calendar_events/);
+    expect(chat).toContain("attendeesIncomplete");
+    const meeting = modelContextBlock(packet, true).join("\n");
+    expect(meeting).not.toContain(staleClaim);
+    expect(meeting).not.toMatch(/search_contacts|list_calendar_events/);
+  });
+
+  it("cannot reintroduce an unrelated person's name from a recent turn excluded by an evaluation allowance", () => {
+    const deployment = {
+      branch: "identity-fixture",
+      sourceSha: "a".repeat(40),
+    };
+    const binding = {
+      ...deployment,
+      reservationId: randomUUID(),
+      userId: randomUUID(),
+      botId: randomUUID(),
+      taskIds: [randomUUID()],
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const originalEnv = env.getEnv();
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_GIT_COMMIT_SHA", deployment.sourceSha);
+    vi.stubEnv("VERCEL_GIT_COMMIT_REF", deployment.branch);
+    const getEnv = vi.spyOn(env, "getEnv").mockReturnValue({
+      ...originalEnv,
+      NETWORK: "Preprod",
+      SOKO_BOT_PROACTIVE_PAUSED: true,
+      SOKO_BOT_EVALUATION_ALLOWANCE: JSON.stringify(binding),
+    });
+    try {
+      const lines = modelContextBlock(
+        {
+          trigger: { source: "CHAT" },
+          tasks: [],
+          recentTurns: [
+            {
+              source: "CHAT",
+              finalAnswer: "An unrelated guest was Mel Indigo.",
+              completedAt: new Date().toISOString(),
+            },
+          ],
+        },
+        false,
+      );
+      expect(lines.join("\n")).not.toContain("Mel Indigo");
+    } finally {
+      getEnv.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 });
 

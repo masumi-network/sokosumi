@@ -108,9 +108,11 @@ export function parseAddresses(
     );
   return list(value).flatMap((entry) => {
     if (typeof entry === "string") return parseAddresses(entry, nameSource);
-    const inner = field(entry, "emailAddress") ?? entry;
-    const email = text(field(inner, "address", "email"))
+    const nested = field(entry, "emailAddress", "address", "email");
+    const inner = nested && typeof nested === "object" ? nested : entry;
+    const email = text(field(inner, "emailAddress", "address", "email"))
       .trim()
+      .replace(/^mailto:/i, "")
       .toLowerCase();
     if (!email.includes("@")) return [];
     const name = text(field(inner, "name", "displayName"));

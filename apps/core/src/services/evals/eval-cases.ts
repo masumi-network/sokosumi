@@ -4,6 +4,7 @@ import {
   SOKO_BOT_SCENARIOS,
 } from "@sokosumi/soko-bot";
 import type { LabScenario } from "@/services/soko-bot-lab-scenario.service";
+import { CHAT_IDENTITY_SCENARIO } from "./eval-chat-identity";
 import {
   CMO_COMMENT_SCENARIO,
   CMO_EVAL_CASES,
@@ -146,6 +147,7 @@ export const EVAL_CASES: readonly EvalCase[] = [
     scenarioCase(scenario, "soko-bot", SOKO_BOT_AREAS[scenario.id] ?? "Other"),
   ),
   scenarioCase(MEETING_PREP_SCENARIO, "soko-bot", "Mail and calendar"),
+  scenarioCase(CHAT_IDENTITY_SCENARIO, "soko-bot", "Chat"),
   ...SEO_SCENARIOS.map((scenario) => scenarioCase(scenario, "soko-bot", "SEO")),
   ...CMO_EVAL_CASES,
   ...CMO_SCENARIOS.map((scenario) =>

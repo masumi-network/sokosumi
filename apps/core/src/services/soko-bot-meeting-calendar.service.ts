@@ -8,6 +8,7 @@ import {
 } from "@/lib/contacts/capture-provider";
 import { WINDOWS_TIME_ZONES } from "@/lib/contacts/windows-time-zones";
 import prisma from "@/lib/db/prisma";
+import { uniqueGuests } from "@/lib/soko-bot/integration-addresses";
 import {
   activeIntegrationsForBot,
   fetchCalendarPage,
@@ -59,24 +60,6 @@ function meetingStart(
   }
 }
 
-function uniqueGuests(guests: MailAddress[]): MailAddress[] {
-  const namesByEmail = new Map<string, Map<string, string>>();
-  for (const guest of guests) {
-    const email = normalizeContactChannelValue("EMAIL", guest.email);
-    if (!email) continue;
-    const names = namesByEmail.get(email) ?? new Map<string, string>();
-    namesByEmail.set(email, names);
-    if (guest.name) {
-      const key = guest.name.toLowerCase();
-      if (!names.has(key)) names.set(key, guest.name);
-    }
-  }
-  return [...namesByEmail].map(([email, names]) => ({
-    email,
-    name: names.size === 1 ? (names.values().next().value ?? null) : null,
-  }));
-}
-
 function meetingIdentity(raw: unknown) {
   const event = parseEvent(raw, "invitation");
   if (!event) return null;
@@ -99,26 +82,22 @@ function meetingIdentity(raw: unknown) {
   const guests: MailAddress[] = event.attendees.filter(
     (guest) => !guest.declined && !guest.resource,
   );
+  const organizer = parseCalendarAttendee(
+    fields.organizer,
+    "invitation",
+    event.organizerEmail,
+  );
   // Outlook lists the person who sent the invitation separately from the attendees.
   // Google also provides an organizer when the guest list is omitted.
   if (
     !ownerOrganized &&
-    event.organizerEmail &&
+    organizer &&
+    !organizer.self &&
+    !organizer.declined &&
+    !organizer.resource &&
     !event.attendees.some((attendee) => attendee.organizer)
-  ) {
-    const organizer = parseCalendarAttendee(
-      fields.organizer,
-      "invitation",
-      event.organizerEmail,
-    );
-    if (
-      organizer &&
-      !organizer.self &&
-      !organizer.declined &&
-      !organizer.resource
-    )
-      guests.push(organizer);
-  }
+  )
+    guests.push(organizer);
   return {
     id: event.id,
     recurring:
@@ -142,7 +121,10 @@ function meetingIdentity(raw: unknown) {
       (typeof fields.eventType === "string" &&
         NON_MEETING_EVENT_TYPES.has(fields.eventType)),
     selfEmails,
-    guests,
+    guests: uniqueGuests(guests, [
+      ...event.attendees,
+      ...(organizer ? [organizer] : []),
+    ]),
   };
 }
 
@@ -177,12 +159,19 @@ export async function meetingCalendarEvents(
     for (const event of page.events) {
       const identity = identities.get(event.id);
       if (identity && (identity.skip || !identity.startsAt)) continue;
+      const guests =
+        identity?.guests ??
+        uniqueGuests(
+          parseAddresses(event.attendees, "invitation"),
+          parseAddresses([event.organizer], "invitation"),
+        );
       events.push({
         ...event,
         startsAt: identity?.startsAt ?? event.startsAt,
         allDay: identity?.allDay || event.allDay,
-        guests: uniqueGuests(
-          identity?.guests ?? parseAddresses(event.attendees, "invitation"),
+        // Scheduled prep also sends these addresses to the mail and contact searches.
+        guests: guests.filter(({ email }) =>
+          normalizeContactChannelValue("EMAIL", email),
         ),
         selfEmails: identity?.selfEmails ?? [],
         recurring: identity?.recurring ?? false,

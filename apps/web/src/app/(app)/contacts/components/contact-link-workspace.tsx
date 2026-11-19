@@ -3,26 +3,42 @@
 import { contactDetailHref } from "@sokosumi/utils";
 import { Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { createContext, type ReactNode, useContext } from "react";
+import { createContext, type ReactNode, useContext, useMemo } from "react";
 import { toast } from "sonner";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
-const ContactLinkWorkspace = createContext<string | undefined>(undefined);
+interface ContactWorkspaces {
+  active: string | undefined;
+  available: readonly string[];
+}
+
+const ContactLinkWorkspace = createContext<ContactWorkspaces | null>(null);
+
+export function useContactLinkWorkspaces() {
+  return useContext(ContactLinkWorkspace);
+}
 
 export function useContactWorkspaceId() {
-  return useContext(ContactLinkWorkspace);
+  return useContactLinkWorkspaces()?.active;
 }
 
 export function ContactLinkWorkspaceProvider({
   workspaceId,
+  available,
   children,
 }: {
-  workspaceId: string;
+  workspaceId: string | undefined;
+  available?: readonly string[];
   children: ReactNode;
 }) {
-  return (
-    <ContactLinkWorkspace value={workspaceId}>{children}</ContactLinkWorkspace>
+  const value = useMemo(
+    () => ({
+      active: workspaceId,
+      available: available ?? (workspaceId ? [workspaceId] : []),
+    }),
+    [workspaceId, available],
   );
+  return <ContactLinkWorkspace value={value}>{children}</ContactLinkWorkspace>;
 }
 
 export function CopyContactLinkItem({ contactId }: { contactId: string }) {

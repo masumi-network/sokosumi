@@ -1,5 +1,12 @@
 {
   "Components": {
+    "ContactMention": {
+      "merged": "This contact has been merged.",
+      "loading": "Loading contact…",
+      "unavailable": "Contact details are unavailable.",
+      "otherWorkspace": "This contact is in another workspace.",
+      "open": "Open in Contacts"
+    },
     "SokoBotTurnFailure": {
       "aiBudgetExceeded": "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
       "generic": "Something went wrong on our side. Try again. If it keeps happening, contact support.",
