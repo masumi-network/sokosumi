@@ -5567,16 +5567,36 @@
         "description": "Versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
       },
+      "start": {
+        "title": "Sieh, was deine Wettbewerber diese Woche geändert haben",
+        "body": "Einmal pro Woche liest Sokosumi ihre Websites, Preise, News, Anzeigen und Instagram und zeigt, was sich geändert hat, mit Quelle.",
+        "add": "Von Hand hinzufügen",
+        "price": "Wettbewerber finden ist kostenlos. Der wöchentliche Check kostet {credits} Credits pro Wettbewerber und Woche und bleibt aus, bis du ihn einschaltest."
+      },
+      "example": {
+        "label": "Beispiel",
+        "price": {
+          "name": "Acme",
+          "summary": "Pro-Tarif $12 -> $10 pro Platz im Monat",
+          "quote": "Pro $10 pro Platz/Monat, jährliche Abrechnung",
+          "source": "acme.com/pricing"
+        },
+        "news": {
+          "name": "Northwind",
+          "summary": "Northwind hat einen KI-Assistenten vorgestellt, der Termine bucht",
+          "quote": "Der Assistent schlägt drei Zeiten vor, die allen passen.",
+          "source": "TechCrunch"
+        },
+        "website": {
+          "name": "Globex",
+          "summary": "Startseite richtet sich jetzt an Vertriebsteams, vorher an Freelancer",
+          "quote": "Gemacht für Vertriebsteams",
+          "source": "globex.com"
+        }
+      },
       "check": {
-        "title": "Wöchentliche Prüfung",
-        "on": "An",
-        "off": "Aus",
-        "what": "Einmal pro Woche liest Sokosumi von jedem Wettbewerber die Website und die Preisseite, die Nachrichten über ihn, seine neuen Anzeigen und sein Instagram und behält, was sich geändert hat, mit Quelle.",
-        "price": "Das kostet {credits} Credits pro Wettbewerber und Woche.",
-        "priceTotal": "{count, plural, one {Bei # Wettbewerber sind das {credits} Credits pro Woche.} other {Bei # Wettbewerbern sind das {credits} Credits pro Woche.}}",
-        "payer": "Die Credits kommen aus diesem Workspace.",
-        "last": "Letzte Prüfung {last}, nächste {next}.",
-        "first": "Die erste Prüfung läuft innerhalb einer Stunde, oder jetzt.",
+        "price": "{count, plural, =0 {Er kostet {each} Credits pro Wettbewerber und Woche.} one {Er kostet {credits} Credits pro Woche für # Wettbewerber.} other {Er kostet {credits} Credits pro Woche für # Wettbewerber, je {each}.}}",
+        "last": "Letzter Check {last}, nächster {next}.",
         "sourceFailed": "Die letzte Prüfung konnte nicht lesen: {sources}. Die nächste versucht es erneut.",
         "source": {
           "pages": "Websites",
@@ -5584,7 +5604,7 @@
           "ads": "Anzeigen",
           "social": "Instagram"
         },
-        "turnOn": "Einschalten",
+        "turnOn": "Wöchentlichen Check einschalten",
         "turnOff": "Ausschalten",
         "runNow": "Jetzt prüfen",
         "failed": "Das hat nicht geklappt. Versuche es erneut.",
@@ -5593,18 +5613,21 @@
           "no_competitors": "Füge zuerst einen Wettbewerber hinzu.",
           "paused": "Die wöchentliche Prüfung ist aus.",
           "unfunded": "Diese Prüfung kostet {credits} Credits, der Workspace hat weniger. Lade Credits auf und prüfe dann erneut."
-        }
+        },
+        "status": {
+          "off": "Der wöchentliche Check ist aus",
+          "running": "Der erste Check läuft",
+          "on": "Der wöchentliche Check ist an"
+        },
+        "running": "Was er findet, steht in etwa einer Minute hier."
       },
       "list": {
-        "title": "Beobachtungsliste",
+        "title": "Beobachtet",
         "count": "{count} von {limit}",
-        "empty": "Noch niemand. Füge die Wettbewerber hinzu, die du beobachten willst.",
         "emptyReadOnly": "Noch niemand.",
         "noWebsite": "Keine Website",
         "pricingPage": "Preisseite",
         "facebook": "Facebook {handle}",
-        "edit": "Bearbeiten",
-        "remove": "Entfernen",
         "editNamed": "{name} bearbeiten",
         "removeNamed": "{name} entfernen",
         "add": "Wettbewerber hinzufügen",
@@ -5656,8 +5679,6 @@
       "thisWeek": {
         "title": "Diese Woche",
         "checked": "Prüfung vom {date}",
-        "none": "Noch keine Zusammenfassung. Bitte einen Soko Bot, die Schritte der Wettbewerber dieser Woche aufzuschreiben; alles, was die Prüfungen finden, steht unten mit Quelle.",
-        "noneReadOnly": "Noch keine Zusammenfassung. Alles, was die Prüfungen finden, steht unten mit Quelle.",
         "quiet": "Eine ruhige Woche: nichts zu berichten.",
         "unknown": "Ein Wettbewerber",
         "big": "Großer Schritt",
@@ -5667,16 +5688,18 @@
         "open": "Noch offen"
       },
       "findings": {
-        "title": "Was die Prüfungen gefunden haben",
-        "notChecked": "Noch nichts. Funde erscheinen hier nach der ersten Prüfung.",
-        "nothing": "Die Prüfungen haben in den letzten fünf Wochen keine Änderungen gefunden.",
+        "title": "Was sich geändert hat",
+        "nothing": "Keine Änderungen in den letzten fünf Wochen.",
         "kind": {
           "WEBSITE_CHANGE": "Website",
           "PRICE_CHANGE": "Preis",
           "NEWS": "Nachrichten",
           "AD": "Anzeigen",
           "SOCIAL": "Instagram"
-        }
+        },
+        "preview": "Was der wöchentliche Check zeigt",
+        "example": "Beispiel",
+        "running": "Noch nichts. Was der erste Check findet, steht dann hier."
       },
       "scoreboard": {
         "title": "Instagram",

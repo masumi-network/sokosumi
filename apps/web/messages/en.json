@@ -5567,16 +5567,36 @@
         "description": "Try again in a moment.",
         "retry": "Try again"
       },
+      "start": {
+        "title": "See what your competitors changed this week",
+        "body": "Once a week Sokosumi reads their websites, prices, news, ads and Instagram, and shows what changed with its source.",
+        "add": "Add by hand",
+        "price": "Finding competitors is free. The weekly check costs {credits} credits per competitor a week and stays off until you turn it on."
+      },
+      "example": {
+        "label": "Example",
+        "price": {
+          "name": "Acme",
+          "summary": "Pro plan $12 -> $10 per seat a month",
+          "quote": "Pro $10 per seat/month, billed yearly",
+          "source": "acme.com/pricing"
+        },
+        "news": {
+          "name": "Northwind",
+          "summary": "Northwind launched an AI assistant that books meetings",
+          "quote": "The assistant proposes three times that suit everyone.",
+          "source": "TechCrunch"
+        },
+        "website": {
+          "name": "Globex",
+          "summary": "Homepage now leads with sales teams, was freelancers",
+          "quote": "Built for revenue teams",
+          "source": "globex.com"
+        }
+      },
       "check": {
-        "title": "Weekly check",
-        "on": "On",
-        "off": "Off",
-        "what": "Once a week Sokosumi reads each competitor's website and pricing page, the news about it, its new ads and its Instagram, and keeps what changed with its source.",
-        "price": "It costs {credits} credits per competitor a week.",
-        "priceTotal": "{count, plural, one {With # competitor that is {credits} credits a week.} other {With # competitors that is {credits} credits a week.}}",
-        "payer": "The credits come from this workspace.",
+        "price": "{count, plural, =0 {It costs {each} credits per competitor a week.} one {It costs {credits} credits a week for # competitor.} other {It costs {credits} credits a week for # competitors, {each} each.}}",
         "last": "Last check {last}, next {next}.",
-        "first": "The first check runs within the hour, or now.",
         "sourceFailed": "The last check could not read: {sources}. The next one tries again.",
         "source": {
           "pages": "websites",
@@ -5584,7 +5604,7 @@
           "ads": "ads",
           "social": "Instagram"
         },
-        "turnOn": "Turn on",
+        "turnOn": "Turn on weekly check",
         "turnOff": "Turn off",
         "runNow": "Check now",
         "failed": "That did not work. Try again.",
@@ -5593,18 +5613,21 @@
           "no_competitors": "Add a competitor first.",
           "paused": "The weekly check is off.",
           "unfunded": "This check costs {credits} credits and the workspace has fewer. Add credits, then check again."
-        }
+        },
+        "status": {
+          "off": "The weekly check is off",
+          "running": "The first check is running",
+          "on": "The weekly check is on"
+        },
+        "running": "What it finds shows here in about a minute."
       },
       "list": {
-        "title": "Watch list",
+        "title": "Watching",
         "count": "{count} of {limit}",
-        "empty": "Nobody yet. Add the competitors you want to watch.",
         "emptyReadOnly": "Nobody yet.",
         "noWebsite": "No website",
         "pricingPage": "pricing page",
         "facebook": "Facebook {handle}",
-        "edit": "Edit",
-        "remove": "Remove",
         "editNamed": "Edit {name}",
         "removeNamed": "Remove {name}",
         "add": "Add competitor",
@@ -5656,8 +5679,6 @@
       "thisWeek": {
         "title": "This week",
         "checked": "Check of {date}",
-        "none": "No summary yet. Ask a Soko Bot to write up this week's competitor moves; everything the checks find is listed below with its source.",
-        "noneReadOnly": "No summary yet. Everything the checks find is listed below with its source.",
         "quiet": "A quiet week: nothing to report.",
         "unknown": "A competitor",
         "big": "Big move",
@@ -5667,16 +5688,18 @@
         "open": "Still open"
       },
       "findings": {
-        "title": "What the checks found",
-        "notChecked": "Nothing yet. Findings show here after the first check.",
-        "nothing": "The checks found no changes in the last five weeks.",
+        "title": "What changed",
+        "nothing": "No changes in the last five weeks.",
         "kind": {
           "WEBSITE_CHANGE": "Website",
           "PRICE_CHANGE": "Price",
           "NEWS": "News",
           "AD": "Ads",
           "SOCIAL": "Instagram"
-        }
+        },
+        "preview": "What the weekly check shows",
+        "example": "Example",
+        "running": "Nothing yet. What the first check finds shows here."
       },
       "scoreboard": {
         "title": "Instagram",
