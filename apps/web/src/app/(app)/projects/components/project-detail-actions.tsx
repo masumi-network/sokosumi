@@ -220,10 +220,9 @@ export function ProjectDetailActions({
           {!readOnly && !isClosingOrClosed && projectRevision !== undefined ? (
             <DropdownMenuItem
               variant="destructive"
-              onSelect={(event) => {
-                event.preventDefault();
-                setIsCloseDialogOpen(true);
-              }}
+              // Let the menu close: kept open, it sat under the dialog and was
+              // still open once the dialog closed.
+              onSelect={() => setIsCloseDialogOpen(true)}
             >
               <CircleStop className="size-4" aria-hidden />
               {labels.close}
