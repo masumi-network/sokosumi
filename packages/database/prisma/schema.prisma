@@ -2638,6 +2638,7 @@ model SokoBot {
   installedSkills       SokoBotInstalledSkill[]
   integrations          SokoBotIntegration[]
   secrets               SokoBotSecret[]
+  mcpServers            SokoBotMcpServer[]
   mailDrafts            SokoBotMailDraft[]
   taskWatches           SokoBotTaskWatch[]
   watches               SokoBotWatch[]
@@ -4910,6 +4911,36 @@ model SokoBotSecret {
 
   @@unique([sokoBotId, name])
   @@map("soko_bot_secret")
+}
+
+/// A remote MCP server the owner added to one personal Soko Bot (ADR 0074).
+/// Core makes every call and adds the credential, which is encrypted here
+/// and never returned.
+model SokoBotMcpServer {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sokoBotId String  @db.Uuid
+  sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+
+  /// What the owner and the bot call it; unique per bot, compared lower-case.
+  name                String
+  url                 String
+  /// "none", "header" or "oauth".
+  authKind            String
+  credentialCiphertext String?
+  credentialKeyId     String?
+  /// The server's tools as last read, each with the owner's switch and label
+  /// (`sokoBotMcpToolSchema` in Core).
+  tools               Json      @default("[]")
+  toolsRefreshedAt    DateTime?
+  lastError           String?
+  /// Member who added it. No foreign key, like SokoBotSecret.
+  createdByUserId     String
+
+  @@unique([sokoBotId, name])
+  @@map("soko_bot_mcp_server")
 }
 
 /// Stored as the SKILL.md markdown; the runtime advertises it as a
