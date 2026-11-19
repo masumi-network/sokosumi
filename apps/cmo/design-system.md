@@ -33,6 +33,7 @@ The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the s
 | `--peach`              | Peach Blossom, behind Cuso only     | `#FFC8F0`        | `#FFC8F0`        |
 | `--ok`                 | done                                | `#00D43B`        | `#00D43B`        |
 | `--warn`               | needs an answer                     | `#FFD300`        | `#FFD300`        |
+| `--net-*`              | a post's network (Today, Calendar)  | light tints      | same as light    |
 | `--shadow`             | anything you can click or type in   | `4px 4px 0` ink  | `4px 4px 0` ink  |
 | `--shadow-big`         | the open Calendar post, hire button | `6px 6px 0` ink  | `6px 6px 0` ink  |
 | `--shadow-iris`        | second button on a strip            | `4px 4px 0 Iris` | `4px 4px 0 Iris` |
@@ -45,6 +46,7 @@ The visual system for app.cmo.xyz: **neobrutalism** on the Masumi palette, the s
 - **Dark Iris rests at `#D141D1`** and goes to `#FF51FF` on hover (approved for CMO 2026-11-04; the Masumi guide still says Iris is the same in both themes).
 - **Green, yellow and Iris are fills only**, under a Neutral 950 glyph. On white they measure 1.4 to 2.7:1, so they never carry text or a thin mark.
 - **Channel marks** keep their networks' colours (`--mark-*`); they are logos, not palette.
+- **Network fills** (`--net-linkedin`, `--net-x`, `--net-facebook`, `--net-instagram`, `--net-youtube`, `--net-tiktok`, `--net-newsletter`, `--net-seo`, `--net-ads`; the `.net-<channel>` classes) are light, solid tints of each network's colour under a Neutral 950 glyph, the same in both themes, so a week of posts tells its networks apart at a glance. Like Iris, green and yellow they are fills only, never text or a line. They mean the network and nothing else.
 - No gradients, no glow, no blur, no transparency washes. The scrim behind a modal sheet is the one see-through colour.
 
 ## Type
@@ -126,7 +128,9 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Goal block.** The plan's goal: an ink block with inverted text that inverts again in dark, 20px radius, statement step.
 
-**Sidebar (CMO home).** Panel fill, a 3px ink line on its right, 232 to 260px. Workspace card on top, nav rows 40px with 12px radius, the current row on Iris with a 2px ink line and the 4px shadow. Counts are ink pills, micro text. Cuso's status sits at the bottom as one small row: his pose on a 56px Iris stage with the 2px line, his name, and one line that says what he is doing (with the running bar while he works). The pages keep the room.
+**Sidebar (CMO home).** Panel fill, a 3px ink line on its right, 232 to 260px. Workspace card on top, nav rows 40px with 12px radius, the current row on Iris with a 2px ink line and the 4px shadow. Counts are ink pills, micro text: the Today row counts what needs the owner. Cuso's status sits at the bottom as one small row: his pose on a 56px Iris stage with the 2px line, his name, and one line that says what he is doing (with the running bar while he works). The pages keep the room.
+
+**Today (home).** One column: Cuso's pose for the day on a 112px Iris stage (flat, a picture) beside the H1 greeting and one line in the value step; "Needs you" as one yellow card with a row each (an outlined "!" disc, the thing in body 600, one line, its button: the first row's is the screen's primary button, the rest small secondary); when nothing waits, one green card ("All clear"). "This week" is seven columns in one outlined panel, today filled with Iris (`aria-current="date"`); each post is a small button on its network's fill with the mark, time and title, and opens its sheet on the Calendar. On a phone the week is a list of today and the days with posts. "This month" is one bar of pills with a 2px line, green out, Iris scheduled, yellow written, panel to make, with a legend of discs. "Ask Cuso anything" is a full-width secondary button that opens the chat. The pieces settle in one after another and the bar grows from its left (transform and opacity only, off under reduced motion).
 
 **Strip.** A black band with white text that inverts in dark (`--strip`, `--strip-foreground`): the action bar at the bottom of an onboarding step and the banner that says Cuso is paused or out of credits.
 
@@ -159,4 +163,4 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 Raise these with the guide owner rather than drifting further.
 
-Last updated: 2026-11-18
+Last updated: 2026-11-19

@@ -303,7 +303,7 @@ export async function Home({ searchParams, view }: HomeProps) {
   if (overview.onboardingStep !== "done" || backInHiring) {
     const skipped = await skippedSteps(projectId);
     // The app's pages open once onboarding ends; until then it is the first run.
-    if (view !== "chat") {
+    if (view !== "today") {
       redirect(`/?project=${encodeURIComponent(projectId)}`);
     }
     return (

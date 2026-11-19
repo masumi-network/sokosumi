@@ -88,3 +88,8 @@ export const SOON_CHANNELS = (
   // None today; a channel listed as "soon" shows here without a button.
   .filter(([, channel]) => (channel.status as string) === "soon")
   .map(([key, channel]) => ({ key, name: channel.name }));
+
+/** The fill a channel's posts wear (`.net-<tone>`), so a glance tells networks apart. */
+export function channelTone(channel: string): CmoChannelKey | "other" {
+  return channelKey(channel) ?? "other";
+}
