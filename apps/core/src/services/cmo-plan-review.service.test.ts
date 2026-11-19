@@ -1425,3 +1425,169 @@ describe("ads and questions, for a Cuso on cmo-v5's strategy skill", () => {
     ).toEqual([]);
   });
 });
+
+describe("a cmo-v5 month at the top volume, whose funnel says what it plans", () => {
+  type Channel = MarketingStrategyPlan["channels"][number];
+  type Stage = MarketingStrategyPlan["funnel"][number];
+  const channel = (key: string, cadence: string, role: "main" | "side") =>
+    ({ channel: key, cadence, role, why: "Builders are there" }) as Channel;
+  const stage = (
+    name: Stage["stage"],
+    plays: { channel: string; what: string; cadence?: string }[],
+  ) =>
+    ({
+      stage: name,
+      goal: "g",
+      cusoDoes: "I post how-tos.",
+      channels: plays.map((play) => play.channel),
+      metric: "Studio account starts",
+      plays,
+    }) as Stage;
+  const week = (n: number) =>
+    new Date(Date.UTC(2026, 10, 20 + n * 7)).toISOString().slice(0, 10);
+  const video = (n: number) => ({
+    ...entry(`v${n}`, "linkedin", "talking_video"),
+    date: week(n),
+    title: `Studio how-to ${n}`,
+    alsoOn: ["youtube", "tiktok", "instagram", "facebook"],
+  });
+
+  /** NMKR's cmo-v5 draft of 2026-11-19, in its shape. */
+  const nmkr = plan({
+    pace: { level: "steady", why: "Room for distinct examples", perWeek: 20 },
+    channels: [
+      channel("x", "1 a day", "main"),
+      channel("linkedin", "1 a day", "main"),
+      channel("instagram", "3 a week", "side"),
+      channel("facebook", "3 a week", "side"),
+    ],
+    leftOut: [
+      {
+        channel: "youtube",
+        why: "The account has been quiet for about two years.",
+      },
+      {
+        channel: "tiktok",
+        why: "TikTok is built for younger consumer discovery, not Cardano project buyers.",
+      },
+    ],
+    funnel: [
+      stage("awareness", [
+        { channel: "x", what: "Three daily posts", cadence: "3 a day" },
+        { channel: "linkedin", what: "Two daily lessons", cadence: "2 a day" },
+        { channel: "youtube", what: "One weekly Studio how-to video" },
+      ]),
+      stage("interest", [
+        { channel: "instagram", what: "Moments, including weekly video" },
+        { channel: "facebook", what: "Community updates and weekly video" },
+      ]),
+      stage("desire", [{ channel: "x", what: "Customer evidence" }]),
+      stage("action", [{ channel: "linkedin", what: "Signup prompt" }]),
+    ],
+    calendar: [0, 1, 2, 3].map((n) => ({
+      ...entry(`x${n}`, "x", "post"),
+      date: week(n),
+      title: `Post ${n}`,
+    })),
+  });
+  const problems = (strategy: MarketingStrategyPlan) =>
+    cmoPlanProblems(strategy, { everyNetwork: true, weekly: true, aida: true });
+
+  it("refuses NMKR's steady month, its funnel's promises and its left-out video networks", () => {
+    const found = problems(nmkr);
+    expect(found).toEqual(
+      expect.arrayContaining([
+        "pace is steady; write every strategy all_in: the plan the owner buys decides how much of it is made. Never lower the pace or a cadence to clear another problem.",
+        'x has the cadence "1 a day"; at the top volume a main x takes 3 a day. Set it and plan its pieces.',
+        'linkedin has the cadence "1 a day"; at the top volume a main linkedin takes 2 a day. Set it and plan its pieces.',
+        'leftOut leaves youtube out for its account ("The account has been quiet for about two years."); a quiet or missing account is never a reason, you make it active. Plan youtube.',
+        'leftOut leaves tiktok out for its audience ("TikTok is built for younger consumer discovery, not Cardano project buyers."); short how-to videos fit company buyers and builders too. Plan tiktok with the cadence "1 a week" and list it in every talking video\'s alsoOn.',
+        "the funnel's awareness stage names youtube, which leftOut leaves out; take it out of the funnel, or plan it.",
+        'the funnel\'s awareness play on x says "3 a day", but x\'s cadence is "1 a day"; say the same in both.',
+        'the funnel\'s awareness play on linkedin says "2 a day", but linkedin\'s cadence is "1 a day"; say the same in both.',
+        'the funnel\'s interest play on instagram promises video ("Moments, including weekly video"), but no talking video in the calendar goes out on instagram; plan one with instagram in its alsoOn, or take video out of the play.',
+        'the funnel\'s interest play on facebook promises video ("Community updates and weekly video"), but no talking video in the calendar goes out on facebook; plan one with facebook in its alsoOn, or take video out of the play.',
+      ]),
+    );
+  });
+
+  it("passes the same month at the top volume, on every network, with talking videos", () => {
+    const fixed = plan({
+      ...nmkr,
+      pace: { level: "all_in", why: "Reach", perWeek: 41 },
+      channels: [
+        channel("x", "3 a day", "main"),
+        channel("linkedin", "2 a day", "main"),
+        channel("instagram", "3 a week", "side"),
+        channel("facebook", "3 a week", "side"),
+        channel("youtube", "1 a week", "side"),
+        channel("tiktok", "1 a week", "side"),
+      ],
+      leftOut: [],
+      funnel: [
+        stage("awareness", [
+          { channel: "x", what: "Three daily posts", cadence: "3 a day" },
+          {
+            channel: "linkedin",
+            what: "Two daily lessons",
+            cadence: "2 a day",
+          },
+          { channel: "youtube", what: "A weekly Studio how-to video" },
+          { channel: "tiktok", what: "A weekly Studio how-to video" },
+        ]),
+        stage("interest", [
+          { channel: "instagram", what: "Moments, including weekly video" },
+          { channel: "facebook", what: "Community updates and weekly video" },
+        ]),
+        stage("desire", [
+          { channel: "x", what: "Short workflow notes for tech buyers" },
+        ]),
+        stage("action", [{ channel: "linkedin", what: "Signup prompt" }]),
+      ],
+      calendar: [0, 1, 2, 3].map(video),
+    });
+    expect(
+      problems(fixed).filter((problem) =>
+        /pace is|top volume|leftOut leaves|funnel's|no funnel stage|no talking video/.test(
+          problem,
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("names a planned network the funnel leaves out, and a video network without videos", () => {
+    const found = problems(
+      plan({
+        ...nmkr,
+        leftOut: [],
+        channels: [
+          ...nmkr.channels,
+          channel("youtube", "1 a week", "side"),
+          channel("tiktok", "1 a week", "side"),
+        ],
+        funnel: nmkr.funnel.map((item) => ({
+          ...item,
+          channels: [],
+          plays: item.plays.filter((play) => play.channel === "x"),
+        })),
+      }),
+    );
+    expect(found).toEqual(
+      expect.arrayContaining([
+        "linkedin, instagram, facebook, youtube, tiktok are in channels but in no funnel stage; name each with a play at the stage it serves.",
+        "youtube is in channels, but no talking video in the calendar goes out on it; list youtube in the talking videos' alsoOn.",
+        "tiktok is in channels, but no talking video in the calendar goes out on it; list tiktok in the talking videos' alsoOn.",
+      ]),
+    );
+  });
+
+  it("asks none of it of a Cuso on an earlier skill", () => {
+    expect(
+      cmoPlanProblems(nmkr, { weekly: true }).filter((problem) =>
+        /pace is|top volume|leftOut leaves|funnel's|no funnel stage/.test(
+          problem,
+        ),
+      ),
+    ).toEqual([]);
+  });
+});

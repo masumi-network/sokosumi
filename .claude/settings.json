@@ -1,17 +1,7 @@
 {
   "enabledPlugins": {
     "typescript-lsp@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true,
-    "mattpocock-skills@mattpocock": true
-  },
-  "extraKnownMarketplaces": {
-    "mattpocock": {
-      "source": {
-        "source": "github",
-        "repo": "mattpocock/skills"
-      },
-      "autoUpdate": true
-    }
+    "swift-lsp@claude-plugins-official": true
   },
   "hooks": {
     "SessionStart": [

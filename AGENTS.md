@@ -40,8 +40,8 @@ Existing scope entry points: [Web](apps/web/AGENTS.md), [Core](apps/core/AGENTS.
 
 - When present, load the `i-have-adhd` skill (`i-have-adhd` plugin) for replies. Load the `ponytail` skill (`ponytail` plugin) for coding work (default full). Their documented off switches remain supported.
 - Quote code, commands, paths, and error text exactly. Never delete or shorten an existing comment in a file you edit unless asked.
-- For engineering flow selection, use the `ask-matt` skill (`mattpocock-skills` plugin). For app work, resolve named skills in `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Load only skills whose triggers apply.
-- Before changing this instruction layout, read the `writing-for-agents` skill (`mattpocock-skills` plugin). Keep universal guardrails here; put task-specific detail behind explicit loading triggers. Preserve requirements and repair incoming links when moving sections.
+- For engineering flow selection, use the `ask-matt` skill (`.agents/skills/ask-matt/`). For app work, resolve named skills in `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Load only skills whose triggers apply.
+- Before changing this instruction layout, read the `writing-for-agents` skill (`.agents/skills/writing-for-agents/`). Keep universal guardrails here; put task-specific detail behind explicit loading triggers. Preserve requirements and repair incoming links when moving sections.
 
 <!-- BEGIN:turborepo-agent-rules -->
 
