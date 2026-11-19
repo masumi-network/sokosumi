@@ -10,6 +10,7 @@ import {
 import { normalizeFileResourceName } from "@sokosumi/utils";
 
 import { conflict } from "@/helpers/error";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import { enqueueFileIndexJob } from "@/lib/files/index-jobs";
@@ -76,12 +77,20 @@ export async function reserveDriveUploadResource(input: {
           sourceId: key.pathname,
         },
       },
-      select: { id: true, contentRevision: true },
+      select: { id: true, contentRevision: true, lifecycle: true },
     });
 
     const pin = input.pinLabelsEmpty;
     if (existing && pin) {
       throw conflict("A file already holds that name");
+    }
+    if (existing?.lifecycle === FileResourceLifecycle.PENDING) {
+      // A reservation whose upload never finished: its settings, such as a
+      // copy's empty label pins, were for that upload, not this one. No
+      // person can set one on a pending document.
+      await tx.fileFieldOverride.deleteMany({
+        where: { resourceId: existing.id },
+      });
     }
     if (existing) {
       // Replacing the bytes at a live pathname is a new version of the same
@@ -111,43 +120,52 @@ export async function reserveDriveUploadResource(input: {
       return { resourceId: existing.id, versionId: version.id };
     }
 
-    const resource = await tx.fileResource.create({
-      data: {
-        workspaceId: key.workspaceId,
-        sourceKind: FileSourceKind.DRIVE_UPLOAD,
-        sourceScope,
-        sourceId: key.pathname,
-        ownerUserId: key.scope === "user" ? key.ownerId : null,
-        ownerOrganizationId: key.scope === "organization" ? key.ownerId : null,
-        displayName: input.displayName,
-        normalizedName: normalizeFileResourceName(input.displayName),
-        mimeType: input.mimeType,
-        sizeBytes: input.sizeBytes,
-        lifecycle: FileResourceLifecycle.PENDING,
-        versions: {
-          create: {
-            revision: 1,
-            objectKey: key.pathname,
-            sizeBytes: input.sizeBytes,
-            mimeType: input.mimeType,
+    const resource = await tx.fileResource
+      .create({
+        data: {
+          workspaceId: key.workspaceId,
+          sourceKind: FileSourceKind.DRIVE_UPLOAD,
+          sourceScope,
+          sourceId: key.pathname,
+          ownerUserId: key.scope === "user" ? key.ownerId : null,
+          ownerOrganizationId:
+            key.scope === "organization" ? key.ownerId : null,
+          displayName: input.displayName,
+          normalizedName: normalizeFileResourceName(input.displayName),
+          mimeType: input.mimeType,
+          sizeBytes: input.sizeBytes,
+          lifecycle: FileResourceLifecycle.PENDING,
+          versions: {
+            create: {
+              revision: 1,
+              objectKey: key.pathname,
+              sizeBytes: input.sizeBytes,
+              mimeType: input.mimeType,
+            },
           },
+          overrides: pin
+            ? {
+                create: (["category", "tags"] as const).map((field) => ({
+                  field,
+                  labelId: null,
+                  decision: FileFieldOverrideDecision.PIN,
+                  evidenceScopeId: evidenceScope.id,
+                  contentRevision: 1,
+                  vocabularyVersion: 1,
+                  decidedByUserId: pin.decidedByUserId,
+                })),
+              }
+            : undefined,
         },
-        overrides: pin
-          ? {
-              create: (["category", "tags"] as const).map((field) => ({
-                field,
-                labelId: null,
-                decision: FileFieldOverrideDecision.PIN,
-                evidenceScopeId: evidenceScope.id,
-                contentRevision: 1,
-                vocabularyVersion: 1,
-                decidedByUserId: pin.decidedByUserId,
-              })),
-            }
-          : undefined,
-      },
-      select: { id: true, versions: { select: { id: true } } },
-    });
+        select: { id: true, versions: { select: { id: true } } },
+      })
+      .catch((error: unknown) => {
+        // Two uploads that both found the name free: the later insert loses.
+        if (isPrismaUniqueViolation(error)) {
+          throw conflict("A file already holds that name");
+        }
+        throw error;
+      });
 
     return { resourceId: resource.id, versionId: resource.versions[0].id };
   });
@@ -162,7 +180,7 @@ export async function activateDriveUploadResource(input: {
   key: DriveResourceKey;
   sizeBytes: number;
   mimeType: string;
-}): Promise<{ resourceId: string } | null> {
+}): Promise<{ resourceId: string; labelsPinnedEmpty: boolean } | null> {
   const sourceScope = toSourceScope(input.key.scope);
 
   const resource = await prisma.fileResource.findUnique({
@@ -174,7 +192,16 @@ export async function activateDriveUploadResource(input: {
         sourceId: input.key.pathname,
       },
     },
-    select: { id: true, contentRevision: true, tombstonedAt: true },
+    select: {
+      id: true,
+      contentRevision: true,
+      tombstonedAt: true,
+      // A copy's reservation (see reserveDriveUploadResource).
+      overrides: {
+        where: { labelId: null, decision: FileFieldOverrideDecision.PIN },
+        select: { field: true },
+      },
+    },
   });
   if (!resource || resource.tombstonedAt) return null;
 
@@ -201,7 +228,13 @@ export async function activateDriveUploadResource(input: {
     );
   });
 
-  return { resourceId: resource.id };
+  // Both fields pinned empty: nothing about this upload is for the paid
+  // labelling model, so its finalize has no reason to drain that queue.
+  const pinned = new Set(resource.overrides.map((override) => override.field));
+  return {
+    resourceId: resource.id,
+    labelsPinnedEmpty: pinned.has("category") && pinned.has("tags"),
+  };
 }
 
 /**

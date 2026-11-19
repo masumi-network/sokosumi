@@ -115,7 +115,7 @@ describe("uploadDriveFile", () => {
         size: 5,
         scope: "me",
       },
-      throwOnError: true,
+      throwOnError: false,
     });
     expect(xhrInstance?.open).toHaveBeenCalledWith(
       "PUT",
@@ -211,7 +211,7 @@ describe("uploadDriveFile", () => {
         scope: "org",
         organizationId: "org_123",
       },
-      throwOnError: true,
+      throwOnError: false,
     });
   });
 

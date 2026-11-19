@@ -131,11 +131,26 @@ export async function uploadDriveFile(
         ...(folder ? { folder } : {}),
         ...(options.pinLabelsEmpty ? { pinLabelsEmpty: true } : {}),
       },
-      throwOnError: true,
+      // Not thrown: the thrown error is the response body, which drops the
+      // HTTP status that says "this name is taken".
+      throwOnError: false,
     });
   } catch (err: unknown) {
     // Detect mint 409 or "already exists" message
     if (isDuplicateResourceError(err)) {
+      throw new DriveFileUploadError(
+        "duplicate",
+        "A file with this name already exists",
+      );
+    }
+    throw new DriveFileUploadError(
+      "internal",
+      "Failed to create upload session",
+    );
+  }
+
+  if (mintResponse.error) {
+    if (mintResponse.response?.status === 409) {
       throw new DriveFileUploadError(
         "duplicate",
         "A file with this name already exists",

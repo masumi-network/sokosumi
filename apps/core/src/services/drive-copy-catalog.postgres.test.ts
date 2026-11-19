@@ -4,6 +4,7 @@ import { FileIndexJobPipeline, FileLabelKind } from "@sokosumi/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import prisma from "@/lib/db/prisma";
+import { runExtractionNudge } from "@/lib/files/in-process-indexer";
 import {
   backfillMissingSuggestionJobs,
   enqueueFileIndexJob,
@@ -171,6 +172,103 @@ describe.skipIf(!enabled)("a Drive copy in the catalog", () => {
         ).lifecycle,
       ).toBe("ACTIVE");
     }
+  });
+
+  it("tells finalize whether the upload's labels are pinned empty", async () => {
+    await reserve("flag (copy).md");
+    await reserve("flag.md", false);
+    const finalize = (name: string) =>
+      activateDriveUploadResource({
+        key: key(name),
+        sizeBytes: 42,
+        mimeType: "text/markdown",
+      });
+
+    expect(await finalize("flag (copy).md")).toMatchObject({
+      labelsPinnedEmpty: true,
+    });
+    expect(await finalize("flag.md")).toMatchObject({
+      labelsPinnedEmpty: false,
+    });
+  });
+
+  it("answers 409, not a database error, when copies race for one name", async () => {
+    const outcomes = await Promise.allSettled(
+      Array.from({ length: 8 }, () => reserve("race (copy).md")),
+    );
+
+    expect(outcomes.filter((o) => o.status === "fulfilled")).toHaveLength(1);
+    for (const outcome of outcomes.filter((o) => o.status === "rejected")) {
+      expect(outcome).toMatchObject({ reason: { status: 409 } });
+    }
+  });
+
+  it("does not hand an abandoned copy's pins to a later ordinary upload", async () => {
+    // The copy's bytes never land; an ordinary upload takes the name.
+    const { resourceId } = await reserve("draft (copy).md");
+    await reserve("draft (copy).md", false);
+    await activateDriveUploadResource({
+      key: key("draft (copy).md"),
+      sizeBytes: 9,
+      mimeType: "text/plain",
+    });
+
+    expect(await pins(resourceId)).toEqual([]);
+    await prisma.fileVersion.updateMany({
+      where: { resourceId },
+      data: { extractionState: "UNSUPPORTED" },
+    });
+    await prisma.fileIndexJob.updateMany({
+      where: { resourceId, pipeline: FileIndexJobPipeline.EXTRACT },
+      data: { state: "SUCCEEDED" },
+    });
+    const { contentRevision } = await prisma.fileResource.findUniqueOrThrow({
+      where: { id: resourceId },
+      select: { contentRevision: true },
+    });
+    await enqueueFileIndexJob({
+      resourceId,
+      pipeline: FileIndexJobPipeline.SUGGEST,
+      contentRevision,
+      runAfter: new Date(Date.now() - 1_000),
+    });
+    let asked = 0;
+    for (;;) {
+      const leased = await leaseNextFileIndexJob({
+        pipeline: FileIndexJobPipeline.SUGGEST,
+      });
+      if (!leased) break;
+      const before = evaluator.calls;
+      await runSuggestionJob(leased, {
+        evaluator: evaluator as unknown as JevLabelEvaluator,
+        configured: () => true,
+      });
+      if (leased.job.resourceId === resourceId)
+        asked += evaluator.calls - before;
+    }
+    // The ordinary upload is labelled like any other.
+    expect(asked).toBe(1);
+  });
+
+  it("finalizing a copy runs extraction only, leaving other files' paid work queued", async () => {
+    const { resourceId: other } = await reserve("other.md", false);
+    await enqueueFileIndexJob({
+      resourceId: other,
+      pipeline: FileIndexJobPipeline.SUGGEST,
+      contentRevision: 1,
+      runAfter: new Date(Date.now() - 1_000),
+    });
+    const before = evaluator.calls;
+
+    await runExtractionNudge();
+
+    expect(evaluator.calls).toBe(before);
+    expect(
+      await prisma.fileIndexJob.findFirstOrThrow({
+        where: { resourceId: other, pipeline: FileIndexJobPipeline.SUGGEST },
+        select: { state: true },
+      }),
+    ).toEqual({ state: "QUEUED" });
   });
 
   it("never asks the label model, through enqueue and the sweep", async () => {

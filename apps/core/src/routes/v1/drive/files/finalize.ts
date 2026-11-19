@@ -4,7 +4,10 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { driveHead } from "@/lib/drive-blob";
-import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import {
+  nudgeFileExtraction,
+  nudgeFileIndexing,
+} from "@/lib/files/in-process-indexer";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
@@ -79,8 +82,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!activated) throw notFound("No upload is pending at that path");
 
     // Crons do not run on preview deployments, so the upload that created
-    // the work also does it.
-    nudgeFileIndexing();
+    // the work also does it. An upload with its labels pinned empty (Make a
+    // copy) asked for no labelling, so it pays for none: extraction only,
+    // never a drain of other files' suggestion work.
+    if (activated.labelsPinnedEmpty) nudgeFileExtraction();
+    else nudgeFileIndexing();
 
     return ok(c, responseSchema.parse({ resourceId: activated.resourceId }));
   });
