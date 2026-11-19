@@ -12,6 +12,7 @@ const channel = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 const report = (at: string) => ({
   id: "u1",

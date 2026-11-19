@@ -69,6 +69,7 @@ export const CORE_API_ERROR_KINDS = {
   /** A Soko Bot turn was cancelled, paused or expired; its runner stops. */
   SOKO_BOT_TURN_INACTIVE: "soko_bot_turn_inactive",
   SOCIAL_FACEBOOK_PAGE_REQUIRED: "social_facebook_page_required",
+  SOCIAL_YOUTUBE_CHANNEL_REQUIRED: "social_youtube_channel_required",
   TASK_WORKSPACE_TAGS_CHANGED: "task_workspace_tags_changed",
   TASK_SCHEDULE_MOVED: "task_schedule_moved",
   WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",

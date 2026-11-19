@@ -694,6 +694,7 @@ describe("pages", () => {
               handle: "@acme",
               displayName: null,
               status: "ACTIVE",
+              personalProfile: false,
             },
           ],
         })}
@@ -708,6 +709,38 @@ describe("pages", () => {
     );
     expect(html).toContain("@acme");
     expect(html).toContain("Connected");
+    expect(html).not.toContain("Change");
+  });
+
+  it("says when LinkedIn posts as the person, and lets the owner change the account", () => {
+    const page = (personalProfile: boolean) =>
+      renderToStaticMarkup(
+        <ChannelsPage
+          overview={overview({
+            channels: [
+              {
+                id: "c1",
+                provider: "linkedin",
+                handle: personalProfile ? "Alice Doe" : "acme",
+                displayName: null,
+                status: "ACTIVE",
+                personalProfile,
+              },
+            ],
+          })}
+          compose={() => {}}
+          connect={async () => ({ url: null, error: null })}
+          change={async () => ({ url: null, error: null })}
+          connectAds={async () => ({ url: null, error: null })}
+          addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
+          onChange={() => {}}
+        />,
+      );
+    expect(page(true)).toContain("Alice Doe · your personal profile");
+    expect(page(true)).toContain("Change");
+    expect(page(false)).not.toContain("personal profile");
   });
 
   it("offers TikTok only where Core allows connecting it", () => {
