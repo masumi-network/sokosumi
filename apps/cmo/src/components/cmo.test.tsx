@@ -709,6 +709,24 @@ describe("pages", () => {
     expect(html).toContain("Connected");
   });
 
+  it("offers TikTok only where Core allows connecting it", () => {
+    const page = (tiktokEnabled: boolean) =>
+      renderToStaticMarkup(
+        <ChannelsPage
+          overview={overview({ tiktokEnabled })}
+          compose={() => {}}
+          connect={async () => ({ url: null, error: null })}
+          connectAds={async () => ({ url: null, error: null })}
+          addMailingList={async () => ({ overview: null, error: null })}
+          openSeo={() => {}}
+          connectSearchConsole={async () => ({ url: null, error: null })}
+          onChange={() => {}}
+        />,
+      );
+    expect(page(true)).toContain("<b>TikTok</b>");
+    expect(page(false)).not.toContain("<b>TikTok</b>");
+  });
+
   it("offers ad accounts to everyone", () => {
     const html = renderToStaticMarkup(
       <ChannelsPage

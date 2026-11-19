@@ -21,7 +21,14 @@ export function zernioProofDigest(proof: string): string {
   return createHash("sha256").update(proof).digest("hex");
 }
 
-export async function createZernioTikTokIntent(callbackOrigin: string) {
+/** What CMO's return address names, carried back beside the proof. */
+const RETURN_PARAMS = ["project", "from"] as const;
+
+/**
+ * `returnTo` gives the origin TikTok sends the person back to, at
+ * `/zernio/callback`, and may name a Project (CMO's callbacks do).
+ */
+export async function createZernioTikTokIntent(returnTo: string) {
   const attempt = randomUUID();
   const result = await zernioRequest("/profiles", {
     method: "POST",
@@ -31,7 +38,11 @@ export async function createZernioTikTokIntent(callbackOrigin: string) {
   const profileId = z.object({ profile }).parse(result).profile._id;
   const proof = randomBytes(32).toString("base64url");
   const connectionId = `zernio:${profileId}`;
-  const callback = new URL("/zernio/callback", callbackOrigin);
+  const callback = new URL("/zernio/callback", returnTo);
+  for (const name of RETURN_PARAMS) {
+    const value = new URL(returnTo).searchParams.get(name);
+    if (value) callback.searchParams.set(name, value);
+  }
   callback.searchParams.set("connection", connectionId);
   callback.searchParams.set("proof", proof);
   return {
