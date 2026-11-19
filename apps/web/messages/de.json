@@ -5901,6 +5901,32 @@
       "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
     "Sidebar": {
+      "Layout": {
+        "edit": "Seitenleiste bearbeiten",
+        "allChats": "Alle Chats",
+        "saveFailed": "Die Einstellungen der Seitenleiste konnten nicht gespeichert werden. Versuche es erneut.",
+        "loadFailed": "Die Einstellungen der Seitenleiste konnten nicht geladen werden. Versuche es erneut.",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "addSection": "Abschnitt hinzufügen",
+        "renameSection": "Abschnitt umbenennen",
+        "sectionName": "Abschnittsname",
+        "removeSection": "Abschnitt entfernen",
+        "addFeature": "Funktion hinzufügen",
+        "removeFeature": "Funktion ausblenden",
+        "sortFeatures": "Funktionen nach Namen sortieren",
+        "sortSections": "Abschnitte nach Namen sortieren",
+        "reset": "Auf Standard zurücksetzen",
+        "reorder": "{name} verschieben",
+        "actions": "Optionen für {name}",
+        "moveUp": "Nach oben",
+        "moveDown": "Nach unten",
+        "moveTo": "In Abschnitt verschieben",
+        "emptySection": "Ziehe eine Funktion hierher oder füge sie über das Abschnittsmenü hinzu.",
+        "instructions": "Ändere die Reihenfolge mit den Pfeiltasten nach oben und unten. Verschiebe eine Funktion mit den Pfeiltasten nach links und rechts in einen anderen Abschnitt.",
+        "position": "{name}, {section}, {position} von {total}.",
+        "sectionPosition": "{name}, Abschnitt {position} von {total}."
+      },
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Details nicht verfügbar",

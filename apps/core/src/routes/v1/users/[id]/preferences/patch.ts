@@ -4,8 +4,9 @@ import {
   NOTIFICATION_CHANNELS,
 } from "@sokosumi/utils";
 
-import { internalServerError } from "@/helpers/error";
+import { internalServerError, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { nullableJsonInput } from "@/helpers/prisma-json";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -14,6 +15,11 @@ import {
   requireUserRouteContext,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
+import {
+  MAX_SEEN_SIDEBAR_ITEMS,
+  sidebarIdSchema,
+  sidebarLayoutOrNullSchema,
+} from "@/schemas/sidebar-layout.schema";
 import {
   notificationPreferenceSchema,
   userPreferencesResponseSchema,
@@ -30,6 +36,14 @@ const params = z.object({
 
 const requestBodySchema = z
   .object({
+    sidebarLayout: sidebarLayoutOrNullSchema.optional().openapi({
+      description:
+        "Replace the ordered sidebar layout. Send null to restore the defaults.",
+    }),
+    sidebarSeenItem: sidebarIdSchema.optional().openapi({
+      description:
+        "Mark one sidebar item seen for this user. Repeated visits have no effect.",
+    }),
     marketingOptIn: z.boolean().optional().openapi({
       description: "Whether the user wants to receive marketing emails",
       example: true,
@@ -63,6 +77,8 @@ const requestBodySchema = z
   .refine(
     (data) => {
       return (
+        data.sidebarLayout !== undefined ||
+        data.sidebarSeenItem !== undefined ||
         data.marketingOptIn !== undefined ||
         data.pushOptIn !== undefined ||
         data.showRoomUnreadCount !== undefined ||
@@ -74,6 +90,8 @@ const requestBodySchema = z
     {
       message: "At least one field must be provided",
       path: [
+        "sidebarLayout",
+        "sidebarSeenItem",
         "marketingOptIn",
         "pushOptIn",
         "showRoomUnreadCount",
@@ -133,6 +151,9 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const body = c.req.valid("json");
 
     const userFlags = {
+      ...(body.sidebarLayout !== undefined && {
+        sidebarLayout: nullableJsonInput(body.sidebarLayout),
+      }),
       ...(body.marketingOptIn !== undefined && {
         marketingOptIn: body.marketingOptIn,
       }),
@@ -169,26 +190,42 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         });
       }
 
-      // A body that only changed the matrix has nothing to write on the user,
-      // and an empty update would still bump `updatedAt`.
-      if (Object.keys(userFlags).length === 0) {
-        const user = await tx.user.findUnique({
-          where: { id: resolvedUserId },
-          select: USER_PREFERENCES_SELECT,
-        });
-
-        if (!user) {
-          throw internalServerError("Failed to retrieve user");
-        }
-
-        return user;
+      if (body.sidebarSeenItem !== undefined) {
+        // PostgreSQL rechecks both predicates under the user row lock when two visits race.
+        await tx.$executeRaw`
+          UPDATE "user"
+          SET "sidebarSeenItems" = array_append("sidebarSeenItems", ${body.sidebarSeenItem}::text)
+          WHERE "id" = ${resolvedUserId}
+            AND NOT (${body.sidebarSeenItem}::text = ANY("sidebarSeenItems"))
+            AND cardinality("sidebarSeenItems") < ${MAX_SEEN_SIDEBAR_ITEMS}
+        `;
       }
 
-      return await tx.user.update({
-        where: { id: resolvedUserId },
-        data: userFlags,
-        select: USER_PREFERENCES_SELECT,
-      });
+      // A body that only changed the matrix has nothing to write on the user,
+      // and an empty update would still bump `updatedAt`.
+      const user =
+        Object.keys(userFlags).length === 0
+          ? await tx.user.findUnique({
+              where: { id: resolvedUserId },
+              select: USER_PREFERENCES_SELECT,
+            })
+          : await tx.user.update({
+              where: { id: resolvedUserId },
+              data: userFlags,
+              select: USER_PREFERENCES_SELECT,
+            });
+      if (!user) {
+        throw internalServerError("Failed to retrieve user");
+      }
+      if (
+        body.sidebarSeenItem !== undefined &&
+        !user.sidebarSeenItems.includes(body.sidebarSeenItem)
+      ) {
+        throw unprocessableEntity(
+          "The account has reached the sidebar seen item limit",
+        );
+      }
+      return user;
     });
 
     return ok(c, toUserPreferencesResponse(preferences));

@@ -633,6 +633,15 @@ describe("ChatUnreadNavRows", () => {
       expect(onUnreadOnlyChange).toHaveBeenCalledWith(true);
     });
 
+    it("handles the shortcut once when the full chat directory and sidebar are both open", () => {
+      mockUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+      const onUnreadOnlyChange = vi.fn();
+      renderRows([], { onUnreadOnlyChange });
+      renderRows([], { onUnreadOnlyChange });
+      pressUnreadsShortcut({ ctrlKey: true, shiftKey: true });
+      expect(onUnreadOnlyChange).toHaveBeenCalledTimes(1);
+    });
+
     it("turns the filter off from the keyboard too", () => {
       mockUserAgent(
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",

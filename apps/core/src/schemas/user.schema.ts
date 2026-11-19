@@ -7,6 +7,11 @@ import {
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SOCIAL_PROVIDER_IDS } from "@/lib/auth-social-providers";
+import {
+  MAX_SEEN_SIDEBAR_ITEMS,
+  sidebarIdSchema,
+  sidebarLayoutOrNullSchema,
+} from "@/schemas/sidebar-layout.schema";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
 
 const creditBucketBreakdownItemSchema = z
@@ -186,6 +191,18 @@ export const notificationPreferenceSchema = z
   .openapi("NotificationPreference");
 
 export const userPreferencesResponseSchema = z.object({
+  sidebarLayout: sidebarLayoutOrNullSchema.optional().openapi({
+    description:
+      "The user's ordered sidebar sections and hidden items across Workspaces. Null uses the current defaults.",
+  }),
+  sidebarSeenItems: z
+    .array(sidebarIdSchema)
+    .max(MAX_SEEN_SIDEBAR_ITEMS)
+    .optional()
+    .openapi({
+      description:
+        "Sidebar items this user has already seen across Workspaces.",
+    }),
   marketingOptIn: z.boolean().openapi({
     description: "Whether the user wants to receive marketing emails",
     example: true,

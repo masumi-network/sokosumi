@@ -62,6 +62,7 @@ vi.mock("@/app/chat/components/chat-desktop-home-redirect.client", () => ({
   ChatDesktopHomeRedirect: () => null,
 }));
 
+import { ChatDesktopHomeRedirect } from "@/app/chat/components/chat-desktop-home-redirect.client";
 import ChatPage from "@/app/chat/page";
 
 const USER_ID = "user_1";
@@ -167,6 +168,23 @@ describe("ChatPage progressive rooms (mobile LCP)", () => {
     expect(
       getPrivateCachedChatListArchivedAndMembersMock,
     ).not.toHaveBeenCalled();
+  });
+
+  it("keeps the full chat directory open on desktop when the sidebar links to it", async () => {
+    const tree = await ChatPage({
+      searchParams: Promise.resolve({ view: "all" }),
+    });
+    expect(
+      findElement(tree, (el) => el.type === ChatDesktopHomeRedirect),
+    ).toBeNull();
+    const shell = findElement(tree, (el) => {
+      const { className } = el.props as ClassNameProps;
+      return className?.split(" ").includes("md:flex") === true;
+    });
+    expect(shell).not.toBeNull();
+    expect((shell?.props as ClassNameProps).className).not.toContain(
+      "md:hidden",
+    );
   });
 
   it("keeps md:hidden mobile-only shell", async () => {

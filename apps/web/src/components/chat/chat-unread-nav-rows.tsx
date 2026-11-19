@@ -94,7 +94,11 @@ export function ChatUnreadsFilterChip({
       return;
     }
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key?.toLowerCase() !== "u" || event.repeat) {
+      if (
+        event.defaultPrevented ||
+        event.key?.toLowerCase() !== "u" ||
+        event.repeat
+      ) {
         return;
       }
       const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;

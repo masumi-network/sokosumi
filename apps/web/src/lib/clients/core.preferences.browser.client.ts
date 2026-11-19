@@ -33,13 +33,15 @@ function getPreferencesGeneratedClient() {
 
 export const preferencesBrowserClient = {
   /** Read the session user's preferences, including the account-wide push opt-in. */
-  async getMyPreferences(): Promise<GetUsersByIdPreferencesResponse> {
+  async getMyPreferences(
+    userId = CURRENT_USER_PATH_ID,
+  ): Promise<GetUsersByIdPreferencesResponse> {
     return executeCoreOperation(
       getPreferencesGeneratedClient,
       (client) =>
         getUsersByIdPreferences({
           client,
-          path: { id: CURRENT_USER_PATH_ID },
+          path: { id: userId },
           cache: "no-store",
         }),
       "Failed to read user preferences",
@@ -54,13 +56,14 @@ export const preferencesBrowserClient = {
    */
   async patchMyPreferences(
     body: NonNullable<PatchUsersByIdPreferencesData["body"]>,
+    userId = CURRENT_USER_PATH_ID,
   ): Promise<PatchUsersByIdPreferencesResponse> {
     return executeCoreOperation(
       getPreferencesGeneratedClient,
       (client) =>
         patchUsersByIdPreferences({
           client,
-          path: { id: CURRENT_USER_PATH_ID },
+          path: { id: userId },
           body,
         }),
       "Failed to update user preferences",

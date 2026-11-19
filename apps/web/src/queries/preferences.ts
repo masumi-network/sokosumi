@@ -25,7 +25,8 @@ export const getMyPreferencesQueryKey = (userId: string | undefined) => [
 export const getMyPreferencesQueryOptions = (userId: string | undefined) =>
   queryOptions({
     queryKey: getMyPreferencesQueryKey(userId),
-    queryFn: () => preferencesBrowserClient.getMyPreferences(),
+    // A sign-in change in another tab must not populate this key with the new reader.
+    queryFn: () => preferencesBrowserClient.getMyPreferences(userId),
     // Without a session the read is a guaranteed 401.
     enabled: Boolean(userId),
   });

@@ -5901,6 +5901,32 @@
       "description": "Usa coworkers de IA para tus tareas más complejas"
     },
     "Sidebar": {
+      "Layout": {
+        "edit": "Editar barra lateral",
+        "allChats": "Todos los chats",
+        "saveFailed": "No se han podido guardar las preferencias de la barra lateral. Inténtalo de nuevo.",
+        "loadFailed": "No se han podido cargar las preferencias de la barra lateral. Inténtalo de nuevo.",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "addSection": "Añadir sección",
+        "renameSection": "Cambiar el nombre de la sección",
+        "sectionName": "Nombre de la sección",
+        "removeSection": "Quitar sección",
+        "addFeature": "Añadir función",
+        "removeFeature": "Ocultar función",
+        "sortFeatures": "Ordenar funciones por nombre",
+        "sortSections": "Ordenar secciones por nombre",
+        "reset": "Restablecer la disposición predeterminada",
+        "reorder": "Mover {name}",
+        "actions": "Opciones de {name}",
+        "moveUp": "Subir",
+        "moveDown": "Bajar",
+        "moveTo": "Mover a otra sección",
+        "emptySection": "Arrastra una función aquí o añádela desde el menú de la sección.",
+        "instructions": "Usa las flechas arriba y abajo para cambiar el orden. Usa las flechas izquierda y derecha para mover una función entre secciones.",
+        "position": "{name}, {section}, {position} de {total}.",
+        "sectionPosition": "{name}, sección {position} de {total}."
+      },
       "Account": {
         "planAndCredits": "{plan} · {credits}",
         "detailsUnavailable": "Detalles no disponibles",

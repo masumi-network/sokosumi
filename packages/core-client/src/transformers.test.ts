@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-
+import { describe, expect, expectTypeOf, it } from "vitest";
+import { SidebarLayoutSchema } from "./generated/schemas.gen.js";
 import {
   getCmoCompetitorsForProjectResponseTransformer,
   getProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponseTransformer,
@@ -9,11 +9,21 @@ import {
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   getSeoAuditWorkspaceResponseTransformer,
   getStudioComparePairResponseTransformer,
+  getUsersByIdPreferencesResponseTransformer,
   getWorkspacesCalendarResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
 } from "./generated/transformers.gen.js";
+import type { SidebarLayout } from "./generated/types.gen.js";
 
 const meta = { timestamp: "2026-10-01T00:00:00.000Z" };
+
+it("accepts printable section names and rejects embedded controls in the published schema", () => {
+  const section = SidebarLayoutSchema.properties.sections.items;
+  const name = new RegExp(section.properties.name.pattern, "u");
+  expect("My desk").toMatch(name);
+  expect("Équipe 🪴").toMatch(name);
+  expect("My\ndesk").not.toMatch(name);
+});
 
 it.each([null, { scheduledAt: meta.timestamp, account: null }])(
   "revives quote dates and keeps nullable quotes/accounts safe (%j)",
@@ -74,6 +84,17 @@ it("revives X thread part dates and preserves unpublished parts", async () => {
 });
 
 describe("generated response transformers keep nullable objects null-safe", () => {
+  it("preserves the default sidebar layout for an account", async () => {
+    const result = await getUsersByIdPreferencesResponseTransformer({
+      data: { sidebarLayout: null },
+      meta: { ...meta },
+    });
+    expectTypeOf(result.data.sidebarLayout).toEqualTypeOf<
+      SidebarLayout | null | undefined
+    >();
+    expect(result.data.sidebarLayout).toBeNull();
+    expect(result.meta.timestamp).toBeInstanceOf(Date);
+  });
   it("Studio compare: an exhausted batch keeps its pair null", async () => {
     const result = await getStudioComparePairResponseTransformer({
       data: { pair: null },

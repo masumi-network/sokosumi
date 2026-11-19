@@ -1,4 +1,5 @@
 import type { AnnouncedFeature } from "@sokosumi/core-client";
+import { BadgePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 import { cn } from "@/lib/utils";
@@ -35,12 +36,22 @@ export function SidebarFeatureLabel({
 }
 
 function NewPill({ feature }: { feature: AnnouncedFeature }) {
-  const t = useTranslations("App.Sidebar.Content.MenuItems");
   const state = useNewBadgeState(feature);
   if (state === "none") {
     return null;
   }
 
+  return <SidebarNewIndicator fading={state === "fading"} />;
+}
+
+export function SidebarNewIndicator({
+  withIcon = false,
+  fading = false,
+}: {
+  withIcon?: boolean;
+  fading?: boolean;
+}) {
+  const t = useTranslations("App.Sidebar.Content.MenuItems");
   // The pill's caps are styling; the row's accessible name gets ", New" from
   // the hidden copy, since flex items join without a space. Leaving, it fades
   // on opacity alone (`PILL_FADE_MS`); reduced motion skips the fade.
@@ -51,9 +62,11 @@ function NewPill({ feature }: { feature: AnnouncedFeature }) {
         className={cn(
           "bg-muted text-foreground shrink-0 rounded-sm px-1 py-0.5 text-2xs leading-none font-semibold tracking-wide uppercase",
           "transition-opacity duration-200 ease-out motion-reduce:transition-none",
-          state === "fading" && "opacity-0",
+          withIcon && "inline-flex items-center gap-1",
+          fading && "opacity-0",
         )}
       >
+        {withIcon && <BadgePlus aria-hidden className="size-3" />}
         {t("new")}
       </span>
       <span className="sr-only">, {t("new")}</span>

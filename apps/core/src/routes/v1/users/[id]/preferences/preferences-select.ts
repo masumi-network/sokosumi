@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import {
   resolveNotificationMatrix,
   type StoredNotificationPreference,
@@ -12,6 +13,8 @@ import { userPreferencesResponseSchema } from "@/schemas/user.schema";
  * `toUserPreferencesResponse` resolves those into the matrix a client reads.
  */
 export const USER_PREFERENCES_SELECT = {
+  sidebarLayout: true,
+  sidebarSeenItems: true,
   marketingOptIn: true,
   notificationsOptIn: true,
   pushOptIn: true,
@@ -20,9 +23,11 @@ export const USER_PREFERENCES_SELECT = {
   notificationPreferences: {
     select: { category: true, channel: true, enabled: true },
   },
-} as const;
+} as const satisfies Prisma.UserSelect;
 
 interface UserPreferencesRow {
+  sidebarLayout: Prisma.JsonValue;
+  sidebarSeenItems: string[];
   marketingOptIn: boolean;
   notificationsOptIn: boolean;
   pushOptIn: boolean;
@@ -39,6 +44,8 @@ interface UserPreferencesRow {
  */
 export function toUserPreferencesResponse(user: UserPreferencesRow) {
   return userPreferencesResponseSchema.parse({
+    sidebarLayout: user.sidebarLayout,
+    sidebarSeenItems: user.sidebarSeenItems,
     marketingOptIn: user.marketingOptIn,
     notificationsOptIn: user.notificationsOptIn,
     pushOptIn: user.pushOptIn,
