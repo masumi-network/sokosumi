@@ -10,7 +10,10 @@
  * Jev, the strategy request and the turn start are mocked; fixtures are
  * deleted after each test.
  */
-import type { SaveCompetitorFeedInput } from "@sokosumi/soko-bot";
+import {
+  type SaveCompetitorFeedInput,
+  SOKO_BOT_TOOL_DESCRIPTIONS,
+} from "@sokosumi/soko-bot";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -218,6 +221,13 @@ describe.skipIf(!enabled)(
       expect(read.unreadable).toEqual([
         { source: "ads", status: "not_configured" },
       ]);
+      // The tool's description names the field this result really has.
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.check_competitors).toContain(
+        "unreadable lists the sources",
+      );
+      expect(SOKO_BOT_TOOL_DESCRIPTIONS.check_competitors).not.toContain(
+        "sources says",
+      );
     });
 
     it("saves the week's moves and names the big ones", async () => {
