@@ -15016,6 +15016,29 @@ export const SokoBotScope = {
 
 export type SokoBotScope = typeof SokoBotScope[keyof typeof SokoBotScope];
 
+export type SokoBotSecret = {
+    id: string;
+    name: string;
+    /**
+     * Whether shell commands get this key as an env variable
+     */
+    shellAccess: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type SaveSokoBotSecretRequest = {
+    /**
+     * The key. Required for a new name; leave out to keep the saved value.
+     */
+    value?: string;
+    shellAccess?: boolean;
+};
+
+export type SokoBotSandboxSetup = {
+    commands: Array<string>;
+};
+
 export type Coworker = {
     id: string;
     createdAt: Date;
@@ -98078,6 +98101,430 @@ export type GetSokoBotStatsResponses = {
 };
 
 export type GetSokoBotStatsResponse = GetSokoBotStatsResponses[keyof GetSokoBotStatsResponses];
+
+export type ListSokoBotSecretsData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets';
+};
+
+export type ListSokoBotSecretsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListSokoBotSecretsError = ListSokoBotSecretsErrors[keyof ListSokoBotSecretsErrors];
+
+export type ListSokoBotSecretsResponses = {
+    /**
+     * The bot's saved keys, without their values
+     */
+    200: {
+        data: Array<SokoBotSecret>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListSokoBotSecretsResponse = ListSokoBotSecretsResponses[keyof ListSokoBotSecretsResponses];
+
+export type DeleteSokoBotSecretData = {
+    body?: never;
+    path: {
+        id: string;
+        name: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets/{name}';
+};
+
+export type DeleteSokoBotSecretErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteSokoBotSecretError = DeleteSokoBotSecretErrors[keyof DeleteSokoBotSecretErrors];
+
+export type DeleteSokoBotSecretResponses = {
+    /**
+     * The key is gone
+     */
+    200: {
+        data: {
+            deleted: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteSokoBotSecretResponse = DeleteSokoBotSecretResponses[keyof DeleteSokoBotSecretResponses];
+
+export type SaveSokoBotSecretData = {
+    body?: SaveSokoBotSecretRequest;
+    path: {
+        id: string;
+        name: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/secrets/{name}';
+};
+
+export type SaveSokoBotSecretErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SaveSokoBotSecretError = SaveSokoBotSecretErrors[keyof SaveSokoBotSecretErrors];
+
+export type SaveSokoBotSecretResponses = {
+    /**
+     * The saved key
+     */
+    200: {
+        data: SokoBotSecret;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SaveSokoBotSecretResponse = SaveSokoBotSecretResponses[keyof SaveSokoBotSecretResponses];
+
+export type GetSokoBotSandboxSetupData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/sandbox-setup';
+};
+
+export type GetSokoBotSandboxSetupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetSokoBotSandboxSetupError = GetSokoBotSandboxSetupErrors[keyof GetSokoBotSandboxSetupErrors];
+
+export type GetSokoBotSandboxSetupResponses = {
+    /**
+     * Commands that run each time the bot's sandbox starts
+     */
+    200: {
+        data: SokoBotSandboxSetup;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetSokoBotSandboxSetupResponse = GetSokoBotSandboxSetupResponses[keyof GetSokoBotSandboxSetupResponses];
+
+export type SetSokoBotSandboxSetupData = {
+    body?: SokoBotSandboxSetup;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/soko-bots/{id}/sandbox-setup';
+};
+
+export type SetSokoBotSandboxSetupErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetSokoBotSandboxSetupError = SetSokoBotSandboxSetupErrors[keyof SetSokoBotSandboxSetupErrors];
+
+export type SetSokoBotSandboxSetupResponses = {
+    /**
+     * The saved commands
+     */
+    200: {
+        data: SokoBotSandboxSetup;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetSokoBotSandboxSetupResponse = SetSokoBotSandboxSetupResponses[keyof SetSokoBotSandboxSetupResponses];
 
 export type GetCoworkersData = {
     body?: never;
