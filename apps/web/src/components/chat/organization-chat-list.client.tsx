@@ -98,7 +98,7 @@ import {
   ChatUnreadsFilterChip,
 } from "./chat-unread-nav-rows";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
-import { limitSidebarSectionRooms } from "./limit-sidebar-section-rooms";
+import * as sectionLimits from "./limit-sidebar-section-rooms";
 import {
   listOrganizationChatRoomsAction,
   reorderPinnedOrganizationChatRoomsAction,
@@ -500,15 +500,15 @@ export function OrganizationChatList({
   // so nothing new waits behind "Show more".
   const keepInSection = (room: ChatRoom) =>
     room.id === activeRoomId || isUnreadRoom(room);
-  const channelRows = limitSidebarSectionRooms(namedChannels, {
+  const channelRows = sectionLimits.limitSidebarChannels(namedChannels, {
     showAll: channelsShowAll,
     alwaysShow: keepInSection,
   });
-  const externalRows = limitSidebarSectionRooms(externalJoined, {
+  const externalRows = sectionLimits.limitSidebarSectionRooms(externalJoined, {
     showAll: externalShowAll,
     alwaysShow: keepInSection,
   });
-  const directRows = limitSidebarSectionRooms(directMessages, {
+  const directRows = sectionLimits.limitSidebarSectionRooms(directMessages, {
     showAll: directShowAll,
     alwaysShow: keepInSection,
   });
