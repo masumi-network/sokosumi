@@ -2,7 +2,11 @@ import { type Project } from "@sokosumi/database";
 import { SOKO_BOT_TOOL_INPUT_SCHEMAS } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { createDataTable, resolveTableActor } from "@/helpers/data-table";
+import {
+  createDataTable,
+  resolveTableActor,
+  type TableActor,
+} from "@/helpers/data-table";
 import { loadSokoBotTurnAuthContext } from "@/helpers/soko-bot-turn-auth-context";
 import { contactExportTable } from "@/lib/contacts/export-table";
 import prisma from "@/lib/db/prisma";
@@ -13,6 +17,7 @@ import {
   runContactTool,
 } from "@/lib/soko-bot/contact-tools";
 import { persistedToolResult } from "@/lib/soko-bot/persisted-value";
+import type { SharedSokoBotAuthenticationContext } from "@/middleware/auth";
 import {
   enrichContactFromWeb,
   findPeopleForList,
@@ -39,7 +44,10 @@ export async function tableActor(
   const auth = await loadSokoBotTurnAuthContext(authorized.turn);
   if (!auth)
     throw new SokoBotRuntimeAuthorizationError("Soko Bot is unavailable");
-  const actor = await resolveTableActor(auth, auth.workspaceId);
+  const actor =
+    auth.scope === "personal"
+      ? await resolveTableActor(auth, auth.workspaceId)
+      : await sharedTableActor(authorized, auth);
   const { taskId } = z
     .object({ taskId: z.string().max(200).optional() })
     .parse(rawInput);
@@ -52,6 +60,27 @@ export async function tableActor(
       "Task-driven table operations require an assigned taskId",
     );
   return { ...actor, taskId, ownerChat };
+}
+
+/**
+ * A shared Soko Bot's tables (ADR 0057): it acts for the member who asked,
+ * who must still belong to its organization, and the bot is the actor every
+ * change records. A Project's bot stays inside its Project. A turn nobody
+ * asked for has no member and is refused, as its Files and contacts are.
+ */
+async function sharedTableActor(
+  authorized: AuthorizedSokoBotRuntime,
+  auth: SharedSokoBotAuthenticationContext,
+): Promise<TableActor> {
+  const userId = actingMemberOf(authorized);
+  await requireSokoBotWorkspaceAccess(prisma, userId, auth.workspaceId);
+  return {
+    workspaceId: auth.workspaceId,
+    userId,
+    actorId: auth.sokoBotId,
+    actorKind: "sokoBot",
+    ...(auth.projectId ? { projectScope: auth.projectId } : {}),
+  };
 }
 
 /**
