@@ -2,6 +2,7 @@ import type { MarketingStrategy } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { SocialAccountChoiceRequiredError } from "@/helpers/social-account-choice";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
@@ -321,7 +322,35 @@ describe("CMO's own routes for its writes on the Cuso's Project", () => {
       userId: "user-1",
       action: "connect",
       provider: "x",
+      accountChoice: true,
     });
+  });
+
+  it("answers the accounts to pick from when a sign-in reaches several", async () => {
+    const choices = [
+      {
+        externalAccountId: "urn:li:organization:1",
+        name: "Acme",
+        handle: "acme",
+        kind: "page" as const,
+      },
+      {
+        externalAccountId: "member-1",
+        name: "Alice Doe",
+        handle: null,
+        kind: "profile" as const,
+      },
+    ];
+    m.finalizeProjectSocialConnection.mockRejectedValueOnce(
+      new SocialAccountChoiceRequiredError(choices),
+    );
+    const response = await send(named("social connection finalize"));
+    expect(response.status).toBe(201);
+    expect((await response.json()).data).toEqual({ state: "choose", choices });
+    expect(m.finalizeProjectSocialConnection).toHaveBeenCalledWith(
+      expect.objectContaining({ offerChoice: true }),
+    );
+    expect(m.scheduleSocialAccountRefresh).not.toHaveBeenCalled();
   });
 
   it("lets a plain member answer the strategy but not approve it (ADR 0061)", async () => {

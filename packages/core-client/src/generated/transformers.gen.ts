@@ -5778,7 +5778,6 @@ export const initiateCmoSocialConnectionForProjectResponseTransformer = async (d
 };
 
 export const finalizeCmoSocialConnectionForProjectResponseTransformer = async (data: any): Promise<FinalizeCmoSocialConnectionForProjectResponse> => {
-    data.data = projectSocialConnectionSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };
