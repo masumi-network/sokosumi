@@ -824,7 +824,13 @@ async function inCusoWorkspace(
 }
 
 /** Starts connecting a network; the browser goes to the returned URL. */
-type SocialProvider = "x" | "linkedin" | "instagram" | "facebook" | "youtube";
+type SocialProvider =
+  | "x"
+  | "linkedin"
+  | "instagram"
+  | "facebook"
+  | "youtube"
+  | "tiktok";
 
 /** Connects a network from the app's Channels page. */
 export async function connectChannel(
@@ -882,17 +888,21 @@ async function redeemCallback(
   });
 }
 
-/** Finishes a connection after the provider sent the founder back. */
+/**
+ * Finishes a connection after the provider sent the founder back. TikTok
+ * comes back with a one-use proof instead of a session.
+ */
 export async function finalizeChannel(
   projectId: string,
   connectionId: string,
   sessionUri: string | null = null,
+  callbackProof: string | null = null,
 ): Promise<boolean> {
   await redeemCallback(projectId, connectionId, sessionUri);
   const { error } = await finalizeCmoSocialConnectionForProject({
     ...(await requireCore()),
     path: { projectId },
-    body: { connectionId },
+    body: { connectionId, ...(callbackProof ? { callbackProof } : {}) },
   });
   return !error;
 }

@@ -31,8 +31,6 @@ interface CusoSceneProps {
   scene: Scene;
   /** What he is doing right now; set while he works, so the wait shows. */
   now?: string | null;
-  /** The sidebar's size: as wide as its column, shorter. */
-  compact?: boolean;
   /** The label on Iris: he needs the owner. */
   calling?: boolean;
 }
@@ -44,16 +42,11 @@ interface CusoSceneProps {
 export function CusoScene({
   scene,
   now = null,
-  compact = false,
   calling = false,
 }: CusoSceneProps) {
   return (
     <div
-      className={[
-        "ob-scene",
-        now && !calling ? "ob-scene-busy" : "",
-        compact ? "ob-scene-compact" : "",
-      ]
+      className={["ob-scene", now && !calling ? "ob-scene-busy" : ""]
         .filter(Boolean)
         .join(" ")}
     >

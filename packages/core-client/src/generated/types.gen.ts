@@ -13508,6 +13508,10 @@ export type CmoOverview = {
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
     connectChannelUrl: string;
+    /**
+     * TikTok may be connected to this Cuso's Project. Cuso plans no TikTok posts yet.
+     */
+    tiktokEnabled: boolean;
     adProviders: Array<string>;
     connectAdsUrl: string;
     /**
@@ -14312,6 +14316,43 @@ export type CmoPlanChange = {
 
 export type CmoCustomerPortal = {
     url: string;
+};
+
+export type CmoTestCopyCheck = {
+    projectId: string;
+    /**
+     * The Project whose connected accounts the copy uses.
+     */
+    sourceProjectId: string;
+    tornDownAt: Date | null;
+    /**
+     * Nothing is left: no unsent post, linked account, run or Cuso.
+     */
+    clean: boolean;
+    left: {
+        unsentPosts: number;
+        linkedAccounts: number;
+        activeTurns: number;
+        liveCuso: boolean;
+    };
+    /**
+     * Posts of the copy that went out. Always 0.
+     */
+    publishedPosts: number;
+    /**
+     * Accounts ended at the provider through the copy. Always 0.
+     */
+    providerRevocations: number;
+};
+
+export type CmoTestCopyTeardown = {
+    removed: {
+        canceledPosts: number;
+        unlinkedAccounts: number;
+        stoppedTurns: number;
+        archivedCuso: boolean;
+    };
+    check: CmoTestCopyCheck;
 };
 
 export type CmoTimeZone = {
@@ -89524,6 +89565,141 @@ export type StartCmoOverForProjectResponses = {
 };
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
+
+export type CheckCmoTestCopyForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/test-copy';
+};
+
+export type CheckCmoTestCopyForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such Project, or it is not a test copy
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CheckCmoTestCopyForProjectError = CheckCmoTestCopyForProjectErrors[keyof CheckCmoTestCopyForProjectErrors];
+
+export type CheckCmoTestCopyForProjectResponses = {
+    /**
+     * What is left
+     */
+    200: {
+        data: CmoTestCopyCheck;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CheckCmoTestCopyForProjectResponse = CheckCmoTestCopyForProjectResponses[keyof CheckCmoTestCopyForProjectResponses];
+
+export type TearDownCmoTestCopyForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/test-copy/teardown';
+};
+
+export type TearDownCmoTestCopyForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Only an owner or admin, or whoever made the test copy
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such Project, or it is not a test copy
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type TearDownCmoTestCopyForProjectError = TearDownCmoTestCopyForProjectErrors[keyof TearDownCmoTestCopyForProjectErrors];
+
+export type TearDownCmoTestCopyForProjectResponses = {
+    /**
+     * What was removed, and what is left
+     */
+    200: {
+        data: CmoTestCopyTeardown;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type TearDownCmoTestCopyForProjectResponse = TearDownCmoTestCopyForProjectResponses[keyof TearDownCmoTestCopyForProjectResponses];
 
 export type SetCmoTimeZoneForProjectData = {
     body: CmoTimeZone;

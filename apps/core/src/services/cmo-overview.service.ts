@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { getWebAppBaseUrl } from "@/config/env";
+import { socialProviderWorkspace } from "@/config/social-providers";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import { recordCoreWarning, runAsBackgroundWork } from "@/lib/evlog";
@@ -174,6 +175,8 @@ export interface CmoOverview {
   channels: Awaited<ReturnType<typeof listCmoChannels>>;
   upNext: CmoUpNextItem[];
   connectChannelUrl: string;
+  /** TikTok may be connected to this Cuso's Project (`socialProviderWorkspace`). */
+  tiktokEnabled: boolean;
   /** Ad providers with an active connection on Cuso's Project. */
   adProviders: string[];
   /** Sokosumi's Ads page for Cuso's Project, where ad accounts connect. */
@@ -496,6 +499,9 @@ export async function getCmoOverview(
     ),
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
     connectChannelUrl: `${web}/social?projectId=${cuso.projectId}`,
+    tiktokEnabled:
+      socialProviderWorkspace(organization?.slug ?? null, cuso.workspaceId)
+        .tiktokEnabled === true,
     adProviders: [...new Set(adConnections.map((row) => row.provider))],
     connectAdsUrl: `${web}/ads?projectId=${cuso.projectId}`,
     measurement,
