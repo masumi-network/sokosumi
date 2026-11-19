@@ -496,12 +496,9 @@ export function CmoApp({
             </div>
           </>
         ) : (
-          <div className="scroll">
-            <div
-              className={
-                view === "strategy" || view === "brain" ? undefined : "page"
-              }
-            >
+          // A new element per page, so each page opens at its top.
+          <div className="scroll" key={view}>
+            <div className={view === "strategy" ? undefined : "page"}>
               {PAGE_LEADS[view] ? (
                 <PageLead
                   title={PAGE_LEADS[view].title}
