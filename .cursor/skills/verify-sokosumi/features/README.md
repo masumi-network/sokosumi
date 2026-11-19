@@ -60,7 +60,7 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [SEO](./seo.md) — `/seo` Marketing row. An empty workspace shows **Start your first SEO audit**; otherwise the audit list.
 - [Ads](./ads.md) — `/ads` Marketing row. With no project in scope, sample ads and **Pick a project**.
 - [Newsletter](./newsletter.md) — `/newsletter` only in the newsletter beta organization. Elsewhere the sidebar row is absent and the URL is a 404.
-- [Projects](./projects.md) — `/projects` card grid or empty state (desktop **Work** row under **Home**).
+- [Projects](./projects.md) opens the `/projects` card grid or empty state from the project picker.
 - [Files](./files.md) — `/drive` Recents / Workspace / Tables (desktop main nav **Files**).
 - [History](./history.md) — `/history` credit history ledger (account menu / You; not a sidebar row).
 - [Sign up](./sign-up.md) — disposable account creation when fixtures are absent.

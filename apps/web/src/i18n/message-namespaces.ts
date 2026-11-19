@@ -69,6 +69,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.TransactionHistory",
   // SOK-1202 project scope switcher lives in the sidebar and header.
   "App.ProjectScope",
+  "App.Projects.column.activity",
   "App.Metadata",
   "App.enabled",
   "App.disabled",
