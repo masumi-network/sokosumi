@@ -702,6 +702,32 @@ describe("sandbox turn service", () => {
     ]);
   });
 
+  it("records each untrusted source, so a page fetched after an MCP read still counts", async () => {
+    // The turn already read its MCP server; a fetched page is a second source.
+    findFirstEventMock.mockImplementation(
+      async (query: { where: { data?: { equals?: string } } }) =>
+        query.where.data?.equals === "mcp:server-1" ? { id: "taint" } : null,
+    );
+    await recordSandboxAction(claims, {
+      name: "web_fetch",
+      toolCallId: "c3",
+      toolInput: { url: "https://example.com" },
+    });
+    expect(findFirstEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          data: { path: ["source"], equals: "web_fetch" },
+        }),
+      }),
+    );
+    expect(events()).toContainEqual(
+      expect.objectContaining({
+        type: "sandbox.untrusted_input",
+        data: { source: "web_fetch" },
+      }),
+    );
+  });
+
   it("records a sandbox tool as a tool call with what it could cite", async () => {
     await recordSandboxAction(claims, {
       name: "web_fetch",

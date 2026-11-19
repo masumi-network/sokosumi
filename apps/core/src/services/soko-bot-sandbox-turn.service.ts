@@ -316,8 +316,14 @@ async function markUntrusted(
   log: RuntimeEventLog,
   source: string,
 ): Promise<void> {
+  // One event per source: a write to an MCP server checks that nothing but
+  // that server has put outside text into the turn (ADR 0074).
   const already = await prisma.sokoBotRuntimeEvent.findFirst({
-    where: { turnId: log.turnId, type: WEB_TAINT_EVENT },
+    where: {
+      turnId: log.turnId,
+      type: WEB_TAINT_EVENT,
+      data: { path: ["source"], equals: source },
+    },
     select: { id: true },
   });
   if (!already) await log.append(runtimeEvent(WEB_TAINT_EVENT, { source }));

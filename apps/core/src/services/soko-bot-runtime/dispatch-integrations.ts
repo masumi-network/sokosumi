@@ -28,6 +28,7 @@ import {
   fetchInboxMessage,
   fetchInboxPage,
 } from "@/services/soko-bot-integrations.service";
+import { listMcpServersForBot } from "@/services/soko-bot-mcp.service";
 import {
   type AuthorizedSokoBotRuntime,
   type ExecuteSokoBotToolInput,
@@ -59,15 +60,22 @@ export async function dispatchIntegrationsTools(
   authorized: AuthorizedSokoBotRuntime,
 ): Promise<unknown> {
   switch (input.capability) {
-    case "list_integrations":
+    case "list_integrations": {
+      const [result, mcpServers] = await Promise.all([
+        listSokoBotIntegrationsForBot(authorized.turn.sokoBotId),
+        listMcpServersForBot(authorized.turn.sokoBotId),
+      ]);
       // A bot's own ad connection is unusable: ads go through the Project's
       // ad account. The owner still sees it in Settings to disconnect it.
-      return listSokoBotIntegrationsForBot(authorized.turn.sokoBotId).then(
-        (result) =>
-          result.integrations.filter(
-            (i) => i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
-          ),
-      );
+      return [
+        ...result.integrations.filter(
+          (i) => i.status !== "DISCONNECTED" && !adToolkitRefusal(i.provider),
+        ),
+        // Where the bot looks first for "is X connected", so its MCP servers
+        // are named here too (ADR 0074).
+        ...mcpServers,
+      ];
+    }
 
     case "find_integrations":
       return runtime.findIntegrations(

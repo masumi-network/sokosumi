@@ -1,6 +1,7 @@
 /**
  * An MCP server over Streamable HTTP, in process: a `fetch` to hand to the
- * MCP client instead of the network. It answers `initialize`, `tools/list`
+ * MCP client instead of the network. Tests use it, and eval lanes talk to
+ * one as their "Tracker" server (`eval-mcp-server.ts`). It answers `initialize`, `tools/list`
  * and `tools/call`, and records every request it saw.
  */
 export interface FakeMcpTool {

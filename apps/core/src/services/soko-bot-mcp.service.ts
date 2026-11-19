@@ -39,16 +39,20 @@ const serverSelect = {
 } as const;
 
 /** The tools as a JSON column takes them; `inputSchema` is JSON from the server. */
-function toolsJson(tools: SokoBotMcpTool[]): Prisma.InputJsonValue {
+export function sokoBotMcpToolsJson(
+  tools: SokoBotMcpTool[],
+): Prisma.InputJsonValue {
   return tools as Prisma.InputJsonValue;
 }
 
-function parseTools(value: Prisma.JsonValue): SokoBotMcpTool[] {
+export function parseSokoBotMcpTools(
+  value: Prisma.JsonValue,
+): SokoBotMcpTool[] {
   return z.array(sokoBotMcpToolSchema).parse(value);
 }
 
 function present<T extends { tools: Prisma.JsonValue }>(server: T) {
-  return { ...server, tools: parseTools(server.tools) };
+  return { ...server, tools: parseSokoBotMcpTools(server.tools) };
 }
 
 /** `https://` only; `ssrfSafeFetch` refuses private hosts at connect time. */
@@ -123,6 +127,23 @@ async function readTools(target: McpServerTarget, fetch?: Fetch) {
   }
 }
 
+/** The bot's MCP servers as `list_integrations` names them to the bot. */
+export async function listMcpServersForBot(sokoBotId: string) {
+  const servers = await prisma.sokoBotMcpServer.findMany({
+    where: { sokoBotId },
+    select: { name: true, tools: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return servers.map((server) => ({
+    provider: "mcp",
+    name: server.name,
+    status: "ACTIVE",
+    tools: parseSokoBotMcpTools(server.tools).filter((tool) => tool.enabled)
+      .length,
+    use: `list_mcp_tools with server "${server.name}"`,
+  }));
+}
+
 export async function listSokoBotMcpServers(sokoBotId: string) {
   const servers = await prisma.sokoBotMcpServer.findMany({
     where: { sokoBotId },
@@ -174,7 +195,7 @@ export async function addSokoBotMcpServer(
       authKind: input.auth.type === "none" ? "none" : "header",
       credentialCiphertext: sealed?.ciphertext ?? null,
       credentialKeyId: sealed?.keyId ?? null,
-      tools: toolsJson(tools),
+      tools: sokoBotMcpToolsJson(tools),
       toolsRefreshedAt: new Date(),
     },
     select: serverSelect,
@@ -206,7 +227,9 @@ export async function refreshSokoBotMcpServer(
   const updated = await prisma.sokoBotMcpServer.update({
     where: { id: server.id },
     data: {
-      tools: toolsJson(mergeMcpTools(listed, parseTools(server.tools))),
+      tools: sokoBotMcpToolsJson(
+        mergeMcpTools(listed, parseSokoBotMcpTools(server.tools)),
+      ),
       toolsRefreshedAt: new Date(),
       lastError: null,
     },
@@ -232,14 +255,14 @@ export async function updateSokoBotMcpTool(
       where: { id: serverId },
       select: { tools: true },
     });
-    const tools = parseTools(server.tools);
+    const tools = parseSokoBotMcpTools(server.tools);
     const tool = tools.find((entry) => entry.name === change.name);
     if (!tool) throw new SokoBotMcpError("The server has no tool by that name");
     tool.enabled = change.enabled ?? tool.enabled;
     tool.readOnly = change.readOnly ?? tool.readOnly;
     const updated = await tx.sokoBotMcpServer.update({
       where: { id: serverId },
-      data: { tools: toolsJson(tools) },
+      data: { tools: sokoBotMcpToolsJson(tools) },
       select: serverSelect,
     });
     return present(updated);

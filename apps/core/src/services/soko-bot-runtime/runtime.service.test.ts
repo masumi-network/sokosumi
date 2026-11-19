@@ -61,6 +61,7 @@ const {
   coworkerFindManyMock,
   userFindManyMock,
   integrationListMock,
+  mcpServerListMock,
   transactionBotFindUniqueOrThrowMock,
   transactionBotFindUniqueMock,
   transactionBotUpdateMock,
@@ -201,6 +202,7 @@ const {
   coworkerFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   integrationListMock: vi.fn(),
+  mcpServerListMock: vi.fn(async () => [] as unknown[]),
   transactionBotFindUniqueOrThrowMock: vi.fn(),
   transactionBotFindUniqueMock: vi.fn(),
   transactionBotUpdateMock: vi.fn(),
@@ -599,6 +601,10 @@ vi.mock("@/lib/soko-bot/jev-tool", () => ({
 }));
 vi.mock("@/services/soko-bot-integration-list.service", () => ({
   listSokoBotIntegrationsForBot: integrationListMock,
+}));
+vi.mock("@/services/soko-bot-mcp.service", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/services/soko-bot-mcp.service")>()),
+  listMcpServersForBot: mcpServerListMock,
 }));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: serializableTransactionMock.mockImplementation(
@@ -3888,6 +3894,35 @@ describe("SokoBotRuntimeService authorization", () => {
         expect(integrationListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
       },
     );
+
+    it("names the bot's MCP servers among its integrations", async () => {
+      sharedTurn("list_integrations", {
+        ...PROJECT_BOT,
+        userId: SCOPE.userId,
+        projectId: null,
+      });
+      integrationListMock.mockResolvedValue({
+        configured: true,
+        integrations: [{ provider: "gmail", status: "ACTIVE" }],
+      });
+      const tracker = {
+        provider: "mcp",
+        name: "Tracker",
+        status: "ACTIVE",
+        tools: 4,
+        use: 'list_mcp_tools with server "Tracker"',
+      };
+      mcpServerListMock.mockResolvedValueOnce([tracker]);
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "list_integrations",
+          toolCallId: "call_integrations_mcp",
+          input: {},
+        }),
+      ).resolves.toEqual([{ provider: "gmail", status: "ACTIVE" }, tracker]);
+      expect(mcpServerListMock).toHaveBeenCalledWith(SCOPE.sokoBotId);
+    });
 
     it("asks Jev for the bot and books the call as turn overhead", async () => {
       sharedTurn("evaluate_with_jev", {
