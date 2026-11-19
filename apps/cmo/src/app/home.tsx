@@ -393,6 +393,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         markLandingPageLive: markLandingPageLive.bind(null, projectId),
         askCusoForArticles: askCusoForArticles.bind(null, projectId),
         approveStrategy: approveStrategy.bind(null, projectId),
+        requestStrategy: requestStrategy.bind(null, projectId),
         setAdBudget: setAdBudget.bind(null, projectId),
         revertUpdate: revertUpdate.bind(null, projectId),
         retryLearning: retryLearning.bind(null, projectId),

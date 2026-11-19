@@ -234,7 +234,7 @@ export function EmailForm({ currentEmail, emailChange }: EmailFormProps) {
               loading submit button, fading it and dropping focus. */}
           <CardFooter className="flex-col gap-4">
             {captcha}
-            <Button type="submit" loading={isSubmitting} className="w-full">
+            <Button type="submit" loading={isSubmitting} className="ms-auto">
               {t("submit")}
             </Button>
           </CardFooter>

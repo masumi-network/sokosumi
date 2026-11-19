@@ -11,6 +11,7 @@ import type { Prisma } from "@sokosumi/database";
 import { CONTACT_LIST_COLORS, type CONTACT_STAGES } from "@sokosumi/utils";
 import { generateText } from "ai";
 import { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { companyDomain } from "@/lib/contacts/capture-filters";
 import {
   checkListProposal,
@@ -296,7 +297,7 @@ export async function generateWithContactModel(input: {
     prompt: input.prompt,
     maxOutputTokens: input.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
     abortSignal: AbortSignal.timeout(input.timeoutMs ?? TIMEOUT_MS),
-  });
+  }).catch(rethrowAiGatewayFailure);
   return {
     text: result.text,
     costUsd: gatewayCostUsd(result.providerMetadata),

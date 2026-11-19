@@ -5,6 +5,10 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
+import {
   CHAT_CATCH_UP_BUCKETS,
   type ChatCatchUpBucket,
   chatCatchUpBucket,
@@ -14,6 +18,7 @@ import {
 } from "@/lib/chat-signals/derive";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger } from "@/lib/evlog";
+import { readBackgroundMessageContent } from "@/lib/soko-bot/background-failure";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 import {
@@ -126,7 +131,7 @@ const defaultDeps: ChatSummaryDeps = {
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    }).catch(rethrowAiGatewayFailure);
     return {
       text: result.text,
       costUsd: gatewayCostUsd(result.providerMetadata),
@@ -245,7 +250,9 @@ const messageSelect = {
   roomId: true,
   parentMessageId: true,
   senderUserId: true,
+  senderSokoBotId: true,
   content: true,
+  metadata: true,
   createdAt: true,
   senderUser: { select: { name: true, image: true } },
   senderCoworker: { select: { name: true, image: true } },
@@ -348,6 +355,8 @@ function toItem(
     roomId: string;
     parentMessageId: string | null;
     content: string;
+    metadata: unknown;
+    senderSokoBotId: string | null;
     createdAt: Date;
   } & MessageSender,
   room: Room,
@@ -362,7 +371,10 @@ function toItem(
     roomKind: room.kind,
     parentMessageId: message.parentMessageId,
     ...messageSender(message),
-    excerpt: buildChatMessagePreview(message.content, names),
+    excerpt: buildChatMessagePreview(
+      readBackgroundMessageContent(message),
+      names,
+    ),
     bucket,
     createdAt: message.createdAt,
     dueAt,
@@ -380,6 +392,8 @@ async function withReplyContext(
 ): Promise<ChatCatchUpItem[]> {
   const select = {
     content: true,
+    metadata: true,
+    senderSokoBotId: true,
     senderUser: { select: { name: true } },
   } as const;
   return Promise.all(
@@ -404,12 +418,13 @@ async function withReplyContext(
             })
           : null);
       if (!earlier) return item;
-      const names = await mentionNames([earlier.content]);
+      const content = readBackgroundMessageContent(earlier);
+      const names = await mentionNames([content]);
       return {
         ...item,
         inReplyTo: {
           senderName: earlier.senderUser?.name ?? "Someone",
-          excerpt: buildChatMessagePreview(earlier.content, names),
+          excerpt: buildChatMessagePreview(content, names),
         },
       };
     }),
@@ -493,7 +508,10 @@ export function buildChatCatchUpTopics(
     topics.push(
       topic([entry], {
         title: messageSender(entry.message).senderName,
-        summary: buildChatMessagePreview(entry.message.content, names),
+        summary: buildChatMessagePreview(
+          readBackgroundMessageContent(entry.message),
+          names,
+        ),
         status,
       }),
     );
@@ -922,7 +940,10 @@ async function writtenSummary(input: {
       key,
       bucket,
       author: messageSender(message).senderName,
-      text: readableChatSignalText(message.content, input.names),
+      text: readableChatSignalText(
+        readBackgroundMessageContent(message),
+        input.names,
+      ),
     });
     groups.set(room.id, group);
   }
@@ -967,12 +988,18 @@ async function writtenSummary(input: {
     log.set({
       chatSummary: {
         outcome: "failed",
-        reason: error instanceof Error ? error.name : "unknown",
+        reason:
+          error instanceof AiGatewayBudgetError
+            ? error.code
+            : error instanceof Error
+              ? error.name
+              : "unknown",
       },
     });
-    Sentry.captureException(error, {
-      tags: { context: "chat_catch_up_summary" },
-    });
+    if (!(error instanceof AiGatewayBudgetError))
+      Sentry.captureException(error, {
+        tags: { context: "chat_catch_up_summary" },
+      });
     return null;
   } finally {
     log.emit();

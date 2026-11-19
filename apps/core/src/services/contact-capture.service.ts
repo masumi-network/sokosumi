@@ -19,6 +19,7 @@ import {
   normalizeContactChannelValue,
 } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import {
   type CaptureCandidate,
   type ExtractContext,
@@ -583,15 +584,17 @@ export class ContactCaptureService {
             limit: this.limits.embeddingsPerWorkspace,
             shouldContinue,
           }).catch((error: unknown) => {
-            emitCaptureError(
-              { workspace: { id: workspaceId } },
-              {
-                message: "Could not update contact search for a workspace",
-                why: "The embedding step threw",
-                fix: "Search keeps its old entries; the next contact capture run embeds the changed contacts.",
-              },
-              error,
-            );
+            if (!(error instanceof AiGatewayBudgetError)) {
+              emitCaptureError(
+                { workspace: { id: workspaceId } },
+                {
+                  message: "Could not update contact search for a workspace",
+                  why: "The embedding step threw",
+                  fix: "Search keeps its old entries; the next contact capture run embeds the changed contacts.",
+                },
+                error,
+              );
+            }
             return { embedded: 0, costUsd: 0, failed: true };
           }),
         );

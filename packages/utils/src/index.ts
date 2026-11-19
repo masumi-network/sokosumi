@@ -203,6 +203,7 @@ export {
   companyListMembersSchema,
   companyListUpdateSchema,
   contactChannelInputSchema,
+  contactDetailHref,
   contactFieldsSchema,
   contactFilterSchema,
   contactImportSchema,
@@ -360,6 +361,7 @@ export {
   extractFileLikeLinks,
   extractHttpLinks,
 } from "./markdown-links-extract.js";
+export { escapeMarkdownLinkLabel } from "./markdown-prose-scan.js";
 export {
   collectMarkdownUrlExcludedRanges,
   findBareHttpUrlHits,

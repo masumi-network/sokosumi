@@ -1,6 +1,7 @@
 import { gateway, generateText, Output } from "ai";
 import sharp from "sharp";
 import { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 
 import { gatewayCallUsage, gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 
@@ -114,7 +115,7 @@ export async function checkStyledPicture(input: {
         ],
       },
     ],
-  });
+  }).catch(rethrowAiGatewayFailure);
   const usage = gatewayCallUsage(result);
   return {
     verdict: result.output,

@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  bot,
+  event,
+  gmail,
+  message,
+} from "./__tests__/fixtures/soko-bot-rhythm.fixtures";
 
 const {
   taskFindManyMock,
@@ -8,7 +14,6 @@ const {
   calendarMock,
   inboxMock,
   chargedMock,
-  contactLinesMock,
   turnFindManyMock,
   toolCallFindManyMock,
   scheduleRunFindFirstMock,
@@ -16,7 +21,6 @@ const {
   turnFindManyMock: vi.fn(),
   toolCallFindManyMock: vi.fn(),
   scheduleRunFindFirstMock: vi.fn(),
-  contactLinesMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   memoryFindFirstMock: vi.fn(),
@@ -43,9 +47,6 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
   withOwnerReplies: async (_integration: unknown, messages: unknown) =>
     messages,
 }));
-vi.mock("@/services/contacts-context.service", () => ({
-  contactLinesByEmail: contactLinesMock,
-}));
 vi.mock("@/lib/soko-bot/task-charges", () => ({
   taskCreditsCharged: chargedMock,
   roundCredits: (n: number) => Math.round(n * 100) / 100,
@@ -64,47 +65,6 @@ import {
   dueSoonBlock,
 } from "./soko-bot-rhythms.service";
 
-const bot = {
-  id: "bot-1",
-  userId: "user-1",
-  workspaceId: "ws-1",
-  ingestTimezone: "UTC",
-};
-const gmail = { provider: { id: "gmail" } };
-
-function event(overrides: Record<string, unknown>) {
-  return {
-    provider: "googlecalendar",
-    id: "ev-1",
-    title: "Intro call",
-    startsAt: "2026-10-01T10:40:00.000Z",
-    endsAt: null,
-    allDay: false,
-    location: null,
-    attendees: ["patrick@nmkr.io", "anna@acme.com"],
-    organizer: null,
-    description: null,
-    link: null,
-    ...overrides,
-  };
-}
-
-function message(overrides: Record<string, unknown>) {
-  return {
-    provider: "gmail",
-    id: "m-1",
-    threadId: "t-1",
-    from: "Anna <anna@acme.com>",
-    to: ["patrick@nmkr.io"],
-    subject: "Can we meet?",
-    snippet: "Does Thursday work?",
-    receivedAt: "2026-09-25T09:00:00.000Z",
-    unread: true,
-    labels: [],
-    ...overrides,
-  };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   taskFindManyMock.mockResolvedValue([]);
@@ -114,166 +74,9 @@ beforeEach(() => {
   calendarMock.mockResolvedValue([]);
   inboxMock.mockResolvedValue([]);
   chargedMock.mockResolvedValue(new Map());
-  contactLinesMock.mockResolvedValue(new Map());
   turnFindManyMock.mockResolvedValue([]);
   toolCallFindManyMock.mockResolvedValue([]);
   scheduleRunFindFirstMock.mockResolvedValue(null);
-});
-
-describe("meeting prep", () => {
-  // Slot 10:00–10:30 reads meetings starting 10:30–11:00.
-  const slotAt = new Date("2026-10-01T10:00:00.000Z");
-
-  it("briefs an external meeting in its window with mail and related Tasks", async () => {
-    calendarMock.mockResolvedValue([event({})]);
-    inboxMock.mockResolvedValue([message({})]);
-    taskFindManyMock.mockResolvedValue([
-      { id: "task-1", name: "Acme proposal", status: "RUNNING" },
-    ]);
-    const packet = await buildRhythmPacket({
-      key: "meeting-prep",
-      bot,
-      now: slotAt,
-      dayStart: new Date("2026-10-01T00:00:00.000Z"),
-    });
-    expect(packet.skip).toBe(false);
-    const text = packet.lines.join("\n");
-    expect(text).toContain("Intro call");
-    expect(text).toContain("From outside: anna@acme.com");
-    expect(text).toContain("Can we meet?");
-    expect(text).toContain('"Acme proposal"');
-    expect(calendarMock).toHaveBeenCalledWith(gmail, {
-      from: new Date("2026-10-01T10:30:00.000Z"),
-      to: new Date("2026-10-01T11:00:00.000Z"),
-      limit: 10,
-    });
-  });
-
-  it("says who a guest is from Contacts, and only for guests that are contacts", async () => {
-    calendarMock.mockResolvedValue([
-      event({ attendees: ["patrick@nmkr.io", "anna@acme.com", "new@x.io"] }),
-    ]);
-    contactLinesMock.mockResolvedValue(
-      new Map([
-        [
-          "anna@acme.com",
-          'Anna Muster — CEO @ Acme · partner · known by Bob (3) · last: 2 Sept 2026, Bob, meeting "Pilot" (contact c-1)',
-        ],
-      ]),
-    );
-    const packet = await buildRhythmPacket({
-      key: "meeting-prep",
-      bot,
-      now: slotAt,
-      dayStart: new Date("2026-10-01T00:00:00.000Z"),
-    });
-    const text = packet.lines.join("\n");
-    expect(contactLinesMock).toHaveBeenCalledWith({
-      workspaceId: "ws-1",
-      emails: ["anna@acme.com", "new@x.io"],
-      timeZone: "UTC",
-    });
-    expect(text).toContain(
-      "- Contact: Anna Muster — CEO @ Acme · partner · known by Bob (3)",
-    );
-    expect(text).not.toContain("Contact: new@x.io");
-  });
-
-  it("still preps the meeting when the Contacts lookup fails", async () => {
-    calendarMock.mockResolvedValue([event({})]);
-    contactLinesMock.mockRejectedValue(new Error("db down"));
-    const packet = await buildRhythmPacket({
-      key: "meeting-prep",
-      bot,
-      now: slotAt,
-      dayStart: new Date("2026-10-01T00:00:00.000Z"),
-    });
-    expect(packet.skip).toBe(false);
-    expect(packet.lines.join("\n")).toContain("From outside: anna@acme.com");
-  });
-
-  it("searches a year of mail per person and drops calendar notices", async () => {
-    calendarMock.mockResolvedValue([
-      event({
-        attendees: ["patrick@nmkr.io", "ingo@hoc.de", "andric@hoc.de"],
-      }),
-    ]);
-    inboxMock.mockImplementation(async (_integration, options) =>
-      options.query.includes("andric@hoc.de")
-        ? [
-            message({
-              id: "m-2",
-              from: "Andric <andric@hoc.de>",
-              subject: "Re: Masumi deck",
-              receivedAt: "2026-06-02T09:00:00.000Z",
-            }),
-          ]
-        : [
-            message({
-              from: "Ingo <ingo@hoc.de>",
-              subject: "Accepted: Next Steps Masumi @ Thu 2 Oct",
-            }),
-          ],
-    );
-    const packet = await buildRhythmPacket({
-      key: "meeting-prep",
-      bot,
-      now: slotAt,
-      dayStart: new Date("2026-10-01T00:00:00.000Z"),
-    });
-    const text = packet.lines.join("\n");
-    expect(inboxMock).toHaveBeenCalledWith(gmail, {
-      query:
-        "{from:andric@hoc.de to:andric@hoc.de cc:andric@hoc.de} -filename:ics",
-      since: new Date("2025-10-01T10:00:00.000Z"),
-      limit: 8,
-    });
-    expect(text).toContain("Last mail with andric@hoc.de:");
-    expect(text).toContain("Re: Masumi deck");
-    expect(text).toContain("No mail with ingo@hoc.de by address");
-    expect(text).not.toContain("Accepted:");
-  });
-
-  it("searches Outlook by participant", async () => {
-    const outlook = { provider: { id: "outlook" } };
-    integrationsMock.mockResolvedValue([outlook]);
-    calendarMock.mockResolvedValue([event({})]);
-    await buildRhythmPacket({
-      key: "meeting-prep",
-      bot,
-      now: slotAt,
-      dayStart: new Date("2026-10-01T00:00:00.000Z"),
-    });
-    expect(inboxMock).toHaveBeenCalledWith(
-      outlook,
-      expect.objectContaining({ query: "participants:anna@acme.com" }),
-    );
-  });
-
-  it("skips internal meetings and meetings outside the window", async () => {
-    calendarMock.mockResolvedValue([
-      event({ attendees: ["patrick@nmkr.io", "albina@nmkr.io"] }),
-      event({ id: "ev-2", startsAt: "2026-10-01T11:10:00.000Z" }),
-    ]);
-    const packet = await buildRhythmPacket({
-      key: "meeting-prep",
-      bot,
-      now: slotAt,
-      dayStart: new Date("2026-10-01T00:00:00.000Z"),
-    });
-    expect(packet).toEqual({ lines: [], skip: true });
-  });
-
-  it("skips without a calendar", async () => {
-    integrationsMock.mockResolvedValue([]);
-    const packet = await buildRhythmPacket({
-      key: "meeting-prep",
-      bot,
-      now: slotAt,
-      dayStart: slotAt,
-    });
-    expect(packet.skip).toBe(true);
-  });
 });
 
 describe("end of day", () => {
@@ -538,6 +341,7 @@ describe("dreaming", () => {
         source: "SCHEDULE",
         status: "FAILED",
         errorKind: "timeout",
+        errorDetail: "Raw turn provider diagnostic",
         userMessage: "Weekly wrap…",
       }),
     ]);
@@ -551,6 +355,7 @@ describe("dreaming", () => {
     expect(text).not.toContain("secret packet");
     expect(text).toContain("## Turns that failed");
     expect(text).toContain("schedule: timeout");
+    expect(text).not.toContain("Raw turn provider diagnostic");
   });
 
   it("groups failing tools so a repeat shows, and lists weak answers and saved attachments", async () => {
@@ -568,12 +373,12 @@ describe("dreaming", () => {
             {
               capability: "read_email",
               errorKind: "provider_error",
-              errorDetail: "429",
+              errorDetail: "Raw tool provider diagnostic",
             },
             {
               capability: "read_email",
               errorKind: "provider_error",
-              errorDetail: "429",
+              errorDetail: "Raw tool provider diagnostic",
             },
           ]
         : [
@@ -582,7 +387,8 @@ describe("dreaming", () => {
           ],
     );
     const text = (await dream()).lines.join("\n");
-    expect(text).toContain("- read_email (provider_error) ×2: 429");
+    expect(text).not.toContain("Raw tool provider diagnostic");
+    expect(text).toContain("- read_email (provider_error) ×2");
     expect(text).toContain(
       "fail: Claimed a Task was created without a tool result",
     );

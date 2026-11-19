@@ -67,7 +67,6 @@ const NOT_YET_COVERED = new Set([
   "list_background_runs",
   "list_contact_lists",
   "list_integration_tools",
-  "list_integrations",
   "list_newsletter_issues",
   "list_newsletter_subscribers",
   "list_skills",

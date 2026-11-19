@@ -1,5 +1,6 @@
 import { generateText, Output } from "ai";
 import type { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
@@ -37,7 +38,7 @@ export const askCompetitorModel: AskCompetitorModel = async ({
     prompt,
     maxOutputTokens: 1_500,
     abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  }).catch((error: unknown) => rethrowAiGatewayFailure(error, "cmo"));
   return {
     output: result.output,
     costUsd: gatewayCostUsd(result.providerMetadata),

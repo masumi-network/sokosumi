@@ -251,7 +251,7 @@ import SwiftUI
           }
           if !row.isContinuation {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-              ParticipantProfileButton(sender: message.sender) {
+              ParticipantProfileButton(sender: message.sender, showsAgentMark: true) {
                 Text(messageSenderName(message.sender))
                   .fontWeight(.semibold)
                   .foregroundStyle(.primary)

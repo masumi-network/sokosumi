@@ -147,6 +147,7 @@ describe("Soko Bot contacts tools", () => {
         {
           id: contactId,
           name: "Nina Keller",
+          link: `/contacts?contact=${contactId}&workspace=${workspaceId}`,
           kind: "PERSON",
           organization: "Acme",
           role: null,
@@ -179,6 +180,14 @@ describe("Soko Bot contacts tools", () => {
     });
     expect(authority).not.toHaveBeenCalled();
     expect(mocks.receipt).not.toHaveBeenCalled();
+  });
+
+  it("returns the detail link for the contact the member read", async () => {
+    mocks.getContactDetail.mockResolvedValue(contact);
+    expect(await runtime().run("get_contact", { contactId })).toEqual({
+      ...contact,
+      link: `/contacts?contact=${contactId}&workspace=${workspaceId}`,
+    });
   });
 
   it("refuses a turn whose member lost the workspace", async () => {

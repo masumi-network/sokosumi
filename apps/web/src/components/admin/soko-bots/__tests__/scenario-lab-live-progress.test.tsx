@@ -109,6 +109,34 @@ describe("ScenarioLab live progress", () => {
     expect(screen.getByText("liveRoute")).toBeInTheDocument();
   });
 
+  it("shows the failed step's diagnostic from the admin turn read", async () => {
+    startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });
+    const adminUrl = "/api/admin/soko-bots/turns/turn_1";
+    const diagnostic = "Provider rejected the tool call (HTTP 429)";
+    const fetchMock = vi.fn(async (url: string) =>
+      Response.json({
+        turn: turn("RUNNING", [
+          {
+            id: "call-1",
+            capability: "read_email",
+            status: "FAILED",
+            errorDetail: url === adminUrl ? diagnostic : null,
+          },
+        ]),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<ScenarioLab versionId="v11" versions={VERSIONS} />, {
+      wrapper: withNuqsTestingAdapter({}),
+    });
+    const [runButton] = await screen.findAllByRole("button", { name: "run" });
+    fireEvent.click(runButton);
+
+    await screen.findByText("read_email");
+    expect(fetchMock).toHaveBeenCalledWith(adminUrl, expect.anything());
+    expect(screen.getByText(diagnostic)).toBeInTheDocument();
+  });
+
   it("stops polling the turn once the lab closes", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout"] });
     startTurnMock.mockResolvedValue({ ok: true, value: { turnId: "turn_1" } });

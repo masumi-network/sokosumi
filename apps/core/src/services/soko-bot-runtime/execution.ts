@@ -526,7 +526,7 @@ export async function executeTool(
           ? externalActionReceipt(input.capability, result)
           : {}),
         status: "COMPLETED",
-        result: persistedToolResult(result ?? null),
+        result: persistedToolResult(result ?? null, input.capability),
       },
     });
     return result;

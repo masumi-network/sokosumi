@@ -13,6 +13,7 @@ import {
   getAdminSokoBotFleetDays as coreGetAdminSokoBotFleetDays,
   getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
+  getAdminSokoBotTurn as coreGetAdminSokoBotTurn,
   getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminWritingSkills as coreGetAdminWritingSkills,
   listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
@@ -137,6 +138,19 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
       (client) =>
         coreGetAdminSokoBot({ client, path: { sokoBotId }, cache: "no-store" }),
       "Failed to fetch Soko Bot",
+    );
+  }
+
+  async function getAdminSokoBotTurn(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotTurn({
+          client,
+          path: { turnId },
+          cache: "no-store",
+        }),
+      "Failed to fetch admin Soko Bot turn",
     );
   }
 
@@ -267,6 +281,7 @@ export function createSokoBotAdminClient(getClient: GetCoreClient) {
     getAdminWritingSkills,
     getAdminSokoBotFleetDays,
     getAdminSokoBot,
+    getAdminSokoBotTurn,
     listAdminSokoBotChats,
     listAdminSokoBotChatMessages,
     performAdminSokoBotAction,

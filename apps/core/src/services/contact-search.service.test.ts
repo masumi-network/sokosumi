@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
+import prisma from "@/lib/db/prisma";
 
 vi.mock("@/lib/db/prisma", () => ({ default: { $queryRaw: vi.fn() } }));
 
@@ -18,6 +20,18 @@ function errorWithThrowingGetters(): Error {
 }
 
 describe("rankContacts when the query cannot be embedded", () => {
+  it("keeps word matches after a budget refusal without reporting another error", async () => {
+    vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
+      { contactId: "contact-1", method: "words", rank: 1 },
+    ]);
+    const embed = vi.fn().mockRejectedValue(new AiGatewayBudgetError());
+
+    await expect(
+      rankContacts("workspace-1", "jane", { embed }),
+    ).resolves.toEqual([{ id: "contact-1", score: 1 / 61 }]);
+    expectCoreLog("error", "Could not embed a contact search query", 0);
+  });
+
   it("still answers without meaning matches when reading the error throws", async () => {
     const errors = expectCoreLog(
       "error",

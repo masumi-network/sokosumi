@@ -11,6 +11,6 @@
 
 **They expect**
 
-- To see work happening within seconds, and a finished read in a few minutes.
+- To see work happening within seconds, and a finished read in a few minutes. Recent progress keeps the research running even when the server clocks differ.
 - Questions that make sense for their business, never about things the site already says.
 - No Sokosumi name anywhere; nothing to pay yet.

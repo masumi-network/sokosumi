@@ -1,5 +1,14 @@
 import { createHash } from "node:crypto";
-import type { AiGatewayPurpose } from "@/lib/ai-gateway-purpose";
+import { RetryError } from "ai";
+import {
+  aiGatewayBudgetScope,
+  aiGatewayBudgetScopeFromBody,
+  GATEWAY_INTERNAL_SERVER_ERROR,
+} from "@/lib/ai-gateway-budget-error";
+import {
+  type AiGatewayPurpose,
+  aiGatewayApiKey,
+} from "@/lib/ai-gateway-purpose";
 import { recordCoreError, recordCoreWarning } from "@/lib/evlog";
 import { incrementRedisRateLimit } from "@/lib/redis-rate-limit";
 
@@ -8,6 +17,55 @@ export const AI_BUDGET_EXCEEDED_MESSAGE =
   "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.";
 const ALERT_WINDOW_SECONDS = 60 * 60;
 const localAlertExpiresAt = new Map<string, number>();
+
+export class AiGatewayBudgetError extends Error {
+  readonly code = AI_BUDGET_EXCEEDED;
+
+  constructor() {
+    super(AI_BUDGET_EXCEEDED_MESSAGE);
+    this.name = "AiGatewayBudgetError";
+  }
+}
+
+/** Use at the SDK call boundary, before applying a caller's failure policy. */
+export async function rethrowAiGatewayFailure(
+  error: unknown,
+  purpose: AiGatewayPurpose = "default",
+): Promise<never> {
+  const failure = RetryError.isInstance(error) ? error.lastError : error;
+  if (
+    failure instanceof Error &&
+    failure.name === GATEWAY_INTERNAL_SERVER_ERROR
+  ) {
+    const scope = aiGatewayBudgetScope(failure.message);
+    if (scope) {
+      await reportAiGatewayBudgetFailure(
+        scope,
+        purpose,
+        aiGatewayApiKey(purpose),
+      );
+      throw new AiGatewayBudgetError();
+    }
+  }
+  throw error;
+}
+
+/** A direct HTTP caller keeps its own fallback for other non-OK responses. */
+export async function reportAiGatewayBudgetResponse(
+  response: Response,
+  apiKey: string | undefined,
+): Promise<typeof AI_BUDGET_EXCEEDED | undefined> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return;
+  }
+  const scope = aiGatewayBudgetScopeFromBody(body);
+  if (!scope) return;
+  await reportAiGatewayBudgetFailure(scope, "default", apiKey);
+  return AI_BUDGET_EXCEEDED;
+}
 
 export async function reportAiGatewayBudgetFailure(
   scope: "key" | "team",

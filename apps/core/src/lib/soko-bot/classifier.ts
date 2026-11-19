@@ -6,6 +6,7 @@ import type {
   TurnClassification,
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -25,7 +26,7 @@ import { JEV_PROVIDER_OPTIONS, SOKO_BOT_JEV_MODEL } from "./jev";
  */
 export const SOKO_BOT_ROUTE_MODEL = SOKO_BOT_JEV_MODEL;
 const CLASSIFIER_VERSION = "soko-bot-classifier-jev-seo-v2";
-const PRESET_VERSION = "soko-bot-system-route-v1";
+export const PRESET_VERSION = "soko-bot-system-route-v1";
 /**
  * Jev answers in ~350 ms but an occasional call hangs; two short attempts
  * recover that inside the old single 8 s budget.
@@ -173,7 +174,8 @@ export interface ClassifierUsage {
 }
 
 export interface ClassificationResult {
-  classification: TurnClassification;
+  classification: TurnClassification &
+    Pick<PresetRoute, "systemKey" | "meetingPrepSlot">;
   model: string | null;
   version: string;
   latencyMs: number;
@@ -183,6 +185,9 @@ export interface ClassificationResult {
 
 /** A route Core chose itself for a turn whose prompt it wrote. */
 export interface PresetRoute {
+  systemKey?: "meeting-prep";
+  /** Original slot for a meeting brief rebuilt from its calendar evidence. */
+  meetingPrepSlot?: string;
   route: SokoBotRoute;
   writeScope?: NonNullable<TurnClassification["writeScope"]>;
   reason: string;
@@ -206,6 +211,10 @@ export function presetClassificationResult(
   return {
     classification: {
       ...baseClassification(preset.route, message, preset.reason, 1),
+      ...(preset.systemKey ? { systemKey: preset.systemKey } : {}),
+      ...(preset.meetingPrepSlot
+        ? { meetingPrepSlot: preset.meetingPrepSlot }
+        : {}),
       ...(preset.writeScope ? { writeScope: preset.writeScope } : {}),
     },
     model: null,
@@ -272,7 +281,7 @@ const evaluateWithJev: RouteEvaluator = async ({
     abortSignal,
     maxRetries: 0,
     providerOptions: JEV_PROVIDER_OPTIONS,
-  });
+  }).catch(rethrowAiGatewayFailure);
   return {
     answers: result.answers,
     usage: result.usage,

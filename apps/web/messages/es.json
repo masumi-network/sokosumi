@@ -1,5 +1,12 @@
 {
   "Components": {
+    "ContactMention": {
+      "merged": "Este contacto se ha fusionado.",
+      "loading": "Cargando contacto…",
+      "unavailable": "Los datos del contacto no están disponibles.",
+      "otherWorkspace": "Este contacto está en otro espacio de trabajo.",
+      "open": "Abrir en Contactos"
+    },
     "SokoBotTurnFailure": {
       "aiBudgetExceeded": "Tu asistente ha alcanzado su límite de uso. Podrá volver a responder cuando se aumente o se restablezca el límite.",
       "generic": "Algo salió mal de nuestro lado. Inténtalo de nuevo. Si el problema persiste, contacta con el equipo de soporte.",
@@ -5961,7 +5968,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, etiquetas, trabajos, resultados de trabajos, imágenes o archivos",
+      "description": "Buscar tareas, etiquetas, personas, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
@@ -5970,6 +5977,11 @@
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
       "filesFilenameMatch": "Coincide el nombre",
+      "peopleGroup": "Personas",
+      "copyEmail": "Copiar {email}",
+      "emailCopied": "Correo copiado",
+      "emailCopyFailed": "No se pudo copiar el correo",
+      "mentionInTask": "Mencionar a {name} en una nueva tarea",
       "tagsGroup": "Etiquetas",
       "tagTasksGroup": "Tareas con la etiqueta {tag}",
       "tagsError": "No se pudieron cargar las etiquetas",
@@ -9564,6 +9576,7 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
+      "aiAgentSender": "{name} (agente de IA)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Asistente personal",
       "openDirectMessage": "Mensaje",
@@ -11763,6 +11776,10 @@
       "searching": "Buscando proyectos..."
     },
     "Contacts": {
+      "workspaceSwitch": {
+        "title": "Este contacto está en otro espacio de trabajo",
+        "description": "Cambia a {account} para abrir este contacto."
+      },
       "Metadata": {
         "title": "Contactos",
         "description": "Todas las personas que conoce tu equipo, con cada forma de contactarlas."

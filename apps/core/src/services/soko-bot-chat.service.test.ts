@@ -51,6 +51,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
+        $queryRaw: async () => [{ now: new Date("2026-09-07T10:01:00Z") }],
         sokoBotToolCall: { findMany: previewCalls },
         sokoBotTurn: { findUnique: turnFindUnique },
         chatRoomMention: { updateMany: mentionUpdateMany },
@@ -157,6 +158,13 @@ beforeEach(() => {
 });
 
 describe("persistSokoBotChatTurn", () => {
+  it("uses PostgreSQL time for the Thought end when a legacy completed row has no completion stamp", async () => {
+    turnFindUnique.mockResolvedValue(completedTurn({ completedAt: null }));
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(
+      messageUpdate.mock.calls[0][0].data.metadata.thought_timing_ms.end,
+    ).toBe(Date.parse("2026-09-07T10:01:00Z"));
+  });
   it("persists a successful response once and preserves its completion clock on retry", async () => {
     mentionUpdateMany
       .mockResolvedValueOnce({ count: 1 })

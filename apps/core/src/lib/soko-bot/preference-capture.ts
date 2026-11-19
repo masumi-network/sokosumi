@@ -5,6 +5,7 @@ import {
   SOKO_BOT_MEMORY_LIMITS,
 } from "@sokosumi/soko-bot";
 import { generateText } from "ai";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { createCoreLogger } from "@/lib/evlog";
@@ -48,7 +49,7 @@ const defaultDeps: PreferenceCaptureDeps = {
       prompt,
       maxOutputTokens: 600,
       abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    }).catch(rethrowAiGatewayFailure);
     return {
       text: result.text,
       costUsd: gatewayCostUsd(result.providerMetadata),

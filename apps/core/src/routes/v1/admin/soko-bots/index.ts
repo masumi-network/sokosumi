@@ -12,6 +12,7 @@ import mountGetAdminSokoBotFleetDays from "./daily/get.js";
 import mountGetAdminSokoBotModelEvaluations from "./evaluations/get.js";
 import mountListAdminSokoBots from "./get.js";
 import mountGetAdminSokoBotQuality from "./quality/get.js";
+import mountGetAdminSokoBotTurn from "./turns/[turnId]/get.js";
 import mountArchiveAdminSokoBotVersion from "./versions/[slug]/delete.js";
 import mountUpdateAdminSokoBotVersion from "./versions/[slug]/patch.js";
 import mountPromoteAdminSokoBotVersion from "./versions/[slug]/promote/post.js";
@@ -44,6 +45,7 @@ mountMigrateAdminSokoBotVersions(app);
 mountListAdminSokoBotChats(app);
 mountListAdminSokoBotChatMessages(app);
 mountGetAdminSokoBot(app);
+mountGetAdminSokoBotTurn(app);
 mountPerformAdminSokoBotAction(app);
 mountSetAdminSokoBotAvatarCode(app);
 

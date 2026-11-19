@@ -19,7 +19,11 @@ import type {
   SokoBotVersionList,
   SokoBotVersionWrite,
 } from "@sokosumi/core-client";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import {
+  CoreApiRequestError,
+  coreClient,
+  coreClientNoRedirect,
+} from "@/lib/clients/core.client";
 
 export interface ListAdminSokoBotsParams {
   query?: string;
@@ -174,6 +178,11 @@ export const adminSokoBotService = {
       }
       throw error;
     }
+  },
+
+  async getLabTurn(turnId: string) {
+    const { data } = await coreClientNoRedirect.getAdminSokoBotTurn(turnId);
+    return data;
   },
 
   /** The bot's direct chats, newest first; read-only for support. */

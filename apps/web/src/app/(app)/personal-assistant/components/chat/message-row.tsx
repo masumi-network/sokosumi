@@ -4,12 +4,12 @@ import { ArrowUpRight, Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
-
 import {
   ProjectSelectionMessage,
   readProjectSelectionReply,
 } from "@/components/chat/project-selection-message";
 import { ResultPreviews } from "@/components/chat/result-previews";
+import { ContactMentionScope } from "@/components/contact-mention-card";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatDelegation, ChatTurn } from "@/lib/soko-bot/chat-state";
@@ -283,9 +283,11 @@ export function TurnRows({
           />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             {turn.finalAnswer ? (
-              <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
-                {turn.finalAnswer}
-              </Markdown>
+              <ContactMentionScope>
+                <Markdown className="text-foreground pt-1 pr-10 pb-1 text-sm">
+                  {turn.finalAnswer}
+                </Markdown>
+              </ContactMentionScope>
             ) : turn.status === "FAILED" ? (
               <p className="text-semantic-destructive pt-1 pr-10 text-sm">
                 {turn.errorKind === "ai_budget_exceeded"

@@ -17,16 +17,15 @@ import {
 } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
-import { aiGatewayBudgetScope } from "@/lib/ai-gateway-budget-error";
+import { aiGatewayBudgetScopeFromBody } from "@/lib/ai-gateway-budget-error";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
   actionInputHash,
 } from "@/lib/soko-bot/action-receipts";
-import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
-import { withCmoReplyLanguage } from "@/lib/soko-bot/cmo-reply-language";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -64,8 +63,8 @@ import {
   sokoBotMaxSteps,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { modelUserMessage } from "@/lib/soko-bot/turn-model-context";
 import { wellFormed } from "@/lib/soko-bot/well-formed";
-import { withTurnSkills } from "@/services/chat-message-skills.service";
 import {
   type SokoBotSandboxShell,
   sandboxShellFor,
@@ -152,9 +151,10 @@ async function authorizeTurn(claims: TurnTokenClaims) {
 }
 
 export interface SandboxTurnStart
-  extends Omit<PreparedTurn, "inferenceRegion"> {
+  extends Omit<PreparedTurn, "inferenceRegion" | "meetingPrep"> {
   message: string;
   deadlineAt: string;
+  budgetMs: number;
   maxSteps: number;
   background: boolean;
   /** The owner's setup commands and allowed keys, when this turn has a shell. */
@@ -189,21 +189,23 @@ export async function startSandboxTurn(
     },
   });
   await announceTurn(logFor(claims), stored.userMessage);
-  const { inferenceRegion: _region, ...turn } = prepared;
+  const {
+    inferenceRegion: _region,
+    meetingPrep: _meetingPrep,
+    ...turn
+  } = prepared;
   const shell = await sandboxShellFor(stored.sokoBotId, turn.capabilities);
   const shellNote = shell ? sandboxShellNote(shell) : null;
-  const message = await withCmoReplyLanguage(
-    claims.turnId,
-    await withActiveBackgroundRuns(
-      claims.turnId,
-      await withTurnSkills(claims.turnId, stored.userMessage),
-    ),
-  );
+  const message = await modelUserMessage(prepared, stored.userMessage);
   return {
     ...turn,
     message: shellNote ? `${message}\n\n${shellNote}` : message,
     ...(shell ? { shell } : {}),
     deadlineAt: stored.deadlineAt.toISOString(),
+    budgetMs: Math.max(
+      30_000,
+      stored.deadlineAt.getTime() - (await databaseNow()).getTime() - 20_000,
+    ),
     maxSteps: sokoBotMaxSteps(
       stored.deadlineAt.getTime() - stored.createdAt.getTime(),
     ),
@@ -562,13 +564,7 @@ function gatewayStreamParts(
 
 function gatewayBudgetScopeFromResponse(text: string) {
   try {
-    const error = asRecord(asRecord(JSON.parse(text))?.error);
-    if (
-      error?.type === "internal_server_error" ||
-      error?.type === "quota_for_entity_exceeded"
-    ) {
-      return aiGatewayBudgetScope(error.message);
-    }
+    return aiGatewayBudgetScopeFromBody(JSON.parse(text));
   } catch {
     // Non-JSON upstream failures are passed through to the SDK.
   }

@@ -15,6 +15,9 @@ vi.mock("@/lib/db/prisma", () => ({
     sokoBotTurn: { findMany: flaggedMock },
   },
 }));
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
 vi.mock("ai", () => ({
   experimental_evaluate: evaluateMock,
   gateway: { evaluationModel: vi.fn() },

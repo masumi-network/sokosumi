@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { databaseNow } from "@/lib/db/database-now";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import {
@@ -29,7 +30,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(cmoSpendRoute, async (c) => {
     requireAdminAuthContext(c.var.authContext);
     const { days } = c.req.valid("query");
-    const since = new Date(Date.now() - days * DAY_MS);
+    const since = new Date((await databaseNow()).getTime() - days * DAY_MS);
     return ok(
       c,
       adminCmoSpendSchema.parse({

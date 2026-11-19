@@ -130,16 +130,17 @@ export default async function AuthenticatedAppFrame({
               >
                 <NotificationToaster />
                 <AccountNoticeToast />
-                <HistorySearchDialogProvider
-                  activeOrganizationId={activeOrganizationId}
-                >
-                  {/* Sidebar "New Task" opens the wizard in place, so the
-                    provider wraps sidebar and content. */}
-                  <AuthenticatedRoomCache
-                    currentUserId={session.user.id}
-                    workspaceId={activeOrganizationId}
+                {/* Sidebar "New Task" opens the wizard in place, so the
+                  provider wraps sidebar and content; Search's "Mention in
+                  a new Task" opens it too, so it wraps Search as well. */}
+                <NewTaskWizardProvider>
+                  <HistorySearchDialogProvider
+                    activeOrganizationId={activeOrganizationId}
                   >
-                    <NewTaskWizardProvider>
+                    <AuthenticatedRoomCache
+                      currentUserId={session.user.id}
+                      workspaceId={activeOrganizationId}
+                    >
                       {/* The sidebar header and the phone's top bar each
                           place a switcher trigger; this owns what is behind
                           them, once. */}
@@ -222,9 +223,9 @@ export default async function AuthenticatedAppFrame({
                           </div>
                         </div>
                       </WorkspaceSwitcherProvider>
-                    </NewTaskWizardProvider>
-                  </AuthenticatedRoomCache>
-                </HistorySearchDialogProvider>
+                    </AuthenticatedRoomCache>
+                  </HistorySearchDialogProvider>
+                </NewTaskWizardProvider>
               </NoticeDialogProvider>
             </AccountNoticeProvider>
           </OrgPresenceProvider>
