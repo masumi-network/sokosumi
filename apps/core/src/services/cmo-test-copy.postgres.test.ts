@@ -47,8 +47,13 @@ import {
   CmoForbiddenError,
 } from "@/services/cmo-cuso.service";
 import {
+  checkTestCopy,
+  checkTestCopyFor,
   linkTestCopyConnections,
   requireTestCopySource,
+  tearDownExpiredTestCopies,
+  tearDownTestCopy,
+  tearDownTestCopyFor,
   testCopySourceBotId,
 } from "@/services/cmo-test-copy.service";
 import { mayApproveMarketingStrategy } from "@/services/marketing-strategy.service";
@@ -60,6 +65,7 @@ import {
 } from "@/services/project-social-connections.service";
 import {
   madeTestCopy,
+  TEST_COPY_LIFETIME_MS,
   TEST_COPY_SCHEDULE_FLOOR_MESSAGE,
 } from "@/services/project-test-copy";
 import {
@@ -215,6 +221,7 @@ describe.skipIf(!enabled)("CMO test copy against PostgreSQL", () => {
     vi.clearAllMocks();
     for (const { organizationId, workspaceId } of organizations.splice(0)) {
       await prisma.socialPost.deleteMany({ where: { workspaceId } });
+      await prisma.sokoBotTurn.deleteMany({ where: { workspaceId } });
       await prisma.sokoBot.deleteMany({ where: { workspaceId } });
       await prisma.project.deleteMany({ where: { workspaceId } });
       await prisma.workspace.deleteMany({ where: { id: workspaceId } });
@@ -399,6 +406,149 @@ describe.skipIf(!enabled)("CMO test copy against PostgreSQL", () => {
     expect((await schedule(source.projectId, real, hours(1))).status).toBe(
       "SCHEDULED",
     );
+  });
+
+  /** A copy at work: two unsent posts, one canceled before, a queued run. */
+  async function seedCopyAtWork() {
+    const seeded = await seedSourceAndCopy();
+    const { organization, copy } = seeded;
+    const [link] = await connectionsOf(copy.projectId);
+    const post = (status: "SCHEDULED" | "DRAFT" | "CANCELED") =>
+      prisma.socialPost.create({
+        data: {
+          projectId: copy.projectId,
+          workspaceId: organization.workspaceId,
+          socialConnectionId: link?.id ?? null,
+          provider: "x",
+          text: `A ${status} post`,
+          status,
+          scheduledAt: new Date(Date.now() + 13 * 60 * 60 * 1_000),
+          creatorUserId: organization.ownerId,
+        },
+      });
+    await post("SCHEDULED");
+    await post("DRAFT");
+    await post("CANCELED");
+    await prisma.sokoBotTurn.create({
+      data: {
+        sokoBotId: copy.sokoBotId,
+        workspaceId: organization.workspaceId,
+        source: "SCHEDULE",
+        clientTurnId: `test-copy-${randomUUID()}`,
+        requestedByUserId: organization.ownerId,
+        userMessage: "Make the month",
+        capabilityNames: [],
+        status: "QUEUED",
+        deadlineAt: new Date(Date.now() + 60 * 60 * 1_000),
+      },
+    });
+    return seeded;
+  }
+
+  it("tears a copy down in one call, leaves nothing, and never touches the source", async () => {
+    const { source, copy } = await seedCopyAtWork();
+    const sourceBefore = await connectionsOf(source.projectId);
+
+    const first = await tearDownTestCopy(copy.projectId);
+
+    expect(first.removed).toEqual({
+      canceledPosts: 2,
+      unlinkedAccounts: 2,
+      stoppedTurns: 1,
+      archivedCuso: true,
+    });
+    expect(first.check).toMatchObject({
+      clean: true,
+      left: {
+        unsentPosts: 0,
+        linkedAccounts: 0,
+        activeTurns: 0,
+        liveCuso: false,
+      },
+      publishedPosts: 0,
+      providerRevocations: 0,
+      sourceProjectId: source.projectId,
+    });
+    expect(first.check.tornDownAt).toBeInstanceOf(Date);
+    // The source keeps its accounts and its Cuso, and no provider was asked.
+    expect(await connectionsOf(source.projectId)).toEqual(sourceBefore);
+    expect(
+      await prisma.sokoBot.findUnique({
+        where: { id: source.sokoBotId },
+        select: { archivedAt: true },
+      }),
+    ).toEqual({ archivedAt: null });
+    expect(provider.revokeComposio).not.toHaveBeenCalled();
+    expect(provider.deleteZernioProfile).not.toHaveBeenCalled();
+    expect(
+      await prisma.socialPost.groupBy({
+        by: ["status"],
+        where: { projectId: copy.projectId },
+        _count: true,
+      }),
+    ).toEqual([{ status: "CANCELED", _count: 3 }]);
+
+    // Again: nothing more to remove, the same answer.
+    const second = await tearDownTestCopy(copy.projectId);
+    expect(second.removed).toEqual({
+      canceledPosts: 0,
+      unlinkedAccounts: 0,
+      stoppedTurns: 0,
+      archivedCuso: false,
+    });
+    expect(second.check).toEqual(first.check);
+  });
+
+  it("tears down by itself a copy older than six hours, and no younger one", async () => {
+    const old = await seedCopyAtWork();
+    const young = await seedCopyAtWork();
+    await prisma.project.update({
+      where: { id: old.copy.projectId },
+      data: { createdAt: new Date(Date.now() - TEST_COPY_LIFETIME_MS - 1_000) },
+    });
+
+    // Other suites may leave expired copies in a shared database.
+    expect((await tearDownExpiredTestCopies()).tornDown).toBeGreaterThan(0);
+
+    expect((await checkTestCopy(old.copy.projectId)).clean).toBe(true);
+    expect(await checkTestCopy(young.copy.projectId)).toMatchObject({
+      clean: false,
+      tornDownAt: null,
+      left: { unsentPosts: 2, linkedAccounts: 2, liveCuso: true },
+    });
+  });
+
+  it("lets an owner or whoever made the copy tear it down, no other member", async () => {
+    const organization = await seedOrganization();
+    const source = await seedCuso(organization);
+    const tester = await seedMember(organization.organizationId, TESTER_EMAIL);
+    const member = await seedMember(organization.organizationId);
+    const copy = await seedCuso(organization, {
+      testCopyOf: source.projectId,
+      hiredBy: tester,
+    });
+
+    await expect(
+      tearDownTestCopyFor({ userId: member, projectId: copy.projectId }),
+    ).rejects.toBeInstanceOf(CmoForbiddenError);
+    // A real Cuso's Project is not a test copy, whoever asks.
+    await expect(
+      tearDownTestCopyFor({
+        userId: organization.ownerId,
+        projectId: source.projectId,
+      }),
+    ).rejects.toThrow("That Project is not a test copy");
+    // The member may still read what is left.
+    expect(
+      (await checkTestCopyFor({ userId: member, projectId: copy.projectId }))
+        .clean,
+    ).toBe(false);
+
+    const report = await tearDownTestCopyFor({
+      userId: tester,
+      projectId: copy.projectId,
+    });
+    expect(report.check.clean).toBe(true);
   });
 
   it("refuses a new sign-in on a test copy", async () => {

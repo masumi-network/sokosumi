@@ -56833,6 +56833,108 @@ export const CmoCustomerPortalSchema = {
     ]
 } as const;
 
+export const CmoTestCopyCheckSchema = {
+    type: 'object',
+    properties: {
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The Project whose connected accounts the copy uses.'
+        },
+        tornDownAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time'
+        },
+        clean: {
+            type: 'boolean',
+            description: 'Nothing is left: no unsent post, linked account, run or Cuso.'
+        },
+        left: {
+            type: 'object',
+            properties: {
+                unsentPosts: {
+                    type: 'integer'
+                },
+                linkedAccounts: {
+                    type: 'integer'
+                },
+                activeTurns: {
+                    type: 'integer'
+                },
+                liveCuso: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'unsentPosts',
+                'linkedAccounts',
+                'activeTurns',
+                'liveCuso'
+            ]
+        },
+        publishedPosts: {
+            type: 'integer',
+            description: 'Posts of the copy that went out. Always 0.'
+        },
+        providerRevocations: {
+            type: 'integer',
+            description: 'Accounts ended at the provider through the copy. Always 0.'
+        }
+    },
+    required: [
+        'projectId',
+        'sourceProjectId',
+        'tornDownAt',
+        'clean',
+        'left',
+        'publishedPosts',
+        'providerRevocations'
+    ]
+} as const;
+
+export const CmoTestCopyTeardownSchema = {
+    type: 'object',
+    properties: {
+        removed: {
+            type: 'object',
+            properties: {
+                canceledPosts: {
+                    type: 'integer'
+                },
+                unlinkedAccounts: {
+                    type: 'integer'
+                },
+                stoppedTurns: {
+                    type: 'integer'
+                },
+                archivedCuso: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'canceledPosts',
+                'unlinkedAccounts',
+                'stoppedTurns',
+                'archivedCuso'
+            ]
+        },
+        check: {
+            $ref: '#/components/schemas/CmoTestCopyCheck'
+        }
+    },
+    required: [
+        'removed',
+        'check'
+    ]
+} as const;
+
 export const CmoTimeZoneSchema = {
     type: 'object',
     properties: {
