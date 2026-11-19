@@ -23,6 +23,8 @@ const verdictSchema = z.object({
   extraMarks: z.boolean(),
   cornerClear: z.boolean(),
   garbled: z.boolean(),
+  /** What it shows of the brand's own pictures matches them; true without any. */
+  screenFaithful: z.boolean(),
   problems: z.array(z.string()),
 });
 
@@ -38,7 +40,12 @@ Answer each field from what you see:
 - extraMarks: true when it shows any logo, brand mark, emblem, coin or currency symbol (bitcoin and the like), signature or watermark that was not asked for.
 - cornerClear: true when the lower-right corner is plain enough to place a small logo on without covering anything important.
 - garbled: true for fake lettering, misspellings or unreadable glyphs.
+- screenFaithful: true when no further images are given, or the picture shows nothing of them. Otherwise true only when what it shows of the brand's site, screen or product matches them: no price, number, plan name, label or interface detail they do not show.
 - problems: short reasons for each failure, empty when it passes.`;
+
+/** Added when the picture was made from the brand's own pictures too. */
+const BRAND_PICTURES = `
+Images after the second are the brand's own pictures (its site, a screen, its product), which the picture was told to show inside the style. Words, numbers and the brand's own logo that stand in them may appear in the picture as part of that page, screen or product: they do not count against headlineCorrect, are not extraMarks and are not garbled when they read as in the brand's picture. Every other rule stays.`;
 
 async function jpeg(bytes: Uint8Array): Promise<Buffer> {
   return sharp(bytes)
@@ -57,7 +64,8 @@ export function styleCheckPasses(verdict: StyleCheckVerdict): boolean {
     verdict.brandColours &&
     !verdict.extraMarks &&
     verdict.cornerClear &&
-    !verdict.garbled
+    !verdict.garbled &&
+    verdict.screenFaithful
   );
 }
 
@@ -71,15 +79,18 @@ export async function checkStyledPicture(input: {
   reference: Uint8Array;
   headline: string | null;
   colours: readonly string[];
+  /** The brand's own pictures it was made from, shown inside the style. */
+  brandPictures?: readonly Uint8Array[];
 }): Promise<{ verdict: StyleCheckVerdict; passes: boolean; costUsd: number }> {
-  const [picture, reference] = await Promise.all([
-    jpeg(input.picture),
-    jpeg(input.reference),
-  ]);
+  const [picture, reference, ...brandPictures] = await Promise.all(
+    [input.picture, input.reference, ...(input.brandPictures ?? [])].map(jpeg),
+  );
+  if (!picture || !reference)
+    throw new Error("A style check needs both images");
   const result = await generateText({
     model: gateway(STYLE_CHECK_MODEL),
     output: Output.object({ schema: verdictSchema }),
-    system: RUBRIC,
+    system: brandPictures.length > 0 ? RUBRIC + BRAND_PICTURES : RUBRIC,
     maxRetries: 1,
     abortSignal: AbortSignal.timeout(60_000),
     messages: [
@@ -95,6 +106,11 @@ export async function checkStyledPicture(input: {
           },
           { type: "file", mediaType: "image/jpeg", data: picture },
           { type: "file", mediaType: "image/jpeg", data: reference },
+          ...brandPictures.map((data) => ({
+            type: "file" as const,
+            mediaType: "image/jpeg",
+            data,
+          })),
         ],
       },
     ],

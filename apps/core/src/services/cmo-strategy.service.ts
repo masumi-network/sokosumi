@@ -43,6 +43,7 @@ import {
   requireCuso,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
+import { cmoPictureStyleProblem } from "@/services/cmo-media-maker.service";
 import {
   cmoPlanRulesBrokenSince,
   WEEKLY_STRATEGY_SKILL,
@@ -54,11 +55,13 @@ import {
   isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
+  parseSocialPostPlanning,
   planMarketingStrategyPosts,
   STRATEGY_TURN_PREFIX,
   sameTitle,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
+import { referenceLibraryAvailable } from "@/services/reference-library.service";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -845,6 +848,7 @@ async function keepFilePieces(
               sentEntry.styleReferenceId ?? entry.styleReferenceId,
             headline: sentEntry.headline ?? entry.headline,
             slides: sentEntry.slides ?? entry.slides,
+            slideHeadlines: sentEntry.slideHeadlines ?? entry.slideHeadlines,
           }
         : entry;
     }),
@@ -857,6 +861,74 @@ async function keepFilePieces(
     where: { id: approved.id },
     data: { plan: { ...plan, calendar } },
   });
+}
+
+/**
+ * Why Cuso's save of pieces breaks the picture rules, or null. Each sent
+ * piece is read as it will stand: what it sends over what its post or the
+ * plan already holds. A reference the library does not hold is refused too.
+ */
+async function pictureStyleProblem(
+  db: Prisma.TransactionClient,
+  approved: MarketingStrategy,
+  sent: CmoCalendarEntry[],
+): Promise<string | null> {
+  const pictures = sent.filter(
+    (entry) => entry.status !== "skipped" && entry.visual?.trim(),
+  );
+  if (pictures.length === 0) return null;
+  const posts = await db.socialPost.findMany({
+    where: { marketingStrategyId: approved.id, status: { not: "CANCELED" } },
+    select: { id: true, planning: true },
+  });
+  const stored = new Map<string, Partial<CmoCalendarEntry>>();
+  for (const entry of parseMarketingPlan(approved.plan)?.calendar ?? [])
+    stored.set(entry.id, entry);
+  for (const post of posts) {
+    const planning = parseSocialPostPlanning(post.planning);
+    if (!planning) continue;
+    stored.set(planning.id, planning);
+    stored.set(post.id, planning);
+  }
+  const saved = pictures.map((entry) => {
+    const before = stored.get(entry.id);
+    return {
+      ...entry,
+      // The post's own id names the same piece as its plan entry's.
+      id: before?.id ?? entry.id,
+      styleReferenceId: entry.styleReferenceId ?? before?.styleReferenceId,
+      slides: entry.slides ?? before?.slides,
+      slideHeadlines: entry.slideHeadlines ?? before?.slideHeadlines,
+    };
+  });
+  const savedIds = new Set(saved.map((entry) => entry.id));
+  const others = [
+    ...new Map(
+      [...stored.values()].flatMap((entry) =>
+        entry.id && !savedIds.has(entry.id)
+          ? [
+              [
+                entry.id,
+                { id: entry.id, styleReferenceId: entry.styleReferenceId },
+              ] as const,
+            ]
+          : [],
+      ),
+    ).values(),
+  ];
+  const problem = cmoPictureStyleProblem(saved, others);
+  if (problem) return problem;
+  const ids = [
+    ...new Set(saved.flatMap((entry) => entry.styleReferenceId ?? [])),
+  ];
+  const known = await db.referenceImage.findMany({
+    where: { id: { in: ids } },
+    select: { id: true },
+  });
+  const missing = ids.filter((id) => !known.some((row) => row.id === id));
+  return missing.length > 0
+    ? `Nothing was saved: ${missing.join(", ")} is no style reference. Use an id find_style_references returned.`
+    : null;
 }
 
 /**
@@ -901,6 +973,14 @@ export async function saveCmoStrategy(
       throw new CmoConflictError(
         "Pieces fill in the approved strategy; no version is approved yet; until the owner approves, change entries with part patch (only those entries, by id) or the whole month with part calendar",
       );
+    }
+    if (options.turnId && referenceLibraryAvailable()) {
+      const problem = await pictureStyleProblem(
+        db,
+        approved,
+        (strategy.calendar ?? []) as CmoCalendarEntry[],
+      );
+      if (problem) throw unprocessableEntity(problem);
     }
     await planMarketingStrategyPosts(db, {
       version: approved,

@@ -32889,6 +32889,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 10
                                     },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
+                                        },
+                                        maxItems: 10
+                                    },
                                     script: {
                                         type: 'string',
                                         minLength: 20,
@@ -33245,6 +33254,15 @@ export const MarketingStrategySchema = {
                                                     type: 'string',
                                                     minLength: 1,
                                                     maxLength: 400
+                                                },
+                                                maxItems: 10
+                                            },
+                                            slideHeadlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 60
                                                 },
                                                 maxItems: 10
                                             },
@@ -34704,6 +34722,15 @@ export const MarketingStrategyRequestSchema = {
                                 },
                                 maxItems: 10
                             },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
+                                },
+                                maxItems: 10
+                            },
                             script: {
                                 type: 'string',
                                 minLength: 20,
@@ -35060,6 +35087,15 @@ export const MarketingStrategyRequestSchema = {
                                             type: 'string',
                                             minLength: 1,
                                             maxLength: 400
+                                        },
+                                        maxItems: 10
+                                    },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
                                         },
                                         maxItems: 10
                                     },
@@ -41353,6 +41389,15 @@ export const SocialPostSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    maxItems: 10
+                },
+                slideHeadlines: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
                     },
                     maxItems: 10
                 },
@@ -55125,6 +55170,15 @@ export const CmoPlanSchema = {
                         },
                         maxItems: 10
                     },
+                    slideHeadlines: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 60
+                        },
+                        maxItems: 10
+                    },
                     script: {
                         type: 'string',
                         minLength: 20,
@@ -55481,6 +55535,15 @@ export const CmoPlanSchema = {
                                     type: 'string',
                                     minLength: 1,
                                     maxLength: 400
+                                },
+                                maxItems: 10
+                            },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
                                 },
                                 maxItems: 10
                             },
@@ -60014,6 +60077,77 @@ export const SokoBotScopeSchema = {
         'personal',
         'project',
         'workspace'
+    ]
+} as const;
+
+export const SokoBotSecretSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            example: 'VERCEL_TOKEN'
+        },
+        shellAccess: {
+            type: 'boolean',
+            description: 'Whether shell commands get this key as an env variable'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'shellAccess',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const SaveSokoBotSecretRequestSchema = {
+    type: 'object',
+    properties: {
+        value: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 8000,
+            description: 'The key. Required for a new name; leave out to keep the saved value.'
+        },
+        shellAccess: {
+            type: 'boolean'
+        }
+    }
+} as const;
+
+export const SokoBotSandboxSetupSchema = {
+    type: 'object',
+    properties: {
+        commands: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 500
+            },
+            maxItems: 10,
+            example: [
+                'npm install -g vercel'
+            ]
+        }
+    },
+    required: [
+        'commands'
     ]
 } as const;
 
