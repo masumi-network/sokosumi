@@ -76,6 +76,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
         plans={cmoPlans}
         actions={{
           loadState: async () => ({ overview, messages: [] }),
+          loadChatWork: async () => [],
           sendMessage: async () => {},
           skipSubscription: async () => ({ error: null }),
           loadSeo: async () => null,

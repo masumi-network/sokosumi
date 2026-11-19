@@ -14125,6 +14125,34 @@ export type CmoPieceText = {
     text: string;
 };
 
+export type CmoChatWork = {
+    items: Array<CmoChatWorkItem>;
+};
+
+export type CmoChatWorkItem = {
+    /**
+     * The tool call that started it.
+     */
+    id: string;
+    kind: 'image' | 'video' | 'audio';
+    /**
+     * making until the file exists; failed when it never will.
+     */
+    state: 'making' | 'ready' | 'failed';
+    /**
+     * When Cuso started it.
+     */
+    at: Date;
+    /**
+     * What was asked for: the prompt, or the words spoken.
+     */
+    title: string;
+    /**
+     * Where the finished file plays from; null until it is ready.
+     */
+    url: string | null;
+};
+
 export type CmoCompetitors = {
     competitors: Array<ProjectCompetitor>;
     /**
@@ -87868,6 +87896,81 @@ export type GetCmoOverviewForProjectResponses = {
 };
 
 export type GetCmoOverviewForProjectResponse = GetCmoOverviewForProjectResponses[keyof GetCmoOverviewForProjectResponses];
+
+export type GetCmoChatWorkForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/chat-work';
+};
+
+export type GetCmoChatWorkForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoChatWorkForProjectError = GetCmoChatWorkForProjectErrors[keyof GetCmoChatWorkForProjectErrors];
+
+export type GetCmoChatWorkForProjectResponses = {
+    /**
+     * What Cuso made in chat
+     */
+    200: {
+        data: CmoChatWork;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoChatWorkForProjectResponse = GetCmoChatWorkForProjectResponses[keyof GetCmoChatWorkForProjectResponses];
 
 export type GetCmoCompetitorsForProjectData = {
     body?: never;

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
 import {
+  ACTION_LABELS,
   buildActionResponse,
   HELD_BACK_REPLY,
   parseActionNarrativeText,
@@ -56,6 +57,12 @@ function replay() {
 }
 
 describe("action lines the owner reads", () => {
+  it("has words for every action, so no line shows a tool's name", () => {
+    expect(
+      [...ACTION_CAPABILITIES].filter((action) => !ACTION_LABELS[action]),
+    ).toEqual([]);
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
   });
