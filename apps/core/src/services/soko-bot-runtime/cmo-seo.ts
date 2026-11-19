@@ -104,7 +104,7 @@ export async function executeCmoSeoTool(
         return {
           ...search,
           ideas: search.ideas.slice(0, IDEAS_SHOWN),
-          note: "Volume is Google searches a month in this market; difficulty runs 0 to 100. Quote these numbers with this date; never estimate others.",
+          note: "Volume is Google searches per month in this market. Difficulty runs from 0 to 100. Cite each idea’s measuredAt date when present, otherwise use the search date.",
         };
       }
       case "research_competitor_keywords": {

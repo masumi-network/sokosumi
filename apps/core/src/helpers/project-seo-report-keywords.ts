@@ -1,5 +1,32 @@
-import { seoDeviceSchema } from "@/schemas/project-seo.schema";
+import { z } from "@hono/zod-openapi";
+import {
+  seoConversionSchema,
+  seoDeviceSchema,
+} from "@/schemas/project-seo.schema";
 import type { LegacySeoReport, PublicSeoPayload } from "./project-seo-report";
+
+export const FEATURE_CHARS = 200;
+// DataForSEO keyword_difficulty: 0 to 100. A value Core cannot read is dropped: it must not fail the import.
+export const difficulty = z
+  .number()
+  .finite()
+  .min(0)
+  .max(100)
+  .nullable()
+  .optional()
+  .catch(undefined);
+
+// A page Report's estimate for a keyword. A value Core cannot read is dropped: it must not fail the import.
+export const estimate = {
+  conversion: seoConversionSchema.optional().catch(undefined),
+  feature: z
+    .string()
+    .trim()
+    .min(1)
+    .max(FEATURE_CHARS)
+    .optional()
+    .catch(undefined),
+};
 
 const keywordKey = (keyword: string) => keyword.normalize("NFKC").toLowerCase();
 
@@ -104,6 +131,7 @@ export function legacyReportKeywords(
       intent: row.intent,
       ...(row.conversion !== undefined ? { conversion: row.conversion } : {}),
       ...(row.feature !== undefined ? { feature: row.feature } : {}),
+      ...(row.editorial && { editorial: row.editorial }),
       source: "opportunity",
       sourceRef: result.snapshotId,
       observedAt: at,

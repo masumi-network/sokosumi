@@ -8,6 +8,7 @@ import {
   publicDecisionSourceSchema,
   publicSeoDecisionSchema,
   rankReviewTrigger,
+  singlePageSourceSchema,
   withinStrategyLimit,
 } from "@/schemas/project-seo-action.schema";
 import { reportObject } from "./project-seo-public-report";
@@ -56,6 +57,17 @@ export function readPublicSeoDecisions(
       !parsed.data.observations.every((citation) => {
         if (!pages.has(citation.url)) return false;
         const sources = snapshots.filter((page) => page.url === citation.url);
+        if (citation.sourceKind) {
+          return (
+            sources.length === 1 &&
+            sources[0]?.snapshotId === citation.snapshotId &&
+            sources[0].records?.some(
+              (r) =>
+                r.record === citation.record &&
+                r.sourceKind === citation.sourceKind,
+            )
+          );
+        }
         return (
           sources.length === 1 &&
           (sources[0]?.snapshotId === citation.snapshotId ||
@@ -125,6 +137,33 @@ export function readWorkerDecisions(
   });
 }
 
+/** A standalone experiment is bound to the worker's exact public page and independent source records. */
+export function singlePageDecisions(
+  raw: unknown,
+  page: { request: { url: string }; snapshotId: string },
+  ranks: ReviewSource[] = [],
+) {
+  const report = reportObject(raw);
+  const {
+    request: { url },
+    snapshotId,
+  } = page;
+  const parsed = singlePageSourceSchema.safeParse(report?.openPageEvidence);
+  const snapshots =
+    parsed.success &&
+    parsed.data.url === url &&
+    parsed.data.snapshotId === snapshotId
+      ? [parsed.data]
+      : [];
+  const decisions = readWorkerDecisions(raw, [url], snapshots, ranks);
+  return {
+    strategyDecisions: decisions,
+    ...(decisions?.some((d) => d.kind === OPEN_STRATEGY) && {
+      decisionSources: snapshots,
+    }),
+  };
+}
+
 export function publicDecisionAction(
   d: PublicSeoDecision,
   country: string,
@@ -149,7 +188,10 @@ export function publicDecisionAction(
     findingIds: [],
     evidence:
       d.kind === OPEN_STRATEGY
-        ? d.observations.map((o) => `"${o.quote}" (${o.url})`)
+        ? d.observations.map(
+            (o) =>
+              `${o.sourceKind === "page" ? "Page: " : o.sourceKind === "market" ? "Market: " : ""}"${o.quote}" (${o.url})`,
+          )
         : d.evidence,
     decision: {
       kind: d.kind,

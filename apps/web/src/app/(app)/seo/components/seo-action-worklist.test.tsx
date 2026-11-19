@@ -7,10 +7,11 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
+import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import messages from "../../../../../messages/en.json";
 import { SeoActionWorklist } from "./seo-action-worklist";
+import { seoActionsExport } from "./seo-export-model";
 import type { SeoIssueSeverity } from "./seo-overview-model";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import { type SeoWorkspaceModel, seoActionKey } from "./use-seo-workspace";
@@ -341,4 +342,49 @@ it("puts a historical review first, filters it, and acknowledges without creatin
   ).toBeNull();
   await user.click(dialog.getByRole("button", { name: "Mark reviewed" }));
   expect(acknowledgeReview).toHaveBeenCalledWith(item);
+});
+
+it("shows the private organic metric, periods and sample sizes in English without exporting the review", async () => {
+  const user = userEvent.setup();
+  const item: ProjectSeoAction = {
+    ...low,
+    status: "needs_review",
+    followUpReview: {
+      kind: "engagement_changed",
+      before: 40,
+      after: 25,
+      baselineObservationId: "base",
+      observationId: "later",
+      baselineObservedAt: new Date("2026-09-08"),
+      observedAt: new Date("2026-09-16"),
+      beforePeriod: {
+        from: new Date("2026-09-01"),
+        to: new Date("2026-09-07"),
+        sessions: 90,
+      },
+      afterPeriod: {
+        from: new Date("2026-09-09"),
+        to: new Date("2026-09-15"),
+        sessions: 100,
+      },
+    },
+  };
+  render(view([item]));
+  await user.click(
+    within(screen.getByRole("list", { name: "Actions" })).getByRole("button"),
+  );
+  expect(
+    screen.getByText(
+      /Your private GA4 data shows average engagement seconds per organic session changed from 40 to 25.*90 sessions.*100 sessions/,
+    ),
+  ).toBeVisible();
+  const t = createTranslator({
+    locale: "en",
+    messages,
+    namespace: "App.Seo",
+  }) as unknown as IntlTranslation<"App.Seo">;
+  expect(seoActionsExport([item], t).rows).toHaveLength(0);
+  const current = seoActionsExport([{ ...item, status: "implemented" }], t);
+  expect(current.rows).toHaveLength(1);
+  expect(current.header).not.toContain("Review again");
 });

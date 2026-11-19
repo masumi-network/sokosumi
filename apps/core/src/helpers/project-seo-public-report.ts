@@ -11,6 +11,7 @@ const PRIVATE_FIELDS = [
   "searchConsole",
   "searchConsoleNear",
   "searchHistory",
+  "privateTopicQueries",
   "ownerExplorationRequest",
   "privateStrategyDecisions",
   "outcomes",
@@ -72,7 +73,17 @@ export function failedSeoSpecialists(raw: unknown) {
   const input = reportObject(raw);
   const site = input?.kind === "site";
   const pages = site && Array.isArray(input.pages) ? input.pages : [input];
-  const failed: ("seasonal" | "exploration" | "searchInvestigation")[] = [];
+  const editorialStages = [
+    "editorialGemini",
+    "editorialCodex",
+    "editorialValidation",
+  ] as const;
+  const failed: (
+    | "seasonal"
+    | "exploration"
+    | "searchInvestigation"
+    | (typeof editorialStages)[number]
+  )[] = [];
   if (
     pages.some((page) => {
       const status = reportObject(
@@ -85,10 +96,20 @@ export function failedSeoSpecialists(raw: unknown) {
     })
   )
     failed.push("seasonal");
-  if (site && Array.isArray(input.specialistFailures)) {
-    for (const stage of ["exploration", "searchInvestigation"] as const) {
-      if (input.specialistFailures.includes(stage)) failed.push(stage);
-    }
+  if (Array.isArray(input?.specialistFailures)) {
+    if (input.specialistFailures.includes("exploration"))
+      failed.push("exploration");
+    if (site && input.specialistFailures.includes("searchInvestigation"))
+      failed.push("searchInvestigation");
+  }
+  for (const stage of editorialStages) {
+    if (
+      pages.some((page) => {
+        const stages = reportObject(page)?.specialistFailures;
+        return Array.isArray(stages) && stages.includes(stage);
+      })
+    )
+      failed.push(stage);
   }
   return failed;
 }

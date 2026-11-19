@@ -58,6 +58,13 @@ export function SeoArticleDates({
             </h3>
             {cohorts.map((group) => {
               const earlier = group.earlierArticle;
+              const queries = workspace.privateTopicQueries?.filter(
+                (row) =>
+                  row.topic === group.topic &&
+                  row.pages.every((url) =>
+                    group.pages.some((p) => p.url === url),
+                  ),
+              );
               return (
                 <div key={group.pages[0].url} className="space-y-1">
                   <p>
@@ -67,9 +74,31 @@ export function SeoArticleDates({
                       through: day(group.publishedThrough),
                     })}
                   </p>
+                  <p className="text-muted-foreground">
+                    {t(
+                      group.basis === "headline_phrase"
+                        ? "topicPhrase"
+                        : "topicSection",
+                    )}
+                  </p>
+                  {queries?.map((row) => (
+                    <p key={row.observationId}>
+                      {t("topicQuery", {
+                        query: row.query,
+                        count: row.pages.length,
+                        from: day(row.from),
+                        to: day(row.to),
+                      })}
+                    </p>
+                  ))}
                   {earlier ? (
                     <p>
-                      {t("earlierArticle", { date: day(earlier.publishedOn) })}{" "}
+                      {t(
+                        group.basis === "headline_phrase"
+                          ? "earlierHeadline"
+                          : "earlierArticle",
+                        { date: day(earlier.publishedOn) },
+                      )}{" "}
                       {link(earlier.url)}
                     </p>
                   ) : (

@@ -17,3 +17,5 @@
 - To see whether it worked: positions and clicks going up.
 
 **Today:** CMO doesn't publish to their site; the owner pastes the text.
+
+Keyword research marks measured editorial picks. A reused measurement shows its original date. After a week, a repeat search can check up to three new phrases using the same provider request allowance.

@@ -1,5 +1,8 @@
-import { conflict } from "@/helpers/error";
-import { recommendationEpisodeKey } from "@/helpers/seo-review-episode";
+import { conflict, forbidden } from "@/helpers/error";
+import {
+  isPrivateReview,
+  recommendationEpisodeKey,
+} from "@/helpers/seo-review-episode";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import { acknowledgeSeoReviewSchema } from "@/schemas/seo-review-request.schema";
@@ -19,11 +22,14 @@ import {
 export async function acknowledgeSeoReview(actor: SeoActor, raw: unknown) {
   const { view, ...input } = acknowledgeSeoReviewSchema.parse(raw);
   const key = recommendationEpisodeKey(input.actionId, input);
-  const sourceKey = reviewSourceKey(input.pageId, key);
+  const ownerId = isPrivateReview(input.kind) ? actor.userId : null;
+  if (ownerId && actor.sokoBotId)
+    throw forbidden("Open your private SEO workspace to review Analytics.");
+  const sourceKey = reviewSourceKey(input.pageId, key, ownerId);
   const workspace = await getProjectSeoWorkspace(
     actor,
     view ?? { pageId: input.pageId },
-    { includePrivateIndexing: false },
+    { includePrivateIndexing: false, includePrivateReviews: !!ownerId },
   );
   const page = workspace.pages.find((p) => p.id === input.pageId);
   const action = workspace.actions.find(
@@ -50,6 +56,7 @@ export async function acknowledgeSeoReview(actor: SeoActor, raw: unknown) {
       skipDuplicates: true,
       data: {
         ...seoOwnerData(actor),
+        ...(ownerId && { ownerId, visibility: "PRIVATE" }),
         source: pageSource(input.pageId),
         sourceKey,
         kind: reviewKind,

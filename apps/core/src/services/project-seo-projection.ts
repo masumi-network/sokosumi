@@ -52,6 +52,7 @@ import {
 } from "./project-seo-store";
 import { SeoAuditDecisions } from "./seo-audit-decisions";
 import { landingEngagementChange } from "./seo-landing-engagement";
+import type { PrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
 import {
   type DecisionObservation,
   projectSeoReviewHistory,
@@ -80,6 +81,7 @@ interface ProjectionInput {
   scopes: ProjectSeoScope[];
   observations: ProjectSeoObservation[];
   reviewHistory?: DecisionObservation[];
+  privateReviews?: PrivateRecommendationReviews;
   /** True when the evidence or the metrics load reached its own row cap. */
   historyLimited: boolean;
   /** True when the evidence load (checks and page changes) reached its row cap: an older check can be cut. */
@@ -157,6 +159,7 @@ export function projectSeoProjection(
     taskStatuses,
     now,
     input.tasks,
+    input.privateReviews,
   );
   projectSeoReviewHistory(decisions, input, selectedIds);
   const searchSources: SearchEvidenceSource[] = [];

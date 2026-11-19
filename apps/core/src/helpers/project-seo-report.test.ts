@@ -270,6 +270,39 @@ describe("public SEO report trust boundary", () => {
     );
   });
 
+  it("keeps the model origins and DataForSEO receipt with the measured keyword idea", () => {
+    const fixture = legacyReport();
+    const editorial = { models: ["gemini", "codex"], record: "a".repeat(64) };
+    const report = parsePublicSeoArtifact({
+      ...fixture,
+      keywordOpportunities: {
+        list: [{ ...fixture.keywordOpportunities.list[0], editorial }],
+      },
+    });
+    expect(
+      report.keywords.find((row) => row.source === "opportunity")?.editorial,
+    ).toEqual(editorial);
+    const newer = parsePublicSeoArtifact({
+      ...fixture,
+      keywordOpportunities: {
+        list: [
+          {
+            ...fixture.keywordOpportunities.list[0],
+            editorial: { ...editorial, models: ["future-editor"] },
+          },
+        ],
+      },
+    });
+    const ordinary = newer.keywords.find((row) => row.source === "opportunity");
+    expect(ordinary).toMatchObject({
+      keyword: fixture.keywordOpportunities.list[0].keyword,
+    });
+    expect(ordinary).not.toHaveProperty("editorial");
+    expect(
+      report.keywords.find((row) => row.source === "focus"),
+    ).not.toHaveProperty("editorial");
+  });
+
   it("keeps a keyword's conversion estimate and feature, and imports the report without a value it cannot read", () => {
     const fixture = legacyReport();
     const estimate = { conversion: "medium", feature: "Low battery alerts" };

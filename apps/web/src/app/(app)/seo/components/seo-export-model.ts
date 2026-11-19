@@ -180,6 +180,13 @@ export function seoActionsExport(
   actions: ProjectSeoAction[],
   t: Label,
 ): SeoExport {
+  // The actions CSV can be shared. Keep a private review and any row it alone reopened out of it.
+  actions = actions.flatMap((action) => {
+    if (!action.followUpReview || !("beforePeriod" in action.followUpReview))
+      return [action];
+    const { followUpReview: _privateReview, ...original } = action;
+    return action.status === "needs_review" ? [] : [original];
+  });
   const hasReviews = actions.some((action) => action.followUpReview);
   const hasDecisions = actions.some((action) => action.decision);
   return {

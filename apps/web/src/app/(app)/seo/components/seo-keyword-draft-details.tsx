@@ -47,6 +47,7 @@ export function SeoKeywordDraftDetails({
   const format = useSeoResultFormatter();
   const wizard = useOptionalNewTaskWizard();
   const { lead } = group;
+  const editorial = group.rows.find((row) => row.editorial)?.editorial;
   const band = seoDifficultyBand(group.difficulty);
   const gain = seoClickGain(group.clicks);
   const sources = idea
@@ -148,6 +149,15 @@ export function SeoKeywordDraftDetails({
           <p className="text-muted-foreground text-xs">
             {result.rich("keywords.conversion.feature", {
               feature: () => <bdi>{group.feature}</bdi>,
+            })}
+          </p>
+        )}
+        {editorial && (
+          <p className="text-muted-foreground text-xs">
+            {result("keywords.recommendation.editorial", {
+              models: editorial.models
+                .map((m) => (m === "gemini" ? "Gemini" : "Codex"))
+                .join(" and "),
             })}
           </p>
         )}

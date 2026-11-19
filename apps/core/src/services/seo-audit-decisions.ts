@@ -8,6 +8,7 @@ import { seasonalPayloadActions } from "@/helpers/project-seo-seasonal";
 import { SeoContentHistory } from "@/helpers/seo-content-history";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import { normalizeSeoUrl } from "./project-seo-store";
+import type { PrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
 import {
   type AuditScope,
   SeoRecommendationFollowups,
@@ -48,6 +49,7 @@ export class SeoAuditDecisions {
     private readonly statuses: Map<string, string>,
     private readonly now: Date,
     taskRows: { id: string; status: string; completedAt: Date | null }[] = [],
+    private readonly privateReviews?: PrivateRecommendationReviews,
   ) {
     this.completed = new Map(
       taskRows.flatMap((t) =>
@@ -109,15 +111,30 @@ export class SeoAuditDecisions {
       for (const { action, review: candidate, eligible } of [
         ...(decisions ?? [])
           .filter((d) => normalizeSeoUrl(d.targetUrl) === page)
-          .map((d) => ({
-            action: publicDecisionAction(
+          .map((d) => {
+            const action = publicDecisionAction(
               d,
               data.countryCode,
               data.languageCode,
-            ),
-            review: followup?.rank(d),
-            eligible: true,
-          })),
+            );
+            const link = this.linked.get(action.id);
+            const done = link && this.completed.get(link.taskId);
+            const eligible =
+              !link || (link.observationId === observationId && !!done);
+            const personal =
+              eligible &&
+              this.privateReviews?.measure(d, done || row.observedAt);
+            if (personal)
+              this.privateReviews?.candidates.set(
+                JSON.stringify([action.id, observationId]),
+                personal,
+              );
+            return {
+              action,
+              eligible: true,
+              review: followup?.rank(d) ?? (personal || undefined),
+            };
+          }),
         ...ideas.flatMap((idea) => {
           const action = seasonal.get(idea),
             review = followup?.demand(idea);
@@ -143,7 +160,7 @@ export class SeoAuditDecisions {
           JSON.stringify([
             action.id,
             candidate.kind,
-            candidate.period,
+            "period" in candidate ? candidate.period : undefined,
             candidate.observationId,
           ]);
         const review =

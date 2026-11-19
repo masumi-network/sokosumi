@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 
+export function isPrivateReview(kind: Episode["kind"]) {
+  return kind !== "rank_crosses" && kind !== "demand_returns";
+}
+
 type Episode = Pick<
   NonNullable<ProjectSeoWorkspace["actions"][number]["followUpReview"]>,
   "kind" | "period" | "baselineObservationId" | "observationId"

@@ -6,7 +6,7 @@ import messages from "../../../../../messages/en.json";
 import { SeoArticleDates } from "./seo-article-dates";
 import { seoTestWorkspace } from "./seo-test-fixture";
 
-it("shows an older audited article as evidence for an established section with two recent publications", () => {
+it("shows the headline phrase, older article and private query evidence within the selected cohort", () => {
   const data = seoTestWorkspace(),
     topic = "Kamera-Reparatur";
   const article = (n: number, date: string) => ({
@@ -43,9 +43,20 @@ it("shows an older audited article as evidence for an established section with t
         old,
         { ...one, url: "https://example.test/account/private" },
       ],
+      privateTopicQueries: [
+        {
+          topic,
+          query: "Kamera-Reparatur Objektiv",
+          pages: [one.url, two.url],
+          from: new Date("2026-09-01"),
+          to: new Date("2026-09-08"),
+          observationId: "query-observation",
+        },
+      ],
       topicLaunches: [
         {
           topic,
+          basis: "headline_phrase" as const,
           publishedFrom: one.publishedOn,
           publishedThrough: two.publishedOn,
           pages: [one, two],
@@ -67,6 +78,14 @@ it("shows an older audited article as evidence for an established section with t
   );
   const { rerender } = render(view(model.data));
   expect(
+    screen.getByText(/public headlines contain the same phrase/),
+  ).toBeVisible();
+  expect(
+    screen.getByText(
+      /Your private Search Console data recorded “Kamera-Reparatur Objektiv” for 2 of these pages/,
+    ),
+  ).toBeVisible();
+  expect(
     screen.getByText(/11 days old at the Sep 12, 2026 audit/),
   ).toBeVisible();
   expect(screen.getByText(/publisher supplied these dates/)).toBeVisible();
@@ -78,7 +97,7 @@ it("shows an older audited article as evidence for an established section with t
   ).toBeVisible();
   expect(
     screen.getByText(
-      /same section also has an article published on Mar 10, 2025/,
+      /older article used this phrase in its headline on Mar 10, 2025/,
     ),
   ).toBeVisible();
   expect(
@@ -113,7 +132,7 @@ it("shows an older audited article as evidence for an established section with t
   expect(
     screen.getAllByText(/do not establish when the publisher first covered/),
   ).toHaveLength(2);
-  expect(screen.queryByText(/same section also has an article/)).toBeNull();
+  expect(screen.queryByText(/older article used this phrase/)).toBeNull();
   expect(
     screen.getAllByRole("link").map((link) => link.getAttribute("href")),
   ).toEqual([one.url, two.url, ...next.map((p) => p.url)]);

@@ -2783,7 +2783,7 @@ it("ties a recent publication group to the page records and filters older contex
   function child(n: number, day: string) {
     return {
       ...raw,
-      request: { url: "https://example.test/" + n },
+      request: { url: "https://example.test/%C3%A9nergie-marine-" + n },
       articleDates: {
         publishedOn: day,
         section: topic,
@@ -2817,6 +2817,51 @@ it("ties a recent publication group to the page records and filters older contex
   };
   const data = parsePublicSeoArtifact(site);
   expect(data.topicLaunches).toEqual([group]);
+  // French headline phrases are public only when every dated page and its public source corroborate the label.
+  const phrase = "Énergie marine";
+  const unlabeled = children.map((c, i) => ({
+    ...c,
+    articleDates: {
+      ...c.articleDates,
+      section: "News",
+      headline:
+        phrase +
+        ": " +
+        [
+          "Entretien des turbines",
+          "Installation du capteur",
+          "Guide des moteurs",
+        ][i],
+    },
+  }));
+  const inferred = { ...group, topic: phrase, basis: "headline_phrase" };
+  const inferredSite = {
+    ...site,
+    pages: unlabeled,
+    topicLaunches: [inferred],
+  };
+  expect(parsePublicSeoArtifact(inferredSite).topicLaunches).toEqual([
+    inferred,
+  ]);
+  expect(() =>
+    parsePublicSeoArtifact({
+      ...inferredSite,
+      privateTopicQueries: [{ query: "private supplied query" }],
+    }),
+  ).toThrow(/Only public SEO evidence/);
+  for (const change of [
+    { headline: "A different heading" },
+    { section: "Publisher topic" },
+    { headline: unlabeled[0].articleDates.headline },
+  ]) {
+    const replaced = unlabeled.map((c, i) =>
+      i === 1 ? { ...c, articleDates: { ...c.articleDates, ...change } } : c,
+    );
+    expect(
+      parsePublicSeoArtifact({ ...inferredSite, pages: replaced })
+        .topicLaunches,
+    ).toBeUndefined();
+  }
   const privateSelection = parsePublicSeoArtifact({
     ...site,
     selection: {
@@ -2986,4 +3031,52 @@ it("binds sibling site ranking triggers to their exact audited page and preserve
     status: "COMPLETED",
     completedAt,
   });
+});
+
+it("imports one page's additional experiment only with its separate public page and market receipts", () => {
+  const { card, observations, pages } = openExperimentAudit();
+  const page = pages[0]!;
+  const source = observations.map((o, i) => ({
+    ...o,
+    url: page.request.url,
+    snapshotId: page.snapshotId,
+    sourceKind: i ? "market" : "page",
+  }));
+  const evidence = {
+    url: page.request.url,
+    snapshotId: page.snapshotId,
+    records: source.map(({ record, sourceKind }) => ({ record, sourceKind })),
+  };
+  const parse = (index: unknown, proof: unknown = source) =>
+    parsePublicSeoArtifact({
+      ...page,
+      openPageEvidence: index,
+      strategyDecisions: [{ ...card, observations: proof }],
+    });
+  const data = parse(evidence);
+  expect(data.strategyDecisions).toHaveLength(1);
+  const input = fixture();
+  input.observations = [observation(input, data, data.observedAt)];
+  const action = projectSeoProjection(input).actions.find(
+    (a) => a.title === card.action,
+  );
+  expect(action?.evidence).toHaveLength(2);
+  expect(action?.evidence[0]).toContain("Page");
+  expect(action?.evidence[1]).toContain("Market");
+  expect(parse(undefined).strategyDecisions).toBeUndefined();
+  expect(
+    parse({ ...evidence, snapshotId: "f".repeat(64) }).strategyDecisions,
+  ).toBeUndefined();
+  expect(
+    parse({
+      ...evidence,
+      records: evidence.records.map((r) => ({ ...r, sourceKind: "page" })),
+    }).strategyDecisions,
+  ).toBeUndefined();
+  expect(
+    parse(
+      evidence,
+      source.map((s) => ({ ...s, record: source[0]!.record })),
+    ).strategyDecisions,
+  ).toBeUndefined();
 });

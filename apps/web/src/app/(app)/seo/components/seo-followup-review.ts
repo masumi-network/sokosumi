@@ -8,6 +8,25 @@ export function seoFollowUpText(
   review: NonNullable<ProjectSeoAction["followUpReview"]>,
   t: IntlTranslation<"App.Seo">,
 ) {
+  if ("beforePeriod" in review) {
+    const values = {
+      before: review.before,
+      after: review.after,
+      from: day(review.beforePeriod.from),
+      to: day(review.beforePeriod.to),
+      sessions: review.beforePeriod.sessions,
+      laterFrom: day(review.afterPeriod.from),
+      laterTo: day(review.afterPeriod.to),
+      laterSessions: review.afterPeriod.sessions,
+    };
+    const label =
+      review.kind === "engagement_changed"
+        ? "actions.engagementReview"
+        : review.kind === "purchase_rate_changed"
+          ? "actions.purchaseReview"
+          : "actions.signupReview";
+    return t(label, values);
+  }
   const values = {
     keyword: review.keyword,
     before: review.before,

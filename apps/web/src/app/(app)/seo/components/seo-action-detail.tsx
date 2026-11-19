@@ -161,23 +161,26 @@ export function SeoActionDetail({
         {action.followUpReview && (
           <DetailPart title={report("actions.reviewAgain")}>
             <p lang="en">{seoFollowUpText(action.followUpReview, report)}</p>
-            {action.followUpReview.baselineObservationId !==
-              action.observationId && (
+            {!("beforePeriod" in action.followUpReview) &&
+              action.followUpReview.baselineObservationId !==
+                action.observationId && (
+                <SeoSource
+                  named
+                  observationId={action.followUpReview.baselineObservationId}
+                  workspace={model.data}
+                >
+                  {report("actions.originalMeasurement")}
+                </SeoSource>
+              )}
+            {!("beforePeriod" in action.followUpReview) && (
               <SeoSource
                 named
-                observationId={action.followUpReview.baselineObservationId}
+                observationId={action.followUpReview.observationId}
                 workspace={model.data}
               >
-                {report("actions.originalMeasurement")}
+                {report("actions.laterMeasurement")}
               </SeoSource>
             )}
-            <SeoSource
-              named
-              observationId={action.followUpReview.observationId}
-              workspace={model.data}
-            >
-              {report("actions.laterMeasurement")}
-            </SeoSource>
           </DetailPart>
         )}
         {action.edit ? (

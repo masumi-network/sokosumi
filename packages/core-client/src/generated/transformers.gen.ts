@@ -4586,10 +4586,6 @@ const projectSeoFindingSchemaResponseTransformer = (data: any) => {
 };
 
 const projectSeoActionSchemaResponseTransformer = (data: any) => {
-    if (data.followUpReview) {
-        data.followUpReview.baselineObservedAt = new Date(data.followUpReview.baselineObservedAt);
-        data.followUpReview.observedAt = new Date(data.followUpReview.observedAt);
-    }
     if (data.completedAt) {
         data.completedAt = new Date(data.completedAt);
     }
@@ -4762,6 +4758,13 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
                     item.earlierArticle.revisedOn = new Date(item.earlierArticle.revisedOn);
                 }
             }
+            return item;
+        });
+    }
+    if (data.privateTopicQueries) {
+        data.privateTopicQueries = data.privateTopicQueries.map((item: any) => {
+            item.from = new Date(item.from);
+            item.to = new Date(item.to);
             return item;
         });
     }
@@ -5668,8 +5671,16 @@ const cmoSeoSuggestionSchemaResponseTransformer = (data: any) => {
     return data;
 };
 
+const cmoKeywordIdeaSchemaResponseTransformer = (data: any) => {
+    if (data.measuredAt) {
+        data.measuredAt = new Date(data.measuredAt);
+    }
+    return data;
+};
+
 const cmoKeywordSearchSchemaResponseTransformer = (data: any) => {
     data.observedAt = new Date(data.observedAt);
+    data.ideas = data.ideas.map((item: any) => cmoKeywordIdeaSchemaResponseTransformer(item));
     return data;
 };
 

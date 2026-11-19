@@ -12,6 +12,14 @@ import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { getEnv } from "@/config/env";
+import { fetchKeywordIdeas, fetchKeywordOverview } from "@/lib/ads/dataforseo";
+import { askCmoEditor, EDITORS } from "./cmo-keyword-editorial";
+
+vi.mock("./cmo-keyword-editorial", async (original) => ({
+  ...(await original<typeof import("./cmo-keyword-editorial")>()),
+  askCmoEditor: vi.fn(),
+}));
+
 import prisma from "@/lib/db/prisma";
 import { parseSeoMonitorPlan } from "@/lib/seo/monitor-plan";
 import { type Cuso, findCusoForBot } from "./cmo-cuso.service";
@@ -36,6 +44,7 @@ import {
 
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ads/dataforseo")>()),
+  fetchKeywordOverview: vi.fn(),
   fetchKeywordIdeas: vi.fn(async () => [
     {
       keyword: "macbook battery health app",
@@ -570,6 +579,322 @@ describe.skipIf(!enabled)("CMO SEO against PostgreSQL", () => {
         expect.objectContaining({ metric: "difficulty", value: "1" }),
       ]),
     );
+  });
+
+  it("keeps CMO search receipts separate, reuses its weekly result and saves a billed vendor refusal", async () => {
+    const today = new Date();
+    const term = "How to choose a shelf";
+    const topic = "small spaces";
+    vi.mocked(fetchKeywordIdeas).mockImplementationOnce(
+      async (_q, observed) => {
+        await observed!({
+          costUsd: 0.014,
+          taskId: "vendor-search",
+          exactKeywords: [term.toLowerCase()],
+        });
+        return [
+          {
+            keyword: term,
+            searchVolume: 30,
+            difficulty: 12,
+            intent: "informational",
+            cpc: null,
+          },
+        ];
+      },
+    );
+    vi.mocked(askCmoEditor).mockImplementation(async (model) => ({
+      model,
+      phrases: model === EDITORS[0] ? [term] : [],
+      costUsd: model === EDITORS[0] ? 0.02 : 0.01,
+      generationId: null,
+      status: model === EDITORS[0] ? "ok" : "failed",
+    }));
+    const search = await searchCmoKeywords(cuso, topic, today);
+    expect(search.ideas[0]).toMatchObject({ keyword: term, editorial: true });
+    expect(await searchCmoKeywords(cuso, topic, today)).toEqual(search);
+    expect(
+      vi
+        .mocked(askCmoEditor)
+        .mock.calls.map((c) => c[0])
+        .sort(),
+    ).toEqual([...EDITORS].sort());
+    const rows = await prisma.projectSeoResearch.findMany({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_run",
+        key: { contains: topic },
+      },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].payload).toMatchObject({
+      status: "complete",
+      totalUsd: expect.closeTo(0.044),
+    });
+    const lines = await prisma.projectSeoResearch.findMany({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_charge",
+        key: { startsWith: rows[0].id },
+      },
+    });
+    expect(lines.map((l) => l.payload)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: EDITORS[1],
+          status: "failed",
+          costUsd: 0.01,
+        }),
+        expect.objectContaining({ source: "dataforseo", costUsd: 0.014 }),
+      ]),
+    );
+    // A later topic may contain a related winning phrase in the prior purchase, while its own signed row reports zero results.
+    vi.mocked(fetchKeywordIdeas).mockImplementationOnce(
+      async (_q, observed) => {
+        await observed!({
+          costUsd: 0.009,
+          taskId: "vendor-second",
+          exactKeywords: [],
+        });
+        return [];
+      },
+    );
+    const later = new Date(today.getTime() + 1000);
+    const related = await searchCmoKeywords(cuso, "reading room", later);
+    expect(related.ideas).toContainEqual(
+      expect.objectContaining({
+        keyword: term,
+        editorial: true,
+        measuredAt: today.toISOString(),
+      }),
+    );
+    vi.mocked(fetchKeywordIdeas).mockImplementationOnce(
+      async (_q, observed) => {
+        await observed!({
+          costUsd: 0.012,
+          taskId: "billed-refusal",
+          exactKeywords: [],
+        });
+        throw new Error("vendor refused");
+      },
+    );
+    await expect(
+      searchCmoKeywords(cuso, "failed source", today),
+    ).rejects.toThrow("vendor refused");
+    await expect(
+      searchCmoKeywords(cuso, "failed source", today),
+    ).rejects.toThrow("already started");
+    const bad = await prisma.projectSeoResearch.findFirstOrThrow({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_run",
+        key: { contains: "failed source" },
+      },
+    });
+    expect(bad.payload).toMatchObject({
+      status: "failed",
+      knownUsd: 0.012,
+      totalUsd: 0.012,
+    });
+    const line = await prisma.projectSeoResearch.findFirstOrThrow({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_charge",
+        key: { startsWith: bad.id },
+      },
+    });
+    expect(line.payload).toMatchObject({
+      reference: "billed-refusal",
+      status: "failed",
+      costUsd: 0.012,
+    });
+  });
+
+  it("uses the repeat topic’s single purchase for ranked unseen phrases and keeps the original baseline date", async () => {
+    const start = new Date("2026-04-02T09:30:00.000Z");
+    const at = (days: number) => new Date(start.getTime() + days * 86_400_000);
+    const topic = "workshop shelves";
+    const baseline = "paint a workshop shelf";
+    const row = (keyword: string) => ({
+      keyword,
+      searchVolume: 120,
+      difficulty: 25,
+      cpc: null,
+      intent: "informational" as const,
+    });
+    const discoveries = vi.mocked(fetchKeywordIdeas);
+    const overviews = vi.mocked(fetchKeywordOverview);
+    const events: string[] = [];
+    const discovery = async (
+      _q: Parameters<typeof fetchKeywordIdeas>[0],
+      save: Parameters<typeof fetchKeywordIdeas>[1],
+    ) => {
+      events.push("suggestions");
+      await save!({
+        costUsd: 0.012,
+        taskId: "baseline-task",
+        exactKeywords: [baseline],
+      });
+      return [row(baseline)];
+    };
+    discoveries.mockImplementationOnce(discovery);
+    let phrases: string[] = [];
+    vi.mocked(askCmoEditor).mockImplementation(async (model, input) => {
+      expect(input).toMatchObject({
+        countryCode: "US",
+        languageCode: "en",
+        asOf: expect.stringMatching(/^2026-/),
+      });
+      events.push(model);
+      return {
+        model,
+        phrases: model === EDITORS[0] ? phrases : [],
+        costUsd: 0.01,
+        generationId: null,
+        status: "ok",
+      };
+    });
+    await searchCmoKeywords(cuso, topic, start);
+    expect(events[0]).toBe("suggestions");
+    const novel = [
+      "adjustable shelf spacing",
+      "mount shelf uprights",
+      "hang a tool rail",
+      "fourth suggestion",
+    ];
+    phrases = [baseline, ...novel];
+    overviews.mockImplementationOnce(async (q, terms, save) => {
+      expect(q).toMatchObject({
+        topic,
+        locationCode: 2840,
+        languageCode: "en",
+      });
+      expect(terms).toEqual(novel.slice(0, 3));
+      events.push("overview");
+      await save({
+        costUsd: 0.011,
+        taskId: "overview-task",
+        exactKeywords: terms,
+      });
+      return terms.map(row);
+    });
+    events.length = 0;
+    const refreshed = await searchCmoKeywords(cuso, topic, at(8));
+    expect(events.slice(0, 2).sort()).toEqual([...EDITORS].sort());
+    expect(events.slice(2)).toEqual(["overview"]);
+    expect(refreshed.ideas).toContainEqual(
+      expect.objectContaining({
+        keyword: novel[0],
+        editorial: true,
+        searchVolume: 120,
+      }),
+    );
+    expect(refreshed.ideas).not.toContainEqual(
+      expect.objectContaining({ keyword: novel[3] }),
+    );
+    expect(
+      refreshed.ideas.find((i) => i.keyword === baseline)?.measuredAt,
+    ).toBe(start.toISOString());
+    const saved = await prisma.projectSeoResearch.findFirstOrThrow({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_ideas",
+        key: { startsWith: topic + "|" },
+      },
+    });
+    expect(saved.payload).toMatchObject({
+      baseline: {
+        source: "suggestions",
+        taskId: "baseline-task",
+        measuredAt: start.toISOString(),
+      },
+      native: {
+        source: "overview",
+        taskId: "overview-task",
+        measuredAt: at(8).toISOString(),
+      },
+    });
+    expect(await searchCmoKeywords(cuso, topic, at(10))).toEqual(refreshed);
+    phrases = [...novel.slice(0, 3), "shelving brackets"];
+    overviews.mockImplementationOnce(async (_q, terms, save) => {
+      expect(terms).toEqual(["shelving brackets"]);
+      await save({
+        costUsd: 0.01,
+        taskId: "overview-two",
+        exactKeywords: terms,
+      });
+      return terms.map(row);
+    });
+    await searchCmoKeywords(cuso, topic, at(16));
+    phrases = [novel[0], "install shelf hooks"];
+    overviews.mockImplementationOnce(async (_q, terms, save) => {
+      expect(terms).toEqual(["install shelf hooks"]);
+      await save({
+        costUsd: 0.01,
+        taskId: "overview-three",
+        exactKeywords: terms,
+      });
+      return terms.map(row);
+    });
+    const later = await searchCmoKeywords(cuso, topic, at(24));
+    expect(later.ideas.find((i) => i.keyword === novel[0])?.measuredAt).toBe(
+      at(8).toISOString(),
+    );
+    // Intervening searches have not extended the original discovery measurement's 30-day life.
+    events.length = 0;
+    discoveries.mockImplementationOnce(discovery);
+    await searchCmoKeywords(cuso, topic, at(31));
+    expect(events[0]).toBe("suggestions");
+    // The new baseline is current, but both editors propose only its already measured phrase.
+    events.length = 0;
+    phrases = [baseline];
+    discoveries.mockImplementationOnce(discovery);
+    await searchCmoKeywords(cuso, topic, at(39));
+    expect(events.slice(0, 2).sort()).toEqual([...EDITORS].sort());
+    expect(events.slice(2)).toEqual(["suggestions"]);
+  });
+  it("admits one CMO purchase across concurrent requests and a day change", async () => {
+    let started!: () => void;
+    let finish!: () => void;
+    const dispatched = new Promise<void>((r) => {
+      started = r;
+    });
+    const held = new Promise<void>((r) => {
+      finish = r;
+    });
+    vi.mocked(fetchKeywordIdeas).mockImplementationOnce(async (_q, receipt) => {
+      started();
+      await held;
+      await receipt!({
+        costUsd: 0.01,
+        taskId: "charged-only-once",
+        exactKeywords: [],
+      });
+      return [];
+    });
+    const before = new Date("2026-11-19T23:59:59Z");
+    const key = "parallel shelves";
+    const first = searchCmoKeywords(cuso, key, before);
+    await dispatched;
+    try {
+      await expect(searchCmoKeywords(cuso, key, before)).rejects.toThrow(
+        "already started",
+      );
+      await expect(
+        searchCmoKeywords(cuso, key, new Date(before.getTime() + 2_000)),
+      ).rejects.toThrow("already started");
+    } finally {
+      finish();
+    }
+    await first;
+    const purchases = await prisma.projectSeoResearch.findMany({
+      where: {
+        projectId: cuso.projectId,
+        kind: "keyword_research_run",
+        key: { contains: key },
+      },
+    });
+    expect(purchases).toHaveLength(1);
   });
 
   it("answers a position check from its imported result, and says when it failed", async () => {

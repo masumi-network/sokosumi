@@ -411,6 +411,9 @@ export const AdminSeoAlertsSchema = {
                                 'seasonalFailed',
                                 'explorationFailed',
                                 'investigationFailed',
+                                'editorialGemini',
+                                'editorialCodex',
+                                'editorialValidation',
                                 'reportMissing',
                                 'gscDisconnected',
                                 'gscProperty',
@@ -44656,6 +44659,11 @@ export const ProjectSeoWorkspaceSchema = {
                         type: 'string',
                         minLength: 2,
                         maxLength: 96
+                    },
+                    headline: {
+                        type: 'string',
+                        minLength: 4,
+                        maxLength: 180
                     }
                 },
                 required: [
@@ -44674,6 +44682,12 @@ export const ProjectSeoWorkspaceSchema = {
                         type: 'string',
                         minLength: 2,
                         maxLength: 96
+                    },
+                    basis: {
+                        type: 'string',
+                        enum: [
+                            'headline_phrase'
+                        ]
                     },
                     publishedFrom: {
                         type: 'string',
@@ -44744,6 +44758,52 @@ export const ProjectSeoWorkspaceSchema = {
                     'publishedFrom',
                     'publishedThrough',
                     'pages'
+                ]
+            }
+        },
+        privateTopicQueries: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    topic: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 96
+                    },
+                    query: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 256
+                    },
+                    from: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    to: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    pages: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            format: 'uri'
+                        },
+                        minItems: 2
+                    },
+                    observationId: {
+                        type: 'string',
+                        format: 'uuid'
+                    }
+                },
+                required: [
+                    'topic',
+                    'query',
+                    'from',
+                    'to',
+                    'pages',
+                    'observationId'
                 ]
             }
         },
@@ -45463,6 +45523,31 @@ export const ProjectSeoKeywordSchema = {
                 'null'
             ]
         },
+        editorial: {
+            type: 'object',
+            properties: {
+                models: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        enum: [
+                            'gemini',
+                            'codex'
+                        ]
+                    },
+                    minItems: 1,
+                    maxItems: 2
+                },
+                record: {
+                    type: 'string',
+                    pattern: '^[a-f0-9]{64}$'
+                }
+            },
+            required: [
+                'models',
+                'record'
+            ]
+        },
         difficulty: {
             type: [
                 'number',
@@ -45956,60 +46041,162 @@ export const ProjectSeoActionSchema = {
             ]
         },
         followUpReview: {
-            type: 'object',
-            properties: {
-                kind: {
-                    type: 'string',
-                    enum: [
-                        'rank_crosses',
-                        'demand_returns'
+            oneOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        period: {
+                            type: 'string',
+                            pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                        },
+                        baselineObservationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        baselineObservedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        observedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'rank_crosses',
+                                'demand_returns'
+                            ]
+                        },
+                        keyword: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 256
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'baselineObservationId',
+                        'baselineObservedAt',
+                        'observationId',
+                        'observedAt',
+                        'kind',
+                        'keyword'
                     ]
                 },
-                keyword: {
-                    type: 'string',
-                    minLength: 1,
-                    maxLength: 256
-                },
-                before: {
-                    type: 'number',
-                    minimum: 0
-                },
-                after: {
-                    type: 'number',
-                    minimum: 0
-                },
-                period: {
-                    type: 'string',
-                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
-                },
-                baselineObservationId: {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                baselineObservedAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
-                },
-                observationId: {
-                    type: 'string',
-                    format: 'uuid'
-                },
-                observedAt: {
-                    type: 'string',
-                    format: 'date-time',
-                    example: '2021-01-01T00:00:00.000Z'
+                {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        period: {
+                            type: 'string',
+                            pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                        },
+                        baselineObservationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        baselineObservedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        observedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                            example: '2021-01-01T00:00:00.000Z'
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'engagement_changed',
+                                'purchase_rate_changed',
+                                'signup_rate_changed'
+                            ]
+                        },
+                        beforePeriod: {
+                            type: 'object',
+                            properties: {
+                                from: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                to: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                sessions: {
+                                    type: 'integer',
+                                    exclusiveMinimum: 0
+                                }
+                            },
+                            required: [
+                                'from',
+                                'to',
+                                'sessions'
+                            ]
+                        },
+                        afterPeriod: {
+                            type: 'object',
+                            properties: {
+                                from: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                to: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                sessions: {
+                                    type: 'integer',
+                                    exclusiveMinimum: 0
+                                }
+                            },
+                            required: [
+                                'from',
+                                'to',
+                                'sessions'
+                            ]
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'baselineObservationId',
+                        'baselineObservedAt',
+                        'observationId',
+                        'observedAt',
+                        'kind',
+                        'beforePeriod',
+                        'afterPeriod'
+                    ]
                 }
-            },
-            required: [
-                'kind',
-                'keyword',
-                'before',
-                'after',
-                'baselineObservationId',
-                'baselineObservedAt',
-                'observationId',
-                'observedAt'
             ]
         },
         taskId: {
@@ -48737,7 +48924,10 @@ export const AcknowledgeProjectSeoReviewRequestSchema = {
             type: 'string',
             enum: [
                 'rank_crosses',
-                'demand_returns'
+                'demand_returns',
+                'engagement_changed',
+                'purchase_rate_changed',
+                'signup_rate_changed'
             ]
         },
         period: {
@@ -59508,6 +59698,16 @@ export const CmoKeywordSearchSchema = {
 export const CmoKeywordIdeaSchema = {
     type: 'object',
     properties: {
+        editorial: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        measuredAt: {
+            type: 'string',
+            format: 'date-time'
+        },
         keyword: {
             type: 'string'
         },

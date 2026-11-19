@@ -92,7 +92,7 @@ export type AdminSeoAlerts = {
         taskId: string | null;
         at: Date;
         severity: 'critical' | 'warning' | 'info';
-        reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
+        reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'editorialGemini' | 'editorialCodex' | 'editorialValidation' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
         failedPages: number;
         attemptedPages: number;
     }>;
@@ -11774,9 +11774,11 @@ export type ProjectSeoWorkspace = {
         revisedOn?: Date;
         record: string;
         section?: string;
+        headline?: string;
     }>;
     topicLaunches?: Array<{
         topic: string;
+        basis?: 'headline_phrase';
         publishedFrom: Date;
         publishedThrough: Date;
         pages: Array<{
@@ -11791,6 +11793,14 @@ export type ProjectSeoWorkspace = {
             revisedOn?: Date;
             record: string;
         };
+    }>;
+    privateTopicQueries?: Array<{
+        topic: string;
+        query: string;
+        from: Date;
+        to: Date;
+        pages: Array<string>;
+        observationId: string;
     }>;
     seasonalIdeas?: Array<{
         marketBasis?: 'vendor_scenario';
@@ -11924,6 +11934,10 @@ export type ProjectSeoKeyword = {
     languageCode: string;
     source: string;
     volume: number | null;
+    editorial?: {
+        models: Array<'gemini' | 'codex'>;
+        record: string;
+    };
     difficulty: number | null;
     clicks: {
         now: number;
@@ -12005,8 +12019,6 @@ export type ProjectSeoAction = {
         nextCheck: string;
     };
     followUpReview?: {
-        kind: 'rank_crosses' | 'demand_returns';
-        keyword: string;
         before: number;
         after: number;
         period?: string;
@@ -12014,6 +12026,27 @@ export type ProjectSeoAction = {
         baselineObservedAt: Date;
         observationId: string;
         observedAt: Date;
+        kind: 'rank_crosses' | 'demand_returns';
+        keyword: string;
+    } | {
+        before: number;
+        after: number;
+        period?: string;
+        baselineObservationId: string;
+        baselineObservedAt: Date;
+        observationId: string;
+        observedAt: Date;
+        kind: 'engagement_changed' | 'purchase_rate_changed' | 'signup_rate_changed';
+        beforePeriod: {
+            from: Date;
+            to: Date;
+            sessions: number;
+        };
+        afterPeriod: {
+            from: Date;
+            to: Date;
+            sessions: number;
+        };
     };
     taskId: string | null;
     status: 'recommended' | 'needs_review' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
@@ -12522,7 +12555,7 @@ export type AcknowledgeProjectSeoReviewRequest = {
         searchType?: 'web' | 'image' | 'video' | 'news' | 'discover' | 'googleNews';
     };
     actionId: string;
-    kind: 'rank_crosses' | 'demand_returns';
+    kind: 'rank_crosses' | 'demand_returns' | 'engagement_changed' | 'purchase_rate_changed' | 'signup_rate_changed';
     period?: string;
     baselineObservationId: string;
     observationId: string;
@@ -14872,6 +14905,8 @@ export type CmoKeywordSearch = {
 };
 
 export type CmoKeywordIdea = {
+    editorial?: true;
+    measuredAt?: Date;
     keyword: string;
     searchVolume: number | null;
     difficulty: number | null;

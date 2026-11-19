@@ -4,6 +4,11 @@ import {
   publicExplorationUrl,
 } from "./project-seo-exploration-privacy";
 import { reportObject } from "./project-seo-public-report";
+import {
+  headlinePhrases,
+  topicInSlug,
+  validArticleSection,
+} from "./seo-article-topic-phrases";
 
 const section = z.string().trim().min(2).max(96).refine(publicExplorationText);
 const recentDays = 180;
@@ -31,9 +36,27 @@ const article = z.object({
   revisedOn: z.iso.date().optional(),
   record: z.hash("sha256"),
 });
-export const seoArticleDates = article.extend({ section: section.optional() });
+export const seoArticleDates = article.extend({
+  section: section.optional(),
+  headline: z
+    .string()
+    .trim()
+    .min(4)
+    .max(180)
+    .refine(publicExplorationText)
+    .optional(),
+});
+export const seoPrivateTopicQuery = z.object({
+  topic: section,
+  query: z.string().min(1).max(256),
+  from: z.iso.date(),
+  to: z.iso.date(),
+  pages: z.array(z.httpUrl()).min(2),
+  observationId: z.uuid(),
+});
 export const seoTopicLaunch = z.object({
   topic: section,
+  basis: z.literal("headline_phrase").optional(),
   publishedFrom: z.iso.date(),
   publishedThrough: z.iso.date(),
   pages: z.array(article).min(2).max(10),
@@ -122,6 +145,15 @@ export function boundTopicLaunches(
       (group.earlierArticle &&
         Date.parse(group.earlierArticle.publishedOn) >= cutoff) ||
       seen.has(label) ||
+      (group.basis &&
+        !group.pages.some((page) => topicInSlug(page.url, group.topic))) ||
+      (group.basis &&
+        new Set(
+          group.pages
+            .map((p) => articles.find((a) => a.url === p.url)?.headline)
+            .filter(Boolean)
+            .map((h) => key(h!)),
+        ).size < 2) ||
       origins.size !== 1 ||
       new Set(rows.map((row) => row.url)).size !== rows.length ||
       dates[0] !== group.publishedFrom ||
@@ -133,8 +165,11 @@ export function boundTopicLaunches(
         const source = matches[0];
         return (
           matches.length !== 1 ||
-          !source.section ||
-          key(source.section) !== label ||
+          (group.basis
+            ? (!!source.section && validArticleSection(source.section)) ||
+              !source.headline ||
+              !headlinePhrases(source.headline, source.url).has(label)
+            : !source.section || key(source.section) !== label) ||
           source.record !== row.record ||
           source.publishedOn !== row.publishedOn ||
           source.revisedOn !== row.revisedOn

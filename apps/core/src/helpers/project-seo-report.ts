@@ -3,6 +3,7 @@ import { badRequest } from "@/helpers/error";
 import {
   seoConversionSchema,
   seoDeviceSchema,
+  seoEditorialKeywordSchema,
   seoModuleCoverageSchema,
   seoSeveritySchema,
   seoUrlSchema,
@@ -15,7 +16,7 @@ import {
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
-import { bindMarketSource, readWorkerDecisions } from "./project-seo-decisions";
+import * as seoDecisions from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import {
   reportObject as object,
@@ -23,7 +24,12 @@ import {
   refusePrivateReport,
   skippedPages,
 } from "./project-seo-public-report";
-import { legacyReportKeywords } from "./project-seo-report-keywords";
+import {
+  difficulty,
+  estimate,
+  FEATURE_CHARS,
+  legacyReportKeywords,
+} from "./project-seo-report-keywords";
 import {
   focusedSerpFields,
   seoAlertRowsSchema,
@@ -51,16 +57,6 @@ const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
 const observedAt = z.string().datetime();
 const source = z.object({ sourceRef: text, observedAt });
-const FEATURE_CHARS = 200;
-// DataForSEO keyword_difficulty: 0 to 100. A value Core cannot read is dropped: it must not fail the import.
-const difficulty = z
-  .number()
-  .finite()
-  .min(0)
-  .max(100)
-  .nullable()
-  .optional()
-  .catch(undefined);
 const finding = source.extend({
   id: text,
   pageUrl: seoUrlSchema,
@@ -80,6 +76,7 @@ const keyword = source.extend({
   volume: nullableNumber.optional(),
   difficulty,
   intent: text.nullable().optional(),
+  editorial: seoEditorialKeywordSchema.optional(),
   conversion: seoConversionSchema.nullable().optional(),
   feature: z.string().max(FEATURE_CHARS).nullable().optional(),
   source: text.optional(),
@@ -316,7 +313,7 @@ const partial = z
       .max(10000),
     // A focused result carries no estimate: only a page Report does. One sent all the same is not read.
     keywords: z
-      .array(keyword.omit({ conversion: true, feature: true }))
+      .array(keyword.omit({ conversion: true, feature: true, editorial: true }))
       .max(5000),
     competitors: z.array(competitor).max(1000),
     findings: z.array(finding).max(5000),
@@ -330,17 +327,6 @@ const partial = z
     gaps: z.array(z.object({ reason: text }).passthrough()).max(500),
   })
   .passthrough();
-// A page Report's estimate for a keyword. A value Core cannot read is dropped: it must not fail the import.
-const estimate = {
-  conversion: seoConversionSchema.optional().catch(undefined),
-  feature: z
-    .string()
-    .trim()
-    .min(1)
-    .max(FEATURE_CHARS)
-    .optional()
-    .catch(undefined),
-};
 // Two seasonal reviewers can each propose five searches. History can supply three further terms.
 const MAX_SEASONAL_IDEAS = 13;
 const legacy = z.object({
@@ -473,6 +459,7 @@ const legacy = z.object({
           difficulty,
           position: nullableNumber,
           intent: text.nullable(),
+          editorial: seoEditorialKeywordSchema.optional().catch(undefined),
           ...estimate,
         }),
       ),
@@ -533,7 +520,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       }));
     });
     const articles = publicSiteArticles(raw, pages);
-    const sources = bindMarketSource(
+    const sources = seoDecisions.bindMarketSource(
       object(raw),
       eligible.flatMap((item) => {
         const result = publicPageSnapshotSchema.safeParse(item);
@@ -541,7 +528,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       }),
     );
     const ranks = pages.flatMap((p) => p.reviewSources ?? []);
-    const decisions = readWorkerDecisions(
+    const decisions = seoDecisions.readWorkerDecisions(
       raw,
       eligible.map((page) => page.url),
       sources,
@@ -711,7 +698,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     countryCode: result.header.market?.country ?? "",
     languageCode: result.header.market?.language ?? "",
     rulebookVersion: result.rulebookVersion,
-    strategyDecisions: readWorkerDecisions(raw, [pageUrl], [], ranks ?? []),
+    ...seoDecisions.singlePageDecisions(raw, result, ranks),
     ...(seasonalIdeas && { seasonalIdeas }),
     checks: result.checklist.map((row) => ({
       rowId: row.row,

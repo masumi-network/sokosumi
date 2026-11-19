@@ -11,10 +11,12 @@ import {
   vi,
 } from "vitest";
 
+import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import { createSeoWorkspaceRouter } from "@/routes/v1/projects/[id]/seo";
 import type { SeoActor } from "@/schemas/project-seo.schema";
 import type { NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
+import { legacyReport, siteStrategyReport } from "@/test-fixtures/project-seo";
 import { createTaskScheduleTestApp } from "@/test-fixtures/task-schedule-app";
 import {
   addProjectSeoPage,
@@ -29,12 +31,15 @@ import {
   listSeoAudits,
 } from "./seo-audit.service";
 import { setSeoAuditArchived } from "./seo-audit-archive";
+import { saveSeoBrief } from "./seo-audit-brief.service";
 import { listSeoChat, sendSeoChat } from "./seo-chat.service";
 import { disconnectSeoConnection } from "./seo-connection-oauth.service";
 import {
+  connectionVersion,
   getSeoConnection,
   resolveSeoStatisticsIntegration,
 } from "./seo-connections.service";
+import { landingOutcomeAccountKey } from "./seo-statistics-landing";
 
 const boundary = vi.hoisted(() => ({
   deleteAccount: vi.fn(async () => undefined),
@@ -427,6 +432,329 @@ describe.skipIf(!enabled)(
       }
       expect(await readSelection(other)).toBeNull();
       expect(await readSelection(actor)).toBe(property);
+    });
+
+    it("reopens only the owner's recommendation on named organic conversions and protects the acknowledgement from a teammate", async () => {
+      const { actor, other, workspace } = await audit("Owner action review");
+      const page = workspace.pages[0]!;
+      const connection = await prisma.seoConnection.create({
+        data: {
+          workspaceId,
+          userId: firstUserId,
+          provider: "ga4",
+          status: "ACTIVE",
+          composioAccountId: randomUUID(),
+          entityId: randomUUID(),
+        },
+      });
+      try {
+        const account = (await resolveSeoStatisticsIntegration(actor, "ga4"))!;
+        const version = connectionVersion(account);
+        await saveSeoBrief(actor, {
+          expectedRevision: 0,
+          objective: "sales",
+          audience: null,
+          outcome: null,
+          constraints: null,
+          pages: [
+            {
+              pageId: page.id,
+              role: "product",
+              action: "buy",
+              indexIntent: "index",
+              job: null,
+            },
+          ],
+        });
+        const origin = "2026-09-08T12:00:00Z";
+        const raw = legacyReport();
+        const payload = parsePublicSeoArtifact({
+          ...raw,
+          request: { url: page.url },
+          header: { ...raw.header, capturedAt: origin },
+          strategyDecisions: [
+            {
+              kind: "offer_availability",
+              id: "stock",
+              targetUrl: page.url,
+              action: "Clarify the current stock status.",
+              reason: "The stock information differs across page elements.",
+              alternative: "Keep the current offer.",
+              nextCheck: "Review the purchase outcomes for this page.",
+              evidence: ["offerAvailability"],
+            },
+          ],
+        });
+        await prisma.projectSeoObservation.create({
+          data: {
+            auditId: actor.owner.id,
+            source: "seo_coworker",
+            kind: "audit_full",
+            sourceKey: randomUUID(),
+            pageIds: [page.id],
+            artifactHash: "action-fixture",
+            observedAt: new Date(origin),
+            payload,
+          },
+        });
+        async function sync(
+          from: string,
+          to: string,
+          at: string,
+          count: number,
+        ) {
+          return recordNativeSeoMetrics(
+            actor,
+            {
+              ...metrics(50),
+              from,
+              to,
+              observedAt: at,
+              channel: "organic",
+              landingPages: {
+                channel: "organic",
+                timeZone: "UTC",
+                verifiedHost: "example.test",
+                rows: [
+                  {
+                    pageUrl,
+                    sessions: 100,
+                    keyEvents: 99,
+                    engagementSeconds: 4000,
+                    views: 200,
+                  },
+                ],
+              },
+              landingEngagementEvidence: { connectionVersion: version },
+            },
+            {
+              outcomes: {
+                version: 1,
+                accountKey: landingOutcomeAccountKey(account),
+                propertyId: "properties/123",
+                verifiedHost: "example.test",
+                timeZone: "UTC",
+                channel: "organic",
+                from,
+                to,
+                rows: [
+                  { pageUrl, event: "purchase", count },
+                  { pageUrl, event: "sign_up", count: 77 },
+                ],
+              },
+            },
+          );
+        }
+        const baseline = await sync(
+          "2026-09-01",
+          "2026-09-07",
+          "2026-09-08T06:00:00Z",
+          10,
+        );
+        const change = await sync(
+          "2026-09-09",
+          "2026-09-15",
+          "2026-09-16T12:00:00Z",
+          3,
+        );
+        const app = (viewer: SeoActor) =>
+          createTaskScheduleTestApp(
+            (root) =>
+              root.route("/audits/:id", createSeoWorkspaceRouter("audit")),
+            {
+              actor: "user",
+              userId: viewer.userId,
+              role: "user",
+              organizationId,
+            },
+            { userId: viewer.userId, workspaceId, organizationId },
+          );
+        const url = `http://localhost/audits/${actor.owner.id}`;
+        const lookup = async (viewer: SeoActor) => {
+          const res = await app(viewer).request(url);
+          expect(res.status).toBe(200);
+          const data = (await res.json()).data;
+          return data.actions.find(
+            (a: { decision?: { kind: string } }) =>
+              a.decision?.kind === "offer_availability",
+          );
+        };
+        const item = await lookup(actor);
+        expect(item).toMatchObject({
+          followUpReview: {
+            kind: "purchase_rate_changed",
+            before: 10,
+            after: 3,
+            baselineObservationId: baseline.id,
+            observationId: change.id,
+            beforePeriod: { sessions: 100 },
+            afterPeriod: { sessions: 100 },
+          },
+        });
+        const input = {
+          pageId: page.id,
+          actionId: item.id,
+          kind: item.followUpReview.kind,
+          baselineObservationId: baseline.id,
+          observationId: change.id,
+        };
+        const acknowledge = async (viewer: SeoActor) =>
+          (
+            await app(viewer).request(url + "/actions/reviews", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(input),
+            })
+          ).status;
+        expect((await lookup(other)).followUpReview).toBeUndefined();
+        expect(await acknowledge(other)).toBe(409);
+        expect(await acknowledge(actor)).toBe(204);
+        await sync("2026-09-09", "2026-09-15", "2026-09-17T12:00:00Z", 3);
+        expect(await acknowledge(actor)).toBe(204);
+        expect(await acknowledge(other)).toBe(409);
+        expect((await lookup(actor)).followUpReview).toBeUndefined();
+        const receipts = await prisma.projectSeoObservation.findMany({
+          where: { auditId: actor.owner.id, kind: "recommendation_review" },
+        });
+        expect(receipts).toHaveLength(1);
+        expect(receipts[0]).toMatchObject({
+          ownerId: firstUserId,
+          visibility: "PRIVATE",
+          pageIds: [],
+        });
+        await sync("2026-09-16", "2026-09-22", "2026-09-23T12:00:00Z", 4);
+        expect((await lookup(actor)).followUpReview).toBeUndefined();
+        await sync("2026-09-23", "2026-09-29", "2026-09-30T12:00:00Z", 10);
+        const later = await sync(
+          "2026-09-30",
+          "2026-10-06",
+          "2026-10-07T12:00:00Z",
+          4,
+        );
+        expect((await lookup(actor)).followUpReview.observationId).toBe(
+          later.id,
+        );
+        expect(
+          (await getProjectSeoWorkspace(actor)).actions.some(
+            (a) => a.followUpReview,
+          ),
+        ).toBe(false);
+        await prisma.seoConnection.update({
+          where: { id: connection.id },
+          data: { status: "DISCONNECTED" },
+        });
+        expect((await lookup(actor)).followUpReview).toBeUndefined();
+        expect(
+          await prisma.projectSeoActionTask.count({
+            where: { auditId: actor.owner.id },
+          }),
+        ).toBe(0);
+        expect(boundary.read).not.toHaveBeenCalled();
+      } finally {
+        await prisma.seoConnection.delete({ where: { id: connection.id } });
+      }
+    });
+
+    it("corroborates a headline topic with one member's retained query across two pages and keeps it out of shared contexts", async () => {
+      const { actor, other, workspace } = await audit(
+        "Search evidence for a heading phrase",
+      );
+      const second = await addProjectSeoPage(actor, {
+        url: "https://example.test/fuentes-termales-norte",
+        relationship: "related",
+        relatedToPageId: workspace.pages[0].id,
+      });
+      const pages = [workspace.pages[0], second],
+        topic = "Fuentes termales",
+        query = "Fuentes termales del norte";
+      const raw = legacyReport();
+      const children = pages.map((p, i) => ({
+        ...raw,
+        request: { url: p.url },
+        articleDates: {
+          publishedOn: i ? "2026-10-04" : "2026-10-01",
+          headline: topic + ": " + (i ? "Agua mineral" : "Rutas cortas"),
+          record: String(i + 1).repeat(64),
+        },
+      }));
+      const dated = children.map((c) => ({
+        url: c.request.url,
+        publishedOn: c.articleDates.publishedOn,
+        record: c.articleDates.record,
+      }));
+      const payload = parsePublicSeoArtifact({
+        ...siteStrategyReport(),
+        pages: children,
+        request: { url: pageUrl, pages: [{ url: second.url }] },
+        selection: {
+          pages: pages.map((p) => ({ url: p.url, source: "owner" })),
+        },
+        topicLaunches: [
+          {
+            topic,
+            basis: "headline_phrase",
+            publishedFrom: dated[0].publishedOn,
+            publishedThrough: dated[1].publishedOn,
+            pages: dated,
+          },
+        ],
+      });
+      expect(payload.topicLaunches).toHaveLength(1);
+      await prisma.projectSeoObservation.create({
+        data: {
+          auditId: actor.owner.id,
+          kind: "audit_full",
+          source: "seo_coworker",
+          sourceKey: randomUUID(),
+          pageIds: pages.map((p) => p.id),
+          artifactHash: "public-topic",
+          payload,
+          observedAt: new Date(payload.observedAt),
+        },
+      });
+      const base = {
+        ...metrics(1),
+        provider: "search_console" as const,
+        propertyId: "sc-domain:example.test",
+        channel: "organic" as const,
+        pageUrls: pages.map((p) => p.url),
+        observedAt: "2026-11-04T12:00:00Z",
+      };
+      const rows = pages.map((p) => ({
+        query,
+        pageUrl: p.url,
+        clicks: 1,
+        impressions: 15,
+        ctr: 1 / 15,
+        averagePosition: 9,
+      }));
+      await recordNativeSeoMetrics(actor, {
+        ...base,
+        queries: { rowLimit: 250, truncated: false, rows },
+      });
+      const opts = { includePrivateReviews: true };
+      const results = await getProjectSeoWorkspace(actor, {}, opts);
+      expect(results.privateTopicQueries).toMatchObject([
+        { topic, query, pages: pages.map((p) => p.url).sort() },
+      ]);
+      expect(
+        (await getProjectSeoWorkspace(other, {}, opts)).privateTopicQueries,
+      ).toBeUndefined();
+      expect(
+        (await getProjectSeoWorkspace(actor)).privateTopicQueries,
+      ).toBeUndefined();
+      expect(
+        (await getProjectSeoWorkspace(actor, { pageId: second.id }, opts))
+          .privateTopicQueries,
+      ).toBeUndefined();
+      await recordNativeSeoMetrics(actor, {
+        ...base,
+        observedAt: "2026-11-05T12:00:00Z",
+        queries: { rowLimit: 250, truncated: false, rows: rows.slice(0, 1) },
+      });
+      expect(
+        (await getProjectSeoWorkspace(actor, {}, opts)).privateTopicQueries,
+      ).toBeUndefined();
     });
 
     it("shares new organization measurements and authored chat across current members without transferring account access", async () => {
