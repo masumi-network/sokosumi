@@ -12452,7 +12452,6 @@
         "showAll": "Show all",
         "showLess": "Show less",
         "askAboutNoteOnPage": "What does “{name}” mean for {url}? Should I change anything?",
-        "insideToolRanges": "{total, plural, one {within the tool range} other {within all # tool ranges}}",
         "outsideToolRanges": "{total, plural, one {outside the tool range ({tools})} other {outside {outside} of # tool ranges ({tools})}}",
         "toolRanges": "Ranges SEO tools use: {ranges}",
         "positionHint": "1 is the top result",

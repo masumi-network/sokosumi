@@ -4,6 +4,7 @@ import de from "../../../../../messages/de.json";
 import en from "../../../../../messages/en.json";
 import es from "../../../../../messages/es.json";
 import {
+  actionablePageDetails,
   measuresOutsideToolRanges,
   measureValue,
   noteFinding,
@@ -782,6 +783,25 @@ describe("measures outside tool ranges", () => {
         findingIds: ["desktop", "mobile"],
       },
     ]);
+  });
+});
+
+describe("actionablePageDetails", () => {
+  it("lists notes, unjudged values and values outside a range, not a value inside every range", () => {
+    const row = (id: string, evidence: string[]) => ({
+      ...finding(id, "measure"),
+      title: "Raw HTML: Title length",
+      evidence,
+    });
+    const ranges = "vendor tools: Ahrefs under 70 (N1-246)";
+    expect(
+      actionablePageDetails([
+        row("in-range", ["title 56 characters", ranges]),
+        row("outside", ["title 80 characters", ranges]),
+        row("unjudged", ["title 90 characters"]),
+        finding("note", "note"),
+      ]).map((row) => row.id),
+    ).toEqual(["outside", "unjudged", "note"]);
   });
 });
 
