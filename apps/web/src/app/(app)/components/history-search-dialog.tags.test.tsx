@@ -48,7 +48,7 @@ const labels = {
   peopleGroup: "People",
   copyEmail: (email: string) => `Copy ${email}`,
   emailCopied: "Email copied",
-  mentionInTask: (name: string) => `Mention ${name} in a new Task`,
+  mentionInTask: (name: string) => `Mention ${name} in a new task`,
   tagsGroup: "Tags",
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
   tagsError: "Couldn't load tags",

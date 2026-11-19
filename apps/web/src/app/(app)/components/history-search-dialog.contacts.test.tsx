@@ -59,7 +59,7 @@ const labels = {
   peopleGroup: "People",
   copyEmail: (email: string) => `Copy ${email}`,
   emailCopied: "Email copied",
-  mentionInTask: (name: string) => `Mention ${name} in a new Task`,
+  mentionInTask: (name: string) => `Mention ${name} in a new task`,
   tagsGroup: "Tags",
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
   tagsError: "Couldn't load tags",
@@ -206,7 +206,7 @@ describe("HistorySearchDialog People group", () => {
 
     expect(
       await screen.findByRole("option", {
-        name: "Mention Nina Berg in a new Task",
+        name: "Mention Nina Berg in a new task",
       }),
     ).toBeInTheDocument();
     expect(
@@ -225,7 +225,7 @@ describe("HistorySearchDialog People group", () => {
     await user.type(screen.getByPlaceholderText("Search..."), "nina");
     await user.click(
       await screen.findByRole("option", {
-        name: "Mention Nina [QA] Berg in a new Task",
+        name: "Mention Nina [QA] Berg in a new task",
       }),
     );
 
@@ -246,7 +246,7 @@ describe("HistorySearchDialog People group", () => {
     const input = screen.getByPlaceholderText("Search...");
     await user.type(input, "nina");
     const mention = await screen.findByRole("option", {
-      name: "Mention Nina Berg in a new Task",
+      name: "Mention Nina Berg in a new task",
     });
     expect(mention).toHaveAttribute("aria-disabled", "false");
 
