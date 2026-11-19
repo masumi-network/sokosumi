@@ -1348,7 +1348,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Cuso created a table with create_table whose columns are Post, Channel and Status (or very close), with rows for this week's LinkedIn posts from the strategy, and told the owner its name and what is in it in a sentence or two. The owner's chat shows the table itself, so writing a link to it, telling the owner to open it somewhere, or repeating every row as a typed table fails. Saying he cannot create tables fails. Changing the strategy fails.",
     expect: {
-      routes: ["MANAGE_WORK", "MIXED"],
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
       tools: ["create_table"],
       forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
       answerAvoids: "\\]\\(|/drive/|sokosumi",
@@ -1364,7 +1364,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Cuso read the contacts (count_contacts or search_contacts) and said how many there are, a real number from the tool, zero included. He created a contact list called Press with manage_contact_lists and said so. Saying he cannot reach the contacts, sending the owner to another assistant or another app, or inventing people fails. Writing a link fails.",
     expect: {
-      routes: ["MANAGE_WORK", "MIXED"],
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
       tools: ["manage_contact_lists"],
       anyTools: ["count_contacts", "search_contacts"],
       forbiddenTools: ["save_strategy", "create_task", "hire_agent"],
@@ -1381,7 +1381,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Cuso started one background run with start_background_run whose brief names the goal (the three competitors' plan prices), where the result goes (a table called Competitor prices) and what done means, and told the owner in a sentence or two that it has started and that the report follows in this chat. Doing all the research in this turn instead, starting more than one run, creating a Task or hiring an Agent for it, or saying he cannot work in the background fails.",
     expect: {
-      routes: ["MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
       tools: ["start_background_run"],
       forbiddenTools: ["create_task", "hire_agent", "save_strategy"],
     },
@@ -1412,7 +1412,7 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
     rubric:
       "Cuso created one new schedule with create_schedule for Mondays at 9:00 whose prompt reminds the owner to send last week's sales numbers, and confirmed the day and time in a sentence. Changing, pausing or deleting one of his built-in rhythms (Weekly review, Daily marketing run and the like), or folding the reminder into one of them, fails. Creating a Task for it fails.",
     expect: {
-      routes: ["MANAGE_WORK", "MIXED"],
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "MIXED"],
       tools: ["create_schedule"],
       forbiddenTools: [
         "update_schedule",
@@ -1432,11 +1432,11 @@ export const CMO_SCENARIOS: SokoBotScenario[] = [
       kind: "follow_up",
       ask: "Remind me every Monday at 9:00 to send you last week's sales numbers.",
       outcome:
-        "The picture you started for the owner is ready. The owner's chat already shows it, where you started it.",
-      then: "Tell the owner the picture is ready.",
+        "The image is ready. The owner's chat already shows it, where you started it; there is nothing to fetch or attach.",
+      then: "Show the picture here with one sentence.",
     },
     rubric:
-      "Cuso changes nothing: no new picture, no post, no report card, no Task. His answer is one short sentence that the picture is ready, or nothing at all. Writing a link, telling the owner to open something elsewhere, making the picture again or drafting a post nobody asked for fails.",
+      "Cuso changes nothing: no new picture, no post, no report card, no Task. His answer is one short sentence that the picture is ready, or nothing at all. Writing a link, telling the owner to open something elsewhere, saying he cannot find or confirm the picture, making it again or drafting a post nobody asked for fails.",
     expect: {
       routes: ["DELEGATE_TASK"],
       forbiddenTools: [

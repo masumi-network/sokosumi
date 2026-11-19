@@ -178,7 +178,6 @@ function overview() {
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
     adProviders: [],
-    connectAdsUrl: "http://web/ads?projectId=project-1",
     measurement: [],
     production: {
       state: "waiting",

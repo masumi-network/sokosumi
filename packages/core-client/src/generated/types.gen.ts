@@ -13481,7 +13481,6 @@ export type CmoOverview = {
     upNext: Array<CmoUpNextItem>;
     connectChannelUrl: string;
     adProviders: Array<string>;
-    connectAdsUrl: string;
     /**
      * Where Cuso reads the funnel's numbers: Google Analytics, Search Console and Shopify.
      */

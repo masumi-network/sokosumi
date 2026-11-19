@@ -578,7 +578,6 @@ export const cmoOverviewSchema = z
     upNext: z.array(cmoUpNextItemSchema),
     connectChannelUrl: z.string(),
     adProviders: z.array(z.string()),
-    connectAdsUrl: z.string(),
     measurement: z
       .array(cmoMeasurementSchema)
       .describe(

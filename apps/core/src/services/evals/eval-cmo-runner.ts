@@ -176,6 +176,15 @@ async function pointCusoAt(
   await prisma.chatRoomMessage.deleteMany({
     where: cmoReportMessageWhere(lane.cusoBotId),
   });
+  // What an earlier case kept (a table, a contact list, a reminder), a
+  // later one finds and rightly does not make again.
+  await prisma.dataTable.deleteMany({ where: { projectId } });
+  await prisma.contactList.deleteMany({
+    where: { createdBySokoBotId: lane.cusoBotId },
+  });
+  await prisma.sokoBotSchedule.deleteMany({
+    where: { sokoBotId: lane.cusoBotId, systemKey: null },
+  });
   if (brandBrain)
     await prisma.brandBrain.create({
       data: { projectId, body: brandBrain as object, updatedAt: new Date() },
