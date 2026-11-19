@@ -15,6 +15,7 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
+  isCmoTalkingFormat,
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaRef,
   type SocialPostProvider,
@@ -332,7 +333,11 @@ export async function carryOverMadePieces(
   const moved = posts
     .filter((post) => {
       const planning = parseSocialPostPlanning(post.planning);
-      return same(planning?.id ?? post.id, planning?.title);
+      // A talking video's post on another network moves with its entry.
+      return same(
+        planning?.videoOf ?? planning?.id ?? post.id,
+        planning?.title,
+      );
     })
     .map((post) => post.id);
   if (moved.length > 0) {
@@ -461,6 +466,54 @@ export function plannedAt(
   );
 }
 
+/**
+ * The other networks a talking video also goes out on: live social networks
+ * with a talking video format, each once, never the entry's own.
+ */
+export function cmoVideoNetworks(
+  entry: Pick<CmoCalendarEntry, "channel" | "format" | "alsoOn">,
+): SocialPostProvider[] {
+  if (!isCmoTalkingFormat(entry.channel, entry.format)) return [];
+  const networks = (entry.alsoOn ?? []).flatMap((network) => {
+    const provider = socialPostProvider(network);
+    return provider &&
+      provider !== entry.channel &&
+      isCmoTalkingFormat(provider, entry.format)
+      ? [provider]
+      : [];
+  });
+  return [...new Set(networks)];
+}
+
+/** Why an entry's `alsoOn` cannot be carried out, or null. */
+export function cmoAlsoOnProblem(
+  entry: Pick<CmoCalendarEntry, "id" | "channel" | "format" | "alsoOn">,
+): string | null {
+  if (!entry.alsoOn?.length) return null;
+  if (!isCmoTalkingFormat(entry.channel, entry.format))
+    return `${entry.id} lists alsoOn, which only a talking_video takes: one video shown on several networks. Remove alsoOn or make it a talking_video.`;
+  const allowed = cmoVideoNetworks(entry) as string[];
+  const refused = entry.alsoOn.filter((network) => !allowed.includes(network));
+  return refused.length > 0
+    ? `${entry.id} cannot also go out on ${refused.join(", ")}: alsoOn takes other live networks with a talking_video format (${Object.entries(
+        CMO_CHANNELS,
+      )
+        .filter(
+          ([key]) =>
+            key !== entry.channel &&
+            socialPostProvider(key) &&
+            isCmoTalkingFormat(key, entry.format),
+        )
+        .map(([key]) => key)
+        .join(", ")}), never its own channel.`
+    : null;
+}
+
+/** The planning id of a talking video's post on another network. */
+function videoCopyId(entryId: string, network: string): string {
+  return `${entryId.slice(0, 63 - network.length)}@${network}`;
+}
+
 function withoutUndefined<T extends object>(value: T): Partial<T> {
   return Object.fromEntries(
     Object.entries(value).filter(([, item]) => item !== undefined),
@@ -473,7 +526,9 @@ function withoutUndefined<T extends object>(value: T): Partial<T> {
  * its planning record, the connection set when the Project has one for that
  * network; an entry with a post updates its plan, and its words and time
  * while it is a draft; a skipped one cancels it. Entries on other channels
- * are not produced.
+ * are not produced. A talking video with `alsoOn` gets one more post per
+ * network listed, planned as its entry with `videoOf`; a network taken off
+ * the list cancels its post.
  */
 export async function planMarketingStrategyPosts(
   db: Prisma.TransactionClient,
@@ -491,7 +546,7 @@ export async function planMarketingStrategyPosts(
   const posts = await db.socialPost.findMany({
     where: { marketingStrategyId: version.id },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-    select: { id: true, status: true, planning: true },
+    select: { id: true, status: true, provider: true, planning: true },
   });
   const connections = await db.projectSocialConnection.findMany({
     where: { projectId: version.projectId, status: "active" },
@@ -509,7 +564,12 @@ export async function planMarketingStrategyPosts(
   }
   const now = new Date();
   const drafts: Prisma.SocialPostCreateManyInput[] = [];
-  for (const entry of input.entries) {
+  const unpublished = (status: SocialPostStatus) =>
+    (UNPUBLISHED_POST_STATUSES as readonly SocialPostStatus[]).includes(status);
+  const entries = [...input.entries];
+  // The posts Core plans here for a talking video's other networks.
+  const copies = new Set<CmoCalendarEntry>();
+  for (const entry of entries) {
     const provider = socialPostProvider(entry.channel);
     if (!provider) continue;
     const post = byEntry.get(entry.id);
@@ -517,8 +577,52 @@ export async function planMarketingStrategyPosts(
     const planning = {
       ...stored,
       ...withoutUndefined(socialPostPlanningSchema.parse(entry)),
+      // What a copy speaks is its entry's: a save of the copy changes its
+      // own caption and plan only.
+      ...(stored?.videoOf && !copies.has(entry)
+        ? {
+            script: stored.script,
+            presenter: stored.presenter,
+            voice: stored.voice,
+            languageCode: stored.languageCode,
+            alsoOn: undefined,
+            videoOf: stored.videoOf,
+          }
+        : {}),
       id: stored?.id ?? entry.id,
     };
+    if (!planning.videoOf) {
+      const networks = cmoVideoNetworks({
+        channel: provider,
+        format: planning.format ?? entry.format,
+        alsoOn: planning.alsoOn,
+      });
+      for (const network of networks) {
+        const copy = {
+          ...entry,
+          ...planning,
+          id: videoCopyId(planning.id, network),
+          channel: network,
+          alsoOn: undefined,
+          videoOf: planning.id,
+          draft: undefined,
+          socialPostId: undefined,
+        };
+        copies.add(copy);
+        entries.push(copy);
+      }
+      for (const copy of posts) {
+        if (
+          parseSocialPostPlanning(copy.planning)?.videoOf === planning.id &&
+          !(networks as string[]).includes(copy.provider) &&
+          unpublished(copy.status)
+        )
+          await db.socialPost.update({
+            where: { id: copy.id },
+            data: canceledPost(now),
+          });
+      }
+    }
     if (!post || post.status === "CANCELED") {
       if (entry.status === "skipped" || entry.status === "published") continue;
       drafts.push({
@@ -542,12 +646,7 @@ export async function planMarketingStrategyPosts(
       });
       continue;
     }
-    if (
-      !(UNPUBLISHED_POST_STATUSES as readonly SocialPostStatus[]).includes(
-        post.status,
-      )
-    )
-      continue;
+    if (!unpublished(post.status)) continue;
     // A scheduled post's words and time change through Social, which checks them.
     const draft = post.status !== "SCHEDULED";
     await db.socialPost.update({

@@ -300,6 +300,9 @@ async function madePieces(
   const made = calendar.filter(
     (entry) =>
       entry.status !== "skipped" &&
+      // A talking video is read once, on its own entry: its posts on other
+      // networks would count its pillar again.
+      !entry.videoOf &&
       (isMarketingFilePiece(entry)
         ? Boolean(entry.fileId)
         : Boolean(entry.draft)),

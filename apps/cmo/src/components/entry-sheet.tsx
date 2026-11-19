@@ -111,6 +111,9 @@ export function EntrySheet({
                 : formatHasImage(entry.channel, entry.format)
                   ? ` · image by ${AGENT_NAME}`
                   : ""}
+            {entry.alsoOn?.length
+              ? ` · also on ${entry.alsoOn.map(channelLabel).join(", ")}`
+              : ""}
           </span>
           {position ? (
             <span className="sheet-steps">

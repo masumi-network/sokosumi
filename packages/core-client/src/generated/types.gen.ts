@@ -8951,6 +8951,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
             presenter?: string;
             voice?: string;
             languageCode?: string;
+            alsoOn?: Array<string>;
+            videoOf?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -9008,6 +9010,8 @@ export type MarketingStrategy = MarketingStrategyVersion & {
                 presenter?: string;
                 voice?: string;
                 languageCode?: string;
+                alsoOn?: Array<string>;
+                videoOf?: string;
                 story?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
@@ -9259,6 +9263,8 @@ export type MarketingStrategyRequest = {
             presenter?: string;
             voice?: string;
             languageCode?: string;
+            alsoOn?: Array<string>;
+            videoOf?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;
@@ -9316,6 +9322,8 @@ export type MarketingStrategyRequest = {
                 presenter?: string;
                 voice?: string;
                 languageCode?: string;
+                alsoOn?: Array<string>;
+                videoOf?: string;
                 story?: string;
                 imageFileId?: string;
                 slideFileIds?: Array<string>;
@@ -11001,6 +11009,8 @@ export type SocialPost = {
         presenter?: string;
         voice?: string;
         languageCode?: string;
+        alsoOn?: Array<string>;
+        videoOf?: string;
         story?: string;
     } | null;
     createdAt: Date;
@@ -13845,6 +13855,8 @@ export type CmoPlan = {
         presenter?: string;
         voice?: string;
         languageCode?: string;
+        alsoOn?: Array<string>;
+        videoOf?: string;
         story?: string;
         imageFileId?: string;
         slideFileIds?: Array<string>;
@@ -13902,6 +13914,8 @@ export type CmoPlan = {
             presenter?: string;
             voice?: string;
             languageCode?: string;
+            alsoOn?: Array<string>;
+            videoOf?: string;
             story?: string;
             imageFileId?: string;
             slideFileIds?: Array<string>;

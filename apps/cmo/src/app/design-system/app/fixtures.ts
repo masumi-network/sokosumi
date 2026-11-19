@@ -57,6 +57,10 @@ const calendar: Entry[] = [
   entry(11, "x", "What a slipped launch costs", { status: "draft" }),
   entry(13, "linkedin", "How we plan a launch window", { status: "draft" }),
   entry(16, "facebook", "Meet the crew", { imageFileId: "f6" }),
+  entry(17, "instagram", "Why launches slip", {
+    format: "talking_video",
+    alsoOn: ["youtube", "facebook"],
+  }),
   entry(18, "x", "Ask us anything", { status: "idea", draft: undefined }),
   entry(20, "linkedin", "Customer story: Moonshot", { status: "idea" }),
   entry(24, "newsletter", "November launches", {
