@@ -1,7 +1,10 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import {
   SeoKeywordTrendChart,
   SeoKeywordTrendReason,
@@ -22,7 +25,7 @@ function HistoryPart({
   children: ReactNode;
 }) {
   return (
-    <section className="min-w-0 space-y-1">
+    <section lang="en" className="min-w-0 space-y-1">
       <h4 className="text-sm font-semibold">{title}</h4>
       <p className="text-muted-foreground text-xs">{note}</p>
       {children}
@@ -46,8 +49,8 @@ export function SeoKeywordHistory({
   series: SeoRankSeries[];
   marks: SeoSerpMarker[];
 }) {
-  const t = useTranslations("App.Seo.keywords");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.keywords");
+  const format = useSeoResultFormatter();
   const searchConsole =
     trend.state === "measured" ? (
       <SeoKeywordTrendChart keyword={keyword} points={trend.points} />
@@ -63,6 +66,7 @@ export function SeoKeywordHistory({
           {series.map((item) =>
             item.points.length ? (
               <SeoTrendChart
+                report
                 key={item.device ?? "all"}
                 points={item.points}
                 unit="position"

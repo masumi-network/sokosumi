@@ -91,6 +91,11 @@ const CHAT_MENTION_DIRECT_FOLLOW_UP_KEY =
 
 /** Mirrors countedMessageKey in lib/utils/notification-message. */
 function countedMessageKey(messageKey, params, count) {
+  if (
+    messageKey === "Notifications.Task.completed" &&
+    params.seoResult === true
+  )
+    return "Notifications.Task.seoCompleted";
   // Asked first, and never counted. A follow-up stands for one notification
   // however many messages that notification had already taken, so "3 messages"
   // would say a day-old count rather than what is waiting.

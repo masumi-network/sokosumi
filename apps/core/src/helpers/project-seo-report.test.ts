@@ -21,6 +21,60 @@ import {
 import { SEO_STRATEGY_NOT_IMPORTED } from "./project-seo-strategy";
 
 describe("public SEO report trust boundary", () => {
+  it.each([
+    ["page", legacyReport()],
+    ["focused", focusedReport()],
+    ["site", siteStrategyReport()],
+    ["site without strategy", { ...siteStrategyReport(), strategy: undefined }],
+  ])(
+    "returns JSON-safe optional strategy fields for a %s audit",
+    (_name, raw) => {
+      const payload = parsePublicSeoArtifact(raw);
+      expect(payload).not.toHaveProperty("strategyDecisions");
+      expect(payload).not.toHaveProperty("decisionSources");
+      expect(payload).toStrictEqual(JSON.parse(JSON.stringify(payload)));
+    },
+  );
+
+  it("omits invalid difficulty from the focused keyword payload and preserves supported values", () => {
+    const raw = focusedRankingsReport();
+    for (const difficulty of [101, "invalid", undefined, 0, null, 55]) {
+      const keyword = {
+        ...raw.keywords[0],
+        ...(difficulty !== undefined && { difficulty }),
+      };
+      const payload = parsePublicSeoArtifact({ ...raw, keywords: [keyword] });
+      const stored = payload.keywords[0]!;
+      if (
+        difficulty === 101 ||
+        difficulty === "invalid" ||
+        difficulty === undefined
+      )
+        expect(stored).not.toHaveProperty("difficulty");
+      else expect(stored.difficulty).toBe(difficulty);
+      expect(payload).toStrictEqual(JSON.parse(JSON.stringify(payload)));
+    }
+  });
+  it("keeps five ranked decisions JSON-safe when stored source references are stale", () => {
+    const decisions = Array.from({ length: 5 }, (_, i) => ({
+      id: `content:${i}`,
+      kind: "content_opportunity",
+      targetUrl: SEO_TEST_PAGE,
+      action: `Revise section ${i}`,
+      reason: "Reference material changed.",
+      alternative: "Keep the current wording.",
+      nextCheck: "Review the next crawl.",
+      evidence: ["Public page capture"],
+    }));
+    const stored = publicSeoPayloadSchema.parse({
+      ...parsePublicSeoArtifact(legacyReport()),
+      strategyDecisions: decisions,
+      decisionSources: [{ snapshotId: "stale" }],
+    });
+    expect(stored.strategyDecisions).toEqual(decisions);
+    expect(stored.decisionSources ?? []).toEqual([]);
+    expect(stored).toStrictEqual(JSON.parse(JSON.stringify(stored)));
+  });
   it("keeps observed forum questions on an audited group and discards unsafe source links", () => {
     const raw = siteStrategyReport();
     const questions = [
@@ -811,4 +865,14 @@ describe("SERP reads of a focused result", () => {
       ).toThrow("unrequested keywords or devices");
     }
   });
+});
+
+it("rejects owner-only Bing evidence in a full page or a nested site result before importing decisions", () => {
+  const bing = { property: "owner.test", queries: [{ key: "private term" }] };
+  const page = { ...legacyReport(), bing };
+  for (const raw of [page, { ...siteStrategyReport(), pages: [page] }]) {
+    expect(() => parsePublicSeoArtifact(raw)).toThrow(
+      "Only public SEO evidence",
+    );
+  }
 });

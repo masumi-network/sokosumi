@@ -2,6 +2,7 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { isValidHttpUrl } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoPageLink, SeoShowMore, seoFoldCount } from "./seo-shared";
 
 const INITIAL_QUESTION_GROUPS = 3;
@@ -21,6 +22,7 @@ export function SeoStrategyForumQuestions({
 }) {
   const t = useTranslations("App.Seo.strategy.forumQuestions");
   const [expanded, setExpanded] = useState(false);
+  const result = useSeoResultTranslations("App.Seo.strategy.forumQuestions");
   const urls = new Set(
     workspace.pages
       .filter(
@@ -43,7 +45,7 @@ export function SeoStrategyForumQuestions({
         {groups.slice(0, expanded ? groups.length : visible).map((group) => (
           <li key={JSON.stringify([group.pageUrl, group.lead])}>
             <p className="text-muted-foreground break-words">
-              {t("keyword", { keyword: group.lead })}
+              {result("keyword", { keyword: group.lead })}
             </p>
             <ul className="list-disc space-y-1 ps-5">
               {group.forumQuestions?.map((question) => {

@@ -2,10 +2,47 @@ import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
+import german from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
 import { SeoTrendChart } from "./seo-trend-chart";
 
 describe("SEO trend chart Google updates", () => {
+  it.each([true, false])(
+    "uses the chart's report language for its table and dates (report=%s)",
+    (report) => {
+      const catalog = report ? messages : german;
+      render(
+        <NextIntlClientProvider locale="de" messages={german} timeZone="UTC">
+          <SeoResultMessagesProvider messages={messages.App.Seo}>
+            <SeoTrendChart
+              report={report}
+              points={[
+                { date: "2026-12-03", value: 7 },
+                { date: "2026-12-04", value: 8 },
+              ]}
+              series={{ source: "serp", key: "position" }}
+              unit="position"
+              label="SERP"
+              formatValue={String}
+              unavailable="?"
+            />
+          </SeoResultMessagesProvider>
+        </NextIntlClientProvider>,
+      );
+      expect(
+        screen.getByRole("columnheader", {
+          name: catalog.App.Seo.overview.day,
+        }),
+      ).toBeInTheDocument();
+      const date = new Intl.DateTimeFormat(report ? "en" : "de", {
+        day: "numeric",
+        month: "short",
+        timeZone: "UTC",
+      }).format(new Date("2026-12-03T12:00:00Z"));
+      expect(screen.getByRole("cell", { name: date })).toBeInTheDocument();
+    },
+  );
   it("says an update that has no end on the as-of day is still rolling out", () => {
     // 2026-11-08 to 2026-11-15: the November 2026 core update started on 2026-11-10, with no end on 2026-11-13.
     const points = Array.from({ length: 8 }, (_, index) => ({

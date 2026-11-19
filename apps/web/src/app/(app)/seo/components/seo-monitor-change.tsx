@@ -2,12 +2,15 @@
 
 import type { ProjectSeoMonitorChange } from "@sokosumi/core-client";
 import { ChevronDown } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { seoMonitorChangeSummary } from "./seo-monitor-model";
 
@@ -26,17 +29,27 @@ export function SeoMonitorChange({
 }: {
   change: ProjectSeoMonitorChange | null;
 }) {
-  const t = useTranslations("App.Seo.monitor.change");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.monitor.change");
+  const format = useSeoResultFormatter();
   const summary = seoMonitorChangeSummary(change);
   if (summary.kind === "none")
-    return <p className="text-muted-foreground text-xs">{t("none")}</p>;
+    return (
+      <p lang="en" className="text-muted-foreground text-xs">
+        {t("none")}
+      </p>
+    );
   if (summary.kind === "notComparable")
     return (
-      <p className="text-muted-foreground text-xs">{t("notComparable")}</p>
+      <p lang="en" className="text-muted-foreground text-xs">
+        {t("notComparable")}
+      </p>
     );
   if (summary.kind === "same" || !change)
-    return <p className="text-muted-foreground text-xs">{t("same")}</p>;
+    return (
+      <p lang="en" className="text-muted-foreground text-xs">
+        {t("same")}
+      </p>
+    );
   const parts = [
     summary.newFailures
       ? t("newFailures", { count: summary.newFailures })
@@ -47,7 +60,7 @@ export function SeoMonitorChange({
   ].filter((part): part is string => part !== null);
   const worse = summary.newFailures > 0 || summary.drops > 0;
   return (
-    <Collapsible className="text-xs">
+    <Collapsible lang="en" className="text-xs">
       <CollapsibleTrigger className="group flex items-center gap-1 py-1 text-left">
         <span
           className={cn(worse ? "text-status-destructive" : "text-foreground")}

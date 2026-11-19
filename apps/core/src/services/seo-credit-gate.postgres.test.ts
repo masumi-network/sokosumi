@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { CORE_API_ERROR_KINDS, seoTaskRequestPacket } from "@sokosumi/utils";
+import {
+  CORE_API_ERROR_KINDS,
+  seoFullAuditPrice,
+  seoTaskRequestPacket,
+} from "@sokosumi/utils";
 import {
   afterAll,
   beforeAll,
@@ -16,6 +20,7 @@ import { requireSeoTaskStartBalance } from "@/lib/seo/analysis-price";
 import { GSC_INSPECT_TOOL } from "@/lib/seo/native-gsc-inspection";
 import { GSC_PROPERTIES_TOOL } from "@/lib/seo/native-statistics";
 import { originalSeoAuditPacket } from "@/lib/seo/related-page-selection";
+import mountAdminSeoAlerts from "@/routes/v1/admin/seo-alerts/get";
 import mountTaskEvents from "@/routes/v1/tasks/[id]/events/post";
 import {
   requestSeoAnalysisSchema,
@@ -27,7 +32,10 @@ import {
   jsonRequest,
 } from "@/test-fixtures/task-schedule-app";
 import * as composio from "./composio-integration-tools.service";
-import { addProjectSeoPage } from "./project-seo.service";
+import {
+  addProjectSeoPage,
+  getProjectSeoWorkspace,
+} from "./project-seo.service";
 import {
   createProjectSeoMonitor,
   releaseSeoMonitorRun,
@@ -102,7 +110,7 @@ const rankings = () =>
 const fullAudit = (limited = true) =>
   requestSeoAnalysisSchema.parse({
     kind: "audit_full",
-    fullAuditCredits: 750,
+    fullAuditPrice: seoFullAuditPrice(),
     ...(limited && { allowLimitedAudit: true }),
     pageIds: [pageId],
     countryCode: "US",
@@ -570,7 +578,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
       const start = () =>
         app.request(
           `http://localhost/${task.id}/events`,
-          jsonRequest("POST", { status: "RUNNING", credits: 1 }),
+          jsonRequest("POST", { status: "RUNNING" }),
         );
       const debits = () =>
         prisma.transaction.count({ where: { userId, amount: { lt: 0 } } });
@@ -593,7 +601,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
           where: { taskId: task.id, status: "RUNNING" },
         }),
       ).toBe(1);
-      expect(await debits()).toBe(charged + 1);
+      expect(await debits()).toBe(charged);
       await prisma.seoConnection.update({
         where: { id: connection.id },
         data: { status: "DISCONNECTED" },
@@ -636,6 +644,7 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     const packet = JSON.parse(JSON.stringify(analysis.request));
     delete packet.price;
     delete packet.searchConsoleAccess;
+    delete packet.fullAuditBillingContext;
     await prisma.projectSeoAnalysis.update({
       where: { id: analysis.id },
       data: { request: packet },
@@ -652,6 +661,126 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     await expect(
       prisma.$transaction((tx) => requireSeoTaskStartBalance(tx, task)),
     ).resolves.toBeUndefined();
+  });
+
+  it("bills one uncapped full audit at completion from all API receipts and refuses a second debit", async () => {
+    await setBalance(1500n);
+    const created = await requestProjectSeoAnalysis(actor, fullAudit());
+    const taskId = created.taskId!;
+    const app = createTaskScheduleTestApp(
+      mountTaskEvents,
+      { actor: "coworker", coworkerId, vendorId },
+      null,
+    );
+    const post = (path: string, body: Record<string, unknown>) =>
+      app.request(
+        `http://localhost/${taskId}/events${path}`,
+        jsonRequest("POST", body),
+      );
+    const expectedContext = {
+      ownerId: userId,
+      organizationId: null,
+      workspaceId,
+    };
+    expect(
+      (await post("/context-v1", { status: "RUNNING", expectedContext }))
+        .status,
+    ).toBe(201);
+    const fullAuditCost = {
+      version: 1,
+      gatewayMicroUsd: 4_000_000,
+      directModelMicroUsd: 500_000,
+      dataForSeoMicroUsd: 1_499_999,
+      otherApiMicroUsd: 2,
+    };
+    const body = {
+      status: "COMPLETED",
+      expectedContext,
+      credits: 901,
+      fullAuditCost,
+    };
+    const debits = () =>
+      prisma.transaction.count({ where: { userId, amount: { lt: 0 } } });
+    const before = await debits();
+    expect((await post("", { credits: 1 })).status).toBe(422);
+    expect((await post("/context-v1", body)).status).toBe(422);
+    expect(
+      (await post("/seo-settlement-v1", { ...body, credits: 900 })).status,
+    ).toBe(422);
+    expect(await debits()).toBe(before);
+    await setBalance(750n);
+    expect((await post("/seo-settlement-v1", body)).status).toBe(422);
+    const unpaid = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+    });
+    expect(unpaid.request).toHaveProperty(
+      "pendingFullAuditCost",
+      fullAuditCost,
+    );
+    expect(unpaid.request).not.toHaveProperty("fullAuditCost");
+    expect(await debits()).toBe(before);
+    await setBalance(1500n);
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "CREDITS_TOPPED_UP" },
+    });
+    expect(
+      (
+        await post("/seo-settlement-v1", {
+          ...body,
+          fullAuditCost: { ...fullAuditCost, otherApiMicroUsd: 3 },
+        })
+      ).status,
+    ).toBe(409);
+    const results = await Promise.all([
+      post("/seo-settlement-v1", body),
+      post("/seo-settlement-v1", body),
+    ]);
+    expect(
+      results.map((r) => r.status).filter((code) => code === 201),
+    ).toHaveLength(1);
+    expect(await debits()).toBe(before + 1);
+    expect(
+      await prisma.transaction.findFirst({
+        where: { userId, amount: -901n * CREDIT },
+      }),
+    ).toBeTruthy();
+    const stored = await prisma.projectSeoAnalysis.findUniqueOrThrow({
+      where: { taskId },
+    });
+    expect(stored.request).toHaveProperty("fullAuditCost", fullAuditCost);
+    const readBilling = (role: "admin" | "user") =>
+      createTaskScheduleTestApp(
+        mountAdminSeoAlerts,
+        { ...vars.authContext, role },
+        vars.workspaceContext,
+      ).request("http://localhost/seo-alerts?view=billing");
+    expect((await readBilling("user")).status).toBe(403);
+    const billing = await readBilling("admin");
+    expect(billing.status).toBe(200);
+    expect((await billing.json()).data.billing).toContainEqual(
+      expect.objectContaining({
+        taskId,
+        status: "settled",
+        chargedCredits: 901,
+        cost: fullAuditCost,
+      }),
+    );
+    const workspace = await getProjectSeoWorkspace(actor);
+    expect(JSON.stringify(workspace)).not.toMatch(
+      /fullAuditCost|fullAuditBillingContext|gatewayMicroUsd|directModelMicroUsd/,
+    );
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { status: "RUNNING" },
+    });
+    await setBalance(1500n);
+    expect((await post("/seo-settlement-v1", body)).status).toBe(409);
+    expect(
+      (await post("/context-v1", { status: "COMPLETED", expectedContext }))
+        .status,
+    ).toBe(201);
+    expect(await debits()).toBe(before + 1);
   });
 
   it("checks the frozen 750-credit price again before provider work", async () => {
@@ -674,7 +803,16 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     await setBalance(1000n);
     const before = await counts();
     const stale = fullAudit();
-    delete stale.fullAuditCredits;
+    delete stale.fullAuditPrice;
+    await expect(
+      requestProjectSeoAnalysis(actor, { ...stale, fullAuditCredits: 750 }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      requestProjectSeoAnalysis(actor, {
+        ...stale,
+        fullAuditPrice: seoFullAuditPrice(750),
+      }),
+    ).rejects.toMatchObject({ status: 409 });
     await expect(requestProjectSeoAnalysis(actor, stale)).rejects.toMatchObject(
       { status: 409 },
     );
@@ -698,8 +836,8 @@ describe.skipIf(!enabled)("SEO credit ceiling at dispatch", () => {
     });
     const marker = "seo_monitor: ";
     const legacy = JSON.parse(stored.description!.slice(marker.length));
-    expect(legacy.analysis.fullAuditCredits).toBe(750);
-    delete legacy.analysis.fullAuditCredits;
+    expect(legacy.analysis.fullAuditPrice).toEqual(seoFullAuditPrice());
+    delete legacy.analysis.fullAuditPrice;
     delete legacy.requiresApprovalRecord;
     const schedule = await prisma.taskSchedule.update({
       where: { id: monitor.id },

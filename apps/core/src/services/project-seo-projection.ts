@@ -20,6 +20,7 @@ import {
   saveSeoKeywordSchema,
   seoPageChangePayloadSchema,
 } from "@/schemas/project-seo.schema";
+import { applySeoActionTaskVisibility } from "./project-seo-action-task-visibility";
 import {
   actionVerifiedAt,
   latestDate,
@@ -49,6 +50,8 @@ import {
   normalizeSeoUrl,
   SEO_RESULT_LIMIT,
 } from "./project-seo-store";
+import { SeoAuditDecisions } from "./seo-audit-decisions";
+import { landingEngagementChange } from "./seo-landing-engagement";
 
 interface ProjectionInput {
   sharing?: "organization" | "personal";
@@ -96,6 +99,7 @@ const DEAD_TASK_STATUSES = new Set(["FAILED", "CANCELED"]);
 /** Current views are projections. Historical observations and human choices remain separate. */
 export function projectSeoProjection(
   input: ProjectionInput,
+  now = new Date(),
 ): ProjectSeoWorkspace {
   const { project, scope, query } = input;
   const selectedIds = new Set(scope.pageIds),
@@ -137,8 +141,18 @@ export function projectSeoProjection(
   const taskStatuses = new Map(
     input.tasks.map((task) => [task.id, task.status]),
   );
+  const actionTasks = input.actionTasks.filter((link) =>
+    taskStatuses.has(link.taskId),
+  );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
   let strategy: ProjectSeoWorkspace["strategy"] = null;
+  const decisions = new SeoAuditDecisions(
+    selectedUrls,
+    actionTasks,
+    taskStatuses,
+    now,
+  );
+  const seasonalIdeas = decisions.seasonal;
   const searchSources: SearchEvidenceSource[] = [];
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   const metricRows: SeoMetricsProjection = {
@@ -148,6 +162,7 @@ export function projectSeoProjection(
     indexSources,
     seenGroups: seenMetricGroups,
     landingPages: null,
+    landingSources: [],
   };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
@@ -169,7 +184,8 @@ export function projectSeoProjection(
       continue;
     }
     if (row.kind === "metrics") {
-      projectSeoMetricsRow(row, query, selectedUrls, metricRows);
+      if (input.privateMetricsAllowed)
+        projectSeoMetricsRow(row, query, selectedUrls, metricRows);
       continue;
     }
     const parsed = publicSeoPayloadSchema.safeParse(row.payload);
@@ -228,6 +244,8 @@ export function projectSeoProjection(
           : ""),
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
+    if (row.kind === "audit_full" && data.kind === "audit_full")
+      decisions.append(row.id, data);
     // Rows come newest first, so the first strategy is the newest site audit's.
     if (data.strategy && !strategy) {
       const {
@@ -579,17 +597,12 @@ export function projectSeoProjection(
       });
   const search = projectSearchEvidence(
     searchSources,
-    input.actionTasks,
+    actionTasks,
     taskStatuses,
   );
-  actions.push(...search.actions);
-  // The day each Task behind an action completed, so a chart can mark it. A reopened Task is not done.
-  for (const action of actions) {
-    const task = input.tasks.find((item) => item.id === action.taskId);
-    if (task?.status === "COMPLETED" && task.completedAt)
-      action.completedAt = task.completedAt.toISOString();
-  }
-  for (const link of input.actionTasks) {
+  actions.push(...decisions.actions, ...search.actions);
+  applySeoActionTaskVisibility(actions, input.actionTasks, input.tasks);
+  for (const link of actionTasks) {
     const observation =
       scopedPublicSources.get(link.observationId) ??
       searchSources.find((source) => source.row.id === link.observationId)?.row;
@@ -683,9 +696,14 @@ export function projectSeoProjection(
     searchQueries: search.searchQueries,
     searchBreakdown: search.searchBreakdown,
     landingPages: metricRows.landingPages,
+    landingEngagementChange: landingEngagementChange(
+      metricRows.landingSources,
+      query,
+    ),
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     indexTriage: indexing.triage,
     strategy,
+    ...(seasonalIdeas.length && { seasonalIdeas }),
     metricsStatus: !metrics.length
       ? "unavailable"
       : metrics.some((metric) => metric.coverage !== "complete")

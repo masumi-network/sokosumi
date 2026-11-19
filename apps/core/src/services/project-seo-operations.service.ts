@@ -1,12 +1,22 @@
-import type { Prisma, ProjectSeoObservation } from "@sokosumi/database";
+import type {
+  Prisma,
+  ProjectSeoActionTask,
+  ProjectSeoObservation,
+} from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   SEO_FULL_AUDIT_MAX_PROVIDER_USD,
+  seasonalUpdateHasPassed,
   seoTaskDescription,
 } from "@sokosumi/utils";
 
 import { badRequest, conflict, notFound } from "@/helpers/error";
+import {
+  publicDecisionAction,
+  readPublicSeoDecisions,
+} from "@/helpers/project-seo-decisions";
 import { publicSeoPayloadSchema } from "@/helpers/project-seo-report";
+import { seasonalPayloadActions } from "@/helpers/project-seo-seasonal";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
   requireSeoAnalysisDispatch,
@@ -15,8 +25,9 @@ import {
 import {
   requireSeoAnalysisBalance,
   requireSeoFullAuditPriceApproval,
-  seoAnalysisMaxCredits,
+  seoAnalysisAdmissionCredits,
 } from "@/lib/seo/analysis-price";
+import { fullAuditBillingContext } from "@/lib/seo/audit-settlement";
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
 import { seoPageComparisonKey } from "@/lib/seo/related-page-selection";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
@@ -41,6 +52,7 @@ import {
   requireSeoOwner,
   resolveSeoScope,
   type SeoMutationHooks,
+  seoLinkedTaskWhere,
   seoOwnerUnique,
   seoOwnerWhere,
   sha256,
@@ -89,9 +101,14 @@ export function seoTaskPacket(
     (context && input.kind !== "audit_full")
   )
     throw badRequest("Choose shared page goals for one full audit only");
+  const price =
+    input.fullAuditPrice ??
+    (input.fullAuditCredits === undefined
+      ? undefined
+      : { kind: "fixed", credits: input.fullAuditCredits });
   if (
     input.kind === "audit_full" &&
-    input.fullAuditCredits !== undefined &&
+    price &&
     new Set(pageUrls.map(seoPageComparisonKey)).size !== pageUrls.length
   )
     throw badRequest(
@@ -104,12 +121,7 @@ export function seoTaskPacket(
           ...(context ? { context } : {}),
           requestId,
           pageUrls,
-          ...(input.fullAuditCredits !== undefined
-            ? { inspectRelated: true }
-            : {}),
-          ...(input.fullAuditCredits !== undefined
-            ? { price: { kind: "fixed", credits: input.fullAuditCredits } }
-            : {}),
+          ...(price ? { price, inspectRelated: true } : {}),
           ...(input.keywords[0] ? { keyword: input.keywords[0] } : {}),
           countryCode: input.countryCode,
           languageCode: input.languageCode,
@@ -168,11 +180,11 @@ export function validateSeoAnalysis(
     throw badRequest("Select each competitor once");
   if (input.kind === "audit_full") {
     if (
-      input.fullAuditCredits !== undefined &&
+      (input.fullAuditPrice || input.fullAuditCredits !== undefined) &&
       (input.fullAuditLimits?.usd ?? 0) > SEO_FULL_AUDIT_MAX_PROVIDER_USD
     )
       throw badRequest(
-        "The full-audit data budget exceeds the fixed-price allowance",
+        "The full-audit data budget exceeds the provider allowance",
       );
     if (input.analyses || input.competitorUrls.length)
       throw badRequest("Full audits cannot use focused analysis options");
@@ -188,7 +200,7 @@ export function validateSeoAnalysis(
       throw badRequest("A full related-page audit uses pages on the same host");
     return;
   }
-  if (input.fullAuditCredits !== undefined)
+  if (input.fullAuditPrice || input.fullAuditCredits !== undefined)
     throw badRequest("A full-audit price applies only to full audits");
   if (input.fullAuditLimits)
     throw badRequest("Full-audit limits apply only to full audits");
@@ -282,7 +294,7 @@ async function prepareSeoAnalysis(
       organizationId: actor.organizationId,
       projectId,
     },
-    seoAnalysisMaxCredits(input, pageUrls.length),
+    seoAnalysisAdmissionCredits(input, pageUrls.length),
   );
   return {
     input,
@@ -458,10 +470,15 @@ export async function requestProjectSeoAnalysisInTransaction(
     },
     tx,
   );
-  const request: Prisma.InputJsonObject =
-    access === undefined
-      ? packet
-      : { ...packet, searchConsoleAccess: access && { ...access } };
+  const request: Prisma.InputJsonObject = {
+    ...packet,
+    ...(access !== undefined && {
+      searchConsoleAccess: access && { ...access },
+    }),
+    ...(input.fullAuditPrice && {
+      fullAuditBillingContext: fullAuditBillingContext(task),
+    }),
+  };
   const result = await tx.projectSeoAnalysis.update({
     where: { id: analysis.id },
     data: {
@@ -509,8 +526,47 @@ async function resolveSeoTaskSource(
         "The source observation is not a supported public report",
       );
     const action = parsed.data.actions.find((row) => row.id === input.actionId);
-    if (!action) throw notFound("SEO recommendation not found");
-    return { observation, action, evidence: [] as string[] };
+    if (action)
+      return {
+        observation,
+        action,
+        evidence: [] as string[],
+        decision: undefined,
+      };
+    const data = parsed.data;
+    const strategy =
+      observation.kind === "audit_full" &&
+      data.kind === "audit_full" &&
+      readPublicSeoDecisions(
+        data.strategyDecisions,
+        data.pageUrls,
+        data.decisionSources,
+      )
+        ?.map((d) =>
+          publicDecisionAction(d, data.countryCode, data.languageCode),
+        )
+        .find((d) => d.id === input.actionId);
+    const seasonal =
+      !strategy && observation.kind === "audit_full"
+        ? seasonalPayloadActions(data).find(
+            (row) => row.action.id === input.actionId,
+          )
+        : undefined;
+    if (seasonal)
+      return {
+        observation,
+        action: seasonal.action,
+        evidence: seasonal.action.evidence,
+        seasonalIdea: seasonal.idea,
+        decision: undefined,
+      };
+    if (!strategy) throw notFound("SEO recommendation not found");
+    return {
+      observation,
+      action: strategy,
+      evidence: strategy.evidence,
+      decision: strategy.decision,
+    };
   }
   if (!observation || !(await canReadSeoMetricsSource(tx, actor, observation)))
     throw notFound("SEO observation not found");
@@ -524,7 +580,12 @@ async function resolveSeoTaskSource(
     rows: parsed.data.queries?.rows ?? [],
   }).find((row) => row.id === input.actionId);
   if (!action) throw notFound("SEO recommendation not found");
-  return { observation, action, evidence: action.evidence };
+  return {
+    observation,
+    action,
+    evidence: action.evidence,
+    decision: undefined,
+  };
 }
 
 export async function createProjectSeoActionTask(
@@ -535,19 +596,28 @@ export async function createProjectSeoActionTask(
   return serializableTransaction(async (tx) => {
     await requireLockedSeoOwner(tx, actor);
     await hooks.authorize?.(tx);
+    const existingTask = async (link: ProjectSeoActionTask) => {
+      const ownerAccess = await canReadPrivateSeoMetrics(actor, tx);
+      const visible = await tx.task.findFirst({
+        where: { id: link.taskId, ...seoLinkedTaskWhere(actor, ownerAccess) },
+        select: { id: true },
+      });
+      if (!visible) throw notFound("SEO recommendation Task not found");
+      if (
+        link.idempotencyKey === input.idempotencyKey &&
+        (link.observationId !== input.observationId ||
+          link.actionId !== input.actionId)
+      )
+        throw conflict(
+          "This action key was already used for another recommendation",
+        );
+      return commitSeoMutation(tx, link, hooks);
+    };
     const previousKey = await tx.projectSeoActionTask.findUnique({
       where: seoOwnerUnique(actor, "idempotencyKey", {
         idempotencyKey: input.idempotencyKey,
       }),
     });
-    if (
-      previousKey &&
-      (previousKey.observationId !== input.observationId ||
-        previousKey.actionId !== input.actionId)
-    )
-      throw conflict(
-        "This action key was already used for another recommendation",
-      );
     const previous =
       previousKey ??
       (await tx.projectSeoActionTask.findUnique({
@@ -566,20 +636,21 @@ export async function createProjectSeoActionTask(
         !(await canReadSeoMetricsSource(tx, actor, source ?? null))
       )
         throw notFound("SEO observation not found");
-      return commitSeoMutation(tx, previous, hooks);
+      return existingTask(previous);
     }
-    const { observation, action, evidence } = await resolveSeoTaskSource(
-      tx,
-      actor,
-      input,
-    );
-    // One Task per Search Console opportunity, even after later syncs store new observations.
+    const { observation, action, evidence, decision, seasonalIdea } =
+      await resolveSeoTaskSource(tx, actor, input);
+    // Stable opportunity IDs refer to the same work across later audits and Search Console syncs.
     const sameOpportunity = evidence.length
       ? await tx.projectSeoActionTask.findFirst({
           where: { ...seoOwnerWhere(actor), actionId: action.id },
         })
       : null;
-    if (sameOpportunity) return commitSeoMutation(tx, sameOpportunity, hooks);
+    if (sameOpportunity) return existingTask(sameOpportunity);
+    if (seasonalIdea && seasonalUpdateHasPassed(seasonalIdea, new Date()))
+      throw conflict(
+        "This seasonal window has passed. Run a new audit to find the next opportunity.",
+      );
     const proposedEdit = action.edit
       ? `\n\nProposed edit:\n${JSON.stringify(action.edit, null, 2)}`
       : "";
@@ -593,7 +664,7 @@ export async function createProjectSeoActionTask(
         workspaceId: actor.workspaceId,
         projectId: await requireSeoTaskProject(actor, tx),
         name: action.title,
-        description: `Page: ${action.pageUrl}\n\n${action.why}\n\nExpected effect (hypothesis): ${action.expectedEffect}${proposedEdit}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
+        description: `Page: ${action.pageUrl}\n\n${action.why}\n\n${decision ? `Alternative: ${decision.alternative}\n\nNext check: ${decision.nextCheck}` : `Expected effect (hypothesis): ${action.expectedEffect}`}${proposedEdit}${evidence.length ? `\n\nMeasured evidence:\n${evidence.map((line) => `- ${line}`).join("\n")}` : ""}\n\nSource SEO observation: ${observation.id}\nSource audit Task: ${observation.sourceTaskId ?? "none"}\n\n${!decision && !seasonalIdea && evidence.length ? "Compare a later Search Console period before calling this an improvement." : "Implementation needs a fresh check before it is verified."}`,
         status: "DRAFT",
         visibility: "PUBLIC",
       },

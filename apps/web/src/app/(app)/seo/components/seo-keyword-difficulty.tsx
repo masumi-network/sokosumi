@@ -1,7 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { TableCell } from "@/components/ui/table";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import {
   type SeoKeywordGroup,
@@ -18,10 +18,11 @@ export const SEO_DIFFICULTY_COLUMN_CLASS = "sm:ps-12!";
 export function SeoDifficultyCell({
   difficulty,
 }: Pick<SeoKeywordGroup, "difficulty">) {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   const band = seoDifficultyBand(difficulty);
   return (
     <TableCell
+      lang="en"
       // No difficulty is a blank, not "Not available" on most rows; a phone row, which has no column head,
       // leaves the cell out.
       className={cn(

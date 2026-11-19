@@ -4,7 +4,7 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { createDataTableSchema } from "@sokosumi/utils";
 import { Download, Ellipsis, Loader2, Table2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { seoAuditName } from "./seo-audit-name";
 import { seoCsv } from "./seo-csv";
@@ -38,7 +42,7 @@ type Attempt = {
  */
 export function SeoExportMenu({
   name,
-  title,
+  titleKey,
   workspace,
   table,
   tableCopy = table,
@@ -46,23 +50,24 @@ export function SeoExportMenu({
 }: {
   name: string;
   /** The list's title: a tab can hold two lists, so the button's name says which one it exports. */
-  title: string;
+  titleKey: Parameters<IntlTranslation<"App.Seo">>[0];
   /** The audit: its site names the Table, and the Table joins its project. */
   workspace: Pick<
     ProjectSeoWorkspace,
     "auditName" | "websiteUrl" | "projectId"
   >;
-  table: () => SeoExport;
+  table: (report: IntlTranslation<"App.Seo">) => SeoExport;
   /** The rows of the Table copy, where it holds more columns than the CSV keeps. */
-  tableCopy?: () => SeoExport;
+  tableCopy?: (report: IntlTranslation<"App.Seo">) => SeoExport;
   /**
    * A search left no row: there is nothing to export. The menu stays, so a failed copy can still finish with the
    * rows it planned.
    */
   empty?: boolean;
 }) {
-  const t = useTranslations("App.Seo.export");
-  const format = useFormatter();
+  const t = useTranslations("App.Seo");
+  const report = useSeoResultTranslations("App.Seo");
+  const reportFormat = useSeoResultFormatter();
   const locale = useLocale();
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -73,7 +78,7 @@ export function SeoExportMenu({
   );
 
   function download() {
-    const { header, rows } = table();
+    const { header, rows } = table(report);
     const url = URL.createObjectURL(
       new Blob([UTF8_BOM, seoCsv(header, rows, locale)], {
         type: "text/csv;charset=utf-8",
@@ -90,10 +95,10 @@ export function SeoExportMenu({
   // A project name may be longer than a Table title: the site gives way, the date stays.
   function tableTitle(now: Date) {
     const named = (site: string) =>
-      t("tableTitle", {
-        table: title,
+      report("export.tableTitle", {
+        table: report(titleKey),
         site,
-        date: format.dateTime(now, { dateStyle: "medium" }),
+        date: reportFormat.dateTime(now, { dateStyle: "medium" }),
       });
     const over = named(site).length - TITLE_MAX;
     if (over <= 0) return named(site);
@@ -110,11 +115,11 @@ export function SeoExportMenu({
         attempt.current = {
           done: 0,
           plan: seoTablePlan(
-            tableCopy(),
+            tableCopy(report),
             {
               title: tableTitle(now),
-              description: t("tableDescription", {
-                date: format.dateTime(now, "dateTimeMedium"),
+              description: report("export.tableDescription", {
+                date: reportFormat.dateTime(now, "dateTimeMedium"),
               }),
               projectId: workspace.projectId,
             },
@@ -134,19 +139,19 @@ export function SeoExportMenu({
       attempt.current = null;
       const id = current.tableId;
       toast.success(
-        t("tableCopied", {
+        t("export.tableCopied", {
           count: plan.batches.reduce((sum, b) => sum + b.insert.length, 0),
         }),
         {
           ...STAY,
           action: {
-            label: t("openTable"),
+            label: t("export.openTable"),
             onClick: () => router.push(`/drive/tables/${id}`),
           },
         },
       );
     } catch {
-      toast.error(t("tableFailed"), STAY);
+      toast.error(t("export.tableFailed"), STAY);
     } finally {
       setPending(false);
     }
@@ -160,7 +165,7 @@ export function SeoExportMenu({
           size="icon"
           // A full 40 px target below md, as every icon control; from md up the 32 px of the buttons beside it.
           className="text-muted-foreground md:size-8"
-          aria-label={t("menu", { table: title })}
+          aria-label={t("export.menu", { table: t(titleKey) })}
           // Busy, not unavailable: the menu still opens, and the CSV still downloads while a copy runs.
           aria-busy={pending || undefined}
         >
@@ -174,14 +179,14 @@ export function SeoExportMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuItem disabled={empty} onSelect={download}>
           <Download aria-hidden />
-          {t("csv")}
+          {t("export.csv")}
         </DropdownMenuItem>
         <DropdownMenuItem
           disabled={pending || (empty && !attempt.current)}
           onSelect={() => void copy()}
         >
           <Table2 aria-hidden />
-          {t("table")}
+          {t("export.table")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

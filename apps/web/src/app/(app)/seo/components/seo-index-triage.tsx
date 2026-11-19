@@ -3,6 +3,7 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { seoIndexReviewState } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { seoIndexEvidence } from "./seo-index-triage-model";
 import {
@@ -41,7 +42,8 @@ export function SeoIndexNote({
   statusReadAt?: string | Date | null;
 }) {
   const t = useTranslations("App.Seo.indexReview");
-  const tIndex = useTranslations("App.Seo.index");
+  const result = useSeoResultTranslations("App.Seo.indexReview");
+  const tIndex = useSeoResultTranslations("App.Seo.index");
   const state = seoIndexReviewState(assessment);
   const google = seoIndexEvidence(assessment.evidence);
   // Google's status was read on a later day than the review: the day says the note may describe an older result.
@@ -56,13 +58,14 @@ export function SeoIndexNote({
             <SeoState>
               {state === "unknown"
                 ? tIndex("state.unknown")
-                : t(`state.${state}`)}
+                : result(`state.${state}`)}
             </SeoState>
           ) : null}
           {alone ? <SeoPageLink url={assessment.pageUrl} /> : null}
           {older ? (
             <span className="text-muted-foreground text-xs">
-              {t("checked")} <SeoDate value={assessment.checkedAt} day />
+              {result("checked")}{" "}
+              <SeoDate report value={assessment.checkedAt} day />
             </span>
           ) : null}
         </div>
@@ -70,7 +73,8 @@ export function SeoIndexNote({
       {assessment.auditPageUrl &&
       assessment.auditPageUrl !== assessment.pageUrl ? (
         <p className="text-muted-foreground text-xs">
-          {t("auditPage")} <SeoPageLink url={assessment.auditPageUrl} quiet />
+          {result("auditPage")}{" "}
+          <SeoPageLink url={assessment.auditPageUrl} quiet />
         </p>
       ) : null}
       {/* The next step follows the reason. An expected exclusion needs nothing, so it stays quiet. */}
@@ -96,14 +100,15 @@ export function SeoIndexNote({
             [
               "reason",
               google.reason
-                ? t("googleReason", { reason: google.reason })
+                ? result("googleReason", { reason: google.reason })
                 : null,
             ],
             [
               "crawled",
               google.crawledAt ? (
                 <>
-                  {t("lastCrawled")} <SeoDate value={google.crawledAt} day />
+                  {result("lastCrawled")}{" "}
+                  <SeoDate report value={google.crawledAt} day />
                 </>
               ) : null,
             ],

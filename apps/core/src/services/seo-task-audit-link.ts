@@ -1,6 +1,7 @@
 import { HTTPException } from "hono/http-exception";
 
 import { requireSeoRouteActor } from "@/helpers/project-seo-access";
+import { hasImportedSeoTaskResult } from "@/helpers/seo-task-notification";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthenticationContext,
@@ -9,6 +10,7 @@ import {
 import type { WorkspaceContext } from "@/middleware/workspace";
 
 export interface TaskSeoAuditLink {
+  resultAvailable: boolean;
   auditId: string | null;
   projectId: string | null;
 }
@@ -29,7 +31,7 @@ export async function loadTaskSeoAuditLink(
     return null;
   const analysis = await prisma.projectSeoAnalysis.findUnique({
     where: { taskId },
-    select: { auditId: true, projectId: true },
+    select: { auditId: true, projectId: true, status: true, kind: true },
   });
   if (
     !analysis ||
@@ -47,7 +49,11 @@ export async function loadTaskSeoAuditLink(
           : { kind: "project", id: analysis.projectId! },
       ),
     );
-    return { auditId: owner.auditId, projectId: owner.projectId };
+    return {
+      auditId: owner.auditId,
+      projectId: owner.projectId,
+      resultAvailable: await hasImportedSeoTaskResult(prisma, taskId, analysis),
+    };
   } catch (error) {
     if (
       error instanceof HTTPException &&

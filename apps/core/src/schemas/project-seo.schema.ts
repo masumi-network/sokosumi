@@ -7,6 +7,7 @@ import {
 import { dateTimeSchema } from "@/helpers/datetime";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
+import { seoActionSchema } from "./project-seo-action.schema";
 import {
   seoMonitorChangeSchema,
   seoMonitorLastRunSchema,
@@ -19,13 +20,17 @@ import {
   seoSerpSeriesSchema,
   seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
+import { seoWorkspaceSeasonalIdeaSchema } from "./project-seo-seasonal.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
+  seoSearchQueryRowSchema,
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
   seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
+import { seoCostPlusPriceSchema } from "./seo-audit-price.schema";
+import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
 
 import {
   SEO_MAX_PAGES,
@@ -36,6 +41,10 @@ import {
   seoUrlSchema,
 } from "./seo-page.schema";
 
+export {
+  SEO_SEARCH_QUERY_ROW_LIMIT,
+  seoSearchQueryRowSchema,
+} from "./project-seo-traffic.schema";
 export {
   SEO_MAX_PAGES,
   seoIdSchema,
@@ -173,6 +182,7 @@ export const requestSeoAnalysisSchema = z
       .max(SEO_MAX_PROVIDER_CALLS)
       .default(20),
     fullAuditCredits: z.literal(SEO_FULL_AUDIT_CREDITS).optional(),
+    fullAuditPrice: seoCostPlusPriceSchema.optional(),
     searchConsolePropertyId: z.string().trim().min(1).max(500).optional(),
     allowLimitedAudit: z.literal(true).optional(),
     setupGoal: z
@@ -200,6 +210,12 @@ export const requestSeoAnalysisSchema = z
     coworkerId: z.string().min(1).max(128).optional(),
   })
   .strict()
+  .refine(
+    (input) =>
+      !input.fullAuditPrice ||
+      (input.kind === "audit_full" && input.fullAuditCredits === undefined),
+    "Choose one full-audit price for a full audit only",
+  )
   .refine(
     (input) => !(input.scopeId && input.pageIds),
     "Choose a saved scope or explicit pages",
@@ -391,35 +407,6 @@ export const seoCompetitorSchema = z
     exclusionReason: z.string().nullable(),
   })
   .openapi("ProjectSeoCompetitor");
-export const seoActionSchema = z
-  .object({
-    id: z.string(),
-    observationId: seoIdSchema,
-    pageUrl: seoUrlSchema,
-    findingIds: z.array(z.string()),
-    title: z.string(),
-    why: z.string(),
-    effort: z.enum(["low", "medium", "high"]),
-    expectedEffect: z.string(),
-    edit: z.union([
-      z.object({
-        target: z.string(),
-        before: z.string().nullable(),
-        after: z.string(),
-      }),
-      z.null(),
-    ]),
-    taskId: z.string().nullable(),
-    status: z.enum(["recommended", "task_created", "implemented", "verified"]),
-    /** When the linked Task last completed. Set on an implemented or verified action. */
-    completedAt: dateTimeSchema.optional(),
-    /** When the last check that shows every finding of the fix gone ran; it can come before completedAt. Set on a verified fix. */
-    verifiedAt: dateTimeSchema.optional(),
-    /** A fix comes from a confirmed check. An opportunity is a named heuristic over measured search data. */
-    kind: z.enum(["fix", "opportunity"]),
-    evidence: z.array(z.string()),
-  })
-  .openapi("ProjectSeoAction");
 /** The same read over the equal-length window just before the period. Absent when it failed or on older observations. */
 export const seoPreviousPeriodSchema = z
   .object({
@@ -454,16 +441,6 @@ export const seoMetricSchema = z
     searchType: seoSearchTypeSchema.optional(),
   })
   .openapi("ProjectSeoMetric");
-export const SEO_SEARCH_QUERY_ROW_LIMIT = 250;
-/** One Search Console row grouped by query and page. Average position is not a live rank. */
-export const seoSearchQueryRowSchema = z.object({
-  query: z.string().min(1).max(2048),
-  pageUrl: seoUrlSchema,
-  clicks: z.number().finite().nonnegative(),
-  impressions: z.number().finite().nonnegative(),
-  ctr: z.number().finite().min(0).max(1),
-  averagePosition: z.number().finite().min(1),
-});
 export const SEO_KEYWORD_SERIES_ROW_LIMIT = 10_000;
 export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 25;
 /** One daily read per country; a sync reads at most this many. */
@@ -711,6 +688,8 @@ export const projectSeoWorkspaceSchema = z
     indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
+    landingEngagementChange: seoLandingEngagementChange.optional(),
+    seasonalIdeas: z.array(seoWorkspaceSeasonalIdeaSchema).optional(),
     /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */
     serpHistory: z
       .array(seoSerpSeriesSchema)

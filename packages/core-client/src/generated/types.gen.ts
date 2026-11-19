@@ -40,6 +40,64 @@ export type StartImpersonationBody = {
     reason: string;
 };
 
+export type AdminSeoAlerts = {
+    total: number;
+    critical: number;
+    warning: number;
+    info: number;
+    pageSize: number;
+    failurePercent: number;
+    importGraceMinutes: number;
+    billingTotal: number;
+    pricingAttention: number;
+    billing: Array<{
+        id: string;
+        taskId: string | null;
+        auditId: string | null;
+        projectId: string | null;
+        workspaceId: string | null;
+        at: Date;
+        status: 'inProgress' | 'receiptsPending' | 'needsCredits' | 'retrying' | 'settled' | 'closed' | 'abandoned' | 'unverified';
+        approvedMaxCredits: number | null;
+        attemptedCredits: number | null;
+        dataBudgetUsd: number | null;
+        chargedCredits: number | null;
+        cost: {
+            version: 1;
+            gatewayMicroUsd: number;
+            directModelMicroUsd: number;
+            dataForSeoMicroUsd: number;
+            otherApiMicroUsd: number;
+        } | null;
+    }>;
+    connectionTotal: number;
+    reconnect: number;
+    connections: Array<{
+        id: string;
+        workspaceId: string | null;
+        workspaceOrganizationSlug: string | null;
+        workspaceUserId: string | null;
+        userId: string;
+        provider: 'ga4' | 'search_console';
+        status: 'NEEDS_RECONNECT' | 'DISCONNECTED';
+        at: Date;
+    }>;
+    items: Array<{
+        id: string;
+        workspaceId: string | null;
+        workspaceOrganizationSlug: string | null;
+        workspaceUserId: string | null;
+        auditId: string | null;
+        projectId: string | null;
+        taskId: string | null;
+        at: Date;
+        severity: 'critical' | 'warning' | 'info';
+        reasons: Array<'priceUnverified' | 'priceUnpaid' | 'dataBudgetExceeded' | 'priceReceiptPending' | 'priceNeedsCredits' | 'priceRetry' | 'workerOverdue' | 'workerFailed' | 'auditFailed' | 'reportRejected' | 'pageException' | 'pageFailureRate' | 'seasonalFailed' | 'explorationFailed' | 'investigationFailed' | 'reportMissing' | 'gscDisconnected' | 'gscProperty' | 'gscUnavailable' | 'gscSkipped'>;
+        failedPages: number;
+        attemptedPages: number;
+    }>;
+};
+
 export type AdminAgentList = Array<AdminAgentListItem>;
 
 export type AdminAgentListItem = {
@@ -2509,6 +2567,7 @@ export type TaskAncestor = {
 export type TaskSeoAudit = {
     auditId: string | null;
     projectId: string | null;
+    resultAvailable?: boolean;
 };
 
 export type AdminTaskPaymentClaim = {
@@ -11680,6 +11739,76 @@ export type ProjectSeoWorkspace = {
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
     strategy?: ProjectSeoStrategy | null;
+    landingEngagementChange?: {
+        propertyId: string;
+        timeZone: string;
+        pageCount: number;
+        before: {
+            from: string;
+            to: string;
+            sessions: number;
+            observationId: string;
+        };
+        after: {
+            from: string;
+            to: string;
+            sessions: number;
+            observationId: string;
+        };
+        engagementSecondsPerSession: {
+            before: number;
+            after: number;
+            withinPageChange: number;
+            mixChange: number;
+        };
+        viewsPerSession: {
+            before: number;
+            after: number;
+            withinPageChange: number;
+            mixChange: number;
+        };
+    };
+    seasonalIdeas?: Array<{
+        origin?: 'market_history';
+        keyword: string;
+        audience: string;
+        url: string;
+        asOf: Date;
+        country: string;
+        language: string;
+        pageQuote: string;
+        action: 'improve_existing_page' | 'investigate_angle';
+        limitations: Array<'demand_unverified' | 'timing_uncertain' | 'audience_fit_uncertain' | 'offer_unverified' | 'existing_page_may_cover'>;
+        event: {
+            name: string;
+            scope: string;
+            date: Date;
+        } | null;
+        comparison: {
+            status: 'above_baseline' | 'no_observed_rise' | 'insufficient';
+            leadMonth: {
+                period: string;
+                volume: number | null;
+            } | null;
+            eventMonth: {
+                period: string;
+                volume: number | null;
+            } | null;
+            baselineMedian: number | null;
+        } | null;
+        windows: Array<{
+            targetPeriod: string;
+            historicalPeriod: string;
+            historicalVolume: number;
+            baselineMedian: number;
+            referenceMonths?: Array<string>;
+        }>;
+        observedMonths?: Array<{
+            period: string;
+            volume: number;
+        }>;
+        actionId?: string;
+    }>;
     serpHistory?: Array<ProjectSeoSerpSeries>;
     shareOfVoice?: ProjectSeoShareOfVoice | null;
     timeline: Array<ProjectSeoTimelineItem>;
@@ -11816,15 +11945,20 @@ export type ProjectSeoAction = {
     findingIds: Array<string>;
     title: string;
     why: string;
-    effort: 'low' | 'medium' | 'high';
+    effort: 'low' | 'medium' | 'high' | 'unknown';
     expectedEffect: string;
     edit: {
         target: string;
         before: string | null;
         after: string;
     } | null;
+    decision?: {
+        kind: 'content_opportunity' | 'internal_link_opportunity' | 'offer_availability' | 'open_strategy_opportunity';
+        alternative: string;
+        nextCheck: string;
+    };
     taskId: string | null;
-    status: 'recommended' | 'task_created' | 'implemented' | 'verified';
+    status: 'recommended' | 'task_created' | 'unavailable' | 'implemented' | 'verified' | 'canceled' | 'failed';
     completedAt?: Date;
     verifiedAt?: Date;
     kind: 'fix' | 'opportunity';
@@ -11923,10 +12057,13 @@ export type ProjectSeoSearchBreakdown = {
 export type ProjectSeoLandingPages = {
     channel: 'organic' | 'ai_assistant';
     verifiedHost?: string;
+    timeZone?: string;
     rows: Array<{
         pageUrl: string;
         sessions: number;
         keyEvents: number;
+        engagementSeconds?: number;
+        views?: number;
     }>;
     sources?: Array<{
         pageUrl: string;
@@ -12261,6 +12398,13 @@ export type RequestProjectSeoAnalysisRequest = {
     analyses?: Array<'page.inspect' | 'keyword.refresh' | 'links.refresh'>;
     maxProviderCalls?: number;
     fullAuditCredits?: 750;
+    fullAuditPrice?: {
+        kind: 'cost_plus';
+        version: 1;
+        minimumCredits: 750;
+        markupPercent: 50;
+        maxCredits?: 750;
+    };
     searchConsolePropertyId?: string;
     allowLimitedAudit?: true;
     setupGoal?: {
@@ -12361,6 +12505,44 @@ export type SeoAuditBrief = {
         pageId: string;
         changedAt: Date | null;
         lastCrawlAt: Date | null;
+        latestClosedGoal?: {
+            from: string;
+            to: string;
+            count: number;
+            event: 'purchase' | 'sign_up';
+            timeZone: string;
+        };
+        goalInvestigation?: {
+            pageUrl: string;
+            timeZone: string;
+            event: 'purchase' | 'sign_up';
+            before: {
+                from: string;
+                to: string;
+                organic: {
+                    sessions: number;
+                    rate: number;
+                };
+                direct: {
+                    sessions: number;
+                    rate: number;
+                };
+            };
+            after: {
+                from: string;
+                to: string;
+                organic: {
+                    sessions: number;
+                    rate: number;
+                };
+                direct: {
+                    sessions: number;
+                    rate: number;
+                };
+            };
+            weekdayMix?: 'uneven';
+            assessment: 'both_declined' | 'organic_declined' | 'goal_held';
+        };
         outcomes?: Array<{
             event: 'purchase' | 'sign_up';
             latest: {
@@ -17186,6 +17368,68 @@ export type StartAdminImpersonationResponses = {
 };
 
 export type StartAdminImpersonationResponse = StartAdminImpersonationResponses[keyof StartAdminImpersonationResponses];
+
+export type ListAdminSeoAlertsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        view?: 'counts' | 'connections' | 'billing';
+        period?: '7' | '30' | '90' | 'all';
+        page?: number;
+    };
+    url: '/admin/seo-alerts';
+};
+
+export type ListAdminSeoAlertsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSeoAlertsError = ListAdminSeoAlertsErrors[keyof ListAdminSeoAlertsErrors];
+
+export type ListAdminSeoAlertsResponses = {
+    /**
+     * SEO audit alerts
+     */
+    200: {
+        data: AdminSeoAlerts;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSeoAlertsResponse = ListAdminSeoAlertsResponses[keyof ListAdminSeoAlertsResponses];
 
 export type ListAdminAgentsData = {
     body?: never;
@@ -106039,6 +106283,170 @@ export type PostTasksByIdEventsFailedAdmissionV1Responses = {
 };
 
 export type PostTasksByIdEventsFailedAdmissionV1Response = PostTasksByIdEventsFailedAdmissionV1Responses[keyof PostTasksByIdEventsFailedAdmissionV1Responses];
+
+export type PostTasksByIdEventsSeoSettlementV1Data = {
+    body?: {
+        status?: TaskStatus;
+        comment?: string;
+        /**
+         * Workspace member ids @-mentioned in this comment. Unknown ids are ignored. Also read from @userId tokens in comment. Does not add participants unless comment is set.
+         */
+        mentionedUserIds?: Array<string>;
+        authenticationUrl?: string;
+        /**
+         * Omit when masumiPayment is set; billing uses masumiPayment.Amounts instead.
+         */
+        credits?: number | null;
+        channel?: Channel;
+        origin?: Channel & unknown;
+        masumiPayment?: MasumiPayment;
+    } & {
+        status: 'COMPLETED';
+        credits: number;
+        expectedContext: TaskWorkerContext;
+        fullAuditCost: {
+            version: 1;
+            gatewayMicroUsd: number;
+            directModelMicroUsd: number;
+            dataForSeoMicroUsd: number;
+            otherApiMicroUsd: number;
+        };
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/events/seo-settlement-v1';
+};
+
+export type PostTasksByIdEventsSeoSettlementV1Errors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        data?: TaskEvent;
+        attemptedCredits?: number;
+        requestedStatus?: TaskStatus | null;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksByIdEventsSeoSettlementV1Error = PostTasksByIdEventsSeoSettlementV1Errors[keyof PostTasksByIdEventsSeoSettlementV1Errors];
+
+export type PostTasksByIdEventsSeoSettlementV1Responses = {
+    /**
+     * Create task event
+     */
+    201: {
+        data: TaskEvent;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksByIdEventsSeoSettlementV1Response = PostTasksByIdEventsSeoSettlementV1Responses[keyof PostTasksByIdEventsSeoSettlementV1Responses];
 
 export type GetTasksByIdFilesData = {
     body?: never;

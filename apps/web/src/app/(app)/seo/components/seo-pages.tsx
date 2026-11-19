@@ -4,6 +4,7 @@ import { Check, Plus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { seoPageSummaries } from "./seo-overview-model";
 import {
@@ -37,6 +38,7 @@ const PAGE_TOTALS = ["clicks", "impressions", "ctr", "position"] as const;
 
 export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   const format = useFormatter();
   const summaries = seoPageSummaries(model.data);
   // The tests tile over this list dates the last check. A row repeats a date only when its check is of another day.
@@ -59,9 +61,11 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
   const pageResult = (summary: { issues: number; incomplete: boolean }) =>
     [
       summary.incomplete && !summary.issues
-        ? t("pages.checkIncomplete")
-        : t("pages.issues", { count: summary.issues }),
-      summary.incomplete && summary.issues ? t("pages.checkIncomplete") : null,
+        ? result("pages.checkIncomplete")
+        : result("pages.issues", { count: summary.issues }),
+      summary.incomplete && summary.issues
+        ? result("pages.checkIncomplete")
+        : null,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -207,8 +211,10 @@ export function SeoPages({ model }: { model: SeoWorkspaceModel }) {
                                 observationId={summary.checkId}
                                 workspace={model.data}
                               >
-                                {t("pages.lastCheck")}{" "}
-                                <SeoDate day value={summary.checkedAt} />
+                                <span lang="en">
+                                  {result("pages.lastCheck")}
+                                </span>{" "}
+                                <SeoDate report day value={summary.checkedAt} />
                               </SeoSource>
                               {" · "}
                               {pageResult(summary)}

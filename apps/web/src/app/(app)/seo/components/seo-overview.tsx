@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import {
   checkName,
@@ -34,6 +35,7 @@ const quietPrefix = (chunks: ReactNode) => (
 /** Site health: what the checks found, page by page and over time. */
 export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   const { data } = model;
   const overview = seoOverviewModel(data);
   const sameDayAsTile = useSeoTileDay(data);
@@ -61,7 +63,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       {/* Plain wrap, as an action title: balanced lines ended the first line at half the row. */}
                       <h3 className="font-medium text-wrap break-words">
                         {/* The same words start every row: they are quiet, the name of the check is the bright part. */}
-                        {t.rich("overview.failedCheck", {
+                        {result.rich("overview.failedCheck", {
                           name: checkName(finding.title),
                           prefix: quietPrefix,
                         })}
@@ -79,7 +81,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       <span className="text-muted-foreground col-span-2 text-xs [overflow-wrap:anywhere] max-sm:truncate sm:col-span-3">
                         {/* Both devices is the usual case and says nothing; one device does. */}
                         {finding.devices.length === 1
-                          ? t(`analysis.${finding.devices[0]}`)
+                          ? result(`analysis.${finding.devices[0]}`)
                           : null}
                         {/* The open row has the link to the page. */}
                         <span className="group-open:hidden">
@@ -88,7 +90,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                             seoPageName(
                               affectedUrl,
                               seoSiteUrl(data),
-                              t("pages.home"),
+                              result("pages.home"),
                             )}
                         </span>
                       </span>
@@ -109,14 +111,14 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       {finding.relatedPageUrl ? (
                         <div className="space-y-1">
                           <p className="text-xs">
-                            {t("overview.relatedFindingPage")}
+                            {result("overview.relatedFindingPage")}
                           </p>
                           <SeoPageLink url={finding.relatedPageUrl} />
                         </div>
                       ) : null}
                       {finding.visibility === "PRIVATE" ? (
                         <p className="text-xs">
-                          {t("overview.privateFinding")}
+                          {result("overview.privateFinding")}
                         </p>
                       ) : null}
                       <ul className="list-disc space-y-1 ps-4">
@@ -132,7 +134,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                       {finding.suggestedFix ? (
                         <div className="space-y-1">
                           <p className="text-foreground font-medium">
-                            {t("overview.suggestedFix")}
+                            {result("overview.suggestedFix")}
                           </p>
                           <p className="break-words">{finding.suggestedFix}</p>
                         </div>
@@ -146,8 +148,8 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
                             observationId={finding.observationId}
                             workspace={data}
                           >
-                            {t("overview.checkedOn")}{" "}
-                            <SeoDate value={checkedAt(finding)} day />
+                            {result("overview.checkedOn")}{" "}
+                            <SeoDate report value={checkedAt(finding)} day />
                           </SeoSource>
                         </p>
                       )}
@@ -167,7 +169,7 @@ export function SeoHealth({ model }: { model: SeoWorkspaceModel }) {
         !data.strategy?.actions.length
       ) ? (
         <p className="text-muted-foreground px-2 text-sm">
-          {t("actions.checksIncompleteBody")}
+          {result("actions.checksIncompleteBody")}
         </p>
       ) : null}
       {overview.recentChecks.length ? (

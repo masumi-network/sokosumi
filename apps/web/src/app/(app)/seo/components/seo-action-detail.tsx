@@ -4,6 +4,7 @@ import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { DialogTitle } from "@/components/ui/dialog";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoCopyButton, useSeoActionInstructions } from "./seo-action-copy";
 import { SeoActionTaskButton, useSeoActionFinding } from "./seo-action-finding";
@@ -11,6 +12,7 @@ import { SeoBriefFollowUp, SeoBriefPagePriority } from "./seo-brief-summary";
 import { type SeoIssueSeverity, seoOverviewModel } from "./seo-overview-model";
 import {
   SEO_SEVERITY_MARK_CLASS,
+  SeoFoldSummary,
   SeoMetaLine,
   SeoPageLink,
   SeoSource,
@@ -45,8 +47,20 @@ export function SeoActionDetail({
   severity: SeoIssueSeverity | null;
 }) {
   const t = useTranslations("App.Seo");
+  const report = useSeoResultTranslations("App.Seo");
   const finding = useSeoActionFinding(action, model);
   const instructions = useSeoActionInstructions(action, finding);
+  const rankedKeywordsRef = "rankingData.page.ranked";
+  const references = action.decision
+    ? action.evidence.filter(
+        (line) => line === rankedKeywordsRef || /^[a-f0-9]{64}$/u.test(line),
+      )
+    : [];
+  const observations = action.evidence.filter(
+    (line) => !references.includes(line),
+  );
+  if (references.includes(rankedKeywordsRef))
+    observations.push(report("actions.rankingEvidence"));
   const problem = seoOverviewModel(model.data).actionProblem(action);
   const page = model.data.pages.find((item) => item.url === action.pageUrl);
   const followUp = model.brief?.data?.followUps?.find(
@@ -56,35 +70,40 @@ export function SeoActionDetail({
     (item) => item.id === action.observationId && item.sourceTaskId,
   );
   const tint = TINT[severity ?? "none"];
-  const effort = `${t("actions.effort")}: ${t(`priority.${action.effort}`)}`;
+  const effort = `${report("actions.effort")}: ${report(`priority.${action.effort}`)}`;
   return (
     <>
       {/* The top padding keeps the close button clear of the title. */}
       <div className="space-y-2 border-b px-6 pt-6 pb-4">
-        <div className="flex flex-wrap items-center gap-1.5 pe-8">
+        <div lang="en" className="flex flex-wrap items-center gap-1.5 pe-8">
           {severity ? (
             <Chip
-              title={t(`severityHint.${severity}`)}
+              title={report(`severityHint.${severity}`)}
               className={tint.fill}
               mark={SEO_SEVERITY_MARK_CLASS[severity]}
             >
-              {t(`severity.${severity}`)}
+              {report(`severity.${severity}`)}
             </Chip>
           ) : (
             <Chip className="text-muted-foreground border">
-              {t(`actions.kind.${action.kind}`)}
+              {report(`actions.kind.${action.kind}`)}
             </Chip>
           )}
           {action.status !== "recommended" ? (
             <Chip className="text-muted-foreground border">
-              {t(`actions.${action.status}`)}
+              {report(`actions.${action.status}`)}
             </Chip>
           ) : null}
-          <Chip className="bg-muted text-muted-foreground" title={effort}>
-            {effort}
-          </Chip>
+          {action.effort !== "unknown" && (
+            <Chip className="bg-muted text-muted-foreground" title={effort}>
+              {effort}
+            </Chip>
+          )}
         </div>
-        <DialogTitle className="text-lg leading-snug font-semibold break-words">
+        <DialogTitle
+          lang="en"
+          className="text-lg leading-snug font-semibold break-words"
+        >
           {action.title}
         </DialogTitle>
         {/* Where the action applies and where it comes from: one quiet line under the title. */}
@@ -124,6 +143,7 @@ export function SeoActionDetail({
           the buttons at the foot stay in reach. */}
       <div className="min-h-32 space-y-6 overflow-y-auto px-6 py-5 text-sm">
         <p
+          lang="en"
           className={cn(
             "rounded-md border-s-4 px-4 py-3 whitespace-pre-wrap break-words",
             tint.fill,
@@ -136,15 +156,19 @@ export function SeoActionDetail({
         {/* The change comes first after the finding: it is what the owner acts on. Before and after stack, so a
             long title reads on whole lines and the two boxes start at the same edge. */}
         {action.edit ? (
-          <DetailPart title={t("actions.change")}>
+          <DetailPart title={report("actions.change")}>
             <div className="space-y-3">
-              <ChangeBox label={t("actions.before")}>
-                <pre className="bg-muted text-muted-foreground rounded-md p-3 text-xs whitespace-pre-wrap break-words">
-                  {action.edit.before ?? t("actions.noBefore")}
+              <ChangeBox label={report("actions.before")}>
+                <pre
+                  dir="auto"
+                  lang={action.edit.before === null ? "en" : ""}
+                  className="bg-muted text-muted-foreground rounded-md p-3 text-xs whitespace-pre-wrap break-words"
+                >
+                  {action.edit.before ?? report("actions.noBefore")}
                 </pre>
               </ChangeBox>
               <ChangeBox
-                label={t("actions.after")}
+                label={report("actions.after")}
                 copy={
                   <SeoCopyButton
                     text={action.edit.after}
@@ -153,7 +177,11 @@ export function SeoActionDetail({
                   />
                 }
               >
-                <pre className="bg-chart-3-quinary border-chart-3 rounded-md border p-3 text-xs whitespace-pre-wrap break-words">
+                <pre
+                  dir="auto"
+                  lang=""
+                  className="bg-chart-3-quinary border-chart-3 rounded-md border p-3 text-xs whitespace-pre-wrap break-words"
+                >
                   {action.edit.after}
                 </pre>
               </ChangeBox>
@@ -162,37 +190,85 @@ export function SeoActionDetail({
         ) : null}
         {/* The impact chip already names the kind of rule; the part keeps to the reason of this action. A
             suggestion says what it is not: no error, and no promise of traffic. */}
-        <DetailPart title={t("actions.why")}>
-          {action.kind === "opportunity" && !severity ? (
-            <p className="text-muted-foreground">
-              {t("actions.opportunitiesHelp")}
+        {action.decision ? (
+          <>
+            <DetailPart title={report("actions.alternative")}>
+              <p lang="en" className="whitespace-pre-wrap break-words">
+                {action.decision.alternative}
+              </p>
+            </DetailPart>
+            <DetailPart title={report("actions.nextCheck")}>
+              <p lang="en" className="whitespace-pre-wrap break-words">
+                {action.decision.nextCheck}
+              </p>
+            </DetailPart>
+          </>
+        ) : (
+          <DetailPart title={report("actions.why")}>
+            {action.kind === "opportunity" && !severity ? (
+              <p lang="en" className="text-muted-foreground">
+                {report("actions.opportunitiesHelp")}
+              </p>
+            ) : null}
+            <p lang="en" className="whitespace-pre-wrap break-words">
+              {action.why}
             </p>
-          ) : null}
-          <p className="whitespace-pre-wrap break-words">{action.why}</p>
-        </DetailPart>
+          </DetailPart>
+        )}
         {problem ? (
-          <DetailPart title={t("actions.effect")}>
-            <p className="whitespace-pre-wrap break-words">
+          <DetailPart title={report("actions.effect")}>
+            <p lang="en" className="whitespace-pre-wrap break-words">
               {action.expectedEffect}
             </p>
           </DetailPart>
         ) : null}
         {action.evidence.length ? (
-          <DetailPart title={t("actions.evidence")}>
-            <ul className="divide-y rounded-md border">
-              {action.evidence.map((line, index) => (
-                <li
-                  key={`${index}:${line}`}
-                  className="text-muted-foreground px-3 py-2 text-xs break-words"
-                >
-                  {line}
-                </li>
-              ))}
-            </ul>
+          <DetailPart title={report("actions.evidence")}>
+            {observations.length > 0 && (
+              <ul className="divide-y rounded-md border">
+                {observations.map((line, index) => (
+                  <li
+                    lang=""
+                    dir="auto"
+                    key={`${index}:${line}`}
+                    className="text-muted-foreground px-3 py-2 text-xs break-words"
+                  >
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {references.length > 0 && (
+              <details>
+                <SeoFoldSummary className="text-muted-foreground min-h-10 w-fit text-sm">
+                  {report("actions.sourceRecords", {
+                    count: references.length,
+                  })}
+                </SeoFoldSummary>
+                <ul className="text-muted-foreground space-y-1 text-xs">
+                  {references.map((ref, index) => (
+                    <li key={index}>
+                      <code className="break-all">{ref}</code>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
           </DetailPart>
         ) : null}
         {page && <SeoBriefPagePriority model={model} pageId={page.id} />}
-        {followUp ? <SeoBriefFollowUp followUp={followUp} /> : null}
+        {followUp ? (
+          <SeoBriefFollowUp
+            followUp={followUp}
+            strategyCompletedAt={
+              action.decision &&
+              action.status === "implemented" &&
+              action.taskId
+                ? action.completedAt
+                : undefined
+            }
+          />
+        ) : null}
       </div>
       {/* On a phone the buttons fill the width, the main one on top; from sm they sit at the end of one line, the
           main one last. The order in the DOM is the order on a phone, so the focus order matches what shows. */}
@@ -253,7 +329,9 @@ function ChangeBox({
   return (
     <div className="space-y-1.5">
       <div className="flex min-h-7 items-center justify-between gap-2">
-        <p className="text-muted-foreground text-xs font-medium">{label}</p>
+        <p lang="en" className="text-muted-foreground text-xs font-medium">
+          {label}
+        </p>
         {copy}
       </div>
       {children}
@@ -270,7 +348,9 @@ function DetailPart({
 }) {
   return (
     <section className="space-y-1.5">
-      <h3 className="font-semibold">{title}</h3>
+      <h3 lang="en" className="font-semibold">
+        {title}
+      </h3>
       {children}
     </section>
   );

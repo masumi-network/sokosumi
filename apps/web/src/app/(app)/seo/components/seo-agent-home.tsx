@@ -1,13 +1,17 @@
 "use client";
 
 import { Play } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoAgentFigures } from "./seo-agent-figures";
 import { SeoAgentGraphics } from "./seo-agent-graphics";
@@ -72,7 +76,8 @@ function SeoAgentPanel({
       (step) => step.kind === "connect" && step.provider === "ga4",
     ),
   );
-  const format = useFormatter();
+  const report = useSeoResultTranslations("App.Seo");
+  const reportFormat = useSeoResultFormatter();
   // "No issues" holds only for the newest check, and only if it measured something.
   const lastCheckMeasured = (brief.lastCheck?.checked ?? 0) > 0;
   const runsShown = seoRunsDateCheck(
@@ -161,9 +166,9 @@ function SeoAgentPanel({
   const numbers = seoSummary(model.data);
   // The headline carries the severities, so the Agent tab needs no issues tile.
   const severitySplit = numbers.issues
-    ? `: ${format.list(
+    ? `: ${reportFormat.list(
         numbers.issues.parts.map((part) =>
-          t("summary.severityCount", {
+          report("summary.severityCount", {
             count: part.count,
             severity: part.severity,
           }),
@@ -198,7 +203,7 @@ function SeoAgentPanel({
       />
     ) : step.kind === "strategy" ? (
       <SeoActionsLinkRow key="strategy" model={model}>
-        {t("agent.steps.strategy", {
+        {report("agent.steps.strategy", {
           count: step.count,
           places: step.places ? "yes" : "no",
         })}
@@ -213,7 +218,7 @@ function SeoAgentPanel({
       />
     );
   const trafficLine = traffic
-    ? t("agent.traffic", {
+    ? report("agent.traffic", {
         impressions: traffic.impressions,
         clicks: traffic.clicks,
         // Every Search Console read is filtered to the Audit's pages.
@@ -278,6 +283,7 @@ function SeoAgentPanel({
       ) : (
         <div className={cn(HOLDER_ITEM_CLASS, "content-rise space-y-2 p-4")}>
           <h3
+            lang="en"
             ref={verdict}
             tabIndex={-1}
             className="focus-visible:outline-ring rounded-sm text-lg font-semibold text-balance focus-visible:outline-2"
@@ -286,31 +292,33 @@ function SeoAgentPanel({
             aria-describedby={trafficLead ? periodId : undefined}
           >
             {brief.issues
-              ? `${t("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
+              ? `${report("agent.verdict.issues", { count: brief.issues })}${severitySplit}`
               : brief.fixes
-                ? t("agent.verdict.fixes", { count: brief.fixes })
+                ? report("agent.verdict.fixes", { count: brief.fixes })
                 : brief.opportunities
-                  ? t("agent.verdict.waiting", { count: brief.opportunities })
+                  ? report("agent.verdict.waiting", {
+                      count: brief.opportunities,
+                    })
                   : brief.emptyState === "no_fixes" && lastCheckMeasured
                     ? rarelyShown
-                      ? t("agent.verdict.clearRarelyShown", {
+                      ? report("agent.verdict.clearRarelyShown", {
                           pages: brief.lastCheck?.pages ?? 1,
                         })
-                      : t("agent.verdict.clear")
+                      : report("agent.verdict.clear")
                     : brief.lastCheck
-                      ? t("actions.checksIncomplete")
+                      ? report("actions.checksIncomplete")
                       : // No call to run a check where no check can run: lead with what is known.
                         canRequestAnalysis
-                        ? t("agent.verdict.noCheck")
+                        ? report("agent.verdict.noCheck")
                         : trafficLead
                           ? trafficLine
-                          : t("agent.verdict.noCheckOff")}
+                          : report("agent.verdict.noCheckOff")}
           </h3>
           {/* The runs row over the tabs names the day of the check in view. */}
           {brief.lastCheck && !runsShown ? (
-            <p className="text-muted-foreground text-sm">
-              {t("agent.lastCheckOn")}{" "}
-              <SeoDate day value={brief.lastCheck.at} />
+            <p lang="en" className="text-muted-foreground text-sm">
+              {report("agent.lastCheckOn")}{" "}
+              <SeoDate report day value={brief.lastCheck.at} />
             </p>
           ) : null}
           <SeoStrategyLine strategy={model.data.strategy} />
@@ -345,7 +353,7 @@ function SeoAgentPanel({
             // it in one list. The first step leads, with its button.
             <ul
               role="list"
-              aria-label={t("agent.nextTitle")}
+              aria-label={report("agent.nextTitle")}
               className={cn(
                 SEO_ROW_LIST_CLASS,
                 "-mx-4 -mb-4 rounded-none rounded-b-lg border-0 border-t bg-transparent [&>li:first-child]:rounded-t-none [&>li:first-child>button]:rounded-t-none",
@@ -381,13 +389,13 @@ function SeoAgentPanel({
       {lead || ((setup || banner) && !steps.length) ? null : steps.length ? (
         <div className="space-y-2">
           {brief.issues ? null : (
-            <h3 className="px-2 text-sm font-semibold">
-              {t("agent.nextTitle")}
+            <h3 lang="en" className="px-2 text-sm font-semibold">
+              {report("agent.nextTitle")}
             </h3>
           )}
           <ul
             role="list"
-            aria-label={t("agent.nextTitle")}
+            aria-label={report("agent.nextTitle")}
             className={SEO_ROW_LIST_CLASS}
           >
             {steps.map((step, index) => stepItem(step, index))}
@@ -398,8 +406,8 @@ function SeoAgentPanel({
         statisticsSync.state === "failed" ? null : (
         // The Analytics line, a sync that runs or failed, each still ask for something: "nothing is waiting"
         // would be wrong. Only a hidden line with no cause to name asks for nothing.
-        <p className="text-muted-foreground max-w-prose px-2 text-sm">
-          {t("agent.nothingNext")}
+        <p lang="en" className="text-muted-foreground max-w-prose px-2 text-sm">
+          {report("agent.nothingNext")}
         </p>
       )}
       <SeoAutomation model={model} />

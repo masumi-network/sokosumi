@@ -389,10 +389,16 @@ describe("Item 38", () => {
     const names: Record<string, string> = {
       "seo-ai-assistants.tsx": "AI assistants",
       "seo-breakdown.tsx": "Countries and devices",
+      "seo-landing-engagement.tsx":
+        messages.App.Seo.traffic.landingEngagement.title,
     };
     expect(withoutCsv.sort()).toEqual(Object.keys(names).sort());
     const missing = SEO_CAPABILITIES.find((item) => item.id === 38)?.missing;
     for (const name of Object.values(names)) expect(missing).toContain(name);
+    for (const { App } of [messages, de, es])
+      expect(App.Seo.improve.items["38"].missing).toContain(
+        App.Seo.traffic.landingEngagement.title,
+      );
     // seoCsv picks the separator from the app language; Excel reads the computer's region.
     expect(missing).toContain("separator follows the app language");
   });

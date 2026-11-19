@@ -141,14 +141,49 @@ describe.skipIf(!enabled)("GET /tasks/{id} SEO audit link", () => {
     await prisma.$disconnect();
   });
 
+  it("exposes report availability only after the analysis imports, and keeps a rejected report unavailable", async () => {
+    const taskId = await seedTask({ auditId });
+    for (const [status, expected] of [
+      ["requested", false],
+      ["failed", false],
+      ["completed", false],
+    ] as const) {
+      await prisma.projectSeoAnalysis.update({
+        where: { taskId },
+        data: { status },
+      });
+      expect(await readSeoAudit(taskId)).toMatchObject({
+        resultAvailable: expected,
+      });
+    }
+    const result = {
+      auditId,
+      source: "seo_coworker",
+      kind: "audit_full",
+      pageIds: [],
+      observedAt: new Date(),
+      artifactHash: "test-result",
+      payload: {},
+    };
+    await prisma.projectSeoObservation.create({
+      data: { ...result, sourceKey: randomUUID(), sourceTaskId: randomUUID() },
+    });
+    expect(await readSeoAudit(taskId)).toMatchObject({
+      resultAvailable: false,
+    });
+    await prisma.projectSeoObservation.create({
+      data: { ...result, sourceKey: randomUUID(), sourceTaskId: taskId },
+    });
+    expect(await readSeoAudit(taskId)).toMatchObject({ resultAvailable: true });
+  });
   it("links an audit Task to its audit and the audit's Project", async () => {
-    expect(await readSeoAudit(await seedTask({ auditId }))).toEqual({
+    expect(await readSeoAudit(await seedTask({ auditId }))).toMatchObject({
       auditId,
       projectId,
     });
   });
   it("links a Project analysis Task to the Project SEO workspace", async () => {
-    expect(await readSeoAudit(await seedTask({ projectId }))).toEqual({
+    expect(await readSeoAudit(await seedTask({ projectId }))).toMatchObject({
       auditId: null,
       projectId,
     });

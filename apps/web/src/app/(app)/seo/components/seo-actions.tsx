@@ -19,9 +19,9 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const csv = (
     <SeoExportMenu
       name="actions"
-      title={t("actions.title")}
+      titleKey="actions.title"
       workspace={model.data}
-      table={() => seoActionsExport(overview.actions, t)}
+      table={(report) => seoActionsExport(overview.actions, report)}
     />
   );
   // The strategy actions are a group with a title of their own: a group over them needs one too.

@@ -1,7 +1,12 @@
 import { Bot, PencilLine } from "lucide-react";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
 import { Button } from "@/components/ui/button";
+import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { seoClickGain, seoKeywordBriefSite } from "./seo-keyword-map-model";
 import {
   MEDIUM_DIFFICULTY_FROM,
@@ -29,6 +34,7 @@ export function SeoKeywordDraftDetails({
   track?: React.ReactNode;
 }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   const { pageUrl, targetPageId } = group.lead;
   const page = model.data.pages.find((item) =>
     pageUrl ? item.url === pageUrl : item.id === targetPageId,
@@ -38,8 +44,7 @@ export function SeoKeywordDraftDetails({
   )?.action;
   const reason = idea ? recommendation(group) : null;
   const url = pageUrl ?? page?.url;
-  const format = useFormatter();
-  const locale = useLocale();
+  const format = useSeoResultFormatter();
   const wizard = useOptionalNewTaskWizard();
   const { lead } = group;
   const band = seoDifficultyBand(group.difficulty);
@@ -51,10 +56,16 @@ export function SeoKeywordDraftDetails({
     measured: group.volume !== null && band ? "yes" : "no",
     keyword: lead.keyword,
     volume: group.volume ?? "",
-    market: seoMarketName(locale, lead.countryCode, lead.languageCode),
+    market: seoMarketName(
+      SEO_RESULT_LOCALE,
+      lead.countryCode,
+      lead.languageCode,
+    ),
     // Inside a sentence the band is a plain word.
     difficulty: band
-      ? t(`keywords.difficulty.${band}`).toLocaleLowerCase(locale)
+      ? result(`keywords.difficulty.${band}`).toLocaleLowerCase(
+          SEO_RESULT_LOCALE,
+        )
       : "",
     value: group.difficulty === null ? "" : Math.round(group.difficulty),
     site: seoKeywordBriefSite(lead.pageUrl, model.data),
@@ -64,14 +75,14 @@ export function SeoKeywordDraftDetails({
   return (
     <div className="grid min-w-0 gap-3 text-sm [overflow-wrap:anywhere]">
       {reason && (
-        <div className="space-y-1">
+        <div lang="en" className="space-y-1">
           <p className="font-medium">
-            {t(`keywords.recommendation.${reason}`)}
+            {result(`keywords.recommendation.${reason}`)}
           </p>
           {(reason === "both" || reason === "competition") &&
             group.difficulty !== null && (
               <p className="text-xs">
-                {t("keywords.recommendation.easeEvidence", {
+                {result("keywords.recommendation.easeEvidence", {
                   value: group.difficulty,
                   limit: MEDIUM_DIFFICULTY_FROM,
                 })}
@@ -79,15 +90,18 @@ export function SeoKeywordDraftDetails({
             )}
           {(reason === "both" || reason === "goal") && (
             <p className="text-xs">
-              {t("keywords.recommendation.goalEvidence")}
+              {result("keywords.recommendation.goalEvidence")}
             </p>
           )}
         </div>
       )}
       {gain && (
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div
+          lang="en"
+          className="flex flex-wrap items-baseline gap-x-3 gap-y-1"
+        >
           <span className="text-muted-foreground text-xs">
-            {t("keywords.map.estimatedGain")}
+            {result("keywords.map.estimatedGain")}
           </span>
           <span className="inline-flex flex-wrap gap-x-3">
             {([10, 3] as const).map((rank) => {
@@ -98,13 +112,13 @@ export function SeoKeywordDraftDetails({
                   className="whitespace-nowrap text-xs font-medium tabular-nums"
                 >
                   {clicks === 0
-                    ? t(
+                    ? result(
                         rank === 10
                           ? "keywords.map.top10"
                           : "keywords.map.top3",
                         { clicks },
                       )
-                    : t("keywords.map.rankGain", {
+                    : result("keywords.map.rankGain", {
                         rank,
                         gain: format.number(clicks, { signDisplay: "always" }),
                       })}
@@ -114,25 +128,25 @@ export function SeoKeywordDraftDetails({
           </span>
         </div>
       )}
-      <div className="grid gap-1 empty:hidden">
+      <div lang="en" className="grid gap-1 empty:hidden">
         {url && (
           <div>
             <span className="text-xs font-medium">
-              {t("keywords.recommendation.page")}
+              {result("keywords.recommendation.page")}
             </span>
             <SeoPageText url={url} workspace={model.data} />
           </div>
         )}
         {action && (
           <p className="text-xs">
-            {t("keywords.recommendation.action", {
-              action: t(`brief.actions.${action.replaceAll(" ", "_")}`),
+            {result("keywords.recommendation.action", {
+              action: result(`brief.actions.${action.replaceAll(" ", "_")}`),
             })}
           </p>
         )}
         {group.feature && (
           <p className="text-muted-foreground text-xs">
-            {t.rich("keywords.conversion.feature", {
+            {result.rich("keywords.conversion.feature", {
               feature: () => <bdi>{group.feature}</bdi>,
             })}
           </p>
@@ -140,7 +154,7 @@ export function SeoKeywordDraftDetails({
         {sources.length > 0 && (
           <p className="text-muted-foreground text-xs">
             {sources
-              .map((source) => t(`keywords.ideas.source.${source}`))
+              .map((source) => result(`keywords.ideas.source.${source}`))
               .join(" · ")}
           </p>
         )}
@@ -153,7 +167,7 @@ export function SeoKeywordDraftDetails({
               onLeave?.();
               // The Task gets the order to write; the agent gets a question, so it advises before it writes.
               wizard.openNewTaskWizard({
-                prompt: t("keywords.map.brief", facts),
+                prompt: result("keywords.map.brief", facts),
                 projectId: model.data.projectId ?? null,
               });
             }}
@@ -168,7 +182,7 @@ export function SeoKeywordDraftDetails({
           variant="outline"
           onClick={() => {
             onLeave?.();
-            model.openChat(t("keywords.map.question", facts));
+            model.openChat(result("keywords.map.question", facts));
           }}
         >
           <Bot />

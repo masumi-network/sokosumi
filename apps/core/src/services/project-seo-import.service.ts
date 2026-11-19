@@ -1,5 +1,9 @@
 import type { Prisma } from "@sokosumi/database";
-import { isOwnedTaskFileUrl, isVercelBlobPublicHost } from "@sokosumi/utils";
+import {
+  isOwnedTaskFileUrl,
+  isVercelBlobPublicHost,
+  seoReportFileFormat,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import {
@@ -11,8 +15,15 @@ import {
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
 import {
+  failedPageRuns,
+  failedSeoSpecialists,
+  reportObject,
+  SEO_REPORT_IMPORT_REJECTED,
+} from "@/helpers/project-seo-public-report";
+import {
   assertSeoArtifactMatchesRequest,
   parsePublicSeoArtifact,
+  skippedPages,
 } from "@/helpers/project-seo-report";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -85,8 +96,7 @@ async function requireSourceFile(
     !file ||
     file.status !== "READY" ||
     file.uploadedByCoworkerId !== task.assigneeId ||
-    file.name !== `seo-report-${task.id}.json` ||
-    file.mimeType !== "application/json" ||
+    seoReportFileFormat(task.id, file.name, file.mimeType) !== "json" ||
     !file.fileUrl ||
     !isOwnedTaskFileUrl(file.fileUrl, task.id) ||
     !isVercelBlobPublicHost(new URL(file.fileUrl).hostname) ||
@@ -209,6 +219,16 @@ export async function importProjectSeoAudit(
       });
       pageIds.push(page.id);
     }
+    const reportPayload =
+      analysis && payload.kind === "audit_full"
+        ? {
+            ...payload,
+            ...(reportObject(raw)?.kind === "site" && {
+              pageRunFailures: failedPageRuns(skippedPages(raw)),
+            }),
+            specialistFailures: failedSeoSpecialists(raw),
+          }
+        : payload;
     const observation = await tx.projectSeoObservation.create({
       data: {
         ...seoOwnerData(actor),
@@ -220,7 +240,7 @@ export async function importProjectSeoAudit(
         pageIds,
         scopeVersion: analysis?.scopeVersion ?? 0,
         artifactHash,
-        payload: jsonInput(payload),
+        payload: jsonInput(reportPayload),
         observedAt: new Date(payload.observedAt),
       },
     });
@@ -310,8 +330,7 @@ export async function reconcileProjectSeoTaskFile(
       },
       data: {
         status: "failed",
-        failureReason:
-          "The source report or its current authority could not be validated",
+        failureReason: SEO_REPORT_IMPORT_REJECTED,
       },
     });
   }

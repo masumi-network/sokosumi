@@ -94,7 +94,7 @@ describe("handleNotificationNavigation", () => {
       t,
     );
 
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
     expect(getWorkspaceOrganizationIdMock).not.toHaveBeenCalled();
     expect(handleSelectWorkspace).not.toHaveBeenCalled();
   });
@@ -114,7 +114,7 @@ describe("handleNotificationNavigation", () => {
       shouldRedirectAgentJobsBasePath: false,
       successMessage: "switched:Org One",
     });
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
   });
 
   it("navigates without switching when active org already matches", async () => {
@@ -129,7 +129,7 @@ describe("handleNotificationNavigation", () => {
     );
 
     expect(handleSelectWorkspace).not.toHaveBeenCalled();
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
   });
 
   it("navigates without switching when workspace lookup fails", async () => {
@@ -148,7 +148,7 @@ describe("handleNotificationNavigation", () => {
     );
 
     expect(handleSelectWorkspace).not.toHaveBeenCalled();
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
   });
 
   it("still switches and navigates when account name lookup fails", async () => {
@@ -173,7 +173,7 @@ describe("handleNotificationNavigation", () => {
       shouldRedirectAgentJobsBasePath: false,
       successMessage: undefined,
     });
-    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1");
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task_1/result");
   });
 
   it("does not navigate when workspace switch fails", async () => {

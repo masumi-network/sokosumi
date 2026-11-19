@@ -2,7 +2,7 @@
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { ChevronRight, CircleAlert, CircleCheck } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,10 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { SeoTimeline } from "./seo-timeline";
 import {
   type SeoStopNode,
@@ -51,7 +55,8 @@ export function SeoRunDayHover({
   children: ReactNode;
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
+  const report = useSeoResultTranslations("App.Seo");
+  const reportFormat = useSeoResultFormatter();
   // Always controlled: a card that switched to controlled while empty would come back open with no pointer on it.
   const [open, setOpen] = useState(false);
   const digest = seoStopDigest(nodes);
@@ -59,19 +64,19 @@ export function SeoRunDayHover({
   const result = newest ? seoNodeResult(workspace, newest) : null;
   const coverage = newest?.observation?.coverage;
   const counts = [
-    digest.checks ? t("runs.checks", { count: digest.checks }) : null,
+    digest.checks ? report("runs.checks", { count: digest.checks }) : null,
     digest.failedChecks
-      ? t("runs.failedChecks", { count: digest.failedChecks })
+      ? report("runs.failedChecks", { count: digest.failedChecks })
       : null,
     digest.pageChanges
-      ? t("runs.pageChanges", { count: digest.pageChanges })
+      ? report("runs.pageChanges", { count: digest.pageChanges })
       : null,
     digest.scopeChanges
-      ? t("runs.scopeChanges", { count: digest.scopeChanges })
+      ? report("runs.scopeChanges", { count: digest.scopeChanges })
       : null,
-    digest.tasks ? t("runs.tasks", { count: digest.tasks }) : null,
+    digest.tasks ? report("runs.tasks", { count: digest.tasks }) : null,
     digest.failedSyncs
-      ? t("runs.failedSyncs", { count: digest.failedSyncs })
+      ? report("runs.failedSyncs", { count: digest.failedSyncs })
       : null,
   ].filter((count): count is string => count !== null);
   return (
@@ -90,10 +95,12 @@ export function SeoRunDayHover({
       {nodes.length ? (
         <HoverCardContent className="w-72 p-0 text-sm">
           <div className="space-y-3 p-4">
-            <p className="text-muted-foreground text-xs">{day}</p>
+            <p lang="en" className="text-muted-foreground text-xs">
+              {day}
+            </p>
             {result !== null && coverage ? (
               // The result is the headline of the card; the tests behind it sit under it.
-              <div className="flex gap-3">
+              <div lang="en" className="flex gap-3">
                 <span className="text-muted-foreground -mt-1 flex size-7 shrink-0 items-center justify-center rounded-full border">
                   {result ? (
                     <CircleAlert className="size-3.5" />
@@ -103,13 +110,15 @@ export function SeoRunDayHover({
                 </span>
                 <div className="min-w-0 space-y-0.5">
                   <p className="font-medium">
-                    {t("timeline.result", { count: result })}
+                    {report("timeline.result", { count: result })}
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {[
-                      t("timeline.checkSummary", { checked: coverage.checked }),
+                      report("timeline.checkSummary", {
+                        checked: coverage.checked,
+                      }),
                       coverage.skipped
-                        ? t("timeline.rulesSkipped", {
+                        ? report("timeline.rulesSkipped", {
                             count: coverage.skipped,
                           })
                         : null,
@@ -127,8 +136,8 @@ export function SeoRunDayHover({
           <div className="flex items-center gap-3 border-t py-2 ps-4 pe-2">
             {/* A stop of check requests alone has nothing to count: its details say what became of them. */}
             {counts.length ? (
-              <p className="text-muted-foreground min-w-0 text-xs">
-                {format.list(counts, { type: "unit" })}
+              <p lang="en" className="text-muted-foreground min-w-0 text-xs">
+                {reportFormat.list(counts, { type: "unit" })}
               </p>
             ) : null}
             <Button
@@ -175,8 +184,8 @@ export function SeoRunDayDialog({
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle lang="en">{title}</DialogTitle>
+          <DialogDescription lang="en">{description}</DialogDescription>
         </DialogHeader>
         <SeoTimeline workspace={workspace} nodes={nodes} />
       </DialogContent>

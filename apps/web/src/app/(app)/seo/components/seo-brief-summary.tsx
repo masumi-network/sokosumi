@@ -1,7 +1,7 @@
 "use client";
 
 import type { SeoAuditBrief } from "@sokosumi/core-client";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTimeZone, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -9,8 +9,14 @@ import {
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
+import { seoResultFormat } from "@/i18n/seo-result-messages";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoBriefOutcomes } from "./seo-brief-outcomes";
+import {
+  SeoActionOutcome,
+  SeoGoalInvestigation,
+} from "./seo-goal-investigation";
 import { SeoPageLink, seoSiteUrl } from "./seo-shared";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
@@ -128,7 +134,7 @@ export function SeoBriefPagePriority({
   model: SeoWorkspaceModel;
   pageId?: string;
 }) {
-  const t = useTranslations("App.Seo.brief");
+  const t = useSeoResultTranslations("App.Seo.brief");
   const brief = model.brief?.data;
   const priority = brief?.priorities?.find((item) =>
     pageId
@@ -140,6 +146,7 @@ export function SeoBriefPagePriority({
   if (!priority || !page) return null;
   return (
     <section
+      lang="en"
       aria-label={t("priority")}
       className={cn("space-y-2 text-sm", !pageId && HOLDER_CLASS)}
     >
@@ -176,7 +183,11 @@ export function SeoBriefPagePriority({
                   <dt className="text-muted-foreground font-medium">
                     {t(field)}
                   </dt>
-                  <dd className="whitespace-pre-wrap break-words">
+                  <dd
+                    dir="auto"
+                    lang=""
+                    className="whitespace-pre-wrap break-words"
+                  >
                     {brief[field]}
                   </dd>
                 </div>
@@ -191,20 +202,23 @@ export function SeoBriefPagePriority({
 
 export function SeoBriefFollowUp({
   followUp,
+  strategyCompletedAt,
 }: {
   followUp: SeoAuditBrief["followUps"][number];
+  strategyCompletedAt?: Date;
 }) {
-  const t = useTranslations("App.Seo.brief");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.brief");
+  const timeZone = useTimeZone();
   return (
-    <section className="space-y-1.5 text-sm">
+    <section lang="en" className="space-y-1.5 text-sm">
       <h3 className="font-semibold">{t("followUp")}</h3>
       <p>{t(`followUps.${followUp.status}`)}</p>
       {followUp.changedAt && (
         <p className="text-muted-foreground">
           {t("recordedChange", {
-            date: format.dateTime(new Date(followUp.changedAt), {
+            date: seoResultFormat.dateTime(new Date(followUp.changedAt), {
               dateStyle: "medium",
+              timeZone,
             }),
           })}
         </p>
@@ -212,14 +226,24 @@ export function SeoBriefFollowUp({
       {followUp.lastCrawlAt && (
         <p className="text-muted-foreground">
           {t("lastCrawl", {
-            date: format.dateTime(new Date(followUp.lastCrawlAt), {
+            date: seoResultFormat.dateTime(new Date(followUp.lastCrawlAt), {
               dateStyle: "medium",
+              timeZone,
             }),
           })}
         </p>
       )}
       {followUp.indexReview && followUp.indexReview !== "unknown" && (
         <p>{t(`indexReview.${followUp.indexReview}`)}</p>
+      )}
+      {followUp.goalInvestigation && (
+        <SeoGoalInvestigation control={followUp.goalInvestigation} />
+      )}
+      {strategyCompletedAt && (
+        <SeoActionOutcome
+          completedAt={strategyCompletedAt}
+          followUp={followUp}
+        />
       )}
       <SeoBriefOutcomes followUp={followUp} />
     </section>

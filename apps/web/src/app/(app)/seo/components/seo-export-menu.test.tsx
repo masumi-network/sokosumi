@@ -3,9 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
+import german from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
 import { SeoExportMenu } from "./seo-export-menu";
-import type { SeoExport } from "./seo-export-model";
+import { type SeoExport, seoQueriesExport } from "./seo-export-model";
 
 const m = vi.hoisted(() => ({
   create: vi.fn(),
@@ -35,7 +37,7 @@ function menu(empty = false, rows: () => SeoExport = table) {
     >
       <SeoExportMenu
         name="keywords"
-        title="Keywords"
+        titleKey="keywords.title"
         workspace={{
           auditName: "example.com",
           websiteUrl: null,
@@ -58,7 +60,7 @@ function show(site = "example.com", rows: () => SeoExport = table) {
     >
       <SeoExportMenu
         name="keywords"
-        title="Keywords"
+        titleKey="keywords.title"
         workspace={{ auditName: site, websiteUrl: null, projectId: null }}
         table={rows}
       />
@@ -102,6 +104,71 @@ describe("SeoExportMenu", () => {
     expect(options).toMatchObject({ duration: Infinity, closeButton: true });
     options.action.onClick();
     expect(m.push).toHaveBeenCalledWith("/drive/tables/table-1");
+  });
+
+  it("exports English column names and the original search query from a German menu", async () => {
+    const user = userEvent.setup();
+    const query = "Wärmepumpe Förderung";
+    render(
+      <NextIntlClientProvider
+        locale="de"
+        messages={german}
+        formats={createFormats()}
+        timeZone="Europe/Berlin"
+      >
+        <SeoResultMessagesProvider messages={messages.App.Seo}>
+          <SeoExportMenu
+            name="search-queries"
+            titleKey="queries.title"
+            workspace={{
+              auditName: "example.com",
+              websiteUrl: null,
+              projectId: null,
+            }}
+            table={(report) =>
+              seoQueriesExport(
+                [
+                  {
+                    id: "query-1",
+                    query,
+                    pageUrl: "https://example.com/",
+                    clicks: 4,
+                    impressions: 40,
+                    ctr: 0.1,
+                    averagePosition: 3,
+                  },
+                ],
+                report,
+              )
+            }
+          />
+        </SeoResultMessagesProvider>
+      </NextIntlClientProvider>,
+    );
+    await pick(
+      user,
+      screen.getByRole("button", {
+        name: "Exportieren: Search-Console-Suchanfragen",
+      }),
+      "In eine Tabelle kopieren",
+    );
+    await waitFor(() => expect(m.success).toHaveBeenCalledOnce());
+    const [body] = m.create.mock.calls[0];
+    expect(body.title).toMatch(/^Search Console queries · example\.com · /);
+    expect(body.description).toMatch(/^Copied from SEO on /);
+    expect(body.columns.map((column: { name: string }) => column.name)).toEqual(
+      [
+        "Query",
+        "Page",
+        "Search clicks",
+        "Search impressions",
+        "Click-through rate",
+        "Average position",
+      ],
+    );
+    expect(Object.values(m.batch.mock.calls[0][1].insert[0].values)).toContain(
+      query,
+    );
   });
 
   it("finishes a failed copy on the next press without a second Table or row", async () => {
