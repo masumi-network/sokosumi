@@ -1,5 +1,6 @@
 import { CreditBucketReferenceType, type Prisma } from "@sokosumi/database";
 import { cmoMayExecute, getSokoBotVersion } from "@sokosumi/soko-bot";
+import { type CmoVolumeLevel, cmoVolumeLevelForTier } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import { isOnEmailAllowlist } from "@/helpers/email-allowlist";
 import prisma from "@/lib/db/prisma";
@@ -105,7 +106,11 @@ export async function cmoPaidFor(
   projectId: string,
   now: Date,
   db: Pick<Prisma.TransactionClient, "polarSubscription" | "creditBucket">,
-): Promise<{ subscribed: boolean; testerCreditsLeft: boolean }> {
+): Promise<{
+  subscribed: boolean;
+  tier: string | null;
+  testerCreditsLeft: boolean;
+}> {
   const [subscription, testerBuckets] = await Promise.all([
     db.polarSubscription.findFirst({
       where: {
@@ -114,7 +119,7 @@ export async function cmoPaidFor(
         status: "active",
         OR: [{ cancelAtPeriodEnd: false }, { currentPeriodEnd: { gt: now } }],
       },
-      select: { id: true },
+      select: { tier: true },
     }),
     db.creditBucket.findMany({
       where: {
@@ -128,12 +133,26 @@ export async function cmoPaidFor(
   ]);
   return {
     subscribed: subscription !== null,
+    tier: subscription?.tier ?? null,
     testerCreditsLeft: testerBuckets.some(
       (bucket) =>
         bucket.consumptions.reduce((spent, c) => spent + c.amount, 0n) <
         bucket.amount,
     ),
   };
+}
+
+/**
+ * How much of the month a Cuso's plan makes: an active plan's tier. Tester
+ * credits, and a Cuso nobody pays for yet (hiring, before Subscribe), make
+ * all of it, whatever plan is pending or lapsed beside them.
+ */
+export async function cmoPlanLevel(
+  projectId: string,
+  now: Date,
+): Promise<CmoVolumeLevel> {
+  const paid = await cmoPaidFor(projectId, now, prisma);
+  return cmoVolumeLevelForTier(paid.testerCreditsLeft ? null : paid.tier);
 }
 
 /** What a tester's skip gives a Cuso, as a hire before CMO plans got. */
