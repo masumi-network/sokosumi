@@ -83,6 +83,11 @@ it.skipIf(!enabled)(
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(55)}::uuid,${id(9)}::uuid,NULL,'11','seo_coworker','audit_full',NULL,'{"pageRunFailures":0,"notes":["Page not audited: https://example.test/only (the page Run failed: forged)"]}',ARRAY[${id(65)}::uuid],timestamp '2026-10-11')`;
       await tx.$executeRaw`UPDATE project_seo_analysis SET "failureReason"='The source report or its current authority could not be validated' WHERE "taskId"='12'`;
       await tx.$executeRaw`INSERT INTO project_seo_observation VALUES(${id(56)}::uuid,${id(4)}::uuid,NULL,'5','search_console','index_inspection','owner4','{"receipt":{"status":"needs_property"}}',NULL,timestamp '2026-10-05')`;
+      // Autovacuum cannot analyze temporary tables. Give the planner the fixture's row counts
+      // before the dashboard reads so PostgreSQL can choose a plan for these small tables.
+      await tx.$executeRaw`ANALYZE pg_temp.project_seo_analysis, pg_temp.seo_audit, pg_temp.workspace,
+        pg_temp.organization, pg_temp.project, pg_temp.task, pg_temp."taskEvent", pg_temp."Transaction",
+        pg_temp.seo_connection, pg_temp.project_seo_observation`;
       const beforeDisconnect = await listAdminSeoAlerts(
         { period: "all", page: 1 },
         tx,
