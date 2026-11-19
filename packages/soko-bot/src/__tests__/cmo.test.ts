@@ -478,10 +478,13 @@ describe("CMO strategy and rhythms", () => {
         ],
       },
     });
-    expect(
-      cmoSaveStrategyInputSchema.safeParse(proposing("instagram")).success,
-    ).toBe(true);
-    for (const outside of ["reddit", "tiktok", "linkedin"]) {
+    // TikTok is a channel Cuso runs: the owner confirms each video.
+    for (const run of ["instagram", "tiktok"]) {
+      expect(cmoSaveStrategyInputSchema.safeParse(proposing(run)).success).toBe(
+        true,
+      );
+    }
+    for (const outside of ["reddit", "linkedin"]) {
       expect(
         cmoSaveStrategyInputSchema.safeParse(proposing(outside)).success,
       ).toBe(false);

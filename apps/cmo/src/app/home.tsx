@@ -60,6 +60,7 @@ import {
   onboard,
   openPortal,
   pauseEntry,
+  readTikTokCreator,
   removeCompetitor,
   requestStrategy,
   retryLearning,
@@ -398,6 +399,7 @@ export async function Home({ searchParams, view }: HomeProps) {
         saveBrandBrain: saveBrandBrain.bind(null, projectId),
         pauseEntry: pauseEntry.bind(null, projectId),
         approveDraft: approveDraft.bind(null, projectId),
+        readTikTokCreator: readTikTokCreator.bind(null, projectId),
         declineDraft: declineDraft.bind(null, projectId),
         editDraft: editDraft.bind(null, projectId),
         competitors: {
