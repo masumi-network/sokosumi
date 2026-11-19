@@ -108,12 +108,31 @@ const actions: CmoAppActions = {
 /** The signed-in app on one page, over fixture data, for looking at without Core. */
 interface FixtureAppProps {
   view: View;
-  /** Competitors: the page with nobody watched yet, or still loading. */
-  state?: "empty" | "loading";
+  /**
+   * Competitors: the page with nobody watched yet, or still loading.
+   * blocked: the month could not start, and a message does not send.
+   */
+  state?: "empty" | "loading" | "blocked";
 }
 
 export function FixtureApp({ view, state }: FixtureAppProps) {
-  const data = view === "chat" ? chat : { overview, messages };
+  const shown = view === "chat" ? chat : { overview, messages };
+  const data =
+    state === "blocked"
+      ? {
+          ...shown,
+          overview: {
+            ...shown.overview,
+            production: {
+              ...shown.overview.production,
+              state: "blocked" as const,
+              ready: 0,
+              written: 0,
+              pictured: 0,
+            },
+          },
+        }
+      : shown;
   const loadCompetitors =
     state === "loading"
       ? () => new Promise<null>(() => {})
@@ -131,6 +150,13 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
       actions={{
         ...actions,
         loadState: async () => data,
+        ...(state === "blocked"
+          ? {
+              sendMessage: async () => {
+                throw new Error("Could not send the message");
+              },
+            }
+          : {}),
         loadChatWork: async () => (view === "chat" ? chat.work : []),
         competitors: { ...actions.competitors, loadCompetitors },
       }}

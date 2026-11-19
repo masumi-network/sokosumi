@@ -57558,9 +57558,10 @@ export const CmoProductionSchema = {
                 'starting',
                 'running',
                 'ready',
-                'stuck'
+                'stuck',
+                'blocked'
             ],
-            description: 'starting: approved, but no run is working yet; the next sync starts one.'
+            description: 'starting: approved, but no run is working yet; the next sync starts one. blocked: no run could start for half an hour; Core keeps trying.'
         },
         ready: {
             type: 'integer'

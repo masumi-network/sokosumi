@@ -85,6 +85,7 @@ vi.mock("@/config/env", async (importOriginal) =>
 );
 
 import {
+  CMO_CONTEXT_BUDGET_BYTES,
   fitCmoMarketingContext,
   loadCmoMarketingContext,
 } from "./cmo-context.service";
@@ -335,13 +336,81 @@ describe("fitCmoMarketingContext", () => {
     };
     expect(shed.strategy.calendar[0]?.visual).toBeDefined();
     expect(shed.strategy.calendar[1]?.visual).toBeUndefined();
-    const tight = fitCmoMarketingContext(big, now, 400) as {
+    const twoWeeks = fitCmoMarketingContext(big, now, 1_700) as {
       strategy: { calendar: Record<string, unknown>[] };
     };
-    expect(tight.strategy.calendar.map((piece) => piece.id)).toEqual([
+    expect(twoWeeks.strategy.calendar.map((piece) => piece.id)).toEqual([
       "soon",
       "later",
     ]);
+  });
+
+  it("always fits a top-volume month: NMKR's 116 pieces, 80 of them in two weeks", () => {
+    const channels = ["x", "x", "x", "linkedin", "instagram", "facebook"];
+    const month = {
+      brandBrain: {
+        summary: "s".repeat(400),
+        competitors: Array.from({ length: 6 }, () => "c".repeat(220)),
+        marketingToday: { summary: "m".repeat(1_400) },
+        offers: "o".repeat(800),
+        voice: "v".repeat(500),
+        profile: {},
+      },
+      brandLook: { designMd: "d".repeat(1_600) },
+      brandPictures: Array.from({ length: 20 }, (_, i) => ({
+        fileId: `01a1f567-f147-734d-8c4d-0786f2e0c0${String(i).padStart(2, "0")}`,
+        alt: "a".repeat(80),
+        kind: "screenshot",
+      })),
+      writingSkills: Array.from({ length: 14 }, (_, i) => ({
+        id: `skill-${i}`,
+        use: "u".repeat(110),
+      })),
+      strategy: {
+        summary: "Plan",
+        channels: "h".repeat(800),
+        pillars: "p".repeat(500),
+        mix: "x".repeat(500),
+        questions: "q".repeat(400),
+        focus: "f".repeat(400),
+        funnel: "f".repeat(3_000),
+        patched: Array.from({ length: 60 }, (_, i) => ({
+          id: `w2-x${i}`,
+          was: null,
+        })),
+        start: { gaps: ["g".repeat(800)] },
+        campaigns: [{ id: "conference-notes", message: "l".repeat(900) }],
+        calendar: Array.from({ length: 116 }, (_, i) => ({
+          id: `w${Math.floor(i / 29) + 1}-x${String(i).padStart(2, "0")}`,
+          date: `2026-11-${String(Math.floor(i / 5.8) + 2).padStart(2, "0")}`,
+          time: "07:20",
+          channel: channels[i % channels.length],
+          format: "post",
+          approach: "product-led",
+          pillar: "Project launch workflows",
+          campaignId: "conference-notes",
+          status: "idea",
+          title: "Prepare sale choices before the mint",
+          brief: "List buyer steps before choosing sale settings for the drop.",
+          why: "A practical prompt for UBC 2026, Nov 20-21.",
+        })),
+      },
+    };
+    const fitted = fitCmoMarketingContext(month, now) as {
+      strategy: { calendar?: Record<string, unknown>[] };
+    };
+    expect(Buffer.byteLength(JSON.stringify(fitted))).toBeLessThanOrEqual(
+      CMO_CONTEXT_BUDGET_BYTES,
+    );
+    expect(fitted.strategy.calendar?.[0]?.id).toBe("w1-x00");
+  });
+
+  it("ends within its budget even when the calendar has to go", () => {
+    const fitted = fitCmoMarketingContext(context, now, 200) as {
+      strategy: { calendar?: unknown[]; storedNotShown?: string[] };
+    };
+    expect(Buffer.byteLength(JSON.stringify(fitted))).toBeLessThanOrEqual(200);
+    expect(fitted.strategy.storedNotShown).toContain("calendar");
   });
 
   it("keeps every later piece as a short line before it drops any, so a change can reach weeks three and four", () => {

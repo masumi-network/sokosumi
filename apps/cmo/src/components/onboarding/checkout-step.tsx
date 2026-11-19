@@ -9,6 +9,7 @@ import { AGENT_NAME } from "../../lib/agent";
 import { channelLabel } from "../../lib/calendar";
 import { channelKey, formatMedia } from "../../lib/channels";
 import { joinNames } from "../../lib/names";
+import { monthPostCount } from "../../lib/strategy";
 import { money, PACES } from "../strategy-core";
 import { type SkipSubscription, SkipSubscriptionButton } from "../top-up";
 import { CusoScene } from "./cuso-scene";
@@ -88,7 +89,7 @@ function monthOf(strategy: Strategy) {
     ...new Set(live.map((entry) => channelKey(entry.channel) ?? entry.channel)),
   ].map(channelLabel);
   return {
-    pieces: live.length,
+    pieces: monthPostCount(strategy.calendar),
     channels,
     pictures: media.filter((kind) => kind === "image" || kind === "images")
       .length,

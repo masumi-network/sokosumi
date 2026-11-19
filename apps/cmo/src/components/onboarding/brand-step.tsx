@@ -12,6 +12,7 @@ import {
   type BrandSectionKey,
   brandProfile,
   EVIDENCE_LABELS,
+  fixPending,
   sourceHost,
 } from "../../lib/brand-sections";
 import { channelLabel, isSocialProvider } from "../../lib/calendar";
@@ -406,7 +407,7 @@ export function BrandStep({
   );
   const shown = tiles.find((tile) => tile.id === open);
   const section = shown?.section ? profile[shown.section] : undefined;
-  const waiting = onFix && section?.fix && !section.fix.fixed;
+  const waiting = onFix && fixPending(section);
 
   const [shownQuestions, answer] = useAnswers(
     brain.questions ?? [],
@@ -492,7 +493,11 @@ export function BrandStep({
                 label={tile.label}
                 value={tile.value}
                 detail={tile.detail}
-                source={`Source: ${sourceHost(tileSource(tile, profile, overview.websiteUrl))}`}
+                source={
+                  tile.section && fixPending(profile[tile.section])
+                    ? `Your fix is waiting for ${AGENT_NAME}`
+                    : `Source: ${sourceHost(tileSource(tile, profile, overview.websiteUrl))}`
+                }
                 open={open === tile.id}
                 onToggle={() => setOpen(open === tile.id ? null : tile.id)}
               />
