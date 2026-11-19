@@ -18,10 +18,12 @@ export const jobEventRepository = {
     return await tx.jobEvent.create({
       data: {
         job: { connect: { id: jobId } },
-        statusHash: data.statusHash,
         status: data.status,
-        inputSchema: data.inputSchema,
-        result: data.result,
+        ...(data.statusHash !== undefined && { statusHash: data.statusHash }),
+        ...(data.inputSchema !== undefined && {
+          inputSchema: data.inputSchema,
+        }),
+        ...(data.result !== undefined && { result: data.result }),
         ...(data.inputId && { input: { connect: { id: data.inputId } } }),
       },
     });

@@ -367,12 +367,14 @@ describe("persistUserMessageToChatRoom", () => {
           senderUserId: "user_1",
           senderCoworkerId: null,
           content: "Hello from user",
-          metadata: undefined,
           clientMessageId: null,
           parentMessageId: null,
         },
       }),
     );
+    expect(
+      vi.mocked(prisma.chatRoomMessage.create).mock.lastCall?.[0].data,
+    ).not.toHaveProperty("metadata");
     expect(prisma.chatRoom.update).toHaveBeenCalledWith({
       where: { id: "room_1" },
       data: { updatedAt: expect.any(Date) },
