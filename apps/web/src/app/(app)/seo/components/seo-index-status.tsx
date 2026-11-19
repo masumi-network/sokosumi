@@ -8,6 +8,7 @@ import { seoIndexReviewState } from "@sokosumi/utils";
 import { CircleAlert, CircleCheck, CircleHelp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoIndexNote } from "./seo-index-triage";
 import { seoIndexEvidence, seoIndexStatusView } from "./seo-index-triage-model";
@@ -49,6 +50,7 @@ export function SeoIndexStatus({
   workspace: ProjectSeoWorkspace;
 }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   const { inView, pages, notes, alone, unanswered } =
     seoIndexStatusView(workspace);
   const notesOf = (pageUrl: string) =>
@@ -58,7 +60,9 @@ export function SeoIndexStatus({
     <SeoSection
       title={t("index.title")}
       description={
-        unanswered > 0 ? t("index.unanswered", { count: unanswered }) : null
+        unanswered > 0
+          ? result("index.unanswered", { count: unanswered })
+          : null
       }
     >
       <ul className={cn(HOLDER_ITEM_CLASS, "divide-y")}>
@@ -98,7 +102,7 @@ export function SeoIndexStatus({
                       !fine && "text-muted-foreground",
                     )}
                   />
-                  {t(`index.state.${state}`)}
+                  {result(`index.state.${state}`)}
                 </span>
                 {page.coverageState ? (
                   <>
@@ -107,7 +111,7 @@ export function SeoIndexStatus({
                       ·
                     </span>
                     <span className="text-muted-foreground">
-                      {t("indexReview.googleReason", {
+                      {result("indexReview.googleReason", {
                         reason: page.coverageState,
                       })}
                     </span>
@@ -117,8 +121,8 @@ export function SeoIndexStatus({
                 !(state === "unknown" && noteStates[0] === "unknown") ? (
                   <SeoState>
                     {noteStates[0] === "unknown"
-                      ? t("index.state.unknown")
-                      : t(`indexReview.state.${noteStates[0]}`)}
+                      ? result("index.state.unknown")
+                      : result(`indexReview.state.${noteStates[0]}`)}
                   </SeoState>
                 ) : null}
               </p>
@@ -127,12 +131,13 @@ export function SeoIndexStatus({
                 <SeoPageLink url={page.pageUrl} />
               ) : null}
               <p className="text-muted-foreground text-sm">
-                {t("index.lastCrawl")}{" "}
-                <SeoDate value={page.lastCrawlTime} day />
+                {result("index.lastCrawl")}{" "}
+                <SeoDate report value={page.lastCrawlTime} day />
               </p>
               {canonical ? (
                 <p className="text-sm">
-                  {t("index.otherCanonical")} <SeoPageLink url={canonical} />
+                  {result("index.otherCanonical")}{" "}
+                  <SeoPageLink url={canonical} />
                 </p>
               ) : null}
               {/* Notes of one page can come from different audited URLs: a line parts them. */}

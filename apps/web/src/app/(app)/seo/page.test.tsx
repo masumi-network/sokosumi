@@ -5,6 +5,7 @@ import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import german from "../../../../messages/de.json";
 import messages from "../../../../messages/en.json";
 import {
   SEO_TEST_AUDIT,
@@ -20,6 +21,7 @@ const m = vi.hoisted(() => ({
   coworkers: vi.fn(),
   createAudit: vi.fn(),
   push: vi.fn(),
+  locale: vi.fn<() => Promise<"en" | "de">>(),
   connection: vi.fn(async () => {}),
 }));
 vi.mock("next/server", async (importOriginal) => ({
@@ -30,8 +32,10 @@ vi.mock("next/navigation", async (importOriginal) => ({
   ...(await importOriginal<typeof import("next/navigation")>()),
   useRouter: () => ({ push: m.push, refresh: vi.fn() }),
 }));
+vi.mock("next/headers", () => ({ cookies: async () => new Map() }));
 vi.mock("next/cache", () => ({ cacheLife: () => undefined }));
 vi.mock("next-intl/server", () => ({
+  getLocale: m.locale,
   getTranslations: async () =>
     createTranslator({ locale: "en", messages, namespace: "App.Seo" }),
 }));
@@ -51,7 +55,11 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const clients: QueryClient[] = [];
-async function show(params: Record<string, string> = {}) {
+async function show(
+  params: Record<string, string> = {},
+  locale: "en" | "de" = "en",
+) {
+  m.locale.mockResolvedValue(locale);
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -60,10 +68,10 @@ async function show(params: Record<string, string> = {}) {
   return render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider
-        locale="en"
+        locale={locale}
         timeZone="UTC"
         formats={createFormats()}
-        messages={messages}
+        messages={locale === "en" ? messages : german}
       >
         <NuqsTestingAdapter
           searchParams={new URLSearchParams(params)}
@@ -191,6 +199,45 @@ describe("native SEO audit entry", () => {
       },
     });
     expect(m.push).toHaveBeenCalledWith(`/seo?auditId=${SEO_TEST_AUDIT}`);
+  });
+
+  it("loads a German SEO workspace with English audit results and German tabs", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.auditId = SEO_TEST_AUDIT;
+    workspace.seasonalIdeas = [
+      {
+        keyword: "Pièces détachées",
+        audience: "repair shops",
+        country: "FR",
+        language: "fr",
+        url: workspace.pages[0].url,
+        asOf: new Date("2026-11-01"),
+        pageQuote: "Pièces détachées pour vélos",
+        action: "investigate_angle",
+        limitations: [],
+        event: null,
+        comparison: null,
+        windows: [],
+      },
+    ];
+    m.getWorkspace.mockResolvedValue(workspace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    await show(
+      { auditId: SEO_TEST_AUDIT, projectId: SEO_TEST_PROJECT, tab: "rankings" },
+      "de",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Pièces détachées" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Check this search for repair shops."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: german.App.Seo.keywords.ideas.short }),
+    ).toBeVisible();
   });
 
   it("opens an existing Audit without consulting a generic Coworker catalog", async () => {

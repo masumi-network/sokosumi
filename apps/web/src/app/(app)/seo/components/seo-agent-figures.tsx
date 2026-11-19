@@ -6,8 +6,12 @@ import {
   Search,
   TrendingUp,
 } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import type { SeoTab } from "../seo-query";
 import { SeoPeriod } from "./seo-shared";
@@ -78,7 +82,9 @@ export function SeoAgentFigures({
   trafficLead: boolean;
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
+  const report = useSeoResultTranslations("App.Seo");
+  const reportFormat = useSeoResultFormatter();
+  const locale = useLocale();
   const { keywords, searches } = seoSummary(model.data);
   if (!keywords && !searches && !traffic) return null;
   // A figure counts every keyword, so the tab it opens drops a search left from a keyword of the picture.
@@ -88,8 +94,9 @@ export function SeoAgentFigures({
   };
   return (
     <ul
+      lang="en"
       role="list"
-      aria-label={t("agent.figures.label")}
+      aria-label={report("agent.figures.label")}
       className="flex flex-wrap gap-2"
       data-testid="seo-agent-figures"
     >
@@ -102,9 +109,9 @@ export function SeoAgentFigures({
           onOpen={open("rankings")}
         >
           {/* "0 of 8" is no "not in Google": the count holds for the results the check read, so it names them. */}
-          {t("agent.figures.rankings", {
-            found: format.number(keywords.found),
-            read: format.number(keywords.read),
+          {report("agent.figures.rankings", {
+            found: reportFormat.number(keywords.found),
+            read: reportFormat.number(keywords.read),
             // The plural reads the number itself: "1.000" in German would count as one.
             count: keywords.read,
             depth: keywords.depth
@@ -124,7 +131,7 @@ export function SeoAgentFigures({
           iconClass="text-chart-4"
           onOpen={open("rankings")}
         >
-          {t("agent.figures.searches", {
+          {report("agent.figures.searches", {
             // The message formats the numbers itself, so its plural reads the number.
             total: searches.total,
             // Not every checked keyword has a number of searches: the figure says for how many.
@@ -144,18 +151,25 @@ export function SeoAgentFigures({
         >
           {trafficLead
             ? null
-            : t("agent.figures.traffic", {
+            : report("agent.figures.traffic", {
                 clicks: traffic.clicks,
                 impressions: traffic.impressions,
               })}
           {/* The period is in the figure's name; it shows where it is the figure's only text. There the name
               also says where the figure leads. */}
           {trafficLead ? (
-            <span className="sr-only">{`${t("tabs.traffic")}: `}</span>
+            <span
+              lang={locale}
+              className="sr-only"
+            >{`${t("tabs.traffic")}: `}</span>
           ) : null}
           <span id={periodId} className={cn(!trafficLead && "sr-only")}>
             {trafficLead ? null : ", "}
-            <SeoPeriod from={traffic.period.from} to={traffic.period.to} />
+            <SeoPeriod
+              report
+              from={traffic.period.from}
+              to={traffic.period.to}
+            />
           </span>
         </Figure>
       ) : null}

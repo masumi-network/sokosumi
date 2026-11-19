@@ -1,7 +1,10 @@
 "use client";
 
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
-import { useFormatter, useTranslations } from "next-intl";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import {
   seoFeatureSearches,
   seoReachKey,
@@ -32,7 +35,7 @@ export function SeoKeywordReach({ strategy }: { strategy: Strategy | null }) {
 
 /** "50 searches a month · Forum in the results": the numbers and the reach of one keyword. */
 function useReachLine() {
-  const t = useTranslations("App.Seo.keywordReach");
+  const t = useSeoResultTranslations("App.Seo.keywordReach");
   return (searches: string | null, reach: string, position: number | null) => {
     const key = seoReachKey(reach);
     return [
@@ -57,7 +60,7 @@ function Fold({
   children: React.ReactNode;
 }) {
   return (
-    <details className="px-2 text-sm" data-testid={testId}>
+    <details lang="en" className="px-2 text-sm" data-testid={testId}>
       <SeoFoldSummary className="py-2.5">
         <span className="min-w-0 break-words">{title}</span>
       </SeoFoldSummary>
@@ -74,7 +77,7 @@ function FeatureReach({
 }: {
   rows: NonNullable<Strategy["featureReach"]>;
 }) {
-  const t = useTranslations("App.Seo.keywordReach");
+  const t = useSeoResultTranslations("App.Seo.keywordReach");
   const reachLine = useReachLine();
   return (
     <Fold
@@ -87,7 +90,9 @@ function FeatureReach({
           const { searches, suggested } = seoFeatureSearches(row);
           return (
             <li key={`${row.feature}:${row.keyword}`} className="break-words">
-              <span dir="auto">{row.keyword}</span>
+              <span lang="" dir="auto">
+                {row.keyword}
+              </span>
               <span className="text-muted-foreground"> · </span>
               <span className="text-muted-foreground" dir="auto">
                 {row.feature}
@@ -110,7 +115,7 @@ function FeatureReach({
 }
 
 function RivalKeywords({ hosts }: { hosts: RivalHost[] }) {
-  const t = useTranslations("App.Seo.keywordReach");
+  const t = useSeoResultTranslations("App.Seo.keywordReach");
   return (
     <Fold
       title={t("rivals.title")}
@@ -125,8 +130,8 @@ function RivalKeywords({ hosts }: { hosts: RivalHost[] }) {
 }
 
 function RivalHostRows({ host }: { host: RivalHost }) {
-  const t = useTranslations("App.Seo.keywordReach");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.keywordReach");
+  const format = useSeoResultFormatter();
   const lists = seoRivalLists(host);
   // A row is a topic row when it holds any of the words, so the list reads "a, b or c".
   const words = format.list(
@@ -162,8 +167,8 @@ function RivalHostRows({ host }: { host: RivalHost }) {
 }
 
 function RivalRows({ rows, more }: { rows: RivalHost["rows"]; more: number }) {
-  const t = useTranslations("App.Seo.keywordReach");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.keywordReach");
+  const format = useSeoResultFormatter();
   if (!rows.length) return null;
   return (
     <ul role="list" className="space-y-1">
@@ -202,7 +207,7 @@ function ArticleIdeas({
 }: {
   ideas: NonNullable<Strategy["articleIdeas"]>;
 }) {
-  const t = useTranslations("App.Seo.keywordReach");
+  const t = useSeoResultTranslations("App.Seo.keywordReach");
   const reachLine = useReachLine();
   return (
     <Fold

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
+} from "@sokosumi/utils";
 import { CalendarClock, ChevronDown, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
@@ -29,10 +33,10 @@ import { SeoBriefSummary } from "./seo-brief-summary";
 import { SeoField, SeoSelect } from "./seo-form-fields";
 import {
   SEO_ANALYSIS_MODULES,
+  SEO_AUDIT_PRICE_EXAMPLE,
   SEO_COUNTRIES,
   SEO_DEVICES,
   SEO_FULL_AUDIT_KEYWORDS,
-  SEO_FULL_AUDIT_LIMITS,
   SEO_MAX_MONITOR_RUNS,
   SEO_MAX_PAGES,
   seoAnalysisMaxCredits,
@@ -43,7 +47,6 @@ import { useSeoAnalysisMarket } from "./use-seo-analysis-market";
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 const OPTIONS_ID = "seo-analysis-options";
-
 /** The repeats of a new schedule of checks. */
 const SEO_MONITOR_REPEATS = ["weekly", "monthly"] as const;
 /** The ends of a new schedule: after its runs (the default), or never. */
@@ -64,33 +67,29 @@ export function SeoAnalysisDialog({
   const [editingBrief, setEditingBrief] = useState(false);
   const [keepSetupSelection, setKeepSetupSelection] = useState(true);
   const full = form.kind === "audit_full";
-  const multiPageFull = full && form.workspace.scope.pageIds.length > 1;
   const noService = !form.serviceAvailable;
   const market = useSeoAnalysisMarket(
     form.workspace.keywords,
     full ? SEO_FULL_AUDIT_KEYWORDS : undefined,
     seoDefaultMarket(form.workspace),
   );
-  const limits: SeoAnalysisLimits = multiPageFull
-    ? { kind: "full", ...SEO_FULL_AUDIT_LIMITS }
-    : full
-      ? { kind: "standard" }
-      : form.usesPaidData
-        ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
-        : { kind: "free" };
-  const maxCredits = seoAnalysisMaxCredits(limits);
-  const price = maxCredits
+  const limits: SeoAnalysisLimits = form.usesPaidData
+    ? { kind: "requests", count: form.providerCallsFor(market.keywords) }
+    : { kind: "free" };
+  const maxCredits = full ? null : seoAnalysisMaxCredits(limits);
+  // A full audit has a minimum and no maximum, so its line never says "up to"; a focused check names its ceiling.
+  const price = full
     ? t(
-        full
-          ? monitor
-            ? "analysis.fixedCreditsPerRun"
-            : "analysis.fixedCredits"
-          : monitor
-            ? "analysis.maxCreditsPerRun"
-            : "analysis.maxCredits",
-        { credits: maxCredits },
+        monitor
+          ? "analysis.fullAuditCreditsPerRun"
+          : "analysis.fullAuditCredits",
+        { credits: SEO_FULL_AUDIT_CREDITS },
       )
-    : null;
+    : maxCredits
+      ? t(monitor ? "analysis.maxCreditsPerRun" : "analysis.maxCredits", {
+          credits: maxCredits,
+        })
+      : null;
   return (
     <Dialog
       open
@@ -339,6 +338,25 @@ export function SeoAnalysisDialog({
               </p>
             )}
           </div>
+          {/* The terms of a full audit show with the fields closed: the submit below is the one consent. */}
+          {full ? (
+            <div className="space-y-1">
+              <p className="text-sm">
+                {t(
+                  monitor
+                    ? "analysis.fullAuditTermsPerRun"
+                    : "analysis.fullAuditTerms",
+                  {
+                    minimum: SEO_FULL_AUDIT_CREDITS,
+                    markup: SEO_FULL_AUDIT_MARKUP_PERCENT,
+                  },
+                )}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {t("analysis.fullAuditExample", SEO_AUDIT_PRICE_EXAMPLE)}
+              </p>
+            </div>
+          ) : null}
           {monitor ? (
             <div className="space-y-4">
               <TaskScheduleWhen

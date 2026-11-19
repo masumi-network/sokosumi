@@ -6238,6 +6238,10 @@
             "title": "Aufgaben",
             "description": "Durchsuchbare Liste aller Aufgaben über Benutzer und Organisationen hinweg."
           },
+          "seoAlerts": {
+            "title": "Warnungen für SEO-Audits",
+            "description": "Auditfehler und Verbindungsstatus prüfen."
+          },
           "x402Payments": {
             "title": "x402-Zahlungen",
             "description": "Direktzahlungen prüfen und zurückgehaltene oder strittige x402-Abbuchungen bearbeiten."
@@ -7634,6 +7638,86 @@
           "saveFailed": "Kampagne konnte nicht gespeichert werden",
           "deleteFailed": "Kampagne konnte nicht gelöscht werden",
           "started": "Kampagne gestartet"
+        }
+      },
+      "SeoAlerts": {
+        "type": "Meldungstyp",
+        "pricingAttention": "Zu prüfende Audit-Zahlungen: {count}",
+        "billingTab": "Audit-Abrechnung ({count})",
+        "billingDescription": "Vollständige Audits mit verbrauchsabhängiger Abrechnung und ihrem aktuellen Zahlungsstatus. Die Kosten stammen aus geprüften Anbieterbelegen, die abgebuchten Credits aus der Transaktion.",
+        "billingEmpty": "Keine verbrauchsabhängig abgerechneten Audits in diesem Zeitraum.",
+        "approvalCap": "Genehmigter Höchstbetrag",
+        "attemptedCharge": "Versuchter Einzug",
+        "dataBudget": "Genehmigtes Datenbudget",
+        "abandoned": "Mit offenen Kosten beendet",
+        "charged": "Abgebucht",
+        "credits": "{credits, number} Credits",
+        "costTotal": "Anbieterkosten gesamt",
+        "gatewayMicroUsd": "Modellaufrufe über Vercel AI Gateway",
+        "directModelMicroUsd": "Direkte Modellaufrufe",
+        "dataForSeoMicroUsd": "DataForSEO",
+        "otherApiMicroUsd": "Andere APIs",
+        "runId": "Lauf-ID",
+        "taskId": "Task-ID",
+        "receiptsPending": "Kostenbelege ausstehend",
+        "inProgress": "Abrechnung ausstehend",
+        "retrying": "Erneuter Zahlungsversuch ausstehend",
+        "needsCredits": "Guthaben für erneuten Versuch erforderlich",
+        "settled": "Abgerechnet",
+        "closed": "Lauf beendet",
+        "unverified": "Abrechnung unbestätigt",
+        "auditTab": "Auditläufe ({count})",
+        "connectionTab": "Aktuelle Verbindungen ({count})",
+        "connectionDescription": "Jede Zeile zeigt die aktuelle Kontoeinstellung für einen Anbieter in einem SEO-Arbeitsbereich. Das Datum gibt die letzte erfasste Änderung an.",
+        "reconnect": "Erneute Verbindung erforderlich",
+        "disconnected": "Getrennt",
+        "openAccount": "Konto öffnen",
+        "connectionEmpty": "Keine aktuellen Verbindungsprobleme.",
+        "search_console": "Search Console",
+        "ga4": "Google Analytics 4",
+        "connectionSummary": "Erneut zu verbindende Konten: {count}",
+        "summary": "Letzte 30 Tage: {critical} kritisch, {warning, plural, one {# Warnung} other {# Warnungen}}",
+        "unavailable": "Die Anzahl der Meldungen ist nicht verfügbar.",
+        "title": "Warnungen für SEO-Audits",
+        "description": "Der letzte abgeschlossene oder überfällige Lauf pro Audit. Ab {percent}% fehlgeschlagener Seiten wird eine Warnung angezeigt.",
+        "period": "Auditzeitraum",
+        "all": "Gesamter Zeitraum",
+        "days": "{days} Tage",
+        "total": "Betroffene Audits",
+        "critical": "Kritisch",
+        "warning": "Warnung",
+        "info": "Information",
+        "auditId": "Prüfungs-ID",
+        "projectId": "Projekt-ID",
+        "recordId": "Datensatz-ID",
+        "workspaceId": "Arbeitsbereichs-ID",
+        "openTask": "Quellaufgabe öffnen",
+        "empty": "Keine Meldungen in diesem Zeitraum.",
+        "emptyPage": "Keine Meldungen auf dieser Seite.",
+        "pagination": "Seiten mit Meldungen",
+        "previous": "Zurück",
+        "next": "Weiter",
+        "reason": {
+          "priceUnverified": "Die Zahlung stimmt nicht mit dem Auditbeleg überein. Prüfe den ursprünglichen Task und die Abbuchungen.",
+          "priceUnpaid": "Der Task wurde mit bestätigten Kosten ohne Abbuchung beendet. Prüfe den letzten Zahlungsversuch.",
+          "dataBudgetExceeded": "Die DataForSEO-Kosten haben das genehmigte Datenbudget überschritten. Vergleiche die Anbieterbelege mit dem Auditbudget.",
+          "priceReceiptPending": "Der Worker hat das Audit beendet und wartet auf Kostenbelege. Vor einem neuen Abrechnungsversuch die Belege prüfen.",
+          "priceRetry": "Die letzte Abbuchung ist wegen fehlender Credits fehlgeschlagen. Den nächsten Abrechnungsversuch prüfen.",
+          "priceNeedsCredits": "Die Abrechnung wurde wegen fehlender Credits angehalten. Vor einem neuen Versuch das Guthaben prüfen.",
+          "workerOverdue": "Der Worker hat diese Prüfung vor mehr als zwei Stunden gestartet. Prüfe die Aufgabe auf einen Bericht oder einen Zustellfehler.",
+          "workerFailed": "Der zugewiesene Worker hat einen Aufgabenfehler gemeldet.",
+          "auditFailed": "Das Audit ist fehlgeschlagen.",
+          "reportMissing": "Die Aufgabe ist seit mindestens {minutes} Minuten abgeschlossen. Der vollständige Bericht fehlt.",
+          "reportRejected": "Sokosumi konnte die Berichtsdatei oder die Berechtigung zum Import nicht prüfen.",
+          "seasonalFailed": "Die saisonale Prüfung konnte nicht abgeschlossen werden oder lieferte ein ungültiges Ergebnis.",
+          "explorationFailed": "Die offene Untersuchung wurde nicht abgeschlossen.",
+          "investigationFailed": "Eine Anfrage der Search-Console-Untersuchung ist fehlgeschlagen.",
+          "pageException": "Der Worker hat einen Fehler bei der Prüfung einer Seite aufgezeichnet.",
+          "pageFailureRate": "Bei {failed} von {attempted} geprüften Seiten ist ein Fehler aufgetreten.",
+          "gscDisconnected": "Die Verbindung zur Search Console wurde getrennt.",
+          "gscProperty": "Das Audit konnte die ausgewählte Search Console-Property nicht nutzen.",
+          "gscUnavailable": "Das Audit konnte die Abdeckung der Search Console nicht prüfen.",
+          "gscSkipped": "Das Audit wurde auf Wunsch des Inhabers ohne Search Console fortgesetzt."
         }
       },
       "CmoSpend": {
@@ -12429,6 +12513,17 @@
           "review_exclusion": "Prüfe, weshalb diese Seite in der Suche erscheint. Du möchtest sie ausschließen.",
           "review_indexing": "Prüfe, weshalb diese Seite ausgeschlossen ist. Du möchtest sie in der Suche anzeigen.",
           "matches_intent": "Der Indexstatus bei Google entspricht deiner Einstellung."
+        },
+        "goalControl": {
+          "title": "Sitzungen mit {event}",
+          "afterTask": "Aufgabe am {date} abgeschlossen",
+          "rates": "Organische Suche: {organic} von {organicSessions, number} Sitzungen. Direkt: {direct} von {directSessions, number} Sitzungen.",
+          "both_declined": "Die Zielrate sank in beiden Kanälen. Prüfe den Abschluss und vergleiche die Messung mit bestätigten Vorgängen, bevor du Suchinhalte änderst.",
+          "organic_declined": "Die organische Zielrate sank. Die direkte Rate blieb stabil, stieg oder sank um weniger als 20 %. Prüfe Geräte und Suchanfragen vor einem Texttest.",
+          "goal_held": "Die organische Zielrate blieb stabil, stieg oder sank um weniger als 20 %. Prüfe, welche anderen Schlüsselereignisse sich geändert haben.",
+          "events": "{event} wurde in organischen Einstiegssitzungen {count, number} Mal erfasst.",
+          "attribution": "Weitere Änderungen können diese Zahl beeinflussen. Vergleiche dieselbe Seite und dasselbe Ziel in vergleichbaren Zeiträumen.",
+          "weekdayMix": "Einige Wochentage kommen in diesen Zeiträumen unterschiedlich oft vor. Prüfe das Muster nach Wochentag, bevor du etwas änderst."
         }
       },
       "manageStatistics": "Google-Verbindungen",
@@ -12715,6 +12810,32 @@
           "action": "Seitenziel: {action}",
           "studio": "Entwurf im Content Studio erstellen (demnächst)"
         },
+        "seasonal": {
+          "timing": "DataForSEO Labs schätzt die monatlichen Suchanfragen für diesen Markt. Prüfe die aktuelle Nachfrage vor dem geplanten Zeitraum.",
+          "planFor": "Für {months} planen",
+          "datedEvent": "{event} · {date}",
+          "evidence": "Seitenbeleg und Nachfragedaten",
+          "above_baseline": "Die lokalen Suchanfragen lagen im Vorjahr über dem früheren Median.",
+          "no_observed_rise": "Die lokalen Suchanfragen lagen im Vorjahr nicht über dem früheren Median.",
+          "windowRise": "In diesen Monaten gab es im Vorjahr mehr lokale Suchanfragen als in den Vergleichsmonaten.",
+          "windowOther": "Vergleich für {target}: Im {prior} gab es geschätzt {volume, number} lokale Suchanfragen. Der Median der anderen beobachteten Monate ({months}) lag bei {baseline, number}.",
+          "incompleteComparison": "Verfügbare Schätzwerte für lokale Suchanfragen im Vorjahr: {counts}. Für einen Vergleich fehlen Daten.",
+          "historicalIdea": "Prüfe diese Suchanfrage anhand der lokalen Daten von DataForSEO.",
+          "title": "Saisonale Keyword-Ideen",
+          "audit": "{market} · Audit vom {date}",
+          "investigate_angle": "Prüfe diese Suchanfrage für die Zielgruppe {audience}.",
+          "improve_existing_page": "Überarbeite die vorhandene Seite für die Zielgruppe {audience}.",
+          "window": "Vergleich für {target}: Im {prior} gab es geschätzt {volume, number} lokale Suchanfragen. Der Median der drei früheren Monate lag bei {baseline, number}.",
+          "comparison": "Im Vorjahr: {counts}. Der Median vor der Vorlaufzeit lag bei geschätzt {baseline, number} lokalen Suchanfragen.",
+          "count": "{month}: {volume, number}",
+          "verifyDemand": "Prüfe die lokale Nachfrage, bevor du einen Veröffentlichungstermin festlegst.",
+          "audience_fit_uncertain": "Prüfe, ob diese Zielgruppe die Seite zu diesem Anlass nutzen würde.",
+          "offer_unverified": "Prüfe, ob das Angebot verfügbar ist.",
+          "existing_page_may_cover": "Prüfe, welche Fragen die vorhandene Seite bereits beantwortet.",
+          "passed": "Dieser Zeitraum ist vorbei ({timing}). Starte ein neues Audit, um die nächste Saison zu planen.",
+          "noWindowRise": "Im Vorjahr stiegen die lokalen Suchanfragen in diesem und den nächsten drei Monaten nicht deutlich.",
+          "observed": "Geschätzte lokale Suchanfragen für genau diese Suche: {counts}."
+        },
         "ideas": {
           "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
           "source": {
@@ -12869,6 +12990,7 @@
         "after": "Vorgeschlagene Änderung",
         "noBefore": "Kein vorheriger Wert erfasst",
         "recommended": "Empfohlen",
+        "unavailable": "Aufgabe nicht verfügbar",
         "task_created": "Entwurfsaufgabe erstellt",
         "implemented": "Umgesetzt",
         "verified": "Verifiziert",
@@ -12893,12 +13015,18 @@
         "copyFailed": "Kopieren nicht möglich. Text markieren und von Hand kopieren.",
         "copyAgentLead": "Setze diese SEO-Änderung auf der Website um. Ändere nur, was sie nennt, und prüfe danach die Seite.",
         "evidence": "Belege",
+        "rankingEvidence": "Suchbegriffe, für die diese Seite in den Suchergebnissen erschien",
+        "sourceRecords": "{count, plural, one {# Quellenverweis} other {# Quellenverweise}}",
         "change": "Die Änderung",
         "filter": {
           "label": "Aktionen filtern",
           "all": "Alle",
           "suggestions": "Vorschläge"
-        }
+        },
+        "alternative": "Alternative",
+        "nextCheck": "Nächste Prüfung",
+        "canceled": "Aufgabe abgebrochen",
+        "failed": "Aufgabe fehlgeschlagen"
       },
       "pages": {
         "title": "Seiten",
@@ -12918,6 +13046,24 @@
         "notCheckedInDates": "Keine Prüfung in diesem Zeitraum",
         "checkIncomplete": "Prüfung unvollständig",
         "home": "Startseite"
+      },
+      "reportFiles": {
+        "title": "Berichtsdateien",
+        "run": "Prüfung",
+        "version": "{checkType} · {date}",
+        "taskVersion": "{label} · Aufgabe {taskId}",
+        "loading": "Dateien werden geladen…",
+        "failed": "Die Dateien für diese Prüfung konnten nicht geladen werden.",
+        "empty": "Für diese Prüfung sind keine Berichtsdateien verfügbar.",
+        "pdf": "PDF öffnen",
+        "markdown": "Markdown öffnen",
+        "json": "Berichtsdaten (JSON)",
+        "import": "Bericht in SEO importieren",
+        "imported": "Bericht importiert",
+        "access": "Du hast keinen Zugriff auf die Berichtsdateien für diese Prüfung.",
+        "refresh": "Dateien aktualisieren",
+        "historyLimit": "Diese Liste zeigt die letzten Prüfungen. Ältere Berichte kannst du in den zugehörigen Aufgaben öffnen.",
+        "importHelp": "Importiere diesen Bericht, um seine Befunde zu deinen SEO-Ergebnissen hinzuzufügen."
       },
       "timeline": {
         "statuses": {
@@ -12993,9 +13139,12 @@
         "desktop": "Desktop",
         "htmlOnly": "Liest den HTML-Code der ausgewählten Seiten. Diese Prüfung verwendet keine kostenpflichtigen Suchdaten und keine Modellaufrufe.",
         "maxCredits": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}}",
-        "fixedCredits": "{credits, plural, =1 {# Credit} other {# Credits}}",
         "maxCreditsPerRun": "Bis zu {credits, plural, =1 {# Credit} other {# Credits}} pro Durchlauf",
-        "fixedCreditsPerRun": "{credits, plural, =1 {# Credit} other {# Credits}} pro Durchlauf",
+        "fullAuditCredits": "Mindestens {credits, plural, =1 {# Credit} other {# Credits}}, nur bei Erfolg",
+        "fullAuditCreditsPerRun": "Mindestens {credits, plural, =1 {# Credit} other {# Credits}} pro erfolgreichem Durchlauf",
+        "fullAuditTerms": "Nach einem erfolgreichen Audit zahlst du die Kosten der Modell- und Daten-APIs plus {markup} %. Vercel AI Gateway ist enthalten. Der Mindestpreis beträgt {minimum, number} Credits. Es gibt keine Obergrenze.",
+        "fullAuditTermsPerRun": "Nach jedem erfolgreichen Durchlauf zahlst du die Kosten der Modell- und Daten-APIs plus {markup} %. Vercel AI Gateway ist enthalten. Pro Durchlauf fallen mindestens {minimum, number} Credits an. Es gibt keine Obergrenze.",
+        "fullAuditExample": "Bei Kosten von {lowCost, number} USD zahlst du {lowCharge, number} Credits. Bei {highCost, number} USD zahlst du {highCharge, number} Credits.",
         "htmlService": "Dieser Prüfdienst unterstützt HTML-Seitenprüfungen. Suchdaten und vollständige Audits sind hier nicht verfügbar.",
         "submit": "Prüfung starten",
         "queued": "Prüfung angefragt",
@@ -13075,7 +13224,8 @@
       "priority": {
         "low": "Niedrig",
         "medium": "Mittel",
-        "high": "Hoch"
+        "high": "Hoch",
+        "unknown": "Nicht geschätzt"
       },
       "coverageStatus": {
         "complete": "Vollständig",
@@ -13685,6 +13835,23 @@
         "testsAll": "Jeder Test hat ein Ergebnis"
       },
       "traffic": {
+        "periodInsight": {
+          "title": "Weniger Klicks bei stabilen oder steigenden Impressionen",
+          "scope": "Google-Websuche für {count, plural, one {# ausgewählte Seite} other {# ausgewählte Seiten}} auf {property}.",
+          "values": "{clicks} Klicks, {impressions} Impressionen, durchschnittliche Position {position}",
+          "nextCheck": "Die durchschnittliche Position hat sich um höchstens einen halben Platz verändert. Vergleiche die Suchanfragen, Geräte und Länder beider Wochen, bevor du einen neuen Titel testest. Eine andere Verteilung kann die Klickzahl beeinflussen."
+        },
+        "landingEngagement": {
+          "title": "Was sich bei organischen Besuchen geändert hat",
+          "scope": "Google Analytics verglich in beiden Zeiträumen {count, plural, one {dieselbe Einstiegsseite} other {dieselben # Einstiegsseiten}} ({zone}).",
+          "seconds": "Interaktionsdauer pro Sitzung in Sekunden",
+          "views": "Aufrufe pro Sitzung",
+          "metric": "Kennzahl",
+          "within": "Änderung innerhalb der Seiten",
+          "mix": "Änderung durch die Verteilung der Besuche",
+          "mixOnly": "Die Verteilung der Besuche auf die Einstiegsseiten erklärt die Änderung der durchschnittlichen Interaktionsdauer.",
+          "sessions": "Die Zahl der organischen Einstiegssitzungen änderte sich von {before} auf {after}. Die letzten beiden Spalten zeigen die Beiträge in der Einheit der jeweiligen Kennzahl."
+        },
         "searchType": "Suchtyp",
         "searchTypes": {
           "web": "Web",
@@ -13959,7 +14126,7 @@
           },
           "38": {
             "title": "Export und Zeitraum-Vorlagen",
-            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Die Tabellen „Länder und Geräte“ und „KI-Assistenten“ haben keinen Export. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
+            "missing": "Es gibt keinen Vergleich mit demselben Zeitraum im Vorjahr. Für die Tabellen „Länder und Geräte“, „KI-Assistenten“ und „Was sich bei organischen Besuchen geändert hat“ ist kein Export verfügbar. Das CSV-Trennzeichen folgt der Sprache der App, nicht der Region des Computers."
           },
           "39": {
             "title": "Verlauf der Zitate in KI-Übersichten",
@@ -14287,6 +14454,7 @@
         "authenticationRequired": "{coworkerName} benötigt eine Authentifizierung für {taskName}",
         "outOfCredits": "{coworkerName} hat keine Credits mehr für {taskName}",
         "completed": "{coworkerName} hat {taskName} abgeschlossen",
+        "seoCompleted": "SEO-Ergebnisse für {taskName} öffnen.",
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen",
         "overdue": "{taskName} ist überfällig",

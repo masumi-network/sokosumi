@@ -19,7 +19,9 @@ import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as publicEnv from "@/config/env.public";
 import { createFormats } from "@/i18n/time-format";
+import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
 import { setSeoAuditArchivedAction } from "@/lib/actions/seo/set-audit-archived";
+import german from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
 import { SeoAutomation } from "./seo-monitors";
 import {
@@ -346,6 +348,30 @@ describe("SEO report archiving", () => {
 });
 
 describe("SEO workspace integration", () => {
+  it("offers report files for earlier imported runs without an analysis in the current window", async () => {
+    const workspace = seoTestWorkspace();
+    const history = seoTestObservation(workspace);
+    workspace.observations = [
+      { ...history, sourceTaskId: "historic-task" },
+      {
+        ...history,
+        id: "recent",
+        sourceTaskId: "recent-task",
+        observedAt: new Date("2026-11-05T12:00:00Z"),
+      },
+    ];
+    workspace.runs = runsOf(workspace);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => connectedSeoResponse(workspace, url)),
+    );
+    renderWorkspace(workspace, "to=2026-01-03");
+    await userEvent.click(screen.getByRole("button", { name: "Report files" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText(/Page check · Jan 3, 2026/)).toBeVisible();
+    expect(dialog.queryByText(/Nov 5, 2026/)).toBeNull();
+  });
+
   it("shows the audit timeline after a single completed audit", () => {
     const workspace = seoTestWorkspace();
     workspace.runs = [
@@ -727,6 +753,55 @@ describe("SEO workspace integration", () => {
       }),
     );
     expect(evidence).toBeVisible();
+  });
+
+  it("keeps the issue verdict and its severity list in English on a German workspace", () => {
+    const workspace = seoTestCheckedAudit();
+    const observed = workspace.observations[0];
+    observed.issues = 2;
+    for (const severity of ["major", "minor"] as const) {
+      workspace.findings.push({
+        id: severity,
+        observationId: observed.id,
+        pageUrl: workspace.pages[0].url,
+        device: "mobile",
+        rowId: severity,
+        title: "Review the page",
+        severity,
+        evidence: [],
+        sourceRef: "html:head",
+        observedAt: observed.observedAt,
+      });
+    }
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider
+          locale="de"
+          messages={german}
+          timeZone="UTC"
+          formats={createFormats()}
+        >
+          <SeoResultMessagesProvider messages={messages.App.Seo}>
+            <NuqsTestingAdapter hasMemory>
+              <SeoWorkspace workspace={workspace} />
+            </NuqsTestingAdapter>
+          </SeoResultMessagesProvider>
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    const verdict = screen.getByTestId("seo-agent-verdict");
+    expect(verdict).toHaveAttribute("lang", "en");
+    expect(verdict).toHaveTextContent(
+      "2 issues to fix: 1 high impact and 1 low impact",
+    );
   });
 
   it("shows an issue with a fix once, as the row of its fix, on the tab an old Health link opens", async () => {

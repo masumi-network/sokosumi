@@ -144,8 +144,10 @@ describe("SEO check defaults", () => {
     expect(summary).toHaveTextContent(
       "Full audit · All pages · Germany · German · Akku Zustand",
     );
-    // A one-page full audit shows the 50-credit ceiling Core checks before it starts.
-    expect(within(dialog).getByText("750 credits")).toBeVisible();
+    // A full audit has a minimum and no maximum: the line never says "up to".
+    expect(
+      within(dialog).getByText("At least 750 credits, only if it succeeds"),
+    ).toBeVisible();
     // No field asks for a choice until the reader wants one.
     expect(
       within(dialog).getByRole("button", { name: "Change options" }),
@@ -230,7 +232,9 @@ describe("Search Console audit launch", () => {
       expect(
         screen.getByRole("dialog", { name: "Search Console coverage" }),
       ).toHaveAccessibleDescription(
-        monitor ? /750 credits per run/ : /750 credits/,
+        monitor
+          ? /At least 750 credits per successful run/
+          : /At least 750 credits, only if it succeeds/,
       );
       expect(screen.queryByText(/private account diagnostic/)).toBeNull();
       expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
@@ -361,6 +365,57 @@ describe("SEO check credits", () => {
   });
 });
 
+describe("full-audit price terms", () => {
+  const price = {
+    kind: "cost_plus",
+    version: 1,
+    minimumCredits: 750,
+    markupPercent: 50,
+  };
+  it("states the cost-plus terms with no maximum before the audit starts", async () => {
+    const user = userEvent.setup(),
+      dialog = showDialog(workspace());
+    // The terms show with the fields closed: the one submit is the consent, so no extra checkbox.
+    expect(dialog).toHaveTextContent(
+      "After a successful audit, you pay its model and data API costs plus 50%. This includes Vercel AI Gateway. The minimum is 750 credits. There is no maximum.",
+    );
+    expect(dialog).toHaveTextContent(
+      "For example, USD 4 in costs bills 750 credits. USD 10 bills 1,500 credits.",
+    );
+    expect(within(dialog).queryByText(/Up to/)).toBeNull();
+    expect(within(dialog).queryByRole("spinbutton")).toBeNull();
+    expect(within(dialog).queryByRole("checkbox")).toBeNull();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Start check" }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const body = mutate.mock.calls[0][0].command.body;
+    expect(body.fullAuditPrice).toEqual(price);
+    expect(body).not.toHaveProperty("fullAuditCredits");
+  });
+
+  it("approves the same terms per run for a schedule of full audits", async () => {
+    const user = userEvent.setup(),
+      dialog = showDialog(workspace(), true);
+    expect(dialog).toHaveTextContent(
+      "After each successful run, you pay its model and data API costs plus 50%. This includes Vercel AI Gateway. The minimum per run is 750 credits. There is no maximum.",
+    );
+    expect(
+      within(dialog).getByText("At least 750 credits per successful run"),
+    ).toBeVisible();
+    expect(within(dialog).queryByText(/Up to/)).toBeNull();
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: messages.App.Seo.monitor.create,
+      }),
+    );
+    await waitFor(() => expect(mutate).toHaveBeenCalled());
+    const body = mutate.mock.calls[0][0].command.body;
+    expect(body.analysis.fullAuditPrice).toEqual(price);
+    expect(body.analysis).not.toHaveProperty("fullAuditCredits");
+  });
+});
+
 describe("SEO monitor credits", () => {
   it("says the ceiling is per run, and prices only the requests one run makes", async () => {
     const user = userEvent.setup(),
@@ -381,6 +436,8 @@ describe("SEO monitor credits", () => {
     // The price once, per run, by the button: no label and no fine print.
     expect(within(dialog).getByText("Up to 15 credits per run")).toBeVisible();
     expect(within(dialog).queryByText(/costs nothing/)).toBeNull();
+    // A focused check keeps its own ceiling and shows no full-audit terms.
+    expect(within(dialog).queryByText(/Vercel AI Gateway/)).toBeNull();
   });
 });
 

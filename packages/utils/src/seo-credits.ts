@@ -1,21 +1,20 @@
-/**
- * The most an SEO check can charge, in whole credits.
- *
- * The SEO check service charges each completed check its DataForSEO cost plus
- * the markup, rounded up to a whole credit, and never more than this ceiling
- * (seo-bot `agent/lib/run-cost.ts`). Core refuses a check the payer's balance
- * cannot cover, and the analysis dialog shows the same figure as "up to", so
- * both run this one formula. A failed check charges nothing.
- * Newly approved full audits instead charge SEO_FULL_AUDIT_CREDITS on success.
- * The provider-cost formula remains for focused and previously approved checks.
- *
- * 1 credit = 1 cent. Keep the constants in step with seo-bot's run-cost.ts.
- */
+/** Pricing for SEO checks. One credit is one US cent. */
 
 /** The owner's price for paid data: its cost plus 50%. */
 export const PAID_DATA_MARKUP_PERCENT = 150;
-/** Fixed customer price for each newly approved full audit. */
+/** Minimum charge for a completed full audit and the price of older fixed approvals. */
 export const SEO_FULL_AUDIT_CREDITS = 750;
+export const SEO_FULL_AUDIT_MARKUP_PERCENT = 50;
+
+export function seoFullAuditPrice(maxCredits?: typeof SEO_FULL_AUDIT_CREDITS) {
+  return {
+    kind: "cost_plus" as const,
+    version: 1 as const,
+    minimumCredits: SEO_FULL_AUDIT_CREDITS,
+    markupPercent: SEO_FULL_AUDIT_MARKUP_PERCENT,
+    ...(maxCredits === undefined ? {} : { maxCredits }),
+  } as const;
+}
 /** Provider spending bound for a newly priced full audit. */
 export const SEO_FULL_AUDIT_MAX_PROVIDER_USD = 5;
 /** A one-page full audit has no USD limit; the worker's page reserve bounds it. */

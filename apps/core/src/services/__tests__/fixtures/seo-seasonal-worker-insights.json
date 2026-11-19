@@ -1,0 +1,393 @@
+[
+  {
+    "country": "DE",
+    "language": "de",
+    "asOf": "2026-11-01",
+    "url": "https://example.com/segel",
+    "event": null,
+    "audience": "Bootsbesitzer",
+    "keyword": "segel lagern",
+    "pageQuote": "Segel lagern im Winter",
+    "reviewers": ["first"],
+    "demand": {
+      "status": "observed",
+      "keyword": "segel lagern",
+      "record": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "months": [
+        {
+          "year": 2024,
+          "month": 1,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 2,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 3,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 4,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 5,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 6,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 7,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 8,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 9,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 10,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 11,
+          "search_volume": 40
+        },
+        {
+          "year": 2024,
+          "month": 12,
+          "search_volume": 300
+        },
+        {
+          "year": 2025,
+          "month": 1,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 2,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 3,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 4,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 5,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 6,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 7,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 8,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 9,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 10,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 11,
+          "search_volume": 40
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "search_volume": 300
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 7,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 8,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 9,
+          "search_volume": 40
+        },
+        {
+          "year": 2026,
+          "month": 10,
+          "search_volume": 40
+        }
+      ]
+    },
+    "comparison": null,
+    "windows": [
+      {
+        "targetPeriod": "2026-12",
+        "historicalPeriod": "2025-12",
+        "historicalVolume": 300,
+        "baselineMedian": 40
+      }
+    ],
+    "action": "improve_existing_page",
+    "limitations": ["timing_uncertain"]
+  },
+  {
+    "country": "DE",
+    "language": "de",
+    "asOf": "2026-11-01",
+    "url": "https://example.com/segel",
+    "event": null,
+    "audience": "Bootsbesitzer",
+    "keyword": "segelpflege",
+    "pageQuote": "Segelpflege für Bootsbesitzer",
+    "reviewers": ["first"],
+    "demand": {
+      "status": "observed",
+      "keyword": "segelpflege",
+      "record": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "months": [
+        {
+          "year": 2024,
+          "month": 1,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 2,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 3,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 4,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 5,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 6,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 7,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 8,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 9,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 10,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 11,
+          "search_volume": 50
+        },
+        {
+          "year": 2024,
+          "month": 12,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 1,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 2,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 3,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 4,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 5,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 6,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 7,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 8,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 9,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 10,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 11,
+          "search_volume": 50
+        },
+        {
+          "year": 2025,
+          "month": 12,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 1,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 2,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 3,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 4,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 5,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 6,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 7,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 8,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 9,
+          "search_volume": 50
+        },
+        {
+          "year": 2026,
+          "month": 10,
+          "search_volume": 50
+        }
+      ]
+    },
+    "comparison": null,
+    "windows": [],
+    "action": "investigate_angle",
+    "limitations": ["timing_uncertain"]
+  }
+]

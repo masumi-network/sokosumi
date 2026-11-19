@@ -16,16 +16,19 @@ import { z } from "zod";
 
 import { conflict, unprocessableEntity } from "@/helpers/error";
 import type { RequestSeoAnalysis } from "@/schemas/project-seo.schema";
+import { storedSeoFullAuditPriceSchema } from "@/schemas/seo-audit-price.schema";
 import { getSeoAnalysisExecution } from "./analysis-executor-config";
 import { originalSeoAuditPacket } from "./related-page-selection";
 
-/** The most this check can charge: what the dialog shows as "up to". */
-export function seoAnalysisMaxCredits(
+/** Balance required before dispatch. Uncapped full audits check only their minimum here. */
+export function seoAnalysisAdmissionCredits(
   input: RequestSeoAnalysis,
   pageCount: number,
 ): number {
   return input.kind === "audit_full"
-    ? (input.fullAuditCredits ??
+    ? (input.fullAuditPrice?.maxCredits ??
+        input.fullAuditPrice?.minimumCredits ??
+        input.fullAuditCredits ??
         seoCreditsForCents(
           pageCount <= 1
             ? SEO_PAGE_CEILING_CENTS
@@ -43,18 +46,23 @@ export function seoAnalysisMaxCredits(
 /** A stale client must reload its quote before it creates paid work. Legacy scheduled releases bypass this new-approval gate. */
 export function requireSeoFullAuditPriceApproval(
   input: RequestSeoAnalysis,
+  subscriptionApproved = false,
 ): void {
+  if (input.kind !== "audit_full") return;
   if (
-    input.kind === "audit_full" &&
-    input.fullAuditCredits !== SEO_FULL_AUDIT_CREDITS
+    subscriptionApproved &&
+    input.fullAuditCredits === SEO_FULL_AUDIT_CREDITS &&
+    !input.fullAuditPrice
   )
+    return;
+  if (!input.fullAuditPrice || input.fullAuditPrice.maxCredits !== undefined)
     throw conflict(
-      "The full-audit price changed. Reload and approve 750 credits before starting.",
+      "The full-audit price changed. Review its minimum charge and cost-plus terms before starting.",
     );
 }
 
 /**
- * Refuses a check whose ceiling the payer cannot cover. The check service
+ * Refuses a check when the payer cannot cover its starting balance requirement. The check service
  * charges the Task's Owner at completion, Project credits first (ADR 0067), so
  * the balance is read the same way. A check reserves nothing: two checks
  * started together can still end with one paused for credits.
@@ -86,13 +94,7 @@ export async function requireSeoAnalysisBalance(
 const CENTS_PER_USD = 100;
 const storedSeoPriceSchema = z.object({
   pageUrls: z.array(z.string()).min(1),
-  price: z
-    .object({
-      kind: z.literal("fixed"),
-      credits: z.literal(SEO_FULL_AUDIT_CREDITS),
-    })
-    .strict()
-    .optional(),
+  price: storedSeoFullAuditPriceSchema.optional(),
   budget: z
     .object({ maxProviderCalls: z.number().int().nonnegative() })
     .optional(),
@@ -189,7 +191,9 @@ export async function requireSeoTaskStartBalance(
     throw unprocessableEntity("A focused check cannot use a full-audit price");
   const ceiling =
     analysis.kind === "audit_full"
-      ? (packet.price?.credits ??
+      ? ((packet.price?.kind === "cost_plus"
+          ? (packet.price.maxCredits ?? packet.price.minimumCredits)
+          : packet.price?.credits) ??
         seoCreditsForCents(
           packet.pageUrls.length <= 1
             ? SEO_PAGE_CEILING_CENTS

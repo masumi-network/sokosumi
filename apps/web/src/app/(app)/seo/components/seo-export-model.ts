@@ -12,7 +12,7 @@ import type { SeoTopPage } from "./seo-search-model";
 import type { seoKeyEvents } from "./seo-traffic-model";
 
 /**
- * One table as the CSV writes it: translated column names and raw values. `types` names what each column
+ * One table as the CSV writes it: English column names and raw values. `types` names what each column
  * holds, for a copy into a Files Table; a column without one is text.
  */
 export type SeoExport = {
@@ -179,6 +179,7 @@ export function seoActionsExport(
   actions: ProjectSeoAction[],
   t: Label,
 ): SeoExport {
+  const hasDecisions = actions.some((action) => action.decision);
   return {
     header: [
       t("export.action"),
@@ -190,6 +191,13 @@ export function seoActionsExport(
       t("actions.effect"),
       t("actions.before"),
       t("actions.after"),
+      ...(hasDecisions
+        ? [
+            t("actions.alternative"),
+            t("actions.nextCheck"),
+            t("actions.evidence"),
+          ]
+        : []),
     ],
     rows: actions.map((action) => [
       action.title,
@@ -198,9 +206,16 @@ export function seoActionsExport(
       t(`actions.${action.status}`),
       t(`priority.${action.effort}`),
       action.why,
-      action.expectedEffect,
+      action.decision ? null : action.expectedEffect,
       action.edit?.before ?? null,
       action.edit?.after ?? null,
+      ...(hasDecisions
+        ? [
+            action.decision?.alternative ?? null,
+            action.decision?.nextCheck ?? null,
+            action.decision ? action.evidence.join("\n") : null,
+          ]
+        : []),
     ]),
   };
 }

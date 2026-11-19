@@ -130,9 +130,9 @@ export function SeoSearchQueries({ model }: { model: SeoWorkspaceModel }) {
         source?.rows.length ? (
           <SeoExportMenu
             name="search-queries"
-            title={t("queries.title")}
+            titleKey="queries.title"
             workspace={model.data}
-            table={() => seoQueriesExport(rows, t)}
+            table={(report) => seoQueriesExport(rows, report)}
             empty={!rows.length}
           />
         ) : undefined

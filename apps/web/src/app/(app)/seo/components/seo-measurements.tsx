@@ -14,6 +14,7 @@ import {
   seoShownValue,
   seoWeekOverWeek,
 } from "./seo-performance-model";
+import { SeoSearchPeriodInsight } from "./seo-search-period-insight";
 import {
   SEO_CHOSEN_CLASS,
   SeoDate,
@@ -463,6 +464,11 @@ export function SeoMeasurements({ model }: { model: SeoWorkspaceModel }) {
               </div>
             </details>
           </div>
+          <SeoSearchPeriodInsight
+            sharing={workspace.sharing}
+            metrics={visible}
+            scope={workspace.scope}
+          />
         </div>
       ) : needsProperty || sitesWithoutProperty.length > 0 ? null : (
         <div className={cn(HOLDER_ITEM_CLASS, "space-y-3 p-4 sm:p-5")}>

@@ -145,6 +145,8 @@ function createNotificationRecord(
 
 function createPrismaMock() {
   return {
+    projectSeoAnalysis: { findFirst: vi.fn() },
+    projectSeoObservation: { findFirst: vi.fn().mockResolvedValue(null) },
     $executeRaw: vi.fn().mockResolvedValue(0),
     $queryRaw: vi.fn().mockResolvedValue([]),
     notification: {
@@ -169,6 +171,58 @@ function createUniqueViolation() {
 }
 
 describe("createNotification", () => {
+  it.each(["failed", "requested", "completed"])(
+    "keeps a %s import eligible for a later lookup without promising a ready report",
+    async (status) => {
+      const db = createPrismaMock();
+      db.projectSeoAnalysis.findFirst.mockResolvedValue({ status });
+      db.notification.create.mockResolvedValue(createNotificationRecord());
+      await createNotification(
+        { ...notificationInput, workspaceId: "workspace_123" },
+        db as unknown as typeof prisma,
+      );
+      const { metadata, messageParams } =
+        db.notification.create.mock.calls[0][0].data;
+      expect(JSON.parse(metadata).seoResult).toBeNull();
+      expect(JSON.parse(messageParams).seoResult).not.toBe(true);
+    },
+  );
+  it("marks a completed SEO analysis for its own workspace without exposing its audit id", async () => {
+    const db = createPrismaMock();
+    db.projectSeoAnalysis.findFirst.mockResolvedValue({
+      id: "private-analysis-id",
+      status: "completed",
+    });
+    db.projectSeoObservation.findFirst.mockResolvedValue({ id: "imported" });
+    db.notification.create.mockResolvedValue(createNotificationRecord());
+    await createNotification(
+      { ...notificationInput, workspaceId: "workspace_123" },
+      db as unknown as typeof prisma,
+    );
+    const where = db.projectSeoAnalysis.findFirst.mock.calls[0]?.[0]?.where;
+    expect(where).toEqual({
+      taskId: notificationInput.referenceId,
+      OR: [
+        {
+          audit: {
+            workspaceId: "workspace_123",
+            deletedAt: null,
+            archivedAt: null,
+          },
+        },
+        { project: { workspaceId: "workspace_123" } },
+      ],
+    });
+    const { metadata, messageParams } =
+      db.notification.create.mock.calls[0][0].data;
+    expect(JSON.parse(metadata)).toEqual({
+      projectId: "project_123",
+      seoResult: true,
+    });
+    expect(JSON.parse(messageParams).seoResult).toBe(true);
+    expect(metadata).not.toContain("private-analysis-id");
+  });
+
   it("creates a notification and serializes structured fields", async () => {
     publishNotificationEventMock.mockResolvedValue(undefined);
     const notification = createNotificationRecord();

@@ -10,7 +10,10 @@ import {
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
+import german from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
+import spanish from "../../../../../messages/es.json";
 import { SeoKeywordIdeas } from "./seo-keyword-ideas";
 import { SeoKeywordMap } from "./seo-keyword-map";
 import { seoKeywordMap } from "./seo-keyword-map-model";
@@ -80,6 +83,60 @@ function renderMap(rows: Keyword[], viewer = model) {
 }
 
 describe("SEO keyword map", () => {
+  it.each([
+    { locale: "de", chrome: german },
+    { locale: "es", chrome: spanish },
+  ])(
+    "keeps result sentences in English and the keyword verbatim with $locale controls",
+    async ({ locale, chrome }) => {
+      const user = userEvent.setup();
+      const keyword = "寿司教室 東京";
+      const rows = [
+        row({
+          keyword,
+          volume: 1234,
+          difficulty: 12,
+          countryCode: "JP",
+          languageCode: "ja",
+        }),
+        row({
+          keyword: "寿司教室",
+          volume: 9000,
+          difficulty: 65,
+          source: "gap",
+        }),
+      ];
+      render(
+        <NextIntlClientProvider
+          locale={locale}
+          messages={chrome}
+          timeZone="Europe/Berlin"
+        >
+          <SeoResultMessagesProvider messages={messages.App.Seo}>
+            <SeoKeywordMap groups={keywordGroups(rows)} model={model} />
+          </SeoResultMessagesProvider>
+        </NextIntlClientProvider>,
+      );
+      const map = screen.getByRole("group", {
+        name: chrome.App.Seo.keywords.map.title,
+      });
+      map.focus();
+      await user.keyboard("{ArrowRight}");
+      const card = screen.getByTestId("seo-keyword-card");
+      expect(card).toHaveTextContent(keyword);
+      expect(within(card).getByText(keyword)).toHaveAttribute("lang", "ja");
+      expect(card).toHaveTextContent("1,234 searches/mo · Difficulty 12/100");
+      await user.keyboard("{Enter}");
+      const panel = await screen.findByTestId("seo-keyword-popover");
+      expect(panel).toHaveTextContent("1,234 searches/mo · Difficulty 12/100");
+      expect(
+        within(panel).getByRole("button", {
+          name: chrome.App.Seo.keywords.map.ask,
+        }),
+      ).toBeVisible();
+    },
+  );
+
   it("gives a keyword's numbers from the keyboard, and the same numbers in the table", async () => {
     const user = userEvent.setup();
     renderMap([

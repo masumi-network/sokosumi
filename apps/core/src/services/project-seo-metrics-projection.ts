@@ -10,12 +10,14 @@ import {
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 import type { SearchEvidenceSource } from "./project-seo-search-projection";
 import { normalizeSeoUrl } from "./project-seo-store";
+import type { LandingSource } from "./seo-landing-engagement";
 
 /** What the metric rows of one workspace read add up to. Rows come newest first. */
 export interface SeoMetricsProjection {
   metrics: ProjectSeoWorkspace["metrics"];
   collections: Map<string, ProjectSeoWorkspace["timeline"][number]>;
   searchSources: SearchEvidenceSource[];
+  landingSources: LandingSource[];
   indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }>;
   /** Organic key events per landing page from the newest Google Analytics sync in view. */
   landingPages: ProjectSeoWorkspace["landingPages"];
@@ -87,6 +89,8 @@ export function projectSeoMetricsRow(
   )
     return;
   if (query.channel && data.channel !== query.channel) return;
+  if (data.provider === "ga4" && data.channel !== "ai_assistant")
+    out.landingSources.push({ id: row.id, ownerId: row.ownerId, data });
   // Search Console views one search type at a time: a Discover sync never stands in for web search.
   const searchType =
     data.provider === "search_console" ? (data.searchType ?? "web") : null;

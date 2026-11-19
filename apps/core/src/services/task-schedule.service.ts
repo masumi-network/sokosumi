@@ -136,6 +136,7 @@ export async function createTaskSchedule(
   vars: RouteVars,
   input: CreateTaskScheduleRequest,
   seoMonitor?: {
+    origin: "interactive" | "cmo-subscription";
     requestIdentity?: object;
     saveApproval?: (
       tx: Prisma.TransactionClient,
@@ -163,7 +164,11 @@ export async function createTaskSchedule(
     return toTaskScheduleView(actor, replayed);
   }
 
-  requireSeoMonitorApprovalForWrite(input.description, null, !!seoMonitor);
+  requireSeoMonitorApprovalForWrite(
+    input.description,
+    null,
+    seoMonitor?.origin,
+  );
   requireScheduleAssignee(input.assigneeUserId);
   validateTaskScheduleRule(input.rule);
   const visibility = resolveVisibility(input.visibility, actor.workspace);

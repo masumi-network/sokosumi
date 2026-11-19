@@ -45,10 +45,14 @@ const low = action("low", "Fix the redirect");
 const severity = (item: ProjectSeoAction): SeoIssueSeverity | null =>
   item.id === "high" ? "major" : "minor";
 
-function view(actions: ProjectSeoAction[]) {
+function view(actions: ProjectSeoAction[], currentModel = model) {
   return (
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-      <SeoActionWorklist actions={actions} severity={severity} model={model} />
+      <SeoActionWorklist
+        actions={actions}
+        severity={severity}
+        model={currentModel}
+      />
     </NextIntlClientProvider>
   );
 }
@@ -173,4 +177,99 @@ describe("SEO action worklist", () => {
     rerender(view([high, low]));
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+});
+
+it("shows the alternative, evidence and next check for a strategy action", async () => {
+  const user = userEvent.setup();
+  const item = {
+    ...action("idea", "Repair the buying guide link"),
+    kind: "opportunity",
+    effort: "unknown",
+    why: "The guide links to the old page.",
+    evidence: ["Guide links to /retired."],
+    decision: {
+      kind: "internal_link_opportunity",
+      alternative: "Update the source article.",
+      nextCheck: "Crawl both pages after publication.",
+    },
+  } as const;
+  const accepted: ProjectSeoAction = {
+    ...item,
+    evidence: [...item.evidence, "c".repeat(64), "rankingData.page.ranked"],
+    taskId: "accepted-task",
+    status: "implemented",
+    completedAt: new Date("2026-06-01T12:00:00Z"),
+  };
+  const page = model.data.pages[0]!;
+  const saved = {
+    ...model,
+    brief: {
+      data: {
+        pages: [],
+        priorities: [],
+        followUps: [
+          {
+            pageId: page.id,
+            status: "unknown",
+            indexReview: "unknown",
+            latestClosedGoal: {
+              from: "2026-06-02",
+              to: "2026-06-08",
+              count: 9,
+              event: "sign_up",
+              timeZone: "Europe/Oslo",
+            },
+            goalInvestigation: {
+              pageUrl: page.url,
+              event: "sign_up",
+              timeZone: "Europe/Oslo",
+              assessment: "both_declined",
+              weekdayMix: "uneven",
+              before: {
+                from: "2026-05-26",
+                to: "2026-06-01",
+                organic: { rate: 0.2, sessions: 100 },
+                direct: { rate: 0.1, sessions: 120 },
+              },
+              after: {
+                from: "2026-06-02",
+                to: "2026-06-08",
+                organic: { rate: 0.1, sessions: 90 },
+                direct: { rate: 0.05, sessions: 100 },
+              },
+            },
+          },
+        ],
+      },
+    },
+  } as unknown as SeoWorkspaceModel;
+  const { rerender } = render(view([accepted], saved));
+  await user.click(screen.getByRole("button", { name: item.title }));
+  const detail = within(screen.getByRole("dialog"));
+  for (const text of [
+    item.why,
+    item.decision.alternative,
+    item.decision.nextCheck,
+    ...item.evidence,
+  ])
+    expect(detail.getByText(text)).toBeVisible();
+  expect(detail.getByText("Keywords this page ranked for")).toBeVisible();
+  const records = detail.getByText("c".repeat(64)).closest("details");
+  expect(records).not.toHaveAttribute("open");
+  await user.click(records!.querySelector("summary")!);
+  expect(records).toHaveAttribute("open");
+  expect(detail.getByText(/9 occurrences of sign_up/)).toBeVisible();
+  expect(detail.getByText(/different numbers of some weekdays/)).toBeVisible();
+  expect(detail.getByText(/Both channels had a lower goal rate/)).toBeVisible();
+  expect(detail.getByRole("link", { name: "Open task" })).toHaveAttribute(
+    "href",
+    "/tasks/accepted-task",
+  );
+  rerender(
+    view(
+      [{ ...accepted, completedAt: new Date("2026-06-02T01:00:00Z") }],
+      saved,
+    ),
+  );
+  expect(detail.queryByText(/9 occurrences of sign_up/)).toBeNull();
 });

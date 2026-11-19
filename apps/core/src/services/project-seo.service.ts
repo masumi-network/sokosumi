@@ -26,6 +26,7 @@ import {
 import {
   type PrivateLandingOutcomes,
   privateLandingOutcomeSchema,
+  privateLandingSourceSchema,
 } from "@/schemas/seo-landing-outcomes.schema";
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
@@ -46,6 +47,7 @@ import {
   requireSeoPages,
   resolveSeoScope,
   type SeoMutationHooks,
+  seoLinkedTaskWhere,
   seoOwnerData,
   seoOwnerUnique,
   seoOwnerWhere,
@@ -216,6 +218,7 @@ export async function recordNativeSeoMetrics(
   options: SeoMutationHooks & {
     client?: Prisma.TransactionClient;
     outcomes?: PrivateLandingOutcomes;
+    outcomeAccountKey?: string;
     scope?: { id: string | null; version: number; pageIds: string[] };
   } = {},
 ) {
@@ -280,26 +283,76 @@ export async function recordNativeSeoMetrics(
       },
       update: {},
     });
-    if (options.outcomes) {
-      const named = privateLandingOutcomeSchema.parse(options.outcomes);
+    const named = options.outcomes
+      ? privateLandingOutcomeSchema.parse(options.outcomes)
+      : null;
+    if (named) {
       const scopeUrls = new Set(pages.map((page) => page.url));
+      const control = named.goalInvestigation;
+      const prior = payload.landingEngagementEvidence?.previous;
       if (
         actor.sokoBotId ||
         payload.provider !== "ga4" ||
         named.propertyId !== payload.propertyId ||
+        (options.outcomeAccountKey &&
+          named.accountKey !== options.outcomeAccountKey) ||
         named.verifiedHost !== payload.landingPages?.verifiedHost ||
         payload.landingPages.channel !== "organic" ||
         named.from !== payload.from ||
         named.to !== payload.to ||
+        (control &&
+          (!scopeUrls.has(control.pageUrl) ||
+            !prior ||
+            control.before.from !== prior.from ||
+            control.before.to !== prior.to ||
+            named.timeZone !== prior.landingPages.timeZone ||
+            named.timeZone !== payload.landingPages.timeZone ||
+            control.before.organic.sessions !==
+              prior.landingPages.rows.find(
+                (row) => row.pageUrl === control.pageUrl,
+              )?.sessions ||
+            control.after.organic.sessions !==
+              payload.landingPages.rows.find(
+                (row) => row.pageUrl === control.pageUrl,
+              )?.sessions)) ||
         named.rows.some((row) => !scopeUrls.has(row.pageUrl))
       )
         throw badRequest(
           "Named GA4 landing outcomes must match the verified collection",
         );
-      const collectedAt = payload.collectedAt ?? payload.observedAt;
-      const hash = sha256(JSON.stringify([actor.userId, named, collectedAt]));
+    }
+    // Record a source switch even when the active collection has no usable named rows.
+    // The marker is independent of the landing host and contains no counts or invented zeros.
+    const selection =
+      payload.provider === "ga4" && options.outcomeAccountKey
+        ? privateLandingSourceSchema.parse({
+            version: 2,
+            accountKey: options.outcomeAccountKey,
+            propertyId: payload.propertyId,
+          })
+        : null;
+    const pageIds = pages.map((p) => p.id).sort();
+    let stored: PrivateLandingOutcomes | typeof selection = named;
+    if (!stored && selection) {
+      const previous = await client.projectSeoObservation.findFirst({
+        where: {
+          ...seoOwnerWhere(actor),
+          ownerId: actor.userId,
+          visibility: "PRIVATE",
+          kind: SEO_LANDING_OUTCOMES_KIND,
+          source: "ga4",
+          pageIds: { hasSome: pageIds },
+        },
+        select: { id: true },
+      });
+      if (previous) stored = selection;
+    }
+    if (stored) {
+      const at = named
+        ? (payload.collectedAt ?? payload.observedAt)
+        : payload.observedAt;
+      const hash = sha256(JSON.stringify([actor.userId, stored, pageIds, at]));
       const sourceKey = `landing-outcomes:${hash}`;
-      const observedUrls = new Set(named.rows.map((row) => row.pageUrl));
       await client.projectSeoObservation.upsert({
         where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
         create: {
@@ -310,11 +363,9 @@ export async function recordNativeSeoMetrics(
           source: "ga4",
           sourceKey,
           artifactHash: hash,
-          pageIds: pages
-            .filter((p) => observedUrls.has(p.url))
-            .map((p) => p.id),
-          payload: named,
-          observedAt: new Date(collectedAt),
+          pageIds,
+          payload: stored,
+          observedAt: new Date(at),
         },
         update: {},
       });
@@ -350,7 +401,8 @@ async function loadSeoWorkspaceObservations(
   const [evidence, metrics] = await Promise.all([
     prisma.projectSeoObservation.findMany({
       where: { ...where, ownerId: null },
-      orderBy: { observedAt: "desc" },
+      // A page and a site artifact may share a capture time. Resolve the tie consistently.
+      orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: SEO_WORKSPACE_EVIDENCE_LIMIT,
     }),
     privateMetricsAllowed
@@ -481,7 +533,10 @@ export async function getProjectSeoWorkspace(
   ];
   const taskRows = taskIds.length
     ? await prisma.task.findMany({
-        where: { id: { in: taskIds }, workspaceId: actor.workspaceId },
+        where: {
+          id: { in: taskIds },
+          ...seoLinkedTaskWhere(actor, privateMetricsAllowed),
+        },
         select: {
           id: true,
           status: true,

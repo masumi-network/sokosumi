@@ -194,6 +194,7 @@ const SOKO_BOT_CONTEXT: AuthenticationContext = {
 };
 
 interface TxMock {
+  projectSeoAnalysis: { findFirst: ReturnType<typeof vi.fn> };
   $queryRaw: ReturnType<typeof vi.fn>;
   taskX402Payment: {
     findUnique: ReturnType<typeof vi.fn>;
@@ -490,6 +491,7 @@ function createTxMock(): TxMock {
   return {
     // VERIFIED replay takes FOR UPDATE before returning the stored header.
     $queryRaw: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
+    projectSeoAnalysis: { findFirst: vi.fn().mockResolvedValue(null) },
     taskX402Payment: {
       findUnique: vi
         .fn()
@@ -1730,6 +1732,17 @@ describe("POST /{id}/x402-payments", () => {
       await expectRejectedBeforeCharge(response, 422);
       const body = (await response.json()) as { message: string };
       expect(body.message).toContain("trusted EIP-712 domain");
+    });
+
+    it("rejects a separate x402 purchase on a full audit that pays only at completion", async () => {
+      tx.projectSeoAnalysis.findFirst.mockResolvedValue({ id: TASK_ID });
+      const response = await postPayment(
+        createApp(COWORKER_AGENT_CONTEXT),
+        validBody(),
+      );
+      expect(response.status).toBe(422);
+      expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+      expect(payX402Mock).not.toHaveBeenCalled();
     });
 
     it("charges a demand priced exactly at maxCredits", async () => {

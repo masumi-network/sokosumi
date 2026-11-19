@@ -86,6 +86,384 @@ export const StartImpersonationBodySchema = {
     ]
 } as const;
 
+export const AdminSeoAlertsSchema = {
+    type: 'object',
+    properties: {
+        total: {
+            type: 'integer',
+            minimum: 0
+        },
+        critical: {
+            type: 'integer',
+            minimum: 0
+        },
+        warning: {
+            type: 'integer',
+            minimum: 0
+        },
+        info: {
+            type: 'integer',
+            minimum: 0
+        },
+        pageSize: {
+            type: 'integer',
+            minimum: 0
+        },
+        failurePercent: {
+            type: 'integer',
+            minimum: 0
+        },
+        importGraceMinutes: {
+            type: 'integer',
+            minimum: 0
+        },
+        billingTotal: {
+            type: 'integer',
+            minimum: 0
+        },
+        pricingAttention: {
+            type: 'integer',
+            minimum: 0
+        },
+        billing: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    taskId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    auditId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    projectId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'inProgress',
+                            'receiptsPending',
+                            'needsCredits',
+                            'retrying',
+                            'settled',
+                            'closed',
+                            'abandoned',
+                            'unverified'
+                        ]
+                    },
+                    approvedMaxCredits: {
+                        type: [
+                            'integer',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    attemptedCredits: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    dataBudgetUsd: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    chargedCredits: {
+                        type: [
+                            'number',
+                            'null'
+                        ],
+                        minimum: 0
+                    },
+                    cost: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            version: {
+                                type: 'number',
+                                enum: [
+                                    1
+                                ]
+                            },
+                            gatewayMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            directModelMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            dataForSeoMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            otherApiMicroUsd: {
+                                type: 'integer',
+                                minimum: 0
+                            }
+                        },
+                        required: [
+                            'version',
+                            'gatewayMicroUsd',
+                            'directModelMicroUsd',
+                            'dataForSeoMicroUsd',
+                            'otherApiMicroUsd'
+                        ],
+                        additionalProperties: false
+                    }
+                },
+                required: [
+                    'id',
+                    'taskId',
+                    'auditId',
+                    'projectId',
+                    'workspaceId',
+                    'at',
+                    'status',
+                    'approvedMaxCredits',
+                    'attemptedCredits',
+                    'dataBudgetUsd',
+                    'chargedCredits',
+                    'cost'
+                ]
+            }
+        },
+        connectionTotal: {
+            type: 'integer',
+            minimum: 0
+        },
+        reconnect: {
+            type: 'integer',
+            minimum: 0
+        },
+        connections: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceOrganizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    workspaceUserId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    userId: {
+                        type: 'string'
+                    },
+                    provider: {
+                        type: 'string',
+                        enum: [
+                            'ga4',
+                            'search_console'
+                        ]
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'NEEDS_RECONNECT',
+                            'DISCONNECTED'
+                        ]
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    }
+                },
+                required: [
+                    'id',
+                    'workspaceId',
+                    'workspaceOrganizationSlug',
+                    'workspaceUserId',
+                    'userId',
+                    'provider',
+                    'status',
+                    'at'
+                ]
+            }
+        },
+        items: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    workspaceId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    workspaceOrganizationSlug: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    workspaceUserId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    auditId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    projectId: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        format: 'uuid'
+                    },
+                    taskId: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    at: {
+                        type: 'string',
+                        format: 'date-time'
+                    },
+                    severity: {
+                        type: 'string',
+                        enum: [
+                            'critical',
+                            'warning',
+                            'info'
+                        ]
+                    },
+                    reasons: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'priceUnverified',
+                                'priceUnpaid',
+                                'dataBudgetExceeded',
+                                'priceReceiptPending',
+                                'priceNeedsCredits',
+                                'priceRetry',
+                                'workerOverdue',
+                                'workerFailed',
+                                'auditFailed',
+                                'reportRejected',
+                                'pageException',
+                                'pageFailureRate',
+                                'seasonalFailed',
+                                'explorationFailed',
+                                'investigationFailed',
+                                'reportMissing',
+                                'gscDisconnected',
+                                'gscProperty',
+                                'gscUnavailable',
+                                'gscSkipped'
+                            ]
+                        },
+                        minItems: 1
+                    },
+                    failedPages: {
+                        type: 'integer',
+                        minimum: 0
+                    },
+                    attemptedPages: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                required: [
+                    'id',
+                    'workspaceId',
+                    'workspaceOrganizationSlug',
+                    'workspaceUserId',
+                    'auditId',
+                    'projectId',
+                    'taskId',
+                    'at',
+                    'severity',
+                    'reasons',
+                    'failedPages',
+                    'attemptedPages'
+                ]
+            }
+        }
+    },
+    required: [
+        'total',
+        'critical',
+        'warning',
+        'info',
+        'pageSize',
+        'failurePercent',
+        'importGraceMinutes',
+        'billingTotal',
+        'pricingAttention',
+        'billing',
+        'connectionTotal',
+        'reconnect',
+        'connections',
+        'items'
+    ]
+} as const;
+
 export const AdminAgentListSchema = {
     type: 'array',
     items: {
@@ -9378,6 +9756,9 @@ export const TaskSeoAuditSchema = {
                 'null'
             ],
             format: 'uuid'
+        },
+        resultAvailable: {
+            type: 'boolean'
         }
     },
     required: [
@@ -44127,6 +44508,375 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        landingEngagementChange: {
+            type: 'object',
+            properties: {
+                propertyId: {
+                    type: 'string'
+                },
+                timeZone: {
+                    type: 'string'
+                },
+                pageCount: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                before: {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string'
+                        },
+                        to: {
+                            type: 'string'
+                        },
+                        sessions: {
+                            type: 'integer',
+                            exclusiveMinimum: 0
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'sessions',
+                        'observationId'
+                    ]
+                },
+                after: {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string'
+                        },
+                        to: {
+                            type: 'string'
+                        },
+                        sessions: {
+                            type: 'integer',
+                            exclusiveMinimum: 0
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'sessions',
+                        'observationId'
+                    ]
+                },
+                engagementSecondsPerSession: {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        withinPageChange: {
+                            type: 'number'
+                        },
+                        mixChange: {
+                            type: 'number'
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'withinPageChange',
+                        'mixChange'
+                    ]
+                },
+                viewsPerSession: {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        withinPageChange: {
+                            type: 'number'
+                        },
+                        mixChange: {
+                            type: 'number'
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'withinPageChange',
+                        'mixChange'
+                    ]
+                }
+            },
+            required: [
+                'propertyId',
+                'timeZone',
+                'pageCount',
+                'before',
+                'after',
+                'engagementSecondsPerSession',
+                'viewsPerSession'
+            ]
+        },
+        seasonalIdeas: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    origin: {
+                        type: 'string',
+                        enum: [
+                            'market_history'
+                        ]
+                    },
+                    keyword: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 80
+                    },
+                    audience: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 80
+                    },
+                    url: {
+                        type: 'string',
+                        format: 'uri'
+                    },
+                    asOf: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    country: {
+                        type: 'string',
+                        pattern: '^[A-Z]{2}$'
+                    },
+                    language: {
+                        type: 'string',
+                        pattern: '^[a-z]{2}$'
+                    },
+                    pageQuote: {
+                        type: 'string',
+                        minLength: 8,
+                        maxLength: 180
+                    },
+                    action: {
+                        type: 'string',
+                        enum: [
+                            'improve_existing_page',
+                            'investigate_angle'
+                        ]
+                    },
+                    limitations: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'demand_unverified',
+                                'timing_uncertain',
+                                'audience_fit_uncertain',
+                                'offer_unverified',
+                                'existing_page_may_cover'
+                            ]
+                        },
+                        maxItems: 5
+                    },
+                    event: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            name: {
+                                type: 'string',
+                                maxLength: 80
+                            },
+                            scope: {
+                                type: 'string',
+                                maxLength: 250
+                            },
+                            date: {
+                                type: 'string',
+                                format: 'date'
+                            }
+                        },
+                        required: [
+                            'name',
+                            'scope',
+                            'date'
+                        ]
+                    },
+                    comparison: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            status: {
+                                type: 'string',
+                                enum: [
+                                    'above_baseline',
+                                    'no_observed_rise',
+                                    'insufficient'
+                                ]
+                            },
+                            leadMonth: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    period: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    volume: {
+                                        type: [
+                                            'integer',
+                                            'null'
+                                        ],
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'period',
+                                    'volume'
+                                ]
+                            },
+                            eventMonth: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    period: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    volume: {
+                                        type: [
+                                            'integer',
+                                            'null'
+                                        ],
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'period',
+                                    'volume'
+                                ]
+                            },
+                            baselineMedian: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ],
+                                minimum: 0
+                            }
+                        },
+                        required: [
+                            'status',
+                            'leadMonth',
+                            'eventMonth',
+                            'baselineMedian'
+                        ]
+                    },
+                    windows: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                targetPeriod: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                historicalPeriod: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                historicalVolume: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                baselineMedian: {
+                                    type: 'number',
+                                    minimum: 0
+                                },
+                                referenceMonths: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    minItems: 6,
+                                    maxItems: 8
+                                }
+                            },
+                            required: [
+                                'targetPeriod',
+                                'historicalPeriod',
+                                'historicalVolume',
+                                'baselineMedian'
+                            ]
+                        },
+                        maxItems: 4
+                    },
+                    observedMonths: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                period: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                volume: {
+                                    type: 'integer',
+                                    minimum: 0
+                                }
+                            },
+                            required: [
+                                'period',
+                                'volume'
+                            ]
+                        },
+                        minItems: 1,
+                        maxItems: 36
+                    },
+                    actionId: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'keyword',
+                    'audience',
+                    'url',
+                    'asOf',
+                    'country',
+                    'language',
+                    'pageQuote',
+                    'action',
+                    'limitations',
+                    'event',
+                    'comparison',
+                    'windows'
+                ]
+            }
+        },
         serpHistory: {
             type: 'array',
             items: {
@@ -44905,7 +45655,8 @@ export const ProjectSeoActionSchema = {
             enum: [
                 'low',
                 'medium',
-                'high'
+                'high',
+                'unknown'
             ]
         },
         expectedEffect: {
@@ -44940,6 +45691,35 @@ export const ProjectSeoActionSchema = {
                 }
             ]
         },
+        decision: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'content_opportunity',
+                        'internal_link_opportunity',
+                        'offer_availability',
+                        'open_strategy_opportunity'
+                    ]
+                },
+                alternative: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 600
+                },
+                nextCheck: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 600
+                }
+            },
+            required: [
+                'kind',
+                'alternative',
+                'nextCheck'
+            ]
+        },
         taskId: {
             type: [
                 'string',
@@ -44951,8 +45731,11 @@ export const ProjectSeoActionSchema = {
             enum: [
                 'recommended',
                 'task_created',
+                'unavailable',
                 'implemented',
-                'verified'
+                'verified',
+                'canceled',
+                'failed'
             ]
         },
         completedAt: {
@@ -45450,6 +46233,11 @@ export const ProjectSeoLandingPagesSchema = {
             minLength: 1,
             maxLength: 253
         },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
         rows: {
             type: 'array',
             items: {
@@ -45465,6 +46253,14 @@ export const ProjectSeoLandingPagesSchema = {
                         minimum: 0
                     },
                     keyEvents: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    engagementSeconds: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    views: {
                         type: 'number',
                         minimum: 0
                     }
@@ -47309,6 +48105,48 @@ export const RequestProjectSeoAnalysisRequestSchema = {
                 750
             ]
         },
+        fullAuditPrice: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'cost_plus'
+                    ]
+                },
+                version: {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                minimumCredits: {
+                    type: 'number',
+                    enum: [
+                        750
+                    ]
+                },
+                markupPercent: {
+                    type: 'number',
+                    enum: [
+                        50
+                    ]
+                },
+                maxCredits: {
+                    type: 'number',
+                    enum: [
+                        750
+                    ]
+                }
+            },
+            required: [
+                'kind',
+                'version',
+                'minimumCredits',
+                'markupPercent'
+            ],
+            additionalProperties: false
+        },
         searchConsolePropertyId: {
             type: 'string',
             minLength: 1,
@@ -47871,6 +48709,204 @@ export const SeoAuditBriefSchema = {
                             'null'
                         ],
                         format: 'date-time'
+                    },
+                    latestClosedGoal: {
+                        type: 'object',
+                        properties: {
+                            from: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            to: {
+                                type: 'string',
+                                pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                            },
+                            count: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            event: {
+                                type: 'string',
+                                enum: [
+                                    'purchase',
+                                    'sign_up'
+                                ]
+                            },
+                            timeZone: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 100
+                            }
+                        },
+                        required: [
+                            'from',
+                            'to',
+                            'count',
+                            'event',
+                            'timeZone'
+                        ],
+                        additionalProperties: false
+                    },
+                    goalInvestigation: {
+                        type: 'object',
+                        properties: {
+                            pageUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            timeZone: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 100
+                            },
+                            event: {
+                                type: 'string',
+                                enum: [
+                                    'purchase',
+                                    'sign_up'
+                                ]
+                            },
+                            before: {
+                                type: 'object',
+                                properties: {
+                                    from: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    to: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    organic: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    },
+                                    direct: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    }
+                                },
+                                required: [
+                                    'from',
+                                    'to',
+                                    'organic',
+                                    'direct'
+                                ],
+                                additionalProperties: false
+                            },
+                            after: {
+                                type: 'object',
+                                properties: {
+                                    from: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    to: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    organic: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    },
+                                    direct: {
+                                        type: 'object',
+                                        properties: {
+                                            sessions: {
+                                                type: 'integer',
+                                                exclusiveMinimum: 0
+                                            },
+                                            rate: {
+                                                type: 'number',
+                                                minimum: 0,
+                                                maximum: 1
+                                            }
+                                        },
+                                        required: [
+                                            'sessions',
+                                            'rate'
+                                        ],
+                                        additionalProperties: false
+                                    }
+                                },
+                                required: [
+                                    'from',
+                                    'to',
+                                    'organic',
+                                    'direct'
+                                ],
+                                additionalProperties: false
+                            },
+                            weekdayMix: {
+                                type: 'string',
+                                enum: [
+                                    'uneven'
+                                ]
+                            },
+                            assessment: {
+                                type: 'string',
+                                enum: [
+                                    'both_declined',
+                                    'organic_declined',
+                                    'goal_held'
+                                ]
+                            }
+                        },
+                        required: [
+                            'pageUrl',
+                            'timeZone',
+                            'event',
+                            'before',
+                            'after',
+                            'assessment'
+                        ],
+                        additionalProperties: false
                     },
                     outcomes: {
                         type: 'array',

@@ -1,7 +1,7 @@
 "use client";
 
 import { Maximize2, Minus, Plus } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -13,6 +13,10 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor } from "@/components/ui/popover";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import {
   SEO_MAP_RADIUS,
@@ -70,7 +74,8 @@ export function SeoKeywordMap({
   model: SeoWorkspaceModel;
 }) {
   const t = useTranslations("App.Seo.keywords");
-  const format = useFormatter();
+  const result = useSeoResultTranslations("App.Seo.keywords");
+  const format = useSeoResultFormatter();
   const hintId = useId();
   const subtitleId = useId();
   const { frame, size, transform, zoomBy } = useSeoMapZoom();
@@ -160,26 +165,26 @@ export function SeoKeywordMap({
     format.number(value, { notation: "compact" });
   const position = (point: SeoKeywordPoint) =>
     point.group.best !== null
-      ? t("ranked", { position: point.group.best })
+      ? result("ranked", { position: point.group.best })
       : point.checked && point.group.reads.length
-        ? t("notFound")
+        ? result("notFound")
         : null;
   const reasonOf = (point: SeoKeywordPoint) =>
     point.checked ? null : recommendation(point.group);
   const reasonText = (point: SeoKeywordPoint) => {
     const reason = reasonOf(point);
-    return reason ? t(`recommendation.${reason}`) : null;
+    return reason ? result(`recommendation.${reason}`) : null;
   };
   const details = (point: SeoKeywordPoint) => [
     // Said in words too: the ring of an idea is not the only sign.
-    ...(point.checked ? [] : [reasonText(point) ?? t("map.idea")]),
-    `${format.number(point.volume)} ${t("volumeUnit", { count: point.volume })}`,
-    t("map.difficulty", { value: Math.round(point.difficulty) }),
+    ...(point.checked ? [] : [reasonText(point) ?? result("map.idea")]),
+    `${format.number(point.volume)} ${result("volumeUnit", { count: point.volume })}`,
+    result("map.difficulty", { value: Math.round(point.difficulty) }),
     ...(position(point) ? [position(point) ?? ""] : []),
     ...(point.gain
       ? [
-          t("map.top10", { clicks: point.gain.top10 }),
-          t("map.top3", { clicks: point.gain.top3 }),
+          result("map.top10", { clicks: point.gain.top10 }),
+          result("map.top3", { clicks: point.gain.top3 }),
         ]
       : []),
   ];
@@ -261,7 +266,7 @@ export function SeoKeywordMap({
               id={subtitleId}
               className="text-muted-foreground block text-sm"
             >
-              {t("map.subtitle")}
+              {result("map.subtitle")}
             </span>
           </span>
           {/* The zoom stands beside the title, not over the dots. */}
@@ -336,10 +341,15 @@ export function SeoKeywordMap({
           <span className="sr-only" id={hintId}>
             {t("map.hint")}
           </span>
-          <p className="sr-only" role="status">
-            {focus
-              ? `${focus.group.lead.keyword}: ${format.list(details(focus))}`
-              : null}
+          <p lang="en" className="sr-only" role="status">
+            {focus ? (
+              <>
+                <bdi lang={focus.group.lead.languageCode ?? ""}>
+                  {focus.group.lead.keyword}
+                </bdi>
+                : {format.list(details(focus))}
+              </>
+            ) : null}
           </p>
           <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2">
             <div
@@ -511,6 +521,7 @@ export function SeoKeywordMap({
               {focus ? (
                 <div
                   aria-hidden
+                  lang="en"
                   data-testid="seo-keyword-card"
                   className="bg-popover text-popover-foreground pointer-events-none absolute z-10 w-max max-w-[min(20rem,100%)] rounded-md border px-3 py-2 text-xs shadow-md"
                   // In the other half of the frame from the dot: it never covers the dot or leaves the screen.
@@ -527,10 +538,12 @@ export function SeoKeywordMap({
                   }}
                 >
                   <p className="font-medium break-words">
-                    <bdi>{focus.group.lead.keyword}</bdi>
+                    <bdi lang={focus.group.lead.languageCode ?? ""}>
+                      {focus.group.lead.keyword}
+                    </bdi>
                   </p>
                   <p className="text-muted-foreground tabular-nums">
-                    {t("map.preview", {
+                    {result("map.preview", {
                       volume: focus.volume,
                       value: Math.round(focus.difficulty),
                     })}
@@ -552,7 +565,7 @@ export function SeoKeywordMap({
                     className="absolute -translate-x-1/2 whitespace-nowrap"
                     style={{ left: at ?? `${middle}%` }}
                   >
-                    {t(`difficulty.${band}`)}
+                    {result(`difficulty.${band}`)}
                   </span>
                 ) : null;
               })}
@@ -590,7 +603,7 @@ export function SeoKeywordMap({
             {t("map.table")}
           </SeoFoldSummary>
           <p className="text-muted-foreground pt-2 text-xs">
-            {t("map.source")}
+            {result("map.source")}
           </p>
           <div className="max-h-64 overflow-auto pt-2">
             <table className="w-full text-xs">
@@ -623,7 +636,7 @@ export function SeoKeywordMap({
                         {point.checked ? null : (
                           <span className="text-muted-foreground">
                             {" "}
-                            · {reasonText(point) ?? t("map.idea")}
+                            · {reasonText(point) ?? result("map.idea")}
                           </span>
                         )}
                       </td>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { TableCell } from "@/components/ui/table";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 
@@ -10,9 +10,10 @@ export function SeoConversionCell({
   conversion,
   feature,
 }: Pick<SeoKeywordGroup, "conversion" | "feature">) {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   return (
     <TableCell
+      lang="en"
       // An estimate the check did not make shows nothing: the cell is empty on a desktop, and a phone row hides
       // an empty cell. "Not available" was a line without information, on one viewport only.
       className="whitespace-normal"
@@ -46,9 +47,9 @@ export function SeoConversionCell({
 
 /** Under a table that shows the estimate, once: it is a judgement of the check, not a measured rate. */
 export function SeoConversionNote() {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   return (
-    <p className="text-muted-foreground border-t px-4 py-2 text-xs">
+    <p lang="en" className="text-muted-foreground border-t px-4 py-2 text-xs">
       {t("keywords.conversion.note")}
     </p>
   );

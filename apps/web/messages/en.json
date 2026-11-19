@@ -6421,6 +6421,10 @@
             "title": "Tasks",
             "description": "Searchable list of all tasks across users and organizations."
           },
+          "seoAlerts": {
+            "title": "SEO audit alerts",
+            "description": "Inspect audit failures and connection coverage."
+          },
           "x402Payments": {
             "title": "x402 payments",
             "description": "Inspect direct-payment health and resolve held or disputed x402 charges."
@@ -7670,6 +7674,86 @@
           "saveFailed": "Couldn't save the campaign",
           "deleteFailed": "Couldn't delete the campaign",
           "started": "Campaign started"
+        }
+      },
+      "SeoAlerts": {
+        "type": "Alert type",
+        "pricingAttention": "Audit payments to check: {count}",
+        "billingTab": "Audit billing ({count})",
+        "billingDescription": "Metered full audits and their latest settlement status. Costs come from verified provider receipts. Charged credits come from the debit transaction.",
+        "billingEmpty": "No metered full audits in this period.",
+        "approvalCap": "Approved maximum",
+        "attemptedCharge": "Attempted charge",
+        "dataBudget": "Approved data budget",
+        "abandoned": "Closed with unpaid costs",
+        "charged": "Charged",
+        "credits": "{credits, number} credits",
+        "costTotal": "Total provider cost",
+        "gatewayMicroUsd": "Model calls via Vercel AI Gateway",
+        "directModelMicroUsd": "Direct model calls",
+        "dataForSeoMicroUsd": "DataForSEO",
+        "otherApiMicroUsd": "Other APIs",
+        "runId": "Run ID",
+        "taskId": "Task ID",
+        "receiptsPending": "Waiting for cost receipts",
+        "inProgress": "Awaiting settlement",
+        "retrying": "Awaiting payment retry",
+        "needsCredits": "Balance required to retry",
+        "settled": "Settled",
+        "closed": "Run ended",
+        "unverified": "Settlement unverified",
+        "auditTab": "Audit runs ({count})",
+        "connectionTab": "Current connections ({count})",
+        "connectionDescription": "Each row shows the current account setting for one provider in an SEO workspace. The date is the last recorded update.",
+        "reconnect": "Needs reconnection",
+        "disconnected": "Disconnected",
+        "openAccount": "Open account",
+        "connectionEmpty": "No current connection issues.",
+        "search_console": "Search Console",
+        "ga4": "Google Analytics 4",
+        "connectionSummary": "Connections to reconnect: {count}",
+        "summary": "Last 30 days: {critical} critical, {warning, plural, one {# warning} other {# warnings}}",
+        "unavailable": "Alert counts are unavailable.",
+        "title": "SEO audit alerts",
+        "description": "The latest finished or overdue run for each audit. Page failure warnings start at {percent}% of attempted pages.",
+        "period": "Audit period",
+        "all": "All time",
+        "days": "{days} days",
+        "total": "Affected audits",
+        "critical": "Critical",
+        "warning": "Warning",
+        "info": "Information",
+        "auditId": "Audit ID",
+        "projectId": "Project ID",
+        "recordId": "Record ID",
+        "workspaceId": "Workspace ID",
+        "openTask": "Open source task",
+        "empty": "No alerts in this period.",
+        "emptyPage": "No alerts on this page.",
+        "pagination": "Alert pages",
+        "previous": "Previous",
+        "next": "Next",
+        "reason": {
+          "priceUnverified": "The audit payment and its receipt do not agree. Check the original Task and debit transactions.",
+          "priceUnpaid": "The Task closed with verified costs and no debit. Review its last payment attempt.",
+          "dataBudgetExceeded": "DataForSEO costs exceeded the approved data budget. Compare the provider receipts with the audit limits.",
+          "priceReceiptPending": "The worker finished the audit and is waiting for cost receipts. Check the receipts before retrying settlement.",
+          "priceRetry": "The previous debit failed for insufficient credits. Confirm the next settlement attempt.",
+          "priceNeedsCredits": "The settlement attempt paused for insufficient credits. Check the balance before retrying.",
+          "workerOverdue": "The worker started this audit more than two hours ago. Check the Task for a report or a delivery error.",
+          "workerFailed": "The assigned worker reported a failed task.",
+          "auditFailed": "The audit failed.",
+          "reportMissing": "The Task finished at least {minutes} minutes ago. Its full report has not arrived.",
+          "reportRejected": "Sokosumi could not verify the report file or permission to import it.",
+          "seasonalFailed": "The seasonal review could not complete or returned an invalid result.",
+          "explorationFailed": "The open exploration did not complete.",
+          "investigationFailed": "A Search Console investigation request failed.",
+          "pageException": "The worker recorded a page exception.",
+          "pageFailureRate": "{failed} of {attempted} attempted pages failed.",
+          "gscDisconnected": "Search Console was disconnected.",
+          "gscProperty": "The audit could not use the selected Search Console property.",
+          "gscUnavailable": "The audit could not verify Search Console coverage.",
+          "gscSkipped": "The owner chose to continue without Search Console."
         }
       },
       "CmoSpend": {
@@ -12429,6 +12513,17 @@
           "review_exclusion": "Check why this page appears in search. You want it excluded.",
           "review_indexing": "Check why this page is excluded. You want it to appear in search.",
           "matches_intent": "Google’s index status matches your visibility setting."
+        },
+        "goalControl": {
+          "title": "Sessions with {event}",
+          "afterTask": "Task completed on {date}",
+          "rates": "Organic search {organic} of {organicSessions, number} sessions. Direct {direct} of {directSessions, number} sessions.",
+          "both_declined": "Both channels had a lower goal rate. Check the completion step and compare tracking with confirmed submissions before changing search content.",
+          "organic_declined": "The organic goal rate fell by at least 20%. The direct rate rose, stayed level or fell by less than 20%. Check device and query mix before testing page copy.",
+          "goal_held": "The organic goal rate rose, stayed level or fell by less than 20%. Check which other key events changed.",
+          "events": "{count, number} occurrences of {event} in organic landing sessions.",
+          "attribution": "Other changes can affect this count. Compare the same page and goal across comparable periods.",
+          "weekdayMix": "These periods include different numbers of some weekdays. Check the pattern by weekday before acting."
         }
       },
       "manageStatistics": "Google connections",
@@ -12715,6 +12810,32 @@
           "action": "Page goal: {action}",
           "studio": "Draft in Content Studio (coming soon)"
         },
+        "seasonal": {
+          "timing": "DataForSEO Labs estimates monthly searches in this market. Check this year’s demand as the period approaches.",
+          "planFor": "Plan for {months}",
+          "datedEvent": "{event} · {date}",
+          "evidence": "Page and demand evidence",
+          "above_baseline": "Local searches exceeded the earlier median last year.",
+          "no_observed_rise": "Local searches did not rise above the earlier median last year.",
+          "windowRise": "These months had more local searches last year than the comparison months.",
+          "windowOther": "For {target}, {prior} had {volume, number} estimated local searches. The median was {baseline, number} across the other observed months ({months}).",
+          "incompleteComparison": "Available local search estimates from last year: {counts}. There is too little data to compare demand.",
+          "historicalIdea": "Research this search using the local DataForSEO history.",
+          "title": "Seasonal keyword ideas",
+          "audit": "{market} · Audit on {date}",
+          "investigate_angle": "Check this search for {audience}.",
+          "improve_existing_page": "Update the existing page for {audience}.",
+          "window": "For {target}, review {prior}: {volume, number} estimated local searches. The earlier three-month median was {baseline, number}.",
+          "comparison": "Last year: {counts}. The median before the lead-up was {baseline, number} estimated local searches.",
+          "count": "{month}: {volume, number}",
+          "verifyDemand": "Check local demand before deciding when to publish.",
+          "audience_fit_uncertain": "Check whether this audience would use the page for the event.",
+          "offer_unverified": "Confirm the offer is available.",
+          "existing_page_may_cover": "Check what the existing page already answers.",
+          "passed": "This timing has passed ({timing}). Run a new audit to plan the next season.",
+          "noWindowRise": "Last year, local searches did not rise clearly in this month or the next three.",
+          "observed": "Estimated local searches for this exact query: {counts}."
+        },
         "ideas": {
           "title": "{count, plural, one {# keyword idea} other {# keyword ideas}}",
           "source": {
@@ -12869,6 +12990,7 @@
         "after": "Suggested change",
         "noBefore": "No previous value recorded",
         "recommended": "Recommended",
+        "unavailable": "Task unavailable",
         "task_created": "Draft task created",
         "implemented": "Implemented",
         "verified": "Verified",
@@ -12893,12 +13015,18 @@
         "copyFailed": "Could not copy. Select the text and copy it by hand.",
         "copyAgentLead": "Make this SEO change on the website. Change only what it names, then check the page again.",
         "evidence": "Evidence",
+        "rankingEvidence": "Keywords this page ranked for",
+        "sourceRecords": "{count, plural, one {# source reference} other {# source references}}",
         "change": "The change",
         "filter": {
           "label": "Filter actions",
           "all": "All",
           "suggestions": "Suggestions"
-        }
+        },
+        "alternative": "Alternative",
+        "nextCheck": "Next check",
+        "canceled": "Task canceled",
+        "failed": "Task failed"
       },
       "pages": {
         "title": "Pages",
@@ -12918,6 +13046,24 @@
         "notCheckedInDates": "No check in these dates",
         "checkIncomplete": "check incomplete",
         "home": "Home page"
+      },
+      "reportFiles": {
+        "title": "Report files",
+        "run": "Check",
+        "version": "{checkType} · {date}",
+        "taskVersion": "{label} · Task {taskId}",
+        "loading": "Loading files…",
+        "failed": "Could not load the files for this run.",
+        "empty": "This run has no report files available.",
+        "pdf": "Open PDF",
+        "markdown": "Open Markdown",
+        "json": "Report data (JSON)",
+        "import": "Import report into SEO",
+        "imported": "Report imported",
+        "access": "You do not have access to the report files for this check.",
+        "refresh": "Refresh files",
+        "historyLimit": "This list shows recent checks. You can open older reports from their Tasks.",
+        "importHelp": "Import this report to add its findings to your SEO results."
       },
       "timeline": {
         "statuses": {
@@ -12993,9 +13139,12 @@
         "desktop": "Desktop",
         "htmlOnly": "Reads the selected pages’ HTML. This check uses no paid search data or model calls.",
         "maxCredits": "Up to {credits, plural, =1 {# credit} other {# credits}}",
-        "fixedCredits": "{credits, plural, =1 {# credit} other {# credits}}",
         "maxCreditsPerRun": "Up to {credits, plural, =1 {# credit} other {# credits}} per run",
-        "fixedCreditsPerRun": "{credits, plural, =1 {# credit} other {# credits}} per run",
+        "fullAuditCredits": "At least {credits, plural, =1 {# credit} other {# credits}}, only if it succeeds",
+        "fullAuditCreditsPerRun": "At least {credits, plural, =1 {# credit} other {# credits}} per successful run",
+        "fullAuditTerms": "After a successful audit, you pay its model and data API costs plus {markup}%. This includes Vercel AI Gateway. The minimum is {minimum, number} credits. There is no maximum.",
+        "fullAuditTermsPerRun": "After each successful run, you pay its model and data API costs plus {markup}%. This includes Vercel AI Gateway. The minimum per run is {minimum, number} credits. There is no maximum.",
+        "fullAuditExample": "For example, USD {lowCost, number} in costs bills {lowCharge, number} credits. USD {highCost, number} bills {highCharge, number} credits.",
         "htmlService": "This check service supports HTML page checks. Search data and full audits are unavailable here.",
         "submit": "Start check",
         "queued": "Check requested",
@@ -13075,7 +13224,8 @@
       "priority": {
         "low": "Low",
         "medium": "Medium",
-        "high": "High"
+        "high": "High",
+        "unknown": "Not estimated"
       },
       "coverageStatus": {
         "complete": "Complete",
@@ -13685,6 +13835,23 @@
         "testsAll": "Every test gave a result"
       },
       "traffic": {
+        "periodInsight": {
+          "title": "Clicks fell while impressions held up",
+          "scope": "Google web search for {count, plural, one {# selected page} other {# selected pages}} on {property}.",
+          "values": "{clicks} clicks, {impressions} impressions, average position {position}",
+          "nextCheck": "Average position changed by half a place or less. Compare the queries, devices and countries in both weeks before testing a new title. A change in their mix can affect clicks."
+        },
+        "landingEngagement": {
+          "title": "What changed in organic visits",
+          "scope": "Google Analytics compared the same {count, plural, one {landing page} other {# landing pages}} in both periods ({zone}).",
+          "seconds": "Engagement seconds per session",
+          "views": "Views per session",
+          "metric": "Measure",
+          "within": "Change within pages",
+          "mix": "Change from the mix of visits",
+          "mixOnly": "The distribution of visits across landing pages accounted for the change in average engagement.",
+          "sessions": "Organic landing sessions went from {before} to {after}. The last two columns show each contribution in the same units as the measure."
+        },
         "searchType": "Search type",
         "searchTypes": {
           "web": "Web",
@@ -13959,7 +14126,7 @@
           },
           "38": {
             "title": "Export and date presets",
-            "missing": "No comparison with the same period last year. The Countries and devices table and the AI assistants table have no export. The CSV separator follows the app language, not the computer's region."
+            "missing": "No comparison with the same period last year. Export is unavailable for “Countries and devices”, “AI assistants”, and “What changed in organic visits”. The CSV separator follows the app language, not the computer's region."
           },
           "39": {
             "title": "AI Overview citation history",
@@ -14287,6 +14454,7 @@
         "authenticationRequired": "{coworkerName} needs authentication for {taskName}",
         "outOfCredits": "{coworkerName} ran out of credits for {taskName}",
         "completed": "{coworkerName} completed {taskName}",
+        "seoCompleted": "Open SEO results for {taskName}.",
         "failed": "{coworkerName} failed to complete {taskName}",
         "canceled": "{taskName} was canceled",
         "overdue": "{taskName} is past its due date",

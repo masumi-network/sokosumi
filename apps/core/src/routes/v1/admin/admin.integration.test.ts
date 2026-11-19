@@ -1,4 +1,11 @@
+import type { z } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { adminSeoAlerts } from "@/schemas/admin-seo-alerts.schema";
+
+type SeoAlertQueryRow = Omit<
+  z.output<typeof adminSeoAlerts>,
+  "pageSize" | "failurePercent" | "importGraceMinutes"
+>;
 
 /**
  * Integration test that mounts the real `adminRouter` (including the
@@ -40,6 +47,21 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $queryRaw: vi.fn().mockResolvedValue([
+      {
+        total: 0,
+        critical: 0,
+        warning: 0,
+        info: 0,
+        billingTotal: 0,
+        pricingAttention: 0,
+        billing: [],
+        connectionTotal: 0,
+        reconnect: 0,
+        connections: [],
+        items: [],
+      } satisfies SeoAlertQueryRow,
+    ]),
     user: { findMany: searchUsersMock },
     organization: { findMany: searchOrganizationsMock },
   },
@@ -72,6 +94,27 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     searchUsersMock.mockResolvedValue([]);
     searchOrganizationsMock.mockResolvedValue([]);
     getOrgBySlugMock.mockResolvedValue(null);
+  });
+
+  it("serves SEO alert counts only to an authenticated admin", async () => {
+    getSessionMock.mockResolvedValue(null);
+    expect(
+      (await adminRouter.request("http://localhost/seo-alerts")).status,
+    ).toBe(401);
+    mockSession("user");
+    expect(
+      (await adminRouter.request("http://localhost/seo-alerts")).status,
+    ).toBe(403);
+    mockSession("admin");
+    const response = await adminRouter.request("http://localhost/seo-alerts");
+    expect(response.status).toBe(200);
+    expect((await response.json()).data).toMatchObject({
+      total: 0,
+      items: [],
+      billingTotal: 0,
+      pricingAttention: 0,
+      billing: [],
+    });
   });
 
   it("rejects an authenticated non-admin with 403 on /search/users", async () => {

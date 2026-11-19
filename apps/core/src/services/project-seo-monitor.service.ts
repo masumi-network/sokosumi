@@ -10,7 +10,7 @@ import {
 import {
   requireSeoAnalysisBalance,
   requireSeoFullAuditPriceApproval,
-  seoAnalysisMaxCredits,
+  seoAnalysisAdmissionCredits,
 } from "@/lib/seo/analysis-price";
 import {
   parseSeoMonitorPlan,
@@ -91,7 +91,11 @@ export async function createProjectSeoMonitor(
     },
     select: { schedule: { select: { description: true } } },
   });
-  if (!made) requireSeoFullAuditPriceApproval(preparedAnalysis);
+  if (!made)
+    requireSeoFullAuditPriceApproval(
+      preparedAnalysis,
+      origin === "cmo-subscription",
+    );
   if (!made)
     await requireSeoAnalysisBalance(
       prisma,
@@ -100,7 +104,7 @@ export async function createProjectSeoMonitor(
         organizationId: actor.organizationId,
         projectId: owner.projectId,
       },
-      seoAnalysisMaxCredits(preparedAnalysis, pageUrls.length),
+      seoAnalysisAdmissionCredits(preparedAnalysis, pageUrls.length),
     );
   const { searchConsolePropertyId, allowLimitedAudit, ...publicAnalysis } =
     preparedAnalysis;
@@ -149,6 +153,7 @@ export async function createProjectSeoMonitor(
       },
     },
     {
+      origin,
       ...(approveCoverage && {
         requestIdentity: { searchConsolePropertyId, allowLimitedAudit },
         saveApproval: async (tx, scheduleId) => {

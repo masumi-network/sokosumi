@@ -12,8 +12,6 @@ import { seoMarketName } from "./seo-shared";
 const SHOWN_KEYWORDS = 3;
 
 export type SeoAnalysisLimits =
-  | { kind: "full"; usd: number; seconds: number }
-  | { kind: "standard" }
   | { kind: "requests"; count: number }
   | { kind: "free" };
 

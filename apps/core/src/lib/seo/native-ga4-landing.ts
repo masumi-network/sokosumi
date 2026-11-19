@@ -17,6 +17,11 @@ const LANDING_DIMENSION = "landingPagePlusQueryString";
 /** Inside the AI Assistant channel, the session source names the assistant (chatgpt.com, perplexity.ai and others). */
 const SOURCE_DIMENSION = "sessionSource";
 const LANDING_METRICS = ["sessions", "keyEvents"] as const;
+const ORGANIC_LANDING_METRICS = [
+  ...LANDING_METRICS,
+  "userEngagementDuration",
+  "screenPageViews",
+] as const;
 const HOST_DIMENSION = "hostName";
 /** Two rows suffice to disprove a single-host property for the selected period. */
 const HOST_ROW_LIMIT = 2;
@@ -121,7 +126,10 @@ export function ga4LandingPageArguments(
     property: query.propertyId,
     dateRanges: [{ startDate: query.from, endDate: query.to }],
     dimensions: landingDimensions(query).map((name) => ({ name })),
-    metrics: LANDING_METRICS.map((name) => ({ name })),
+    metrics: (landingChannel(query) === "organic"
+      ? ORGANIC_LANDING_METRICS
+      : LANDING_METRICS
+    ).map((name) => ({ name })),
     dimensionFilter: {
       andGroup: { expressions: landingFilters(paths, landingChannel(query)) },
     },
@@ -242,11 +250,15 @@ export function normalizeGa4LandingPages(
   )
     throw new Error("Landing page totals are incomplete");
   const dimensions = landingDimensions(query);
+  const names = report.metricHeaders.map((h) => h.name).join();
+  // A legacy response can still supply sessions and key events, without a reading-depth comparison.
+  const hasEngagement =
+    landingChannel(query) === "organic" &&
+    names === ORGANIC_LANDING_METRICS.join();
   if (
     report.dimensionHeaders.map((header) => header.name).join() !==
       dimensions.join() ||
-    report.metricHeaders.map((header) => header.name).join() !==
-      LANDING_METRICS.join()
+    (!hasEngagement && names !== LANDING_METRICS.join())
   )
     throw new Error("Analytics returned a different landing page grouping");
   const byPath = new Map<string, string>();
@@ -261,7 +273,7 @@ export function normalizeGa4LandingPages(
     const identity = JSON.stringify([path, source]);
     if (
       row.dimensionValues.length !== dimensions.length ||
-      row.metricValues.length !== LANDING_METRICS.length ||
+      row.metricValues.length !== report.metricHeaders.length ||
       !pageUrl ||
       seen.has(identity)
     )
@@ -274,8 +286,28 @@ export function normalizeGa4LandingPages(
       source,
       sessions: row.metricValues[0].value,
       keyEvents: row.metricValues[1].value,
+      ...(hasEngagement && {
+        engagementSeconds: row.metricValues[2].value,
+        views: row.metricValues[3].value,
+      }),
     };
   });
+  const skipped = skippedUrls.length ? { skippedUrls } : {};
+  if (landingChannel(query) === "organic") {
+    // The timezone comes from the very same read as the numerators and session counts.
+    const zone = report.metadata?.timeZone;
+    const complete =
+      hasEngagement &&
+      report.rowCount === sources.length &&
+      zone &&
+      zone.length <= 100;
+    return {
+      channel: "organic",
+      rows: sources.map(({ source: _source, ...row }) => row),
+      ...skipped,
+      ...(complete && { timeZone: zone }),
+    };
+  }
   const totals = new Map<string, { sessions: number; keyEvents: number }>();
   for (const row of sources) {
     const total = totals.get(row.pageUrl) ?? { sessions: 0, keyEvents: 0 };
@@ -285,9 +317,7 @@ export function normalizeGa4LandingPages(
   }
   const rows = [...totals].map(([pageUrl, total]) => ({ pageUrl, ...total }));
   // A left-out page shows "not read", never the "no sessions" of a page without a row.
-  const skipped = skippedUrls.length ? { skippedUrls } : {};
-  if (landingChannel(query) === "organic")
-    return { channel: "organic", rows, ...skipped };
+
   return {
     channel: "ai_assistant",
     rows,

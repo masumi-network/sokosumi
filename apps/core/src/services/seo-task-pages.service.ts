@@ -1,6 +1,4 @@
-import { SEO_FULL_AUDIT_CREDITS } from "@sokosumi/utils";
 import { z } from "zod";
-
 import { conflict } from "@/helpers/error";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -8,6 +6,7 @@ import {
   selectSeoRelatedPages,
 } from "@/lib/seo/related-page-selection";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { storedSeoFullAuditPriceSchema } from "@/schemas/seo-audit-price.schema";
 import {
   type SeoTaskRelatedPagesRequest,
   seoRelatedIndexingSelectionSchema,
@@ -17,10 +16,7 @@ import { requireSeoTaskAuditContext } from "./seo-task-audit-context";
 
 const indexingRequest = z.object({
   inspectRelated: z.literal(true),
-  price: z.strictObject({
-    kind: z.literal("fixed"),
-    credits: z.literal(SEO_FULL_AUDIT_CREDITS),
-  }),
+  price: storedSeoFullAuditPriceSchema,
   pageUrls: z.array(z.string()),
 });
 
@@ -52,8 +48,16 @@ export function freezeSeoTaskRelatedIndexing(
       .object({
         relatedIndexingSelection: seoRelatedIndexingSelectionSchema.optional(),
         searchConsoleAccess: z.json().optional(),
+        fullAuditBillingContext: z.json().optional(),
+        fullAuditCost: z.json().optional(),
+        pendingFullAuditCost: z.json().optional(),
       })
       .parse(analysis.request);
+    if (
+      stored.fullAuditCost !== undefined ||
+      stored.pendingFullAuditCost !== undefined
+    )
+      throw conflict("This completed audit already has a billing receipt");
     if (stored.relatedIndexingSelection)
       return {
         version: 1 as const,
@@ -79,6 +83,9 @@ export function freezeSeoTaskRelatedIndexing(
       data: {
         request: {
           ...original,
+          ...(stored.fullAuditBillingContext !== undefined && {
+            fullAuditBillingContext: stored.fullAuditBillingContext,
+          }),
           ...(stored.searchConsoleAccess !== undefined && {
             searchConsoleAccess: stored.searchConsoleAccess,
           }),

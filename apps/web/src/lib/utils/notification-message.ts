@@ -13,6 +13,7 @@ import {
   CHAT_ROOM_MESSAGES_GROUP_MESSAGE_KEY,
   CHAT_ROOM_MESSAGES_MESSAGE_KEY,
   isMentionNotification,
+  isSeoTaskCompletion,
   localizeChatMentionAllPreview,
 } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
@@ -90,7 +91,9 @@ export function getNotificationMessageTranslationKey(
   messageKey: string,
   messageParams: Record<string, unknown> = {},
 ): string {
-  const key = countedMessageKey(messageKey, messageParams);
+  const key = isSeoTaskCompletion(messageKey, messageParams)
+    ? "Notifications.Task.seoCompleted"
+    : countedMessageKey(messageKey, messageParams);
 
   if (key.startsWith("Notifications.")) {
     return `Library.${key}`;

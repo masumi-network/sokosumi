@@ -2,6 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
+import german from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
 import { seoTestWorkspace } from "./seo-test-fixture";
 import { SeoTimeline } from "./seo-timeline";
@@ -19,7 +21,7 @@ const facts = (line: string | RegExp) => (_: string, node: Element | null) =>
     : line.test(node.textContent ?? ""));
 
 describe("SEO timeline recovery", () => {
-  it("labels unrequested analysis modules separately from recorded checks", () => {
+  it("describes recorded checks in English while keeping the results link in the interface language", () => {
     const workspace = seoTestWorkspace();
     const observation = {
       id: "html",
@@ -31,7 +33,7 @@ describe("SEO timeline recovery", () => {
       sourceTaskId: null,
       countryCode: "US",
       languageCode: "en",
-      devices: ["desktop" as const],
+      devices: ["mobile" as const, "desktop" as const],
       rulebookVersion: "test",
       artifactHash: "hash",
       issues: 0,
@@ -52,21 +54,31 @@ describe("SEO timeline recovery", () => {
         detail: "",
         at: observation.observedAt,
         pageIds: observation.pageIds,
-        taskId: null,
+        taskId: "saved-audit",
         observationId: observation.id,
       },
     ];
     render(
       <NextIntlClientProvider
-        locale="en"
+        locale="de"
         timeZone="UTC"
         formats={createFormats()}
-        messages={messages}
+        messages={german}
       >
-        <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
+        <SeoResultMessagesProvider messages={messages.App.Seo}>
+          <SeoTimeline workspace={workspace} nodes={allNodes(workspace)} />
+        </SeoResultMessagesProvider>
       </NextIntlClientProvider>,
     );
-    expect(screen.getByText(facts("12 tests·desktop"))).toBeVisible();
+    expect(
+      screen.getByText(facts("12 tests·mobile and desktop")),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "No issues found" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /Nov 1, 2026\s*, Ergebnisse ansehen/ }),
+    ).toBeVisible();
     expect(
       screen.queryByText("Some requested work could not be completed."),
     ).toBeNull();

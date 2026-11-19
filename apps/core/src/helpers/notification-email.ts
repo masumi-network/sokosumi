@@ -241,6 +241,7 @@ export async function buildNotificationEmail(
         input,
         await renderTaskCompletedEmail({
           ...shared,
+          seoResult: input.metadata?.seoResult === true,
           coworkerName: readString(params, "coworkerName"),
           projectName: readString(params, "projectName"),
           taskName: readString(params, "taskName"),

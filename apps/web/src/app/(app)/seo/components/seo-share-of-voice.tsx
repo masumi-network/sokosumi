@@ -1,7 +1,11 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import {
   type SeoShareRow,
   seoShareOfVoiceCard,
@@ -21,7 +25,8 @@ export function SeoShareOfVoice({
   shareOfVoice: ProjectSeoWorkspace["shareOfVoice"];
 }) {
   const t = useTranslations("App.Seo.shareOfVoice");
-  const format = useFormatter();
+  const result = useSeoResultTranslations("App.Seo.shareOfVoice");
+  const format = useSeoResultFormatter();
   const card = seoShareOfVoiceCard(shareOfVoice);
   if (!card) return null;
   const week = (value: string) =>
@@ -32,16 +37,16 @@ export function SeoShareOfVoice({
   const percent = (share: number) =>
     format.number(share, { style: "percent", maximumFractionDigits: 1 });
   const name = (row: SeoShareRow) =>
-    row.kind === "competitor" ? (row.domain ?? "") : t(row.kind);
+    row.kind === "competitor" ? (row.domain ?? "") : result(row.kind);
   return (
     <SeoSection
       title={t("title")}
-      description={t("description", {
+      description={result("description", {
         week: week(card.weekStart),
         count: card.reads,
       })}
     >
-      <ul className="space-y-2 px-2">
+      <ul lang="en" className="space-y-2 px-2">
         {card.rows.map((row) => (
           <li
             key={`${row.kind}:${row.domain ?? ""}`}
@@ -58,7 +63,7 @@ export function SeoShareOfVoice({
               {percent(row.share)}
               {row.change !== null && card.previousWeek ? (
                 <span className="text-muted-foreground ms-2 text-xs">
-                  {t("change", {
+                  {result("change", {
                     points: format.number(row.change * 100, {
                       maximumFractionDigits: 1,
                       signDisplay: "exceptZero",
@@ -85,11 +90,11 @@ export function SeoShareOfVoice({
           </li>
         ))}
       </ul>
-      <p className="text-muted-foreground px-2 text-xs">
+      <p lang="en" className="text-muted-foreground px-2 text-xs">
         {card.previousWeek
-          ? `${t("changeNote", { week: week(card.previousWeek) })} `
+          ? `${result("changeNote", { week: week(card.previousWeek) })} `
           : null}
-        {t("method")}
+        {result("method")}
       </p>
       {card.siteWeeks.length > 1 ? (
         <details className="px-2 text-sm">

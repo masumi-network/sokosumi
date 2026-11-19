@@ -2,20 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
-import { loadWorkspaceSwitchAccounts } from "@/app/components/user-avatar/workspace-switch-accounts";
 import { TaskCanonicalUrl } from "@/app/tasks/components/task-canonical-url";
 import { TaskDetailStatusProvider } from "@/app/tasks/components/task-detail-optimistic";
 import { TaskDetailLinksProvider } from "@/app/tasks/components/task-detail-optimistic-links";
 import { TaskDetailView } from "@/app/tasks/components/task-detail-view";
-import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
 import { getPrivateCachedTask } from "@/app/tasks/utils/private-task-detail-cache";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { MarkNotificationsRead } from "@/components/notifications/mark-notifications-read.client";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { getPrivateCachedSession } from "@/lib/auth/auth.server";
-import { taskService } from "@/lib/services/task.service";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
-import { isUuidString } from "@/lib/utils/uuid";
+import { taskWorkspaceAfterMiss } from "./_lib/task-workspace-after-miss";
 
 /**
  * The task's name as the tab title, as plain text like the page heading.
@@ -77,30 +74,5 @@ export default async function TaskDetailPage({
     );
   }
 
-  // The workspace probe maps ids only. An identifier ref that missed the
-  // active workspace has nothing to switch to, so it is a plain 404.
-  if (!isUuidString(taskId)) {
-    return notFound();
-  }
-
-  const taskWorkspace = await taskService.getTaskWorkspace(taskId);
-
-  if (!taskWorkspace) {
-    return notFound();
-  }
-
-  const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  const targetOrganizationId = taskWorkspace.organizationId ?? null;
-
-  // Same workspace but task read failed — real miss, not a switch case.
-  if (activeOrganizationId === targetOrganizationId) {
-    return notFound();
-  }
-
-  return (
-    <TaskWorkspaceSwitchDialog
-      {...(await loadWorkspaceSwitchAccounts(session, targetOrganizationId))}
-      taskName={taskWorkspace.name}
-    />
-  );
+  return taskWorkspaceAfterMiss(taskId, session);
 }

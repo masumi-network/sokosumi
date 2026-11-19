@@ -82,6 +82,22 @@ export const nativeSeoMetricsSchema = z
     feedDevices: seoSearchBreakdownSchema.optional(),
     /** Google Analytics organic key events per selected landing page. Absent when the read failed or on older observations. */
     landingPages: seoLandingPagesSchema.optional(),
+    /** Private collection authority and optional independently verified preceding landing read. */
+    landingEngagementEvidence: z
+      .object({
+        connectionVersion: z.string().regex(/^[a-f0-9]{64}$/),
+        previousUnavailable: z.literal(true).optional(),
+        previous: z
+          .object({
+            from: seoDateSchema,
+            to: seoDateSchema,
+            landingPages: seoLandingPagesSchema,
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
     /** URL Inspection results for the selected pages Google answered for. Absent when none answered. */
     indexedPages: z.array(seoIndexedPageSchema).max(SEO_MAX_PAGES).optional(),
     /** Original attempt times, including failures. Only actual reads may seed another report. */

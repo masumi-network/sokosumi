@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { seoFullAuditPrice } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
   afterAll,
@@ -7,6 +8,7 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from "vitest";
 import { getEnv } from "@/config/env";
@@ -40,6 +42,7 @@ import {
   createTaskScheduleTestApp,
   jsonRequest,
 } from "@/test-fixtures/task-schedule-app";
+import workerInsights from "./__tests__/fixtures/seo-seasonal-worker-insights.json";
 import * as composio from "./composio-integration-tools.service";
 import {
   addProjectSeoPage,
@@ -680,7 +683,7 @@ describe.skipIf(!enabled)(
         },
         analysis: requestSeoAnalysisSchema.parse({
           kind: "audit_full",
-          fullAuditCredits: 750,
+          fullAuditPrice: seoFullAuditPrice(),
           pageIds: [page.id],
           countryCode: "US",
           languageCode: "en",
@@ -813,7 +816,7 @@ describe.skipIf(!enabled)(
           analysis: requestSeoAnalysisSchema.parse({
             kind: "audit_full",
             pageIds: [page.id],
-            fullAuditCredits: 750,
+            fullAuditPrice: seoFullAuditPrice(),
             countryCode: "US",
             languageCode: "en",
             idempotencyKey: "monitor-template",
@@ -875,7 +878,6 @@ describe.skipIf(!enabled)(
             `http://localhost/${taskId}/events/context-v1`,
             jsonRequest("POST", {
               status: "RUNNING",
-              credits: 1,
               expectedContext: {
                 ownerId: userId,
                 organizationId: null,
@@ -899,7 +901,7 @@ describe.skipIf(!enabled)(
         expect(await transactions()).toBe(before);
         const repaired = await start();
         expect(repaired.status).toBe(201);
-        expect(await transactions()).toBe(before + 1);
+        expect(await transactions()).toBe(before);
         await prisma.task.update({
           where: { id: first!.id },
           data: { status: "COMPLETED" },
@@ -1022,7 +1024,7 @@ describe.skipIf(!enabled)(
         read.mockImplementationOnce(replaceConsent);
         const stale = await start(manualTaskId);
         expect(stale.status).toBe(409);
-        expect(await transactions()).toBe(before + 1);
+        expect(await transactions()).toBe(before);
         expect(
           (await prisma.task.findUniqueOrThrow({ where: { id: manualTaskId } }))
             .status,
@@ -1172,7 +1174,7 @@ describe.skipIf(!enabled)(
         analysis: requestSeoAnalysisSchema.parse({
           ...analysis,
           kind: "audit_full",
-          fullAuditCredits: 750,
+          fullAuditPrice: seoFullAuditPrice(),
           devices: ["mobile", "desktop"],
           idempotencyKey: "monitor-full-audit",
           allowLimitedAudit: true,
@@ -2032,6 +2034,149 @@ describe.skipIf(!enabled)(
       ).toBe(false);
     });
 
+    it("drafts one Task for a supported seasonal page update and reuses it after a repeat audit", async () => {
+      const project = await prisma.project.create({
+        data: { workspaceId, name: "Seasonal timing fixture" },
+      });
+      const seasonalActor: SeoActor = {
+        ...actor,
+        owner: { kind: "project", id: project.id },
+      };
+      vi.useFakeTimers({ toFake: ["Date"] });
+      onTestFinished(() => {
+        vi.useRealTimers();
+      });
+      vi.setSystemTime(new Date("2026-11-19T12:00:00Z"));
+      async function seasonalAudit(audience: string, seasonYear = 2026) {
+        const task = await prisma.task.create({
+          data: {
+            name: "Public seasonal audit",
+            ownerId: userId,
+            workspaceId,
+            status: "COMPLETED",
+            assigneeId: coworkerId,
+          },
+        });
+        const report = legacyReport();
+        const body = JSON.stringify({
+          ...report,
+          header: { ...report.header, capturedAt: new Date().toISOString() },
+          seasonalReview: {
+            status: { demand: "completed", audience: "completed" },
+            insights: workerInsights.map((row) => ({
+              ...row,
+              audience,
+              asOf: `${seasonYear}-11-01`,
+              windows: row.windows.map((w) => ({
+                ...w,
+                targetPeriod: `${seasonYear}-12`,
+                historicalPeriod: `${seasonYear - 1}-12`,
+              })),
+              demand: {
+                ...row.demand,
+                months: row.demand.months.map((m) => ({
+                  ...m,
+                  year: m.year + seasonYear - 2026,
+                })),
+              },
+              url: report.request.url,
+              country: report.header.market.country,
+              language: report.header.market.language,
+            })),
+          },
+        });
+        const file = await prisma.taskFile.create({
+          data: {
+            taskId: task.id,
+            name: `seo-report-${task.id}.json`,
+            fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+            mimeType: "application/json",
+            size: BigInt(Buffer.byteLength(body)),
+            uploadedByCoworkerId: coworkerId,
+          },
+        });
+        return importProjectSeoAudit(
+          seasonalActor,
+          { taskId: task.id, fileId: file.id },
+          { fetchImpl: async () => new Response(body) },
+        );
+      }
+      const first = await seasonalAudit("Bootsbesitzer");
+      const workspace = await getProjectSeoWorkspace(seasonalActor, {});
+      const idea = workspace.seasonalIdeas?.find((row) => row.actionId);
+      const action = workspace.actions.find((a) => a.id === idea?.actionId);
+      expect(action).toMatchObject({ observationId: first.id });
+      if (!action) return;
+      const input = {
+        observationId: action.observationId,
+        actionId: action.id,
+        idempotencyKey: "seasonal-accept",
+      };
+      vi.setSystemTime(new Date("2027-01-02T12:00:00Z"));
+      await expect(
+        createProjectSeoActionTask(seasonalActor, input),
+      ).rejects.toThrow(/seasonal window has passed/i);
+      expect(
+        (await getProjectSeoWorkspace(seasonalActor, {})).actions.find(
+          (a) => a.id === action.id,
+        ),
+      ).toBeUndefined();
+      vi.setSystemTime(new Date("2026-12-31T12:00:00Z"));
+      await expect(
+        createProjectSeoActionTask(
+          { ...seasonalActor, userId: otherId, workspaceId: otherWorkspaceId },
+          input,
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+      const link = await createProjectSeoActionTask(seasonalActor, input);
+      const task = await prisma.task.findUniqueOrThrow({
+        where: { id: link.taskId },
+      });
+      expect(task).toMatchObject({ status: "DRAFT", name: action.title });
+      for (const line of action.evidence)
+        expect(task.description).toContain(line);
+      expect(task.description).not.toMatch(
+        /reviewer|bbbbbbbb|Compare a later Search Console period/,
+      );
+      const repeat = await seasonalAudit("Segler");
+      expect(repeat.id).not.toBe(first.id);
+      vi.setSystemTime(new Date("2027-01-02T12:00:00Z"));
+      expect(
+        (await createProjectSeoActionTask(seasonalActor, input)).taskId,
+      ).toBe(link.taskId);
+      const again = await getProjectSeoWorkspace(seasonalActor, {});
+      expect(again.actions.filter((a) => a.id === action.id)).toEqual([
+        expect.objectContaining({
+          taskId: link.taskId,
+          status: "task_created",
+        }),
+      ]);
+      expect(
+        (
+          await createProjectSeoActionTask(seasonalActor, {
+            ...input,
+            observationId: repeat.id,
+            idempotencyKey: "seasonal-repeat",
+          })
+        ).taskId,
+      ).toBe(link.taskId);
+      vi.setSystemTime(new Date("2027-11-19T12:00:00Z"));
+      const nextAudit = await seasonalAudit("Segler", 2027);
+      const nextWorkspace = await getProjectSeoWorkspace(seasonalActor, {});
+      const nextAction = nextWorkspace.actions.find(
+        (row) =>
+          row.observationId === nextAudit.id && row.id.startsWith("seasonal:"),
+      );
+      expect(nextAction?.status).toBe("recommended");
+      expect(nextAction!.id).not.toBe(action.id);
+      const nextTask = await createProjectSeoActionTask(seasonalActor, {
+        observationId: nextAudit.id,
+        actionId: nextAction!.id,
+        idempotencyKey: "next-season",
+      });
+      expect(nextTask.taskId).not.toBe(link.taskId);
+    });
+
     it("imports only ready owned artifacts, rechecks source authority after fetch and links each action once", async () => {
       const edit = {
         target: "head > title",
@@ -2051,6 +2196,18 @@ describe.skipIf(!enabled)(
         const report = legacyReport();
         const body = JSON.stringify({
           ...report,
+          strategyDecisions: [
+            {
+              id: "local-gap",
+              kind: "content_opportunity",
+              targetUrl: report.request.url,
+              action: "Check the missing setup step",
+              reason: "Three audited result pages describe setup.",
+              alternative: "Link the existing getting started guide.",
+              nextCheck: "Review the rendered steps after publishing.",
+              evidence: ["public-heading-record"],
+            },
+          ],
           actions: report.actions.map((action) => ({ ...action, edit })),
         });
         const file = await prisma.taskFile.create({
@@ -2096,6 +2253,37 @@ describe.skipIf(!enabled)(
         ownerId: userId,
       });
       expect(createdTask.description).toContain(JSON.stringify(edit, null, 2));
+      const workspace = await getProjectSeoWorkspace(actor, {});
+      const decision = workspace.actions.find((a) => a.decision)!;
+      const strategyTask = await createProjectSeoActionTask(actor, {
+        observationId: decision.observationId,
+        actionId: decision.id,
+        idempotencyKey: "strategy-accept",
+      });
+      const strategyRow = await prisma.task.findUniqueOrThrow({
+        where: { id: strategyTask.taskId },
+      });
+      for (const text of [
+        decision.why,
+        decision.decision!.nextCheck,
+        decision.decision!.alternative,
+        ...decision.evidence,
+      ])
+        expect(strategyRow.description).toContain(text);
+      await prisma.task.update({
+        where: { id: strategyTask.taskId },
+        data: { visibility: "PRIVATE", ownerId: otherId },
+      });
+      expect(
+        JSON.stringify(await getProjectSeoWorkspace(actor, {})),
+      ).not.toContain(strategyTask.taskId);
+      await expect(
+        createProjectSeoActionTask(actor, {
+          observationId: decision.observationId,
+          actionId: decision.id,
+          idempotencyKey: "strategy-accept",
+        }),
+      ).rejects.toMatchObject({ status: 404 });
       const changed = await source();
       await expect(
         importProjectSeoAudit(actor, changed, {

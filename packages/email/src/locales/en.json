@@ -136,6 +136,7 @@
           }
         },
         "completed": {
+          "seoButton": "Open SEO results",
           "subject": "Sokosumi - {coworkerName} completed {taskName}",
           "title": "Task completed",
           "body": "{coworkerName} completed {taskName}."
