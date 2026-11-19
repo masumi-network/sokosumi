@@ -1,4 +1,5 @@
 import { stripVTControlCharacters } from "node:util";
+import { BetterAuthError } from "@better-auth/core/error";
 import type { ComposioLogger } from "@composio/core";
 import type { BetterAuthOptions } from "better-auth/minimal";
 import { createError, type RequestLogger } from "evlog";
@@ -121,6 +122,18 @@ export function deferBetterAuthRequestLogs(log: RequestLogger) {
   };
 }
 
+function isClientOAuthStateError(error: Error): boolean {
+  // Better Auth does not export StateError, and its base class sets `name`.
+  return (
+    error instanceof BetterAuthError &&
+    error.constructor.name === "StateError" &&
+    error.cause === undefined &&
+    "code" in error &&
+    (error.code === "state_mismatch" ||
+      error.code === "state_security_mismatch")
+  );
+}
+
 /**
  * Better Auth's `logger` option. Its level stays at Better Auth's default,
  * `warn`: setting `level` at all makes Better Auth also print every API error
@@ -131,10 +144,13 @@ export const betterAuthLogger = {
     const request = tryUseLiveLogger();
     const pending = request ? pendingBetterAuthLogs.get(request) : undefined;
     const write = (clientRedirect = false) => {
+      const errors = args.filter(Error.isError);
       const downgrade =
-        clientRedirect &&
+        pending !== undefined &&
         (level === "warn" || level === "error") &&
-        !args.some(Error.isError);
+        (errors.length === 0
+          ? clientRedirect
+          : errors.every(isClientOAuthStateError));
       logLibraryMessage(
         "better-auth",
         downgrade ? "info" : level,

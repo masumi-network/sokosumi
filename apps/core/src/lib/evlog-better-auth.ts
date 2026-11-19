@@ -1,3 +1,4 @@
+import { getCookies, parseSetCookieHeader } from "better-auth/cookies";
 import { createAuthMiddleware } from "evlog/better-auth";
 import type { EvlogVariables } from "evlog/hono";
 import type { MiddlewareHandler } from "hono";
@@ -30,10 +31,30 @@ function isClientCausedRedirect(
 ): boolean {
   if (response.status < 300 || response.status >= 400) return false;
   const location = response.headers.get("location");
-  if (!location) return false;
+  const errorURL = auth.options.onAPIError?.errorURL;
+  if (!location || !errorURL) return false;
 
-  const errors = URL.parse(location, requestUrl)?.searchParams.getAll("error");
-  return errors?.length === 1 && CLIENT_AUTH_REDIRECT_ERRORS.has(errors[0]);
+  const redirect = URL.parse(location, requestUrl);
+  const errorPage = URL.parse(errorURL, requestUrl);
+  if (
+    !redirect ||
+    !errorPage ||
+    redirect.origin !== errorPage.origin ||
+    redirect.pathname !== errorPage.pathname
+  ) {
+    return false;
+  }
+
+  const errors = redirect.searchParams.getAll("error");
+  if (errors.length !== 1 || !CLIENT_AUTH_REDIRECT_ERRORS.has(errors[0])) {
+    return false;
+  }
+
+  // The error page itself can also be the callback URL of a successful sign-in.
+  const setCookie = response.headers.get("set-cookie");
+  if (!setCookie) return true;
+  const { sessionToken } = getCookies(auth.options);
+  return !parseSetCookieHeader(setCookie).get(sessionToken.name)?.value;
 }
 
 export function betterAuthEvlogMiddleware(): MiddlewareHandler<EvlogVariables> {
