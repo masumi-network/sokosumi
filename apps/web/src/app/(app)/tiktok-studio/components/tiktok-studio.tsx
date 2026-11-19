@@ -192,7 +192,7 @@ export function TikTokStudio({
       initialVideos.jobs.find((job) => ACTIVE_STATUSES.has(job.status))?.id ??
       null,
   );
-  /** Which finished videos' files loaded or failed, by asset. */
+  /** What the stage player found for each finished video's file, by asset. */
   const [playback, setPlayback] = useState<Record<string, Playback>>({});
   const photoInput = useRef<HTMLInputElement>(null);
   const stage = useRef<HTMLElement>(null);
@@ -427,17 +427,76 @@ export function TikTokStudio({
           assetFor={assetFor}
           jobs={videos.jobs}
           onNew={readOnly ? undefined : startNew}
-          onPlayback={markPlayback}
           onSelect={(job) => showOnStage(job.id)}
           playbackFor={playbackFor}
           selectedId={stageJob?.id ?? null}
         />
       ) : null}
+      <section
+        aria-label={stageJob ? t("stageVideo") : t("preview")}
+        className={cn(
+          HOLDER_CLASS,
+          // The library and the form share the first column; the stage stays beside
+          // both. It comes before the form so the keyboard reaches it first.
+          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1",
+          APP_MAIN_MOBILE_SCROLL_MT_CLASS,
+          // On a phone a started video leads the page; the preview follows the steps.
+          stageJob ? "max-lg:order-first" : "max-lg:order-last",
+        )}
+        ref={stage}
+      >
+        <div className="mx-auto flex w-full max-w-72 flex-col gap-2 lg:max-w-none">
+          {stageJob ? (
+            <StageJob
+              asset={stageAsset}
+              // Each video's own retry: a failure elsewhere never takes focus.
+              key={stageJob.id}
+              onPlayback={(next) => {
+                if (stageAsset) markPlayback(stageAsset, next);
+              }}
+              playback={stageAsset ? playbackFor(stageAsset) : undefined}
+              image={presenterImage(stageJob.talkingVideo?.presenterId)}
+              job={stageJob}
+              onPost={readOnly ? undefined : handlePost}
+              postLabel={t(tikTokEnabled ? "postToTikTok" : "post")}
+              onReuse={() => reuse(stageJob)}
+              posting={posting}
+            />
+          ) : (
+            <StagePreview
+              image={ownPhoto ? photo?.previewUrl : presenterImage(presenterId)}
+              missingPhoto={ownPhoto && !photo}
+              script={trimmed}
+            />
+          )}
+          <div className="flex min-h-8 items-center justify-between gap-2 px-1">
+            <p className="text-muted-foreground line-clamp-2 text-xs">
+              {stageJob
+                ? stageJob.prompt
+                : t("previewMeta", {
+                    voice,
+                    language: languageNames.of(languageCode) ?? languageCode,
+                  })}
+            </p>
+            {stageJob ? (
+              <Button
+                className="shrink-0"
+                // A read-only project has no form to go to.
+                onClick={readOnly ? () => setStageJobId(null) : startNew}
+                size="sm"
+                variant="ghost"
+              >
+                {t("newVideo")}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </section>
       <form
         aria-label={t("formLabel")}
         className={cn(
           HOLDER_CLASS,
-          "flex min-w-0 scroll-mt-2 flex-col gap-2 outline-none",
+          "focus-visible:ring-ring focus-visible:ring-offset-background flex min-w-0 scroll-mt-2 flex-col gap-2 outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
           APP_MAIN_MOBILE_SCROLL_MT_CLASS,
         )}
         ref={form}
@@ -747,63 +806,6 @@ export function TikTokStudio({
           {problemFor("make")}
         </Step>
       </form>
-
-      <section
-        aria-label={stageJob ? t("stageVideo") : t("preview")}
-        className={cn(
-          HOLDER_CLASS,
-          // The library and the form share the first column; the stage stays beside both.
-          "flex min-w-0 scroll-mt-2 flex-col gap-2 lg:sticky lg:top-0 lg:col-start-2 lg:row-span-2 lg:row-start-1",
-          APP_MAIN_MOBILE_SCROLL_MT_CLASS,
-          // On a phone a started video leads the page; the preview follows the steps.
-          stageJob && "max-lg:order-first",
-        )}
-        ref={stage}
-      >
-        <div className="mx-auto flex w-full max-w-72 flex-col gap-2 lg:max-w-none">
-          {stageJob ? (
-            <StageJob
-              asset={stageAsset}
-              onPlayback={(next) => {
-                if (stageAsset) markPlayback(stageAsset, next);
-              }}
-              playback={stageAsset ? playbackFor(stageAsset) : undefined}
-              image={presenterImage(stageJob.talkingVideo?.presenterId)}
-              job={stageJob}
-              onPost={readOnly ? undefined : handlePost}
-              postLabel={t(tikTokEnabled ? "postToTikTok" : "post")}
-              onReuse={() => reuse(stageJob)}
-              posting={posting}
-            />
-          ) : (
-            <StagePreview
-              image={ownPhoto ? photo?.previewUrl : presenterImage(presenterId)}
-              missingPhoto={ownPhoto && !photo}
-              script={trimmed}
-            />
-          )}
-          <div className="flex min-h-8 items-center justify-between gap-2 px-1">
-            <p className="text-muted-foreground line-clamp-2 text-xs">
-              {stageJob
-                ? stageJob.prompt
-                : t("previewMeta", {
-                    voice,
-                    language: languageNames.of(languageCode) ?? languageCode,
-                  })}
-            </p>
-            {stageJob ? (
-              <Button
-                className="shrink-0"
-                onClick={startNew}
-                size="sm"
-                variant="ghost"
-              >
-                {t("newVideo")}
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </section>
 
       {composeVideo ? (
         <TikTokComposer

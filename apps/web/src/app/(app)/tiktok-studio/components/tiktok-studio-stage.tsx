@@ -6,7 +6,8 @@ import type {
 } from "@sokosumi/core-client";
 import { Download, RotateCcw, Send, VideoOff } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { assetContentUrl } from "@/app/projects/components/image-studio/types";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +24,11 @@ export const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
 const SLOW_AFTER_SECONDS = 300;
 
 export type TalkingVideoAsset = ProjectTalkingVideos["assets"][number];
-/** Whether a finished video's file loaded; unknown until it answers. */
-export type Playback = "ready" | "failed" | undefined;
+/**
+ * What the stage player found for a finished video's file: it plays, it
+ * failed, or it is being tried again after a failure. Unknown until then.
+ */
+export type Playback = "ready" | "failed" | "retrying" | undefined;
 
 /** The 9:16 frame every state of a video is shown in. */
 function Frame({ image, children }: { image?: string; children?: ReactNode }) {
@@ -69,23 +73,160 @@ export function StagePreview({
   );
 }
 
-function Elapsed({ since }: { since: Date }) {
-  const t = useTranslations("App.TikTokStudio");
+/** Seconds since a moment, ticking each second once mounted on the client. */
+function useElapsedSeconds(since: Date): number | null {
   const [now, setNow] = useState<number | null>(null);
   useMountEffect(() => {
     setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   });
-  if (now === null) return null;
-  const seconds = Math.max(0, Math.floor((now - since.getTime()) / 1000));
-  const time = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return now === null
+    ? null
+    : Math.max(0, Math.floor((now - since.getTime()) / 1000));
+}
+
+const clock = (seconds: number) =>
+  `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+/** How long a video has been in the making, as m:ss. */
+export function ElapsedTime({ since }: { since: Date }) {
+  const seconds = useElapsedSeconds(since);
+  return seconds === null ? null : <>{clock(seconds)}</>;
+}
+
+function Elapsed({ since }: { since: Date }) {
+  const t = useTranslations("App.TikTokStudio");
+  const seconds = useElapsedSeconds(since);
+  if (seconds === null) return null;
   return (
     <>
-      <span className="text-2xl font-light tabular-nums">{time}</span>
+      <span className="text-2xl font-light tabular-nums">{clock(seconds)}</span>
       <span className="text-on-media-muted text-xs">
         {seconds > SLOW_AFTER_SECONDS ? t("makingSlow") : t("makingHint")}
       </span>
+    </>
+  );
+}
+
+/** A finished video on the stage, or why its file does not play. */
+function FinishedVideo({
+  job,
+  asset,
+  playback,
+  onPlayback,
+  posting,
+  onPost,
+  postLabel,
+}: {
+  job: ProjectImageJob;
+  asset: TalkingVideoAsset;
+  playback: Playback;
+  onPlayback: (playback: Playback) => void;
+  posting: boolean;
+  postLabel: string;
+  onPost?: (asset: TalkingVideoAsset) => void;
+}) {
+  const t = useTranslations("App.TikTokStudio");
+  const player = useRef<HTMLDivElement>(null);
+  /** This stage tried the file again, so a new failure takes focus. */
+  const [retried, setRetried] = useState(false);
+  const focusOnMount = useCallback((button: HTMLButtonElement | null) => {
+    button?.focus();
+  }, []);
+
+  // Off only once the file is known to fail, until a retry really plays.
+  const blocked = playback === "failed" || playback === "retrying";
+  const retry = () => {
+    flushSync(() => {
+      setRetried(true);
+      onPlayback("retrying");
+    });
+    player.current?.focus();
+  };
+  return (
+    <>
+      <div
+        className="focus-visible:ring-ring focus-visible:ring-offset-background rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        ref={player}
+        tabIndex={-1}
+      >
+        {playback === "failed" ? (
+          <Frame>
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-6 text-center"
+              role="alert"
+            >
+              <VideoOff
+                aria-hidden
+                className="text-muted-foreground mb-2 size-6"
+              />
+              <span className="text-sm font-medium">{t("loadFailed")}</span>
+              <span className="text-muted-foreground text-xs text-balance">
+                {t("loadFailedBody")}
+              </span>
+              <Button
+                className="mt-3"
+                onClick={retry}
+                ref={retried ? focusOnMount : undefined}
+                size="sm"
+              >
+                <RotateCcw aria-hidden />
+                {t("tryAgain")}
+              </Button>
+            </div>
+          </Frame>
+        ) : (
+          <div className="bg-media-ground aspect-9/16 w-full overflow-hidden rounded-lg">
+            <video
+              aria-label={job.prompt}
+              className="content-in size-full object-cover"
+              controls
+              key={asset.id}
+              onCanPlay={() => onPlayback("ready")}
+              onError={() => onPlayback("failed")}
+              playsInline
+              preload={playback === "retrying" ? "auto" : "metadata"}
+              src={assetContentUrl(asset)}
+            />
+          </div>
+        )}
+      </div>
+      {playback === "retrying" ? (
+        <p className="text-muted-foreground px-1 text-xs" role="status">
+          {t("checking")}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* A file known to be missing downloads nothing. */}
+        {!blocked ? (
+          <Button asChild className="flex-1">
+            <a download href={assetContentUrl(asset, { download: true })}>
+              <Download aria-hidden />
+              {t("download")}
+            </a>
+          </Button>
+        ) : (
+          <Button className="flex-1" disabled>
+            <Download aria-hidden />
+            {t("download")}
+          </Button>
+        )}
+        {onPost ? (
+          <Button
+            className="flex-1"
+            disabled={blocked}
+            loading={posting}
+            onClick={() => onPost(asset)}
+          >
+            <Send aria-hidden />
+            {postLabel}
+          </Button>
+        ) : null}
+      </div>
+      <Badge className="self-start" title={t("aiLabelHint")} variant="outline">
+        {t("aiLabel")}
+      </Badge>
     </>
   );
 }
@@ -105,7 +246,7 @@ export function StageJob({
   job: ProjectImageJob;
   asset: TalkingVideoAsset | null;
   playback: Playback;
-  /** The file loaded, failed, or is to be tried again (undefined). */
+  /** What this stage player found; only the stage reports it. */
   onPlayback: (playback: Playback) => void;
   /** The presenter's picture, shown while the video is made. */
   image?: string;
@@ -117,83 +258,16 @@ export function StageJob({
   const t = useTranslations("App.TikTokStudio");
 
   if (asset) {
-    const ready = playback === "ready";
     return (
-      <>
-        {playback === "failed" ? (
-          <Frame>
-            <div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-6 text-center"
-              role="alert"
-            >
-              <VideoOff
-                aria-hidden
-                className="text-muted-foreground mb-2 size-6"
-              />
-              <span className="text-sm font-medium">{t("loadFailed")}</span>
-              <span className="text-muted-foreground text-xs text-balance">
-                {t("loadFailedBody")}
-              </span>
-              <Button
-                className="mt-3"
-                onClick={() => onPlayback(undefined)}
-                size="sm"
-              >
-                <RotateCcw aria-hidden />
-                {t("tryAgain")}
-              </Button>
-            </div>
-          </Frame>
-        ) : (
-          <div className="bg-media-ground aspect-9/16 w-full overflow-hidden rounded-lg">
-            <video
-              aria-label={job.prompt}
-              className="content-in size-full object-cover"
-              controls
-              key={asset.id}
-              onError={() => onPlayback("failed")}
-              onLoadedMetadata={() => onPlayback("ready")}
-              playsInline
-              preload="metadata"
-              src={assetContentUrl(asset)}
-            />
-          </div>
-        )}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Off until the file plays: a missing file downloads nothing. */}
-          {ready ? (
-            <Button asChild className="flex-1">
-              <a download href={assetContentUrl(asset, { download: true })}>
-                <Download aria-hidden />
-                {t("download")}
-              </a>
-            </Button>
-          ) : (
-            <Button className="flex-1" disabled>
-              <Download aria-hidden />
-              {t("download")}
-            </Button>
-          )}
-          {onPost ? (
-            <Button
-              className="flex-1"
-              disabled={!ready}
-              loading={posting}
-              onClick={() => onPost(asset)}
-            >
-              <Send aria-hidden />
-              {postLabel}
-            </Button>
-          ) : null}
-        </div>
-        <Badge
-          className="self-start"
-          title={t("aiLabelHint")}
-          variant="outline"
-        >
-          {t("aiLabel")}
-        </Badge>
-      </>
+      <FinishedVideo
+        asset={asset}
+        job={job}
+        onPlayback={onPlayback}
+        onPost={onPost}
+        playback={playback}
+        postLabel={postLabel}
+        posting={posting}
+      />
     );
   }
 

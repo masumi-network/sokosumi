@@ -4471,7 +4471,8 @@
       "videoUnavailable": "No disponible",
       "loadFailed": "No se pudo cargar el vídeo",
       "loadFailedBody": "El archivo no llegó. Inténtalo de nuevo en un momento.",
-      "tryAgain": "Intentar de nuevo"
+      "tryAgain": "Intentar de nuevo",
+      "checking": "Comprobando el vídeo. Si no empieza, pulsa reproducir."
     },
     "Studio": {
       "back": "Volver al proyecto",

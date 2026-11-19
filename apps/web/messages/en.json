@@ -4471,7 +4471,8 @@
       "videoUnavailable": "Unavailable",
       "loadFailed": "Failed to load video",
       "loadFailedBody": "Its file did not come through. Try again in a moment.",
-      "tryAgain": "Try again"
+      "tryAgain": "Try again",
+      "checking": "Checking the video. If it does not start, press play."
     },
     "Studio": {
       "back": "Back to project",
