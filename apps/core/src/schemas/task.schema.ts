@@ -435,7 +435,8 @@ const taskListItemSchema = taskBaseSchema
       description:
         "True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.",
     }),
-    // Optional on the wire for the same deploy-order reason.
+    // Optional on the wire for the same deploy-order reason, and because
+    // only people get it.
     openSubtasks: z
       .array(
         z
@@ -451,7 +452,7 @@ const taskListItemSchema = taskBaseSchema
       .openapi({
         example: [],
         description:
-          "The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them.",
+          "The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.",
       }),
   })
   .openapi("TaskListItem");

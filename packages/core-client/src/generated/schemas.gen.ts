@@ -61677,7 +61677,7 @@ export const TaskListItemSchema = {
                 $ref: '#/components/schemas/TaskOpenSubtask'
             },
             example: [],
-            description: 'The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them.'
+            description: 'The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.'
         }
     },
     required: [

@@ -15528,7 +15528,7 @@ export type TaskListItem = {
      */
     hasUnansweredMention?: boolean;
     /**
-     * The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them.
+     * The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.
      */
     openSubtasks?: Array<TaskOpenSubtask>;
 };
