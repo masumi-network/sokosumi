@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { TaskDueBadge } from "@/app/tasks/components/task-due-badge";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import { usePageSearchPagination } from "@/components/page-list-search";
 import { Button } from "@/components/ui/button";
 
 import { loadMoreMyDay } from "../actions";
@@ -82,8 +81,6 @@ export function MyDayList({ today, initial }: MyDayListProps) {
       });
     });
   }
-
-  usePageSearchPagination(cursor, isPending, handleShowMore, "find");
 
   return (
     <>

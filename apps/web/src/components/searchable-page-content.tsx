@@ -31,20 +31,17 @@ export function SearchablePageContent({
   const content = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [totals, setTotals] = useState({ lists: 0, hits: 0, partial: 0 });
-  const register = useCallback(
-    (size: number, hasMore: boolean, mode: "find" | "filter" = "filter") => {
-      function update(delta: number) {
-        setTotals((current) => ({
-          lists: current.lists + (mode === "filter" ? delta : 0),
-          hits: current.hits + delta * size,
-          partial: current.partial + (hasMore ? delta : 0),
-        }));
-      }
-      update(1);
-      return () => update(-1);
-    },
-    [],
-  );
+  const register = useCallback((size: number, hasMore: boolean) => {
+    function update(delta: number) {
+      setTotals((current) => ({
+        lists: current.lists + delta,
+        hits: current.hits + delta * size,
+        partial: current.partial + (hasMore ? delta : 0),
+      }));
+    }
+    update(1);
+    return () => update(-1);
+  }, []);
   const context = useMemo(
     () => ({ query, setQuery, register }),
     [query, register],
@@ -79,7 +76,6 @@ interface ToolbarProps {
 }
 
 const DASHBOARD_PATHS = [
-  "/",
   "/studio",
   "/tiktok-studio",
   "/ads",
@@ -170,9 +166,7 @@ function SearchToolbar({
           >
             {find.count
               ? t("position", { current: find.index + 1, total: find.count })
-              : partial
-                ? t("loadedResults", { count: 0 })
-                : t("noMatches")}
+              : t("noMatches")}
           </span>
           <Button
             type="button"

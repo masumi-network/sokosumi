@@ -14,11 +14,7 @@ export const PageListSearchContext = createContext<{
   query: string;
   /** A deep link can open the page with a search already filled in. */
   setQuery?: (value: string) => void;
-  register: (
-    hits: number,
-    hasMore: boolean,
-    mode?: "filter" | "find",
-  ) => () => void;
+  register: (hits: number, hasMore: boolean) => () => void;
 } | null>(null);
 
 export function usePageSearchQuery() {
@@ -59,15 +55,14 @@ export function usePageSearchPagination(
   cursor: string | null | undefined,
   busy: boolean,
   loadMore: () => unknown,
-  mode: "filter" | "find" = "filter",
 ) {
   const context = useContext(PageListSearchContext);
   const searching = Boolean(context?.query.trim());
   const register = context?.register;
   const partial = Boolean(cursor);
   useEffect(
-    () => (partial ? register?.(0, true, mode) : undefined),
-    [partial, register, mode],
+    () => (partial ? register?.(0, true) : undefined),
+    [partial, register],
   );
   const requested = useRef<string | null>(null);
   const load = useEffectEvent(loadMore);

@@ -95,6 +95,25 @@ describe("page content search", () => {
     },
   );
 
+  it("leaves browser find available on Home", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={english}>
+        <PathnameContext.Provider value="/">
+          <SearchablePageContent sidebar>
+            <h1>Home</h1>
+          </SearchablePageContent>
+        </PathnameContext.Provider>
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "Home" })).toBeVisible();
+    expect(screen.queryByRole("searchbox")).toBeNull();
+    for (const modifier of ["ctrlKey", "metaKey"]) {
+      expect(fireEvent.keyDown(window, { key: "f", [modifier]: true })).toBe(
+        true,
+      );
+    }
+  });
+
   it("keeps the field focused and the query active across tabs within the same project", () => {
     function dashboard(params: string) {
       return (
