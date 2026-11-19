@@ -123,6 +123,8 @@ export interface CmoOverview {
   onboardingStep: CmoOnboardingStep;
   /** The image or video attached to each calendar piece, viewable by URL. */
   media: CmoCalendarMedia[];
+  /** Each month post's revision by post id, for an owner's edit of its words. */
+  postRevisions: Record<string, number>;
   /** Cuso's Workspace's organization, when it is not a personal one. */
   organizationSlug: string | null;
   projectName: string;
@@ -461,6 +463,9 @@ export async function getCmoOverview(
       hasTesterCredits: billing.hasTesterCredits,
     }),
     media,
+    postRevisions: Object.fromEntries(
+      posts.map((post) => [post.entry.id, post.revision]),
+    ),
     learning,
     work,
     activity,

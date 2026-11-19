@@ -53216,6 +53216,13 @@ export const CmoOverviewSchema = {
             },
             description: 'The image or video Cuso attached to each calendar piece, by entry id.'
         },
+        postRevisions: {
+            type: 'object',
+            additionalProperties: {
+                type: 'integer'
+            },
+            description: 'The revision of each Social post of the month, by post id: what an owner\'s edit of its words names (PATCH drafts/{postId}).'
+        },
         strategyVersion: {
             anyOf: [
                 {
@@ -53453,6 +53460,7 @@ export const CmoOverviewSchema = {
         'strategy',
         'approvedStrategy',
         'media',
+        'postRevisions',
         'strategyVersion',
         'strategyVersions',
         'hiredAt',

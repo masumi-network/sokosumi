@@ -29,6 +29,8 @@ function entry(
 ): Entry {
   return {
     id: `e${day}-${channel}`,
+    // A social piece is a Social post once the month is approved.
+    ...(channel === "newsletter" ? {} : { socialPostId: `e${day}-${channel}` }),
     date: `2026-11-${String(day).padStart(2, "0")}`,
     time: "09:00",
     channel,
@@ -56,7 +58,11 @@ const calendar: Entry[] = [
   }),
   entry(11, "x", "What a slipped launch costs", { status: "draft" }),
   entry(13, "linkedin", "How we plan a launch window", { status: "draft" }),
-  entry(16, "facebook", "Meet the crew", { imageFileId: "f6" }),
+  // Facebook is not connected: written, and waiting for the owner.
+  entry(16, "facebook", "Meet the crew", {
+    imageFileId: "f6",
+    status: "draft",
+  }),
   entry(17, "instagram", "Why launches slip", {
     format: "talking_video",
     alsoOn: ["youtube", "facebook"],
@@ -218,6 +224,11 @@ export const overview: CmoOverview = cmoOverview({
     },
   ],
   adProviders: ["google_ads"],
+  postRevisions: Object.fromEntries(
+    calendar.flatMap((item) =>
+      item.socialPostId ? [[item.socialPostId, 1]] : [],
+    ),
+  ),
   mailingListSize: 128,
   billing: cmoBilling({
     tier: "growth",

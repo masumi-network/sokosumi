@@ -655,6 +655,11 @@ export const cmoOverviewSchema = z
       .describe(
         "The image or video Cuso attached to each calendar piece, by entry id.",
       ),
+    postRevisions: z
+      .record(z.string(), z.number().int())
+      .describe(
+        "The revision of each Social post of the month, by post id: what an owner's edit of its words names (PATCH drafts/{postId}).",
+      ),
     strategyVersion: z
       .union([marketingStrategyVersionSchema, z.null()])
       .describe(

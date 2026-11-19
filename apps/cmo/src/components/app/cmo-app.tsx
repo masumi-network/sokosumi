@@ -518,6 +518,7 @@ export function CmoApp({
                 <CalendarPage
                   overview={overview}
                   drafts={draftActions}
+                  onConnect={() => go("channels")}
                   loadText={actions.loadPieceText}
                   pieceExtra={(entry) => (
                     <>

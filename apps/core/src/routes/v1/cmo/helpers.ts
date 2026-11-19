@@ -53,6 +53,7 @@ function mapOverview(overview: CmoOverview) {
     strategy: overview.strategy,
     approvedStrategy: overview.approvedStrategy,
     media: overview.media,
+    postRevisions: overview.postRevisions,
     strategyVersion: overview.strategyVersions[0] ?? null,
     strategyVersions: overview.strategyVersions,
     hiredAt: overview.hiredAt,
