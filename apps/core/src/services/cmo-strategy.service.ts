@@ -16,7 +16,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { isCmoTalkingFormat } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
-import { keepAnswers } from "@/helpers/question-answers";
+import { keepAnswers, sameQuestion } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import {
@@ -969,7 +969,17 @@ export async function saveCmoStrategy(
     // The ad budget the owner set is theirs: Cuso's saves plan around it.
     const parsed = keepOwnerAds({
       ...whole,
-      questions: keepAnswers(whole.questions, before?.questions ?? []),
+      questions: keepAnswers(
+        options.turnId
+          ? await withoutBrandBrainRepeats(
+              cuso.projectId,
+              whole.questions,
+              before?.questions ?? [],
+              db,
+            )
+          : whole.questions,
+        before?.questions ?? [],
+      ),
       proposals: whole.proposals.filter(
         (proposal) => !running.has(proposal.channel),
       ),
@@ -1126,6 +1136,34 @@ export function withLineBreaks<
         : entry,
     ),
   };
+}
+
+/**
+ * A check of the strategy never asks again what the Brand Brain's questions
+ * asked: the owner has seen those, answered or skipped. A check already on
+ * the strategy stays, so nothing the owner is answering disappears.
+ */
+async function withoutBrandBrainRepeats(
+  projectId: string,
+  questions: CmoPlanQuestion[],
+  stored: CmoPlanQuestion[],
+  db: Pick<Prisma.TransactionClient, "brandBrain">,
+): Promise<CmoPlanQuestion[]> {
+  if (questions.length === 0) return questions;
+  const brain = parseBrandBrain(
+    (
+      await db.brandBrain.findUnique({
+        where: { projectId },
+        select: { body: true },
+      })
+    )?.body,
+  );
+  const asked = brain?.questions ?? [];
+  return questions.filter(
+    (question) =>
+      stored.some((kept) => kept.id === question.id) ||
+      !asked.some((earlier) => sameQuestion(earlier, question)),
+  );
 }
 
 /** The newest version CMO shows, or "Cuso has not written it yet". */
