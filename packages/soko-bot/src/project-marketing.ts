@@ -420,7 +420,11 @@ export const cmoCalendarEntrySchema = z.object({
    * makes it from this, attaches it and makes each carousel slide.
    */
   visual: longText.optional(),
-  /** Brand pictures (brandPictures fileIds) the visual is made from. */
+  /**
+   * Brand pictures (brandPictures fileIds) the visual is made from. A styled
+   * picture shows them inside its style, so it names one only when it must
+   * show that page, screen or product.
+   */
   visualFileIds: z.array(z.string().max(100)).max(3).optional(),
   /**
    * A reference library image (find_style_references) whose look the
@@ -435,6 +439,11 @@ export const cmoCalendarEntrySchema = z.object({
   headline: z.string().trim().min(1).max(60).optional(),
   /** A carousel's slides in order: what each one shows and its few words. */
   slides: z.array(shortText).max(10).optional(),
+  /**
+   * A styled carousel's words: one entry per slide, in order, lettered into
+   * that slide and spelled exactly.
+   */
+  slideHeadlines: z.array(z.string().trim().min(1).max(60)).max(10).optional(),
   /**
    * A talking video's spoken words, hook first, in the brand's own voice.
    * Never a customer's account. The post's draft is its caption.
@@ -513,6 +522,7 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   styleReferenceId: true,
   headline: true,
   slides: true,
+  slideHeadlines: true,
   script: true,
   presenter: true,
   voice: true,
