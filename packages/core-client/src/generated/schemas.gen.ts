@@ -32889,6 +32889,15 @@ export const MarketingStrategySchema = {
                                         },
                                         maxItems: 10
                                     },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
+                                        },
+                                        maxItems: 10
+                                    },
                                     script: {
                                         type: 'string',
                                         minLength: 20,
@@ -33245,6 +33254,15 @@ export const MarketingStrategySchema = {
                                                     type: 'string',
                                                     minLength: 1,
                                                     maxLength: 400
+                                                },
+                                                maxItems: 10
+                                            },
+                                            slideHeadlines: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 60
                                                 },
                                                 maxItems: 10
                                             },
@@ -34704,6 +34722,15 @@ export const MarketingStrategyRequestSchema = {
                                 },
                                 maxItems: 10
                             },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
+                                },
+                                maxItems: 10
+                            },
                             script: {
                                 type: 'string',
                                 minLength: 20,
@@ -35060,6 +35087,15 @@ export const MarketingStrategyRequestSchema = {
                                             type: 'string',
                                             minLength: 1,
                                             maxLength: 400
+                                        },
+                                        maxItems: 10
+                                    },
+                                    slideHeadlines: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 60
                                         },
                                         maxItems: 10
                                     },
@@ -41353,6 +41389,15 @@ export const SocialPostSchema = {
                         type: 'string',
                         minLength: 1,
                         maxLength: 400
+                    },
+                    maxItems: 10
+                },
+                slideHeadlines: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 60
                     },
                     maxItems: 10
                 },
@@ -55125,6 +55170,15 @@ export const CmoPlanSchema = {
                         },
                         maxItems: 10
                     },
+                    slideHeadlines: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 60
+                        },
+                        maxItems: 10
+                    },
                     script: {
                         type: 'string',
                         minLength: 20,
@@ -55481,6 +55535,15 @@ export const CmoPlanSchema = {
                                     type: 'string',
                                     minLength: 1,
                                     maxLength: 400
+                                },
+                                maxItems: 10
+                            },
+                            slideHeadlines: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 60
                                 },
                                 maxItems: 10
                             },

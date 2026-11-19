@@ -32,6 +32,8 @@ export const connectionFindMany = vi.fn();
 export const workspaceFindUnique = vi.fn();
 export const postFindFirst = vi.fn();
 export const postFindMany = vi.fn();
+/** Reference library rows a save's style ids are looked up in. */
+export const referenceFindMany = vi.fn();
 export const postUpdate = vi.fn();
 export const postCreateMany = vi.fn();
 export const postUpdateMany = vi.fn();
@@ -271,6 +273,7 @@ const client = {
     createMany: postCreateMany,
     updateMany: postUpdateMany,
   },
+  referenceImage: { findMany: referenceFindMany },
   // No piece of the approved version is written to Files unless a test says so.
   marketingStrategyFile: { findMany: async () => [] },
   // Calendar times read in UTC unless a test gives Cuso's rhythms a zone.
@@ -415,6 +418,7 @@ export function resetCmoServiceMocks(): void {
   fileLinkFindMany.mockResolvedValue([]);
   // No Social posts or connections unless a test seeds them.
   postFindMany.mockResolvedValue([]);
+  referenceFindMany.mockResolvedValue([]);
   connectionFindMany.mockResolvedValue([]);
   // The Cuso a member works with is the one `cusoFind` stands for here, in
   // the business's organization.

@@ -426,7 +426,7 @@ describe("cmoProductionMessage", () => {
     );
   });
 
-  it("asks for picture styles only where the reference library is set up and a piece has a picture", () => {
+  it("asks for a style on every picture, slides included, only where the reference library is set up", () => {
     const withPicture = [entry({ id: "a", format: "image" })];
     const input = {
       businessName: "Acme",
@@ -436,14 +436,25 @@ describe("cmoProductionMessage", () => {
       attempt: 1,
       topUp: false,
     };
-    expect(cmoProductionMessage({ ...input, styles: true })).toContain(
-      "call find_style_references",
-    );
+    const brief = cmoProductionMessage({ ...input, styles: true });
+    expect(brief).toContain("every piece with a picture takes the look");
+    expect(brief).toContain("send visualFileIds as an empty list");
     expect(cmoProductionMessage(input)).not.toContain("find_style_references");
-    // Text has no picture; a carousel's slides each carry their own words.
+    const carousel = [
+      entry({ id: "c", channel: "instagram", format: "carousel" }),
+    ];
+    expect(
+      cmoProductionMessage({
+        ...input,
+        strategy: strategy(carousel),
+        pending: carousel.map((item) => piece(item)),
+        styles: true,
+      }),
+    ).toContain("slideHeadlines: one entry per slide");
+    // Text has no picture, and a video is animated from a plain still.
     for (const patch of [
       { id: "b" },
-      { id: "c", channel: "instagram", format: "carousel" },
+      { id: "v", channel: "tiktok", format: "video" },
     ]) {
       const other = [entry(patch)];
       expect(
