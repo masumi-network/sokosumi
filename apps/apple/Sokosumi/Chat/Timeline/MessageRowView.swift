@@ -431,11 +431,11 @@ import SwiftUI
       switch part {
       case let .sokoBotSource(label):
         SokoBotSourceLabelView(label: label)
-      case let .failedMention(aiBudgetExceeded, isSokoBot):
+      case let .failedMention(aiBudgetExceeded, isSokoBot, isCancelled):
         CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention,
-                                  aiBudgetExceeded: aiBudgetExceeded, isSokoBot: isSokoBot)
-      case let .backgroundFailure(title, kind):
-        SokoBotBackgroundFailureView(title: title, kind: kind)
+                                  aiBudgetExceeded: aiBudgetExceeded, isSokoBot: isSokoBot, isCancelled: isCancelled)
+      case let .backgroundFailure(title, kind, noticeMention):
+        backgroundFailureBody(title: title, kind: kind, noticeMention: noticeMention)
       case let .thought(startedAt, shellWorking):
         CoworkerThoughtView(thought: CoworkerThought(message: message), working: streamThinking || shellWorking,
                             startedAt: startedAt)
@@ -468,6 +468,15 @@ import SwiftUI
 
     private var markdownBody: some View {
       MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
+    }
+
+    private func backgroundFailureBody(title: String, kind: SokoBotBackgroundFailureKind, noticeMention: String?) -> some View {
+      VStack(alignment: .leading, spacing: 4) {
+        if let noticeMention {
+          MessageMarkdownView(source: noticeMention, room: room, channels: channels)
+        }
+        SokoBotBackgroundFailureView(title: title, kind: kind)
+      }
     }
 
     private func actionControls(compact: Bool) -> some View {

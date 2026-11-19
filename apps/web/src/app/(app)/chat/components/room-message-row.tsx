@@ -2099,11 +2099,13 @@ function FailedMentionCard({
     metadata && typeof metadata === "object" && "mention_failure" in metadata
       ? metadata.mention_failure
       : null;
-  const budgetExceeded =
-    failure &&
-    typeof failure === "object" &&
-    "kind" in failure &&
-    failure.kind === "ai_budget_exceeded";
+  const failureKind =
+    failure && typeof failure === "object" && "kind" in failure
+      ? failure.kind
+      : null;
+  const budgetExceeded = failureKind === "ai_budget_exceeded";
+  const showGeneric =
+    isSokoBot && !budgetExceeded && failureKind !== "turn_cancelled";
   return (
     <div
       className="border-border flex w-fit max-w-full flex-col gap-1 rounded-lg border px-3 py-2"
@@ -2120,14 +2122,12 @@ function FailedMentionCard({
       <p className="text-muted-foreground text-sm">
         {budgetExceeded
           ? tFailure("aiBudgetExceeded")
-          : isSokoBot
+          : showGeneric
             ? tFailure("generic")
             : saved
               ? t("MentionStatus.failedSaved")
               : t("MentionStatus.failedBody")}
-        {isSokoBot && !budgetExceeded && saved
-          ? ` ${tFailure("messageSaved")}`
-          : null}
+        {showGeneric && saved ? ` ${tFailure("messageSaved")}` : null}
       </p>
       {onRetryMention ? (
         <button
@@ -2542,6 +2542,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     message.sender.type === "sokoBot"
       ? readSokoBotBackgroundFailure(message.metadata)
       : null;
+  const noticeMention = backgroundFailure
+    ? /^@\S+(?= )/.exec(message.content)?.[0]
+    : null;
   const router = useRouter();
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
@@ -3032,14 +3035,34 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
                     </>
                   ) : backgroundFailure ? (
-                    <p>
-                      {backgroundFailure.kind === "turn_deadline_exceeded"
-                        ? tFailure("backgroundDeadline", {
-                            title: backgroundFailure.title,
-                          })
-                        : `${tFailure("backgroundFailed", { title: backgroundFailure.title })} ${tFailure(backgroundFailure.kind === "ai_budget_exceeded" ? "aiBudgetExceeded" : "generic")}`}
-                      {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
-                    </p>
+                    <>
+                      {noticeMention ? (
+                        <ChannelMessageText
+                          content={noticeMention}
+                          coworkersById={coworkersById}
+                          coworkersBySlug={coworkersBySlug}
+                          sokoBotsById={sokoBotsById}
+                          sokoBotsBySlug={sokoBotsBySlug}
+                          usersById={usersById}
+                          usersBySlug={usersBySlug}
+                          channelLinks={channelLinks}
+                          currentUserId={currentUserId}
+                          canOpenHumanDirect={canOpenHumanDirect}
+                          onOpenDirectMessage={onOpenDirectMessage}
+                          openingDirectParticipantKey={
+                            openingDirectParticipantKey
+                          }
+                        />
+                      ) : null}
+                      <p>
+                        {backgroundFailure.kind === "turn_deadline_exceeded"
+                          ? tFailure("backgroundDeadline", {
+                              title: backgroundFailure.title,
+                            })
+                          : `${tFailure("backgroundFailed", { title: backgroundFailure.title })} ${tFailure(backgroundFailure.kind === "ai_budget_exceeded" ? "aiBudgetExceeded" : "generic")}`}
+                        {bodyEndsTheRow ? <SeenByInlineReserve /> : null}
+                      </p>
+                    </>
                   ) : quote && !message.content.trim() ? (
                     bodyEndsTheRow ? (
                       <SeenByInlineReserve />

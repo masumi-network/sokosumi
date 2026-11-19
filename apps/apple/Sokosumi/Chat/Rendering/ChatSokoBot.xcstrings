@@ -2,6 +2,7 @@
   "sourceLanguage" : "en",
   "strings" : {
     "Background run \"%@\" failed before it could report." : {
+      "comment" : "Heading for a failed background run. %@ is the name of the run.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -25,6 +26,7 @@
       }
     },
     "Background run \"%@\" ran out of time before it could report." : {
+      "comment" : "Shown when a background run reached its deadline. %@ is the name of the run.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -144,6 +146,7 @@
       }
     },
     "Something went wrong on our side. Try again. If it keeps happening, contact support." : {
+      "comment" : "Below a failed assistant reply or background run with an unclassified error.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -162,6 +165,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Algo salió mal de nuestro lado. Inténtalo de nuevo. Si el problema persiste, contacta con el equipo de soporte."
+          }
+        }
+      }
+    },
+    "The reply stopped before it finished." : {
+      "comment" : "Below a cancelled assistant reply.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The reply stopped before it finished."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Antwort brach ab, bevor sie fertig war."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La respuesta se detuvo antes de terminar."
           }
         }
       }

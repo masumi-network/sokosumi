@@ -4,6 +4,22 @@ import { cmoChatMessage } from "../test-fixtures/cmo";
 import { cusoText, toCusoMessages, withoutIdMentions } from "./chat-messages";
 
 describe("toCusoMessages", () => {
+  it("says a cancelled reply stopped", () => {
+    expect(
+      toCusoMessages([
+        cmoChatMessage({
+          content: "",
+          metadata: {
+            mention_failed: true,
+            mention_failure: { kind: "turn_cancelled" },
+          },
+        }),
+      ]),
+    ).toMatchObject([
+      { fromCuso: true, content: "The reply stopped before it finished." },
+    ]);
+  });
+
   it.each([
     undefined,
     { kind: "GatewayInternalServerError", message: "Raw provider diagnostic" },

@@ -387,6 +387,25 @@ describe("persistSokoBotChatTurn", () => {
     );
   });
 
+  it("records cancellation on the reply shell", async () => {
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ status: "CANCELLED", finalAnswer: null }),
+    );
+
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+
+    expect(messageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          metadata: expect.objectContaining({
+            mention_failed: true,
+            mention_failure: { kind: "turn_cancelled" },
+          }),
+        }),
+      }),
+    );
+  });
+
   it("does not delete a reply when a silent finalizer loses its claim", async () => {
     turnFindUnique.mockResolvedValue(
       completedTurn({ chainDepth: 1, finalAnswer: "" }),

@@ -28,12 +28,12 @@ function turnOf(metadata: unknown): string | null {
 function replyFailureOf(metadata: ChatRoomMessage["metadata"]) {
   if (metadata?.mention_failed !== true) return null;
   const failure = metadata.mention_failure;
-  if (
-    failure &&
-    typeof failure === "object" &&
-    "kind" in failure &&
-    failure.kind === "ai_budget_exceeded"
-  ) {
+  const kind =
+    failure && typeof failure === "object" && "kind" in failure
+      ? failure.kind
+      : null;
+  if (kind === "turn_cancelled") return "The reply stopped before it finished.";
+  if (kind === "ai_budget_exceeded") {
     return "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.";
   }
   return "Something went wrong on our side. Try again. If it keeps happening, contact support.";

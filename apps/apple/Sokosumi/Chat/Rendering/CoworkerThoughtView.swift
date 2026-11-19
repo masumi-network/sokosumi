@@ -69,6 +69,7 @@ struct CoworkerMentionFailedView: View {
   var isRetrying = false
   let aiBudgetExceeded: Bool
   let isSokoBot: Bool
+  let isCancelled: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -82,8 +83,8 @@ struct CoworkerMentionFailedView: View {
       .foregroundStyle(.secondary)
       .accessibilityElement(children: .ignore)
       .accessibilityLabel("Failed to reply")
-      if aiBudgetExceeded || isSokoBot {
-        sokoBotFailureText(aiBudgetExceeded: aiBudgetExceeded)
+      if isCancelled || aiBudgetExceeded || isSokoBot {
+        sokoBotFailureText(aiBudgetExceeded: aiBudgetExceeded, isCancelled: isCancelled)
           .font(.callout)
           .foregroundStyle(.secondary)
           .fixedSize(horizontal: false, vertical: true)
@@ -98,8 +99,14 @@ struct CoworkerMentionFailedView: View {
   }
 }
 
-func sokoBotFailureText(aiBudgetExceeded: Bool) -> Text {
-  if aiBudgetExceeded {
+private func sokoBotFailureText(aiBudgetExceeded: Bool, isCancelled: Bool = false) -> Text {
+  if isCancelled {
+    Text(
+      "The reply stopped before it finished.",
+      tableName: "ChatSokoBot",
+      comment: "Below a cancelled assistant reply."
+    )
+  } else if aiBudgetExceeded {
     Text(
       "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
       tableName: "ChatSokoBot",
@@ -121,9 +128,17 @@ struct SokoBotBackgroundFailureView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
       if kind == .deadline {
-        Text("Background run \"\(title)\" ran out of time before it could report.", tableName: "ChatSokoBot")
+        Text(
+          "Background run \"\(title)\" ran out of time before it could report.",
+          tableName: "ChatSokoBot",
+          comment: "Shown when a background run reached its deadline. %@ is the name of the run."
+        )
       } else {
-        Text("Background run \"\(title)\" failed before it could report.", tableName: "ChatSokoBot")
+        Text(
+          "Background run \"\(title)\" failed before it could report.",
+          tableName: "ChatSokoBot",
+          comment: "Heading for a failed background run. %@ is the name of the run."
+        )
         sokoBotFailureText(aiBudgetExceeded: kind == .budget)
       }
     }

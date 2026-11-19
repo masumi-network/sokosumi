@@ -1659,9 +1659,15 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       expect(
         await db.sokoBotDelivery.findUnique({ where: { id: delivery.id } }),
       ).toMatchObject({ status: "PERSISTED" });
-      expect((await replyRow(m.mention.id)).metadata).toMatchObject({
+      const terminalMetadata = (await replyRow(m.mention.id)).metadata;
+      expect(terminalMetadata).toMatchObject({
         mention_failed: true,
       });
+      if (ended === "CANCELLED") {
+        expect(terminalMetadata).toMatchObject({
+          mention_failure: { kind: "turn_cancelled" },
+        });
+      }
       const terminalFrom = copies.length;
 
       // Retry: the turn keeps the mention (publication owed), the mention is

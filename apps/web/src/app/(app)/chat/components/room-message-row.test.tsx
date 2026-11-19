@@ -3371,6 +3371,50 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(screen.getByText("backgroundFailed generic")).toBeInTheDocument();
   });
 
+  it("keeps the owner mention on a translated background failure", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "@owner Raw provider diagnostic",
+        metadata: {
+          soko_bot: {
+            turn_id: "turn-1",
+            background_run_title: "Review",
+            background_failure_kind: "unknown",
+          },
+        },
+      }),
+      usersById: new Map([["owner", { id: "owner", name: "Ada Owner" }]]),
+    });
+
+    const mention = screen.getByText(
+      /data-direct-kind="human" data-direct-id="owner">@Ada Owner<\/span>/,
+    );
+    const copy = screen.getByText("backgroundFailed generic");
+    expect(mention.compareDocumentPosition(copy)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(
+      screen.queryByText("Raw provider diagnostic"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the stopped-reply copy when a Soko Bot reply is cancelled", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: { kind: "turn_cancelled" },
+        },
+      }),
+    });
+
+    const card = screen.getByTestId("coworker-mention-failed");
+    expect(card).toHaveTextContent("MentionStatus.failedBody");
+    expect(card).not.toHaveTextContent("generic");
+  });
+
   it("shows a Soko Bot's live Thinking with its latest step and elapsed clock", () => {
     renderRow({
       message: sokoBotMessage({
