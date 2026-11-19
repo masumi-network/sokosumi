@@ -16,7 +16,7 @@ interface TasksViewToolbarActionsProps {
 }
 
 /**
- * The Tasks tab toolbar: the quick filters lead, and the Filters menu and
+ * The Tasks tab toolbar: the view switcher leads, and the Filters menu and
  * the view options menu take the right edge. Archived Tasks are another
  * way to see Tasks, so their link lives in the view options menu. New task
  * is the sidebar header's action; below md the create FAB covers creation.

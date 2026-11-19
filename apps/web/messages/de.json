@@ -1934,6 +1934,7 @@
         "workspaceTags": "Workspace-Tags",
         "archivedTags": "Archivierte Tags",
         "topicTags": "Standardthemen",
+        "viewLabel": "Task-Ansicht",
         "needsMe": "Wartet auf mich",
         "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
         "mentions": "Erwähnungen",

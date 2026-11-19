@@ -1934,6 +1934,7 @@
         "workspaceTags": "Workspace tags",
         "archivedTags": "Archived tags",
         "topicTags": "Default topics",
+        "viewLabel": "Tasks view",
         "needsMe": "Needs me",
         "needsMeHint": "Tasks that wait for a person, where you are the owner or the assignee",
         "mentions": "Mentions",
