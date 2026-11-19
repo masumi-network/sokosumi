@@ -44,11 +44,10 @@ export function TikTokStudioLibrary({
   return (
     <section aria-label={t("videos")} className={cn(HOLDER_CLASS, "min-w-0")}>
       <div className="flex min-h-8 items-center justify-between gap-2 px-2 pb-2">
-        <h2 className="flex items-baseline gap-2 text-sm font-medium">
+        {/* The panel's section label, as DESIGN.md's page surfaces set it. */}
+        <h2 className="text-muted-foreground flex items-baseline gap-2 text-xs font-medium">
           {t("videos")}
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {format.number(jobs.length)}
-          </span>
+          <span className="tabular-nums">{format.number(jobs.length)}</span>
         </h2>
         {onNew ? (
           <Button onClick={onNew} size="sm" variant="outline">
@@ -140,7 +139,8 @@ function LibraryTile({
           />
         ) : null}
       </span>
-      <span className="text-xs font-medium tabular-nums">
+      {/* Inset so the keyboard focus ring never touches the caption. */}
+      <span className="px-1 text-xs font-medium tabular-nums">
         {asset ? (
           unavailable ? (
             t("videoUnavailable")
@@ -156,7 +156,7 @@ function LibraryTile({
           t("videoFailed")
         )}
       </span>
-      <span className="text-muted-foreground group-hover:text-foreground line-clamp-2 text-xs transition-colors">
+      <span className="text-muted-foreground group-hover:text-foreground line-clamp-2 px-1 text-xs transition-colors">
         {job.prompt}
       </span>
     </button>
