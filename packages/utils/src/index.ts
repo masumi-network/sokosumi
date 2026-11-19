@@ -60,6 +60,7 @@ export {
   brandFonts,
   type DesignMdBrandLook,
   designMdBrandLook,
+  designMdPalette,
   distinctColors,
   isNeutral,
   normalizeHex,
