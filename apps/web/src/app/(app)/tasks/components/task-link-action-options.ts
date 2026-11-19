@@ -12,33 +12,47 @@ export function buildTaskPickerOptions(
     {
       id: "related",
       label: tDetailActions("relations.related"),
+      title: tDetailActions("linkPicker.related.title"),
+      description: tDetailActions("linkPicker.related.description"),
       relation: TaskLinkRelation.RELATED,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.RELATED),
     },
     {
       id: "blocks",
       label: tDetailActions("relations.blocks"),
+      title: tDetailActions("linkPicker.blocks.title"),
+      description: tDetailActions("linkPicker.blocks.description"),
       relation: TaskLinkRelation.BLOCKS,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKS),
     },
     {
       id: "blocked-by",
       label: tDetailActions("relations.blockedBy"),
+      title: tDetailActions("linkPicker.blockedBy.title"),
+      description: tDetailActions("linkPicker.blockedBy.description"),
       relation: TaskLinkRelation.BLOCKED_BY,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.BLOCKED_BY),
     },
     {
       id: "duplicate",
       label: tDetailActions("relations.duplicate"),
+      title: tDetailActions("linkPicker.duplicate.title"),
+      description: tDetailActions("linkPicker.duplicate.description"),
       relation: TaskLinkRelation.DUPLICATE,
       icon: getTaskLinkRelationIcon(TaskLinkRelation.DUPLICATE),
     },
   ];
 }
 
+/** A relation for a new Task; it never opens the picker, so needs no title. */
+export type CreateRelatedOption = Omit<
+  TaskLinkActionOption,
+  "title" | "description"
+>;
+
 export function buildCreateRelatedOptions(
   tDetailActions: ReturnType<typeof useTranslations>,
-): TaskLinkActionOption[] {
+): CreateRelatedOption[] {
   return [
     {
       id: "related",

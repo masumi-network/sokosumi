@@ -30,10 +30,10 @@ export interface TaskPickerOption {
   id: string;
   label: string;
   icon: LucideIcon;
-  /** Replaces the "{label}..." dialog title. */
-  title?: string;
-  /** Replaces the link description under the title. */
-  description?: string;
+  /** The picker's visible title, e.g. "Link as related". */
+  title: string;
+  /** One line under the title on what picking a Task does. */
+  description: string;
   /** Also lists sub-tasks, which the plain Task list leaves out. */
   includeSubtasks?: boolean;
 }
@@ -66,7 +66,6 @@ export function TaskLinkTaskPickerDialog<TOption extends TaskPickerOption>({
   onCloseAutoFocus,
   ...bodyProps
 }: TaskLinkTaskPickerDialogProps<TOption>) {
-  const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const { selectedOption } = bodyProps;
 
   return (
@@ -74,15 +73,9 @@ export function TaskLinkTaskPickerDialog<TOption extends TaskPickerOption>({
       open={open}
       onOpenChange={onOpenChange}
       onCloseAutoFocus={onCloseAutoFocus}
-      title={
-        selectedOption?.title ??
-        tDetailActions("taskPickerTitle", {
-          relation: selectedOption?.label ?? "",
-        })
-      }
-      description={
-        selectedOption?.description ?? tDetailActions("taskPickerDescription")
-      }
+      title={selectedOption?.title ?? ""}
+      description={selectedOption?.description ?? ""}
+      showHeader
       commandProps={{ shouldFilter: false }}
     >
       {/* Mounted only while open, so every opening starts with an empty search. */}
@@ -247,9 +240,7 @@ function TaskPickerBody<TOption extends TaskPickerOption>({
         ) : null}
 
         {taskPickerResults.length > 0 ? (
-          <CommandGroup
-            heading={selectedOption?.title ?? selectedOption?.label}
-          >
+          <CommandGroup>
             {taskPickerResults.map((taskOption) => {
               const PickerIcon = selectedOption?.icon ?? Link2;
 
