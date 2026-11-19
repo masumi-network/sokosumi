@@ -46,10 +46,10 @@ vi.mock("@/config/env", async (importOriginal) => {
 
 import {
   ensureStudioAssetDriveFile,
-  isTalkingVideoMedia,
   moveLegacyStudioFolderTasks,
   publishStudioAssetToFiles,
   studioAssetFileName,
+  studioVideoOfMedia,
 } from "@/services/image-studio-drive.service";
 import { coreLogEvents, expectCoreLogWhys } from "@/test/core-log";
 
@@ -329,7 +329,7 @@ describe("moveLegacyStudioFolderTasks", () => {
   });
 });
 
-describe("isTalkingVideoMedia", () => {
+describe("studioVideoOfMedia", () => {
   const video = {
     pathname: "workspace/Content Studio/booking-link-9cc6c00f.mp4",
     name: "booking-link-9cc6c00f.mp4",
@@ -337,8 +337,13 @@ describe("isTalkingVideoMedia", () => {
   };
 
   it("asks the database only for studio videos, by their job suffix", async () => {
-    mocks.queryRaw.mockResolvedValueOnce([{ found: true }]);
-    await expect(isTalkingVideoMedia("project-1", [video])).resolves.toBe(true);
+    mocks.queryRaw.mockResolvedValueOnce([
+      { talking: true, vertical: true, seconds: 22 },
+    ]);
+    await expect(studioVideoOfMedia("project-1", [video])).resolves.toEqual({
+      talking: true,
+      reel: true,
+    });
     expect(mocks.queryRaw.mock.calls[0]?.slice(1)).toEqual([
       "project-1",
       ["9cc6c00f"],
@@ -346,11 +351,30 @@ describe("isTalkingVideoMedia", () => {
 
     mocks.queryRaw.mockClear();
     await expect(
-      isTalkingVideoMedia("project-1", [
+      studioVideoOfMedia("project-1", [
         { ...video, kind: "image" },
         { ...video, pathname: "workspace/Uploads/booking-link-9cc6c00f.mp4" },
       ]),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ talking: false, reel: false });
     expect(mocks.queryRaw).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a wide video", { talking: false, vertical: false, seconds: 10 }],
+    [
+      "one longer than a Reel",
+      { talking: false, vertical: true, seconds: 120 },
+    ],
+    ["one shorter than a Reel", { talking: false, vertical: true, seconds: 2 }],
+    [
+      "one of unknown length",
+      { talking: false, vertical: true, seconds: null },
+    ],
+  ])("does not call %s a Reel", async (_name, row) => {
+    mocks.queryRaw.mockResolvedValueOnce([row]);
+    await expect(studioVideoOfMedia("project-1", [video])).resolves.toEqual({
+      talking: false,
+      reel: false,
+    });
   });
 });

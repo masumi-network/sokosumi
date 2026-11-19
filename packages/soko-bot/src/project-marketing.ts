@@ -447,6 +447,20 @@ export const cmoCalendarEntrySchema = z.object({
   /** ISO 639-1 language of the script, e.g. "de". */
   languageCode: z.string().trim().length(2).optional(),
   /**
+   * The other networks a talking video also goes out on. Core makes the
+   * video once and keeps one Social post per network, each with its own
+   * caption.
+   */
+  alsoOn: z
+    .array(z.string().trim().toLowerCase().min(1).max(40))
+    .max(4)
+    .optional(),
+  /**
+   * On a talking video's post for another network: the entry whose video it
+   * shows. Set by Core; Cuso never sends it.
+   */
+  videoOf: z.string().max(64).optional(),
+  /**
    * The one real moment the piece is built on, from the Brand Brain: a
    * customer and what they did, a launch, a number, a decision.
    */
@@ -503,6 +517,8 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   presenter: true,
   voice: true,
   languageCode: true,
+  alsoOn: true,
+  videoOf: true,
   story: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;

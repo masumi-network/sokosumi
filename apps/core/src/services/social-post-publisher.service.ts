@@ -59,7 +59,7 @@ import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import type { CoworkerAuthenticationContext } from "@/middleware/auth";
 import { isCmoSubscribed } from "@/services/cmo-billing.service";
 import { CMO_PAUSED, LIVE_CUSO_WHERE } from "@/services/cmo-cuso.service";
-import { isTalkingVideoMedia } from "@/services/image-studio-drive.service";
+import { studioVideoOfMedia } from "@/services/image-studio-drive.service";
 import {
   projectExecutorUserId,
   requireLockedOpenProject,
@@ -919,6 +919,7 @@ async function attemptPublish(
       attempt.id,
     );
     if (projectOutcome) return projectOutcome;
+    const studioVideo = await studioVideoOfMedia(post.projectId, media);
     const context: SocialPostPublishContext = {
       ...(toolSlug === ZERNIO_TIKTOK_CREATE_POST && { postId: post.id }),
       provider,
@@ -929,9 +930,8 @@ async function attemptPublish(
       text: post.text,
       tikTokSettings: options.tikTokSettings,
       ...(quote.externalId ? { quoteExternalId: quote.externalId } : {}),
-      ...((await isTalkingVideoMedia(post.projectId, media))
-        ? { aiGenerated: true }
-        : {}),
+      ...(studioVideo.talking ? { aiGenerated: true } : {}),
+      ...(studioVideo.reel ? { reel: true } : {}),
       media,
       signal,
     };

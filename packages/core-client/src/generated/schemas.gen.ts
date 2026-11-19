@@ -32872,6 +32872,19 @@ export const MarketingStrategySchema = {
                                         minLength: 2,
                                         maxLength: 2
                                     },
+                                    alsoOn: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4
+                                    },
+                                    videoOf: {
+                                        type: 'string',
+                                        maxLength: 64
+                                    },
                                     story: {
                                         type: 'string',
                                         minLength: 1,
@@ -33217,6 +33230,19 @@ export const MarketingStrategySchema = {
                                                 type: 'string',
                                                 minLength: 2,
                                                 maxLength: 2
+                                            },
+                                            alsoOn: {
+                                                type: 'array',
+                                                items: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 40
+                                                },
+                                                maxItems: 4
+                                            },
+                                            videoOf: {
+                                                type: 'string',
+                                                maxLength: 64
                                             },
                                             story: {
                                                 type: 'string',
@@ -34661,6 +34687,19 @@ export const MarketingStrategyRequestSchema = {
                                 minLength: 2,
                                 maxLength: 2
                             },
+                            alsoOn: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 4
+                            },
+                            videoOf: {
+                                type: 'string',
+                                maxLength: 64
+                            },
                             story: {
                                 type: 'string',
                                 minLength: 1,
@@ -35006,6 +35045,19 @@ export const MarketingStrategyRequestSchema = {
                                         type: 'string',
                                         minLength: 2,
                                         maxLength: 2
+                                    },
+                                    alsoOn: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 40
+                                        },
+                                        maxItems: 4
+                                    },
+                                    videoOf: {
+                                        type: 'string',
+                                        maxLength: 64
                                     },
                                     story: {
                                         type: 'string',
@@ -41286,6 +41338,19 @@ export const SocialPostSchema = {
                     type: 'string',
                     minLength: 2,
                     maxLength: 2
+                },
+                alsoOn: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    maxItems: 4
+                },
+                videoOf: {
+                    type: 'string',
+                    maxLength: 64
                 },
                 story: {
                     type: 'string',
@@ -55034,6 +55099,19 @@ export const CmoPlanSchema = {
                         minLength: 2,
                         maxLength: 2
                     },
+                    alsoOn: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 40
+                        },
+                        maxItems: 4
+                    },
+                    videoOf: {
+                        type: 'string',
+                        maxLength: 64
+                    },
                     story: {
                         type: 'string',
                         minLength: 1,
@@ -55379,6 +55457,19 @@ export const CmoPlanSchema = {
                                 type: 'string',
                                 minLength: 2,
                                 maxLength: 2
+                            },
+                            alsoOn: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 40
+                                },
+                                maxItems: 4
+                            },
+                            videoOf: {
+                                type: 'string',
+                                maxLength: 64
                             },
                             story: {
                                 type: 'string',
