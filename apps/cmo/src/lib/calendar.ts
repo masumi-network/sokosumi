@@ -50,6 +50,37 @@ export function entryReadiness(
 }
 
 /**
+ * A written social post that cannot go out yet because its network is not
+ * connected: it waits for the owner, not for Cuso. Null for every other piece.
+ */
+export function waitsForNetwork(
+  entry: Pick<Entry, "status" | "channel">,
+  connected: readonly string[],
+): SocialProvider | null {
+  const channel = entry.channel.toLowerCase();
+  return entry.status === "draft" &&
+    isSocialProvider(channel) &&
+    !connected.includes(channel)
+    ? channel
+    : null;
+}
+
+/** The networks with a live connection, lower-cased. */
+export function connectedNetworks(channels: CmoOverview["channels"]): string[] {
+  return channels
+    .filter((channel) => channel.status.toUpperCase() === "ACTIVE")
+    .map((channel) => channel.provider.toLowerCase());
+}
+
+/** The opening words of a text, ending on a whole word. */
+export function wholeWords(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max + 1);
+  const end = cut.lastIndexOf(" ");
+  return `${cut.slice(0, end > 0 ? end : max).replace(/[\s,;:.]+$/, "")}…`;
+}
+
+/**
  * Whether a piece is fully made: scheduled or out, or written with its picture
  * or video when it needs one. Until then the owner sees only that it is coming.
  */

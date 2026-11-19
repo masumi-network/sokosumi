@@ -138,6 +138,7 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     strategy: cmoStrategy,
     approvedStrategy: null,
     media: [],
+    postRevisions: {},
     ...cmoStrategyVersion(null, new Date("2026-10-01T09:02:00Z")),
     updates: [],
     drafts: [],
