@@ -7,6 +7,7 @@ import {
   answerCmoBrandBrainQuestionForProject,
   answerCmoMarketingStrategyQuestionForProject,
   applyCmoPlanAnswersForProject,
+  approveCmoDraftForProject,
   approveCmoMarketingStrategyForProject,
   type CmoAdCampaigns,
   type CmoAdsFinalized,
@@ -24,6 +25,8 @@ import {
   confirmCmoBrandBrainForProject,
   connectCmoAdsForProject,
   connectCmoMeasurementForProject,
+  declineCmoDraftForProject,
+  editCmoDraftForProject,
   finalizeCmoAdsForProject,
   finalizeCmoMeasurementForProject,
   finalizeCmoSocialConnectionForProject,
@@ -75,6 +78,7 @@ import {
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { DraftResult } from "../components/app/draft-post";
 import { AGENT_NAME } from "../lib/agent";
 import type { BrandSectionKey } from "../lib/brand-sections";
 import { type CusoMessage, toCusoMessages } from "../lib/chat-messages";
@@ -419,6 +423,64 @@ export async function retryLearning(projectId: string): Promise<{
     overview,
     error: error ? errorText(error, "Could not start") : null,
   };
+}
+
+async function draftResult(
+  result: { data?: { data: CmoOverview }; error?: unknown },
+  fallback: string,
+): Promise<DraftResult> {
+  return result.data
+    ? { overview: await withSkipped(result.data.data), error: null }
+    : { overview: null, error: errorText(result.error, fallback) };
+}
+
+/** Approves a post Cuso made outside the month; it then goes out. */
+export async function approveDraft(
+  projectId: string,
+  postId: string,
+  revision: number,
+): Promise<DraftResult> {
+  return draftResult(
+    await approveCmoDraftForProject({
+      ...(await requireCore()),
+      path: { projectId, postId },
+      body: { revision },
+    }),
+    "Could not approve this post",
+  );
+}
+
+/** Declines a post Cuso made, or stops an approved one before it goes out. */
+export async function declineDraft(
+  projectId: string,
+  postId: string,
+  revision: number,
+): Promise<DraftResult> {
+  return draftResult(
+    await declineCmoDraftForProject({
+      ...(await requireCore()),
+      path: { projectId, postId },
+      body: { revision },
+    }),
+    "Could not decline this post",
+  );
+}
+
+/** Saves the owner's own words on a post Cuso made. */
+export async function editDraft(
+  projectId: string,
+  postId: string,
+  revision: number,
+  text: string,
+): Promise<DraftResult> {
+  return draftResult(
+    await editCmoDraftForProject({
+      ...(await requireCore()),
+      path: { projectId, postId },
+      body: { revision, text },
+    }),
+    "Could not save this post",
+  );
 }
 
 export async function revertUpdate(

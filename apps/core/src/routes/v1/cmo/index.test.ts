@@ -28,6 +28,14 @@ const {
   brainMock: vi.fn(),
 }));
 
+const { approveDraftMock, declineDraftMock, editDraftMock } = vi.hoisted(
+  () => ({
+    approveDraftMock: vi.fn(),
+    declineDraftMock: vi.fn(),
+    editDraftMock: vi.fn(),
+  }),
+);
+
 const { archiveMock, hireMock, listMock, mayHireMock } = vi.hoisted(() => ({
   archiveMock: vi.fn(),
   hireMock: vi.fn(),
@@ -72,6 +80,11 @@ vi.mock("@/services/cmo-reports.service", async (importOriginal) => {
     await importOriginal<typeof import("@/services/cmo-reports.service")>();
   return { ...actual, revertCmoUpdate: revertMock };
 });
+vi.mock("@/services/cmo-drafts.service", () => ({
+  approveCmoDraft: approveDraftMock,
+  declineCmoDraft: declineDraftMock,
+  editCmoDraft: editDraftMock,
+}));
 vi.mock("@/services/cmo-overview.service", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/services/cmo-overview.service")>();
@@ -155,8 +168,12 @@ function overview() {
         results: "No provider metrics yet.",
         previousVersionId: "strategy-0",
         versionId: "strategy-1",
+        turnId: "turn-1",
+        posts: [],
+        media: [],
       },
     ],
+    drafts: [],
     channels: [],
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
@@ -592,6 +609,48 @@ describe("CMO routes", () => {
       userId: "user-1",
       projectId: PROJECT_ID,
     });
+  });
+
+  it.each([
+    ["approve", "POST", "/approve", { revision: 2 }, approveDraftMock],
+    ["decline", "POST", "/decline", { revision: 2 }, declineDraftMock],
+    ["edit", "PATCH", "", { revision: 2, text: "New words" }, editDraftMock],
+  ] as const)(
+    "lets the owner %s a draft of the named Project's Cuso and returns his overview",
+    async (_name, method, path, body, mock) => {
+      mock.mockResolvedValue(undefined);
+      const response = await createApp().request(
+        `/projects/${PROJECT_ID}/drafts/${REPORT_ID}${path}`,
+        {
+          method,
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      expect(response.status).toBe(200);
+      expect(mock).toHaveBeenCalledWith({
+        userId: "user-1",
+        projectId: PROJECT_ID,
+        postId: REPORT_ID,
+        ...body,
+      });
+      expect((await response.json()).data.drafts).toEqual([]);
+    },
+  );
+
+  it("refuses a draft that changed since it was shown", async () => {
+    approveDraftMock.mockRejectedValue(
+      new CmoConflictError("This post changed. Look at it again."),
+    );
+    const response = await createApp().request(
+      `/projects/${PROJECT_ID}/drafts/${REPORT_ID}/approve`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ revision: 1 }),
+      },
+    );
+    expect(response.status).toBe(409);
   });
 
   it("answers the checkout step and no plan for a Cuso nobody paid for", async () => {

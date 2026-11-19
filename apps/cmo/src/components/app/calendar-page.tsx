@@ -15,6 +15,7 @@ import { formatHasImage, formatHasVideo, formatName } from "../../lib/channels";
 import { ChannelIcon } from "../channel-icon";
 import { EntrySheet } from "../entry-sheet";
 import { StatusDisc } from "../status";
+import { type DraftActions, DraftPost } from "./draft-post";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -65,11 +66,14 @@ function excerpt(entry: Entry): string {
  */
 export function CalendarPage({
   overview,
+  drafts,
   onAsk,
   loadText,
   pieceExtra,
 }: {
   overview: CmoOverview;
+  /** Approve, decline or rewrite a post that waits for the owner. */
+  drafts: DraftActions;
   onAsk: (text: string) => Promise<void>;
   /** The words of a piece kept in the owner's Files. */
   loadText?: (entryId: string) => Promise<string | null>;
@@ -104,11 +108,35 @@ export function CalendarPage({
   const pillars = strategy?.pillars ?? [];
   const weeks = useMemo(() => planWeeks(live), [live]);
 
+  // Posts Cuso made on request, outside the month: they go out only once
+  // the owner says so, so they lead the page.
+  const waiting =
+    overview.drafts.length > 0 ? (
+      <section className="cal-week" aria-labelledby="cal-waiting">
+        <h3 className="cal-week-head" id="cal-waiting">
+          Waiting for you
+          <span className="note num">
+            {overview.drafts.length === 1
+              ? "1 post"
+              : `${overview.drafts.length} posts`}
+          </span>
+        </h3>
+        <div className="cal-waiting">
+          {overview.drafts.map((draft) => (
+            <DraftPost key={draft.id} draft={draft} actions={drafts} />
+          ))}
+        </div>
+      </section>
+    ) : null;
+
   if (!strategy) {
     return (
-      <div className="empty">
-        <span className="shape" aria-hidden="true" />
-        <span>{AGENT_NAME} is still writing the strategy.</span>
+      <div className="cal">
+        {waiting}
+        <div className="empty">
+          <span className="shape" aria-hidden="true" />
+          <span>{AGENT_NAME} is still writing the strategy.</span>
+        </div>
       </div>
     );
   }
@@ -123,6 +151,7 @@ export function CalendarPage({
 
   return (
     <div className="cal">
+      {waiting}
       <div className="card cal-head">
         <p className="note num">
           {live.length} posts this month · {ready} ready

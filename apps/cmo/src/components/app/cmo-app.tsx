@@ -37,6 +37,7 @@ import {
   UpdateCard,
 } from "./cards";
 import { type CompetitorActions, CompetitorsPage } from "./competitors-page";
+import type { DraftActions, DraftResult } from "./draft-post";
 import {
   type AddMailingList,
   BrandBrainPage,
@@ -78,6 +79,14 @@ export interface CmoAppActions
     error: string | null;
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
+  /** Approve, decline or rewrite a post Cuso made outside the month. */
+  approveDraft: (postId: string, revision: number) => Promise<DraftResult>;
+  declineDraft: (postId: string, revision: number) => Promise<DraftResult>;
+  editDraft: (
+    postId: string,
+    revision: number,
+    text: string,
+  ) => Promise<DraftResult>;
   competitors: CompetitorActions;
   connectChannel: ConnectChannel;
   addMailingList: AddMailingList;
@@ -286,6 +295,21 @@ export function CmoApp({
     if (!error) await refresh();
     return error;
   });
+  // A refused change (the draft moved on meanwhile) shows the draft as it is now.
+  const settleDraft = async (change: Promise<DraftResult>) => {
+    const { overview: next, error } = await change;
+    if (next) setOverview(next);
+    else await refresh();
+    return error;
+  };
+  const draftActions: DraftActions = {
+    approve: (postId, revision) =>
+      settleDraft(actions.approveDraft(postId, revision)),
+    decline: (postId, revision) =>
+      settleDraft(actions.declineDraft(postId, revision)),
+    edit: (postId, revision, text) =>
+      settleDraft(actions.editDraft(postId, revision, text)),
+  };
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
     revert: async (id) => setOverview(await actions.revertUpdate(id)),
@@ -297,6 +321,7 @@ export function CmoApp({
     compose,
     open: (target) => go(target),
     topUp,
+    drafts: draftActions,
   };
 
   function send(event: React.FormEvent) {
@@ -471,6 +496,7 @@ export function CmoApp({
               {view === "calendar" ? (
                 <CalendarPage
                   overview={overview}
+                  drafts={draftActions}
                   loadText={actions.loadPieceText}
                   pieceExtra={(entry) => (
                     <>

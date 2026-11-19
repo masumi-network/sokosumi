@@ -57,12 +57,13 @@ function mapOverview(overview: CmoOverview) {
     strategyVersions: overview.strategyVersions,
     hiredAt: overview.hiredAt,
     updates: overview.updates.map(
-      ({ previousVersionId, versionId, revertedAt, ...update }) => ({
+      ({ previousVersionId, versionId, revertedAt, turnId, ...update }) => ({
         ...update,
         revertible: !!previousVersionId && !!versionId && !revertedAt,
         revertedAt: revertedAt ?? null,
       }),
     ),
+    drafts: overview.drafts,
     channels: overview.channels.map((channel) => ({
       id: channel.id,
       provider: channel.provider,

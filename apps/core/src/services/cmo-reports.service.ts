@@ -5,6 +5,7 @@ import {
   type CmoReportUpdateInput,
   cmoReportUpdateInputSchema,
 } from "@sokosumi/soko-bot";
+import { z } from "zod";
 import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import {
   CMO_REPORT_KEY,
@@ -36,7 +37,16 @@ import {
 import { setProjectLatestUpdate } from "@/services/project-latest-update";
 
 /** A report as CMO reads it: its card's message id and when it was posted. */
-export type CmoUpdateRecord = CmoReport & { id: string; at: string };
+export type CmoUpdateRecord = CmoReport & {
+  id: string;
+  at: string;
+  /** The turn that filed it; null for a card from before turns were kept. */
+  turnId: string | null;
+};
+
+const reportTurnSchema = z.object({
+  soko_bot: z.object({ turn_id: z.string() }),
+});
 
 function toRecord(message: {
   id: string;
@@ -45,7 +55,14 @@ function toRecord(message: {
 }): CmoUpdateRecord | null {
   const report = readCmoReport(message.metadata);
   return report
-    ? { ...report, id: message.id, at: message.createdAt.toISOString() }
+    ? {
+        ...report,
+        id: message.id,
+        at: message.createdAt.toISOString(),
+        turnId:
+          reportTurnSchema.safeParse(message.metadata).data?.soko_bot.turn_id ??
+          null,
+      }
     : null;
 }
 
@@ -118,7 +135,27 @@ export async function reportCmoUpdate(
       ? { previousVersionId: approved.id, versionId: wroteThisTurn.id }
       : {}),
   };
-  const id = randomUUID();
+  const clientMessageId = `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:${input.toolCallId}`;
+  // One card per turn and kind: a turn that reports again (a run nudged to
+  // check its work) rewrites its card instead of posting the news twice.
+  const earlier = (
+    await db.chatRoomMessage.findMany({
+      where: {
+        roomId,
+        deletedAt: null,
+        clientMessageId: {
+          startsWith: `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:`,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, clientMessageId: true, metadata: true },
+    })
+  ).find(
+    (message) =>
+      message.clientMessageId !== clientMessageId &&
+      readCmoReport(message.metadata)?.kind === update.kind,
+  );
+  const id = earlier?.id ?? randomUUID();
   const at = new Date();
   const snapshot = chatResultSnapshotSchema.parse({
     workspaceId: bot.workspaceId,
@@ -131,29 +168,34 @@ export async function reportCmoUpdate(
       ...cmoReportCard(report, projectId),
     }),
   });
-  const message = await db.chatRoomMessage.upsert({
-    where: {
-      roomId_clientMessageId: {
-        roomId,
-        clientMessageId: `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:${input.toolCallId}`,
-      },
+  const written = {
+    content: report.headline,
+    metadata: {
+      [CMO_REPORT_KEY]: jsonInput(report),
+      [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue([snapshot]),
+      soko_bot: { turn_id: input.turnId },
     },
-    create: {
-      id,
-      roomId,
-      clientMessageId: `${CMO_REPORT_MESSAGE_PREFIX}${input.turnId}:${input.toolCallId}`,
-      senderSokoBotId: input.sokoBotId,
-      content: report.headline,
-      createdAt: at,
-      metadata: {
-        [CMO_REPORT_KEY]: jsonInput(report),
-        [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue([snapshot]),
-        soko_bot: { turn_id: input.turnId },
-      },
-    },
-    update: {},
-    select: { id: true, createdAt: true, metadata: true },
-  });
+  };
+  const select = { id: true, createdAt: true, metadata: true } as const;
+  const message = earlier
+    ? await db.chatRoomMessage.update({
+        where: { id: earlier.id },
+        data: written,
+        select,
+      })
+    : await db.chatRoomMessage.upsert({
+        where: { roomId_clientMessageId: { roomId, clientMessageId } },
+        create: {
+          id,
+          roomId,
+          clientMessageId,
+          senderSokoBotId: input.sokoBotId,
+          createdAt: at,
+          ...written,
+        },
+        update: {},
+        select,
+      });
   await db.chatRoom.update({
     where: { id: roomId },
     data: { updatedAt: at },

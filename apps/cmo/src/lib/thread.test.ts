@@ -32,6 +32,8 @@ it("reports for a day after a filed update once hired and running", () => {
             at: new Date("2026-11-05T09:00:00Z"),
             revertible: false,
             revertedAt: null,
+            posts: [],
+            media: [],
           },
         ],
       }),

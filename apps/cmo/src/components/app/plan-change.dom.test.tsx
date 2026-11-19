@@ -89,6 +89,9 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           saveBrandBrain: same,
           retryLearning: result,
           pauseEntry: same,
+          approveDraft: result,
+          declineDraft: result,
+          editDraft: result,
           competitors: {
             loadCompetitors: async () => null,
             addCompetitor: async () => ({ competitors: null, error: null }),

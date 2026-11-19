@@ -12126,6 +12126,7 @@ describe("CMO record saves", () => {
         }),
       },
       chatRoomMessage: {
+        findMany: vi.fn().mockResolvedValue([]),
         upsert: vi.fn(
           async (args: {
             create: { id: string; createdAt: Date; metadata: unknown };
