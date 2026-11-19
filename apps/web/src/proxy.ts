@@ -110,7 +110,6 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Create response early so we can always set pathname + document headers
   const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
   if (pathname !== "/zernio/callback") {

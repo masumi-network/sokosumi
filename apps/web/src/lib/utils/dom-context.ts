@@ -32,7 +32,6 @@ export async function setupDomContext(): Promise<() => void> {
     SVGElement: (global as Record<string, unknown>).SVGElement,
   };
 
-  // Set up globals for libraries that require DOM APIs
   (global as Record<string, unknown>).window = window;
   (global as Record<string, unknown>).document = window.document;
   (global as Record<string, unknown>).HTMLElement = window.HTMLElement;
