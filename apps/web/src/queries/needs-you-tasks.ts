@@ -1,4 +1,9 @@
-import type { NotificationItem, TaskListItem } from "@sokosumi/core-client";
+import {
+  type NotificationItem,
+  type TaskEvent,
+  type TaskListItem,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import { TASK_INPUT_REQUIRED_MESSAGE_KEY } from "@sokosumi/utils";
 import { queryOptions } from "@tanstack/react-query";
 import { COLUMN_TASK_STATUSES } from "@/app/tasks/utils/task-column";
@@ -85,4 +90,16 @@ export function isTaskAskListed(
     waiting !== undefined &&
     waiting.tasks.some((task) => task.id === notification.referenceId)
   );
+}
+
+/**
+ * What the agent asked: the comment it parked the Task with, else its newest
+ * comment. People's comments (they carry a `userId`) are never the question.
+ */
+export function waitingQuestion(events: TaskEvent[]): string | null {
+  const asked = events.findLast(
+    (event) => event.status === TaskStatus.INPUT_REQUIRED && event.comment,
+  );
+  const fallback = events.findLast((event) => !event.userId && event.comment);
+  return (asked ?? fallback)?.comment ?? null;
 }

@@ -846,7 +846,12 @@
           "AUTHENTICATION_REQUIRED": "Anmelden",
           "OUT_OF_CREDITS": "Öffnen",
           "GRANT_PENDING": "Öffnen"
-        }
+        },
+        "answerPlaceholder": "{name} antworten…",
+        "answerPlaceholderNoName": "Deine Antwort…",
+        "send": "Senden",
+        "answerSent": "Antwort gesendet",
+        "answerError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# Frage im Datenraum wartet auf eine Antwort} other {# Fragen im Datenraum warten auf eine Antwort}}",

@@ -846,7 +846,12 @@
           "AUTHENTICATION_REQUIRED": "Iniciar sesión",
           "OUT_OF_CREDITS": "Abrir",
           "GRANT_PENDING": "Abrir"
-        }
+        },
+        "answerPlaceholder": "Responder a {name}…",
+        "answerPlaceholderNoName": "Escribe tu respuesta…",
+        "send": "Enviar",
+        "answerSent": "Respuesta enviada",
+        "answerError": "No se pudo enviar tu respuesta. Inténtalo de nuevo."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",

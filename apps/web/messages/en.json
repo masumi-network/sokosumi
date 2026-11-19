@@ -862,7 +862,12 @@
           "AUTHENTICATION_REQUIRED": "Sign in",
           "OUT_OF_CREDITS": "Open",
           "GRANT_PENDING": "Open"
-        }
+        },
+        "answerPlaceholder": "Answer {name}…",
+        "answerPlaceholderNoName": "Write your answer…",
+        "send": "Send",
+        "answerSent": "Answer sent",
+        "answerError": "Couldn't send your answer. Try again."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# data room question is waiting for an answer} other {# data room questions are waiting for an answer}}",

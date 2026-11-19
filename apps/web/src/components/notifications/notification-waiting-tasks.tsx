@@ -4,20 +4,26 @@ import { type TaskListItem, TaskStatus } from "@sokosumi/core-client";
 import { makeUserTasksChannelName } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useChannel } from "ably/react";
+import { Send } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useId } from "react";
+import { useId, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { taskHref } from "@/app/tasks/utils/task-href";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusMarker } from "@/components/ui/status-marker";
+import { Textarea } from "@/components/ui/textarea";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { createTaskComment } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
+import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
 import {
   NEEDS_YOU_TASKS_QUERY_KEY,
   needsYouTasksQueryOptions,
+  waitingQuestion,
 } from "@/queries/needs-you-tasks";
 
 /** The Tasks waiting on the reader, shared by the tab count and the rows. */
@@ -95,6 +101,180 @@ function isWaitingStatus(status: TaskStatus): status is WaitingStatus {
   );
 }
 
+/**
+ * Answers a Task waiting for input in place. The answer is the same comment
+ * the Task page posts; the assigned agent wakes on it and resumes, and the
+ * list's own refresh takes the row away once the Task moves on.
+ */
+function WaitingTaskAnswer({
+  task,
+  name,
+  onSent,
+}: {
+  task: TaskListItem;
+  name: string | null;
+  onSent: () => void;
+}) {
+  const t = useTranslations("Components.NotificationCenter.WaitingTasks");
+  const [text, setText] = useState("");
+  const [isSending, startSending] = useTransition();
+  const question = useQuery({
+    queryKey: ["needs-you-task-question", task.id],
+    queryFn: async () =>
+      waitingQuestion((await coreClient.getTaskEvents(task.id)).data),
+  });
+  const label = name
+    ? t("answerPlaceholder", { name })
+    : t("answerPlaceholderNoName");
+  const send = () =>
+    startSending(async () => {
+      try {
+        await createTaskComment({ taskId: task.id, comment: text });
+      } catch {
+        toast.error(t("answerError"));
+        return;
+      }
+      setText("");
+      onSent();
+    });
+
+  return (
+    <form
+      className="flex flex-col gap-2 px-3 pb-3 sm:pl-14"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (text.trim()) send();
+      }}
+    >
+      {question.data ? (
+        <p className="bg-muted line-clamp-6 rounded-md p-2 text-sm whitespace-pre-line break-words">
+          {question.data}
+        </p>
+      ) : null}
+      <Textarea
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        onKeyDown={(event) => {
+          if (
+            event.key === "Enter" &&
+            !event.shiftKey &&
+            !event.nativeEvent.isComposing &&
+            text.trim()
+          ) {
+            event.preventDefault();
+            send();
+          }
+        }}
+        placeholder={label}
+        aria-label={label}
+        className="min-h-10"
+        autoFocus
+      />
+      <Button
+        type="submit"
+        size="sm"
+        className="self-end"
+        loading={isSending}
+        disabled={!text.trim()}
+      >
+        <Send aria-hidden />
+        {t("send")}
+      </Button>
+    </form>
+  );
+}
+
+function WaitingTaskRow({
+  task,
+  name,
+  summary,
+  action,
+  time,
+  answerable,
+  onNavigate,
+}: {
+  task: TaskListItem;
+  name: string | null;
+  summary: string;
+  action: string;
+  time: string;
+  answerable: boolean;
+  onNavigate?: () => void;
+}) {
+  const t = useTranslations("Components.NotificationCenter.WaitingTasks");
+  const [answering, setAnswering] = useState(false);
+  const [answered, setAnswered] = useState(false);
+
+  return (
+    <li>
+      <div className="flex items-start">
+        <Link
+          href={taskHref(task)}
+          onClick={onNavigate}
+          className="hover:bg-accent focus-visible:ring-ring flex min-w-0 flex-1 items-start gap-3 p-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset"
+        >
+          <span
+            aria-hidden
+            className="bg-quinary flex size-8 shrink-0 items-center justify-center rounded-full"
+          >
+            <StatusMarker
+              spec={getTaskStatusMarker(task.status)}
+              live={false}
+            />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-sm font-medium text-pretty break-words">
+              {task.name}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              {summary}
+              {" · "}
+              <span className="tabular-nums">{time}</span>
+            </span>
+          </span>
+          {answerable ? null : (
+            <span
+              className={cn(
+                buttonVariants({ variant: "outline", size: "sm" }),
+                "pointer-events-none shrink-0",
+              )}
+            >
+              {action}
+            </span>
+          )}
+        </Link>
+        {answerable && answered ? (
+          <p
+            role="status"
+            className="text-muted-foreground shrink-0 p-3 text-xs"
+          >
+            {t("answerSent")}
+          </p>
+        ) : null}
+        {answerable && !answered ? (
+          <Button
+            type="button"
+            variant={answering ? "secondary" : "outline"}
+            size="sm"
+            className="m-3 ml-0 shrink-0"
+            aria-expanded={answering}
+            onClick={() => setAnswering((open) => !open)}
+          >
+            {action}
+          </Button>
+        ) : null}
+      </div>
+      {answering && !answered ? (
+        <WaitingTaskAnswer
+          task={task}
+          name={name}
+          onSent={() => setAnswered(true)}
+        />
+      ) : null}
+    </li>
+  );
+}
+
 interface NotificationWaitingTasksProps {
   /** Closes the surrounding panel, which navigation does not unmount. */
   onNavigate?: () => void;
@@ -106,9 +286,10 @@ interface NotificationWaitingTasksProps {
  * A Task's own ask is a notification row too, and the list leaves those
  * out of Needs you, so each waiting Task is here once.
  *
- * Each row is one link to the Task, which is where the answer is given. It
- * says who asks and for what, and ends in the move as a button-shaped label,
- * so the row reads as one stop rather than two links to the same place.
+ * Each row links to the Task and says who asks and for what. A Task waiting
+ * for input is answered in place; every other row ends in the move as a
+ * button-shaped label, so it reads as one stop rather than two links to the
+ * same place.
  */
 export function NotificationWaitingTasks({
   onNavigate,
@@ -170,43 +351,16 @@ export function NotificationWaitingTasks({
           const action = t(`action.${status}`);
 
           return (
-            <li key={task.id}>
-              <Link
-                href={taskHref(task)}
-                onClick={onNavigate}
-                className="group/row hover:bg-accent focus-visible:ring-ring flex items-start gap-3 p-3 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset"
-              >
-                <span
-                  aria-hidden
-                  className="bg-quinary flex size-8 shrink-0 items-center justify-center rounded-full"
-                >
-                  <StatusMarker
-                    spec={getTaskStatusMarker(task.status)}
-                    live={false}
-                  />
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="text-sm font-medium text-pretty break-words">
-                    {task.name}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    {summary}
-                    {" · "}
-                    <span className="tabular-nums">
-                      {formatTime(task.updatedAt)}
-                    </span>
-                  </span>
-                </span>
-                <span
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "pointer-events-none shrink-0",
-                  )}
-                >
-                  {action}
-                </span>
-              </Link>
-            </li>
+            <WaitingTaskRow
+              key={task.id}
+              task={task}
+              name={name}
+              summary={summary}
+              action={action}
+              time={formatTime(task.updatedAt)}
+              answerable={status === TaskStatus.INPUT_REQUIRED}
+              onNavigate={onNavigate}
+            />
           );
         })}
       </ul>
