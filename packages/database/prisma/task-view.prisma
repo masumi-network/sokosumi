@@ -1,0 +1,20 @@
+/// The Tasks page view a person last chose in one workspace: its filters,
+/// sort and sub-task switch, as the page's query string. Web owns the keys
+/// and checks them again on every read. One row per person and workspace.
+model TaskViewPreference {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation("TaskViewPreferenceUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Empty when the person cleared every filter.
+  query String @db.VarChar(1000)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@map("task_view_preference")
+}
