@@ -7,20 +7,41 @@ const KIND_LABELS: Record<RequestSeoAnalysis["kind"], string> = {
   rankings: "SEO ranking check",
   links: "SEO link check",
 };
+/** The worker modules a request runs (the SEO worker's analysesOf). */
+export function selectedModules(
+  input: Pick<RequestSeoAnalysis, "kind" | "analyses">,
+): string[] {
+  if (input.kind === "page_check") return ["page.inspect"];
+  if (input.kind === "rankings") return ["keyword.refresh"];
+  if (input.kind === "links") return ["links.refresh"];
+  return input.analyses ?? ["page.inspect"];
+}
+
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
 /** The readable part of an SEO Task description, above its request line. */
 export function seoTaskSummary(
   input: Pick<
     RequestSeoAnalysis,
-    "kind" | "keywords" | "countryCode" | "languageCode" | "devices"
+    | "kind"
+    | "keywords"
+    | "countryCode"
+    | "languageCode"
+    | "devices"
+    | "analyses"
   >,
   pageUrls: string[],
   competitorUrls: string[] = [],
 ): string {
-  // A full audit sends only its first keyword (seoTaskPacket).
+  // A full audit sends only its first keyword (seoTaskPacket); a focused
+  // check reads keywords only for rank reads.
+  const modules = input.kind === "audit_full" ? [] : selectedModules(input);
   const keywords =
-    input.kind === "audit_full" ? input.keywords.slice(0, 1) : input.keywords;
+    input.kind === "audit_full"
+      ? input.keywords.slice(0, 1)
+      : modules.includes("keyword.refresh")
+        ? input.keywords
+        : [];
   const details = [
     `Search market: ${input.countryCode}, language: ${input.languageCode}.`,
     ...(keywords.length
@@ -29,8 +50,8 @@ export function seoTaskSummary(
           `Target ${keywords.length === 1 ? "keyword" : "keywords"}: ${keywords.join(", ")}.`,
         ]
       : []),
-    // Devices matter only for keyword rank reads, which a full audit plans itself.
-    ...(keywords.length && input.kind !== "audit_full"
+    // Page reads and rank reads run per device; a full audit uses both.
+    ...(modules.some((m) => m === "page.inspect" || m === "keyword.refresh")
       ? [`Devices: ${input.devices.join(", ")}.`]
       : []),
   ];

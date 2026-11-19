@@ -19,7 +19,7 @@ import {
 import { seoVisibilityFor } from "@/lib/seo/data-visibility";
 import { seoPageComparisonKey } from "@/lib/seo/related-page-selection";
 import { searchOpportunities } from "@/lib/seo/search-opportunities";
-import { seoTaskSummary } from "@/lib/seo/seo-task-summary";
+import { selectedModules, seoTaskSummary } from "@/lib/seo/seo-task-summary";
 import type {
   RequestSeoAnalysis,
   SeoActor,
@@ -70,13 +70,6 @@ const PRICED_SEARCH_OPERATOR =
   /(?:^|[\s("'+-])(?:allinanchor|allintext|allintitle|allinurl|cache|define|definition|filetype|id|inanchor|info|intext|intitle|inurl|link|site):/i;
 const keywordIdentity = (value: string) =>
   value.normalize("NFC").toLowerCase().trim().replace(/\s+/g, " ");
-
-function selectedModules(input: RequestSeoAnalysis): string[] {
-  if (input.kind === "page_check") return ["page.inspect"];
-  if (input.kind === "rankings") return ["keyword.refresh"];
-  if (input.kind === "links") return ["links.refresh"];
-  return input.analyses ?? ["page.inspect"];
-}
 
 /** The Task packet the SEO worker reads. Refuse it here when the worker would refuse it. */
 export function seoTaskPacket(

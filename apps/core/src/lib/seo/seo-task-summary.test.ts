@@ -28,7 +28,7 @@ describe("seoTaskSummary", () => {
     const summary = seoTaskSummary(
       {
         kind: "links",
-        keywords: [],
+        keywords: ["coffee"],
         countryCode: "US",
         languageCode: "en",
         devices: ["mobile"],
@@ -38,5 +38,20 @@ describe("seoTaskSummary", () => {
     );
     expect(summary).toContain("Competitors:\n- https://rival.example/");
     expect(summary).not.toContain("Devices");
+    expect(summary).not.toContain("coffee");
+  });
+
+  it("shows the devices a page check reads, also without keywords", () => {
+    const summary = seoTaskSummary(
+      {
+        kind: "page_check",
+        keywords: [],
+        countryCode: "US",
+        languageCode: "en",
+        devices: ["mobile"],
+      },
+      pageUrls.slice(0, 1),
+    );
+    expect(summary).toContain("Devices: mobile.");
   });
 });
