@@ -19,6 +19,7 @@ import {
   type CmoSeo,
   type CmoSocialAccountChoice,
   type CmoSubscriptionPlan,
+  type CmoTikTokCreator,
   changeCmoPlanForProject,
   chooseCmoAdAccountForProject,
   clearCmoPresenterForProject,
@@ -55,6 +56,7 @@ import {
   postComposioCallbackComplete,
   postContactLists,
   postContactListsByIdImport,
+  readCmoTikTokCreatorForDraft,
   removeCmoCompetitorForProject,
   requestCmoArticleDraftForProject,
   requestCmoArticleIdeasForProject,
@@ -72,6 +74,7 @@ import {
   startCmoOverForProject,
   startCmoPlanCheckoutForProject,
   startCmoTopUpForProject,
+  type TikTokPostSettings,
   updateCmoBrandBrainForProject,
   updateCmoCompetitorForProject,
 } from "@sokosumi/core-client";
@@ -446,20 +449,41 @@ async function draftResult(
     : { overview: null, error: errorText(result.error, fallback) };
 }
 
-/** Approves a post Cuso made outside the month; it then goes out. */
+/**
+ * Approves a post that waits for the owner; it then goes out. A TikTok video
+ * goes out at once, with the owner's choices and confirmation.
+ */
 export async function approveDraft(
   projectId: string,
   postId: string,
   revision: number,
+  tikTokSettings?: TikTokPostSettings,
 ): Promise<DraftResult> {
   return draftResult(
     await approveCmoDraftForProject({
       ...(await requireCore()),
       path: { projectId, postId },
-      body: { revision },
+      body: { revision, ...(tikTokSettings ? { tikTokSettings } : {}) },
     }),
     "Could not approve this post",
   );
+}
+
+/** What TikTok allows on the account a waiting video goes to, read now. */
+export async function readTikTokCreator(
+  projectId: string,
+  postId: string,
+): Promise<{ creator: CmoTikTokCreator | null; error: string | null }> {
+  const { data, error } = await readCmoTikTokCreatorForDraft({
+    ...(await requireCore()),
+    path: { projectId, postId },
+  });
+  return data
+    ? { creator: data.data, error: null }
+    : {
+        creator: null,
+        error: errorText(error, "TikTok could not be read. Try again."),
+      };
 }
 
 /** Declines a post Cuso made, or stops an approved one before it goes out. */
