@@ -1,7 +1,11 @@
 {
   "Components": {
     "SokoBotTurnFailure": {
-      "aiBudgetExceeded": "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird."
+      "aiBudgetExceeded": "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird.",
+      "generic": "Bei uns ist etwas schiefgelaufen. Versuch es erneut. Wenn das Problem weiterhin auftritt, wende dich an den Support.",
+      "messageSaved": "Deine Nachricht wurde gespeichert.",
+      "backgroundFailed": "Der Hintergrundlauf „{title}“ ist fehlgeschlagen, bevor er berichten konnte.",
+      "backgroundDeadline": "Die Zeit für den Hintergrundlauf „{title}“ ist abgelaufen, bevor er berichten konnte."
     },
     "AuthCaptcha": {
       "error": "Die Sicherheitsprüfung konnte nicht geladen werden. Deaktiviere Inhaltsblocker oder lade die Seite neu.",
@@ -10788,7 +10792,6 @@
         "answeredIn": "{seconds}s",
         "copy": "Kopieren",
         "copied": "Kopiert",
-        "failed": "Dieser Durchlauf ist fehlgeschlagen. Versuch es erneut oder formuliere um.",
         "cancelled": "Abgebrochen.",
         "noAnswer": "Für diesen Durchlauf wurde keine Antwort gespeichert.",
         "stillWorking": "Arbeitet noch daran",

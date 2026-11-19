@@ -11,9 +11,11 @@ import {
   withNoticeMention,
 } from "@/helpers/soko-bot-notice-room";
 import { sokoBotForTurnMember } from "@/helpers/soko-bot-turn-authority";
+import { AI_BUDGET_EXCEEDED } from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { backgroundFailureText } from "@/lib/soko-bot/background-failure";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { TASK_SUMMARY_CLIENT_TURN_PREFIX } from "@/lib/soko-bot/system-routes";
 import { collectTurnResultSnapshots } from "@/services/chat-result-preview.service";
@@ -33,14 +35,15 @@ const RETRY_DELAYS_MS = [60_000, 300_000, 1_800_000, 7_200_000];
 /** What a background run that ended without an answer posts instead. */
 function backgroundStopNote(turn: {
   backgroundTitle: string | null;
-  status: string;
   errorKind: string | null;
-  errorDetail: string | null;
-}): string {
-  if (!turn.backgroundTitle) return "";
-  const how =
-    turn.errorKind === "turn_deadline_exceeded" ? "ran out of time" : "failed";
-  return `Background run "${turn.backgroundTitle}" ${how} before it could report.${turn.errorDetail ? ` (${turn.errorDetail.slice(0, 300)})` : ""}`;
+}) {
+  if (!turn.backgroundTitle) return null;
+  const kind =
+    turn.errorKind === AI_BUDGET_EXCEEDED ||
+    turn.errorKind === "turn_deadline_exceeded"
+      ? turn.errorKind
+      : "unknown";
+  return { kind, text: backgroundFailureText(turn.backgroundTitle, kind) };
 }
 
 /**
@@ -354,6 +357,8 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         // A background run's report carries the cards of what it made, as a
         // chat reply does.
         const snapshots = await collectTurnResultSnapshots(turn.id, tx);
+        const answer = turn.finalAnswer?.trim();
+        const failure = answer ? null : backgroundStopNote(turn);
         const message = await tx.chatRoomMessage.upsert({
           where: {
             roomId_clientMessageId: {
@@ -366,7 +371,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             clientMessageId: `soko-bot:${turn.id}:${delivery.purpose === "FINAL" ? "final" : delivery.id}`,
             senderSokoBotId: turn.sokoBotId,
             content: withNoticeMention(
-              turn.finalAnswer?.trim() || backgroundStopNote(turn),
+              answer || failure?.text || "",
               destination.mentionUserId,
             ),
             metadata: {
@@ -379,6 +384,7 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
                 ...(turn.backgroundTitle
                   ? { background_run_title: turn.backgroundTitle }
                   : {}),
+                ...(failure ? { background_failure_kind: failure.kind } : {}),
                 // Lets the chat say where an unprompted message came from.
                 ...(turn.scheduleRun
                   ? {
