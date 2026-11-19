@@ -2,7 +2,7 @@ import {
   parseSokoBotMemory,
   type SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
-
+import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { createCoreLogger, recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
@@ -290,6 +290,7 @@ export async function triageMail(input: {
  */
 async function ownerMailContext(sokoBotId: string): Promise<OwnerMailContext> {
   try {
+    const now = await databaseNow();
     const [memory, flagged] = await Promise.all([
       prisma.sokoBotMemoryRevision.findFirst({
         where: { sokoBotId },
@@ -300,7 +301,7 @@ async function ownerMailContext(sokoBotId: string): Promise<OwnerMailContext> {
         where: {
           sokoBotId,
           source: "INGEST",
-          createdAt: { gte: new Date(Date.now() - FLAGGED_WINDOW_MS) },
+          createdAt: { gte: new Date(now.getTime() - FLAGGED_WINDOW_MS) },
           deliveries: { some: { purpose: "FINAL", status: "PUBLISHED" } },
         },
         orderBy: { createdAt: "desc" },

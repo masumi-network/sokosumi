@@ -12,10 +12,12 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@sokosumi/database";
 import {
+  CMO_SOKO_BOT_VERSION_IDS,
   type RuntimeEvent,
   SOKO_BOT_TURN_TOKEN_HEADER,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
+import { experimental_evaluate } from "ai";
 import { Pool } from "pg";
 import {
   afterAll,
@@ -27,23 +29,28 @@ import {
   vi,
 } from "vitest";
 import { errorHandler } from "@/helpers/error-handler";
+import * as databaseClock from "@/lib/db/database-now";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { commitActionReceipt } from "@/lib/soko-bot/action-receipts";
 import { getSokoBotRuntime } from "@/lib/soko-bot/factory";
 import { streamStoredEvents } from "@/lib/soko-bot/in-process-runtime";
+import { triageMail } from "@/lib/soko-bot/mail-triage";
 import { SokoBotReconciliationLeaseLostError } from "@/lib/soko-bot/reconciliation-lease";
 import { issueTurnToken } from "@/lib/soko-bot/sandbox/turn-token";
 import {
   announceTurn,
   closeTurn,
+  prepareTurn,
   RuntimeEventLog,
   runtimeEvent,
 } from "@/lib/soko-bot/turn-loop";
+import mountCmoSpend from "@/routes/v1/admin/soko-bots/cmo-spend/get";
 import sokoBotRuntimeRoutes from "@/routes/v1/soko-bot-runtime";
 import mountStartTurn, { mountById } from "@/routes/v1/soko-bots/me/turns/post";
 import { coreLogEvents, expectCoreLog } from "@/test/core-log";
+import { cmoActivity } from "./cmo-hiring.service";
 
 const { pending } = vi.hoisted(() => ({ pending: [] as Promise<unknown>[] }));
 
@@ -60,6 +67,10 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
 vi.mock("@/lib/ably/client", async () =>
   (await import("@/test/ably-client")).fakeAblyClientModule(),
 );
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
+  experimental_evaluate: vi.fn().mockResolvedValue({ answers: {} }),
+}));
 
 import {
   SokoBotControlPlane,
@@ -67,8 +78,14 @@ import {
   sokoBotControlPlane,
 } from "./soko-bot-control-plane.service";
 import { proactiveGate } from "./soko-bot-proactive.service";
+import { getSokoBotQualityOverview } from "./soko-bot-quality.service";
 import { requireMutationAuthority } from "./soko-bot-runtime/authorization";
 import { sokoBotRuntimeService } from "./soko-bot-runtime.service";
+import { startSandboxTurn } from "./soko-bot-sandbox-turn.service";
+import {
+  getSokoBotDailyStats,
+  sokoBotAutomationChecks,
+} from "./soko-bot-stats.service";
 import {
   settledTurnStatus,
   TURN_ROW_SELECT,
@@ -356,6 +373,19 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
     await closeTurn(log, LEASE);
   }
 
+  it("records completion on the PostgreSQL clock for later context and display", async () => {
+    const log = await runningTurnWithAbandonedDrain();
+    await announceTurn(log, "Clock turn");
+    const now = await skewApplicationClock(2 * 60 * MINUTE);
+    await closeCompletedRuntime(log);
+
+    const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: log.turnId },
+    });
+    expect(turn.status).toBe("COMPLETED");
+    expectNear(turn.completedAt, now.getTime());
+  });
+
   it("close after a watchdog stale-drain claim settles at close", async () => {
     const log = await runningTurnWithAbandonedDrain();
     expect(await syncTurns()).toMatchObject({ claimed: 1, reconciled: 1 });
@@ -556,6 +586,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
     });
     expect(turn.status).toBe("RUNNING");
     expectNear(turn.createdAt, now.getTime());
+    expectNear(turn.startedAt, now.getTime());
     expectNear(turn.reconcilerHeartbeatAt, now.getTime());
     expectNear(turn.leaseExpiresAt, now.getTime() + 16 * MINUTE);
     // A preset route is not a person asking: the 15-minute deadline.
@@ -792,11 +823,17 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       }
       const transaction = prisma.$transaction.bind(prisma);
       const session = acceptedSession();
+      let acknowledgedAt: Date | null | undefined;
       let heartbeatBeforeProof: Date | undefined;
       createSession.mockImplementationOnce(async ({ turnId }) => {
         vi.spyOn(prisma, "$transaction").mockImplementationOnce(
           async (callback, options) => {
             await transaction(callback, options);
+            ({ startedAt: acknowledgedAt } =
+              await prisma.sokoBotTurn.findUniqueOrThrow({
+                where: { id: turnId },
+                select: { startedAt: true },
+              }));
             const now = await databaseNow();
             heartbeatBeforeProof = new Date(now.getTime() - MINUTE);
             await prisma.sokoBotTurn.update({
@@ -818,10 +855,11 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
         where: { id: result.turnId },
       });
+      expect(acknowledgedAt).toBeInstanceOf(Date);
       expect(heartbeatBeforeProof).toBeDefined();
       expect(turn).toMatchObject({
         status,
-        startedAt: new Date(session.acceptedAt),
+        startedAt: acknowledgedAt,
         eveSessionId: session.sessionId,
         leaseToken: expect.any(String),
       });
@@ -1063,6 +1101,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
   async function claimBehindWriter<T>(
     write: (tx: Prisma.TransactionClient) => Promise<unknown>,
     claim: () => Promise<T>,
+    beforeRelease?: () => void,
   ): Promise<T> {
     const locked = Promise.withResolvers<number>();
     const release = Promise.withResolvers<void>();
@@ -1094,6 +1133,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
         waiting = blocked;
       }
       expect(waiting, "recovery waits on the row writer").toBe(true);
+      beforeRelease?.();
     } finally {
       release.resolve();
       await Promise.allSettled([writer, pending]);
@@ -1204,7 +1244,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       select: TURN_ROW_SELECT,
     });
 
-    expect(await settledTurnStatus(turn, new Date())).toBe("running");
+    expect(await settledTurnStatus(turn)).toBe("running");
     expect(
       (await prisma.sokoBotTurn.findUniqueOrThrow({ where: { id: turnId } }))
         .status,
@@ -1242,6 +1282,267 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
       reason: "daily-limit",
       usedToday: 1,
     });
+  });
+
+  it("counts a turn created in the first second after local midnight", async () => {
+    const midnight = new Date("2026-11-19T18:15:00.000Z");
+    await prisma.sokoBot.update({
+      where: { id: botId },
+      data: { ingestTimezone: "Asia/Kathmandu" },
+    });
+    await createTurn(new Date(midnight.getTime() + 500), {
+      status: "RUNNING",
+      eveSessionId: "session_clock",
+      leaseInMs: MINUTE,
+      source: "SCHEDULE",
+    });
+    vi.spyOn(databaseClock, "databaseNow").mockResolvedValueOnce(
+      new Date(midnight.getTime() + 5_789),
+    );
+
+    await expect(proactiveGate(botId)).resolves.toMatchObject({
+      ok: false,
+      reason: "daily-limit",
+      usedToday: 1,
+    });
+  });
+
+  it("keeps a CMO turn running when a skewed runtime just recorded progress", async () => {
+    const now = await databaseNow();
+    const sessionId = "session_clock";
+    const turnId = await createTurn(now, {
+      status: "RUNNING",
+      eveSessionId: sessionId,
+      createdAgoMs: 10 * MINUTE,
+      leaseInMs: 16 * MINUTE,
+    });
+    const turn = await prisma.sokoBotTurn.findUniqueOrThrow({
+      where: { id: turnId },
+      select: TURN_ROW_SELECT,
+    });
+    await skewApplicationClock(-10 * MINUTE);
+    await new RuntimeEventLog(turnId, sessionId).append(
+      runtimeEvent("reasoning.completed", {
+        text: "Checking the pricing page",
+      }),
+    );
+    vi.setSystemTime(now.getTime() + 6 * MINUTE);
+
+    await expect(settledTurnStatus(turn)).resolves.toBe("running");
+  });
+
+  it("shows the active turn's reasoning when the runtime clock is behind Core", async () => {
+    const now = await databaseNow();
+    const sessionId = "session_clock";
+    const turnId = await createTurn(now, {
+      status: "RUNNING",
+      eveSessionId: sessionId,
+      leaseInMs: 16 * MINUTE,
+    });
+    await skewApplicationClock(-MINUTE);
+    const log = new RuntimeEventLog(turnId, sessionId);
+    await log.append(
+      runtimeEvent("reasoning.completed", {
+        text: "Checking the pricing page",
+      }),
+    );
+
+    await expect(
+      cmoActivity({ sokoBotId: botId, websiteUrl: "https://example.test" }),
+    ).resolves.toEqual({
+      step: null,
+      reasoning: "Checking the pricing page",
+    });
+  });
+
+  async function turnWithRecentExchange() {
+    const now = await databaseNow();
+    const sessionId = "session_clock";
+    const turnId = await createTurn(now, {
+      status: "RUNNING",
+      eveSessionId: sessionId,
+      leaseInMs: 16 * MINUTE,
+      deadlineInMs: 16 * MINUTE,
+    });
+    await prisma.sokoBotContextSnapshot.create({
+      data: {
+        turnId,
+        generatedAt: now,
+        schemaVersion: 1,
+        hash: "fixture",
+        packet: {
+          recentTurns: [
+            {
+              source: "CHAT",
+              createdAt: new Date(
+                now.getTime() - 23 * 60 * MINUTE,
+              ).toISOString(),
+              finalAnswer: "The recent answer",
+            },
+          ],
+        },
+        byteSize: 0,
+        tokenEstimate: 0,
+        counts: {},
+        omissions: {},
+      },
+    });
+    return { turnId, sessionId, now };
+  }
+
+  it("includes the latest exchange inside the PostgreSQL 24-hour window", async () => {
+    const { turnId, sessionId } = await turnWithRecentExchange();
+    await skewApplicationClock(2 * 60 * MINUTE);
+
+    const prepared = await prepareTurn(sessionId, turnId, { sandbox: false });
+    expect(prepared.system).toContain("You: The recent answer");
+  });
+
+  it("hands the runner a remaining budget measured on the PostgreSQL clock", async () => {
+    const { turnId, sessionId, now } = await turnWithRecentExchange();
+    await skewApplicationClock(2 * 60 * MINUTE);
+
+    const started = await startSandboxTurn({
+      turnId,
+      sessionId,
+      expiresAt: now.getTime() + 17 * MINUTE,
+    });
+    expect(started).toMatchObject({ budgetMs: expect.any(Number) });
+    const expected =
+      now.getTime() + 16 * MINUTE - (await databaseNow()).getTime() - 20_000;
+    expect(Math.abs(started.budgetMs - expected)).toBeLessThan(5_000);
+  });
+
+  it("includes a recently published mail alert when Core is a day ahead", async () => {
+    const now = await databaseNow();
+    const turnId = await createTurn(now, {
+      status: "RUNNING",
+      eveSessionId: "session_clock",
+      leaseInMs: MINUTE,
+    });
+    await prisma.sokoBotTurn.update({
+      where: { id: turnId },
+      data: {
+        status: "COMPLETED",
+        source: "INGEST",
+        finalAnswer: "Your payout failed",
+        deliveries: { create: { status: "PUBLISHED" } },
+      },
+    });
+    await skewApplicationClock(25 * 60 * MINUTE);
+
+    await triageMail({
+      sokoBotId: botId,
+      source: "delta",
+      mail: [
+        {
+          provider: "gmail",
+          id: "payout",
+          threadId: null,
+          from: "alerts@example.test",
+          to: ["owner@example.test"],
+          subject: "Payout failed",
+          snippet: "A payment needs attention",
+          receivedAt: now.toISOString(),
+          unread: true,
+          labels: [],
+        },
+      ],
+    });
+    expect(experimental_evaluate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: expect.objectContaining({
+          alreadyFlaggedToday: ["Your payout failed"],
+        }),
+      }),
+    );
+  });
+
+  it("includes today's turn in daily usage and quality reports when the host is 31 days ahead", async () => {
+    const now = await databaseNow();
+    const turnId = await createTurn(now, {
+      status: "RUNNING",
+      eveSessionId: "session_clock",
+      leaseInMs: MINUTE,
+    });
+    await prisma.sokoBotTurn.update({
+      where: { id: turnId },
+      data: { status: "COMPLETED" },
+    });
+    await skewApplicationClock(31 * 24 * 60 * MINUTE);
+    const today = now.toISOString().slice(0, 10);
+
+    const [stats, quality] = await Promise.all([
+      getSokoBotDailyStats({ userId, workspaceId }),
+      getSokoBotQualityOverview({ sokoBotId: botId }),
+    ]);
+    expect
+      .soft(stats?.daily)
+      .toContainEqual(expect.objectContaining({ date: today, messages: 1 }));
+    expect(quality.daily).toContainEqual(
+      expect.objectContaining({ date: today, turns: 1 }),
+    );
+  });
+
+  it("does not mark an upcoming automation late when the reader is an hour ahead", async () => {
+    const now = await databaseNow();
+    await prisma.sokoBotSchedule.create({
+      data: {
+        sokoBotId: botId,
+        workspaceId,
+        name: "Morning update",
+        timezone: "UTC",
+        cronExpression: "0 8 * * *",
+        prompt: "Share an update",
+        nextRunAt: new Date(now.getTime() + MINUTE),
+      },
+    });
+    await skewApplicationClock(60 * MINUTE);
+
+    const checks = await sokoBotAutomationChecks(botId);
+    expect(checks.items).toMatchObject([
+      { name: "Morning update", late: false },
+    ]);
+  });
+
+  it("includes today's Cuso turn in the spend window when the polling host is a day ahead", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Clock project" },
+    });
+    await prisma.sokoBot.update({
+      where: { id: botId },
+      data: {
+        userId: null,
+        projectId: project.id,
+        versionId: CMO_SOKO_BOT_VERSION_IDS[0],
+      },
+    });
+    const now = await databaseNow();
+    await createTurn(now, {
+      status: "RUNNING",
+      eveSessionId: "session_clock",
+      leaseInMs: MINUTE,
+    });
+    await skewApplicationClock(25 * 60 * MINUTE);
+
+    const app = new OpenAPIHonoWithAuth().onError(errorHandler);
+    app.use("*", async (c, next) => {
+      c.set("authContext", {
+        actor: "user",
+        userId,
+        organizationId: null,
+        role: "admin",
+      });
+      await next();
+    });
+    mountCmoSpend(app);
+    const response = await app.request("/cmo-spend?days=1");
+    expect(response.status).toBe(200);
+    const { data } = await response.json();
+    expect(
+      data.bots.find((bot: { sokoBotId: string }) => bot.sokoBotId === botId)
+        ?.turns,
+    ).toBe(1);
   });
 
   describe("a sessionless start with a heartbeat", () => {
@@ -1331,7 +1632,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
   describe("runtime authorization", () => {
     const operations = { requireWriteScope: async () => undefined };
 
-    async function mutate(turnId: string) {
+    async function mutate(turnId: string, confirmationTurnId?: string) {
       return prisma.$transaction(
         (tx) =>
           requireMutationAuthority(
@@ -1350,12 +1651,70 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
                 chainDepth: 0,
               },
               classificationConfidence: 1,
+              ...(confirmationTurnId ? { confirmationTurnId } : {}),
             },
-            false,
+            Boolean(confirmationTurnId),
           ),
         { timeout: 20_000 },
       );
     }
+
+    it.each(["bot", "intent"] as const)(
+      "refuses an approved write whose confirmation lease ends during the %s lock wait",
+      async (lock) => {
+        const now = await databaseNow();
+        const turnId = await createTurn(now, {
+          status: "RUNNING",
+          eveSessionId: "session_clock",
+          leaseInMs: MINUTE,
+        });
+        await prisma.sokoBotTurn.update({
+          where: { id: turnId },
+          data: { status: "COMPLETED" },
+        });
+        const intent = await prisma.sokoBotIntent.create({
+          data: {
+            sokoBotId: botId,
+            workspaceId,
+            requesterId: userId,
+            originatingTurnId: turnId,
+            desiredOutcome: "Clock intent",
+            targetIds: [],
+            allowedActions: [],
+            acceptanceCriteria: [],
+            evidenceIds: [],
+            expiresAt: new Date(Date.now() + MINUTE),
+          },
+        });
+        await prisma.sokoBotTurn.update({
+          where: { id: turnId },
+          data: { intentId: intent.id, intentRevision: intent.revision },
+        });
+        const confirmationId = await createTurn(now, {
+          status: "RUNNING",
+          eveSessionId: "confirmation_session",
+          leaseInMs: MINUTE,
+        });
+        const clock = vi
+          .spyOn(databaseClock, "databaseNow")
+          .mockResolvedValue(now);
+        await expect(
+          claimBehindWriter(
+            async (tx) => {
+              if (lock === "bot") {
+                await tx.$queryRaw`SELECT "id" FROM "soko_bot" WHERE "id" = ${botId}::uuid FOR UPDATE`;
+              } else {
+                await tx.$queryRaw`SELECT "id" FROM "soko_bot_intent" WHERE "id" = ${intent.id}::uuid FOR UPDATE`;
+              }
+            },
+            () => mutate(turnId, confirmationId),
+            () => {
+              clock.mockResolvedValueOnce(new Date(now.getTime() + MINUTE + 1));
+            },
+          ),
+        ).rejects.toThrow("Confirmation turn is no longer writable");
+      },
+    );
 
     it("lets a turn with 30 seconds of lease left write when the host runs a minute ahead", async () => {
       const now = await databaseNow();

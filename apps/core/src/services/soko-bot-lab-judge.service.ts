@@ -10,6 +10,10 @@ import {
 import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
 import { jsonInput } from "@/helpers/prisma-json";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { runClaudeCodeJudge } from "@/lib/soko-bot/claude-code-judge";
@@ -205,7 +209,7 @@ export async function generateSokoBotJudgeText(options: {
     abortSignal: options.abortSignal,
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
-  });
+  }).catch((error: unknown) => rethrowAiGatewayFailure(error, "evals"));
   assertSokoBotInferenceRegion(result.providerMetadata, {
     model: options.model,
     role: "judge",
@@ -263,6 +267,7 @@ async function askJudge(
     } catch (error) {
       if (error instanceof SokoBotModelPolicyError) throw error;
       lastError = error;
+      if (error instanceof AiGatewayBudgetError) break;
     }
   }
   // Both attempts spent tokens. Throwing without reporting them would hide a

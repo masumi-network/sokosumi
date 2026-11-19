@@ -76,6 +76,7 @@ import {
   ensureSystemSchedules,
   findAttentionItems,
   followUpsBlock,
+  localDayStart,
   proactiveGate,
 } from "./soko-bot-proactive.service";
 
@@ -240,6 +241,12 @@ describe("proactiveGate", () => {
       reason: "paused",
     });
   });
+});
+
+it("uses the midnight offset on a day when the local clocks change", () => {
+  expect(
+    localDayStart(new Date("2026-10-25T12:03:45.678Z"), "Europe/Vienna"),
+  ).toEqual(new Date("2026-10-24T22:00:00.000Z"));
 });
 
 describe("buildSystemBeatMessage private Task visibility", () => {

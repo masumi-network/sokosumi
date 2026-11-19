@@ -1,6 +1,7 @@
 import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { expectCoreLogWhys } from "@/test/core-log";
+import { incrementRedisRateLimit } from "@/lib/redis-rate-limit";
+import { expectCoreLog, expectCoreLogWhys } from "@/test/core-log";
 import { PROJECT_LATEST_UPDATE_SYSTEM_PROMPT } from "./project-latest-update";
 import {
   projectMemoryService,
@@ -29,7 +30,8 @@ const {
   uploadProjectContextMdFileMock: vi.fn(),
 }));
 
-vi.mock("ai", () => ({
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
   createGateway: ({ apiKey }: { apiKey: string }) => ({
     languageModel: (id: string) => `keyed:${apiKey}:${id}`,
   }),
@@ -43,6 +45,10 @@ vi.mock("@sentry/node", () => ({
 
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
+}));
+
+vi.mock("@/lib/redis-rate-limit", () => ({
+  incrementRedisRateLimit: vi.fn(),
 }));
 
 vi.mock("@/lib/project-files-blob", () => ({
@@ -187,6 +193,46 @@ describe("projectMemoryService", () => {
     expect(generateTextMock).toHaveBeenCalled();
     for (const [options] of generateTextMock.mock.calls)
       expect(options.model).toBe(`keyed:memory_key:${MODEL_ID}`);
+  });
+
+  it("classifies budget refusals and alerts once per key per hour", async () => {
+    const alerts = expectCoreLog("error", "AI Gateway budget exhausted", 2);
+    const repeats = expectCoreLog("warn", "AI Gateway budget exhausted");
+    const increment = vi.mocked(incrementRedisRateLimit);
+    increment
+      .mockResolvedValueOnce(1)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1);
+    generateTextMock.mockRejectedValue(
+      Object.assign(new Error("API key budget exceeded for private-key-name"), {
+        name: "GatewayInternalServerError",
+      }),
+    );
+
+    const refresh = () =>
+      projectMemoryService.refreshAfterTaskCompleted({
+        projectId: PROJECT_ID,
+        taskId: TASK_ID,
+      });
+    const skipped = { status: "skipped", reason: "ai_budget_exceeded" };
+    await expect(refresh()).resolves.toEqual(skipped);
+    await expect(refresh()).resolves.toEqual(skipped);
+    expect(alerts).toHaveLength(1);
+
+    await expect(refresh()).resolves.toEqual(skipped);
+    expect(increment.mock.calls).toEqual(
+      Array.from({ length: 3 }, () => [
+        expect.stringMatching(/^ai-gateway:budget-alert:key:[a-f0-9]{64}$/),
+        3600,
+      ]),
+    );
+    for (const { event } of [...alerts, ...repeats]) {
+      expect(event).toMatchObject({
+        operation: "ai_budget_exceeded",
+        aiGatewayBudget: { scope: "key", purpose: "project-memory" },
+      });
+      expect(JSON.stringify(event)).not.toContain("private-key-name");
+    }
   });
 
   it("is a no-op without an AI Gateway key", async () => {

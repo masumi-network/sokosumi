@@ -5,6 +5,7 @@ import {
   sokoBotSystemSchedulePrompt,
 } from "@sokosumi/soko-bot";
 import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
+import { databaseNow } from "@/lib/db/database-now";
 import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
 
 export async function buildScheduledSystemBeat(
@@ -41,6 +42,6 @@ export async function buildScheduledSystemBeat(
     prompt: prompt ?? schedulePrompt,
     // Meeting prep reads the window after its own half-hour slot,
     // so a late or retried run briefs the same meetings, once.
-    now: key === "meeting-prep" ? scheduledFor : new Date(),
+    now: key === "meeting-prep" ? scheduledFor : await databaseNow(),
   });
 }

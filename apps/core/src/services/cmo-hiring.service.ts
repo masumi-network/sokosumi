@@ -231,12 +231,11 @@ function newestResearchTurn(sokoBotId: string) {
 
 export async function cmoLearningState(
   cuso: Pick<Cuso, "sokoBotId" | "brandBrain">,
-  now: Date = new Date(),
 ): Promise<CmoLearningState> {
   if (parseBrandBrain(cuso.brandBrain)) return "done";
   const turn = await newestResearchTurn(cuso.sokoBotId);
   // Cuso can finish without a Brand Brain on purpose: it asked questions.
-  return turn ? settledTurnStatus(turn, now) : "failed";
+  return turn ? settledTurnStatus(turn) : "failed";
 }
 
 /** One thing Cuso did while researching or planning, for the live feed. */
@@ -373,7 +372,6 @@ export function describeCmoStep(
 /** Cuso's latest research or strategy turn, step by step. */
 export async function cmoWork(
   cuso: Pick<Cuso, "sokoBotId" | "websiteUrl" | "brandBrain">,
-  now: Date = new Date(),
 ): Promise<CmoWork | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
     where: {
@@ -426,7 +424,7 @@ export async function cmoWork(
       ? "strategy"
       : "research",
     change: cmoChangeKind(turn.clientTurnId),
-    status: await settledTurnStatus(turn, now),
+    status: await settledTurnStatus(turn),
     startedAt: turn.createdAt,
     steps,
     sections,
@@ -453,7 +451,7 @@ export async function cmoActivity(
       status: { in: ["QUEUED", "STARTING", "RUNNING"] },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, eveSessionId: true, createdAt: true },
+    select: { id: true, eveSessionId: true },
   });
   if (!turn) return null;
   // Read from the runtime's own log: a summary lands there as its step ends,
@@ -469,7 +467,7 @@ export async function cmoActivity(
           where: {
             sessionId: turn.eveSessionId,
             type: "reasoning.completed",
-            occurredAt: { gte: turn.createdAt },
+            turnId: turn.id,
           },
           orderBy: { startIndex: "desc" },
           select: { data: true },
@@ -492,7 +490,6 @@ export async function cmoActivity(
  */
 export async function retryCmoOnboarding(
   target: CusoTarget,
-  now: Date = new Date(),
 ): Promise<{ turnId: string }> {
   const { userId } = target;
   const cuso = await requireCuso(target);
@@ -500,7 +497,7 @@ export async function retryCmoOnboarding(
     throw new CmoConflictError("Cuso already learned the business");
   }
   const turn = await newestResearchTurn(cuso.sokoBotId);
-  if (turn && (await settledTurnStatus(turn, now)) === "running") {
+  if (turn && (await settledTurnStatus(turn)) === "running") {
     // createdAt is PostgreSQL time.
     if (!cmoRunIsSlow("research", turn.createdAt, await databaseNow())) {
       throw new CmoConflictError("Cuso is still learning the business");

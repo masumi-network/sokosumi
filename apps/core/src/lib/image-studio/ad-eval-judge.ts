@@ -1,8 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { generateText, Output } from "ai";
 import { z } from "zod";
-
 import { unprocessableEntity } from "@/helpers/error";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
 
@@ -157,7 +157,7 @@ export async function judgeAdImage(
         ],
       },
     ],
-  });
+  }).catch(rethrowAiGatewayFailure);
   const judge = adEvalJudgeSchema.parse(result.output);
   return {
     judge,

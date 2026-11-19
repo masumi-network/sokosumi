@@ -5,6 +5,10 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { loadDirectRoomNamesByReader } from "@/helpers/chat-direct-room-names";
 import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
+import {
   CHAT_CATCH_UP_BUCKETS,
   type ChatCatchUpBucket,
   chatCatchUpBucket,
@@ -127,7 +131,7 @@ const defaultDeps: ChatSummaryDeps = {
       prompt,
       maxOutputTokens: MAX_OUTPUT_TOKENS,
       abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-    });
+    }).catch(rethrowAiGatewayFailure);
     return {
       text: result.text,
       costUsd: gatewayCostUsd(result.providerMetadata),
@@ -984,12 +988,18 @@ async function writtenSummary(input: {
     log.set({
       chatSummary: {
         outcome: "failed",
-        reason: error instanceof Error ? error.name : "unknown",
+        reason:
+          error instanceof AiGatewayBudgetError
+            ? error.code
+            : error instanceof Error
+              ? error.name
+              : "unknown",
       },
     });
-    Sentry.captureException(error, {
-      tags: { context: "chat_catch_up_summary" },
-    });
+    if (!(error instanceof AiGatewayBudgetError))
+      Sentry.captureException(error, {
+        tags: { context: "chat_catch_up_summary" },
+      });
     return null;
   } finally {
     log.emit();

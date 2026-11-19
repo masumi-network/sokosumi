@@ -6,6 +6,10 @@ const { turnFindManyMock, receiptFindManyMock } = vi.hoisted(() => ({
   receiptFindManyMock: vi.fn(),
 }));
 
+vi.mock("@/lib/db/database-now", () => ({
+  databaseNow: async () => new Date(),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { findMany: turnFindManyMock },
