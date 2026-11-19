@@ -1,13 +1,17 @@
 "use client";
 
 import { Bot, ChevronDown } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import {
   actionablePageDetails,
@@ -85,7 +89,8 @@ function PageDetail({
   noteHeading: "h4" | "h5";
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
+  const result = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
   const headingId = useId();
   const valueId = useId();
   const pageLabelId = useId();
@@ -167,7 +172,7 @@ function PageDetail({
           <span id={headingId} className="font-medium">
             {name}:
           </span>{" "}
-          <span className="tabular-nums">{value ?? t("none")}</span>
+          <span className="tabular-nums">{value ?? result("none")}</span>
           {fit?.outside.length ? (
             // Google sets no limit for these; the tools' ranges say whether a value stands out.
             <span
@@ -187,8 +192,8 @@ function PageDetail({
                     : PAGE_DETAIL_MARK.inside,
                 )}
               />
-              {suggested ? `${t("overview.suggestion")} ` : null}
-              {t("overview.outsideToolRanges", {
+              {suggested ? `${result("overview.suggestion")} ` : null}
+              {result("overview.outsideToolRanges", {
                 outside: fit.outside.length,
                 total: fit.total,
                 tools: format.list(fit.outside),
@@ -205,14 +210,14 @@ function PageDetail({
             className="text-sm leading-snug font-semibold break-words"
           >
             {plain?.kind === "share" ? (
-              t(`overview.plainNote.${plain.key}.found`, plain)
+              result(`overview.plainNote.${plain.key}.found`, plain)
             ) : plain ? (
-              t(`overview.plainNote.${plain.key}.title`)
+              result(`overview.plainNote.${plain.key}.title`)
             ) : note ? (
               note.found
             ) : (
               <>
-                {t("overview.noteRule")}
+                {result("overview.noteRule")}
                 {/* Several such notes would read alike; a screen reader hears which rule each is. */}
                 <span className="sr-only">{`: ${name}`}</span>
               </>
@@ -232,7 +237,7 @@ function PageDetail({
           ) : null}
           {plain ? (
             <p className="text-muted-foreground max-w-prose text-sm leading-relaxed">
-              {t(`overview.plainNote.${plain.key}.why`)}
+              {result(`overview.plainNote.${plain.key}.why`)}
             </p>
           ) : null}
         </>
@@ -243,7 +248,7 @@ function PageDetail({
           <SeoFoldSummary className="py-1.5">
             {t("overview.checkFound")}
             {/* Every titled note has this fold; a screen reader hears which note it belongs to. */}
-            <span className="sr-only">{`: ${t(`overview.plainNote.${plain.key}.title`)}`}</span>
+            <span className="sr-only">{`: ${result(`overview.plainNote.${plain.key}.title`)}`}</span>
           </SeoFoldSummary>
           <ul className="list-disc space-y-0.5 ps-4 pt-1">
             {pageDetailLines(finding.evidence).map((line, index) => (
@@ -259,7 +264,7 @@ function PageDetail({
           {/* A plain note's heading already says what the items are. */}
           {plain ? null : (
             <p className="text-muted-foreground font-medium">
-              {t(`overview.flaggedItems.${group.label}`, {
+              {result(`overview.flaggedItems.${group.label}`, {
                 count: group.values.length + group.more,
               })}
             </p>
@@ -278,7 +283,7 @@ function PageDetail({
             <li key={`${index}:${line}`} className="break-words">
               {toolRangesList(line) === undefined
                 ? withoutRuleCodes(line)
-                : t("overview.toolRanges", {
+                : result("overview.toolRanges", {
                     ranges: toolRangesList(line) ?? "",
                   })}
             </li>
@@ -351,7 +356,7 @@ function PageDetail({
         // The date is the link to the check; its hit area grows down, off the page link over it.
         <div className="text-muted-foreground flex flex-wrap gap-3 pt-2 text-xs">
           <SeoSource observationId={finding.observationId} workspace={data}>
-            <SeoDate value={finding.observedAt} />
+            <SeoDate report value={finding.observedAt} />
           </SeoSource>
         </div>
       ) : null}
@@ -372,6 +377,7 @@ export function SeoPageDetails({
   standalone?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   const { data } = model;
   const overview = seoOverviewModel(data);
   // Set on the first render with rows, then kept: a new check that adds actions does not close a fold the reader
@@ -473,7 +479,7 @@ export function SeoPageDetails({
                     PAGE_DETAIL_MARK.suggestion,
                   )}
                 />
-                {t("overview.suggestionCount", { count: suggestions })}
+                {result("overview.suggestionCount", { count: suggestions })}
               </span>
             ) : null}
             {/* The marks part the counts on screen; a screen reader hears a comma. */}
@@ -489,7 +495,7 @@ export function SeoPageDetails({
                     PAGE_DETAIL_MARK.note,
                   )}
                 />
-                {t("overview.noteCount", { count: flagged })}
+                {result("overview.noteCount", { count: flagged })}
               </span>
             ) : null}
           </span>
@@ -503,7 +509,7 @@ export function SeoPageDetails({
               : "row-start-2",
           )}
         >
-          {t("overview.diagnosticsHelp")}
+          {result("overview.diagnosticsHelp")}
         </span>
         <ChevronDown
           aria-hidden
@@ -517,15 +523,15 @@ export function SeoPageDetails({
         {oneCheck ? (
           // The date of the tests tile, the check's row in the details of its day or its page card links its results.
           <p className="text-muted-foreground text-xs">
-            {t.rich("overview.fromCheck", {
-              date: () => <SeoDate value={oneCheckAt} />,
+            {result.rich("overview.fromCheck", {
+              date: () => <SeoDate report value={oneCheckAt} />,
             })}
           </p>
         ) : null}
         {offTimeline.map((observation) => (
           <div key={observation.id} className="text-muted-foreground space-y-2">
             <p>
-              {t("overview.coverageCounts", {
+              {result("overview.coverageCounts", {
                 checked: observation.coverage.checked,
                 skipped: observation.coverage.skipped,
                 failed: observation.coverage.failed,
@@ -533,7 +539,7 @@ export function SeoPageDetails({
             </p>
             {observation.coverage.modules ? (
               <p>
-                {t("overview.moduleCoverage", {
+                {result("overview.moduleCoverage", {
                   notRequested: observation.coverage.modules.notRequested,
                   failed: observation.coverage.modules.failed,
                 })}
@@ -541,7 +547,7 @@ export function SeoPageDetails({
             ) : null}
             <div className="flex flex-wrap gap-3 text-xs">
               <SeoSource observationId={observation.id} workspace={data}>
-                <SeoDate value={observation.observedAt} />
+                <SeoDate report value={observation.observedAt} />
               </SeoSource>
             </div>
           </div>
@@ -573,7 +579,7 @@ export function SeoPageDetails({
           <section className="space-y-3">
             {/* Notes do not count toward the verdict; the summary counts them apart from suggestions. */}
             <SectionHeading className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-              {t("overview.pageNotes", { count: notes.length })}
+              {result("overview.pageNotes", { count: notes.length })}
             </SectionHeading>
             <ul className="space-y-3">
               {notes.map((finding) => (
@@ -597,7 +603,7 @@ export function SeoPageDetails({
         {references.length ? (
           <details className="text-muted-foreground border-border border-t pt-2 text-sm">
             <SeoFoldSummary className="py-2.5">
-              {t("overview.references", { count: references.length })}
+              {result("overview.references", { count: references.length })}
             </SeoFoldSummary>
             <ul className="list-disc space-y-1 ps-4 pt-1">
               {references.map((reference) => (

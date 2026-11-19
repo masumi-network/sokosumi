@@ -2,7 +2,8 @@ import type {
   ProjectSeoMetric,
   ProjectSeoWorkspace,
 } from "@sokosumi/core-client";
-import { useFormatter, useTranslations } from "next-intl";
+import { seoResultFormat } from "@/i18n/seo-result-messages";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { seoSearchPeriodInsight } from "./seo-search-period-insight-model";
 import { SeoPeriod } from "./seo-shared";
 
@@ -15,14 +16,14 @@ export function SeoSearchPeriodInsight({
   metrics: ProjectSeoMetric[];
   scope: ProjectSeoWorkspace["scope"];
 }) {
-  const t = useTranslations("App.Seo.traffic.periodInsight");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.traffic.periodInsight");
   const finding = seoSearchPeriodInsight(sharing, metrics, scope);
   const pages = scope.pageIds.length;
   if (!finding || !pages) return null;
-  const number = (n: number) => format.number(n, { maximumFractionDigits: 1 });
+  const number = (n: number) =>
+    seoResultFormat.number(n, { maximumFractionDigits: 1 });
   return (
-    <div className="space-y-1 border-t pt-3 text-sm">
+    <div lang="en" className="space-y-1 border-t pt-3 text-sm">
       <h4 className="font-medium">{t("title")}</h4>
       <p className="text-muted-foreground">
         {t("scope", { count: pages, property: finding.property })}
@@ -31,7 +32,7 @@ export function SeoSearchPeriodInsight({
       <dl className="tabular-nums">
         <div>
           <dt className="inline">
-            <SeoPeriod {...finding.previous} />
+            <SeoPeriod report {...finding.previous} />
           </dt>{" "}
           <dd className="inline">
             ·{" "}
@@ -44,7 +45,7 @@ export function SeoSearchPeriodInsight({
         </div>
         <div>
           <dt className="inline">
-            <SeoPeriod {...finding.current} />
+            <SeoPeriod report {...finding.current} />
           </dt>{" "}
           <dd className="inline">
             ·{" "}

@@ -5,6 +5,7 @@ import { ArrowUpRight, ClipboardPlus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { seoOverviewModel } from "./seo-overview-model";
 import {
   canDraftSeoAction,
@@ -27,7 +28,7 @@ export function useSeoActionFinding(
   action: ProjectSeoAction,
   model: SeoWorkspaceModel,
 ): string {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   const problem = seoOverviewModel(model.data).actionProblem(action);
   if (action.decision) return action.why;
   return problem

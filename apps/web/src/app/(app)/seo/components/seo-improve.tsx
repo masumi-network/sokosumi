@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import {
   type SeoAuditGapFix,
   seoCustomerAuditGaps,
@@ -39,6 +40,7 @@ const FIX_ICONS = {
  */
 export function SeoImproveDialog({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo.improve");
+  const result = useSeoResultTranslations("App.Seo.improve");
   const tSeo = useTranslations("App.Seo");
   const limitations = seoCustomerLimitations();
   const gaps = seoCustomerAuditGaps(model.data, seoViewNarrowed(model.filters));
@@ -83,7 +85,7 @@ export function SeoImproveDialog({ model }: { model: SeoWorkspaceModel }) {
                   >
                     {/* The text keeps a readable width: on a phone the fix wraps below it. */}
                     <p className="min-w-48 flex-1">
-                      {t(`gaps.${gap.message}`, {
+                      {result(`gaps.${gap.message}`, {
                         count: gap.count ?? 0,
                         limit: gap.count ?? 0,
                       })}

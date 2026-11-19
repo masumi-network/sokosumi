@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoKeywordsTableExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
@@ -43,6 +45,7 @@ export function SeoKeywordIdeas({
   ideas: SeoKeywordGroup[];
 }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   const [expanded, setExpanded] = useState(false);
   if (!ideas.length) return null;
   // A search already narrows the list; it shows every match.
@@ -81,19 +84,19 @@ export function SeoKeywordIdeas({
         // Every idea the search matches, not only the rows in view, with the difficulty of each.
         <SeoExportMenu
           name="keyword-ideas"
-          title={t("keywords.ideas.name")}
+          titleKey="keywords.ideas.name"
           workspace={model.data}
-          table={() => seoKeywordsTableExport(ideas, t)}
+          table={(report) => seoKeywordsTableExport(ideas, report)}
         />
       }
       // The one Track sentence: it names the next position check, so it has no place where none can run.
       // The Keywords list has none, because a check tracks its keywords from the start.
       description={
         <>
-          {t("keywords.recommendation.mix")}{" "}
+          {result("keywords.recommendation.mix")}{" "}
           {model.data.availableActions.canEdit &&
           model.data.availableActions.canUsePaidSearchData === true
-            ? t("keywords.help")
+            ? result("keywords.help")
             : null}
         </>
       }
@@ -172,7 +175,7 @@ function SeoIdeaRow({
   mostSearched: number;
 }) {
   const t = useTranslations("App.Seo");
-  const locale = useLocale();
+  const result = useSeoResultTranslations("App.Seo");
   const [open, setOpen] = useState(false);
   const toggle = useRef<HTMLButtonElement>(null);
   const id = useId();
@@ -208,11 +211,15 @@ function SeoIdeaRow({
                 open ? "size-3.5 shrink-0" : "size-3.5 shrink-0 -rotate-90"
               }
             />
-            <bdi>{lead.keyword}</bdi>
+            <bdi lang={lead.languageCode ?? ""}>{lead.keyword}</bdi>
           </button>
           {manyMarkets ? (
             <p className="text-muted-foreground text-xs">
-              {seoMarketName(locale, lead.countryCode, lead.languageCode)}
+              {seoMarketName(
+                SEO_RESULT_LOCALE,
+                lead.countryCode,
+                lead.languageCode,
+              )}
             </p>
           ) : null}
           {manyPages && lead.pageUrl ? (
@@ -231,12 +238,12 @@ function SeoIdeaRow({
             data-label={volume === null ? t("keywords.volume") : undefined}
           >
             {volume === null ? (
-              <span className="text-muted-foreground">{t("none")}</span>
+              <span className="text-muted-foreground">{result("none")}</span>
             ) : (
               <SeoBarNumber
                 value={volume}
                 max={mostSearched}
-                unit={t("keywords.volumeUnit", { count: volume })}
+                unit={result("keywords.volumeUnit", { count: volume })}
               />
             )}
           </TableCell>

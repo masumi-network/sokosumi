@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { connection } from "next/server";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { WorkspacePageShell } from "@/app/components/workspace-page-shell";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
+import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import { requestClockHourCycle } from "@/i18n/time-format";
+import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
 import type { SeoOwner } from "@/lib/seo/owner";
 import { seoService } from "@/lib/services/seo.service";
+import english from "../../../../messages/en.json";
 import { SeoAuditIndex } from "./components/seo-audit-index";
 import { SeoPageError } from "./components/seo-page-error";
 import { SeoWorkspace } from "./components/seo-workspace";
@@ -77,12 +82,24 @@ export default async function SeoPage({
     // An Audit opens in its own Project's scope (or the workspace view for none).
     if (auditId && (projectId ?? null) !== (workspace.projectId ?? null))
       redirect(seoRescopedHref(raw, workspace.projectId ?? null));
+    const results = (
+      <SeoWorkspace
+        key={workspace.auditId ?? workspace.projectId}
+        workspace={workspace}
+      />
+    );
     return (
       <WorkspacePageShell title={t("title")}>
-        <SeoWorkspace
-          key={workspace.auditId ?? workspace.projectId}
-          workspace={workspace}
-        />
+        {(await getLocale()) === SEO_RESULT_LOCALE ? (
+          results
+        ) : (
+          <SeoResultMessagesProvider
+            messages={english.App.Seo}
+            hourCycle={requestClockHourCycle(await cookies())}
+          >
+            {results}
+          </SeoResultMessagesProvider>
+        )}
       </WorkspacePageShell>
     );
   } catch (error) {

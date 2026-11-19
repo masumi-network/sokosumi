@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
+import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
+import german from "../../../../../messages/de.json";
 import messages from "../../../../../messages/en.json";
+import spanish from "../../../../../messages/es.json";
 import { SeoActionTaskButton } from "./seo-action-finding";
 import { SeoChatTurn } from "./seo-chat-turn";
 import { SeoSeasonalIdeas } from "./seo-seasonal-ideas";
@@ -75,29 +78,79 @@ function page(
   keywordSearch = "",
   now = new Date("2026-11-19T12:00:00Z"),
   actions: Action[] = [],
+  locale: "en" | "de" | "es" = "en",
 ) {
   return (
     <NextIntlClientProvider
       key={now.toISOString()}
-      locale="en"
-      messages={messages}
+      locale={locale}
+      messages={{ en: messages, de: german, es: spanish }[locale]}
       now={now}
       timeZone="America/Los_Angeles"
     >
-      <SeoSeasonalIdeas
-        model={
-          {
-            data: { ...data, actions, seasonalIdeas: ideas },
-            keywordSearch,
-            pending: false,
-            createActionTask,
-          } as unknown as SeoWorkspaceModel
-        }
-      />
+      <SeoResultMessagesProvider messages={messages.App.Seo}>
+        <SeoSeasonalIdeas
+          model={
+            {
+              data: { ...data, actions, seasonalIdeas: ideas },
+              keywordSearch,
+              pending: false,
+              createActionTask,
+            } as unknown as SeoWorkspaceModel
+          }
+        />
+      </SeoResultMessagesProvider>
     </NextIntlClientProvider>
   );
 }
 afterEach(cleanup);
+
+it.each(["de", "es"] as const)(
+  "keeps audit findings in English and search evidence verbatim in the %s interface",
+  async (locale) => {
+    const query = "gîtes d’été";
+    const quote = "Découvrez nos gîtes d’été en Bretagne.";
+    const action = { ...update, taskId: "original-task" };
+    const idea = {
+      ...winter,
+      windows: [
+        {
+          ...winter.windows[0],
+          historicalVolume: 12_100,
+          baselineMedian: 1_300.5,
+        },
+      ],
+      keyword: query,
+      country: "FR",
+      language: "fr",
+      pageQuote: quote,
+      actionId: action.id,
+    };
+    const dictionary = { de: german, es: spanish }[locale];
+    render(
+      page([idea], "", new Date("2026-11-19T12:00:00Z"), [action], locale),
+    );
+
+    expect(screen.getByRole("heading", { name: query })).toBeVisible();
+    expect(
+      screen.getByText("Plan for December 2026").closest("[lang]"),
+    ).toHaveAttribute("lang", "en");
+    expect(screen.getByText(query)).toHaveAttribute("lang", "fr");
+    expect(
+      screen.getByText(/France.*French.*Audit on Nov 1, 2026/),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: dictionary.App.Seo.openTask }),
+    ).toBeVisible();
+    await userEvent
+      .setup()
+      .click(screen.getByText(dictionary.App.Seo.keywords.seasonal.evidence));
+    expect(screen.getByText(quote)).toBeVisible();
+    expect(
+      screen.getByText(/12,100 estimated local searches.*median was 1,300\.5/),
+    ).toBeVisible();
+  },
+);
 
 it("shows the month to plan for and opens the source figures on demand", async () => {
   const user = userEvent.setup();

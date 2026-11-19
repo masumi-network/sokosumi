@@ -1,8 +1,13 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
+import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import {
   type SeoRankDetail,
   type SeoRankResult,
@@ -25,8 +30,8 @@ function displayName(
 }
 
 function RankResult({ result }: { result: SeoRankResult }) {
-  const t = useTranslations("App.Seo.overview.rank");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.overview.rank");
+  const format = useSeoResultFormatter();
   if (result.kind === "absent")
     return t("absent", { top: seoRankShownTop(result.top) });
   if (result.kind === "other") return result.text;
@@ -55,7 +60,7 @@ export function SeoRankDetailRow({
   onShowRankings?: () => void;
 }) {
   const t = useTranslations("App.Seo");
-  const locale = useLocale();
+  const result = useSeoResultTranslations("App.Seo");
   const absentOthers = seoRankAbsentOthers(detail.others);
   // Each other keyword the page is not simply absent for gets its own line: a position, or what the read says.
   const listedOthers = detail.others.filter(
@@ -63,18 +68,18 @@ export function SeoRankDetailRow({
   );
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
+      <div lang="en" className="space-y-2">
         <p className="flex flex-wrap items-center gap-2 text-sm">
           {/* The check's own name ("Organic position per device") stays in the fold's lines. */}
           <span id={headingId} className="font-semibold">
-            {t("overview.rank.title")}
+            {result("overview.rank.title")}
           </span>
           <span className="sr-only"> · </span>
           <Badge
             variant="outline"
             className="text-muted-foreground font-normal"
           >
-            {t(`analysis.${detail.device}`)}
+            {result(`analysis.${detail.device}`)}
           </Badge>
         </p>
         {/* The result is the news, so it is the largest text; the keyword under it says what it is for. */}
@@ -83,10 +88,15 @@ export function SeoRankDetailRow({
             <RankResult result={detail.searchConsole ?? detail.result} />
           </span>{" "}
           <span className="text-muted-foreground">
-            {t.rich("overview.rank.forKeyword", {
+            {result.rich("overview.rank.forKeyword", {
               keyword: detail.keyword,
               k: (chunks) => (
-                <span className="text-foreground font-medium">{chunks}</span>
+                <span
+                  lang={detail.language}
+                  className="text-foreground font-medium"
+                >
+                  {chunks}
+                </span>
               ),
             })}
           </span>
@@ -94,7 +104,7 @@ export function SeoRankDetailRow({
         {/* Search Console leads with its average; the search result read today follows it. */}
         {detail.searchConsole ? (
           <p className="text-muted-foreground text-xs">
-            {t("overview.rank.serpRead")}{" "}
+            {result("overview.rank.serpRead")}{" "}
             <span className="text-foreground font-medium">
               <RankResult result={detail.result} />
             </span>
@@ -102,14 +112,18 @@ export function SeoRankDetailRow({
         ) : null}
         <p className="text-muted-foreground text-xs">
           <span>
-            {t("overview.rank.source", {
-              country: displayName(locale, "region", detail.country),
-              language: displayName(locale, "language", detail.language),
+            {result("overview.rank.source", {
+              country: displayName(SEO_RESULT_LOCALE, "region", detail.country),
+              language: displayName(
+                SEO_RESULT_LOCALE,
+                "language",
+                detail.language,
+              ),
             })}
             {detail.readAt ? (
               <>
                 {" · "}
-                <SeoDate value={detail.readAt} day />
+                <SeoDate report value={detail.readAt} day />
               </>
             ) : null}
           </span>
@@ -117,15 +131,17 @@ export function SeoRankDetailRow({
         {/* Only a citation is news to the owner: an AI Overview without the page gives nothing to act on here.
             That line stays in the fold. */}
         {detail.aiOverviewCites ? (
-          <p className="text-xs font-medium">{t("overview.rank.aiCited")}</p>
+          <p className="text-xs font-medium">
+            {result("overview.rank.aiCited")}
+          </p>
         ) : null}
       </div>
       {listedOthers.length || absentOthers ? (
-        <div className="bg-muted space-y-2 rounded-md px-3 py-2.5">
+        <div lang="en" className="bg-muted space-y-2 rounded-md px-3 py-2.5">
           {/* Without a listed keyword the one line already says "other keywords". */}
           {listedOthers.length ? (
             <p className="text-muted-foreground text-xs font-medium">
-              {t("overview.rank.otherKeywords")}
+              {result("overview.rank.otherKeywords")}
             </p>
           ) : null}
           <ul className="space-y-1.5 text-xs">
@@ -135,7 +151,9 @@ export function SeoRankDetailRow({
                 className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5"
               >
                 {/* Under the "Other keywords" label the keyword stands alone; its result follows. */}
-                <span className="min-w-0 break-words">{other.keyword}</span>
+                <span lang={detail.language} className="min-w-0 break-words">
+                  {other.keyword}
+                </span>
                 <span className="sr-only">: </span>
                 <span className="text-foreground font-medium tabular-nums">
                   <RankResult result={other.result} />
@@ -144,7 +162,7 @@ export function SeoRankDetailRow({
             ))}
             {absentOthers ? (
               <li className="text-muted-foreground">
-                {t("overview.rank.othersAbsent", {
+                {result("overview.rank.othersAbsent", {
                   count: absentOthers.count,
                   top: seoRankShownTop(absentOthers.top),
                 })}

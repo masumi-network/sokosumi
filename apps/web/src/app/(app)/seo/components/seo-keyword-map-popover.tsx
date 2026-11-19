@@ -6,6 +6,7 @@ import { useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { PopoverContent } from "@/components/ui/popover";
 import { useIsMobileMedia } from "@/hooks/use-mobile";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoKeywordDraftDetails } from "./seo-keyword-draft-details";
 import type { SeoKeywordPoint } from "./seo-keyword-map-model";
 import { seoDifficultyBand } from "./seo-keyword-rows-model";
@@ -34,6 +35,7 @@ export function SeoKeywordMapPopover({
   // A phone has no room beside a dot: the popover stands under it.
   const phone = useIsMobileMedia();
   const t = useTranslations("App.Seo.keywords");
+  const result = useSeoResultTranslations("App.Seo.keywords");
   const { lead } = point.group;
   const band = seoDifficultyBand(point.difficulty) ?? "hard";
   const { canEdit } = model.data.availableActions;
@@ -70,24 +72,24 @@ export function SeoKeywordMapPopover({
       className="max-h-[var(--radix-popover-content-available-height)] w-[min(22rem,calc(100vw-2rem))] space-y-3 overflow-y-auto p-4 text-sm"
       data-testid="seo-keyword-popover"
     >
-      <div className="flex items-start gap-2">
+      <div lang="en" className="flex items-start gap-2">
         <h4 id={titleId} className="min-w-0 flex-1 font-semibold break-words">
-          <bdi>{lead.keyword}</bdi>
+          <bdi lang={lead.languageCode ?? ""}>{lead.keyword}</bdi>
         </h4>
         <span className="bg-muted text-muted-foreground shrink-0 rounded-full px-2 py-0.5 text-xs">
-          {point.checked ? t("map.yours") : t("map.idea")}
+          {point.checked ? result("map.yours") : result("map.idea")}
         </span>
       </div>
-      <p className="text-muted-foreground text-xs tabular-nums">
-        {t("map.preview", {
+      <p lang="en" className="text-muted-foreground text-xs tabular-nums">
+        {result("map.preview", {
           volume: point.volume,
           value: Math.round(point.difficulty),
         })}{" "}
-        · {t(`difficulty.${band}`)}
+        · {result(`difficulty.${band}`)}
         {point.group.best !== null
-          ? ` · ${t("ranked", { position: point.group.best })}`
+          ? ` · ${result("ranked", { position: point.group.best })}`
           : point.checked && point.group.reads.length
-            ? ` · ${t("notFound")}`
+            ? ` · ${result("notFound")}`
             : null}
       </p>
       <SeoKeywordDraftDetails

@@ -1,5 +1,4 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { useFormatter, useTranslations } from "next-intl";
 import {
   Table,
   TableBody,
@@ -8,15 +7,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { seoResultFormat } from "@/i18n/seo-result-messages";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoPeriod, SeoSection } from "./seo-shared";
 
 type Comparison = NonNullable<ProjectSeoWorkspace["landingEngagementChange"]>;
 
 export function SeoLandingEngagement({ change }: { change: Comparison }) {
-  const t = useTranslations("App.Seo.traffic.landingEngagement");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.traffic.landingEngagement");
   const number = (value: number, signed = false) =>
-    format.number(value, {
+    seoResultFormat.number(value, {
       maximumFractionDigits: 2,
       signDisplay: signed ? "exceptZero" : "auto",
     });
@@ -27,6 +27,7 @@ export function SeoLandingEngagement({ change }: { change: Comparison }) {
   ];
   return (
     <SeoSection
+      lang="en"
       title={t("title")}
       description={t("scope", {
         count: change.pageCount,
@@ -42,10 +43,10 @@ export function SeoLandingEngagement({ change }: { change: Comparison }) {
             <TableHead>{t("metric")}</TableHead>
             {/* Numbers align at the end so before and after compare digit by digit. */}
             <TableHead className="text-end">
-              <SeoPeriod {...change.before} />
+              <SeoPeriod report {...change.before} />
             </TableHead>
             <TableHead className="text-end">
-              <SeoPeriod {...change.after} />
+              <SeoPeriod report {...change.after} />
             </TableHead>
             <TableHead className="text-end">{t("within")}</TableHead>
             <TableHead className="text-end">{t("mix")}</TableHead>

@@ -2,11 +2,15 @@
 
 import type { ProjectSeoStrategy } from "@sokosumi/core-client";
 import { Bot, Check, Copy } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { HOLDER_ITEM_CLASS } from "@/components/ui/holder-surface";
 import { useClipboard } from "@/hooks/use-clipboard";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoActionCardHead } from "./seo-card-head";
 import { seoPlaces } from "./seo-places-model";
@@ -39,7 +43,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 /** Under the fixes the list starts with this many actions: eight rows after five fix rows read as one long list. */
 const SEO_STRATEGY_ACTIONS_AFTER_FIXES = 3;
 function useStrategyLabels() {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   return {
     verdict: (word: string) => {
       const key = seoStrategyKey(SEO_STRATEGY_VERDICTS, word);
@@ -78,7 +82,7 @@ export function SeoStrategyLine({
 }: {
   strategy: ProjectSeoStrategy | null | undefined;
 }) {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   const labels = useStrategyLabels();
   if (
     !strategy ||
@@ -86,7 +90,7 @@ export function SeoStrategyLine({
   )
     return null;
   return (
-    <p className="text-sm" data-testid="seo-agent-strategy">
+    <p lang="en" className="text-sm" data-testid="seo-agent-strategy">
       <span className="text-muted-foreground">{t("strategy.title")}: </span>
       {labels.verdict(strategy.verdict)}
     </p>
@@ -110,7 +114,7 @@ export function SeoStrategyFold({
   /** The reach folds of the same audit: inside the strategy, so the list ends on one closed line. */
   children?: ReactNode;
 }) {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   const labels = useStrategyLabels();
   const strategy = model.data.strategy;
   if (!strategy) return null;
@@ -123,7 +127,7 @@ export function SeoStrategyFold({
   return (
     <details className="px-2 text-sm">
       <SeoFoldSummary className="py-2.5">
-        <span className="min-w-0 break-words">
+        <span lang="en" className="min-w-0 break-words">
           <span className="text-muted-foreground">{t("strategy.title")}: </span>
           <span className="font-medium" data-testid="seo-strategy-verdict">
             {labels.verdict(strategy.verdict)}
@@ -133,7 +137,7 @@ export function SeoStrategyFold({
       <div className="max-w-prose space-y-2 pb-2">
         <SeoStrategyPurpose strategy={strategy} />
         {counts.reaches.length || reason.moving.length ? (
-          <ul role="list" className="space-y-1.5">
+          <ul lang="en" role="list" className="space-y-1.5">
             {counts.reaches.map(({ reach, count }, index) => {
               const key = seoStrategyKey(SEO_STRATEGY_REACHES, reach);
               return (
@@ -164,6 +168,7 @@ export function SeoStrategyFold({
           </ul>
         ) : null}
         <p
+          lang="en"
           className={cn(
             "break-words",
             counts.reaches.length > 0 && "text-muted-foreground",
@@ -175,7 +180,11 @@ export function SeoStrategyFold({
           workspace={model.data}
           selectedPageId={model.filters.pageId}
         />
-        {reason.niche ? <p className="break-words">{reason.niche}</p> : null}
+        {reason.niche ? (
+          <p lang="en" className="break-words">
+            {reason.niche}
+          </p>
+        ) : null}
         <StrategyLines lines={reason.notes} />
         {dated ? null : (
           <p className="text-muted-foreground">
@@ -184,7 +193,8 @@ export function SeoStrategyFold({
               observationId={strategy.observationId}
               workspace={model.data}
             >
-              {t("strategy.from")} <SeoDate day value={strategy.observedAt} />
+              {t("strategy.from")}{" "}
+              <SeoDate day report value={strategy.observedAt} />
             </SeoSource>
           </p>
         )}
@@ -198,7 +208,7 @@ export function SeoStrategyFold({
 function StrategyLines({ lines }: { lines: string[] }) {
   if (!lines.length) return null;
   return (
-    <ul className="text-muted-foreground list-disc space-y-1 ps-4">
+    <ul lang="en" className="text-muted-foreground list-disc space-y-1 ps-4">
       {lines.map((line, index) => (
         <li key={`${index}:${line}`} className="break-words">
           {line}
@@ -219,7 +229,7 @@ export function SeoKeywordDemand({
   group: SeoStrategyGroup | undefined;
   keyword: string;
 }) {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   const labels = useStrategyLabels();
   const demand = seoKeywordDemand(group, keyword);
   if (!demand) return null;
@@ -228,7 +238,9 @@ export function SeoKeywordDemand({
     demand.trend ? t(`strategy.trend.${demand.trend}`) : null,
   ].filter((part): part is string => part !== null);
   return (
-    <p className="text-muted-foreground mt-1 text-xs">{parts.join(" · ")}</p>
+    <p lang="en" className="text-muted-foreground mt-1 text-xs">
+      {parts.join(" · ")}
+    </p>
   );
 }
 
@@ -257,6 +269,7 @@ function StrategyDraft({ text, titleId }: { text: string; titleId: string }) {
       {/* A model wrote the text, so it shows as plain text. Its line breaks are part of the post. It is in the site's language, which can read from right to left. */}
       <p
         dir="auto"
+        lang=""
         className="bg-muted rounded-md p-3 break-words whitespace-pre-wrap"
         data-testid="seo-strategy-draft"
       >
@@ -292,7 +305,7 @@ function StrategyActionCard({
   /** The first line of the open card. */
   note?: string;
 }) {
-  const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   // Every card has the same button name; the card's title tells them apart.
   const titleId = useId();
   const bodyId = useId();
@@ -327,7 +340,7 @@ function StrategyActionCard({
                 list of labels, and the title already says what kind of action it is. */}
             <span className="text-muted-foreground block text-xs font-normal whitespace-nowrap max-sm:mt-0.5">
               {meta ??
-                `${t("actions.effort")}: ${t(`priority.${action.effort}`)}`}
+                `${result("actions.effort")}: ${result(`priority.${action.effort}`)}`}
             </span>
           </span>
         </SeoActionCardHead>
@@ -360,14 +373,15 @@ function StrategyActionBody({
   note?: string;
 }) {
   const t = useTranslations("App.Seo");
-  const format = useFormatter();
+  const result = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
   const placeForm = action.place
     ? seoStrategyKey(SEO_STRATEGY_PLACE_FORMS, action.place.form)
     : null;
   // The name is the bot's word, so the site the link opens shows beside it.
   const placeNotes = action.place
     ? [
-        placeForm ? t(`strategy.placeForm.${placeForm}`) : null,
+        placeForm ? result(`strategy.placeForm.${placeForm}`) : null,
         seoStrategyPlaceHost(action.place),
       ].filter((note): note is string => note !== null)
     : [];
@@ -381,9 +395,16 @@ function StrategyActionBody({
     new Set(action.targets.map((target) => target.type)).size === 1;
   return (
     <div id={bodyId} className="content-rise space-y-3 px-4 pt-1 pb-4">
-      {note ? <p className="max-w-prose text-sm font-medium">{note}</p> : null}
+      {note ? (
+        <p lang="en" className="max-w-prose text-sm font-medium">
+          {note}
+        </p>
+      ) : null}
       {action.why ? (
-        <p className="text-muted-foreground max-w-prose text-sm break-words">
+        <p
+          lang="en"
+          className="text-muted-foreground max-w-prose text-sm break-words"
+        >
           {action.why}
         </p>
       ) : null}
@@ -406,9 +427,9 @@ function StrategyActionBody({
             const keys = seoStrategyTargetNotes(target);
             const notes = [
               keys.type && !oneType
-                ? t(`strategy.targetType.${keys.type}`)
+                ? result(`strategy.targetType.${keys.type}`)
                 : null,
-              keys.state ? t(`strategy.targetState.${keys.state}`) : null,
+              keys.state ? result(`strategy.targetState.${keys.state}`) : null,
             ].filter((note): note is string => note !== null);
             return (
               <li
@@ -428,16 +449,20 @@ function StrategyActionBody({
       ) : null}
       <dl className="max-w-prose space-y-2 text-sm">
         <div>
-          <dt className="font-medium">{t("actions.effect")}</dt>
-          <dd className="text-muted-foreground break-words">
+          <dt lang="en" className="font-medium">
+            {result("actions.effect")}
+          </dt>
+          <dd lang="en" className="text-muted-foreground break-words">
             {action.expectedEffect}
           </dd>
         </div>
         {action.limit ? (
           // The limit is part of the advice: the action is only right inside it.
           <div>
-            <dt className="font-medium">{t("strategy.actions.limit")}</dt>
-            <dd className="text-muted-foreground break-words">
+            <dt lang="en" className="font-medium">
+              {result("strategy.actions.limit")}
+            </dt>
+            <dd lang="en" className="text-muted-foreground break-words">
               {action.limit}
             </dd>
           </div>
@@ -509,6 +534,7 @@ export function SeoStrategyActions({
   afterFixes?: boolean;
 }) {
   const t = useTranslations("App.Seo");
+  const result = useSeoResultTranslations("App.Seo");
   // A row that names these actions (Agent tab, Competitors list) leads here: the reader sees the count it named.
   const { shownStrategy, setShownStrategy } = model;
   // The list is open on its first paint then, so the group scrolls into view at its full height.
@@ -588,7 +614,7 @@ export function SeoStrategyActions({
                     model={model}
                     title={
                       place.task
-                        ? t(`strategy.links.task.${place.task}`, {
+                        ? result(`strategy.links.task.${place.task}`, {
                             site: place.name,
                           })
                         : place.name
@@ -596,14 +622,14 @@ export function SeoStrategyActions({
                     page={place.page}
                     // The ease in words, with no coloured dot: the accent is a fill, orange means impact.
                     meta={[
-                      t(`strategy.links.ease.${place.ease}`),
+                      result(`strategy.links.ease.${place.ease}`),
                       place.reads
-                        ? t("strategy.links.reach", place.reads)
+                        ? result("strategy.links.reach", place.reads)
                         : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}
-                    note={t(`strategy.links.reason.${place.reason}`)}
+                    note={result(`strategy.links.reason.${place.reason}`)}
                     startOpen={
                       places.length === 1 ||
                       (led && !actions.length && index === 0)

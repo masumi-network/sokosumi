@@ -133,9 +133,9 @@ export function SeoCompetitors({ model }: { model: SeoWorkspaceModel }) {
           ).sites.length ? (
             <SeoExportMenu
               name="competitors"
-              title={t("competitors.title")}
+              titleKey="competitors.title"
               workspace={model.data}
-              table={() => seoCompetitorsExport(sites, t)}
+              table={(report) => seoCompetitorsExport(sites, report)}
               empty={!sites.length}
             />
           ) : null}

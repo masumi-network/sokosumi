@@ -5,6 +5,7 @@ import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { useClipboard } from "@/hooks/use-clipboard";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 
 /** A button that copies one text, and says so for a moment. */
 export function SeoCopyButton({
@@ -44,7 +45,7 @@ export function useSeoActionInstructions(
   action: ProjectSeoAction,
   finding: string,
 ): string {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   return [
     t("actions.copyAgentLead"),
     action.title,

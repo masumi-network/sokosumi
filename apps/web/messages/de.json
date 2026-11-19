@@ -7653,7 +7653,7 @@
         "charged": "Abgebucht",
         "credits": "{credits, number} Credits",
         "costTotal": "Anbieterkosten gesamt",
-        "gatewayMicroUsd": "AI Gateway",
+        "gatewayMicroUsd": "Modellaufrufe über Vercel AI Gateway",
         "directModelMicroUsd": "Direkte Modellaufrufe",
         "dataForSeoMicroUsd": "DataForSEO",
         "otherApiMicroUsd": "Andere APIs",

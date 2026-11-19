@@ -8,6 +8,7 @@ import {
   SEGMENTED_CONTROL_CLASS_NAME,
   SEGMENTED_CONTROL_ITEM_CLASS_NAME,
 } from "@/components/ui/segmented-control-classes";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { useSeoActionFinding } from "./seo-action-finding";
 import { SeoActionDialog } from "./seo-agent-steps";
@@ -202,7 +203,7 @@ function SeoWorklistRow({
   model: SeoWorkspaceModel;
   onOpen: () => void;
 }) {
-  const t = useTranslations("App.Seo");
+  const t = useSeoResultTranslations("App.Seo");
   const finding = useSeoActionFinding(action, model);
   const titleId = useId();
   const factsId = useId();
@@ -243,6 +244,7 @@ function SeoWorklistRow({
           </span>
           <span
             id={labelsId}
+            lang="en"
             className="flex flex-wrap items-center gap-1.5 max-sm:mt-1"
           >
             {severity ? (

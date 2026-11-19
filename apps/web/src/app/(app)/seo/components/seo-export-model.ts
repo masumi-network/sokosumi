@@ -12,7 +12,7 @@ import type { SeoTopPage } from "./seo-search-model";
 import type { seoKeyEvents } from "./seo-traffic-model";
 
 /**
- * One table as the CSV writes it: translated column names and raw values. `types` names what each column
+ * One table as the CSV writes it: English column names and raw values. `types` names what each column
  * holds, for a copy into a Files Table; a column without one is text.
  */
 export type SeoExport = {

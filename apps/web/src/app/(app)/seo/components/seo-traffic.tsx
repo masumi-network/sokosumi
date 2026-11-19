@@ -86,9 +86,9 @@ export function SeoTopPages({ model }: { model: SeoWorkspaceModel }) {
       actions={
         <SeoExportMenu
           name="top-pages"
-          title={t("pages.topPages")}
+          titleKey="pages.topPages"
           workspace={model.data}
-          table={() => seoTopPagesExport(rows, t, keyEvents)}
+          table={(report) => seoTopPagesExport(rows, report, keyEvents)}
         />
       }
       description={

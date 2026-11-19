@@ -11,6 +11,10 @@ import {
   useState,
 } from "react";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { SeoRunCalendar } from "./seo-run-calendar";
 import { SeoRunDayDialog, SeoRunDayHover } from "./seo-run-day";
@@ -54,6 +58,8 @@ export function SeoRuns({
 }) {
   const t = useTranslations("App.Seo");
   const format = useFormatter();
+  const report = useSeoResultTranslations("App.Seo");
+  const reportFormat = useSeoResultFormatter();
   const now = useNow({ updateInterval: MINUTE_MS });
   const { days, picked, checkDays } = seoRunDays(model.data, model.filters);
   // The stop whose details are open: what happened there, in a dialog over the page.
@@ -110,9 +116,9 @@ export function SeoRuns({
       bar.scrollLeft += inner.right - outer.right;
   }, [pickedDay]);
   if (!shown && !runButton) return null;
-  const dayOf = (at: Date) =>
+  const dayOf = (at: Date, formatter = format) =>
     // The day of the filter: a run late in the evening west of UTC is on the next day.
-    format.dateTime(at, { month: "short", day: "numeric", timeZone: "UTC" });
+    formatter.dateTime(at, { month: "short", day: "numeric", timeZone: "UTC" });
   const inView = days.find((entry) => entry.selected);
   const stops = days.toReversed();
   const countDays = seoRunCountDays(days);
@@ -128,18 +134,23 @@ export function SeoRuns({
     !shown || model.invalidDates ? undefined : ranged ? WHOLE : inView?.day;
   const hasDetails = detailsStop ? stopOf(detailsStop).nodes.length > 0 : false;
   // An invalid date in the address names no range: the line gives the way back alone.
-  const rangeText =
+  const rangeOf = (label = t, formatter = format) =>
     !ranged || model.invalidDates
       ? null
       : from
-        ? t("runs.shown", {
-            range: format.dateTimeRange(utcDay(from), to ? utcDay(to) : now, {
-              month: "short",
-              day: "numeric",
-              timeZone: "UTC",
-            }),
+        ? label("runs.shown", {
+            range: formatter.dateTimeRange(
+              utcDay(from),
+              to ? utcDay(to) : now,
+              {
+                month: "short",
+                day: "numeric",
+                timeZone: "UTC",
+              },
+            ),
           })
-        : t("runs.shownUntil", { day: dayOf(utcDay(to ?? "")) });
+        : label("runs.shownUntil", { day: dayOf(utcDay(to ?? ""), formatter) });
+  const rangeText = rangeOf();
   const latest = (
     <button
       type="button"
@@ -212,7 +223,7 @@ export function SeoRuns({
                   )}
                   <SeoRunDayHover
                     workspace={model.data}
-                    day={dayOf(entry.at)}
+                    day={dayOf(entry.at, reportFormat)}
                     nodes={stopOf(entry.day).nodes}
                     hint={
                       entry.selected
@@ -266,8 +277,11 @@ export function SeoRuns({
                       ) : null}
                       {entry.issues === null ||
                       !countDays.has(entry.day) ? null : (
-                        <span className="text-muted-foreground text-xs font-normal">
-                          {t("pages.issues", { count: entry.issues })}
+                        <span
+                          lang="en"
+                          className="text-muted-foreground text-xs font-normal"
+                        >
+                          {report("pages.issues", { count: entry.issues })}
                         </span>
                       )}
                       {entry.scheduled ? (
@@ -407,17 +421,19 @@ export function SeoRuns({
           !detailsDay
             ? ""
             : detailsDay === WHOLE
-              ? t("runs.details")
-              : dayOf(utcDay(detailsDay))
+              ? report("runs.details")
+              : dayOf(utcDay(detailsDay), reportFormat)
         }
         description={
           details?.after
-            ? t("runs.since", { day: dayOf(utcDay(details.after)) })
+            ? report("runs.since", {
+                day: dayOf(utcDay(details.after), reportFormat),
+              })
             : detailsDay === WHOLE && rangeText
-              ? rangeText
+              ? (rangeOf(report, reportFormat) ?? "")
               : details?.newest
-                ? t("runs.sinceAll")
-                : t("runs.sinceStart")
+                ? report("runs.sinceAll")
+                : report("runs.sinceStart")
         }
         nodes={details?.nodes ?? []}
         onClose={() => setDetailsOpen(false)}

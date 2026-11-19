@@ -169,14 +169,14 @@ export function briefPriorities(
     }
     if (control) why.push(goalEvidence(control));
     if (p.job) {
-      const job = `Check whether the page helps visitors complete this job. ${p.job}`;
+      const job = `Check whether the page helps visitors complete the task described as “${p.job}”.`;
       nextStep = nextStep ? `${nextStep} ${job}` : job;
     } else if (!nextStep) {
       nextStep =
         "Confirm what visitors need to do on this page before choosing an edit.";
     }
     if (content.outcome && tier === priorityTier.routine)
-      nextStep += ` Use the owner's stated outcome to assess the change. ${content.outcome}`;
+      nextStep += ` Assess the change against the stated outcome “${content.outcome}”.`;
     if (fits && content.objective)
       why.push(
         `The page's stated role or action fits the owner's ${content.objective} objective.`,

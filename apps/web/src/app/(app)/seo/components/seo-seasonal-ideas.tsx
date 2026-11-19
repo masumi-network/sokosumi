@@ -1,6 +1,8 @@
 "use client";
 
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { SEO_RESULT_LOCALE, seoResultFormat } from "@/i18n/seo-result-messages";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoActionTaskButton } from "./seo-action-finding";
 import {
   seasonalIdeaTiming,
@@ -16,8 +18,8 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
   const tActions = useTranslations("App.Seo.actions");
-  const t = useTranslations("App.Seo.keywords.seasonal");
-  const format = useFormatter();
+  const display = useTranslations("App.Seo.keywords.seasonal");
+  const t = useSeoResultTranslations("App.Seo.keywords.seasonal");
   const locale = useLocale();
   const now = useSeasonalClock(!!model.data.seasonalIdeas?.length);
   if (!model.data.seasonalIdeas?.length) return null;
@@ -29,25 +31,28 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
   );
   if (!ideas.length) return null;
   const month = (period: string) =>
-    format.dateTime(new Date(period + "-01T12:00:00Z"), {
+    seoResultFormat.dateTime(new Date(period + "-01T12:00:00Z"), {
       month: "long",
       year: "numeric",
       timeZone: "UTC",
     });
   const day = (value: Date | string) =>
-    format.dateTime(new Date(value), { dateStyle: "medium", timeZone: "UTC" });
+    seoResultFormat.dateTime(new Date(value), {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    });
   return (
     <SeoSection
-      title={t("title")}
+      title={display("title")}
       description={
         ideas.some(
           (idea) =>
             idea.windows.length ||
             idea.comparison?.status === "above_baseline" ||
             idea.comparison?.status === "no_observed_rise",
-        )
-          ? t("timing")
-          : undefined
+        ) ? (
+          <span lang="en">{t("timing")}</span>
+        ) : undefined
       }
       strong
     >
@@ -96,45 +101,49 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
               className="space-y-1 px-2 py-3 wrap-anywhere"
             >
               <h3 className="text-sm font-medium">
-                <bdi>{idea.keyword}</bdi>
+                <bdi lang={idea.language}>{idea.keyword}</bdi>
               </h3>
               {/* Market and audit date sit under the search they qualify. */}
-              <p className="text-muted-foreground text-xs">
+              <p lang="en" className="text-muted-foreground text-xs">
                 {t("audit", {
-                  market: seoMarketName(locale, idea.country, idea.language),
+                  market: seoMarketName(
+                    SEO_RESULT_LOCALE,
+                    idea.country,
+                    idea.language,
+                  ),
                   date: day(idea.asOf),
                 })}
               </p>
               {idea.event && (
                 <>
-                  <p className="text-sm font-medium">
+                  <p lang="en" className="text-sm font-medium">
                     {t("datedEvent", {
                       event: idea.event.name,
                       date: day(idea.event.date),
                     })}
                   </p>
-                  <p className="text-muted-foreground text-xs">
+                  <p lang="en" className="text-muted-foreground text-xs">
                     {idea.event.scope}
                   </p>
                 </>
               )}
               {timing.upcoming.length > 0 && (
-                <p className="text-sm font-medium">
+                <p lang="en" className="text-sm font-medium">
                   {t("planFor", {
-                    months: format.list(timing.upcoming.map(month)),
+                    months: seoResultFormat.list(timing.upcoming.map(month)),
                   })}
                 </p>
               )}
               {timing.passed && (
-                <p className="text-sm font-medium">
+                <p lang="en" className="text-sm font-medium">
                   {t("passed", {
                     timing: idea.event
                       ? day(idea.event.date)
-                      : format.list(timing.passedMonths.map(month)),
+                      : seoResultFormat.list(timing.passedMonths.map(month)),
                   })}
                 </p>
               )}
-              <p className="text-sm">
+              <p lang="en" className="text-sm">
                 {idea.origin === "market_history"
                   ? t("historicalIdea")
                   : t(idea.action, { audience: idea.audience })}
@@ -148,7 +157,7 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                 <SeoActionTaskButton action={action} model={model} />
               )}
               {(hasComparison || idea.windows.length > 0 || noWindowRise) && (
-                <p className="text-muted-foreground text-sm">
+                <p lang="en" className="text-muted-foreground text-sm">
                   {t(
                     hasComparison
                       ? status
@@ -159,7 +168,10 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                 </p>
               )}
               {checks.length > 0 && (
-                <ul className="text-muted-foreground list-disc space-y-0.5 ps-5 text-sm">
+                <ul
+                  lang="en"
+                  className="text-muted-foreground list-disc space-y-0.5 ps-5 text-sm"
+                >
                   {checks.map((check) => (
                     <li key={check}>{t(check)}</li>
                   ))}
@@ -167,17 +179,17 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
               )}
               <details className="text-sm">
                 <SeoFoldSummary className="text-muted-foreground min-h-10 w-fit font-medium">
-                  {t("evidence")}
+                  {display("evidence")}
                 </SeoFoldSummary>
-                <div className="space-y-2 pb-2">
+                <div lang="en" className="space-y-2 pb-2">
                   <SeoPageText url={idea.url} workspace={model.data} />
-                  <blockquote className="border-s-2 ps-3">
+                  <blockquote dir="auto" lang="" className="border-s-2 ps-3">
                     {idea.pageQuote}
                   </blockquote>
                   {idea.windows.map((window) => (
                     <p key={window.targetPeriod}>
                       {t(window.referenceMonths ? "windowOther" : "window", {
-                        months: format.list(
+                        months: seoResultFormat.list(
                           (window.referenceMonths ?? []).map(month),
                         ),
                         target: month(window.targetPeriod),
@@ -190,14 +202,14 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                   {counts.length > 0 && !hasComparison && (
                     <p>
                       {t("incompleteComparison", {
-                        counts: format.list(counts),
+                        counts: seoResultFormat.list(counts),
                       })}
                     </p>
                   )}
                   {timing.observed.length > 0 && (
                     <p>
                       {t("observed", {
-                        counts: format.list(
+                        counts: seoResultFormat.list(
                           timing.observed.map((row) =>
                             t("count", {
                               month: month(row.period),
@@ -211,7 +223,7 @@ export function SeoSeasonalIdeas({ model }: { model: SeoWorkspaceModel }) {
                   {hasComparison && comparison?.baselineMedian != null && (
                     <p>
                       {t("comparison", {
-                        counts: format.list(counts),
+                        counts: seoResultFormat.list(counts),
                         baseline: comparison.baselineMedian,
                       })}
                     </p>

@@ -1,7 +1,11 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import type { SeoKeywordTrend } from "./seo-search-model";
 import { SeoTrendChart } from "./seo-trend-chart";
@@ -54,7 +58,7 @@ export function SeoKeywordTrendReason({
   trend: SeoKeywordTrend;
   className?: string;
 }) {
-  const t = useTranslations("App.Seo.keywords");
+  const t = useSeoResultTranslations("App.Seo.keywords");
   if (trend.state === "absent" || trend.state === "measured") return null;
   return (
     <p className={cn("text-muted-foreground text-xs", className)}>
@@ -71,8 +75,8 @@ export function SeoKeywordTrendChart({
   keyword: string;
   points: Extract<SeoKeywordTrend, { state: "measured" }>["points"];
 }) {
-  const t = useTranslations("App.Seo.keywords");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.keywords");
+  const format = useSeoResultFormatter();
   return (
     <SeoTrendChart
       points={points}

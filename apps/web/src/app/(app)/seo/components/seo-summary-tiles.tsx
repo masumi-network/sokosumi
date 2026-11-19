@@ -1,8 +1,11 @@
 "use client";
 
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
-import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SEO_SEVERITY_MARK_CLASS, SeoDate, SeoSource } from "./seo-shared";
@@ -13,7 +16,7 @@ import { seoSummary } from "./seo-summary-model";
  * The day is the text of a date line, so two checks compare the way their dates read.
  */
 export function useSeoTileDay(workspace: ProjectSeoWorkspace) {
-  const format = useFormatter();
+  const format = useSeoResultFormatter();
   const day = (value: Date | string | null | undefined) =>
     value ? format.dateTime(new Date(value), { dateStyle: "medium" }) : null;
   const tile = day(seoSummary(workspace).tests?.observedAt);
@@ -42,7 +45,10 @@ function Tile({
 }) {
   return (
     <div className="bg-background min-w-0 space-y-1 rounded-lg border p-2.5 sm:space-y-1.5 sm:p-3">
-      <dt className="text-muted-foreground flex items-start justify-between gap-2 text-xs">
+      <dt
+        lang="en"
+        className="text-muted-foreground flex items-start justify-between gap-2 text-xs"
+      >
         {label}
       </dt>
       <dd className="flex flex-col gap-1.5" data-testid={testId}>
@@ -89,8 +95,8 @@ export function SeoSummaryTiles({
   /** The time the page shows: where the runs row names the day of the tests, the tile does not. */
   filters?: { from: string | null; to: string | null };
 }) {
-  const t = useTranslations("App.Seo");
-  const format = useFormatter();
+  const result = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
   const summary = seoSummary(workspace);
   const { issues, tests } = summary;
   const testsDated = !(
@@ -106,7 +112,7 @@ export function SeoSummaryTiles({
     >
       {issues ? (
         <Tile
-          label={t("summary.issues")}
+          label={result("summary.issues")}
           value={format.number(issues.total)}
           testId="seo-summary-issues"
         >
@@ -125,24 +131,24 @@ export function SeoSummaryTiles({
                       SEO_SEVERITY_MARK_CLASS[part.severity],
                     )}
                   />
-                  {t("summary.severityCount", part)}
+                  {result("summary.severityCount", part)}
                 </li>
               ))}
             </ul>
           ) : (
-            t("summary.issuesNone")
+            result("summary.issuesNone")
           )}
         </Tile>
       ) : null}
       {tests ? (
         <Tile
-          label={t("summary.tests")}
+          label={result("summary.tests")}
           value={format.number(tests.decided)}
-          rest={t("summary.of", { total: format.number(tests.total) })}
+          rest={result("summary.of", { total: format.number(tests.total) })}
           // The line under the number says the split only when two kinds are outside the count.
           restHint={
             tests.undecided && !tests.unavailable
-              ? t("summary.testsNoResult", { count: tests.undecided })
+              ? result("summary.testsNoResult", { count: tests.undecided })
               : undefined
           }
           // The issue count beside it is the message of the tab; this count asks for no action.
@@ -156,23 +162,25 @@ export function SeoSummaryTiles({
                 split is news: the same two counts, in the same words, as the row of the check in the Timeline. */}
             {tests.undecided && tests.unavailable ? (
               <span>
-                {t("summary.testsNoResult", { count: tests.undecided })}
+                {result("summary.testsNoResult", { count: tests.undecided })}
               </span>
             ) : null}
             {tests.unavailable ? (
               <span>
-                {t("timeline.rulesUnavailable", { count: tests.unavailable })}
+                {result("timeline.rulesUnavailable", {
+                  count: tests.unavailable,
+                })}
               </span>
             ) : null}
             {tests.undecided + tests.unavailable ? null : (
-              <span>{t("summary.testsAll")}</span>
+              <span>{result("summary.testsAll")}</span>
             )}
             {/* The issues can come from older checks too; the tests are of this one. The date opens its results:
                 a page row of this check, under the tile, repeats no link to them. Where the runs row over the
                 tabs names the day, the link names the results alone. */}
             {testsDated ? (
               <span>
-                {t("agent.lastCheckOn")}{" "}
+                {result("agent.lastCheckOn")}{" "}
                 {/* The date alone is the link: a link that broke into two underlined lines read as two links.
                     It moves to the next line as one piece: a year alone on a line reads as a value. */}
                 <span className="whitespace-nowrap">
@@ -180,7 +188,7 @@ export function SeoSummaryTiles({
                     observationId={tests.observationId}
                     workspace={workspace}
                   >
-                    <SeoDate day value={tests.observedAt} />
+                    <SeoDate report day value={tests.observedAt} />
                   </SeoSource>
                 </span>
               </span>

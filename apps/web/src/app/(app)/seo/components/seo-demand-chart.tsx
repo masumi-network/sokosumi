@@ -1,6 +1,10 @@
 "use client";
 
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import { seoMarketName } from "./seo-shared";
 import { seoDemandAxis, type seoKeywordDemand } from "./seo-summary-model";
@@ -28,9 +32,8 @@ export function SeoDemandChart({
   /** Opens the keyword where its results are listed. */
   onOpenKeyword: (keyword: string) => void;
 }) {
-  const t = useTranslations("App.Seo");
-  const format = useFormatter();
-  const locale = useLocale();
+  const t = useSeoResultTranslations("App.Seo");
+  const format = useSeoResultFormatter();
   const axis = seoDemandAxis(demand.max);
   const percent = (value: number) => (value / axis.top) * 100;
   // The scale lines of one row. Rows touch, so the lines read as one grid.
@@ -50,6 +53,7 @@ export function SeoDemandChart({
   );
   return (
     <figure
+      lang="en"
       // The card around it belongs to the Agent tab's pictures.
       className="space-y-3"
       data-testid="seo-demand-chart"
@@ -99,12 +103,12 @@ export function SeoDemandChart({
                       className="min-w-0 cursor-pointer truncate text-left underline-offset-4 outline-none hover:underline focus-visible:underline focus-visible:decoration-2"
                       onClick={() => onOpenKeyword(row.keyword)}
                     >
-                      <bdi>{row.keyword}</bdi>
+                      <bdi lang={row.languageCode ?? ""}>{row.keyword}</bdi>
                     </button>
                     {demand.manyMarkets ? (
                       <span className="text-muted-foreground shrink-0 text-xs">
                         {seoMarketName(
-                          locale,
+                          SEO_RESULT_LOCALE,
                           row.countryCode,
                           row.languageCode,
                         )}

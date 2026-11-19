@@ -167,6 +167,18 @@ it("keeps an intended exclusion private and withholds stale index advice after a
   });
 });
 
+it("quotes the owner's original wording inside an English recommendation", () => {
+  const job = "Verfügbare Kurse vergleichen";
+  const outcome = "Plus de réservations";
+  const [priority] = briefPriorities(
+    { ...brief, outcome, pages: [{ ...brief.pages[0], job }] },
+    [],
+    new Map(),
+  );
+  expect(priority.nextStep).toContain(`the task described as “${job}”`);
+  expect(priority.nextStep).toContain(`the stated outcome “${outcome}”`);
+});
+
 it("changes discretionary priorities on the same pages when the owner switches from sales to support; a genuine index issue still leads", () => {
   const future = new Map();
   const follow = brief.pages.map((p) => briefFollowUp(p, null, null));

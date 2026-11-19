@@ -1,6 +1,9 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
+import {
+  useSeoResultFormatter,
+  useSeoResultTranslations,
+} from "@/i18n/use-seo-result-translations";
 import { cn } from "@/lib/utils";
 import type { SeoSerpMarker } from "./seo-serp-features-model";
 import { SeoDate } from "./seo-shared";
@@ -13,12 +16,12 @@ const OWN = "text-foreground font-medium";
  * People also ask and other features. A read that was not asked for an AI Overview says so.
  */
 export function SeoSerpFeatures({ marks }: { marks: SeoSerpMarker[] }) {
-  const t = useTranslations("App.Seo.keywords.serp");
-  const tDevice = useTranslations("App.Seo.analysis");
-  const format = useFormatter();
+  const t = useSeoResultTranslations("App.Seo.keywords.serp");
+  const tDevice = useSeoResultTranslations("App.Seo.analysis");
+  const format = useSeoResultFormatter();
   const devices = new Set(marks.map((mark) => mark.device)).size > 1;
   return (
-    <section className="min-w-0 space-y-1">
+    <section lang="en" className="min-w-0 space-y-1">
       <h4 className="text-sm font-semibold">{t("title")}</h4>
       <p className="text-muted-foreground text-xs">{t("note")}</p>
       <div className="max-h-64 overflow-auto">
@@ -50,7 +53,7 @@ export function SeoSerpFeatures({ marks }: { marks: SeoSerpMarker[] }) {
                 className="border-t align-top"
               >
                 <th scope="row" className="py-1 pe-3 text-left font-normal">
-                  <SeoDate day value={mark.date} />
+                  <SeoDate report day value={mark.date} />
                   {devices ? ` · ${tDevice(mark.device)}` : null}
                 </th>
                 {mark.suspect ? (
