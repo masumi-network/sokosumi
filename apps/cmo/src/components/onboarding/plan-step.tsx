@@ -11,7 +11,7 @@ import { channelInfo } from "../../lib/channels";
 import { strategyApproved } from "../../lib/strategy";
 import { CusoAvatar } from "../cuso";
 import { EntrySheet } from "../entry-sheet";
-import { AdBudget, money, PACES, PacePicker } from "../strategy-core";
+import { AdBudget, money } from "../strategy-core";
 import { outcomeLine } from "../strategy-reveal";
 import { SubmitButton } from "../submit-button";
 import type { SkipSubscription, StartTopUp } from "../top-up";
@@ -543,7 +543,6 @@ export function PlanReview({
   );
 
   const ads = strategy.ads;
-  const pace = PACES.find((option) => option.level === strategy.pace?.level);
   const hasChecks = questions.length > 0 || strategy.pace || ads;
   // An approval covers what the owner said yes or no to, not what stayed open.
   const answers = approved
@@ -670,7 +669,7 @@ export function PlanReview({
         ) : null}
 
         {locked ? (
-          answers.length > 0 || strategy.pace || ads ? (
+          answers.length > 0 || ads ? (
             <div className="card ob-checks">
               <h2>{approved ? "What you approved" : "Your answers"}</h2>
               <ul className="ob-approved">
@@ -683,11 +682,7 @@ export function PlanReview({
                       : ""}
                   </li>
                 ))}
-                {pace ? (
-                  <li>
-                    Pace: <b>{pace.name}</b>, {pace.does.toLowerCase()}
-                  </li>
-                ) : null}
+
                 {ads ? (
                   <li>
                     {ads.monthly > 0
@@ -722,14 +717,10 @@ export function PlanReview({
               </div>
             ) : null}
             {strategy.pace ? (
-              <div className="ob-pace">
-                <PacePicker
-                  pace={strategy.pace}
-                  onAsk={(text, label) =>
-                    send(label ?? text, () => onRequest(text))
-                  }
-                />
-              </div>
+              <p className="ob-pace note">
+                This month is written at the most a plan makes. Next you pick
+                your plan, and with it how much of the month {AGENT_NAME} makes.
+              </p>
             ) : null}
             {ads ? (
               <div className="ob-budget">
