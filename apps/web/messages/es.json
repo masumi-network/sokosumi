@@ -12671,6 +12671,8 @@
       },
       "actions": {
         "title": "Acciones",
+        "listTitle": "Acciones recomendadas",
+        "listHint": "Cambios que las comprobaciones y Search Console sugieren para estas páginas.",
         "empty": "No hay acciones recomendadas",
         "emptyBody": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Ejecuta una comprobación o pregunta al agente SEO qué hacer a continuación.",
         "emptyBodyOff": "Las acciones salen de los problemas que encuentra una comprobación y de tus búsquedas de Search Console. Pregunta al agente SEO qué hacer a continuación.",
