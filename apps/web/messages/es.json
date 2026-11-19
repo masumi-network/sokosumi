@@ -2032,7 +2032,7 @@
           "linkPicker": {
             "related": {
               "title": "Vincular como relacionada",
-              "description": "Elige una tarea. Ambas tareas la muestran en Relacionada."
+              "description": "Elige una tarea. Cada tarea muestra la otra en Relacionada."
             },
             "blocks": {
               "title": "Vincular como bloqueando",
@@ -2044,7 +2044,7 @@
             },
             "duplicate": {
               "title": "Vincular como duplicada",
-              "description": "Elige la tarea que esta repite. Ambas tareas la muestran en Duplicada. No se copia nada."
+              "description": "Elige la tarea que esta repite. Cada tarea muestra la otra en Duplicada. No se copia nada."
             }
           },
           "createRelated": "Crear tarea relacionada",

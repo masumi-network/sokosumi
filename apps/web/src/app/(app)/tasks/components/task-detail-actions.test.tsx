@@ -122,7 +122,7 @@ vi.mock("next-intl", () => ({
         linkToTask: "Link to task",
         "linkPicker.related.title": "Link as related",
         "linkPicker.related.description":
-          "Pick a task. Both tasks list it under Related.",
+          "Pick a task. Each task lists the other under Related.",
         createRelated: "Create related",
         removeRelated: "Remove related",
         removeRelatedSuccess: "Related task removed",
@@ -1660,7 +1660,7 @@ describe("TaskDetailActions", () => {
       await screen.findByRole("heading", { name: "Link as related" }),
     ).toBeVisible();
     expect(
-      screen.getByText("Pick a task. Both tasks list it under Related."),
+      screen.getByText("Pick a task. Each task lists the other under Related."),
     ).toBeVisible();
 
     expect(

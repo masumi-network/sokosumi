@@ -2033,7 +2033,7 @@
           "linkPicker": {
             "related": {
               "title": "Link as related",
-              "description": "Pick a task. Both tasks list it under Related."
+              "description": "Pick a task. Each task lists the other under Related."
             },
             "blocks": {
               "title": "Link as blocking",
@@ -2045,7 +2045,7 @@
             },
             "duplicate": {
               "title": "Link as duplicate",
-              "description": "Pick the task this one repeats. Both tasks list it under Duplicate. Nothing is copied."
+              "description": "Pick the task this one repeats. Each task lists the other under Duplicate. Nothing is copied."
             }
           },
           "createRelated": "Create related",

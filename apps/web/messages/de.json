@@ -2032,7 +2032,7 @@
           "linkPicker": {
             "related": {
               "title": "Als zugehörig verknüpfen",
-              "description": "Wählen Sie einen Task. Beide Tasks zeigen ihn unter Zugehörig."
+              "description": "Wählen Sie einen Task. Jeder Task zeigt den anderen unter Zugehörig."
             },
             "blocks": {
               "title": "Als blockierend verknüpfen",
@@ -2044,7 +2044,7 @@
             },
             "duplicate": {
               "title": "Als Duplikat verknüpfen",
-              "description": "Wählen Sie den Task, den dieser wiederholt. Beide Tasks zeigen ihn unter Duplikat. Es wird nichts kopiert."
+              "description": "Wählen Sie den Task, den dieser wiederholt. Jeder Task zeigt den anderen unter Duplikat. Es wird nichts kopiert."
             }
           },
           "createRelated": "Verknüpften Task erstellen",
