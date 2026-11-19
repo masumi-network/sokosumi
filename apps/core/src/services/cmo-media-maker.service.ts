@@ -692,6 +692,9 @@ async function start(
         script: piece.script?.trim() ?? "",
         ...(await talkingVoiceAndPresenter(context, drive, piece)),
         languageCode: piece.languageCode ?? "en",
+        // A month's videos carry music, and B-roll where the hook has room.
+        music: true,
+        broll: true,
       });
       return true;
     }

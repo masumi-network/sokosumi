@@ -599,6 +599,8 @@ describe("advanceCmoMedia", () => {
       expect(createTalkingVideoJob).toHaveBeenCalledTimes(1);
       expect(createTalkingVideoJob.mock.calls[0]?.[0]).toMatchObject({
         script,
+        music: true,
+        broll: true,
         idempotencyKey: `cmo-media:version-1:video:0:talking:${key}:1`,
       });
     });
