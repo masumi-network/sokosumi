@@ -14121,13 +14121,13 @@ export type CmoChatWorkItem = {
      */
     id: string;
     /**
-     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).
+     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).
      */
-    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'seo' | 'audit';
+    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'table' | 'contacts' | 'run' | 'question' | 'seo' | 'audit';
     /**
-     * making until it is done; waiting when handed work needs the owner; failed when it never will be done.
+     * making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.
      */
-    state: 'making' | 'waiting' | 'ready' | 'failed';
+    state: 'making' | 'waiting' | 'ready' | 'failed' | 'stopped';
     /**
      * When Cuso started it.
      */
@@ -14141,7 +14141,7 @@ export type CmoChatWorkItem = {
      */
     url: string | null;
     /**
-     * Who does handed work: the Coworker, the Agent or the SEO specialist.
+     * Who does handed work: the Coworker or the Agent.
      */
     by: string | null;
     /**
@@ -14159,6 +14159,46 @@ export type CmoChatWorkItem = {
         name: string;
         url: string;
     }>;
+    /**
+     * A table's columns and first rows.
+     */
+    table: CmoChatTable | null;
+    /**
+     * The first people of a contact list or a lookup.
+     */
+    people: Array<{
+        name: string;
+        detail: string | null;
+    }>;
+    /**
+     * Everyone that list or lookup holds, shown or not.
+     */
+    total: number | null;
+    /**
+     * A running background run's plan.
+     */
+    steps: Array<{
+        label: string;
+        state: 'done' | 'now' | 'next';
+    }>;
+    /**
+     * A background run's own turn: its report in the room is this card.
+     */
+    turnId: string | null;
+};
+
+export type CmoChatTable = {
+    columns: Array<string>;
+    rows: Array<Array<string>>;
+    /**
+     * Every row the table holds.
+     */
+    total: number;
+};
+
+export type CmoChatWorkTable = {
+    title: string;
+    table: CmoChatTable;
 };
 
 export type CmoCompetitors = {
@@ -88055,6 +88095,82 @@ export type GetCmoChatWorkTextForProjectResponses = {
 };
 
 export type GetCmoChatWorkTextForProjectResponse = GetCmoChatWorkTextForProjectResponses[keyof GetCmoChatWorkTextForProjectResponses];
+
+export type GetCmoChatWorkTableForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/chat-work/{id}/table';
+};
+
+export type GetCmoChatWorkTableForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such table, or Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoChatWorkTableForProjectError = GetCmoChatWorkTableForProjectErrors[keyof GetCmoChatWorkTableForProjectErrors];
+
+export type GetCmoChatWorkTableForProjectResponses = {
+    /**
+     * The table
+     */
+    200: {
+        data: CmoChatWorkTable;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoChatWorkTableForProjectResponse = GetCmoChatWorkTableForProjectResponses[keyof GetCmoChatWorkTableForProjectResponses];
 
 export type GetCmoCompetitorsForProjectData = {
     body?: never;

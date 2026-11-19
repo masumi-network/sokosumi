@@ -373,7 +373,18 @@ export const messages: CusoMessage[] = [
 ];
 
 /** A picture, video or voice-over: nobody else works on it. */
-const media = { url: null, by: null, text: null, readable: false, files: [] };
+const media = {
+  url: null,
+  by: null,
+  text: null,
+  readable: false,
+  files: [],
+  table: null,
+  people: [],
+  total: null,
+  steps: [],
+  turnId: null,
+};
 
 /**
  * The chat page's own state: a long German message, to check how the thread
@@ -468,18 +479,73 @@ export const chat = {
     {
       ...media,
       id: "w8",
+      kind: "table",
+      state: "ready",
+      at: new Date("2026-11-04T10:25:00Z"),
+      title: "Content tracker",
+      readable: true,
+      table: {
+        columns: ["Post", "Channel", "Status"],
+        rows: [
+          ["Launch post 1", "X", "Made"],
+          ["Launch post 2", "LinkedIn", "Made"],
+          ["Launch post 3", "X", "Planned"],
+        ],
+        total: 12,
+      },
+    },
+    {
+      ...media,
+      id: "w9",
+      kind: "contacts",
+      state: "ready",
+      at: new Date("2026-11-04T10:26:00Z"),
+      title: "Press",
+      people: [
+        { name: "Mira Lindqvist", detail: "Editor, Product Weekly" },
+        { name: "Jonas Feld", detail: null },
+      ],
+      total: 5,
+    },
+    {
+      ...media,
+      id: "w10",
+      kind: "run",
+      state: "making",
+      at: new Date("2026-11-04T10:27:00Z"),
+      title: "Results log for the last four weeks",
+      steps: [
+        { label: "Read last month's posts", state: "done" },
+        { label: "Fill the results table", state: "now" },
+        { label: "Write the summary", state: "next" },
+      ],
+      turnId: "run-1",
+    },
+    {
+      ...media,
+      id: "w11",
+      kind: "question",
+      state: "ready",
+      at: new Date("2026-11-04T10:28:00Z"),
+      title: "How long would a three-trend report take?",
+      by: "Hannah",
+      text: "About two hours. I need your three main competitors and the market you sell in.",
+    },
+    {
+      ...media,
+      id: "w12",
       kind: "seo",
       state: "making",
-      at: new Date("2026-11-04T10:25:00Z"),
+      at: new Date("2026-11-04T10:29:00Z"),
       title: 'Where you rank on Google for "nft checkout", "mint on your site"',
       by: "The SEO specialist",
     },
     {
       ...media,
-      id: "w9",
+      id: "w13",
       kind: "seo",
       state: "ready",
-      at: new Date("2026-11-04T10:26:00Z"),
+      at: new Date("2026-11-04T10:30:00Z"),
       title: 'Where you rank on Google for "nft minting platform"',
       by: "The SEO specialist",
       text: 'The SEO specialist checked Google on 2026-11-04 for https://nmkr.io/: "nft minting platform" (mobile, US): position 7, 1,300 searches a month. Top results: 1. opensea.io; 2. thirdweb.com',
@@ -490,7 +556,7 @@ export const chat = {
       id: "audit-1",
       kind: "audit",
       state: "ready",
-      at: new Date("2026-11-04T10:27:00Z"),
+      at: new Date("2026-11-04T10:31:00Z"),
       title: "Weekly audit of your site",
       by: "The SEO specialist",
       text: "86 of 110 checks passed. 5 things to fix are in your SEO tab.",

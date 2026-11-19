@@ -56250,10 +56250,14 @@ export const CmoChatWorkItemSchema = {
                 'file',
                 'task',
                 'agent',
+                'table',
+                'contacts',
+                'run',
+                'question',
                 'seo',
                 'audit'
             ],
-            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a check he asked of the SEO specialist (seo), or the SEO specialist\'s weekly audit of the site (audit).'
+            description: 'A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a table, a contact list or lookup (contacts), a background run, a question to a Coworker, a check he asked of the SEO specialist (seo), or the SEO specialist\'s weekly audit of the site (audit).'
         },
         state: {
             type: 'string',
@@ -56261,9 +56265,10 @@ export const CmoChatWorkItemSchema = {
                 'making',
                 'waiting',
                 'ready',
-                'failed'
+                'failed',
+                'stopped'
             ],
-            description: 'making until it is done; waiting when handed work needs the owner; failed when it never will be done.'
+            description: 'making until it is done; waiting when handed work needs the owner; failed when it never will be done; stopped when a background run was called off.'
         },
         at: {
             type: 'string',
@@ -56295,7 +56300,7 @@ export const CmoChatWorkItemSchema = {
                     type: 'null'
                 }
             ],
-            description: 'Who does handed work: the Coworker, the Agent or the SEO specialist.'
+            description: 'Who does handed work: the Coworker or the Agent.'
         },
         text: {
             anyOf: [
@@ -56330,6 +56335,89 @@ export const CmoChatWorkItemSchema = {
                 ]
             },
             description: 'Files handed work came back with.'
+        },
+        table: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoChatTable'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A table\'s columns and first rows.'
+        },
+        people: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    name: {
+                        type: 'string'
+                    },
+                    detail: {
+                        anyOf: [
+                            {
+                                type: 'string'
+                            },
+                            {
+                                type: 'null'
+                            }
+                        ]
+                    }
+                },
+                required: [
+                    'name',
+                    'detail'
+                ]
+            },
+            description: 'The first people of a contact list or a lookup.'
+        },
+        total: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Everyone that list or lookup holds, shown or not.'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    label: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'done',
+                            'now',
+                            'next'
+                        ]
+                    }
+                },
+                required: [
+                    'label',
+                    'state'
+                ]
+            },
+            description: 'A running background run\'s plan.'
+        },
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'A background run\'s own turn: its report in the room is this card.'
         }
     },
     required: [
@@ -56342,7 +56430,58 @@ export const CmoChatWorkItemSchema = {
         'by',
         'text',
         'readable',
-        'files'
+        'files',
+        'table',
+        'people',
+        'total',
+        'steps',
+        'turnId'
+    ]
+} as const;
+
+export const CmoChatTableSchema = {
+    type: 'object',
+    properties: {
+        columns: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        rows: {
+            type: 'array',
+            items: {
+                type: 'array',
+                items: {
+                    type: 'string'
+                }
+            }
+        },
+        total: {
+            type: 'integer',
+            description: 'Every row the table holds.'
+        }
+    },
+    required: [
+        'columns',
+        'rows',
+        'total'
+    ]
+} as const;
+
+export const CmoChatWorkTableSchema = {
+    type: 'object',
+    properties: {
+        title: {
+            type: 'string'
+        },
+        table: {
+            $ref: '#/components/schemas/CmoChatTable'
+        }
+    },
+    required: [
+        'title',
+        'table'
     ]
 } as const;
 

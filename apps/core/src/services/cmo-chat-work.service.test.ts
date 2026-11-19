@@ -7,11 +7,12 @@ const {
   publicUrl,
   cuso,
   driveText,
-  seoCheck,
-  audits,
+  records,
+  recordText,
+  seoWork,
+  seoText,
+  recordTable,
 } = vi.hoisted(() => ({
-  audits: vi.fn(),
-  seoCheck: vi.fn(),
   db: {
     sokoBotToolCall: { findMany: vi.fn(), findFirst: vi.fn() },
     sokoBot: { findUniqueOrThrow: vi.fn() },
@@ -24,6 +25,11 @@ const {
   publicUrl: vi.fn(),
   cuso: vi.fn(),
   driveText: vi.fn(),
+  records: vi.fn(),
+  recordText: vi.fn(),
+  seoWork: vi.fn(),
+  seoText: vi.fn(),
+  recordTable: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 vi.mock("@/lib/drive-blob", () => ({ publicDriveUrl: publicUrl }));
@@ -47,11 +53,15 @@ vi.mock("@/services/cmo-media-maker.service", () => ({
   CMO_STYLE_PASSED: "Style passed",
   CMO_STYLE_REJECTED: "Style check: ",
 }));
-vi.mock("@/services/cmo-seo-audit.service", () => ({
-  listCmoSeoAuditRuns: audits,
+// Records (tables, contacts, runs, questions) have their own tests.
+vi.mock("@/services/cmo-chat-records.service", () => ({
+  listCmoChatRecords: records,
+  readCmoChatRecordText: recordText,
+  readCmoChatTable: recordTable,
 }));
-vi.mock("@/services/cmo-seo-rankings.service", () => ({
-  readSeoCheck: seoCheck,
+vi.mock("@/services/cmo-chat-seo.service", () => ({
+  listCmoChatSeoWork: seoWork,
+  readCmoChatSeoText: seoText,
 }));
 vi.mock("@/services/file-search.service", () => ({
   loadLiveResources: liveResources,
@@ -60,14 +70,28 @@ vi.mock("@/services/image-studio-drive.service", () => ({
   ensureStudioAssetDriveFile: ensureFile,
 }));
 
-import { listCmoChatWork, readCmoChatWorkText } from "./cmo-chat-work.service";
+import {
+  listCmoChatWork,
+  readCmoChatWorkTable,
+  readCmoChatWorkText,
+} from "./cmo-chat-work.service";
 
 const TURN = "01a1f0eb-1488-76ff-835f-5d99fc1b0792";
 const target = { userId: "user-1", projectId: "project-1" };
 const now = new Date("2026-11-18T12:00:00Z");
 
 /** What only handed work has; a picture, video, voice-over or file has none. */
-const alone = { by: null, text: null, readable: false, files: [] };
+const alone = {
+  by: null,
+  text: null,
+  readable: false,
+  files: [],
+  table: null,
+  people: [],
+  total: null,
+  steps: [],
+  turnId: null,
+};
 
 function call(
   id: string,
@@ -174,10 +198,14 @@ beforeEach(() => {
     workspace: { organizationId: "org-1" },
   });
   db.projectImageJob.findMany.mockResolvedValue([]);
+  records.mockResolvedValue([]);
+  recordText.mockResolvedValue(null);
+  seoWork.mockResolvedValue([]);
+  seoText.mockResolvedValue(null);
+  recordTable.mockResolvedValue(null);
   db.task.findMany.mockResolvedValue([]);
   db.job.findMany.mockResolvedValue([]);
   liveResources.mockResolvedValue([]);
-  audits.mockResolvedValue([]);
   ensureFile.mockImplementation(async ({ jobId }: { jobId: string }) => ({
     pathname: `drive/${jobId}.jpg`,
   }));
@@ -368,10 +396,8 @@ describe("listCmoChatWork", () => {
         at: now,
         title: "Research three trends",
         url: null,
+        ...alone,
         by: "Hannah",
-        text: null,
-        readable: false,
-        files: [],
       },
     ]);
     expect(db.task.findMany).toHaveBeenCalledWith(
@@ -474,162 +500,6 @@ describe("listCmoChatWork", () => {
     );
   });
 
-  it("shows a check asked of the SEO specialist while it runs, with its result once done, and once", async () => {
-    const CHECK = "01a1f0eb-1488-76ff-835f-5d99fc1b0001";
-    const asked = (id: string, at = now) => ({
-      ...call(id, "check_search_rankings", {
-        input: { keywords: ["calendly alternative", "scheduling api"] },
-        result: { status: "started", analysisId: CHECK },
-      }),
-      createdAt: at,
-    });
-    db.sokoBotToolCall.findMany.mockResolvedValue([
-      // Asked again while it ran: the same check, shown where it was first asked.
-      { ...asked("s2"), result: { status: "running", analysisId: CHECK } },
-      asked("s1"),
-      // Answered at once from the last day's check: nothing was handed on.
-      call("s0", "check_search_rankings", {
-        input: { keywords: ["cal.com"] },
-        result: { status: "done", result: "position 1" },
-      }),
-    ]);
-    const card = {
-      id: "s1",
-      kind: "seo",
-      at: now,
-      title:
-        'Where you rank on Google for "calendly alternative", "scheduling api"',
-      url: null,
-      by: "The SEO specialist",
-      files: [],
-    };
-
-    seoCheck.mockResolvedValue({ state: "running" });
-    expect(await listCmoChatWork(target)).toEqual([
-      { ...card, state: "making", text: null, readable: false },
-    ]);
-    expect(seoCheck).toHaveBeenCalledWith(CHECK);
-
-    const outcome =
-      'The SEO specialist checked Google on 2026-11-18 for https://cal.com/:\n- "calendly alternative" (mobile, US): not in the top 19, 880 searches a month. Top results: 1. zapier.com';
-    seoCheck.mockResolvedValue({ state: "done", outcome });
-    expect(await listCmoChatWork(target)).toEqual([
-      {
-        ...card,
-        state: "ready",
-        text: expect.stringContaining("not in the top 19"),
-        readable: true,
-      },
-    ]);
-
-    seoCheck.mockResolvedValue({
-      state: "failed",
-      outcome: "The SEO specialist's check failed. Nothing was charged for it.",
-    });
-    expect(await listCmoChatWork(target)).toEqual([
-      {
-        ...card,
-        state: "failed",
-        text: "The SEO specialist's check failed. Nothing was charged for it.",
-        readable: false,
-      },
-    ]);
-  });
-
-  it("shows the SEO specialist's weekly audits among what Cuso handed on, newest first", async () => {
-    db.sokoBotToolCall.findMany.mockResolvedValue([
-      call("f1", "upload_file", { targetId: "file-1" }),
-    ]);
-    liveResources.mockResolvedValue([
-      {
-        id: "file-1",
-        sourceId: "drive/brief.md",
-        displayName: "Brief.md",
-        mimeType: "text/markdown",
-      },
-    ]);
-    const audit = (id: string, daysAgo: number, rest: object) => ({
-      id,
-      startedAt: new Date(now.getTime() - daysAgo * 86_400_000),
-      ...rest,
-    });
-    audits.mockResolvedValue([
-      audit("a3", -1, { state: "running", found: null }),
-      audit("a2", 7, {
-        state: "done",
-        found: { checked: 110, passed: 86, fixes: 5 },
-      }),
-      audit("a1", 14, { state: "failed", found: null }),
-    ]);
-
-    const items = await listCmoChatWork(target);
-
-    expect(audits).toHaveBeenCalledWith(
-      "project-1",
-      new Date(now.getTime() - 30 * 86_400_000),
-    );
-    expect(
-      items.map((item) => [item.id, item.kind, item.state, item.text]),
-    ).toEqual([
-      ["audit-a3", "audit", "making", null],
-      ["f1", "file", "ready", null],
-      [
-        "audit-a2",
-        "audit",
-        "ready",
-        "86 of 110 checks passed. 5 things to fix are in your SEO tab.",
-      ],
-      [
-        "audit-a1",
-        "audit",
-        "failed",
-        "The audit did not finish, so nothing was charged. The next one runs on schedule.",
-      ],
-    ]);
-    expect(items[0]).toMatchObject({
-      title: "Weekly audit of your site",
-      by: "The SEO specialist",
-      readable: false,
-    });
-  });
-
-  it("shows the audits when Cuso started nothing himself", async () => {
-    db.sokoBotToolCall.findMany.mockResolvedValue([]);
-    audits.mockResolvedValue([
-      {
-        id: "a1",
-        startedAt: now,
-        state: "done",
-        found: { checked: 50, passed: 50, fixes: 0 },
-      },
-    ]);
-    expect(await listCmoChatWork(target)).toMatchObject([
-      {
-        id: "audit-a1",
-        text: "50 of 50 checks passed. Nothing to fix this week.",
-      },
-    ]);
-  });
-
-  it("gives up on a check that is still running after an hour", async () => {
-    db.sokoBotToolCall.findMany.mockResolvedValue([
-      {
-        ...call("s1", "check_search_rankings", {
-          input: { keywords: ["calendly alternative"] },
-          result: {
-            status: "started",
-            analysisId: "01a1f0eb-1488-76ff-835f-5d99fc1b0001",
-          },
-        }),
-        createdAt: new Date(Date.now() - 61 * 60 * 1000),
-      },
-    ]);
-    seoCheck.mockResolvedValue({ state: "running" });
-    expect(await listCmoChatWork(target)).toMatchObject([
-      { kind: "seo", state: "failed", text: null },
-    ]);
-  });
-
   it("shows a file Cuso wrote, to read when it is text", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValue([
       call("f", "upload_file", { targetId: "file-1" }),
@@ -709,25 +579,6 @@ describe("readCmoChatWorkText", () => {
     );
   });
 
-  it("gives a finished SEO check's whole result, and nothing while it runs", async () => {
-    db.sokoBotToolCall.findFirst.mockResolvedValue(
-      call("s1", "check_search_rankings", {
-        result: {
-          status: "started",
-          analysisId: "01a1f0eb-1488-76ff-835f-5d99fc1b0001",
-        },
-      }),
-    );
-    seoCheck.mockResolvedValueOnce({ state: "running" });
-    await expect(readCmoChatWorkText({ ...target, id: "s1" })).rejects.toThrow(
-      "There is nothing to read here yet",
-    );
-    seoCheck.mockResolvedValueOnce({ state: "done", outcome: "position 4" });
-    expect(await readCmoChatWorkText({ ...target, id: "s1" })).toBe(
-      "position 4",
-    );
-  });
-
   it("gives a hired Agent's whole result and a file's words", async () => {
     db.sokoBotToolCall.findFirst.mockResolvedValueOnce(
       call("h", "hire_agent", { result: { resultingEntityId: "job-1" } }),
@@ -743,5 +594,115 @@ describe("readCmoChatWorkText", () => {
     liveResources.mockResolvedValue([{ id: "file-1" }]);
     driveText.mockResolvedValue("# Launch brief");
     await expect(readCmoChatWorkText(read)).resolves.toBe("# Launch brief");
+  });
+});
+
+describe("records in the chat work list", () => {
+  const run = {
+    id: "run-1",
+    kind: "run" as const,
+    state: "making" as const,
+    at: new Date("2026-11-18T12:30:00Z"),
+    title: "Results log",
+    ...alone,
+    turnId: "run-1",
+  };
+
+  it("lists a record beside what Cuso made, newest first", async () => {
+    records.mockResolvedValue([run]);
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      call("v", "generate_voiceover", {
+        result: { id: "file-1", filename: "intro.mp3" },
+      }),
+    ]);
+    liveResources.mockResolvedValue([
+      { id: "file-1", sourceId: "drive/intro.mp3" },
+    ]);
+
+    const items = await listCmoChatWork(target);
+    expect(items.map((item) => item.kind)).toEqual(["run", "audio"]);
+    expect(items[0]).toEqual({ ...run, url: null, files: [] });
+  });
+
+  it("lists records when Cuso made nothing else", async () => {
+    records.mockResolvedValue([run]);
+    db.sokoBotToolCall.findMany.mockResolvedValue([]);
+
+    await expect(listCmoChatWork(target)).resolves.toHaveLength(1);
+  });
+
+  it("reads a run's report or a Coworker's answer when no call matches", async () => {
+    db.sokoBotToolCall.findFirst.mockResolvedValue(null);
+    recordText.mockResolvedValue("Four weeks are in the table.");
+
+    await expect(readCmoChatWorkText({ ...target, id: "run-1" })).resolves.toBe(
+      "Four weeks are in the table.",
+    );
+    expect(recordText).toHaveBeenCalledWith(
+      expect.objectContaining({ sokoBotId: "bot-1" }),
+      "run-1",
+    );
+  });
+
+  it("lists the SEO specialist's work among the rest, newest first", async () => {
+    const check = {
+      id: "s1",
+      kind: "seo" as const,
+      state: "making" as const,
+      at: new Date(now.getTime() + 60_000),
+      title: 'Where you rank on Google for "calendly alternative"',
+      by: "The SEO specialist",
+      text: null,
+      readable: false,
+    };
+    const audit = {
+      ...check,
+      id: "audit-a1",
+      kind: "audit" as const,
+      state: "ready" as const,
+      at: new Date(now.getTime() - 86_400_000),
+      title: "Weekly audit of your site",
+      text: "86 of 110 checks passed. 5 things to fix are in your SEO tab.",
+    };
+    seoWork.mockResolvedValue([audit, check]);
+    records.mockResolvedValue([run]);
+
+    const items = await listCmoChatWork(target);
+
+    expect(seoWork).toHaveBeenCalledWith(
+      expect.objectContaining({ sokoBotId: "bot-1", projectId: "project-1" }),
+    );
+    expect(items.map((item) => item.id)).toEqual([run.id, "s1", "audit-a1"]);
+    expect(items[1]).toEqual({
+      ...check,
+      url: null,
+      files: [],
+      table: null,
+      people: [],
+      total: null,
+      steps: [],
+      turnId: null,
+    });
+  });
+
+  it("reads a finished position check when neither a call nor a record matches", async () => {
+    db.sokoBotToolCall.findFirst.mockResolvedValue(null);
+    seoText.mockResolvedValue("position 4");
+
+    await expect(readCmoChatWorkText({ ...target, id: "s1" })).resolves.toBe(
+      "position 4",
+    );
+  });
+
+  it("opens a whole table, or says it is gone", async () => {
+    const table = { columns: ["Week"], rows: [["45"]], total: 1 };
+    recordTable.mockResolvedValueOnce({ title: "Results log", table });
+    await expect(
+      readCmoChatWorkTable({ ...target, id: "call-1" }),
+    ).resolves.toEqual({ title: "Results log", table });
+
+    await expect(
+      readCmoChatWorkTable({ ...target, id: "call-1" }),
+    ).rejects.toThrow("This table is no longer there");
   });
 });

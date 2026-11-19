@@ -3,10 +3,12 @@ import { AGENT_NAME } from "../../lib/agent";
 import {
   CHAT_WORK_NOUN,
   CHAT_WORK_WAIT,
+  type ChatTable,
   type ChatWork,
   type ChatWorkMedia,
-  handedLine,
   isMedia,
+  statusLine,
+  waitingNote,
 } from "../../lib/chat-work";
 import { DraftText } from "../draft-text";
 
@@ -16,6 +18,8 @@ interface MadeInChatProps {
   compose: (text: string) => void;
   /** The full words of a file or a result, read inside the chat. */
   loadText: (id: string) => Promise<string | null>;
+  /** All of a table's rows, shown inside the chat. */
+  loadTable: (id: string) => Promise<ChatTable | null>;
 }
 
 /**
@@ -25,11 +29,124 @@ interface MadeInChatProps {
  * card that says where it stands and opens its words in place. The app's poll
  * moves each one on, so the owner never reloads or leaves the chat.
  */
-export function MadeInChat({ work, compose, loadText }: MadeInChatProps) {
-  return isMedia(work) ? (
-    <MadeMedia work={work} compose={compose} />
-  ) : (
-    <MadeWords work={work} compose={compose} loadText={loadText} />
+export function MadeInChat(props: MadeInChatProps) {
+  const { work } = props;
+  if (isMedia(work)) return <MadeMedia work={work} compose={props.compose} />;
+  if (work.kind === "table" && work.table)
+    return (
+      <MadeTable work={work} table={work.table} loadTable={props.loadTable} />
+    );
+  if (work.kind === "contacts") return <MadeContacts work={work} />;
+  return <MadeWords {...props} />;
+}
+
+/**
+ * A table Cuso made or filled: its first rows, and all of them in place.
+ */
+function MadeTable({
+  work,
+  table,
+  loadTable,
+}: {
+  work: ChatWork;
+  table: ChatTable;
+  loadTable: MadeInChatProps["loadTable"];
+}) {
+  const [all, setAll] = useState<ChatTable | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [loading, startLoading] = useTransition();
+  const shown = all ?? table;
+  const hidden = shown.total - shown.rows.length;
+  return (
+    <div className="made made-words made-table">
+      <p className="made-title">{work.title}</p>
+      <div className="seo-table-wrap">
+        <table className="seo-table">
+          <thead>
+            <tr>
+              {shown.columns.map((column, index) => (
+                <th key={index} scope="col">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.rows.map((row, line) => (
+              <tr key={line}>
+                {shown.columns.map((_, index) => (
+                  <td key={index}>{row[index] ?? ""}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="note">
+        {shown.total === 0
+          ? "No rows yet."
+          : hidden > 0
+            ? `${shown.rows.length} of ${shown.total} rows`
+            : `${shown.total} ${shown.total === 1 ? "row" : "rows"}`}
+      </p>
+      {missing ? (
+        <p className="note" role="alert">
+          I couldn't open it. Try again in a moment.
+        </p>
+      ) : null}
+      <div className="made-acts">
+        {all === null && work.readable ? (
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            disabled={loading}
+            onClick={() =>
+              startLoading(async () => {
+                const full = await loadTable(work.id).catch(() => null);
+                setAll(full);
+                setMissing(full === null);
+              })
+            }
+          >
+            {loading ? "Opening…" : "Show all"}
+          </button>
+        ) : null}
+        {all !== null ? (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => setAll(null)}
+          >
+            Show less
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** A contact list Cuso keeps, or the people he looked up. */
+function MadeContacts({ work }: { work: ChatWork }) {
+  const more = (work.total ?? work.people.length) - work.people.length;
+  return (
+    <div className="made made-words">
+      <p className="made-title">{work.title}</p>
+      {work.people.length > 0 ? (
+        <ul className="made-people">
+          {work.people.map((person, index) => (
+            <li key={index}>
+              <span>{person.name}</span>
+              {person.detail ? (
+                <span className="note">{person.detail}</span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="note">Nobody on it yet.</p>
+      )}
+      {more > 0 ? <p className="note">and {more} more</p> : null}
+    </div>
   );
 }
 
@@ -100,8 +217,15 @@ function MadeMedia({
   );
 }
 
-/** A file Cuso wrote, or work he handed on: where it stands, and its words. */
-function MadeWords({ work, compose, loadText }: MadeInChatProps) {
+/**
+ * A file Cuso wrote, work he handed on, a background run or a question to a
+ * Coworker: where it stands, and its words.
+ */
+function MadeWords({
+  work,
+  compose,
+  loadText,
+}: Omit<MadeInChatProps, "loadTable">) {
   const [words, setWords] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
   const [loading, startLoading] = useTransition();
@@ -119,15 +243,30 @@ function MadeWords({ work, compose, loadText }: MadeInChatProps) {
         role={work.state === "making" ? "status" : undefined}
       >
         {work.state === "making" ? <Dots /> : null}
-        <span>{file ? work.title : handedLine(work)}</span>
+        <span>{file ? work.title : statusLine(work)}</span>
       </p>
       {file ? null : <p className="made-title">{work.title}</p>}
+      {work.steps.length > 0 ? (
+        <div className="steps">
+          {work.steps.map((step, index) => (
+            <div
+              key={index}
+              className={
+                step.state === "done"
+                  ? "step ok"
+                  : step.state === "now"
+                    ? "step run"
+                    : "step"
+              }
+            >
+              <span className="dot" aria-hidden="true" />
+              {step.label}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {work.state === "making" ? (
-        <p className="note">
-          {work.kind === "audit"
-            ? "It takes about ten minutes. What it finds shows in your SEO tab."
-            : "I tell you here when it is done."}
-        </p>
+        <p className="note">{waitingNote(work)}</p>
       ) : null}
       {work.text && words === null ? (
         <p className="made-text">{work.text}</p>
@@ -180,6 +319,15 @@ function MadeWords({ work, compose, loadText }: MadeInChatProps) {
             onClick={() => compose(`About "${work.title}": `)}
           >
             Answer
+          </button>
+        ) : null}
+        {work.state === "making" && work.kind === "run" ? (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => compose(`Stop "${work.title}"`)}
+          >
+            Stop it
           </button>
         ) : null}
         {work.state === "failed" && !file && work.kind !== "audit" ? (

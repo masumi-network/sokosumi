@@ -11,6 +11,20 @@ import { digestJob, plainExcerpt } from "@/helpers/job-digest";
 import prisma from "@/lib/db/prisma";
 import { publicDriveUrl } from "@/lib/drive-blob";
 import {
+  type CmoChatPerson,
+  type CmoChatRecord,
+  type CmoChatStep,
+  type CmoChatTable,
+  listCmoChatRecords,
+  readCmoChatRecordText,
+  readCmoChatTable,
+} from "@/services/cmo-chat-records.service";
+import {
+  type CmoChatSeoWork,
+  listCmoChatSeoWork,
+  readCmoChatSeoText,
+} from "@/services/cmo-chat-seo.service";
+import {
   CmoNotFoundError,
   type CusoTarget,
   requireCuso,
@@ -19,11 +33,6 @@ import {
   CMO_STYLE_PASSED,
   CMO_STYLE_REJECTED,
 } from "@/services/cmo-media-maker.service";
-import {
-  type CmoSeoAuditRun,
-  listCmoSeoAuditRuns,
-} from "@/services/cmo-seo-audit.service";
-import { readSeoCheck } from "@/services/cmo-seo-rankings.service";
 import {
   type LiveResource,
   loadLiveResources,
@@ -47,7 +56,7 @@ export interface CmoChatWorkFile {
  * a Coworker (a Task) or a hired Agent (a Job).
  */
 export interface CmoChatWorkItem {
-  /** The tool call that started it, or a weekly audit's id; stable across reloads. */
+  /** The tool call that started it; stable across reloads. */
   id: string;
   kind:
     | "image"
@@ -56,16 +65,19 @@ export interface CmoChatWorkItem {
     | "file"
     | "task"
     | "agent"
-    | "seo"
-    | "audit";
-  /** `waiting` is handed work that needs the owner before it goes on. */
-  state: "making" | "waiting" | "ready" | "failed";
+    | CmoChatRecord["kind"]
+    | CmoChatSeoWork["kind"];
+  /**
+   * `waiting` is handed work that needs the owner before it goes on;
+   * `stopped` is a background run somebody called off.
+   */
+  state: "making" | "waiting" | "ready" | "failed" | "stopped";
   at: Date;
   /** What it is: the prompt, the words spoken, the file's or the work's name. */
   title: string;
   /** Where the finished file plays or downloads from; null otherwise. */
   url: string | null;
-  /** Who does handed work: the Coworker or the Agent. */
+  /** Who does handed work: the Coworker, the Agent or the SEO specialist. */
   by: string | null;
   /** Handed work: what is asked while it waits, the result's start once done. */
   text: string | null;
@@ -73,6 +85,16 @@ export interface CmoChatWorkItem {
   readable: boolean;
   /** Files handed work came back with. */
   files: CmoChatWorkFile[];
+  /** A table's columns and first rows. */
+  table: CmoChatTable | null;
+  /** The first people of a contact list or a lookup. */
+  people: CmoChatPerson[];
+  /** Everyone that list or lookup holds, shown or not. */
+  total: number | null;
+  /** A running background run's plan. */
+  steps: CmoChatStep[];
+  /** A background run's own turn: its report in the room is this card. */
+  turnId: string | null;
 }
 
 /** How many of the newest items the chat shows. */
@@ -95,11 +117,6 @@ const VOICEOVER = "generate_voiceover";
 const SAVED_FILE = "upload_file";
 const HIRED_AGENT = "hire_agent";
 const HANDED_TASK = ["create_task", "assign_task"];
-const SEO_CHECK = "check_search_rankings";
-/** Who checks where the site ranks, as the owner knows them. */
-const SEO_SPECIALIST = "The SEO specialist";
-/** A check takes minutes; one still running after this never comes back. */
-const SEO_CHECK_GIVE_UP_MS = 60 * 60 * 1000;
 
 const CAPABILITIES = [
   ...Object.keys(STUDIO_KIND),
@@ -107,7 +124,6 @@ const CAPABILITIES = [
   SAVED_FILE,
   HIRED_AGENT,
   ...HANDED_TASK,
-  SEO_CHECK,
 ];
 
 const MAKING = new Set<ProjectImageJobStatus>([
@@ -138,8 +154,6 @@ const AGENT_FAILED = new Set<string>([
 const savedFileSchema = z.object({ id: z.string(), filename: z.string() });
 const spokenSchema = z.object({ text: z.string() });
 const hiredSchema = z.object({ resultingEntityId: z.string() });
-const seoCheckSchema = z.object({ analysisId: z.string().uuid() });
-const seoSearchesSchema = z.object({ keywords: z.array(z.string()).min(1) });
 
 const CALL_SELECT = {
   id: true,
@@ -206,63 +220,6 @@ function agentState(status: string): CmoChatWorkItem["state"] {
 /** The Job a `hire_agent` call started, from its receipt. */
 function hiredJobId(call: WorkCall): string | null {
   return hiredSchema.safeParse(call.result).data?.resultingEntityId ?? null;
-}
-
-/** The check a `check_search_rankings` call started or joined. */
-function seoCheckId(call: WorkCall): string | null {
-  return seoCheckSchema.safeParse(call.result).data?.analysisId ?? null;
-}
-
-/** What the SEO specialist was asked: the searches, as the owner reads them. */
-function seoCheckTitle(call: WorkCall): string {
-  const searches = seoSearchesSchema.safeParse(call.input).data?.keywords ?? [];
-  return searches.length > 0
-    ? `Where you rank on Google for ${searches.map((search) => `"${search}"`).join(", ")}`
-    : "Where you rank on Google";
-}
-
-/**
- * The SEO specialist's weekly audit of the site, which Core asks for on the
- * owner's plan: shown in the chat like work Cuso handed on, so the owner
- * sees every time the specialist works for them. Its findings live in the
- * SEO tab.
- */
-function auditItem(audit: CmoSeoAuditRun): CmoChatWorkItem {
-  const found = audit.found;
-  return {
-    id: `audit-${audit.id}`,
-    kind: "audit",
-    state:
-      audit.state === "done"
-        ? "ready"
-        : audit.state === "failed"
-          ? "failed"
-          : "making",
-    at: audit.startedAt,
-    title: "Weekly audit of your site",
-    url: null,
-    by: SEO_SPECIALIST,
-    text:
-      audit.state === "failed"
-        ? "The audit did not finish, so nothing was charged. The next one runs on schedule."
-        : found
-          ? `${found.passed} of ${found.checked} checks passed. ${
-              found.fixes === 0
-                ? "Nothing to fix this week."
-                : found.fixes === 1
-                  ? "1 thing to fix is in your SEO tab."
-                  : `${found.fixes} things to fix are in your SEO tab.`
-            }`
-          : null,
-    readable: false,
-    files: [],
-  };
-}
-
-/** What a call is about: asked twice, it still shows once. */
-function subjectOf(call: WorkCall): string | null {
-  if (call.capability === HIRED_AGENT) return null;
-  return call.capability === SEO_CHECK ? seoCheckId(call) : call.targetId;
 }
 
 /** Public addresses never change, so each is looked up once per process. */
@@ -369,7 +326,21 @@ function liveFiles(drive: Drive, resourceIds: string[]) {
   });
 }
 
-const NOT_HANDED = { by: null, text: null, readable: false, files: [] };
+/** What only a record (a table, contacts, a run) carries. */
+const NO_RECORD = {
+  table: null,
+  people: [],
+  total: null,
+  steps: [],
+  turnId: null,
+};
+const NOT_HANDED = {
+  ...NO_RECORD,
+  by: null,
+  text: null,
+  readable: false,
+  files: [],
+};
 
 /**
  * What Cuso made, or is making, for the owner in chat, newest first: the
@@ -382,21 +353,35 @@ export async function listCmoChatWork(
   input: CusoTarget,
 ): Promise<CmoChatWorkItem[]> {
   const cuso = await requireCuso(input);
-  const since = new Date(Date.now() - CMO_CHAT_WORK_DAYS * 24 * 60 * 60 * 1000);
   const calls: WorkCall[] = await prisma.sokoBotToolCall.findMany({
     where: {
       status: "COMPLETED",
       capability: { in: CAPABILITIES },
-      turn: { sokoBotId: cuso.sokoBotId, createdAt: { gte: since } },
+      turn: {
+        sokoBotId: cuso.sokoBotId,
+        createdAt: {
+          gte: new Date(Date.now() - CMO_CHAT_WORK_DAYS * 24 * 60 * 60 * 1000),
+        },
+      },
     },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: CMO_CHAT_WORK_SHOWN,
     select: CALL_SELECT,
   });
-  const audits = (await listCmoSeoAuditRuns(cuso.projectId, since)).map(
-    auditItem,
-  );
-  if (calls.length === 0) return audits;
+  const records = [
+    ...(await listCmoChatRecords(cuso)).map(
+      (record): CmoChatWorkItem => ({ ...record, url: null, files: [] }),
+    ),
+    ...(await listCmoChatSeoWork(cuso)).map(
+      (work): CmoChatWorkItem => ({
+        ...work,
+        ...NO_RECORD,
+        url: null,
+        files: [],
+      }),
+    ),
+  ].sort((a, b) => b.at.getTime() - a.at.getTime());
+  if (calls.length === 0) return records;
   const drive = await driveOf(cuso, input.userId);
   const keyOf = (call: WorkCall) =>
     `soko-bot:${call.turnId}:${call.toolCallId}`;
@@ -458,13 +443,13 @@ export async function listCmoChatWork(
   // where Cuso first touched it.
   const firstCallOf = new Map<string, string>();
   for (const call of [...calls].reverse()) {
-    const subject = subjectOf(call);
+    const subject = call.capability === HIRED_AGENT ? null : call.targetId;
     if (subject && !firstCallOf.has(subject)) firstCallOf.set(subject, call.id);
   }
-  const repeats = (call: WorkCall) => {
-    const subject = subjectOf(call);
-    return subject !== null && firstCallOf.get(subject) !== call.id;
-  };
+  const repeats = (call: WorkCall) =>
+    call.targetId !== null &&
+    firstCallOf.has(call.targetId) &&
+    firstCallOf.get(call.targetId) !== call.id;
 
   const items = await Promise.all(
     calls.map(async (call): Promise<CmoChatWorkItem | null> => {
@@ -483,6 +468,7 @@ export async function listCmoChatWork(
               : null;
         return {
           ...base,
+          ...NO_RECORD,
           kind: "task",
           state,
           title: task.name,
@@ -493,33 +479,6 @@ export async function listCmoChatWork(
           files: task.files.flatMap((file) =>
             file.fileUrl ? [{ name: file.name, url: file.fileUrl }] : [],
           ),
-        };
-      }
-      if (call.capability === SEO_CHECK) {
-        const analysisId = seoCheckId(call);
-        // Answered at once from the last day's check: nothing was handed on.
-        if (!analysisId || repeats(call)) return null;
-        const check = await readSeoCheck(analysisId);
-        const state =
-          check.state === "done"
-            ? "ready"
-            : check.state === "failed" ||
-                Date.now() - call.createdAt.getTime() > SEO_CHECK_GIVE_UP_MS
-              ? "failed"
-              : "making";
-        return {
-          ...base,
-          kind: "seo",
-          state,
-          title: seoCheckTitle(call),
-          url: null,
-          by: SEO_SPECIALIST,
-          text:
-            check.state === "running"
-              ? null
-              : plainExcerpt(check.outcome, CMO_CHAT_WORK_EXCERPT),
-          readable: check.state === "done",
-          files: [],
         };
       }
       if (call.capability === HIRED_AGENT) {
@@ -535,6 +494,7 @@ export async function listCmoChatWork(
               : null;
         return {
           ...base,
+          ...NO_RECORD,
           kind: "agent",
           state,
           title: hired.name,
@@ -614,7 +574,7 @@ export async function listCmoChatWork(
   );
   return [
     ...items.filter((item): item is CmoChatWorkItem => item !== null),
-    ...audits,
+    ...records,
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
@@ -630,14 +590,26 @@ export async function readCmoChatWorkText(
     where: {
       id: input.id,
       status: "COMPLETED",
-      capability: { in: [SAVED_FILE, HIRED_AGENT, SEO_CHECK, ...HANDED_TASK] },
+      capability: { in: [SAVED_FILE, HIRED_AGENT, ...HANDED_TASK] },
       turn: { sokoBotId: cuso.sokoBotId },
     },
     select: CALL_SELECT,
   });
-  const text = call ? await wordsOf(call, cuso, input.userId) : null;
+  const text = call
+    ? await wordsOf(call, cuso, input.userId)
+    : ((await readCmoChatRecordText(cuso, input.id)) ??
+      (await readCmoChatSeoText(cuso, input.id)));
   if (!text) throw new CmoNotFoundError("There is nothing to read here yet");
   return text;
+}
+
+/** A table Cuso made or wrote into, in full, for "Show all" in the chat. */
+export async function readCmoChatWorkTable(
+  input: CusoTarget & { id: string },
+): Promise<{ title: string; table: CmoChatTable }> {
+  const found = await readCmoChatTable(await requireCuso(input), input.id);
+  if (!found) throw new CmoNotFoundError("This table is no longer there");
+  return found;
 }
 
 async function wordsOf(
@@ -649,11 +621,6 @@ async function wordsOf(
     const jobId = hiredJobId(call);
     const [hired] = jobId ? await loadJobs(cuso.workspaceId, [jobId]) : [];
     return hired?.job.result?.trim() || null;
-  }
-  if (call.capability === SEO_CHECK) {
-    const analysisId = seoCheckId(call);
-    const check = analysisId ? await readSeoCheck(analysisId) : null;
-    return check?.state === "done" ? check.outcome : null;
   }
   if (!call.targetId) return null;
   if (call.capability === SAVED_FILE) {
