@@ -99,16 +99,19 @@ import {
   type CmoMediaPiece,
   cmoImagePrompt,
   cmoMediaState,
+  cmoMonthReferences,
   cmoPieceSlides,
   cmoSlotAction,
   cmoStylePrompt,
   cmoVisualKey,
   REFERENCE_STYLE_MODELS,
+  SCREENSHOT_SOURCE_USES,
 } from "./cmo-media-maker.service";
 
 function piece(patch: Partial<CmoMediaPiece> = {}): CmoMediaPiece {
   return {
     id: "post-1",
+    date: "2026-11-02",
     channel: "x",
     format: "image",
     status: "draft",
@@ -313,6 +316,20 @@ describe("cmoImagePrompt", () => {
     expect(prompt).toContain("Never a real, named person.");
   });
 
+  it("gives a picture made without a source the brand's colours instead", () => {
+    const prompt = cmoImagePrompt({
+      piece: piece(),
+      slot: 0,
+      businessName: "CMO.XYZ",
+      references: 0,
+      colours: ["#FF51FF", "#0C0C0C"],
+    });
+    expect(prompt).toContain(
+      "Made for CMO.XYZ. Use the brand's colours #FF51FF, #0C0C0C",
+    );
+    expect(prompt).not.toContain("reference pictures");
+  });
+
   it("makes as many slides as Cuso described, each from its own line", () => {
     const slides = [
       "The hook",
@@ -346,6 +363,57 @@ describe("cmoImagePrompt", () => {
     expect(cmoVisualKey(carousel)).not.toBe(
       cmoVisualKey({ ...carousel, slides: undefined }),
     );
+  });
+});
+
+describe("cmoMonthReferences", () => {
+  const home = { fileId: "f-home", alt: "Home page screenshot" };
+  const phone = { fileId: "f-phone", alt: "Home on a phone page screenshot" };
+  const photo = { fileId: "f-photo", alt: "the roastery counter" };
+  const month = (count: number, patch: Partial<CmoMediaPiece> = {}) =>
+    Array.from({ length: count }, (_, index) =>
+      piece({
+        id: `p${String(index).padStart(2, "0")}`,
+        date: `2026-11-${String(index + 1).padStart(2, "0")}`,
+        ...patch,
+      }),
+    );
+
+  it("lets one screenshot be the source of the month's first pictures only, so the rest do not all look like it", () => {
+    // A one-page software site: every visual names the same two screenshots.
+    const plan = cmoMonthReferences(
+      month(21, { visualFileIds: ["f-home", "f-phone"] }),
+      [home, phone],
+    );
+    const sourced = [...plan.values()].filter((ids) => ids.length > 0);
+    expect(sourced).toHaveLength(SCREENSHOT_SOURCE_USES);
+    expect(plan.get("p00")).toEqual(["f-home", "f-phone"]);
+    expect(plan.get("p02")).toEqual(["f-home", "f-phone"]);
+    expect(plan.get("p03")).toEqual([]);
+    expect(plan.get("p20")).toEqual([]);
+  });
+
+  it("never drops a photo: a real product stays real in every picture", () => {
+    const plan = cmoMonthReferences(
+      month(8, { visualFileIds: ["f-photo", "f-home"] }),
+      [home, photo],
+    );
+    expect(plan.get("p00")).toEqual(["f-photo", "f-home"]);
+    expect(plan.get("p07")).toEqual(["f-photo"]);
+  });
+
+  it("gives a piece the same sources on every pass, whatever is already made", () => {
+    const pieces = month(6, { visualFileIds: ["f-home"] });
+    const first = cmoMonthReferences(pieces, [home]);
+    // Later pass: the first four have their pictures, and arrive last.
+    const later = cmoMonthReferences(
+      [
+        ...pieces.slice(4),
+        ...pieces.slice(0, 4).map((made) => ({ ...made, media: ["m"] })),
+      ],
+      [home],
+    );
+    expect([...later.entries()].sort()).toEqual([...first.entries()].sort());
   });
 });
 

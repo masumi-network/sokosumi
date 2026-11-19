@@ -74,6 +74,14 @@ const ATTEMPTS = 2;
 /** Default references when the visual names none: the brand's own pictures. */
 const DEFAULT_REFERENCES = 2;
 /**
+ * How many of a month's pictures one page screenshot may be the source of.
+ * The model keeps what a source shows and changes only setting, framing and
+ * light, so a brand with one screenshot got a month of the same picture
+ * (twenty-one from two screenshots on the first month of a one-page site).
+ */
+export const SCREENSHOT_SOURCE_USES = 3;
+const SCREENSHOT_ALT = "page screenshot";
+/**
  * The models a picture in a reference library style rotates through, one per
  * try: GPT Image 2.6 kept the period look and lettering best in Patrick's
  * NMKR test (2026-11-16), Nano Banana 2.1 made the boldest layouts, Seedream
@@ -164,6 +172,8 @@ export interface CmoMediaPiece
   extends Pick<
     CmoCalendarEntry,
     | "id"
+    | "date"
+    | "time"
     | "channel"
     | "format"
     | "status"
@@ -426,6 +436,8 @@ export function cmoImagePrompt(input: {
   slot: number;
   businessName: string;
   references: number;
+  /** The brand's colours, for a picture made without a source picture. */
+  colours?: readonly string[];
 }): string {
   const { piece, slot } = input;
   const channel = (CMO_CHANNELS as Record<string, Channel>)[piece.channel];
@@ -445,7 +457,7 @@ export function cmoImagePrompt(input: {
       : "",
     input.references > 0
       ? `Made for ${input.businessName} from the reference pictures: keep what they show of the brand (its product, its screens, its colours and logo) exactly, and change the setting, the framing and the light.`
-      : `Made for ${input.businessName}.`,
+      : `Made for ${input.businessName}.${input.colours?.length ? ` Use the brand's colours ${input.colours.join(", ")}; a few neutral tones are fine.` : ""}`,
     words,
     "Never a real, named person.",
   ]
@@ -494,12 +506,58 @@ function references(
   const named = (piece.visualFileIds ?? []).filter((id) => known.has(id));
   if (named.length > 0) return named;
   const photos = brandPictures.filter(
-    (picture) => !picture.alt.endsWith("page screenshot"),
+    (picture) => !picture.alt.endsWith(SCREENSHOT_ALT),
   );
   const home = brandPictures.find((picture) => picture.alt.startsWith("Home"));
   return [...photos.slice(0, 1), ...(home ? [home] : []), ...photos.slice(1)]
     .slice(0, DEFAULT_REFERENCES)
     .map((picture) => picture.fileId);
+}
+
+/**
+ * The source pictures of every piece of the month, so the month's pictures
+ * do not all come from one screenshot: in the order the pieces go out, a page
+ * screenshot is the source of the first `SCREENSHOT_SOURCE_USES` pictures
+ * only, and a later piece is made from its visual and the brand's colours.
+ * A photo is never dropped: it is what keeps a real product real. The whole
+ * month is counted, made pieces too, so a piece keeps its sources however
+ * many passes it takes.
+ */
+export function cmoMonthReferences(
+  pieces: readonly CmoMediaPiece[],
+  brandPictures: readonly { fileId: string; alt: string }[],
+): Map<string, string[]> {
+  const screenshots = new Set(
+    brandPictures
+      .filter((picture) => picture.alt.endsWith(SCREENSHOT_ALT))
+      .map((picture) => picture.fileId),
+  );
+  const uses = new Map<string, number>();
+  const plan = new Map<string, string[]>();
+  const inOrder = pieces
+    .filter(
+      (piece) =>
+        piece.status !== "skipped" &&
+        !cmoPieceIsTalking(piece) &&
+        !piece.styleReferenceId &&
+        Boolean(piece.visual?.trim()),
+    )
+    .sort((a, b) =>
+      `${a.date}${a.time ?? ""}${a.id}`.localeCompare(
+        `${b.date}${b.time ?? ""}${b.id}`,
+      ),
+    );
+  for (const piece of inOrder) {
+    const kept = references(piece, brandPictures).filter((fileId) => {
+      if (!screenshots.has(fileId)) return true;
+      const used = uses.get(fileId) ?? 0;
+      if (used >= SCREENSHOT_SOURCE_USES) return false;
+      uses.set(fileId, used + 1);
+      return true;
+    });
+    plan.set(piece.id, kept);
+  }
+  return plan;
 }
 
 interface MediaContext {
@@ -571,7 +629,7 @@ export async function advanceCmoMedia(
     (await prisma.projectImageJob.count({
       where: { projectId, status: { in: [...LIVE] } },
     }));
-  let brandPictures: { fileId: string; alt: string }[] | null = null;
+  let sources: Map<string, string[]> | null = null;
   let styleBrand: StyleBrand | null = null;
   const brandFor = async () => (styleBrand ??= await loadStyleBrand(projectId));
   // Talking videos started in this pass, so its other posts wait for it.
@@ -609,17 +667,21 @@ export async function advanceCmoMedia(
       );
       if (started.has(startKey)) continue;
       started.add(startKey);
-      brandPictures ??= await listCmoBrandPictures(projectId);
+      sources ??= cmoMonthReferences(
+        pieces,
+        await listCmoBrandPictures(projectId),
+      );
+      const picture = action.step !== "video" && action.step !== "talking";
+      const made =
+        picture && !styled(piece) ? (sources.get(piece.id) ?? []) : [];
       const accepted = await start(context, drive, {
         piece,
         slot,
         action,
-        references:
-          action.step === "video" || action.step === "talking"
-            ? []
-            : references(piece, brandPictures),
+        references: made,
+        // A styled picture, and one made without a source, take the colours.
         colours:
-          styled(piece) && action.step !== "video" && action.step !== "talking"
+          picture && (styled(piece) || made.length === 0)
             ? (await brandFor()).colours
             : [],
       });
@@ -733,6 +795,7 @@ async function start(
             slot,
             businessName: context.cuso.businessName,
             references: input.references.length,
+            colours: input.colours,
           }),
       modelId: model.id,
       settings: {
