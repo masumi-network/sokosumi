@@ -2363,9 +2363,9 @@ function MessageMetaFooter({
                       reaction.reactedByCurrentUser &&
                         "border-border bg-muted text-foreground",
                     )}
-                    aria-label={t("Reactions.toggle", {
-                      emoji: reaction.emoji,
-                    })}
+                    // Named by what it shows (emoji and count); pressed
+                    // when tapping it again takes the reader's reaction back.
+                    aria-pressed={reaction.reactedByCurrentUser}
                   >
                     <span className="text-sm leading-none">
                       {reaction.emoji}
