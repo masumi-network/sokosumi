@@ -16,6 +16,12 @@ import {
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
 import { stepCountIs, type ToolSet, tool } from "ai";
+import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
+import {
+  aiGatewayBudgetScope,
+  GATEWAY_INTERNAL_SERVER_ERROR,
+} from "@/lib/ai-gateway-budget-error";
+import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -208,7 +214,22 @@ async function runTurn(
             );
           },
         }),
-      );
+      ).catch(async (error: unknown) => {
+        if (
+          error instanceof Error &&
+          error.name === GATEWAY_INTERNAL_SERVER_ERROR
+        ) {
+          const scope = aiGatewayBudgetScope(error.message);
+          if (scope) {
+            await reportAiGatewayBudgetFailure(
+              scope,
+              purpose,
+              aiGatewayApiKey(purpose),
+            );
+          }
+        }
+        throw error;
+      });
       assertSokoBotInferenceRegion(result.steps.at(-1)?.providerMetadata, {
         model: turn.model,
         role: "agent",

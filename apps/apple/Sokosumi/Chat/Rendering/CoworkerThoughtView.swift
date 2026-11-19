@@ -61,12 +61,13 @@ struct CoworkerThoughtView: View {
 
 /// Settled Thought header on a failed mention shell plus the mentioner-only
 /// Retry (web failed Thought header + `FailedMentionActions`). Core
-/// does not expose the failure reason, so the label stays generic. The row
+/// does not expose the failure reason for generic failures, so the label stays generic. The row
 /// owns the POST and the rejection alert: this view unmounts while retry
 /// flips the shell to thinking.
 struct CoworkerMentionFailedView: View {
   var onRetry: (() -> Void)?
   var isRetrying = false
+  let aiBudgetExceeded: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -80,6 +81,16 @@ struct CoworkerMentionFailedView: View {
       .foregroundStyle(.secondary)
       .accessibilityElement(children: .ignore)
       .accessibilityLabel("Failed to reply")
+      if aiBudgetExceeded {
+        Text(
+          "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+          tableName: "ChatSokoBot",
+          comment: "Below a failed assistant reply when the assistant has hit its usage limit."
+        )
+        .font(.callout)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+      }
       if let onRetry {
         Button("Retry", action: onRetry)
           .buttonStyle(.borderless)
