@@ -11694,6 +11694,35 @@ export type ProjectSeoWorkspace = {
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
     strategy?: ProjectSeoStrategy | null;
+    landingEngagementChange?: {
+        propertyId: string;
+        timeZone: string;
+        pageCount: number;
+        before: {
+            from: string;
+            to: string;
+            sessions: number;
+            observationId: string;
+        };
+        after: {
+            from: string;
+            to: string;
+            sessions: number;
+            observationId: string;
+        };
+        engagementSecondsPerSession: {
+            before: number;
+            after: number;
+            withinPageChange: number;
+            mixChange: number;
+        };
+        viewsPerSession: {
+            before: number;
+            after: number;
+            withinPageChange: number;
+            mixChange: number;
+        };
+    };
     seasonalIdeas?: Array<{
         origin?: 'market_history';
         keyword: string;
@@ -11973,10 +12002,13 @@ export type ProjectSeoSearchBreakdown = {
 export type ProjectSeoLandingPages = {
     channel: 'organic' | 'ai_assistant';
     verifiedHost?: string;
+    timeZone?: string;
     rows: Array<{
         pageUrl: string;
         sessions: number;
         keyEvents: number;
+        engagementSeconds?: number;
+        views?: number;
     }>;
     sources?: Array<{
         pageUrl: string;

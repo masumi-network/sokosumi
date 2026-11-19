@@ -13622,6 +13622,17 @@
         "testsAll": "Jeder Test hat ein Ergebnis"
       },
       "traffic": {
+        "landingEngagement": {
+          "title": "Was sich bei organischen Besuchen geändert hat",
+          "scope": "Google Analytics verglich in beiden Zeiträumen {count, plural, one {dieselbe Einstiegsseite} other {dieselben # Einstiegsseiten}} ({zone}).",
+          "seconds": "Interaktionsdauer pro Sitzung in Sekunden",
+          "views": "Aufrufe pro Sitzung",
+          "metric": "Kennzahl",
+          "within": "Änderung innerhalb der Seiten",
+          "mix": "Änderung durch die Verteilung der Besuche",
+          "mixOnly": "Die Verteilung der Besuche auf die Einstiegsseiten erklärt die Änderung der durchschnittlichen Interaktionsdauer.",
+          "sessions": "Die Zahl der organischen Einstiegssitzungen änderte sich von {before} auf {after}. Die letzten beiden Spalten zeigen die Beiträge in der Einheit der jeweiligen Kennzahl."
+        },
         "searchType": "Suchtyp",
         "searchTypes": {
           "web": "Web",

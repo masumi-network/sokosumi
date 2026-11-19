@@ -13622,6 +13622,17 @@
         "testsAll": "Every test gave a result"
       },
       "traffic": {
+        "landingEngagement": {
+          "title": "What changed in organic visits",
+          "scope": "Google Analytics compared the same {count, plural, one {landing page} other {# landing pages}} in both periods ({zone}).",
+          "seconds": "Engagement seconds per session",
+          "views": "Views per session",
+          "metric": "Measure",
+          "within": "Change within pages",
+          "mix": "Change from the mix of visits",
+          "mixOnly": "The distribution of visits across landing pages accounted for the change in average engagement.",
+          "sessions": "Organic landing sessions went from {before} to {after}. The last two columns show each contribution in the same units as the measure."
+        },
         "searchType": "Search type",
         "searchTypes": {
           "web": "Web",

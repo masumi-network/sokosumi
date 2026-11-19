@@ -28,6 +28,7 @@ import {
   seoWorkspaceLandingPagesSchema,
   seoWorkspaceSearchBreakdownSchema,
 } from "./project-seo-traffic.schema";
+import { seoLandingEngagementChange } from "./seo-landing-engagement.schema";
 
 import {
   SEO_MAX_PAGES,
@@ -707,6 +708,7 @@ export const projectSeoWorkspaceSchema = z
     indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
+    landingEngagementChange: seoLandingEngagementChange.optional(),
     seasonalIdeas: z.array(seoSeasonalIdeaSchema).optional(),
     /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */
     serpHistory: z

@@ -44184,6 +44184,130 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        landingEngagementChange: {
+            type: 'object',
+            properties: {
+                propertyId: {
+                    type: 'string'
+                },
+                timeZone: {
+                    type: 'string'
+                },
+                pageCount: {
+                    type: 'integer',
+                    exclusiveMinimum: 0
+                },
+                before: {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string'
+                        },
+                        to: {
+                            type: 'string'
+                        },
+                        sessions: {
+                            type: 'integer',
+                            exclusiveMinimum: 0
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'sessions',
+                        'observationId'
+                    ]
+                },
+                after: {
+                    type: 'object',
+                    properties: {
+                        from: {
+                            type: 'string'
+                        },
+                        to: {
+                            type: 'string'
+                        },
+                        sessions: {
+                            type: 'integer',
+                            exclusiveMinimum: 0
+                        },
+                        observationId: {
+                            type: 'string',
+                            format: 'uuid'
+                        }
+                    },
+                    required: [
+                        'from',
+                        'to',
+                        'sessions',
+                        'observationId'
+                    ]
+                },
+                engagementSecondsPerSession: {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        withinPageChange: {
+                            type: 'number'
+                        },
+                        mixChange: {
+                            type: 'number'
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'withinPageChange',
+                        'mixChange'
+                    ]
+                },
+                viewsPerSession: {
+                    type: 'object',
+                    properties: {
+                        before: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        after: {
+                            type: 'number',
+                            minimum: 0
+                        },
+                        withinPageChange: {
+                            type: 'number'
+                        },
+                        mixChange: {
+                            type: 'number'
+                        }
+                    },
+                    required: [
+                        'before',
+                        'after',
+                        'withinPageChange',
+                        'mixChange'
+                    ]
+                }
+            },
+            required: [
+                'propertyId',
+                'timeZone',
+                'pageCount',
+                'before',
+                'after',
+                'engagementSecondsPerSession',
+                'viewsPerSession'
+            ]
+        },
         seasonalIdeas: {
             type: 'array',
             items: {
@@ -45727,6 +45851,11 @@ export const ProjectSeoLandingPagesSchema = {
             minLength: 1,
             maxLength: 253
         },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
         rows: {
             type: 'array',
             items: {
@@ -45742,6 +45871,14 @@ export const ProjectSeoLandingPagesSchema = {
                         minimum: 0
                     },
                     keyEvents: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    engagementSeconds: {
+                        type: 'number',
+                        minimum: 0
+                    },
+                    views: {
                         type: 'number',
                         minimum: 0
                     }

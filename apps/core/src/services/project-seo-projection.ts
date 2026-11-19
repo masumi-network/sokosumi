@@ -49,6 +49,7 @@ import {
   normalizeSeoUrl,
   SEO_RESULT_LIMIT,
 } from "./project-seo-store";
+import { landingEngagementChange } from "./seo-landing-engagement";
 
 interface ProjectionInput {
   sharing?: "organization" | "personal";
@@ -150,6 +151,7 @@ export function projectSeoProjection(
     indexSources,
     seenGroups: seenMetricGroups,
     landingPages: null,
+    landingSources: [],
   };
   for (const row of input.observations) {
     if (!overlaps(row.pageIds)) continue;
@@ -171,7 +173,8 @@ export function projectSeoProjection(
       continue;
     }
     if (row.kind === "metrics") {
-      projectSeoMetricsRow(row, query, selectedUrls, metricRows);
+      if (input.privateMetricsAllowed)
+        projectSeoMetricsRow(row, query, selectedUrls, metricRows);
       continue;
     }
     const parsed = publicSeoPayloadSchema.safeParse(row.payload);
@@ -701,6 +704,10 @@ export function projectSeoProjection(
     searchQueries: search.searchQueries,
     searchBreakdown: search.searchBreakdown,
     landingPages: metricRows.landingPages,
+    landingEngagementChange: landingEngagementChange(
+      metricRows.landingSources,
+      query,
+    ),
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     indexTriage: indexing.triage,
     strategy,

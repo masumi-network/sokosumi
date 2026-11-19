@@ -13622,6 +13622,17 @@
         "testsAll": "Todas las pruebas tienen resultado"
       },
       "traffic": {
+        "landingEngagement": {
+          "title": "Qué cambió en las visitas orgánicas",
+          "scope": "Google Analytics comparó {count, plural, one {la misma página de destino} other {las mismas # páginas de destino}} en ambos períodos ({zone}).",
+          "seconds": "Segundos de interacción por sesión",
+          "views": "Vistas por sesión",
+          "metric": "Métrica",
+          "within": "Cambio dentro de las páginas",
+          "mix": "Cambio por la distribución de visitas",
+          "mixOnly": "La distribución de visitas entre las páginas de destino explica el cambio en el tiempo medio de interacción.",
+          "sessions": "Las sesiones orgánicas de entrada pasaron de {before} a {after}. Las dos últimas columnas muestran cada contribución en las unidades de la métrica."
+        },
         "searchType": "Tipo de búsqueda",
         "searchTypes": {
           "web": "Web",

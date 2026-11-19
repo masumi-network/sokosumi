@@ -631,6 +631,118 @@ describe("native statistics collection boundary", () => {
       previous: { from: "2025-12-30", to: "2025-12-31", value: 6 },
     });
   });
+  it("excludes ambiguous paths from the landing request when other pages can be measured", async () => {
+    const alias = {
+      id: "66666666-6666-4666-8666-666666666666",
+      url: "http://example.test/a",
+    };
+    const distinct = {
+      id: "77777777-7777-4777-8777-777777777777",
+      url: "https://example.test/b",
+    };
+    state.extraPages.push(alias, distinct);
+    state.answer = (slug, args) =>
+      JSON.stringify(args.dimensions ?? []).includes(
+        "landingPagePlusQueryString",
+      )
+        ? { successful: true, data: landing("/b") }
+        : answer(slug, args);
+    await syncProjectSeoStatistics(actor, {
+      ...input,
+      pageIds: [state.pageId, alias.id, distinct.id],
+    });
+    const requested = state.reads.find(({ args }) =>
+      JSON.stringify(args.dimensions ?? []).includes(
+        "landingPagePlusQueryString",
+      ),
+    );
+    expect(requested?.args.dimensionFilter).toMatchObject({
+      andGroup: {
+        expressions: expect.arrayContaining([
+          {
+            filter: {
+              fieldName: "landingPagePlusQueryString",
+              inListFilter: { values: ["/b"], caseSensitive: true },
+            },
+          },
+        ]),
+      },
+    });
+    const saved = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    expect(saved.landingPages).toMatchObject({
+      rows: [{ pageUrl: distinct.url, sessions: 5 }],
+      skippedUrls: [state.pageUrl, alias.url],
+    });
+  });
+
+  it("compares observed landing rates on the first sync and checks the preceding window's host independently", async () => {
+    const priorHost = { value: "example.test" };
+    state.answer = (slug, args) => {
+      const dimensions = (args.dimensions ?? []) as Array<{ name: string }>;
+      const prior = JSON.stringify(args.dateRanges ?? []).includes(
+        "2025-12-30",
+      );
+      if (dimensions[0]?.name === "hostName" && prior)
+        return {
+          successful: true,
+          data: {
+            dimensionHeaders: [{ name: "hostName" }],
+            metricHeaders: [{ name: "sessions" }],
+            rows: [
+              {
+                dimensionValues: [{ value: priorHost.value }],
+                metricValues: [{ value: "5" }],
+              },
+            ],
+            rowCount: 1,
+          },
+        };
+      if (dimensions[0]?.name === "landingPagePlusQueryString")
+        return {
+          successful: true,
+          data: {
+            dimensionHeaders: dimensions,
+            metricHeaders: args.metrics,
+            rows: [
+              {
+                dimensionValues: [{ value: "/a" }],
+                metricValues: (prior ? [5, 2, 50, 15] : [10, 3, 140, 60]).map(
+                  (value) => ({ value }),
+                ),
+              },
+            ],
+            metadata: { timeZone: "Europe/Oslo" },
+            rowCount: 1,
+          },
+        };
+      return answer(slug, args);
+    };
+    const workspace = await syncProjectSeoStatistics(actor, input);
+    expect(workspace.landingEngagementChange).toMatchObject({
+      before: { from: "2025-12-30", to: "2025-12-31", sessions: 5 },
+      after: { from: "2026-01-01", to: "2026-01-02", sessions: 10 },
+      engagementSecondsPerSession: {
+        before: 10,
+        after: 14,
+        withinPageChange: 4,
+        mixChange: 0,
+      },
+      viewsPerSession: {
+        before: 3,
+        after: 6,
+        withinPageChange: 3,
+        mixChange: 0,
+      },
+    });
+    expect(workspace.landingEngagementChange?.before.observationId).toBe(
+      workspace.landingEngagementChange?.after.observationId,
+    );
+    priorHost.value = "another.test";
+    vi.setSystemTime(new Date("2026-01-21T12:00:00Z"));
+    const refreshed = await syncProjectSeoStatistics(actor, input);
+    expect(refreshed.landingEngagementChange).toBeUndefined();
+    expect(refreshed.landingPages?.rows[0].sessions).toBe(10);
+  });
   it("stores organic key events per landing page and hands them to the workspace", async () => {
     const workspace = await syncProjectSeoStatistics(actor, input);
     const read = state.reads.find((item) =>

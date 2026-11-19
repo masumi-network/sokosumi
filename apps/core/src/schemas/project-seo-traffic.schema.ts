@@ -49,6 +49,8 @@ export const seoLandingPagesSchema = z
     channel: z.enum(["organic", "ai_assistant"]),
     /** Property host proved by a complete, unsampled host inventory for the same period. Absent on older reads. */
     verifiedHost: z.string().min(1).max(253).optional(),
+    // The timezone of a complete landing report with views and engagement in the same population.
+    timeZone: z.string().min(1).max(100).optional(),
     rows: z
       .array(
         z
@@ -56,6 +58,8 @@ export const seoLandingPagesSchema = z
             pageUrl: z.string().url().max(2048),
             sessions: landingCount,
             keyEvents: landingCount,
+            engagementSeconds: landingCount.optional(),
+            views: landingCount.optional(),
           })
           .strict(),
       )

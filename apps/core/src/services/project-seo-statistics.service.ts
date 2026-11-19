@@ -82,6 +82,7 @@ import {
   readIntegrationTool,
 } from "@/services/composio-integration-tools.service";
 import {
+  connectionVersion,
   recordSeoConnectionFailure,
   resolveSeoStatisticsIntegration,
   type SeoStatisticsIntegration,
@@ -493,29 +494,63 @@ export async function syncProjectSeoStatistics(
         input.provider === "ga4" ? ga4LandingPlan(query) : null;
       const collectLandingPages = async () => {
         if (!landingPlan?.query.pageUrls.length) return null;
-        const hosts = unwrapNativeStatistics(
-          await read(integration, tool, ga4LandingHostArguments(query)),
-          ["metricHeaders"],
-        );
-        assertGa4LandingHost(query, hosts);
-        const landingPages = {
-          ...normalizeGa4LandingPages(
-            landingPlan.query,
-            unwrapNativeStatistics(
-              await read(
-                integration,
-                tool,
-                ga4LandingPageArguments(landingPlan.query),
-              ),
-              ["metricHeaders"],
-            ),
-            landingPlan.skippedUrls,
-          ),
-          verifiedHost: new URL(query.pageUrls[0]!).hostname,
+        const verifiedLanding = async ({
+          from,
+          to,
+        }: {
+          from: string;
+          to: string;
+        }) => {
+          const selected = { ...landingPlan.query, from, to };
+          const hosts = unwrapNativeStatistics(
+            await read(integration, tool, ga4LandingHostArguments(selected)),
+            ["metricHeaders"],
+          );
+          assertGa4LandingHost(query, hosts);
+          const raw = unwrapNativeStatistics(
+            await read(integration, tool, ga4LandingPageArguments(selected)),
+            ["metricHeaders"],
+          );
+          return {
+            ...normalizeGa4LandingPages(selected, raw, landingPlan.skippedUrls),
+            verifiedHost: new URL(query.pageUrls[0]!).hostname,
+          };
         };
+        const landingPages = await verifiedLanding(query);
+        const priorWindow = previousSeoPeriod(query.from, query.to);
+        // The prior aggregate uses pageLocation. Compare reading depth only with a separate, exact landing read.
+        // At most one host inventory and one landing read. Their failure preserves the current observation.
+        const canCompare =
+          landingPages.channel === "organic" &&
+          landingPages.timeZone &&
+          !landingPlan.skippedUrls.length &&
+          landingPages.rows.length === query.pageUrls.length &&
+          landingPages.rows.every(
+            (row) => Number.isSafeInteger(row.sessions) && row.sessions > 0,
+          );
+        const previousLanding = canCompare
+          ? await verifiedLanding(priorWindow).catch(() => undefined)
+          : undefined;
+        const evidence = landingPages.timeZone
+          ? {
+              landingEngagementEvidence: {
+                connectionVersion: connectionVersion(integration),
+                ...(previousLanding?.timeZone
+                  ? {
+                      previous: {
+                        ...priorWindow,
+                        landingPages: previousLanding,
+                      },
+                    }
+                  : canCompare
+                    ? { previousUnavailable: true as const }
+                    : {}),
+              },
+            }
+          : {};
         // A property without these events (or a failed event read) still has measured sessions and generic key events.
         if (actor.sokoBotId || landingPages.channel !== "organic")
-          return { landingPages };
+          return { landingPages, ...evidence, outcomes: undefined };
         const named = await read(
           integration,
           tool,
@@ -528,9 +563,11 @@ export async function syncProjectSeoStatistics(
             ),
           )
           .catch(() => null);
-        if (!named?.rows.length) return { landingPages };
+        if (!named?.rows.length)
+          return { landingPages, ...evidence, outcomes: undefined };
         return {
           landingPages,
+          ...evidence,
           outcomes: {
             version: 1 as const,
             channel: "organic" as const,
@@ -643,9 +680,11 @@ export async function syncProjectSeoStatistics(
       if (landingPlan) {
         if (landingPlan.skippedUrls.length)
           metrics.notes.push(SEO_STATISTICS_ANALYTICS_SHARED_LANDING_PATH_NOTE);
-        if (landing.status === "fulfilled" && landing.value)
+        if (landing.status === "fulfilled" && landing.value) {
           metrics.landingPages = landing.value.landingPages;
-        else if (landingPlan.query.pageUrls.length)
+          metrics.landingEngagementEvidence =
+            landing.value.landingEngagementEvidence;
+        } else if (landingPlan.query.pageUrls.length)
           metrics.notes.push(
             SEO_STATISTICS_ANALYTICS_LANDING_PAGES_UNAVAILABLE_NOTE,
           );

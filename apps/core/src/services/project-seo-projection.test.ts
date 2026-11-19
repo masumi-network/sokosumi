@@ -1840,3 +1840,164 @@ it("keeps seasonal suggestions within their audited page and market and retires 
   ];
   expect(projectSeoProjection(input).seasonalIdeas).toEqual([britishIdea]);
 });
+
+it("distinguishes changing organic landing rates from a changing session mix only across complete matching cohorts", () => {
+  const input = fixture();
+  const long = {
+    ...input.pages[0],
+    id: randomUUID(),
+    url: "https://example.test/read?p=7",
+  };
+  const short = { ...input.pages[0], url: "https://example.test/read?p=8" };
+  input.pages = [short, long];
+  input.scope = {
+    ...input.scope,
+    pages: input.pages,
+    pageIds: input.pages.map((p) => p.id),
+  };
+  input.privateMetricsAllowed = true;
+  input.query = { from: "2026-10-08", to: "2026-10-14", channel: "organic" };
+  const ownerId = randomUUID();
+  const source = (current: boolean) => {
+    const from = current ? "2026-10-08" : "2026-10-01",
+      to = current ? "2026-10-14" : "2026-10-07";
+    const payload = {
+      provider: "ga4",
+      propertyId: "properties/42",
+      pageUrls: input.pages.map((p) => p.url),
+      channel: "organic",
+      from,
+      to,
+      timeZone: "UTC",
+      observedAt: now.toISOString(),
+      coverage: "complete",
+      notes: [],
+      metrics: [],
+      landingEngagementEvidence: { connectionVersion: "a".repeat(64) },
+      landingPages: {
+        channel: "organic",
+        verifiedHost: "example.test",
+        timeZone: "UTC",
+        rows: [
+          {
+            pageUrl: short.url,
+            sessions: current ? 25 : 75,
+            engagementSeconds: current ? 250 : 750,
+            views: current ? 50 : 75,
+            keyEvents: 1,
+          },
+          {
+            pageUrl: long.url,
+            sessions: current ? 75 : 25,
+            engagementSeconds: current ? 6750 : 2250,
+            views: current ? 450 : 125,
+            keyEvents: 2,
+          },
+        ],
+      },
+    };
+    return {
+      ...observation(
+        input,
+        parsePublicSeoArtifact(legacyReport()),
+        now.toISOString(),
+      ),
+      kind: "metrics",
+      ownerId,
+      payload,
+    };
+  };
+  const older = source(false),
+    newer = source(true);
+  input.observations = [newer, older];
+  const change = () => projectSeoProjection(input).landingEngagementChange;
+  expect(change()).toMatchObject({
+    pageCount: 2,
+    propertyId: "properties/42",
+    before: { from: "2026-10-01", sessions: 100 },
+    after: { from: "2026-10-08", sessions: 100 },
+    engagementSecondsPerSession: {
+      before: 30,
+      after: 70,
+      withinPageChange: 0,
+      mixChange: 40,
+    },
+    viewsPerSession: { before: 2, after: 5, withinPageChange: 1, mixChange: 2 },
+  });
+  for (const invalid of [
+    { ...older, ownerId: randomUUID() },
+    {
+      ...older,
+      payload: {
+        ...older.payload,
+        landingEngagementEvidence: { connectionVersion: "b".repeat(64) },
+      },
+    },
+    { ...older, payload: { ...older.payload, timeZone: "Europe/Oslo" } },
+    { ...older, payload: { ...older.payload, propertyId: "properties/7" } },
+    { ...older, payload: { ...older.payload, coverage: "partial" } },
+    { ...older, payload: { ...older.payload, from: "2026-09-30" } },
+    { ...older, payload: { ...older.payload, channel: "all" } },
+    {
+      ...older,
+      payload: {
+        ...older.payload,
+        landingPages: { ...older.payload.landingPages, truncated: true },
+      },
+    },
+    {
+      ...older,
+      payload: {
+        ...older.payload,
+        landingPages: {
+          ...older.payload.landingPages,
+          verifiedHost: "elsewhere.test",
+        },
+      },
+    },
+    {
+      ...older,
+      payload: {
+        ...older.payload,
+        landingPages: {
+          ...older.payload.landingPages,
+          rows: [older.payload.landingPages.rows[0]],
+        },
+      },
+    },
+    {
+      ...older,
+      payload: {
+        ...older.payload,
+        landingPages: {
+          ...older.payload.landingPages,
+          rows: older.payload.landingPages.rows.map((row) => ({
+            ...row,
+            sessions: 0,
+          })),
+        },
+      },
+    },
+  ]) {
+    input.observations = [newer, invalid];
+    expect(change()).toBeUndefined();
+  }
+  input.observations = [
+    {
+      ...newer,
+      payload: {
+        ...newer.payload,
+        landingEngagementEvidence: {
+          ...newer.payload.landingEngagementEvidence,
+          previousUnavailable: true,
+        },
+      },
+    },
+    older,
+  ];
+  expect(change()).toBeUndefined(); // A failed fresh check can contradict an older host inventory.
+  input.observations = [newer, older];
+  input.privateMetricsAllowed = false;
+  expect(change()).toBeUndefined();
+  expect(projectSeoProjection(input).landingPages).toBeNull();
+});

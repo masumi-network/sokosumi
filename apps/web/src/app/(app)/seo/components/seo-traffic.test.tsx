@@ -97,6 +97,55 @@ afterEach(() => {
 });
 
 describe("SEO Traffic search type", () => {
+  it("explains a shift in organic landing mix without reporting better engagement on individual pages", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.landingEngagementChange = {
+      propertyId: "properties/31",
+      timeZone: "Europe/Madrid",
+      pageCount: 2,
+      before: {
+        from: "2025-05-01",
+        to: "2025-05-28",
+        sessions: 100,
+        observationId: "f1111111-1111-4111-8111-111111111111",
+      },
+      after: {
+        from: "2025-05-29",
+        to: "2025-06-25",
+        sessions: 100,
+        observationId: "f2222222-2222-4222-8222-222222222222",
+      },
+      engagementSecondsPerSession: {
+        before: 72,
+        after: 132,
+        withinPageChange: 0,
+        mixChange: 60,
+      },
+      viewsPerSession: {
+        before: 1.2,
+        after: 2.2,
+        withinPageChange: 0,
+        mixChange: 1,
+      },
+    };
+    renderTraffic(workspace, "&channel=organic");
+    expect(
+      await screen.findByRole("heading", {
+        name: "What changed in organic visits",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        /distribution of visits across landing pages accounted for the change/,
+      ),
+    ).toBeVisible();
+    const row = screen.getByRole("row", {
+      name: /Engagement seconds per session/,
+    });
+    expect(within(row).getByText("72")).toBeVisible();
+    expect(within(row).getByText("132")).toBeVisible();
+    expect(within(row).getByText("+60")).toBeVisible();
+  });
   it.each(["ga4", "search_console"] as const)(
     "labels the full %s aggregate period when the last day had no traffic",
     (source) => {
