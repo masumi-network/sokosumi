@@ -147,10 +147,18 @@ const WEEKS = {
  * now stored this week's signals. Eval Cusos never run a real check, so
  * check_competitors reads exactly these.
  */
-export function prepareCompetitorCase(
+export async function prepareCompetitorCase(
   lane: EvalLaneRecord,
   setup: CompetitorSetup,
 ): Promise<{ signalIds: string[] }> {
+  // Each case is its own check on the same day: without this, its week
+  // would rewrite the message the case before it left.
+  await prisma.chatRoomMessage.deleteMany({
+    where: {
+      senderSokoBotId: lane.cusoBotId,
+      clientMessageId: { startsWith: WEEK_MESSAGE_PREFIX },
+    },
+  });
   return seedCompetitorWeek(lane.cusoProjectId, WEEKS[setup]);
 }
 
@@ -227,6 +235,8 @@ async function seedCompetitorWeek(
 }
 
 const PRICING_PAGE = "https://calendly.com/pricing";
+/** The one message Core posts per check (`postCompetitorWeek`). */
+const WEEK_MESSAGE_PREFIX = "cmo:competitor-week:";
 
 /** The addresses a message links to, as its Markdown links give them. */
 function linkedUrls(markdown: string): string[] {
@@ -251,7 +261,7 @@ export async function competitorFeedChecks(
     prisma.chatRoomMessage.findMany({
       where: {
         senderSokoBotId: lane.cusoBotId,
-        clientMessageId: { startsWith: "cmo:competitor-week:" },
+        clientMessageId: { startsWith: WEEK_MESSAGE_PREFIX },
         createdAt: { gte: startedAt },
       },
       select: { content: true },
