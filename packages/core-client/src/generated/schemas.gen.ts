@@ -53292,9 +53292,6 @@ export const CmoOverviewSchema = {
                 type: 'string'
             }
         },
-        connectAdsUrl: {
-            type: 'string'
-        },
         measurement: {
             type: 'array',
             items: {
@@ -53471,7 +53468,6 @@ export const CmoOverviewSchema = {
         'connectChannelUrl',
         'tiktokEnabled',
         'adProviders',
-        'connectAdsUrl',
         'measurement',
         'production',
         'mailingListSize',

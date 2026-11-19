@@ -13519,7 +13519,6 @@ export type CmoOverview = {
      */
     tiktokEnabled: boolean;
     adProviders: Array<string>;
-    connectAdsUrl: string;
     /**
      * Where Cuso reads the funnel's numbers: Google Analytics, Search Console and Shopify.
      */
