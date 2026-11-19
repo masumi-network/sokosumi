@@ -58,7 +58,8 @@ interface TurnStart {
   system: string;
   model: string;
   capabilities: SokoBotCapability[];
-  budgetMs: number;
+  deadlineAt: string;
+  budgetMs?: number;
   maxSteps: number;
   /** A background run: keep working until it reports DONE. */
   background?: boolean;
@@ -436,6 +437,9 @@ async function main(): Promise<void> {
     headers: authHeaders,
     fetch: modelFetch,
   });
+  const budgetMs =
+    start.budgetMs ??
+    Math.max(30_000, Date.parse(start.deadlineAt) - Date.now() - 20_000);
   if (start.shell) {
     setShellSecrets(start.shell.env);
     const failed = await runSetupCommands(start.shell.setupCommands);
@@ -446,7 +450,7 @@ async function main(): Promise<void> {
       forSubagent: false,
       descriptions: start.toolDescriptions,
     });
-    const deadline = Date.now() + start.budgetMs;
+    const deadline = Date.now() + budgetMs;
     const message = await withPartHandOvers(
       start.message,
       start.parts ?? [],

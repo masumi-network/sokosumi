@@ -1101,7 +1101,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
   async function claimBehindWriter<T>(
     write: (tx: Prisma.TransactionClient) => Promise<unknown>,
     claim: () => Promise<T>,
-    beforeRelease?: () => Promise<void>,
+    beforeRelease?: () => void,
   ): Promise<T> {
     const locked = Promise.withResolvers<number>();
     const release = Promise.withResolvers<void>();
@@ -1133,7 +1133,7 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
         waiting = blocked;
       }
       expect(waiting, "recovery waits on the row writer").toBe(true);
-      await beforeRelease?.();
+      beforeRelease?.();
     } finally {
       release.resolve();
       await Promise.allSettled([writer, pending]);
@@ -1683,19 +1683,21 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
             allowedActions: [],
             acceptanceCriteria: [],
             evidenceIds: [],
-            expiresAt: new Date(now.getTime() + MINUTE),
+            expiresAt: new Date(Date.now() + MINUTE),
           },
         });
         await prisma.sokoBotTurn.update({
           where: { id: turnId },
           data: { intentId: intent.id, intentRevision: intent.revision },
         });
-        const confirmationId = await createTurn(await databaseNow(), {
+        const confirmationId = await createTurn(now, {
           status: "RUNNING",
           eveSessionId: "confirmation_session",
           leaseInMs: MINUTE,
         });
-        let leaseEndsAt: Date;
+        const clock = vi
+          .spyOn(databaseClock, "databaseNow")
+          .mockResolvedValue(now);
         await expect(
           claimBehindWriter(
             async (tx) => {
@@ -1705,25 +1707,9 @@ describe.skipIf(!enabled)("turn ownership under application clock skew", () => {
                 await tx.$queryRaw`SELECT "id" FROM "soko_bot_intent" WHERE "id" = ${intent.id}::uuid FOR UPDATE`;
               }
             },
-            async () => {
-              leaseEndsAt = new Date((await databaseNow()).getTime() + 2_000);
-              await prisma.sokoBotTurn.update({
-                where: { id: confirmationId },
-                data: { leaseExpiresAt: leaseEndsAt },
-              });
-              return mutate(turnId, confirmationId);
-            },
-            async () => {
-              expect((await databaseNow()).getTime()).toBeLessThan(
-                leaseEndsAt.getTime(),
-              );
-              const until = performance.now() + 3_000;
-              while (performance.now() < until) {
-                if ((await databaseNow()) >= leaseEndsAt) return;
-              }
-              throw new Error(
-                "Confirmation lease did not expire while waiting",
-              );
+            () => mutate(turnId, confirmationId),
+            () => {
+              clock.mockResolvedValueOnce(new Date(now.getTime() + MINUTE + 1));
             },
           ),
         ).rejects.toThrow("Confirmation turn is no longer writable");
