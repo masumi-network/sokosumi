@@ -140,6 +140,11 @@ export interface UpdateSokoBotScheduleInput {
   capabilityNames?: readonly string[];
   /** Skip, move or restore one run, shown to the caller at `expectedAt`. */
   run?: ScheduleRunChangeInput;
+  /**
+   * The caller is a bot that may not change its own built-in rhythms: only
+   * a person changes or pauses those.
+   */
+  keepBuiltInRhythms?: boolean;
 }
 
 /**
@@ -404,6 +409,10 @@ export async function updateSokoBotSchedule(
   const db = transaction ?? prisma;
   const schedule = await findScheduleForUser(input.userId, input, transaction);
   await requireSharedBotScheduleSeat(input.userId, schedule.sokoBotId, db);
+  if (input.keepBuiltInRhythms && schedule.systemKey)
+    throw new SokoBotScheduleValidationError(
+      `"${schedule.name}" is one of your built-in rhythms and stays as it is. For something the owner wants on a schedule, such as a reminder, create a separate schedule with create_schedule.`,
+    );
   if (input.run) return changeScheduleRun(schedule, input.run, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;

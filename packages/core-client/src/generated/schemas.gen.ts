@@ -53244,9 +53244,6 @@ export const CmoOverviewSchema = {
                 type: 'string'
             }
         },
-        connectAdsUrl: {
-            type: 'string'
-        },
         measurement: {
             type: 'array',
             items: {
@@ -53421,7 +53418,6 @@ export const CmoOverviewSchema = {
         'upNext',
         'connectChannelUrl',
         'adProviders',
-        'connectAdsUrl',
         'measurement',
         'production',
         'mailingListSize',

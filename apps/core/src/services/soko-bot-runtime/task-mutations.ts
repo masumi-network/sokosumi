@@ -24,7 +24,7 @@ import {
 } from "../soko-bot-runtime.service";
 import { actionPrincipalId } from "./acting-scope";
 import { type RuntimeOperations } from "./operations";
-import { toolAssigneeFields } from "./task-policy";
+import { refuseCusoPersonTask, toolAssigneeFields } from "./task-policy";
 
 export async function mutateTask(
   runtime: RuntimeOperations,
@@ -310,6 +310,7 @@ export async function assignTask(
   approved = false,
 ) {
   const input = taskAssignInputSchema.parse(rawInput);
+  refuseCusoPersonTask(authorized.turn.versionId, input, false);
   return serializableTransaction(async (tx) => {
     await runtime.requireMutationAuthority(
       tx,

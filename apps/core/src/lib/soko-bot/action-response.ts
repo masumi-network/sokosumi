@@ -754,7 +754,12 @@ export async function buildActionResponse(
             "Nothing to add."
           : actionRequested &&
               !(await cmoSavedRecord(tx, turnId, await isCmo()))
-            ? "Nothing was changed in this turn."
+            ? (await isCmo()) && Boolean((await turnInfo())?.parentTurnId)
+              ? // A follow-up of Cuso's that changed nothing (it fetched a
+                // finished picture) has nothing to tell: CMO's chat already
+                // shows what was made, where he started it.
+                "Nothing to add."
+              : "Nothing was changed in this turn."
             : answerText;
   return {
     appliedReceiptIds,

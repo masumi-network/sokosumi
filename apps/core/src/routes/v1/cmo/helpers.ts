@@ -74,7 +74,6 @@ function mapOverview(overview: CmoOverview) {
     upNext: overview.upNext,
     connectChannelUrl: overview.connectChannelUrl,
     adProviders: overview.adProviders,
-    connectAdsUrl: overview.connectAdsUrl,
     measurement: overview.measurement,
     production: overview.production,
     mailingListSize: overview.mailingListSize,

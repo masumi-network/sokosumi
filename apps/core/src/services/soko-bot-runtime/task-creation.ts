@@ -34,7 +34,11 @@ import {
 import { actionPrincipalId } from "./acting-scope";
 import { DECISION_TTL_MS } from "./execution-limits";
 import { type RuntimeOperations } from "./operations";
-import { onlyEventTask, toolAssigneeFields } from "./task-policy";
+import {
+  onlyEventTask,
+  refuseCusoPersonTask,
+  toolAssigneeFields,
+} from "./task-policy";
 
 /**
  * Nothing waits for an owner: the proposal is recorded as a decision the
@@ -175,6 +179,7 @@ export async function createTask(
   const input = taskCreateInputSchema.parse(rawInput);
   if (input.afterTaskId && !input.parentTaskId)
     throw new SokoBotRuntimeValidationError("afterTaskId needs parentTaskId");
+  refuseCusoPersonTask(authorized.turn.versionId, input, true);
   return serializableTransaction(async (tx) => {
     const workspace = await runtime.requireMutationAuthority(
       tx,

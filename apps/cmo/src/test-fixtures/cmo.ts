@@ -145,7 +145,6 @@ export function cmoOverview(patch: Partial<CmoOverview> = {}): CmoOverview {
     upNext: [],
     connectChannelUrl: "http://web/social?projectId=project-1",
     adProviders: [],
-    connectAdsUrl: "http://web/ads?projectId=project-1",
     production: {
       state: "waiting",
       ready: 0,

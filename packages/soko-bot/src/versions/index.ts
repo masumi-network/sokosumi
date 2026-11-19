@@ -1,3 +1,8 @@
+import {
+  CUSO_IDENTITY,
+  composeCusoPersona,
+  cusoToolDescription,
+} from "../cmo-texts.js";
 import { composeSokoBotPersona, type SokoBotPersona } from "../persona.js";
 import {
   isSokoBotCmoCapability,
@@ -6,10 +11,12 @@ import {
   SOKO_BOT_COMPETITOR_CAPABILITIES,
   type SokoBotCapability,
 } from "../policy.js";
+import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import { CMO_MODEL_TRIALS } from "./cmo-model-trials.js";
 import { cmoV1 } from "./cmo-v1.js";
 import { cmoV2 } from "./cmo-v2.js";
 import { cmoV3 } from "./cmo-v3.js";
+import { cmoV4 } from "./cmo-v4.js";
 import {
   getSokoBotSkill,
   SOKO_BOT_SKILLS,
@@ -97,10 +104,11 @@ export const SOKO_BOT_PRODUCT_VERSIONS: readonly SokoBotVersion[] = [
   cmoV1,
   cmoV2,
   cmoV3,
+  cmoV4,
   ...CMO_MODEL_TRIALS,
 ];
 /** The Cuso version a new hire starts on. */
-export const CMO_SOKO_BOT_VERSION_ID = cmoV2.id;
+export const CMO_SOKO_BOT_VERSION_ID = cmoV4.id;
 /**
  * Every Cuso version. A Cuso stays on the version he was hired on until he is
  * moved, so finding one means any of these, never only the newest.
@@ -136,13 +144,38 @@ export const SHARED_SOKO_BOT_GUIDANCE = [
   'You have no owner: every member of the team can ask you for help. Wherever these instructions, tool results or packets say "the owner" or "your owner", that means the member who asked you in a turn a member started, and the team in a turn you started yourself (a schedule, a Task event or mail). There is no owner\'s chat: you speak in your shared room, where every member can read what you write.',
 ].join("\n");
 
+/** A tool's description as this version's bot reads it. */
+export function sokoBotToolDescription(
+  capability: SokoBotCapability,
+  version: Pick<SokoBotVersion, "texts">,
+): string {
+  return version.texts === "cmo"
+    ? cusoToolDescription(capability)
+    : SOKO_BOT_TOOL_DESCRIPTIONS[capability];
+}
+
+/** Who the bot is told it is, ahead of its operating instructions. */
+export function sokoBotIdentity(
+  version: Pick<SokoBotVersion, "texts">,
+): string {
+  return version.texts === "cmo"
+    ? CUSO_IDENTITY
+    : "You are Soko Bot, the owner's autonomous Sokosumi project manager. Your operating instructions arrive each turn as the versioned OPERATING INSTRUCTIONS block; follow them exactly.";
+}
+
 /** Base prompt followed by every included skill. */
 export function composeSystemPrompt(
   version: SokoBotVersion,
   persona?: SokoBotPersona,
 ): string {
   return [
-    ...(persona ? [composeSokoBotPersona(persona)] : []),
+    ...(persona
+      ? [
+          version.texts === "cmo"
+            ? composeCusoPersona(persona.name?.trim() || "Cuso")
+            : composeSokoBotPersona(persona),
+        ]
+      : []),
     version.systemPrompt.trim(),
     ...version.skills.map((id) => getSokoBotSkill(id).content.trim()),
     ...(persona?.shared ? [SHARED_SOKO_BOT_GUIDANCE] : []),

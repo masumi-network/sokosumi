@@ -176,8 +176,6 @@ export interface CmoOverview {
   connectChannelUrl: string;
   /** Ad providers with an active connection on Cuso's Project. */
   adProviders: string[];
-  /** Sokosumi's Ads page for Cuso's Project, where ad accounts connect. */
-  connectAdsUrl: string;
   /** Google Analytics, Search Console and Shopify, as connected to Cuso. */
   measurement: CmoMeasurementStatus[];
   /** The month's production after approval: how many pieces are made. */
@@ -492,7 +490,6 @@ export async function getCmoOverview(
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
     connectChannelUrl: `${web}/social?projectId=${cuso.projectId}`,
     adProviders: [...new Set(adConnections.map((row) => row.provider))],
-    connectAdsUrl: `${web}/ads?projectId=${cuso.projectId}`,
     measurement,
     production: production.status,
     mailingListSize,
