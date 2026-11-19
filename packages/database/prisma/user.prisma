@@ -88,6 +88,7 @@ model User {
   taskParticipations      TaskParticipant[]        @relation("TaskParticipantUser")
   taskEventMentions       TaskEventMention[]       @relation("TaskEventMentionUser")
   taskFollows             TaskFollower[]           @relation("TaskFollowerUser")
+  taskViewPreferences     TaskViewPreference[]     @relation("TaskViewPreferenceUser")
   taskMomentDeliveries    TaskMomentDelivery[]     @relation("TaskMomentDeliveryUser")
   taskEvents              TaskEvent[]
   uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")

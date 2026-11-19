@@ -15571,6 +15571,20 @@ export type TaskActivitySummary = {
     };
 };
 
+export type TaskViewPreference = {
+    /**
+     * The Tasks page query string the person last chose in this workspace, without the leading `?`. Empty when they cleared every filter. Null when they never chose one.
+     */
+    query: string | null;
+};
+
+export type TaskViewPreferenceWrite = {
+    /**
+     * The Tasks page query string to restore, URL-encoded, without the leading `?`. Web owns its keys.
+     */
+    query: string;
+};
+
 export type TaskTagSuggestion = {
     tags: Array<TaskTagId>;
     workspaceSuggestions?: Array<{
@@ -101292,6 +101306,167 @@ export type GetTasksSummaryResponses = {
 };
 
 export type GetTasksSummaryResponse = GetTasksSummaryResponses[keyof GetTasksSummaryResponses];
+
+export type GetTasksViewData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/tasks/view';
+};
+
+export type GetTasksViewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksViewError = GetTasksViewErrors[keyof GetTasksViewErrors];
+
+export type GetTasksViewResponses = {
+    /**
+     * The saved Tasks page view
+     */
+    200: {
+        data: TaskViewPreference;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksViewResponse = GetTasksViewResponses[keyof GetTasksViewResponses];
+
+export type PutTasksViewData = {
+    body?: TaskViewPreferenceWrite;
+    path?: never;
+    query?: never;
+    url: '/tasks/view';
+};
+
+export type PutTasksViewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutTasksViewError = PutTasksViewErrors[keyof PutTasksViewErrors];
+
+export type PutTasksViewResponses = {
+    /**
+     * The saved Tasks page view
+     */
+    200: {
+        data: TaskViewPreference;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutTasksViewResponse = PutTasksViewResponses[keyof PutTasksViewResponses];
 
 export type SuggestTaskTagsData = {
     body?: {

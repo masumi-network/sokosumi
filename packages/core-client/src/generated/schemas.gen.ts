@@ -61820,6 +61820,39 @@ export const TaskActivitySummarySchema = {
     ]
 } as const;
 
+export const TaskViewPreferenceSchema = {
+    type: 'object',
+    properties: {
+        query: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The Tasks page query string the person last chose in this workspace, without the leading `?`. Empty when they cleared every filter. Null when they never chose one.',
+            example: 'status=READY&sort=priority'
+        }
+    },
+    required: [
+        'query'
+    ]
+} as const;
+
+export const TaskViewPreferenceWriteSchema = {
+    type: 'object',
+    properties: {
+        query: {
+            type: 'string',
+            maxLength: 1000,
+            pattern: '^[A-Za-z0-9\\-._~%+=&*]*$',
+            description: 'The Tasks page query string to restore, URL-encoded, without the leading `?`. Web owns its keys.',
+            example: 'status=READY&sort=priority'
+        }
+    },
+    required: [
+        'query'
+    ]
+} as const;
+
 export const TaskTagSuggestionSchema = {
     type: 'object',
     properties: {
