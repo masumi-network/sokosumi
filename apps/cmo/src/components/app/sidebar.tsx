@@ -6,6 +6,7 @@ import {
   Brain,
   CalendarDays,
   ChartLine,
+  House,
   type LucideIcon,
   MessageSquare,
   Search,
@@ -15,6 +16,7 @@ import {
   Users,
 } from "lucide-react";
 import { AGENT_NAME } from "../../lib/agent";
+import { needsYou } from "../../lib/today";
 import type { View } from "../../lib/views";
 import { AccountMenu } from "../account-menu";
 import { hostOf } from "../brand-profile";
@@ -23,6 +25,7 @@ import { CusoStatus } from "./cuso-status";
 import { ViewLink } from "./view-link";
 
 export const VIEWS = [
+  ["today", "Today", House],
   ["chat", AGENT_NAME, MessageSquare],
   ["strategy", "Strategy", Target],
   ["calendar", "Calendar", CalendarDays],
@@ -65,6 +68,7 @@ export function Sidebar({
 }: SidebarProps) {
   const host = hostOf(overview.websiteUrl);
   const displayName = businessDisplayName(overview);
+  const needs = needsYou(overview).length;
   return (
     <nav className="side" aria-label="Main">
       <div className="business card" title={overview.websiteUrl}>
@@ -84,7 +88,12 @@ export function Sidebar({
             aria-current={view === id ? "page" : undefined}
           >
             <Icon size={16} aria-hidden="true" />
-            <span>{label}</span>
+            <span className="nav-label">{label}</span>
+            {id === "today" && needs > 0 ? (
+              <span className="count num" aria-label={`${needs} need you`}>
+                {needs}
+              </span>
+            ) : null}
           </ViewLink>
         ))}
         {/* The Cuso picker: switch Business or hire another (ADR 0065). */}

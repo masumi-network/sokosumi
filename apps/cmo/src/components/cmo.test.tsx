@@ -512,7 +512,8 @@ describe("cards", () => {
 
 describe("pages", () => {
   it("gives every page its own address", () => {
-    expect(viewFromPath("/")).toBe("chat");
+    expect(viewFromPath("/")).toBe("today");
+    expect(viewFromPath("/chat")).toBe("chat");
     expect(viewFromPath("/brand-brain")).toBe("brain");
     expect(viewFromPath("/strategy/")).toBe("strategy");
     expect(viewFromPath("/brain")).toBeNull();

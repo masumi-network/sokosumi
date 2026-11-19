@@ -40,7 +40,9 @@ it("opens every page at its top, wherever the last one was scrolled to", async (
         .find((link) => link.textContent === page)
         ?.click();
     });
-    expect(container.querySelector(".vhead h2")?.textContent).toBe(page);
+    expect(
+      container.querySelector(".nav [aria-current=page]")?.textContent,
+    ).toBe(page);
     expect(scroller().scrollTop).toBe(0);
     scroller().scrollTop = 900;
   }
