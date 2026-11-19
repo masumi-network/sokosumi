@@ -310,7 +310,7 @@ struct MessageRowTests {
 
   @Test func aFailedShellIsItsFailureAndAThinkingOneItsThought() throws {
     let failed = try Self.row(Self.coworkerShell(["mention_id": "mention_1", "mention_failed": true]))
-    #expect(failed.body == [.failedMention])
+    #expect(failed.body == [.failedMention(aiBudgetExceeded: false)])
     let thinking = try Self.coworkerShell(["streaming": true, "mention_id": "mention_1"])
     #expect(Self.row(thinking).body == [.thought(startedAt: thinking.createdAt, shellWorking: true)])
     let started = try Self.coworkerShell([

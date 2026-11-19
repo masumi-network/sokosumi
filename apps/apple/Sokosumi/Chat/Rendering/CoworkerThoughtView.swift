@@ -67,7 +67,7 @@ struct CoworkerThoughtView: View {
 struct CoworkerMentionFailedView: View {
   var onRetry: (() -> Void)?
   var isRetrying = false
-  var aiBudgetExceeded = false
+  let aiBudgetExceeded: Bool
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
@@ -89,6 +89,7 @@ struct CoworkerMentionFailedView: View {
         )
         .font(.callout)
         .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
       }
       if let onRetry {
         Button("Retry", action: onRetry)

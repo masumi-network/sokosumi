@@ -49,7 +49,8 @@
         return try [
           message("source_1", content: "@Soko what's on tomorrow?", sender: ada, seconds: 0, metadata: nil),
           message("failed", content: "", sender: sokoBot, seconds: 1, metadata: [
-            "in_reply_to_message_id": "source_1", "mention_id": "mention_1", "mention_failed": true, "soko_bot": ["turn_id": "turn_1"]
+            "in_reply_to_message_id": "source_1", "mention_id": "mention_1", "mention_failed": true,
+            "mention_failure": ["kind": "ai_budget_exceeded"], "soko_bot": ["turn_id": "turn_1"]
           ]),
           message("source_2", content: "@Soko create a Task for Elena to review the draft", sender: ada, seconds: 60, metadata: nil),
           message("placeholder", content: "", sender: sokoBot, seconds: 61, metadata: [
@@ -63,6 +64,11 @@
       /// Runs on CI, where Vision does not: both shells reach the transcript the room view lists.
       @Test func theRoomListsBothSokoBotShells() throws {
         #expect(try displayedTranscript(messages: Self.persisted(), shells: []).map(\.id) == ["source_1", "failed", "source_2", "placeholder"])
+      }
+
+      @Test func theFailedShellShowsTheUsageLimit() throws {
+        let failed = try #require(Self.persisted().first { $0.id == "failed" })
+        #expect(transcriptRow(failed).body == [.failedMention(aiBudgetExceeded: true)])
       }
 
       @Test(arguments: [false, true])
@@ -91,15 +97,16 @@
         }
         let bitmap = try fittedBitmap(of: host, in: window)
         try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: "soko-bot-shells-\(dark ? "dark" : "light").png")
-        let corner = try #require(bitmap.colorAt(x: 2, y: bitmap.pixelsHigh - 2)?.usingColorSpace(.deviceRGB))
-        #expect(corner.alphaComponent == 1, "Hosted over the window background: alpha \(corner.alphaComponent)")
-        #expect(dark ? corner.brightnessComponent < 0.5 : corner.brightnessComponent > 0.5)
+        let background = try #require(bitmap.colorAt(x: 2, y: bitmap.pixelsHigh / 2)?.usingColorSpace(.deviceRGB))
+        #expect(background.alphaComponent == 1, "Hosted over the window background: alpha \(background.alphaComponent)")
+        #expect(dark ? background.brightnessComponent < 0.5 : background.brightnessComponent > 0.5)
         // Vision reads text only on a local run (the CI runner returns nil); the transcript test carries the rest.
         guard let lines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: bitmap) else { return }
         let texts = lines.map(\.text)
         for expected in ["what's on tomorrow", "Failed to reply", "Retry", "create a Task", "Thinking", "Finding Coworkers", "Creating a Task"] {
           #expect(texts.contains { $0.contains(expected) }, "\(expected) in \(texts)")
         }
+        #expect(texts.joined(separator: " ").contains("Your assistant has reached its usage limit. It can respond again when the limit is raised or resets."))
       }
     }
   }
