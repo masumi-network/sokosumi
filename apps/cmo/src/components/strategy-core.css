@@ -1,24 +1,3 @@
-/* The strategy's four parts under its sentence */
-.sc-parts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px 24px;
-  margin: 12px 0 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-}
-
-.sc-parts dt {
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-.sc-parts dd {
-  margin: 2px 0 0;
-  font-weight: 500;
-  line-height: 1.35;
-}
-
 /* The offer ladder: first step, main offer, then */
 .sc-ladder {
   display: grid;
