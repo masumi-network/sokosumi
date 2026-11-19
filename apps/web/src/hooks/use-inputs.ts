@@ -64,11 +64,9 @@ export function useInputs({ inputSchema }: UseInputsOptions): UseInputsReturn {
     if (!isGrouped || !groups || groups.length === 0) return;
 
     setActiveGroupIndex((prev) => {
-      // Guard: prevent going beyond last group
       if (prev >= groups.length - 1) return prev;
 
       const nextIndex = prev + 1;
-      // Update max unlocked index if needed (using functional update to avoid stale closure)
       setMaxUnlockedGroupIndex((maxUnlocked) =>
         nextIndex > maxUnlocked ? nextIndex : maxUnlocked,
       );
@@ -80,7 +78,6 @@ export function useInputs({ inputSchema }: UseInputsOptions): UseInputsReturn {
     if (!isGrouped || !groups) return;
 
     setActiveGroupIndex((prev) => {
-      // Guard: prevent going below first group
       if (prev <= 0) return prev;
       return prev - 1;
     });
