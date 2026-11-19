@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { RadioGroup } from "radix-ui";
 import { type ReactNode, useId, useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -165,7 +166,9 @@ export function TikTokStudio({
   const siteShots = hasWebsite && showSite;
   const [music, setMusic] = useState(false);
   const [broll, setBroll] = useState(false);
-  const [voice, setVoice] = useState(catalog.defaultVoice);
+  const [voice, setVoice] = useState(
+    catalog.presenters[0]?.voice ?? catalog.defaultVoice,
+  );
   const [languageCode, setLanguageCode] = useState<string>(
     SCRIPT_LANGUAGES.find((code) => locale.startsWith(code)) ?? "en",
   );
@@ -231,7 +234,9 @@ export function TikTokStudio({
   }
 
   function showOnStage(jobId: string | null) {
-    setStageJobId(jobId);
+    // Render first: on a phone the stage moves to the top when it shows a
+    // video, and a scroll before that lands where it used to be.
+    flushSync(() => setStageJobId(jobId));
     stage.current?.scrollIntoView({ block: "nearest" });
   }
 
@@ -380,6 +385,7 @@ export function TikTokStudio({
       setScript(job.prompt);
       const presenter = job.talkingVideo?.presenterId;
       if (presenterImage(presenter) && presenter) setPresenterId(presenter);
+      if (job.talkingVideo?.voice) setVoice(job.talkingVideo.voice);
     });
   }
 
@@ -411,7 +417,16 @@ export function TikTokStudio({
             aria-label={t("presenter")}
             className="grid grid-cols-5 gap-2 sm:grid-cols-10"
             disabled={readOnly}
-            onValueChange={(id) => edit(() => setPresenterId(id))}
+            onValueChange={(id) =>
+              edit(() => {
+                setPresenterId(id);
+                // Each presenter comes with a voice that sounds like them.
+                const presenterVoice = catalog.presenters.find(
+                  (presenter) => presenter.id === id,
+                )?.voice;
+                if (presenterVoice) setVoice(presenterVoice);
+              })
+            }
             value={presenterId}
           >
             {catalog.presenters.map((presenter) => (

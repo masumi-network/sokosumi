@@ -92,6 +92,14 @@ const CATALOG: ProjectImageStudioTalkingVideoCatalog = {
       name: "Maya",
       description: "",
       imageUrl: "https://example.com/maya.jpg",
+      voice: "Sarah",
+    },
+    {
+      id: "jonas",
+      name: "Jonas",
+      description: "",
+      imageUrl: "https://example.com/jonas.jpg",
+      voice: "Brian",
     },
   ],
   defaultVoice: "Sarah",
@@ -334,7 +342,30 @@ describe("TikTokStudio", () => {
     });
   });
 
-  it("offers a failed video's script again", () => {
+  it("speaks with the chosen presenter's own voice", async () => {
+    startTalkingVideoMock.mockResolvedValue({ ok: false, message: "no" });
+    renderStudio();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Jonas" }));
+    fireEvent.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() =>
+      expect(startTalkingVideoMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          presenter: { kind: "stock", id: "jonas" },
+          voice: "Brian",
+        }),
+      ),
+    );
+  });
+
+  it("scrolls to a chosen video once the stage shows it", () => {
+    // On a phone the stage moves to the top when it shows a video, so a
+    // scroll made before that render lands where the stage used to be.
+    const scrolledTo: (string | null)[] = [];
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolledTo.push(this.getAttribute("aria-label"));
+    });
     render(
       <TestQueryProvider>
         <TikTokStudio
@@ -358,9 +389,42 @@ describe("TikTokStudio", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /videoFailed/ }));
+
+    expect(scrolledTo).toEqual(["stageVideo"]);
+  });
+
+  it("offers a failed video's script again", () => {
+    render(
+      <TestQueryProvider>
+        <TikTokStudio
+          catalog={CATALOG}
+          initialVideos={{
+            jobs: [
+              {
+                id: "job-9",
+                status: "FAILED",
+                prompt: SCRIPT,
+                createdAt: new Date(),
+                talkingVideo: { presenterId: "jonas", voice: "Brian" },
+              } as ProjectTalkingVideos["jobs"][number],
+            ],
+            assets: [],
+          }}
+          projectId="project-1"
+          readOnly={false}
+          hasWebsite={false}
+        />
+      </TestQueryProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /videoFailed/ }));
     fireEvent.click(screen.getByRole("button", { name: "reuseScript" }));
 
     expect(screen.getByLabelText("script")).toHaveValue(SCRIPT);
+    expect(screen.getByRole("radio", { name: "Jonas" })).toBeChecked();
+    expect(screen.getByRole("combobox", { name: "voice" })).toHaveTextContent(
+      "Brian",
+    );
     expect(screen.getByRole("region", { name: "preview" })).toBeInTheDocument();
   });
 });

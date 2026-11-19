@@ -22304,13 +22304,17 @@ export const ProjectImageStudioTalkingVideoCatalogSchema = {
                     },
                     imageUrl: {
                         type: 'string'
+                    },
+                    voice: {
+                        type: 'string'
                     }
                 },
                 required: [
                     'id',
                     'name',
                     'description',
-                    'imageUrl'
+                    'imageUrl',
+                    'voice'
                 ]
             }
         },
