@@ -1,9 +1,14 @@
 "use client";
 
-import { AtSign, Hand } from "lucide-react";
+import { AtSign, Hand, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+// The shared item stretches (flex-1) so two-option controls split evenly.
+// Here the labels differ in length, and equal widths squeeze the longer
+// ones until a label runs into the next view's icon.
+const ITEM_CLASS_NAME = "flex-none";
 
 export type TasksView = "all" | "mine" | "needs-me" | "mentions";
 
@@ -69,7 +74,7 @@ function isTasksView(value: string): value is TasksView {
  * All, My tasks, Needs me and Mentions as one single-choice control, because
  * the views do not combine. Needs me and Mentions keep their names on wide
  * screens and drop to an icon below lg, so the toolbar stays one row beside
- * an open sidebar.
+ * an open sidebar. My tasks drops to its icon on a phone for the same row.
  */
 export function TasksViewSwitcher({
   value,
@@ -89,12 +94,22 @@ export function TasksViewSwitcher({
         if (isTasksView(next)) onChange(next);
       }}
     >
-      <ToggleGroupItem value="all">{labels.all}</ToggleGroupItem>
+      <ToggleGroupItem value="all" className={ITEM_CLASS_NAME}>
+        {labels.all}
+      </ToggleGroupItem>
       {showMine ? (
-        <ToggleGroupItem value="mine">{labels.assignedToMe}</ToggleGroupItem>
+        <ToggleGroupItem
+          value="mine"
+          className={ITEM_CLASS_NAME}
+          aria-label={labels.assignedToMe}
+        >
+          <UserRound aria-hidden />
+          <span className="max-sm:sr-only">{labels.assignedToMe}</span>
+        </ToggleGroupItem>
       ) : null}
       <ToggleGroupItem
         value="needs-me"
+        className={ITEM_CLASS_NAME}
         aria-label={t("needsMe")}
         title={t("needsMeHint")}
       >
@@ -103,6 +118,7 @@ export function TasksViewSwitcher({
       </ToggleGroupItem>
       <ToggleGroupItem
         value="mentions"
+        className={ITEM_CLASS_NAME}
         aria-label={t("mentions")}
         title={t("mentionsHint")}
       >
