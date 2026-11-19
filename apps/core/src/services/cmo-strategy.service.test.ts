@@ -105,6 +105,7 @@ import {
   keepCalendarWork,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
+  requireCmoStrategyFitted,
   saveCmoStrategy,
   setCmoAdBudget,
   startCmoPlanAfterResearch,
@@ -252,7 +253,9 @@ describe("requestCmoStrategy", () => {
     expect(detectSiteLanguage).not.toHaveBeenCalled();
     const message = JSON.stringify(startTurn.mock.lastCall);
     expect(message).toContain("set contentLanguage to English");
-    expect(message).toContain("This sets only contentLanguage");
+    expect(message).toContain(
+      "Every piece is in it, from its calendar title, brief and story",
+    );
     expect(message).toContain(
       "Write acme.io's marketing strategy for the four weeks",
     );
@@ -1012,6 +1015,46 @@ describe("plan questions", () => {
     expect(kept[1]).not.toHaveProperty("answer");
   });
 
+  it("drops a check that repeats a Brand Brain question when Cuso saves the strategy", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    brainFindUnique.mockResolvedValue({
+      body: {
+        summary: "Acme sells rockets.",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: ["Founders"],
+        products: ["Rockets"],
+        competitors: [],
+        channels: [],
+        profile: {},
+        questions: [
+          {
+            id: "primary-buyer",
+            question: "Are independent writers the main buyer for Acme?",
+            statement: "Independent writers are the main buyer",
+            section: "customers",
+          },
+        ],
+      },
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      {
+        ...strategy,
+        questions: [
+          question("buyers", {
+            question: "Are independent writers your main buyers?",
+          }),
+          question("orders"),
+        ],
+      },
+      { turnId: "turn-1" },
+    );
+    const saved = strategyRows.at(-1)?.plan as {
+      questions: { id: string }[];
+    };
+    expect(saved.questions.map((asked) => asked.id)).toEqual(["orders"]);
+  });
+
   it("turns each no into a change for Cuso, and all yes into none", () => {
     expect(
       cmoPlanAnswerNote([
@@ -1607,6 +1650,34 @@ describe("changes after the plan", () => {
       clientTurnId: expect.stringMatching(/:patch:/),
     });
     expect(message()).toContain("EUR 300");
+  });
+
+  it("refuses to approve a strategy that still shows an answer the owner said no to", async () => {
+    const question = {
+      id: "q1",
+      question: "Can you spend about $300 on ads?",
+      statement: "Acme spends $300 a month on ads",
+    };
+    const unfitted = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "no" }],
+    });
+    await expect(requireCmoStrategyFitted(HIRE, unfitted.id)).rejects.toThrow(
+      "Update the strategy first",
+    );
+
+    // Cuso fitted it (his changes are listed), or nothing was a no.
+    const fitted = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "no" }],
+      changes: ["Removed Google Ads"],
+    });
+    const confirmed = seedStrategy({
+      ...wholePlan(),
+      questions: [{ ...question, answer: "yes" }],
+    });
+    await requireCmoStrategyFitted(HIRE, fitted.id);
+    await requireCmoStrategyFitted(HIRE, confirmed.id);
   });
 
   it("refuses a patch while the plan is still being written", async () => {

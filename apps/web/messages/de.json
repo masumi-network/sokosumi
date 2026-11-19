@@ -1813,6 +1813,8 @@
         "searchLabel": "Archivierte Aufgaben durchsuchen",
         "searchPlaceholder": "Nach Name suchen",
         "noMatches": "Keine archivierten Aufgaben passen zu „{query}“.",
+        "searchResults": "{count, plural, =0 {Keine archivierten Aufgaben passen zu „{query}“.} one {# archivierte Aufgabe passt zu „{query}“.} other {# archivierte Aufgaben passen zu „{query}“.}}",
+        "searchResultsLimited": "Die neuesten {shown, number} von {total, number} archivierten Aufgaben, die zu „{query}“ passen.",
         "noProject": "Kein Projekt",
         "archivedOn": "Archiviert am {date}",
         "readOnly": "Archivierte Aufgaben sind schreibgeschützt. Stelle diese wieder her, um sie zu bearbeiten oder auszuführen."
@@ -4391,7 +4393,6 @@
       "showSite": "Deine Website im Video zeigen",
       "postToTikTok": "Auf TikTok posten",
       "title": "TikTok Studio",
-      "intro": "Eine Person spricht dein Skript, mit Untertiteln, fertig für TikTok, Reels und Shorts.",
       "pickTitle": "Projekt auswählen",
       "pickBody": "Ein Sprechvideo gehört zu einem Projekt. Dessen Marke schreibt die Skripte, und dessen Dateien bewahren das Video auf.",
       "pickUnavailable": "Dieses Projekt ist in diesem Workspace nicht verfügbar. Wähle ein anderes.",
@@ -5812,7 +5813,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -5820,7 +5821,11 @@
       "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
-      "filesFilenameMatch": "Treffer im Dateinamen"
+      "filesFilenameMatch": "Treffer im Dateinamen",
+      "tagsGroup": "Tags",
+      "tagTasksGroup": "Aufgaben mit dem Tag {tag}",
+      "tagsError": "Tags konnten nicht geladen werden",
+      "tagTasksError": "Diese Aufgaben konnten nicht geladen werden"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",

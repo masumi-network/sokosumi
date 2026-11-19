@@ -18,6 +18,8 @@ export interface CmoEvalBrand {
   siteLanguage?: string;
   /** Words the plan's summary uses when it must not be in English. */
   planLanguage?: string;
+  /** Words its calendar titles use when they are in the posts' language. */
+  pieceLanguage?: string;
   /** A business with many product lines lists at least this many offers. */
   minOffers?: number;
   /** The main offer's price as its site publishes it. */
@@ -153,6 +155,8 @@ export type CmoChatSetup =
   | "cmo-brand"
   | "cmo-new-client"
   | "cmo-comments"
+  /** An article idea on "calendly alternative" the owner skipped earlier. */
+  | "cmo-seo-skipped"
   /** cal.com's month waiting for approval, for the change request. */
   | "cmo-plan"
   /** cal.com's competitors after a check: a week with moves, or a quiet one. */

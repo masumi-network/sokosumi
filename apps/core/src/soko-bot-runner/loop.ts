@@ -101,7 +101,9 @@ export async function runTurnLoop(
     )
       ? idleRounds + 1
       : 0;
-    messages = [...messages, ...result.response.messages];
+    // Every step's messages: `response.messages` holds the last step's alone,
+    // and a nudged round that cannot see its own calls does the brief again.
+    messages = [...messages, ...result.responseMessages];
     const keepGoing =
       input.background &&
       !isFinalReport(text) &&

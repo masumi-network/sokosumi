@@ -19,7 +19,10 @@ function activeTags(labels: WorkspaceLabel[]) {
 
 export function useWorkspaceTags(
   organizationId: string | null,
-  { includeArchived = false }: { includeArchived?: boolean } = {},
+  {
+    includeArchived = false,
+    enabled = true,
+  }: { includeArchived?: boolean; enabled?: boolean } = {},
 ) {
   return useQuery({
     queryKey: workspaceTagsQueryKey(organizationId),
@@ -32,5 +35,6 @@ export function useWorkspaceTags(
       }),
     select: includeArchived ? undefined : activeTags,
     staleTime: 60_000,
+    enabled,
   });
 }

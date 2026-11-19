@@ -1813,6 +1813,8 @@
         "searchLabel": "Search archived tasks",
         "searchPlaceholder": "Search by name",
         "noMatches": "No archived tasks match “{query}”.",
+        "searchResults": "{count, plural, =0 {No archived tasks match “{query}”.} one {# archived task matches “{query}”.} other {# archived tasks match “{query}”.}}",
+        "searchResultsLimited": "Showing the latest {shown, number} of {total, number} archived tasks that match “{query}”.",
         "noProject": "No project",
         "archivedOn": "Archived {date}",
         "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
@@ -4391,7 +4393,6 @@
       "showSite": "Show your website in the video",
       "postToTikTok": "Post to TikTok",
       "title": "TikTok Studio",
-      "intro": "A presenter speaks your script, with captions, ready for TikTok, Reels and Shorts.",
       "pickTitle": "Choose a project",
       "pickBody": "A talking video belongs to a project. Its brand writes the scripts and its Files keep the video.",
       "pickUnavailable": "That project is not available in this workspace. Choose another one.",
@@ -5812,7 +5813,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, job results, images or files",
+      "description": "Search for tasks, tags, jobs, job results, images or files",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
@@ -5820,7 +5821,11 @@
       "created": "Created",
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
-      "filesFilenameMatch": "Filename match"
+      "filesFilenameMatch": "Filename match",
+      "tagsGroup": "Tags",
+      "tagTasksGroup": "Tasks tagged {tag}",
+      "tagsError": "Couldn't load tags",
+      "tagTasksError": "Couldn't load these tasks"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",

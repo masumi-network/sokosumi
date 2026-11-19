@@ -16,7 +16,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { isCmoTalkingFormat } from "@sokosumi/utils";
 import { unprocessableEntity } from "@/helpers/error";
-import { keepAnswers } from "@/helpers/question-answers";
+import { keepAnswers, sameQuestion } from "@/helpers/question-answers";
 import prisma from "@/lib/db/prisma";
 import { isEvalCusoProject } from "@/lib/evals/eval-guard";
 import {
@@ -574,7 +574,7 @@ async function startStrategyTurn(
               "Set the one result the business most needs from selling the main offer, from the Brand Brain, and lead the strategy's goals with it.",
               ...(siteLanguage
                 ? [
-                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, even though this strategy is in the owner's language, unless the owner asked for another. This sets only contentLanguage: the words customers read (hooks, drafts, the offer's action) follow it, and the strategy itself (summary, goals, why, briefs) stays in the owner's language.`,
+                    `The website is written in ${siteLanguage}: set contentLanguage to ${siteLanguage}, the language its customers read, unless the owner asked for another. Every piece is in it, from its calendar title, brief and story to its words (hooks, drafts, the offer's action), and so are the pillar names. What explains the strategy to the owner (the idea, summary, goals, each why, the funnel, the questions) stays in the owner's language.`,
                   ]
                 : []),
               ...ownerAnswers(brain),
@@ -969,7 +969,17 @@ export async function saveCmoStrategy(
     // The ad budget the owner set is theirs: Cuso's saves plan around it.
     const parsed = keepOwnerAds({
       ...whole,
-      questions: keepAnswers(whole.questions, before?.questions ?? []),
+      questions: keepAnswers(
+        options.turnId
+          ? await withoutBrandBrainRepeats(
+              cuso.projectId,
+              whole.questions,
+              before?.questions ?? [],
+              db,
+            )
+          : whole.questions,
+        before?.questions ?? [],
+      ),
       proposals: whole.proposals.filter(
         (proposal) => !running.has(proposal.channel),
       ),
@@ -1128,6 +1138,34 @@ export function withLineBreaks<
   };
 }
 
+/**
+ * A check of the strategy never asks again what the Brand Brain's questions
+ * asked: the owner has seen those, answered or skipped. A check already on
+ * the strategy stays, so nothing the owner is answering disappears.
+ */
+async function withoutBrandBrainRepeats(
+  projectId: string,
+  questions: CmoPlanQuestion[],
+  stored: CmoPlanQuestion[],
+  db: Pick<Prisma.TransactionClient, "brandBrain">,
+): Promise<CmoPlanQuestion[]> {
+  if (questions.length === 0) return questions;
+  const brain = parseBrandBrain(
+    (
+      await db.brandBrain.findUnique({
+        where: { projectId },
+        select: { body: true },
+      })
+    )?.body,
+  );
+  const asked = brain?.questions ?? [];
+  return questions.filter(
+    (question) =>
+      stored.some((kept) => kept.id === question.id) ||
+      !asked.some((earlier) => sameQuestion(earlier, question)),
+  );
+}
+
 /** The newest version CMO shows, or "Cuso has not written it yet". */
 async function newestCmoStrategy(
   cuso: Pick<Cuso, "projectId">,
@@ -1154,6 +1192,35 @@ export function cmoPlanAnswerNote(questions: CmoPlanQuestion[]): string | null {
         ...changes,
       ].join("\n")
     : null;
+}
+
+/**
+ * A no the strategy does not show yet (CMO's `planUnfitted`): Core clears
+ * `changes` when a new or changed no lands, and Cuso's fit fills it again.
+ */
+export function cmoStrategyUnfitted(plan: unknown): boolean {
+  const parsed = parseMarketingPlan(plan);
+  return (
+    parsed !== null &&
+    parsed.questions.some((question) => question.answer === "no") &&
+    (parsed.changes ?? []).length === 0
+  );
+}
+
+/** The owner approves what they read: never a strategy that still shows an answer they said no to. */
+export async function requireCmoStrategyFitted(
+  cuso: Pick<Cuso, "projectId">,
+  strategyId: string,
+): Promise<void> {
+  const version = await prisma.marketingStrategy.findFirst({
+    where: { id: strategyId, projectId: cuso.projectId },
+    select: { plan: true, approvedAt: true },
+  });
+  if (version && !version.approvedAt && cmoStrategyUnfitted(version.plan)) {
+    throw new CmoConflictError(
+      "You answered no to one of the checks. Update the strategy first, then approve it.",
+    );
+  }
 }
 
 /** Cuso patches the plan where the owner's answers say it was wrong. */

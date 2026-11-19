@@ -1813,6 +1813,8 @@
         "searchLabel": "Buscar tareas archivadas",
         "searchPlaceholder": "Buscar por nombre",
         "noMatches": "Ninguna tarea archivada coincide con «{query}».",
+        "searchResults": "{count, plural, =0 {Ninguna tarea archivada coincide con «{query}».} one {# tarea archivada coincide con «{query}».} other {# tareas archivadas coinciden con «{query}».}}",
+        "searchResultsLimited": "Se muestran las {shown, number} más recientes de {total, number} tareas archivadas que coinciden con «{query}».",
         "noProject": "Sin proyecto",
         "archivedOn": "Archivada el {date}",
         "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
@@ -4391,7 +4393,6 @@
       "showSite": "Mostrar tu sitio web en el vídeo",
       "postToTikTok": "Publicar en TikTok",
       "title": "TikTok Studio",
-      "intro": "Una persona dice tu guion, con subtítulos, listo para TikTok, Reels y Shorts.",
       "pickTitle": "Elige un proyecto",
       "pickBody": "Un vídeo con presentador pertenece a un proyecto. Su marca escribe los guiones y sus Archivos guardan el vídeo.",
       "pickUnavailable": "Ese proyecto no está disponible en este espacio de trabajo. Elige otro.",
@@ -5812,7 +5813,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, trabajos, resultados de trabajos, imágenes o archivos",
+      "description": "Buscar tareas, etiquetas, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
@@ -5820,7 +5821,11 @@
       "created": "Creado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
-      "filesFilenameMatch": "Coincide el nombre"
+      "filesFilenameMatch": "Coincide el nombre",
+      "tagsGroup": "Etiquetas",
+      "tagTasksGroup": "Tareas con la etiqueta {tag}",
+      "tagsError": "No se pudieron cargar las etiquetas",
+      "tagTasksError": "No se pudieron cargar estas tareas"
     },
     "NoticeDialog": {
       "defaultTitle": "Aviso",

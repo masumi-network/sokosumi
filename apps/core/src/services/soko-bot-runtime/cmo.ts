@@ -37,6 +37,7 @@ import {
   CMO_WEEKLY_EXTRA_REVIEWS,
   type CmoPlanOfferVerdict,
   type CmoPlanReview,
+  cmoCalendarLanguage,
   cmoCalendarRepeats,
   cmoDraftProblems,
   cmoPlanDrift,
@@ -261,6 +262,11 @@ export async function reviewCmoPlan(
   await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd + had.costUsd);
   const known = new Set(had.problems);
   problems.push(...repeats.problems.filter((problem) => !known.has(problem)));
+  if (plan.calendarSent) {
+    const language = await cmoCalendarLanguage(strategy, earlier);
+    problems.push(...language.problems);
+    await chargeCheck(input, SOKO_BOT_JEV_MODEL, language.costUsd);
+  }
   // A cmo-v3 side channel serves one buyer: Jev reads its titles against them.
   if (weekly && plan.calendarSent) {
     const fit = await cmoSideChannelFit(strategy);

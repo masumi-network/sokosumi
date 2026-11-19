@@ -24,6 +24,7 @@ import {
   actionInputHash,
 } from "@/lib/soko-bot/action-receipts";
 import { withActiveBackgroundRuns } from "@/lib/soko-bot/active-background-runs";
+import { withCmoReplyLanguage } from "@/lib/soko-bot/cmo-reply-language";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -181,9 +182,12 @@ export async function startSandboxTurn(
   const { inferenceRegion: _region, ...turn } = prepared;
   return {
     ...turn,
-    message: await withActiveBackgroundRuns(
+    message: await withCmoReplyLanguage(
       claims.turnId,
-      await withTurnSkills(claims.turnId, stored.userMessage),
+      await withActiveBackgroundRuns(
+        claims.turnId,
+        await withTurnSkills(claims.turnId, stored.userMessage),
+      ),
     ),
     deadlineAt: stored.deadlineAt.toISOString(),
     maxSteps: sokoBotMaxSteps(
@@ -666,8 +670,11 @@ export async function proxySandboxModelCall(
  * first stops any VM still holding the bot's workspace, so the order here
  * cannot race it.
  */
-async function settleAndStop(log: RuntimeEventLog): Promise<void> {
-  await closeTurn(log, log.turnId);
+async function settleAndStop(
+  log: RuntimeEventLog,
+  launchLeaseToken: string | undefined,
+): Promise<void> {
+  await closeTurn(log, launchLeaseToken);
   await stopTurnSandbox(log.turnId);
 }
 
@@ -714,7 +721,7 @@ export async function completeSandboxTurn(
       message: error instanceof Error ? error.message : "Could not finish",
     });
   }
-  await settleAndStop(log);
+  await settleAndStop(log, claims.reconciliationLeaseToken);
 }
 
 /**
@@ -792,5 +799,5 @@ export async function failSandboxTurn(
       { turnId: claims.turnId, sessionId: claims.sessionId },
       diagnostic,
     );
-  await settleAndStop(log);
+  await settleAndStop(log, claims.reconciliationLeaseToken);
 }
