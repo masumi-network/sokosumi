@@ -23,6 +23,7 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { createTaskEventTransaction } from "@/helpers/task-credits";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { companyDomain } from "@/lib/contacts/capture-filters";
 import prisma from "@/lib/db/prisma";
 import { ExaUnavailableError, searchExa } from "@/lib/soko-bot/exa";
@@ -168,7 +169,7 @@ async function askModel(system: string, prompt: string) {
     prompt,
     maxOutputTokens: 6_000,
     abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
-  });
+  }).catch(rethrowAiGatewayFailure);
   return {
     text: result.text,
     costUsd: gatewayCostUsd(result.providerMetadata),

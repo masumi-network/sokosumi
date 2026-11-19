@@ -11,6 +11,7 @@ import {
   TASK_TAG_IDS,
   TASK_TAG_VOCABULARY,
 } from "@/helpers/task-tags";
+import { reportAiGatewayBudgetResponse } from "@/lib/ai-gateway-budget";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 
 export const JEV_TASK_TAG_MODEL = "typesafe-ai/jev";
@@ -142,10 +143,11 @@ async function evaluateBatch(
         ]
       : [],
   );
+  const apiKey = aiGatewayApiKey();
   const response = await fetch(`${GATEWAY_URL}/evaluate`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${aiGatewayApiKey()}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     signal,
@@ -168,8 +170,13 @@ async function evaluateBatch(
     }),
   });
   // Never include provider response bodies, task inputs, or credentials in errors/logs.
-  if (!response.ok)
-    return { ok: false as const, reason: `http_${response.status}` };
+  if (!response.ok) {
+    const budgetFailure = await reportAiGatewayBudgetResponse(response, apiKey);
+    return {
+      ok: false as const,
+      reason: budgetFailure ?? `http_${response.status}`,
+    };
+  }
   const parsed = resultSchema.safeParse(await response.json());
   if (!parsed.success)
     return { ok: false as const, reason: "invalid_response" };

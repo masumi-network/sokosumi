@@ -17,7 +17,7 @@ import {
 } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { reportAiGatewayBudgetFailure } from "@/lib/ai-gateway-budget";
-import { aiGatewayBudgetScope } from "@/lib/ai-gateway-budget-error";
+import { aiGatewayBudgetScopeFromBody } from "@/lib/ai-gateway-budget-error";
 import { aiGatewayApiKey } from "@/lib/ai-gateway-purpose";
 import { loadSokoBotTurnPurpose } from "@/lib/ai-gateway-turn-purpose";
 import prisma from "@/lib/db/prisma";
@@ -558,13 +558,7 @@ function gatewayStreamParts(
 
 function gatewayBudgetScopeFromResponse(text: string) {
   try {
-    const error = asRecord(asRecord(JSON.parse(text))?.error);
-    if (
-      error?.type === "internal_server_error" ||
-      error?.type === "quota_for_entity_exceeded"
-    ) {
-      return aiGatewayBudgetScope(error.message);
-    }
+    return aiGatewayBudgetScopeFromBody(JSON.parse(text));
   } catch {
     // Non-JSON upstream failures are passed through to the SDK.
   }

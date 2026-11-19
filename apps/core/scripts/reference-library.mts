@@ -27,6 +27,7 @@ import { put } from "@vercel/blob";
 import { gateway, generateText, Output } from "ai";
 import pLimit from "p-limit";
 import sharp from "sharp";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { vectorLiteral } from "../src/lib/contacts/embeddings";
 import prisma from "../src/lib/db/prisma";
 import { embedTexts } from "../src/lib/embeddings";
@@ -173,7 +174,7 @@ async function describe(root: string): Promise<void> {
                 ],
               },
             ],
-          });
+          }).catch(rethrowAiGatewayFailure);
           const usage = gatewayCallUsage(result);
           costUsd +=
             gatewayCostUsd(result.providerMetadata) ||

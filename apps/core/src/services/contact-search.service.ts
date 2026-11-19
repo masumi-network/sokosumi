@@ -6,6 +6,7 @@
  */
 import { PrismaRaw } from "@sokosumi/database/client";
 import { unprocessableEntity } from "@/helpers/error";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import { vectorLiteral } from "@/lib/contacts/embeddings";
 import prisma from "@/lib/db/prisma";
 import { type EmbedTexts, embedTexts } from "@/lib/embeddings";
@@ -156,6 +157,7 @@ async function embedQuery(
     const [embedding] = (await embed([query.toLowerCase()])).embeddings;
     return embedding ? vectorLiteral(embedding) : null;
   } catch (error) {
+    if (error instanceof AiGatewayBudgetError) return null;
     // The error can quote the search query, so content-free metadata only.
     recordCoreError(
       { operation: "contact_search" },

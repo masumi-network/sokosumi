@@ -1,12 +1,15 @@
 import { head } from "@vercel/blob";
 import { generateText, type LanguageModel, Output } from "ai";
-
 import { getEnv } from "@/config/env";
 import {
   notFound,
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import prisma from "@/lib/db/prisma";
 import { isNewsletterWorkspaceEnabled } from "@/lib/newsletter/feature";
 import { allowNewsletterRequest } from "@/lib/newsletter/request-limit";
@@ -146,7 +149,7 @@ export async function generateNewsletterDraft(
         maxRetries: 0,
         abortSignal,
         providerOptions: { gateway: { only: ["mistral"] } },
-      });
+      }).catch(rethrowAiGatewayFailure);
       const draft = generatedDraftSchema.parse(result.output);
       if (
         draft.content.some(
@@ -158,7 +161,8 @@ export async function generateNewsletterDraft(
         throw unprocessableEntity("Use selected Content Studio images only");
       }
       return { ...draft, template: input.template };
-    } catch {
+    } catch (error) {
+      if (error instanceof AiGatewayBudgetError) break;
       // One bounded repair attempt; a provider failure must still leave an editable draft.
     }
   }

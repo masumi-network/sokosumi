@@ -4,6 +4,7 @@ import {
 } from "@sokosumi/utils";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 
 import {
   loadStudioBrand,
@@ -64,7 +65,7 @@ export async function writeTalkingVideoScripts(options: {
     output: Output.object({ schema: scriptsSchema }),
     maxOutputTokens: 2_000,
     abortSignal: AbortSignal.timeout(60_000),
-  });
+  }).catch(rethrowAiGatewayFailure);
   return scriptsSchema
     .parse(output)
     .scripts.map(({ hook, script }) => ({
@@ -116,7 +117,7 @@ export async function writeTalkingVideoBrollPrompt(
       output: Output.object({ schema: brollSchema }),
       maxOutputTokens: 400,
       abortSignal: AbortSignal.timeout(20_000),
-    });
+    }).catch(rethrowAiGatewayFailure);
     const prompt = brollSchema.parse(output).prompt.replace(/\s+/g, " ").trim();
     return prompt.length >= 20 ? prompt.slice(0, 600) : null;
   } catch {
@@ -145,7 +146,7 @@ export async function writeTalkingVideoHookLine(options: {
       output: Output.object({ schema: hookLineSchema }),
       maxOutputTokens: 200,
       abortSignal: AbortSignal.timeout(20_000),
-    });
+    }).catch(rethrowAiGatewayFailure);
     const line = hookLineSchema
       .parse(output)
       .line.replace(/\s+/g, " ")

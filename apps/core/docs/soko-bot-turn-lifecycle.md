@@ -262,6 +262,8 @@ Runtime authorization can attach a session while the turn is still `STARTING`. A
 
 An exhausted AI Gateway key or team budget fails the turn with `ai_budget_exceeded`. Core uses shared Redis to alert once per exhausted scope per hour. When Redis cannot confirm a claim, Core allows one alert per scope per instance per hour. Repeats log at warn. Manage the limits with [`vercel ai-gateway budgets`](https://vercel.com/docs/cli/ai-gateway#budgets).
 
+Core Gateway calls outside turns use the same classification and alert window. Calls that share a key also share its alert window, and a team budget shares one window across keys. Project memory skips a refused refresh with `ai_budget_exceeded` and releases its lock. If the weekly activity report is refused after the memory is saved, the prior report stays available.
+
 ### Start fences
 
 - **Recovery claim CAS** (`recoverStartingTurn`): elects one worker per observed token, expiry, heartbeat and session. It locks the bot then the turn and samples PostgreSQL time after both locks. It skips a locked turn because foreground settlement can hold that turn and need the bot. A committed pause or archive makes the claim ineligible. A claim that wins writes the locked bot row so a serializable pause or archive with an older snapshot rechecks it.

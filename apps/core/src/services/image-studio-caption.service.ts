@@ -1,5 +1,6 @@
 import { generateText } from "ai";
 import { err, ok, type Result } from "neverthrow";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 
 import prisma from "@/lib/db/prisma";
 import { sokoBotModelRequest } from "@/lib/soko-bot/model-policy";
@@ -35,7 +36,7 @@ export async function writeStudioAssetCaption(options: {
       "Write a social-media caption for an image. Use the brief. One or two short sentences. No quotation marks. No hashtag list.",
     prompt: asset.prompt,
     maxOutputTokens: 200,
-  });
+  }).catch(rethrowAiGatewayFailure);
 
   const caption = text.replace(/^["'\s]+|["'\s]+$/g, "").trim();
   if (!caption) return err("empty");

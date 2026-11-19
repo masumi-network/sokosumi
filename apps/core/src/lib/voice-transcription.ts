@@ -1,4 +1,5 @@
 import { transcribe } from "ai";
+import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
 import { aiGateway } from "@/lib/ai-gateway-purpose";
 
 /** ElevenLabs Scribe through AI Gateway: detects the language itself. */
@@ -15,6 +16,6 @@ export async function transcribeVoice(audio: Uint8Array): Promise<string> {
     model: aiGateway().transcription(VOICE_TRANSCRIPTION_MODEL),
     audio,
     abortSignal: AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS),
-  });
+  }).catch(rethrowAiGatewayFailure);
   return result.text.trim();
 }
