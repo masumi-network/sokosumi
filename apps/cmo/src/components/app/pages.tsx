@@ -5,7 +5,12 @@ import { Loader2 } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
-import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
+import {
+  channelLabel,
+  connectedNetworks,
+  SOCIAL_PROVIDERS,
+  waitsForNetwork,
+} from "../../lib/calendar";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { strategyApproved } from "../../lib/strategy";
@@ -22,7 +27,7 @@ import { LocalDay } from "../local-day";
 import { BrandStep } from "../onboarding/brand-step";
 import type { ConnectMeasurement } from "../onboarding/plan-tabs";
 import { StartOver } from "../start-over";
-import { StatusText } from "../status";
+import { StatusDisc, StatusText } from "../status";
 import { MeasureFunnel } from "../strategy-core";
 import { SubmitButton } from "../submit-button";
 import { type StartTopUp, TopUpButton } from "../top-up";
@@ -71,18 +76,50 @@ export function ResultsPage({
       entry.status !== "published" &&
       entry.status !== "skipped",
   ).length;
-  const connected = overview.channels.some(
-    (channel) => channel.status.toUpperCase() === "ACTIVE",
-  );
+  const networks = connectedNetworks(overview.channels);
+  const connected = networks.length > 0;
+  // A written post on a network that is not connected is not a draft Cuso
+  // still works on: it waits for the owner to connect that network.
+  const waits = (
+    (overview.approvedStrategy ?? overview.strategy)?.calendar ?? []
+  ).flatMap((entry) => waitsForNetwork(entry, networks) ?? []);
+  const drafts = Math.max(0, posts.draft + writtenInPlan - waits.length);
   const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
       <div className="grid4">
         <Kpi label="Published" value={posts.published} />
         <Kpi label="Scheduled" value={posts.scheduled} />
-        <Kpi label="Drafts" value={posts.draft + writtenInPlan} />
+        {waits.length > 0 ? (
+          <Kpi
+            label="Waiting"
+            value={waits.length}
+            note={`for ${[...new Set(waits)].map(channelLabel).join(", ")}`}
+          />
+        ) : null}
+        {drafts > 0 || waits.length === 0 ? (
+          <Kpi label="Drafts" value={drafts} />
+        ) : null}
         <Kpi label="Failed" value={posts.failed} />
       </div>
+      {waits.length > 0 ? (
+        <p className="cal-waits">
+          <StatusDisc status="warn" decorative />
+          <span className="grow">
+            {waits.length === 1
+              ? "1 post is written and waits"
+              : `${waits.length} posts are written and wait`}{" "}
+            for {[...new Set(waits)].map(channelLabel).join(" and ")}.
+          </span>
+          <button
+            type="button"
+            className="button button-secondary button-small"
+            onClick={() => openView("channels")}
+          >
+            Connect
+          </button>
+        </p>
+      ) : null}
       <section className="card">
         <h3>Your numbers</h3>
         <p className="muted">
@@ -176,12 +213,20 @@ export function ResultsLead({ overview }: { overview: CmoOverview }) {
   );
 }
 
-function Kpi({ label, value }: { label: string; value: number }) {
+function Kpi({
+  label,
+  value,
+  note = "posts",
+}: {
+  label: string;
+  value: number;
+  note?: string;
+}) {
   return (
     <div className="kpi">
       <span className="label">{label}</span>
       <span className="v num">{value}</span>
-      <span className="note">posts</span>
+      <span className="note">{note}</span>
     </div>
   );
 }

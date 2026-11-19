@@ -13489,6 +13489,12 @@ export type CmoOverview = {
         slides?: Array<string>;
     }>;
     /**
+     * The revision of each Social post of the month, by post id: what an owner's edit of its words names (PATCH drafts/{postId}).
+     */
+    postRevisions: {
+        [key: string]: number;
+    };
+    /**
      * The newest Marketing strategy version, whose plan `strategy` shows: approved, or a draft waiting for an owner or admin.
      */
     strategyVersion: MarketingStrategyVersion | null;

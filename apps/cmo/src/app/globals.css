@@ -2192,6 +2192,79 @@ button.card-focus {
   line-height: 1.55;
 }
 
+/* A social post as it will look on its network: who, the words, the picture. */
+.post-wrap {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.post {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--card);
+}
+
+.post-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.post-who {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.post-text {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.post-text > .draft-text > :last-child {
+  margin-bottom: 0;
+}
+
+.post-media {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  border-radius: var(--radius-mark);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+.post .sheet-slides {
+  margin: 0;
+}
+
+.post-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.sheet-state {
+  margin: 0 0 12px;
+}
+
+/* A network the month's written posts wait for: says so, with the way out. */
+.cal-waits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: none;
+  margin: 0;
+}
+
 .sheet > .sheet-when {
   margin: 12px 0 0;
 }
@@ -3385,16 +3458,20 @@ button.cal-card:hover {
   background: var(--surface);
 }
 
-/* A post without a picture leads with its opening words in the same box. */
+/* A post without a picture leads with its opening words in the same box:
+   six whole lines, so the last one ends on a whole word. A line clamp cut
+   words in half to fit its ellipsis, and kept writing under it. */
 .cal-words {
-  display: -webkit-box;
-  place-items: initial;
+  display: block;
   padding: 16px;
   font-size: 1rem;
   line-height: 1.25;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 6;
-  line-clamp: 6;
+}
+
+.cal-words > span {
+  display: block;
+  max-height: calc(1.25em * 6);
+  overflow: hidden;
 }
 
 .cal-thumb img,
