@@ -49,6 +49,7 @@ import mountStartCmoOverForProject from "./projects/[projectId]/start-over/post.
 import mountSetCmoAdBudgetForProject from "./projects/[projectId]/strategy/ads/post.js";
 import mountApplyCmoPlanAnswersForProject from "./projects/[projectId]/strategy/answers/apply/post.js";
 import mountRequestCmoStrategyForProject from "./projects/[projectId]/strategy/post.js";
+import mountSetCmoTimeZoneForProject from "./projects/[projectId]/time-zone/put.js";
 import mountStartCmoTopUpForProject from "./projects/[projectId]/top-up/post.js";
 import mountRevertCmoUpdateForProject from "./projects/[projectId]/updates/[id]/revert/post.js";
 
@@ -88,6 +89,7 @@ mountRetryCmoOnboardingForProject(app);
 mountChangeCmoPlanForProject(app);
 mountOpenCmoCustomerPortalForProject(app);
 mountStartCmoOverForProject(app);
+mountSetCmoTimeZoneForProject(app);
 mountGetCmoSeoForProject(app);
 mountSearchCmoKeywordsForProject(app);
 mountRequestCmoArticleIdeasForProject(app);

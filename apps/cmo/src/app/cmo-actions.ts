@@ -61,6 +61,7 @@ import {
   setCmoAdCampaignStatusForProject,
   setCmoPresenterForProject,
   setCmoSeoSuggestionStatusForProject,
+  setCmoTimeZoneForProject,
   skipCmoSubscriptionForProject,
   startCmoOnboarding,
   startCmoOverForProject,
@@ -219,6 +220,7 @@ export async function onboard(
     organizationId,
   };
 
+  const timeZone = knownTimeZone(formData.get("timeZone"));
   const websiteUrl = normalizeWebsiteUrl(typed);
   if (!websiteUrl) {
     return {
@@ -230,7 +232,11 @@ export async function onboard(
   const core = await requireCore();
   const { data, error } = await startCmoOnboarding({
     ...core,
-    body: organizationId ? { websiteUrl, organizationId } : { websiteUrl },
+    body: {
+      websiteUrl,
+      ...(organizationId ? { organizationId } : {}),
+      ...(timeZone ? { timeZone } : {}),
+    },
   });
   if (!data) {
     const kind =
@@ -653,6 +659,33 @@ export async function startOver(projectId: string): Promise<string | null> {
   // A person who may not hire goes to the Cusos left, or the invite-only page.
   const list = await loadCusos().catch(() => undefined);
   redirect(list?.mayHire === false ? "/?cusos=1" : "/?hire=1");
+}
+
+/** Moves this Cuso's routines to the owner's time zone; a refusal comes back as text. */
+export async function setTimeZone(
+  projectId: string,
+  timeZone: string,
+): Promise<string | null> {
+  const { error } = await setCmoTimeZoneForProject({
+    ...(await requireCore()),
+    path: { projectId },
+    body: { timeZone },
+  });
+  if (error) return errorText(error, "Could not change the time zone");
+  revalidatePath("/");
+  return null;
+}
+
+/** A browser's time zone when this server knows it, else nothing. */
+function knownTimeZone(value: FormDataEntryValue | null): string | undefined {
+  const timeZone = String(value ?? "").trim();
+  if (!timeZone) return undefined;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return timeZone;
+  } catch {
+    return undefined;
+  }
 }
 
 /** The CMO plans, for the checkout step; none when Core cannot read them from Polar. */
