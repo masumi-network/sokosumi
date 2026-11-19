@@ -2181,3 +2181,274 @@ it("imports only bound public strategy decisions and links stable work to its Ta
     [],
   );
 });
+
+function openExperimentAudit() {
+  const observations = [SEO_TEST_PAGE, SEO_TEST_SECOND_PAGE].map((url, i) => ({
+    url,
+    snapshotId: (i ? "b" : "a").repeat(64),
+    record: (i ? "d" : "c").repeat(64),
+    quote: i
+      ? "The lesson ends with a timed practical exercise."
+      : "Each workshop opens with a practical exercise.",
+  }));
+  const card = {
+    id: "open_strategy_opportunity:42a",
+    kind: "open_strategy_opportunity",
+    targetUrl: SEO_TEST_PAGE,
+    action: "Test an exercise-led preview on the workshop page.",
+    reason: "Both pages describe the same practical exercise.",
+    alternative:
+      "Keep the current introduction if readers need the theory first.",
+    nextCheck:
+      "Compare the number of visitors starting the practical exercise.",
+    evidence: observations.map((o) => o.record),
+    observations,
+  };
+  const pages = observations.map((o) => ({
+    ...legacyReport(),
+    request: { url: o.url },
+    snapshotId: o.snapshotId,
+  }));
+  return { card, pages, observations };
+}
+
+it("projects a public cross-page experiment only when the target, quotes, records and snapshots bind to this audit", () => {
+  const input = fixture();
+  const { card, pages, observations } = openExperimentAudit();
+  const parse = (row: unknown, reports: unknown[] = pages) =>
+    parsePublicSeoArtifact({
+      ...siteStrategyReport(),
+      pages: reports,
+      strategyDecisions: [row],
+    });
+  const data = parse(card);
+  input.observations = [observation(input, data, "2026-10-10T12:00:00Z")];
+  const action = projectSeoProjection(input).actions.find(
+    (a) => a.title === card.action,
+  );
+  expect(action).toMatchObject({
+    why: card.reason,
+    kind: "opportunity",
+    decision: {
+      kind: card.kind,
+      alternative: card.alternative,
+      nextCheck: card.nextCheck,
+    },
+  });
+  for (const o of observations) {
+    expect(
+      action!.evidence.some((e) => e.includes(o.quote) && e.includes(o.url)),
+    ).toBe(true);
+  }
+  for (const invalid of [
+    { ...card, evidence: [observations[1]!.record, "f".repeat(64)] },
+    { ...card, observations: [observations[0], observations[0]] },
+    {
+      ...card,
+      observations: [
+        observations[0],
+        { ...observations[1], quote: observations[0]!.quote },
+      ],
+    },
+    {
+      ...card,
+      observations: [
+        observations[0],
+        { ...observations[1], snapshotId: observations[0]!.snapshotId },
+      ],
+    },
+    {
+      ...card,
+      observations: [
+        observations[0],
+        { ...observations[1], url: "https://elsewhere.test/article" },
+      ],
+    },
+    {
+      ...card,
+      observations: [
+        observations[0],
+        {
+          ...observations[1],
+          quote: "Contact person@example.test for the answer.",
+        },
+      ],
+    },
+    { ...card, observations: undefined },
+    { ...card, targetUrl: SEO_TEST_SECOND_PAGE + "?token=unsafe" },
+  ])
+    expect(parse(invalid).strategyDecisions).toBeUndefined();
+  expect(parse(card, [pages[0]!]).strategyDecisions).toBeUndefined();
+  expect(
+    parse(card, [
+      pages[0]!,
+      {
+        ...pages[1],
+        header: {
+          ...pages[1]!.header,
+          market: { country: "DE", language: "de" },
+        },
+      },
+    ]).strategyDecisions,
+  ).toBeUndefined();
+  const outside = "https://elsewhere.test/article";
+  expect(
+    parse(
+      {
+        ...card,
+        observations: [observations[0], { ...observations[1], url: outside }],
+      },
+      [pages[0], { ...pages[1], request: { url: outside } }],
+    ).strategyDecisions,
+  ).toBeUndefined();
+  input.observations = [
+    observation(
+      input,
+      { ...data, decisionSources: [] },
+      "2026-10-10T12:00:00Z",
+    ),
+  ];
+  expect(
+    projectSeoProjection(input).actions.some((a) => a.title === card.action),
+  ).toBe(false);
+  expect(
+    parsePublicSeoArtifact({ ...pages[0], strategyDecisions: [card] })
+      .strategyDecisions,
+  ).toBeUndefined();
+  expect(() =>
+    parse(card, [
+      {
+        ...pages[0]!,
+        request: { ...pages[0]!.request, connections: ["search_console"] },
+      },
+      pages[1]!,
+    ]),
+  ).toThrow("Only public SEO evidence");
+});
+
+it("adds one cross-page experiment to five existing decisions in the imported workspace", () => {
+  const input = fixture();
+  const { card, pages } = openExperimentAudit();
+  const fixed = Array.from({ length: 5 }, (_, i) => ({
+    id: `content:${i}`,
+    kind: "content_opportunity",
+    targetUrl: card.targetUrl,
+    action: `Prioritized editorial update ${i}`,
+    reason: card.reason,
+    alternative: card.alternative,
+    nextCheck: card.nextCheck,
+    evidence: ["Existing report evidence"],
+  }));
+  const parse = (decisions: unknown[], reports = pages) =>
+    parsePublicSeoArtifact({
+      ...siteStrategyReport(),
+      pages: reports,
+      strategyDecisions: decisions,
+    });
+  const data = parse([...fixed, card]);
+  expect(data.strategyDecisions?.map((d) => d.action)).toEqual(
+    [...fixed, card].map((d) => d.action),
+  );
+  input.observations = [observation(input, data, "2026-10-10T12:00:00Z")];
+  expect(
+    projectSeoProjection(input)
+      .actions.filter((a) => a.decision)
+      .map((a) => a.title)
+      .sort(),
+  ).toEqual([...fixed, card].map((d) => d.action).sort());
+  for (const unavailable of [
+    parse([...fixed, { ...card, observations: [] }]),
+    parse(
+      [...fixed, card],
+      [
+        pages[0]!,
+        {
+          ...pages[1]!,
+          header: {
+            ...pages[1]!.header,
+            market: { country: "DE", language: "de" },
+          },
+        },
+      ],
+    ),
+    { ...data, decisionSources: [] },
+    {
+      ...data,
+      decisionSources: [
+        {
+          url: "https://example.test/account/private",
+          snapshotId: "b".repeat(64),
+        },
+      ],
+    },
+    {
+      ...data,
+      strategyDecisions: data.strategyDecisions?.map((d) =>
+        d.kind === "open_strategy_opportunity" ? { ...d, observations: [] } : d,
+      ),
+    },
+  ]) {
+    input.observations = [
+      observation(input, unavailable, "2026-10-10T12:00:00Z"),
+    ];
+    expect(
+      projectSeoProjection(input)
+        .actions.filter((a) => a.decision)
+        .map((a) => a.title)
+        .sort(),
+    ).toEqual(fixed.map((d) => d.action).sort());
+  }
+  for (const invalid of [
+    [...fixed, { ...fixed[0], id: "extra-fixed" }],
+    [...fixed, card, { ...fixed[0], id: "seventh" }],
+    [card, { ...card, id: "open_strategy_opportunity:222" }],
+  ])
+    expect(parse(invalid).strategyDecisions).toBeUndefined();
+});
+
+it("drops contact details, identifiers and private routes from optional opportunities", () => {
+  const { pages, card, observations } = openExperimentAudit();
+  const parse = (row: unknown, inputs = pages) =>
+    parsePublicSeoArtifact({
+      ...siteStrategyReport(),
+      pages: inputs,
+      strategyDecisions: [row],
+    }).strategyDecisions;
+  for (const text of [
+    "Inspect /account/guest-name/ for this change.",
+    "Open //hidden.example/private/name to compare.",
+    "Review ../profiles/member for an update.",
+    "Read /%61ccount/alice/ for access.",
+    "The service desk is +47 22 99 11 22.",
+    "Contact (212) 555-0188 for the details.",
+    "Use identifier 0123456789abcdef0123456789abcdef.",
+    "Reference 12345678-abcd-1234-abcd-123456789abc.",
+  ]) {
+    expect(parse({ ...card, reason: text })).toBeUndefined();
+    expect(
+      parse({
+        ...card,
+        observations: [observations[0], { ...observations[1], quote: text }],
+      }),
+    ).toBeUndefined();
+  }
+  expect(
+    parse({
+      ...card,
+      reason: "Check the May/June figures and the /guides page.",
+    }),
+  ).toHaveLength(1);
+  const privatePage = "https://example.test/%61ccount/member";
+  expect(
+    parse(
+      {
+        ...card,
+        observations: [
+          observations[0],
+          { ...observations[1], url: privatePage },
+        ],
+      },
+      [pages[0]!, { ...pages[1]!, request: { url: privatePage } }],
+    ),
+  ).toBeUndefined();
+});

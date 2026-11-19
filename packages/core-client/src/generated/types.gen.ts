@@ -11903,7 +11903,7 @@ export type ProjectSeoAction = {
         after: string;
     } | null;
     decision?: {
-        kind: 'content_opportunity' | 'internal_link_opportunity' | 'offer_availability';
+        kind: 'content_opportunity' | 'internal_link_opportunity' | 'offer_availability' | 'open_strategy_opportunity';
         alternative: string;
         nextCheck: string;
     };

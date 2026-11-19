@@ -1,14 +1,18 @@
 import { createHash } from "node:crypto";
 import {
-  MAX_STRATEGY_DECISIONS,
+  OPEN_STRATEGY,
   type PublicSeoDecision,
   publicSeoDecisionSchema,
+  withinStrategyLimit,
 } from "@/schemas/project-seo-action.schema";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
 
-export function readPublicSeoDecisions(raw: unknown, destinations: string[]) {
-  if (!Array.isArray(raw) || raw.length > MAX_STRATEGY_DECISIONS)
-    return undefined;
+export function readPublicSeoDecisions(
+  raw: unknown,
+  destinations: string[],
+  snapshots: readonly { url: string; snapshotId: string }[] = [],
+) {
+  if (!Array.isArray(raw) || !withinStrategyLimit(raw)) return undefined;
   const pages = new Map(
     destinations.map((url) => [auditedSeoPageKey(url), url]),
   );
@@ -18,6 +22,17 @@ export function readPublicSeoDecisions(raw: unknown, destinations: string[]) {
     if (!parsed.success) continue;
     const targetUrl = pages.get(auditedSeoPageKey(parsed.data.targetUrl));
     if (!targetUrl) continue;
+    if (
+      parsed.data.kind === OPEN_STRATEGY &&
+      !parsed.data.observations.every((citation) => {
+        if (!pages.has(citation.url)) return false;
+        const sources = snapshots.filter((page) => page.url === citation.url);
+        return (
+          sources.length === 1 && sources[0]?.snapshotId === citation.snapshotId
+        );
+      })
+    )
+      continue;
     const key = JSON.stringify([targetUrl, parsed.data.id]);
     const decision = { ...parsed.data, targetUrl };
     const prior = accepted.get(key);
@@ -53,7 +68,10 @@ export function publicDecisionAction(
     effort: "unknown" as const,
     kind: "opportunity" as const,
     findingIds: [],
-    evidence: d.evidence,
+    evidence:
+      d.kind === OPEN_STRATEGY
+        ? d.observations.map((o) => `"${o.quote}" (${o.url})`)
+        : d.evidence,
     decision: {
       kind: d.kind,
       alternative: d.alternative,

@@ -526,7 +526,11 @@ async function resolveSeoTaskSource(
     const strategy =
       observation.kind === "audit_full" &&
       data.kind === "audit_full" &&
-      readPublicSeoDecisions(data.strategyDecisions, data.pageUrls)
+      readPublicSeoDecisions(
+        data.strategyDecisions,
+        data.pageUrls,
+        data.decisionSources,
+      )
         ?.map((d) =>
           publicDecisionAction(d, data.countryCode, data.languageCode),
         )

@@ -1,5 +1,8 @@
 import type { ProjectSeoActionTask } from "@sokosumi/database";
-import { publicDecisionAction } from "@/helpers/project-seo-decisions";
+import {
+  publicDecisionAction,
+  readPublicSeoDecisions,
+} from "@/helpers/project-seo-decisions";
 import type { PublicSeoPayload } from "@/helpers/project-seo-report";
 import type { ProjectSeoWorkspace } from "@/schemas/project-seo.schema";
 import { normalizeSeoUrl } from "./project-seo-store";
@@ -27,6 +30,11 @@ export class SeoAuditDecisions {
     this.linked = new Map(links.map((link) => [link.actionId, link]));
   }
   append(observationId: string, data: PublicSeoPayload) {
+    const decisions = readPublicSeoDecisions(
+      data.strategyDecisions,
+      data.pageUrls,
+      data.decisionSources,
+    );
     for (const url of data.pageUrls) {
       const page = normalizeSeoUrl(url);
       if (!this.selected.has(page)) continue;
@@ -42,7 +50,7 @@ export class SeoAuditDecisions {
               idea.language === data.languageCode,
           ),
         );
-      for (const decision of data.strategyDecisions ?? []) {
+      for (const decision of decisions ?? []) {
         if (normalizeSeoUrl(decision.targetUrl) !== page) continue;
         const action = publicDecisionAction(
           decision,

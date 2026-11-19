@@ -8,8 +8,9 @@ import {
   seoUrlSchema,
 } from "@/schemas/project-seo.schema";
 import {
-  MAX_STRATEGY_DECISIONS,
-  publicSeoDecisionSchema,
+  OPEN_STRATEGY,
+  publicPageSnapshotSchema,
+  storedSeoDecisionsSchema,
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
@@ -121,11 +122,13 @@ export const publicSeoPayloadSchema = z.object({
   notes: z.array(text).max(500),
   /** A site audit's strategy results. Older rows and focused checks have none. */
   strategy: seoStrategyPayloadSchema.optional(),
-  strategyDecisions: z
-    .array(publicSeoDecisionSchema)
-    .max(MAX_STRATEGY_DECISIONS)
-    .optional(),
+  strategyDecisions: storedSeoDecisionsSchema.optional(),
   seasonalIdeas: z.array(seoSeasonalIdeaSchema).max(100).optional(),
+  decisionSources: z
+    .array(publicPageSnapshotSchema)
+    .max(10)
+    .optional()
+    .catch(undefined),
   /** A focused result's SERP reads per keyword and device. Older results and audits have none. */
   serps: seoSerpReadsSchema.optional(),
   /** Monitor rule ids that fired in a focused result's Run. */
@@ -505,21 +508,37 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       pageUrls = pages.flatMap((page) => page.pageUrls),
       { strategy, note } = publicSeoStrategy(raw, pageUrls),
       siteFindings = publicSiteFindings(raw, pageUrls, first.observedAt);
+    const eligible = pages.flatMap((page, i) => {
+      if (
+        page.kind !== "audit_full" ||
+        page.countryCode !== first.countryCode ||
+        page.languageCode !== first.languageCode
+      )
+        return [];
+      const child = object(site.data.pages[i]);
+      const sourceUrl = child?.kind !== "site" && object(child?.request)?.url;
+      return page.pageUrls.map((url) => ({
+        url,
+        snapshotId: url === sourceUrl ? child?.snapshotId : undefined,
+      }));
+    });
+    const sources = eligible.flatMap((item) => {
+      const result = publicPageSnapshotSchema.safeParse(item);
+      return result.success ? [result.data] : [];
+    });
+    const decisions = readPublicSeoDecisions(
+      object(raw)?.strategyDecisions,
+      eligible.map((page) => page.url),
+      sources,
+    );
     return publicSeoPayloadSchema.parse({
       ...first,
       kind: "audit_full",
       pageUrls,
-      strategyDecisions: readPublicSeoDecisions(
-        object(raw)?.strategyDecisions,
-        pages
-          .filter(
-            (p) =>
-              p.kind === "audit_full" &&
-              p.countryCode === first.countryCode &&
-              p.languageCode === first.languageCode,
-          )
-          .flatMap((p) => p.pageUrls),
-      ),
+      strategyDecisions: decisions,
+      decisionSources: decisions?.some((d) => d.kind === OPEN_STRATEGY)
+        ? sources
+        : undefined,
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),

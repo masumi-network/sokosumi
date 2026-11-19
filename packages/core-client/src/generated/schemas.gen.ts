@@ -45350,7 +45350,8 @@ export const ProjectSeoActionSchema = {
                     enum: [
                         'content_opportunity',
                         'internal_link_opportunity',
-                        'offer_availability'
+                        'offer_availability',
+                        'open_strategy_opportunity'
                     ]
                 },
                 alternative: {
