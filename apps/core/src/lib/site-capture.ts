@@ -578,7 +578,7 @@ async function pageSections(page: Page, limit: number): Promise<SiteSection[]> {
  * Runs in the page. Walks down from the body: a wide block of about a
  * screen is a section, a taller one is opened for the sections inside it.
  */
-function findSections(minHeight: number, limit: number): SectionBox[] {
+export function findSections(minHeight: number, limit: number): SectionBox[] {
   const screen = window.innerHeight;
   const maxHeight = screen * 1.6;
   const pageWidth = document.documentElement.clientWidth;
@@ -602,9 +602,12 @@ function findSections(minHeight: number, limit: number): SectionBox[] {
       )
         continue;
       const rect = child.getBoundingClientRect();
-      if (rect.width < pageWidth * 0.6 || rect.height < minHeight) continue;
+      // A screen-high wrapper (`h-full`) whose content runs past it holds
+      // the whole page: its scroll height says so, its box does not.
+      const tall = Math.max(rect.height, child.scrollHeight);
+      if (rect.width < pageWidth * 0.6 || tall < minHeight) continue;
       const before = found.length;
-      if (rect.height > maxHeight && depth < 6) visit(child, depth + 1);
+      if (tall > maxHeight && depth < 6) visit(child, depth + 1);
       if (found.length > before) continue;
       found.push({
         element: child,
