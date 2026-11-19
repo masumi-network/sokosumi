@@ -1118,6 +1118,7 @@ const active = {
   handle: "acme",
   displayName: "Acme",
   status: "ACTIVE",
+  personalProfile: false,
 };
 
 it("celebrates on Launch without a failure in between, then opens the app on Go to Today", async () => {

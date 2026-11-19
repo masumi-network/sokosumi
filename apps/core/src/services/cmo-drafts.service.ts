@@ -1,12 +1,19 @@
 import type { Prisma } from "@sokosumi/database";
-import { SOCIAL_POST_MIN_SCHEDULE_LEAD_MS } from "@sokosumi/utils";
+import {
+  CMO_OWNER_CONFIRMED_CHANNELS,
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+} from "@sokosumi/utils";
 import { z } from "zod";
 
+import type { TikTokPostSettings } from "@/clients/social-post-providers/types";
+import { getZernioTikTokCreatorInfo } from "@/clients/social-post-providers/zernio-tiktok";
+import { getZernioAccountId } from "@/clients/zernio.client";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import prisma from "@/lib/db/prisma";
 import { publicDriveUrl } from "@/lib/drive-blob";
 import {
   CmoConflictError,
+  CmoNotFoundError,
   type CusoTarget,
   requireCuso,
 } from "@/services/cmo-cuso.service";
@@ -83,10 +90,21 @@ function toDraft(row: DraftRow): CmoDraft {
 /** Most drafts the Calendar lists as waiting. */
 const CMO_DRAFTS_SHOWN = 20;
 
-/** The Project's Social posts that wait for the owner's approval, newest first. */
+/**
+ * The Project's Social posts that wait for the owner, newest first: what Cuso
+ * made outside the month, and the month's posts on a network the owner
+ * confirms post by post (TikTok).
+ */
 export async function listCmoDrafts(projectId: string): Promise<CmoDraft[]> {
   const rows = await prisma.socialPost.findMany({
-    where: { projectId, status: "NEEDS_APPROVAL", marketingStrategyId: null },
+    where: {
+      projectId,
+      status: "NEEDS_APPROVAL",
+      OR: [
+        { marketingStrategyId: null },
+        { provider: { in: [...CMO_OWNER_CONFIRMED_CHANNELS] } },
+      ],
+    },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: CMO_DRAFTS_SHOWN,
     select: DRAFT_SELECT,
@@ -225,7 +243,12 @@ export const CMO_APPROVED_POST_DELAY_MS = 2 * 60 * 1_000;
  * minutes when it has none, so a slip can still be stopped. Refused whole
  * when the network is not connected; the draft then stays as it is.
  */
-export async function approveCmoDraft(input: DraftTarget): Promise<void> {
+export async function approveCmoDraft(
+  input: DraftTarget & {
+    /** The owner's choices and consent for a TikTok video. */
+    tikTokSettings?: TikTokPostSettings | undefined;
+  },
+): Promise<void> {
   const cuso = await requireCuso(input);
   const scope = {
     projectId: cuso.projectId,
@@ -239,6 +262,10 @@ export async function approveCmoDraft(input: DraftTarget): Promise<void> {
   if (post.revision !== input.revision)
     throw new CmoConflictError("This post changed. Look at it again.");
   const testCopy = await isTestCopyProject(cuso.projectId);
+  if (post.provider === "tiktok") {
+    await postToTikTok(scope, post.revision, testCopy, input.tikTokSettings);
+    return;
+  }
   const planned =
     post.scheduledAt !== null &&
     post.scheduledAt.getTime() >
@@ -261,6 +288,87 @@ export async function approveCmoDraft(input: DraftTarget): Promise<void> {
     });
   }
   await approveSocialPost({ ...scope, revision: post.revision });
+}
+
+/**
+ * TikTok takes a video only with its creator's consent for that video, so the
+ * owner's approval is the post: it goes out now, with the audience and the
+ * confirmation they gave. A video TikTok does not take waits again.
+ */
+async function postToTikTok(
+  scope: {
+    projectId: string;
+    workspaceId: string;
+    userId: string;
+    postId: string;
+  },
+  revision: number,
+  testCopy: boolean,
+  settings: TikTokPostSettings | undefined,
+): Promise<void> {
+  if (testCopy) throw new CmoConflictError(TEST_COPY_NOTHING_AT_ONCE);
+  if (!settings?.previewConsent) {
+    throw new CmoConflictError(
+      "TikTok needs your confirmation for each video: choose who sees it and confirm the video first.",
+    );
+  }
+  const approved = await approveSocialPost({ ...scope, revision });
+  const waitAgain = () =>
+    prisma.socialPost.updateMany({
+      where: {
+        id: scope.postId,
+        status: { in: ["DRAFT", "SCHEDULED", "FAILED"] },
+      },
+      data: { status: "NEEDS_APPROVAL", revision: { increment: 1 } },
+    });
+  const { publishSocialPostNow } = await import(
+    "@/services/social-post-publisher.service"
+  );
+  let published: Awaited<ReturnType<typeof publishSocialPostNow>>;
+  try {
+    published = await publishSocialPostNow({
+      ...scope,
+      revision: approved.revision,
+      tikTokSettings: settings,
+    });
+  } catch (error) {
+    await waitAgain();
+    throw error;
+  }
+  if (published.status !== "PUBLISHED" && published.status !== "PUBLISHING") {
+    await waitAgain();
+    throw new CmoConflictError(
+      published.lastError ?? "TikTok did not take the video. Try again.",
+    );
+  }
+}
+
+/**
+ * What TikTok allows on the account a waiting video goes to: who it posts as,
+ * who may see it, and whether comments, Duet and Stitch can be turned on. The
+ * owner chooses from these before they confirm the video.
+ */
+export async function readCmoTikTokCreator(
+  input: Omit<DraftTarget, "revision">,
+) {
+  const cuso = await requireCuso(input);
+  const post = await prisma.socialPost.findFirst({
+    where: { id: input.postId, projectId: cuso.projectId, provider: "tiktok" },
+    select: {
+      socialConnection: {
+        select: { status: true, composioConnectedAccountId: true },
+      },
+    },
+  });
+  if (!post) throw new CmoNotFoundError("No such TikTok post");
+  const accountId =
+    post.socialConnection?.status === "active"
+      ? getZernioAccountId(post.socialConnection.composioConnectedAccountId)
+      : null;
+  if (!accountId) {
+    throw new CmoConflictError("Connect TikTok again to post this video.");
+  }
+  return getZernioTikTokCreatorInfo(accountId);
 }
 
 /** The owner turns a draft down, or stops an approved one before it goes out. */

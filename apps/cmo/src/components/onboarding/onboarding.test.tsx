@@ -481,6 +481,7 @@ describe("Brand", () => {
             handle: "@acme",
             displayName: "Acme",
             status: "ACTIVE",
+            personalProfile: false,
           },
         ],
       }),
@@ -813,6 +814,7 @@ describe("Launch", () => {
     handle: "acme",
     displayName: "Acme",
     status: "ACTIVE",
+    personalProfile: false,
   });
 
   it("offers to connect only the social networks in the plan", () => {
@@ -833,12 +835,54 @@ describe("Launch", () => {
     expect(ads?.optional).toBeUndefined();
   });
 
-  it("makes ads and proposed channels optional, and leaves the newsletter out", () => {
+  it("offers every channel CMO can connect beyond the plan's networks, and leaves the newsletter out", () => {
+    // The plan's ads and Cuso's proposals first, then every other network.
     expect(optionalChannels(approved()).map((channel) => channel.key)).toEqual([
       "meta_ads",
       "google_ads",
       "instagram",
+      "facebook",
+      "youtube",
     ]);
+    const html = render(approved());
+    for (const name of ["Facebook", "YouTube", "Google Ads"])
+      expect(html).toMatch(new RegExp(`button-small[^>]*>${name}[,<]`));
+    expect(html).not.toContain("TikTok");
+  });
+
+  it("offers TikTok where Core lets this Project connect it", () => {
+    expect(
+      optionalChannels(approved({ tiktokEnabled: true })).map(
+        (channel) => channel.key,
+      ),
+    ).toContain("tiktok");
+  });
+
+  it("offers the places Cuso reads the numbers from, until each is connected", () => {
+    const source = (
+      provider: CmoOverview["measurement"][number]["provider"],
+      name: string,
+      status: CmoOverview["measurement"][number]["status"],
+    ) => ({ provider, name, measures: "Visits", status });
+    const overview = approved({
+      measurement: [
+        source("google_analytics", "Google Analytics", "none"),
+        source("google_search_console", "Search Console", "connected"),
+      ] as CmoOverview["measurement"],
+    });
+    const html = renderToStaticMarkup(
+      <LaunchStep
+        overview={overview}
+        onConnect={async () => ({ url: null, error: null })}
+        onConnectAds={async () => ({ url: null, error: null })}
+        onConnectMeasurement={async () => ({ url: null, error: null })}
+        onSetPresenter={async () => ({ error: null })}
+        onClearPresenter={async () => ({ error: null })}
+        onGoToday={() => {}}
+      />,
+    );
+    expect(html).toContain(">Google Analytics</button>");
+    expect(html).not.toContain(">Search Console</button>");
   });
 
   it("lists only the plan's networks, with their pieces, and no newsletter", () => {

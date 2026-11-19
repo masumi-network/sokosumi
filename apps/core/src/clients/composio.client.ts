@@ -8,6 +8,7 @@ import {
   type ProjectSocialProvider,
 } from "@/config/social-providers";
 import { linkedInPersonId } from "@/helpers/linkedin-person";
+import { pickSocialAccount } from "@/helpers/social-account-choice";
 import {
   createCoreLogger,
   recordCoreWarning,
@@ -90,6 +91,12 @@ export type ComposioConnectionStatus =
   | "EXPIRED"
   | "INACTIVE"
   | "REVOKED";
+
+/** The owner's pick among a sign-in's accounts, or whether to ask for one. */
+export interface SocialAccountPick {
+  externalAccountId?: string;
+  offerChoice?: boolean;
+}
 
 export interface ConnectedSocialIdentity {
   id: string;
@@ -664,6 +671,9 @@ export async function deleteComposioToolSession(
   }
 }
 
+/** The Pages one Facebook login is offered to pick from. */
+const FACEBOOK_PAGE_LIMIT = 25;
+
 /** Identity-only tools from https://docs.composio.dev/toolkits/{toolkit}. */
 const SOCIAL_IDENTITY_TOOLS: Record<
   ProjectSocialProvider,
@@ -689,7 +699,7 @@ const SOCIAL_IDENTITY_TOOLS: Record<
   linkedin: { slug: "LINKEDIN_GET_MY_INFO", arguments: {} },
   facebook: {
     slug: "FACEBOOK_LIST_MANAGED_PAGES",
-    arguments: { fields: "id,name,picture", limit: 2 },
+    arguments: { fields: "id,name,picture", limit: FACEBOOK_PAGE_LIMIT },
   },
   youtube: {
     slug: "YOUTUBE_LIST_CHANNELS",
@@ -836,23 +846,9 @@ function socialIdentity(
         identityString(record(thumbnails?.default)?.url);
       break;
     }
-    case "facebook": {
-      // Posts go to a Page; never choose one when the account manages none or several.
-      const pages = Array.isArray(identity.data)
-        ? identity.data
-        : Array.isArray(identity.items)
-          ? identity.items
-          : null;
-      if (!pages || pages.length !== 1) return null;
-      const paging = record(identity.paging);
-      if (paging && identityString(paging.next)) return null;
-      const page = record(pages[0]) ?? {};
-      id = identityString(page.id);
-      handle = identityString(page.name);
-      displayName = handle;
-      avatarUrl = identityString(record(record(page.picture)?.data)?.url);
-      break;
-    }
+    case "facebook":
+      // Posts go to a Page, which `facebookPages` reads.
+      return null;
     case "instagram":
       id = identityString(identity.id);
       handle = identityString(identity.username);
@@ -874,6 +870,56 @@ function socialIdentity(
       break;
   }
   return id ? { id, handle, displayName, avatarUrl, subscriptionType } : null;
+}
+
+/** The Pages a Facebook login manages, each as the identity it would connect. */
+export function facebookPages(
+  payload: Record<string, unknown>,
+): ConnectedSocialIdentity[] {
+  const pages = Array.isArray(payload.data)
+    ? payload.data
+    : Array.isArray(payload.items)
+      ? payload.items
+      : [];
+  return pages.flatMap((entry) => {
+    const page = record(entry) ?? {};
+    const id = identityString(page.id);
+    const name = identityString(page.name);
+    return id
+      ? [
+          {
+            id,
+            handle: name,
+            displayName: name,
+            avatarUrl: identityString(record(record(page.picture)?.data)?.url),
+            subscriptionType: null,
+          },
+        ]
+      : [];
+  });
+}
+
+/**
+ * The Page to connect: the picked one or the only one. Several without a pick
+ * ask the owner when `offerChoice` is set, and are refused otherwise.
+ */
+function facebookPage(
+  payload: Record<string, unknown>,
+  pick: SocialAccountPick,
+): ConnectedSocialIdentity | null {
+  const pages = facebookPages(payload).map((page) => ({
+    ...page,
+    externalAccountId: page.id,
+  }));
+  const page = pickSocialAccount(pages, pick, (entry) => ({
+    externalAccountId: entry.id,
+    name: entry.displayName ?? entry.id,
+    handle: null,
+    kind: "page",
+  }));
+  if (!page) return null;
+  const { externalAccountId: _externalAccountId, ...identity } = page;
+  return identity;
 }
 
 /** Keys a LinkedIn profile or userinfo may name in a log: the ones Core reads. */
@@ -968,6 +1014,8 @@ export async function getConnectedSocialIdentity(input: {
   provider: ProjectSocialProvider;
   connectedAccountId: string;
   executorUserId: string;
+  /** Which of several Pages, or whether to ask. Facebook only. */
+  pick?: SocialAccountPick;
 }): Promise<ConnectedSocialIdentity> {
   const { toolkitSlug, name } = PROJECT_SOCIAL_PROVIDERS[input.provider];
   const tool = SOCIAL_IDENTITY_TOOLS[input.provider];
@@ -1017,12 +1065,28 @@ export async function getConnectedSocialIdentity(input: {
     );
     const result = await projectComposioResponse<unknown>(response, context);
     const payload = socialIdentityPayload(result, input.provider);
-    const identity = payload ? socialIdentity(input.provider, payload) : null;
+    const identity = !payload
+      ? null
+      : input.provider === "facebook"
+        ? facebookPage(payload, input.pick ?? {})
+        : socialIdentity(input.provider, payload);
     if (!identity) {
       if (payload && input.provider === "facebook") {
         throw new ComposioIdentityError(
-          "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+          facebookPages(payload).length === 0
+            ? "This Facebook login manages no Page. Use a login that manages the Page to post to."
+            : "This Facebook login manages several Pages. Pick the Page to post to.",
           CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED,
+        );
+      }
+      if (
+        input.provider === "youtube" &&
+        Array.isArray(payload?.items) &&
+        payload.items.length !== 1
+      ) {
+        throw new ComposioIdentityError(
+          "This Google sign-in has no YouTube channel of its own. Sign in again and pick the channel's account on Google's screen.",
+          CORE_API_ERROR_KINDS.SOCIAL_YOUTUBE_CHANNEL_REQUIRED,
         );
       }
       throw new ComposioApiError(

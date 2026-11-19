@@ -279,6 +279,15 @@ describe("cmoPieceReady", () => {
     ).toBe(true);
   });
 
+  it("counts a TikTok video as made once it has its words and video: it waits for the owner, not for Cuso", () => {
+    const tiktok = { channel: "tiktok", format: "video", draft: "Words" };
+    const withTikTok = new Set(["tiktok"]);
+    expect(cmoPieceReady(piece(tiktok), withTikTok)).toBe(false);
+    expect(cmoPieceReady(piece(tiktok, ["drive/a.mp4"]), withTikTok)).toBe(
+      true,
+    );
+  });
+
   it("counts published and skipped pieces as done", () => {
     expect(cmoPieceReady(piece({ status: "published" }), connected)).toBe(true);
     expect(cmoPieceReady(piece({ status: "skipped" }), connected)).toBe(true);
