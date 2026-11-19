@@ -1217,6 +1217,18 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     const thinking1 = copies.find((copy) => copy.streaming === true);
     const failed1 = copies.at(-1);
     expect(failed1).toMatchObject({ mention_failed: true });
+    expect(
+      await db.chatRoomMention.findUniqueOrThrow({
+        where: { id: m.mention.id },
+      }),
+    ).toMatchObject({
+      error: "Soko Bot could not answer",
+    });
+    expect(
+      await db.sokoBotTurn.findUniqueOrThrow({ where: { id: first[0] } }),
+    ).toMatchObject({
+      errorDetail: "Gateway refused",
+    });
 
     // Attempt 2: explicit Retry, runs, answers.
     copies.length = 0;
@@ -1474,6 +1486,55 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     });
   }
 
+  it("clears a delivered usage-limit notice when Retry finds the bot archived", async () => {
+    const { deliverSokoBotDelivery } = await import(
+      "./soko-bot-delivery.service"
+    );
+    const m = await staleMention();
+    const turn = await turnFor(m, "FAILED");
+    await db.sokoBotTurn.update({
+      where: { id: turn.id },
+      data: { errorKind: "ai_budget_exceeded" },
+    });
+    const delivery = await db.sokoBotDelivery.findFirstOrThrow({
+      where: { turnId: turn.id },
+    });
+    expect(await deliverSokoBotDelivery(delivery.id)).toBe(true);
+    expect((await replyRow(m.mention.id)).metadata).toMatchObject({
+      mention_failure: { kind: "ai_budget_exceeded" },
+    });
+
+    await db.sokoBot.update({
+      where: { id: botId },
+      data: { archivedAt: new Date() },
+    });
+    try {
+      expect((await retryRoute(m)).status).toBe(200);
+      expect(startTurn).not.toHaveBeenCalled();
+      expect(
+        await db.sokoBotTurn.findUniqueOrThrow({ where: { id: turn.id } }),
+      ).toMatchObject({
+        chatMentionId: null,
+      });
+      expect(
+        await db.chatRoomMention.findUniqueOrThrow({
+          where: { id: m.mention.id },
+        }),
+      ).toMatchObject({
+        status: "failed",
+        error: "This Soko Bot is no longer active",
+      });
+      const reply = await replyRow(m.mention.id);
+      expect(reply.metadata).toMatchObject({ mention_failed: true });
+      expect(reply.metadata).not.toHaveProperty("mention_failure");
+    } finally {
+      await db.sokoBot.update({
+        where: { id: botId },
+        data: { archivedAt: null },
+      });
+    }
+  });
+
   it("fails, without starting, a Retry whose open failed before committing, and keeps the next answer over the old failure", async () => {
     expectCoreLog("error", "Could not open the Soko Bot's thinking reply");
     const { isStaleSokoBotReply, readSokoBotAttemptAt } = await import(
@@ -1603,9 +1664,24 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
     expect(readSokoBotAttemptAt(answered.metadata)).toBe(attempt);
   });
 
-  it.each([{ ended: "FAILED" as const }, { ended: "CANCELLED" as const }])(
+  it.each([
+    {
+      ended: "FAILED" as const,
+      errorKind: "ai_budget_exceeded",
+      failure: {
+        kind: "ai_budget_exceeded",
+        message:
+          "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+      },
+    },
+    {
+      ended: "CANCELLED" as const,
+      errorKind: null,
+      failure: { kind: "turn_cancelled" },
+    },
+  ])(
     "keeps a $ended turn's card terminal through owed publication, Retry and late progress",
-    async ({ ended }) => {
+    async ({ ended, errorKind, failure }) => {
       const { publishSokoBotChatProgress } = await import(
         "./soko-bot-chat.service"
       );
@@ -1636,7 +1712,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       // The turn ends; its card is written but publication fails (PERSISTED).
       await db.sokoBotTurn.update({
         where: { id: first[0] },
-        data: { status: ended, errorDetail: "Gateway refused" },
+        data: { status: ended, errorKind, errorDetail: "Gateway refused" },
       });
       await db.$transaction((tx) => enqueue(tx, first[0]));
       const delivery = await db.sokoBotDelivery.findFirstOrThrow({
@@ -1647,9 +1723,13 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       expect(
         await db.sokoBotDelivery.findUnique({ where: { id: delivery.id } }),
       ).toMatchObject({ status: "PERSISTED" });
-      expect((await replyRow(m.mention.id)).metadata).toMatchObject({
+      const terminalMetadata = {
         mention_failed: true,
-      });
+        mention_failure: failure,
+      };
+      expect((await replyRow(m.mention.id)).metadata).toMatchObject(
+        terminalMetadata,
+      );
       const terminalFrom = copies.length;
 
       // Retry: the turn keeps the mention (publication owed), the mention is
@@ -1683,6 +1763,7 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
       // Retry's dispatch settles the ended turn; the owed publication lands.
       r.release();
       await retried.dispatched;
+      const afterSettlement = await replyRow(m.mention.id);
       await db.sokoBotDelivery.update({
         where: { id: delivery.id },
         data: { nextAttemptAt: new Date(0) },
@@ -1694,9 +1775,10 @@ describe.skipIf(!enabled)("Soko Bot mention retry and reclaim", () => {
           where: { id: m.mention.id },
         }),
       ).toMatchObject({ status: "failed" });
-      expect((await replyRow(m.mention.id)).metadata).toMatchObject({
-        mention_failed: true,
-      });
+      expect(afterSettlement.metadata).toMatchObject(terminalMetadata);
+      expect((await replyRow(m.mention.id)).metadata).toMatchObject(
+        terminalMetadata,
+      );
       // Nothing published after the turn ended is "Thinking…".
       const after = copies.slice(terminalFrom);
       expect(after.length).toBeGreaterThan(0);

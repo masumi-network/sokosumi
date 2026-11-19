@@ -1,4 +1,5 @@
 import type { ScenarioCheck } from "@sokosumi/soko-bot";
+import { jsonInput } from "@/helpers/prisma-json";
 
 import type { ComparisonSearch } from "@/lib/ads/dataforseo";
 import prisma from "@/lib/db/prisma";
@@ -109,7 +110,7 @@ export async function prepareCompetitorAdsCase(
     data: {
       approvedAt: new Date(),
       approvedByUserId: lane.userId,
-      plan: {
+      plan: jsonInput({
         ...plan,
         ads: {
           ...AD_BUDGET,
@@ -117,7 +118,7 @@ export async function prepareCompetitorAdsCase(
           without: "The month stays organic.",
           setByOwner: true,
         },
-      },
+      }),
     },
   });
 }

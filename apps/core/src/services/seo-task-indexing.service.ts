@@ -518,7 +518,11 @@ export async function recordSeoTaskIndexingResult(
             inspected &&
             googleReturnedUnknown(parsed.data, inspected)
           )
-            return { ...page, checkedAt, googleReturnedUnknown: true };
+            return {
+              ...page,
+              ...(checkedAt !== undefined ? { checkedAt } : {}),
+              googleReturnedUnknown: true,
+            };
           if (!checkedAt) return page;
           const retained = parsed.data.retainedAssessments?.find(
             (assessment) => assessment.pageUrl === page.pageUrl,

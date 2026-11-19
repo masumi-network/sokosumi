@@ -1,4 +1,7 @@
-import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
+import {
+  removeSeoTaskRequest,
+  removeTaskContextAttachmentLinks,
+} from "@sokosumi/utils";
 import { ArrowLeft } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -92,7 +95,9 @@ export default async function ArchivedTaskPage({
             title={tDetail("description")}
             description={
               task.description
-                ? removeTaskContextAttachmentLinks(task.description)
+                ? removeSeoTaskRequest(
+                    removeTaskContextAttachmentLinks(task.description),
+                  )
                 : null
             }
             expandLabel={tDetail("expand")}

@@ -7,7 +7,6 @@ import type {
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 import slugify from "slugify";
-
 import {
   conflict,
   notFound,
@@ -22,6 +21,7 @@ import {
   isPrismaRecordNotFoundError,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { parseNewsletterCsv } from "@/lib/newsletter/csv";
 import { allowNewsletterSignup } from "@/lib/newsletter/signup-limit";
@@ -90,6 +90,7 @@ export async function putNewsletter(
   await requireScopedProject(scope, { client });
   const data = {
     ...input,
+    brand: jsonInput(input.brand),
     welcomeSubject: input.welcomeSubject ?? null,
     welcomeBody: input.welcomeBody ?? null,
   };

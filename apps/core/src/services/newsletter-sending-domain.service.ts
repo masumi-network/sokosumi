@@ -1,5 +1,4 @@
 import type { NewsletterSendingDomain } from "@sokosumi/database";
-
 import {
   CloudflareApiError,
   type CloudflareZone,
@@ -22,6 +21,7 @@ import {
   isPrismaRecordNotFoundError,
   isPrismaUniqueViolation,
 } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma, { type DbClient } from "@/lib/db/prisma";
 import { hasDmarcPolicy } from "@/lib/newsletter/dmarc";
 import {
@@ -121,7 +121,7 @@ async function refreshSendingDomain(
       where: { id: row.id },
       data: {
         status,
-        dnsRecords,
+        dnsRecords: jsonInput(dnsRecords),
         lastCheckedAt: now,
         failureReason:
           status === "FAILED" ? sendingDomainFailureReason(dnsRecords) : null,
@@ -243,7 +243,7 @@ export async function putNewsletterSendingDomain(
           ...(toSendingDomainStatus(created.status) === "VERIFIED"
             ? { warmupStartedAt: new Date() }
             : {}),
-          dnsRecords,
+          dnsRecords: jsonInput(dnsRecords),
           lastCheckedAt: new Date(),
         },
       }),

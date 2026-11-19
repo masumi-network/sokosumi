@@ -453,6 +453,36 @@ describe("SokoBotControlPlane reconciliation", () => {
     );
   });
 
+  it("omits missing event metadata and failure detail when writing the drain", async () => {
+    const events = [
+      {
+        startIndex: 0,
+        event: runtimeEvent("turn.failed", "failed_1", {
+          code: "runtime_failed",
+        }),
+      },
+      { startIndex: 1, event: runtimeEvent("session.waiting", "wait_1") },
+    ];
+
+    await new SokoBotControlPlane(
+      runtimeFor(events),
+      undefined,
+      undefined,
+    ).reconcileTurn(TURN_ID, undefined, LEASE_TOKEN);
+
+    const storedWaiting = eventCreateManyMock.mock.calls
+      .flatMap(([input]) => input.data)
+      .find((event) => event.type === "session.waiting");
+    expect(storedWaiting).toMatchObject({ turnId: TURN_ID });
+    for (const key of ["payload", "toolName", "toolCallId", "toolStatus"]) {
+      expect(storedWaiting).not.toHaveProperty(key);
+    }
+    const failure = turnUpdateMock.mock.calls
+      .map(([input]) => input.data)
+      .find((data) => data.errorKind === "runtime_failed");
+    expect(failure).toStrictEqual({ errorKind: "runtime_failed" });
+  });
+
   it("redacts provider secrets before persisting failure events or turn errors", async () => {
     const events = [
       {

@@ -6,6 +6,7 @@ import {
 } from "@sokosumi/soko-bot";
 import { isProjectSocialProvider } from "@/config/social-providers";
 import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
+import { jsonInput } from "@/helpers/prisma-json";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
@@ -203,7 +204,7 @@ async function pointCusoAt(
   });
   if (brandBrain)
     await prisma.brandBrain.create({
-      data: { projectId, body: brandBrain as object, updatedAt: new Date() },
+      data: { projectId, body: jsonInput(brandBrain), updatedAt: new Date() },
     });
   const cuso = await findCusoForBot(lane.cusoBotId);
   if (!cuso) throw new Error(`Eval lane ${lane.lane} has no Cuso`);
@@ -397,18 +398,20 @@ export async function prepareCmoPlan(
       projectId: lane.cusoProjectId,
       // As Core leaves the strategy when the owner says yes to ads and sets
       // the amount: the budget is theirs, the ads are still to be planned.
-      plan: (adsOn
-        ? {
-            ...plan,
-            ads: {
-              monthly: ADS_CASE_BUDGET,
-              currency: "USD",
-              expect: "Cuso is updating what this brings.",
-              without: "The strategy runs on posts, search and email alone.",
-              setByOwner: true,
-            },
-          }
-        : plan) as object,
+      plan: jsonInput(
+        adsOn
+          ? {
+              ...plan,
+              ads: {
+                monthly: ADS_CASE_BUDGET,
+                currency: "USD",
+                expect: "Cuso is updating what this brings.",
+                without: "The strategy runs on posts, search and email alone.",
+                setByOwner: true,
+              },
+            }
+          : plan,
+      ),
       authorSokoBotId: lane.cusoBotId,
     },
   });
@@ -435,7 +438,7 @@ async function prepareCmoChat(lane: EvalLaneRecord, known: boolean) {
   await prisma.marketingStrategy.create({
     data: {
       projectId: lane.cusoProjectId,
-      plan: monthPlanFromTomorrow(frozen, new Date()) as object,
+      plan: jsonInput(monthPlanFromTomorrow(frozen, new Date())),
       authorSokoBotId: lane.cusoBotId,
     },
   });
@@ -668,7 +671,7 @@ export async function startCmoCase(
     const strategy = await prisma.marketingStrategy.create({
       data: {
         projectId: lane.cusoProjectId,
-        plan: plan as object,
+        plan: jsonInput(plan),
         authorSokoBotId: lane.cusoBotId,
       },
       select: { id: true },
@@ -1089,7 +1092,9 @@ export async function pollCmoCase(
       output: {
         answer: turn.finalAnswer,
         summary: brain?.summary ?? null,
-        offers: brain?.offers.map((offer) => `${offer.name} (${offer.price})`),
+        offers:
+          brain?.offers.map((offer) => `${offer.name} (${offer.price})`) ??
+          null,
       },
     };
   } else {
@@ -1109,10 +1114,12 @@ export async function pollCmoCase(
         offer: strategy?.offer?.what ?? null,
         coreOffer: strategy?.ladder?.core.what ?? null,
         contentLanguage: strategy?.contentLanguage ?? null,
-        pillars: strategy?.pillars.map((pillar) => pillar.name),
-        calendar: strategy?.calendar
-          .filter((entry) => entry.status !== "skipped")
-          .map((entry) => `${entry.date} ${entry.channel}: ${entry.title}`),
+        pillars: strategy?.pillars.map((pillar) => pillar.name) ?? null,
+        calendar:
+          strategy?.calendar
+            .filter((entry) => entry.status !== "skipped")
+            .map((entry) => `${entry.date} ${entry.channel}: ${entry.title}`) ??
+          null,
       },
     };
   }

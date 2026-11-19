@@ -244,13 +244,14 @@ describe("organization actions", () => {
   });
 
   it("maps membership lookup failures to INTERNAL_SERVER_ERROR", async () => {
-    expectConsole(
+    const errorCalls = expectConsole(
       "error",
-      "Failed to bulk invite organization members MockCoreApiRequestError: Internal Server Error",
+      "Failed to bulk invite organization members",
     );
-    getMyMemberInOrganizationMock.mockRejectedValue(
-      new MockCoreApiRequestError("Internal Server Error", { status: 500 }),
-    );
+    const error = new MockCoreApiRequestError("Internal Server Error", {
+      status: 500,
+    });
+    getMyMemberInOrganizationMock.mockRejectedValue(error);
     const { inviteOrganizationMembersBulk } = await import("./action");
 
     const result = await inviteOrganizationMembersBulk({
@@ -266,6 +267,7 @@ describe("organization actions", () => {
       },
     });
     expect(inviteOrganizationMemberViaCoreMock).not.toHaveBeenCalled();
+    expect(errorCalls[0]?.[1]).toBe(error);
   });
 });
 

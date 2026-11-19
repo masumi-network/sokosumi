@@ -142,9 +142,14 @@ const forumQuestion = z.object({
 const seoForumQuestions = z.array(forumQuestion).max(maxForumQuestions);
 export const importedSeoForumQuestions = z
   .array(
-    forumQuestion.extend({
-      url: forumSource.optional().catch(undefined),
-    }),
+    forumQuestion
+      .extend({
+        url: forumSource.optional().catch(undefined),
+      })
+      .transform(({ url, ...question }) => ({
+        ...question,
+        ...(url !== undefined ? { url } : {}),
+      })),
   )
   .max(maxForumQuestions);
 

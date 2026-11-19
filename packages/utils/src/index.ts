@@ -539,6 +539,12 @@ export {
   seoStatisticsQueryRowsCutNote,
 } from "./seo-statistics-notes.js";
 export {
+  removeSeoTaskRequest,
+  type SeoTaskMarker,
+  seoTaskDescription,
+  seoTaskRequestPacket,
+} from "./seo-task-request.js";
+export {
   SEO_SEARCH_TYPES,
   SEO_TRAFFIC_CHANNELS,
   seoSearchUrlPrefixCovers,

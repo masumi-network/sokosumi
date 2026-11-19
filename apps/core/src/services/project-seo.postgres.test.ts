@@ -1197,7 +1197,9 @@ describe.skipIf(!enabled)(
             where: { id: fullTask?.id ?? "missing" },
           })
         ).description,
-      ).toMatch(/^seo_audit: /);
+      ).toMatch(
+        /^Full SEO audit of \d+ selected pages?:\n[\s\S]*\nseo_audit: \{.*\}$/,
+      );
       // The step and the end date are part of the approved rule too.
       for (const tampered of [
         { intervalDays: 2 },
@@ -2277,7 +2279,7 @@ describe.skipIf(!enabled)(
       ]);
     });
 
-    it("imports the readable SERP reads of a rankings result and refuses a read of an unrequested keyword", async () => {
+    it("imports valid rankings evidence alongside malformed difficulty and SERP reads", async () => {
       const page = await addProjectSeoPage(actor, {
         url: "https://example.test/rank-import",
         relationship: "primary",
@@ -2308,7 +2310,9 @@ describe.skipIf(!enabled)(
           ...base,
           requestId: analysis.id,
           scope: { ...base.scope, pageUrls: [page.url] },
-          keywords: [{ ...base.keywords[0], pageUrl: page.url }],
+          keywords: [
+            { ...base.keywords[0], pageUrl: page.url, difficulty: 140 },
+          ],
           serps,
         });
         const file = await prisma.taskFile.create({
@@ -2344,7 +2348,14 @@ describe.skipIf(!enabled)(
       const stored = await prisma.projectSeoObservation.findUniqueOrThrow({
         where: { id: imported.id },
       });
-      const payload = stored.payload as { serps?: unknown[]; notes: string[] };
+      const payload = stored.payload as {
+        keywords: Array<{ keyword: string }>;
+        serps?: unknown[];
+        notes: string[];
+      };
+      expect(payload.keywords).toHaveLength(1);
+      expect(payload.keywords[0]?.keyword).toBe("example");
+      expect(payload.keywords[0]).not.toHaveProperty("difficulty");
       expect(payload.serps).toHaveLength(1);
       expect(payload.notes).toContain(SEO_SERPS_NOT_READ);
       expect(

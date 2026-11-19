@@ -18,14 +18,17 @@ import {
   requestSeoAnalysisSchema,
   type SeoActor,
 } from "@/schemas/project-seo.schema";
-import { addProjectSeoPage } from "./project-seo.service";
+import {
+  addProjectSeoPage,
+  getProjectSeoWorkspace,
+} from "./project-seo.service";
 import { createProjectSeoMonitor } from "./project-seo-monitor.service";
 import {
   requestProjectSeoAnalysis,
   requestProjectSeoAnalysisInTransaction,
 } from "./project-seo-operations.service";
 import { createSeoAudit } from "./seo-audit.service";
-import { deleteSeoAudit } from "./seo-audit-deletion";
+import { setSeoAuditArchived } from "./seo-audit-archive";
 import { restoreTaskRecord } from "./task-domain-archive";
 import { taskScheduleReleaseService } from "./task-schedule-runs.service";
 
@@ -133,7 +136,7 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
     await prisma.coworker.deleteMany({ where: { vendorId } });
     await prisma.vendor.delete({ where: { id: vendorId } });
   });
-  it("preserves the completed source Task and prevents reopening it after deleting a saved audit", async () => {
+  it("prevents reopening an archived check and restores its analysis history", async () => {
     const saved = await createSeoAudit(actor, {
       name: "One-off check",
       firstPage: {
@@ -142,13 +145,14 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
       },
     });
     const id = saved.auditId!;
+    const savedActor: SeoActor = { ...actor, owner: { kind: "audit", id } };
     const start = () =>
-      requestProjectSeoAnalysis(
-        { ...actor, owner: { kind: "audit", id } },
-        { ...request(), pageIds: [saved.pages[0].id] },
-      );
+      requestProjectSeoAnalysis(savedActor, {
+        ...request(),
+        pageIds: [saved.pages[0].id],
+      });
     const run = await start();
-    await expect(deleteSeoAudit(actor, id)).rejects.toMatchObject({
+    await expect(setSeoAuditArchived(actor, id, true)).rejects.toMatchObject({
       status: 409,
       cause: { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_ACTIVE_CHECK },
     });
@@ -157,7 +161,7 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
       where: { id: taskId },
       data: { status: "COMPLETED" },
     });
-    await deleteSeoAudit(actor, id);
+    await setSeoAuditArchived(actor, id, true);
     await expect(start()).rejects.toMatchObject({ status: 404 });
     await expect(
       prisma.$transaction((tx) =>
@@ -171,10 +175,11 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
     ).rejects.toMatchObject({ status: 404 });
     expect(
       await prisma.task.findUnique({ where: { id: taskId } }),
-    ).toMatchObject({ status: "COMPLETED" });
-    expect(
-      await prisma.projectSeoAnalysis.findUnique({ where: { taskId } }),
-    ).toMatchObject({ auditId: id });
+    ).toMatchObject({ status: "COMPLETED", archivedAt: expect.any(Date) });
+    await setSeoAuditArchived(actor, id, false);
+    expect((await getProjectSeoWorkspace(savedActor)).analyses).toMatchObject([
+      { id: run.id, taskId },
+    ]);
   });
 
   it("protects a paused monitor until it ends and ignores schedules for other audits", async () => {
@@ -220,7 +225,7 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
       where: { id: monitor.id },
       data: { state: "PAUSED", nextRunAt: null },
     });
-    await expect(deleteSeoAudit(actor, id)).rejects.toMatchObject({
+    await expect(setSeoAuditArchived(actor, id, true)).rejects.toMatchObject({
       status: 409,
       cause: { kind: CORE_API_ERROR_KINDS.SEO_AUDIT_RESUMABLE_MONITOR },
     });
@@ -228,7 +233,7 @@ describe.skipIf(!enabled)("one active SEO check per audit", () => {
       where: { id: monitor.id },
       data: { state: "ENDED" },
     });
-    await deleteSeoAudit(actor, id);
+    await setSeoAuditArchived(actor, id, true);
     expect(
       await prisma.taskSchedule.findUnique({ where: { id: monitor.id } }),
     ).toMatchObject({ state: "ENDED" });

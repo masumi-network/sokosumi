@@ -25,19 +25,18 @@ function turnOf(metadata: unknown): string | null {
   return typeof turnId === "string" ? turnId : null;
 }
 
-function budgetFailureOf(metadata: ChatRoomMessage["metadata"]) {
+function replyFailureOf(metadata: ChatRoomMessage["metadata"]) {
   if (metadata?.mention_failed !== true) return null;
   const failure = metadata.mention_failure;
-  if (
-    !failure ||
-    typeof failure !== "object" ||
-    !("kind" in failure) ||
-    failure.kind !== "ai_budget_exceeded" ||
-    !("message" in failure) ||
-    typeof failure.message !== "string"
-  )
-    return null;
-  return failure.message;
+  const kind =
+    failure && typeof failure === "object" && "kind" in failure
+      ? failure.kind
+      : null;
+  if (kind === "turn_cancelled") return "The reply stopped before it finished.";
+  if (kind === "ai_budget_exceeded") {
+    return "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.";
+  }
+  return "Something went wrong on our side. Try again. If it keeps happening, contact support.";
 }
 
 /**
@@ -103,7 +102,7 @@ export function toCusoMessages(messages: ChatRoomMessage[]): CusoMessage[] {
                 ? message.sender.coworker.name
                 : "Team",
         content: fromCuso
-          ? (budgetFailureOf(message.metadata) ?? cusoText(message.content))
+          ? (replyFailureOf(message.metadata) ?? cusoText(message.content))
           : withoutIdMentions(message.content),
         createdAt: new Date(message.createdAt).toISOString(),
         trace: fromCuso ? traceOf(message.metadata) : null,
