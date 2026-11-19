@@ -2630,7 +2630,8 @@
       "SimilarTasks": {
         "title": "Tareas abiertas con títulos parecidos",
         "hint": "¿Ya se pidió? Abre la tarea en lugar de crear un duplicado.",
-        "opensInNewTab": "(se abre en una pestaña nueva)"
+        "opensInNewTab": "(se abre en una pestaña nueva)",
+        "announcement": "{count, plural, one {# tarea abierta con un título parecido} other {# tareas abiertas con títulos parecidos}}"
       }
     },
     "Projects": {

@@ -63,52 +63,64 @@ export function SimilarTasksHint({
     },
     enabled: terms.length > 0,
     select: (tasks) => rankSimilarTasks(debouncedBrief, tasks),
-    placeholderData: (previous) => previous,
+    // Keep the last matches while a longer brief loads, but never carry one
+    // workspace's Tasks into another's.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === activeOrganizationId
+        ? previous
+        : undefined,
   });
-
-  if (terms.length === 0 || matches.length === 0) return null;
+  const shown = terms.length > 0 ? matches : [];
 
   return (
-    <section
-      aria-labelledby={titleId}
-      className="flex flex-col gap-1.5 rounded-md border border-border p-3"
-    >
-      <h4 id={titleId} className="text-sm font-medium">
-        {t("title")}
-      </h4>
-      <p className="text-muted-foreground text-xs">{t("hint")}</p>
-      <ul className="flex flex-col">
-        {matches.map((task) => (
-          <li key={task.id}>
-            <Link
-              href={taskHref(task)}
-              target="_blank"
-              rel="noopener"
-              className="hover:bg-quinary flex min-h-10 min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {task.identifier ? (
-                <span className="text-muted-foreground shrink-0 tabular-nums">
-                  {task.identifier}
-                </span>
-              ) : null}
-              <span className="min-w-0 flex-1 truncate">
-                {stripInlineMarkdown(task.name)}
-              </span>
-              <TaskStatusBadge
-                status={task.status}
-                label={tStatus(task.status)}
-                plain
-                className="max-w-32"
-              />
-              <ExternalLink
-                aria-hidden
-                className="text-muted-foreground size-3.5 shrink-0"
-              />
-              <span className="sr-only">{t("opensInNewTab")}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <>
+      {/* Mounted before results arrive, so the count is read while focus stays in the brief. */}
+      <p role="status" className="sr-only">
+        {shown.length > 0 ? t("announcement", { count: shown.length }) : ""}
+      </p>
+      {shown.length > 0 ? (
+        <section
+          aria-labelledby={titleId}
+          className="flex flex-col gap-1.5 rounded-md border border-border p-3"
+        >
+          <h4 id={titleId} className="text-sm font-medium">
+            {t("title")}
+          </h4>
+          <p className="text-muted-foreground text-xs">{t("hint")}</p>
+          <ul className="flex flex-col">
+            {shown.map((task) => (
+              <li key={task.id}>
+                <Link
+                  href={taskHref(task)}
+                  target="_blank"
+                  rel="noopener"
+                  className="hover:bg-quinary flex min-h-10 min-w-0 items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {task.identifier ? (
+                    <span className="text-muted-foreground shrink-0 tabular-nums">
+                      {task.identifier}
+                    </span>
+                  ) : null}
+                  <span className="min-w-0 flex-1 truncate">
+                    {stripInlineMarkdown(task.name)}
+                  </span>
+                  <TaskStatusBadge
+                    status={task.status}
+                    label={tStatus(task.status)}
+                    plain
+                    className="max-w-32"
+                  />
+                  <ExternalLink
+                    aria-hidden
+                    className="text-muted-foreground size-3.5 shrink-0"
+                  />
+                  <span className="sr-only">{t("opensInNewTab")}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </>
   );
 }

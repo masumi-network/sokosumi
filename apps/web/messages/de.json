@@ -2630,7 +2630,8 @@
       "SimilarTasks": {
         "title": "Offene Aufgaben mit ähnlichem Titel",
         "hint": "Schon angefragt? Öffne die Aufgabe, statt ein Duplikat anzulegen.",
-        "opensInNewTab": "(öffnet in einem neuen Tab)"
+        "opensInNewTab": "(öffnet in einem neuen Tab)",
+        "announcement": "{count, plural, one {# offene Aufgabe mit ähnlichem Titel} other {# offene Aufgaben mit ähnlichem Titel}}"
       }
     },
     "Projects": {
