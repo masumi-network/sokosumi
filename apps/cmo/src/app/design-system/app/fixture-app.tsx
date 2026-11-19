@@ -88,6 +88,7 @@ const actions: CmoAppActions = {
     error: null,
   }),
   setSeoSuggestionStatus: async () => null,
+  markLandingPageLive: async () => ({ note: null, error: null }),
   askCusoForArticles: async () => null,
 };
 

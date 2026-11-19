@@ -14304,6 +14304,7 @@ export type CmoSeo = {
     searchConsole: CmoSearchConsole;
     articles: Array<CmoSeoSuggestion>;
     pageChanges: Array<CmoSeoSuggestion>;
+    landingPages: Array<CmoSeoSuggestion>;
     keywordSearches: Array<CmoKeywordSearch>;
     keywordSearchesLeft: number;
 };
@@ -14366,7 +14367,7 @@ export type CmoSearchConsole = {
 
 export type CmoSeoSuggestion = {
     id: string;
-    kind: 'article' | 'page_change';
+    kind: 'article' | 'page_change' | 'landing_page';
     source: 'audit' | 'cuso';
     title: string;
     keyword: string | null;
@@ -14375,6 +14376,11 @@ export type CmoSeoSuggestion = {
     body: string;
     newText: string | null;
     draft: string | null;
+    sources: Array<{
+        text: string;
+        sourceUrl: string;
+        quote: string;
+    }>;
     evidence: Array<CmoSeoEvidence>;
     status: 'open' | 'done' | 'verified' | 'dismissed';
     createdAt: Date;
@@ -14414,6 +14420,16 @@ export type CmoKeywordSearchRequest = {
 
 export type CmoSeoSuggestionStatusRequest = {
     status: 'open' | 'done' | 'dismissed';
+};
+
+export type CmoLandingPageLive = {
+    page: CmoSeoSuggestion;
+    adsUpdated: number;
+    adsLaunched: number;
+};
+
+export type CmoLandingPageLiveRequest = {
+    url: string;
 };
 
 export type CmoPresenterPhoto = {
@@ -89883,6 +89899,97 @@ export type SetCmoSeoSuggestionStatusForProjectResponses = {
 };
 
 export type SetCmoSeoSuggestionStatusForProjectResponse = SetCmoSeoSuggestionStatusForProjectResponses[keyof SetCmoSeoSuggestionStatusForProjectResponses];
+
+export type MarkCmoLandingPageLiveForProjectData = {
+    body: CmoLandingPageLiveRequest;
+    path: {
+        projectId: string;
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/seo/suggestions/{id}/live';
+};
+
+export type MarkCmoLandingPageLiveForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No such landing page
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The address is not on the business's site
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MarkCmoLandingPageLiveForProjectError = MarkCmoLandingPageLiveForProjectErrors[keyof MarkCmoLandingPageLiveForProjectErrors];
+
+export type MarkCmoLandingPageLiveForProjectResponses = {
+    /**
+     * The page, and the search ads that changed
+     */
+    200: {
+        data: CmoLandingPageLive;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type MarkCmoLandingPageLiveForProjectResponse = MarkCmoLandingPageLiveForProjectResponses[keyof MarkCmoLandingPageLiveForProjectResponses];
 
 export type SkipCmoSubscriptionForProjectData = {
     body?: never;

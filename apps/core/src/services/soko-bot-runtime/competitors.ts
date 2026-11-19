@@ -127,7 +127,10 @@ export async function dispatchCompetitorTools(
 }
 
 /** Jev's reading is overhead like routing: on the turn's total. */
-async function addOverhead(turnId: string, costUsd: number): Promise<void> {
+export async function addOverhead(
+  turnId: string,
+  costUsd: number,
+): Promise<void> {
   if (costUsd <= 0) return;
   await prisma.sokoBotTurn.update({
     where: { id: turnId },
