@@ -6,6 +6,7 @@ import {
 } from "@/lib/files/index-jobs";
 import { pruneExpiredAdmissions } from "@/lib/files/jev-admission";
 import { pruneExpiredResultWindows } from "@/lib/files/search-session";
+import { reconcileStaleDriveCopies } from "@/services/drive-copy-reconcile";
 import { processFileIndexJobs } from "@/services/file-index.service";
 import { processFileSuggestionJobs } from "@/services/file-suggestions.service";
 import { processStaleTableIndexes } from "@/services/file-table-index.service";
@@ -37,6 +38,9 @@ export default function mount(app: Hono) {
          * every-minute retry of a document that is simply broken.
          */
         const revived = await reviveFailedSuggestionJobs();
+        // Copies a request could not finish: published or given back
+        // before extraction, so a published one is extracted this tick.
+        const copies = await reconcileStaleDriveCopies();
 
         // Extraction first: a document has to have text before anything can
         // have an opinion about its category.
@@ -85,6 +89,7 @@ export default function mount(app: Hono) {
         context.log.set({
           result: {
             revived,
+            copies,
             backfilled,
             extraction,
             suggestions,

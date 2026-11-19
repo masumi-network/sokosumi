@@ -9,6 +9,7 @@ import {
 } from "@sokosumi/database";
 import { normalizeFileResourceName } from "@sokosumi/utils";
 
+import { conflict } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import { enqueueFileIndexJob } from "@/lib/files/index-jobs";
@@ -32,6 +33,25 @@ export interface DriveResourceKey {
 
 function toSourceScope(scope: "user" | "organization"): FileSourceScope {
   return scope === "user" ? FileSourceScope.USER : FileSourceScope.ORGANIZATION;
+}
+
+/**
+ * A Drive copy being published: pending, with category and tags pinned
+ * empty (see reserveDriveCopyResource). A claim only ever becomes ACTIVE or
+ * is deleted, and no other row ever becomes one, so a writer that read a
+ * row and saw no claim can rely on that for the rest of its transaction.
+ */
+const COPY_CLAIM = {
+  lifecycle: FileResourceLifecycle.PENDING,
+  overrides: {
+    some: { labelId: null, decision: FileFieldOverrideDecision.PIN },
+  },
+} satisfies Prisma.FileResourceWhereInput;
+
+function isCopyClaim(id: string, client: Prisma.TransactionClient = prisma) {
+  return client.fileResource
+    .count({ where: { id, ...COPY_CLAIM } })
+    .then((count) => count > 0);
 }
 
 /**
@@ -72,6 +92,9 @@ export async function reserveDriveUploadResource(input: {
       select: { id: true, contentRevision: true },
     });
 
+    if (existing && (await isCopyClaim(existing.id, tx))) {
+      throw conflict("A copy is being made at this name");
+    }
     if (existing) {
       // Replacing the bytes at a live pathname is a new version of the same
       // document, so manual metadata and the deep link both survive it. A
@@ -129,34 +152,14 @@ export async function reserveDriveUploadResource(input: {
   });
 }
 
-/** Whether any catalog row holds a pathname, pending, live or otherwise. */
-export async function driveResourceHeld(key: DriveResourceKey) {
-  const row = await prisma.fileResource.findUnique({
-    where: {
-      workspaceId_sourceKind_sourceScope_sourceId: {
-        workspaceId: key.workspaceId,
-        sourceKind: FileSourceKind.DRIVE_UPLOAD,
-        sourceScope: toSourceScope(key.scope),
-        sourceId: key.pathname,
-      },
-    },
-    select: { id: true },
-  });
-  return row !== null;
-}
-
 /**
- * The document for a Drive copy whose bytes were just written and checked.
- * One transaction: the live row, its pins and its extraction job land
- * together or not at all. A plain create, so a name any row holds fails
- * with P2002 and nothing is taken over.
- *
- * Category and tags are pinned empty. Labelling is a paid model call, and
- * a copy must stay free through extraction, the SUGGEST job it enqueues and
- * the missing-suggestion sweep: each of those finds nothing left to ask.
- * The reader can lift the pin from the file's details like any other.
+ * Reserve identity for one Drive copy before its bytes exist: a pending row
+ * with category and tags pinned empty, so whoever lists the bytes first
+ * finds a claim that no upload, finalize or backfill takes over, and no
+ * paid model ever labels the copy. A plain create: a name any row holds
+ * fails with P2002 and the caller tries the next name.
  */
-export async function createDriveCopyResource(input: {
+export async function reserveDriveCopyResource(input: {
   key: DriveResourceKey;
   displayName: string;
   mimeType: string;
@@ -188,7 +191,7 @@ export async function createDriveCopyResource(input: {
         normalizedName: normalizeFileResourceName(input.displayName),
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
-        lifecycle: FileResourceLifecycle.ACTIVE,
+        lifecycle: FileResourceLifecycle.PENDING,
         versions: {
           create: {
             revision: 1,
@@ -211,15 +214,66 @@ export async function createDriveCopyResource(input: {
       },
       select: { id: true },
     });
+    return id;
+  });
+}
+
+/**
+ * Make a copy live with the metadata of the bytes at its pathname, and queue
+ * its extraction, in one transaction. Only while it is still this claim at
+ * this pathname: a delete or rename in between publishes nothing here.
+ */
+export async function publishDriveCopyResource(input: {
+  resourceId: string;
+  pathname: string;
+  sizeBytes: number;
+  mimeType: string;
+}): Promise<boolean> {
+  const metadata = { sizeBytes: input.sizeBytes, mimeType: input.mimeType };
+  return prisma.$transaction(async (tx) => {
+    const { count } = await tx.fileResource.updateMany({
+      where: {
+        id: input.resourceId,
+        sourceId: input.pathname,
+        tombstonedAt: null,
+        ...COPY_CLAIM,
+      },
+      data: { lifecycle: FileResourceLifecycle.ACTIVE, ...metadata },
+    });
+    if (count === 0) return false;
+    await tx.fileVersion.updateMany({
+      where: { resourceId: input.resourceId, revision: 1 },
+      data: metadata,
+    });
     await enqueueFileIndexJob(
       {
-        resourceId: id,
+        resourceId: input.resourceId,
         pipeline: FileIndexJobPipeline.EXTRACT,
         contentRevision: 1,
       },
       tx,
     );
-    return id;
+    return true;
+  });
+}
+
+/** Give back a claim whose pathname is known to hold no bytes. */
+export async function releaseDriveCopyResource(claim: {
+  resourceId: string;
+  pathname: string;
+}): Promise<void> {
+  await prisma.fileResource.deleteMany({
+    where: { id: claim.resourceId, sourceId: claim.pathname, ...COPY_CLAIM },
+  });
+}
+
+/** Claims old enough that no request can still be publishing them. */
+export function staleDriveCopyClaims(olderThan: Date, take: number) {
+  return prisma.fileResource.findMany({
+    where: { ...COPY_CLAIM, tombstonedAt: null, createdAt: { lt: olderThan } },
+    select: { id: true, sourceId: true },
+    orderBy: { createdAt: "asc" },
+    take,
   });
 }
 
@@ -247,6 +301,8 @@ export async function activateDriveUploadResource(input: {
     select: { id: true, contentRevision: true, tombstonedAt: true },
   });
   if (!resource || resource.tombstonedAt) return null;
+  // A copy is published only by its own protocol, never as an upload.
+  if (await isCopyClaim(resource.id)) return null;
 
   await prisma.$transaction(async (tx) => {
     await tx.fileResource.update({
@@ -405,7 +461,10 @@ export async function adoptDriveUploadResource(input: {
   });
 
   if (existing) {
-    if (existing.lifecycle === FileResourceLifecycle.PENDING) {
+    if (
+      existing.lifecycle === FileResourceLifecycle.PENDING &&
+      !(await isCopyClaim(existing.id, client))
+    ) {
       await client.fileResource.update({
         where: { id: existing.id },
         data: { lifecycle: FileResourceLifecycle.ACTIVE },

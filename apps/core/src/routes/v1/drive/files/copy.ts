@@ -39,8 +39,9 @@ import {
   driveFileSchema,
 } from "@/schemas/drive-file.schema";
 import {
-  createDriveCopyResource,
-  driveResourceHeld,
+  publishDriveCopyResource,
+  releaseDriveCopyResource,
+  reserveDriveCopyResource,
 } from "@/services/file-catalog.service";
 
 /** Names tried ("x (copy)", "x (copy) 2" … 20) before the copy gives up with 409. */
@@ -149,26 +150,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pathname: target,
     });
 
-    // A name nothing holds: no object, no folder, no catalog row.
+    // Identity and the free-indexing pins first, then bytes, then one fenced
+    // publish (see reserveDriveCopyResource). An outcome this request cannot
+    // know leaves the claim for reconcileStaleDriveCopies to settle.
     const sourceName = pathname.slice(folderPrefix.length);
     let target: string | null = null;
+    let resourceId = "";
     for (let attempt = 1; attempt <= MAX_NAME_TRIES && !target; attempt++) {
       const candidate = `${folderPrefix}${copyName(sourceName, label, attempt)}`;
       if (
-        !(await driveExists(candidate)) &&
-        !(await driveHasAny(`${candidate}/`)) &&
-        !(await driveResourceHeld(key(candidate)))
+        (await driveExists(candidate)) ||
+        (await driveHasAny(`${candidate}/`))
       ) {
+        continue;
+      }
+      try {
+        resourceId = await reserveDriveCopyResource({
+          key: key(candidate),
+          displayName: candidate.slice(folderPrefix.length),
+          mimeType: source.contentType,
+          sizeBytes: source.size,
+          decidedByUserId: userContext.userId,
+        });
         target = candidate;
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
       }
     }
     if (!target) throw conflict("No free name for the copy");
     const name = target.slice(folderPrefix.length);
+    const claim = { resourceId, pathname: target };
 
-    // Never overwrites. If the call fails for any reason but a missing
-    // source, its outcome is unknown: the bytes at this name may be a late
-    // copy or another file. Nothing is deleted; whatever is there is an
-    // ordinary Drive file, which the reader can open, rename or delete.
     let copied: { url: string; etag: string };
     try {
       copied = await driveCopy(pathname, target, {
@@ -176,45 +188,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cacheControlMaxAge: parseCacheControlMaxAge(source.cacheControl),
       });
     } catch (error) {
+      // The store answered "no source": nothing was written.
       if (error instanceof BlobNotFoundError) {
+        await releaseDriveCopyResource(claim);
         throw notFound("Source file not found");
       }
       throw error;
     }
 
     // The target must still be this write, and the source unchanged since
-    // its head, so the bytes copied are the ones its type describes. If not,
-    // undo only this request's own write, matched by its ETag, before any
-    // database write.
+    // its head, so the bytes are the ones its type describes. If not, undo
+    // only this write, matched by the ETag its copy returned.
     const [written, sourceNow] = await Promise.all([
       driveHead(target),
       driveHead(pathname),
     ]);
     if (written?.etag !== copied.etag || sourceNow?.etag !== source.etag) {
-      await driveUncopy(target, copied.etag).catch(() => undefined);
+      try {
+        await driveUncopy(target, copied.etag);
+        await releaseDriveCopyResource(claim);
+      } catch {
+        // Left to the reconciler.
+      }
       throw conflict("The file changed while it was copied; try again");
     }
 
-    // After this the outcome may be committed even if the call fails, so
-    // the bytes always stay.
-    try {
-      await createDriveCopyResource({
-        key: key(target),
-        displayName: name,
-        mimeType: written.contentType,
-        sizeBytes: written.size,
-        decidedByUserId: userContext.userId,
-      });
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw conflict("Another file took that name; try again");
-      }
-      throw error;
+    const published = await publishDriveCopyResource({
+      ...claim,
+      sizeBytes: written.size,
+      mimeType: written.contentType,
+    });
+    if (!published) {
+      throw conflict("The copy was moved or deleted before it was finished");
     }
 
     // Extraction only, which is free. Labelling is paid, and the copy's
     // pinned category and tags leave every later suggestion run nothing to
-    // ask (see createDriveCopyResource).
+    // ask (see reserveDriveCopyResource).
     nudgeFileExtraction();
 
     return ok(
