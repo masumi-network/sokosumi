@@ -8,9 +8,11 @@ import type { BrandBrain } from "../../lib/brand-sections";
 import {
   channelLabel,
   connectedNetworks,
+  formatDay,
   SOCIAL_PROVIDERS,
   waitsForNetwork,
 } from "../../lib/calendar";
+import { channelInfo, SOON_CHANNELS } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
 import { strategyApproved } from "../../lib/strategy";
@@ -100,7 +102,10 @@ export function ResultsPage({
         {drafts > 0 || waits.length === 0 ? (
           <Kpi label="Drafts" value={drafts} />
         ) : null}
-        <Kpi label="Failed" value={posts.failed} />
+        {/* Four tiles a row: Failed gives way unless something failed. */}
+        {posts.failed > 0 || waits.length === 0 || drafts === 0 ? (
+          <Kpi label="Failed" value={posts.failed} />
+        ) : null}
       </div>
       {waits.length > 0 ? (
         <p className="cal-waits">
@@ -140,10 +145,25 @@ export function ResultsPage({
       <section className="card">
         <h3>Reach and clicks</h3>
         <p className="muted">
-          {connected
-            ? `Your networks haven't reported reach or clicks yet, so there is nothing to chart. ${AGENT_NAME} says so in each weekly report instead of guessing.`
-            : `Reach and clicks show here once you connect an account and ${AGENT_NAME}'s posts go out. Until then there is nothing to measure.`}
+          {connected ? (
+            review ? (
+              <>
+                No numbers yet: your networks report reach and clicks after a
+                post has been out for a while. The first ones arrive with the
+                weekly report on{" "}
+                <LocalDay at={review.at} serverZone={review.zone} time />.
+              </>
+            ) : (
+              `Your networks haven't reported reach or clicks yet. ${AGENT_NAME} says so in each weekly report instead of guessing.`
+            )
+          ) : (
+            `Reach and clicks show here once you connect an account and ${AGENT_NAME}'s posts go out. Until then there is nothing to measure.`
+          )}
         </p>
+        <ComingUp
+          overview={overview}
+          openCalendar={() => openView("calendar")}
+        />
       </section>
       <section className="card">
         <h3>Weekly reports</h3>
@@ -182,6 +202,71 @@ export function ResultsPage({
         )}
       </section>
     </div>
+  );
+}
+
+const WEEK_MS = 7 * 86_400_000;
+
+/**
+ * What goes out in the next seven days: before any number exists, the work
+ * that will produce the numbers is what there is to see.
+ */
+function ComingUp({
+  overview,
+  openCalendar,
+  now = new Date(),
+}: {
+  overview: CmoOverview;
+  openCalendar: () => void;
+  now?: Date;
+}) {
+  const from = now.toISOString().slice(0, 10);
+  const until = new Date(now.getTime() + WEEK_MS).toISOString().slice(0, 10);
+  const coming = (
+    (overview.approvedStrategy ?? overview.strategy)?.calendar ?? []
+  )
+    .filter(
+      (entry) =>
+        entry.status === "scheduled" &&
+        entry.date >= from &&
+        entry.date < until,
+    )
+    .sort((a, b) =>
+      `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`),
+    );
+  if (coming.length === 0) return null;
+  return (
+    <>
+      <span className="label">
+        Going out in the next seven days: {coming.length}{" "}
+        {coming.length === 1 ? "post" : "posts"}
+      </span>
+      <ul className="list">
+        {coming.slice(0, 5).map((entry) => (
+          <li key={entry.id} className="li">
+            <ChannelIcon channel={entry.channel} size={16} />
+            <span className="grow">{entry.title}</span>
+            <span className="note num">
+              {formatDay(entry.date, {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+              })}
+              {entry.time ? `, ${entry.time}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        className="button button-secondary button-small"
+        onClick={openCalendar}
+      >
+        {coming.length > 5
+          ? `See all ${coming.length} in your calendar`
+          : "See your calendar"}
+      </button>
+    </>
   );
 }
 
@@ -373,6 +458,26 @@ export function ChannelsPage({
               </li>
             );
           })}
+          {SOON_CHANNELS.filter(
+            ({ key }) =>
+              channelInfo(key)?.group === "social" &&
+              // Where Core already lets TikTok connect, its row is above.
+              !(key === "tiktok" && overview.tiktokEnabled),
+          ).map(({ key, name }) => (
+            <li key={key} className="crow">
+              <ChannelIcon channel={key} size={20} />
+              <span className="grow">
+                <b>{name}</b>
+                <br />
+                <span className="note">
+                  {key === "tiktok"
+                    ? `Posting opens once TikTok approves our app. Until then ${AGENT_NAME}'s short videos go out as Reels and Shorts.`
+                    : "Not open yet."}
+                </span>
+              </span>
+              <span className="tag">Soon</span>
+            </li>
+          ))}
         </ul>
       </section>
       <section className="card">
@@ -481,8 +586,18 @@ function MailingList({ size, add, onChange }: MailingListProps) {
     <>
       <p className="muted">
         {AGENT_NAME} writes each issue for the people on your list. You find it
-        in your Calendar and send it yourself. Sending from here is coming soon.
+        in your Calendar and send it yourself.
       </p>
+      <div className="li">
+        <span className="grow">
+          <b>Send from here</b>
+          <br />
+          <span className="note">
+            {AGENT_NAME} sends each issue to your list himself.
+          </span>
+        </span>
+        <span className="tag">Soon</span>
+      </div>
       <div className="li">
         <span className="grow">
           {size > 0 ? (

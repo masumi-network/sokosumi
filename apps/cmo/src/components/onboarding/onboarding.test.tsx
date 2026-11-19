@@ -436,7 +436,58 @@ describe("Brand", () => {
     );
     expect(html).not.toContain(">Your voice<");
     expect(html).not.toContain("Unknown.");
-    expect(html).toContain("Font: Auto Pro");
+    expect(html.replace(/<[^>]+>/g, "")).toContain("Font: Auto Pro");
+    // The name stands in its own face where the device has it.
+    expect(html).toContain(
+      "font-family:&quot;Auto Pro&quot;, var(--font-sans)",
+    );
+  });
+
+  it("shows the brand's colours as swatches in the look row, never as hex codes", () => {
+    const html = render(
+      draft({
+        brandVisual: {
+          logoUrl: null,
+          colors: ["#ff51ff", "#0c0c0c"],
+          fonts: [],
+          siteName: "Acme",
+          designMdUrl: null,
+          images: [],
+        },
+      }),
+    );
+    const row = html.slice(html.indexOf(">Your look<"));
+    const detail = row.slice(0, row.indexOf("</button>"));
+    expect(detail).toContain('class="ob-look-dots"');
+    expect(detail).toContain("background:#ff51ff");
+    expect(detail.replace(/<[^>]+>/g, "")).not.toContain("#ff51ff");
+  });
+
+  it("counts an account the owner connected as a profile, and says when the site links to none", () => {
+    const onlySite = {
+      ...brain,
+      channels: [{ name: "Website", url: "https://acme.io" }],
+    };
+    const none = render(draft({ brandBrain: onlySite, channels: [] }));
+    expect(none).toContain("1 profile");
+    expect(none).toContain("No social profile is linked on your site.");
+    const connected = render(
+      draft({
+        brandBrain: onlySite,
+        channels: [
+          {
+            id: "c1",
+            provider: "x",
+            handle: "@acme",
+            displayName: "Acme",
+            status: "ACTIVE",
+          },
+        ],
+      }),
+    );
+    expect(connected).toContain("2 profiles");
+    expect(connected).toContain("Website, X");
+    expect(connected).not.toContain("No social profile is linked");
   });
 
   it("counts unanswered questions", () => {
