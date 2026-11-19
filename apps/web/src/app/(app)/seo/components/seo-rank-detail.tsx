@@ -1,22 +1,33 @@
 "use client";
 
 import { ArrowRight } from "lucide-react";
-import { useFormatter, useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import {
   type SeoRankDetail,
   type SeoRankResult,
   seoRankAbsentOthers,
+  seoRankShownTop,
 } from "./seo-rank-detail-model";
 import { SeoDate, SeoFoldSummary } from "./seo-shared";
 
-/** Orange marks an AI Overview that leaves the page out; grey one that cites it. */
-const AI_OVERVIEW_MARK = { cites: "bg-chart-5", leavesOut: "bg-chart-2" };
+/** A region or language code in the reader's words, e.g. "DE" as "Germany"; the code when the browser has no name. */
+function displayName(
+  locale: string,
+  type: "region" | "language",
+  code: string,
+) {
+  try {
+    return new Intl.DisplayNames([locale], { type }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
 
 function RankResult({ result }: { result: SeoRankResult }) {
   const t = useTranslations("App.Seo.overview.rank");
   const format = useFormatter();
-  if (result.kind === "absent") return t("absent", { top: result.top });
+  if (result.kind === "absent")
+    return t("absent", { top: seoRankShownTop(result.top) });
   if (result.kind === "other") return result.text;
   if (result.kind === "searchConsole")
     return t("searchConsole", {
@@ -32,19 +43,18 @@ function RankResult({ result }: { result: SeoRankResult }) {
  * Overview and the other keywords in one line. Every line the check wrote stays in a fold under it.
  */
 export function SeoRankDetailRow({
-  name,
   headingId,
   detail,
   evidence,
   onShowRankings,
 }: {
-  name: string;
   headingId: string;
   detail: SeoRankDetail;
   evidence: readonly string[];
   onShowRankings?: () => void;
 }) {
   const t = useTranslations("App.Seo");
+  const locale = useLocale();
   const absentOthers = seoRankAbsentOthers(detail.others);
   // Each other keyword the page is not simply absent for gets its own line: a position, or what the read says.
   const listedOthers = detail.others.filter(
@@ -53,8 +63,9 @@ export function SeoRankDetailRow({
   return (
     <div className="space-y-1">
       <p className="text-sm break-words">
+        {/* The check's own name ("Organic position per device") stays in the fold's lines. */}
         <span id={headingId} className="font-medium">
-          {name}
+          {t("overview.rank.title")}
         </span>
         <span className="text-muted-foreground">
           {" · "}
@@ -77,8 +88,8 @@ export function SeoRankDetailRow({
       ) : null}
       <p className="text-muted-foreground text-xs">
         {t("overview.rank.source", {
-          country: detail.country,
-          language: detail.language,
+          country: displayName(locale, "region", detail.country),
+          language: displayName(locale, "language", detail.language),
         })}
         {detail.readAt ? (
           <>
@@ -87,24 +98,11 @@ export function SeoRankDetailRow({
           </>
         ) : null}
       </p>
-      {detail.aiOverviewCites === null ? null : (
-        <p className="inline-flex items-center gap-1.5 text-xs">
-          <span
-            aria-hidden
-            className={cn(
-              "size-1.5 shrink-0 rounded-full forced-colors:bg-[CanvasText]",
-              detail.aiOverviewCites
-                ? AI_OVERVIEW_MARK.cites
-                : AI_OVERVIEW_MARK.leavesOut,
-            )}
-          />
-          {t(
-            detail.aiOverviewCites
-              ? "overview.rank.aiCited"
-              : "overview.rank.aiNotCited",
-          )}
-        </p>
-      )}
+      {/* Only a citation is news to the owner: an AI Overview without the page gives nothing to act on here.
+          That line stays in the fold. */}
+      {detail.aiOverviewCites ? (
+        <p className="text-xs">{t("overview.rank.aiCited")}</p>
+      ) : null}
       {listedOthers.length || absentOthers ? (
         <ul className="text-muted-foreground space-y-0.5 text-xs">
           {listedOthers.map((other) => (
@@ -116,7 +114,12 @@ export function SeoRankDetailRow({
             </li>
           ))}
           {absentOthers ? (
-            <li>{t("overview.rank.othersAbsent", absentOthers)}</li>
+            <li>
+              {t("overview.rank.othersAbsent", {
+                count: absentOthers.count,
+                top: seoRankShownTop(absentOthers.top),
+              })}
+            </li>
           ) : null}
         </ul>
       ) : null}
