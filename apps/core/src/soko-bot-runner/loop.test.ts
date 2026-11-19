@@ -118,6 +118,66 @@ describe("runTurnLoop", () => {
     );
   });
 
+  it("shows a nudged background run the tool calls it already made", async () => {
+    const stream = (
+      content: Answer["content"],
+      finish: "stop" | "tool-calls",
+    ) =>
+      streamOf({
+        content,
+        finishReason: { unified: finish, raw: finish },
+        warnings: [],
+        usage,
+      });
+    const model = new MockLanguageModelV3({
+      doStream: async ({ prompt }) => {
+        const roles = prompt.map((message) => message.role);
+        if (!roles.includes("tool"))
+          return stream(
+            [
+              {
+                type: "tool-call",
+                toolCallId: "call_1",
+                toolName: "work",
+                input: "{}",
+              },
+            ],
+            "tool-calls",
+          );
+        return roles.at(-1) === "tool"
+          ? stream([{ type: "text", text: "The draft is saved." }], "stop")
+          : stream([{ type: "text", text: "DONE: saved one draft." }], "stop");
+      },
+    });
+    let worked = 0;
+
+    const result = await runTurnLoop({
+      model,
+      system: "You are a bot.",
+      message: "Save one draft.",
+      tools: {
+        work: tool({
+          inputSchema: z.object({}),
+          execute: async () => {
+            worked += 1;
+            return "saved a draft";
+          },
+        }),
+      },
+      maxSteps: 50,
+      background: true,
+      deadline: 60 * MINUTE,
+      stopped: new AbortController().signal,
+      now: () => 0,
+    });
+
+    expect(result.text).toBe("saved one draft.");
+    expect(worked).toBe(1);
+    expect(
+      model.doStreamCalls.at(-1)?.prompt.map((message) => message.role),
+    ).toEqual(["system", "user", "assistant", "tool", "assistant", "user"]);
+  });
+
   it("answers a chat turn once, without the report round", async () => {
     const clock = { now: 0 };
     const model = new MockLanguageModelV3({
