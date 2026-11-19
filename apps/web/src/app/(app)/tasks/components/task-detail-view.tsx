@@ -149,6 +149,11 @@ export async function TaskDetailView({
               // own board is not the likely next page there.
               loadBoardOnMount={!forceReadOnly}
               calendarBackLabel={t("backToCalendar")}
+              seoAudit={task.seoAudit}
+              seoAuditLabels={{
+                audit: t("openSeoAudit"),
+                project: t("openSeoProjectWorkspace"),
+              }}
               parentLink={
                 task.ancestors?.length ? (
                   <nav

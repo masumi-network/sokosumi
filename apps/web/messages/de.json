@@ -1943,6 +1943,8 @@
         "context": "Kontext",
         "subtasks": "Teilaufgaben",
         "subtaskOf": "Teilaufgabe von",
+        "openSeoAudit": "SEO-Audit öffnen",
+        "openSeoProjectWorkspace": "SEO-Arbeitsbereich des Projekts öffnen",
         "copyIdentifier": "Task-ID kopieren",
         "identifierCopied": "{identifier} kopiert",
         "identifierCopyError": "Task-ID konnte nicht kopiert werden",
@@ -12413,14 +12415,14 @@
         "diagnostics": "Seitendetails",
         "diagnosticsHelp": "Was wir auf deinen Seiten gefunden haben.",
         "rank": {
-          "absent": "Nicht in den Top {top}",
+          "title": "Google-Ranking",
+          "absent": "Nicht in Googles Top {top}",
           "position": "Position {position}",
           "featuredSnippet": "Featured Snippet, Position {position}",
           "forKeyword": "für „{keyword}“",
-          "source": "Markt {country}, {language} · DataForSEO",
-          "aiNotCited": "Eine KI-Übersicht erscheint und zitiert die Seite nicht",
-          "aiCited": "Die KI-Übersicht zitiert die Seite",
-          "othersAbsent": "{count, plural, one {# weiteres Keyword} other {# weitere Keywords}}: keines in den Top {top}",
+          "source": "Google · {country} · {language}",
+          "aiCited": "Googles KI-Übersicht nennt diese Seite als Quelle",
+          "othersAbsent": "Auch nicht in den Top {top} für {count, plural, one {# weiteres Keyword} other {# weitere Keywords}}",
           "searchConsole": "Durchschnittliche Position in der Search Console: {position}",
           "serpRead": "Gelesenes Suchergebnis:",
           "allDetails": "Alle Details",
@@ -12444,7 +12446,7 @@
         "pageMeasurements": "Messwerte",
         "pageNotes": "Hinweise ({count})",
         "references": "{count, plural, one {# Quelle} other {# Quellen}}",
-        "noteRule": "Die Prüfung hat „{name}“ markiert",
+        "noteRule": "Die Prüfung hat das auf der Seite markiert",
         "askAgent": "Nach diesem Hinweis fragen",
         "askAboutNote": "Was bedeutet „{name}“ für meine Seite? Sollte ich etwas ändern?",
         "showAll": "Alles zeigen",
@@ -12454,9 +12456,100 @@
         "outsideToolRanges": "{total, plural, one {außerhalb des Tool-Bereichs ({tools})} other {außerhalb von {outside} der # Tool-Bereiche ({tools})}}",
         "toolRanges": "Bereiche, die SEO-Tools nutzen: {ranges}",
         "positionHint": "1 ist das oberste Ergebnis",
-        "noteFound": "Gefunden: {found}",
         "suggestionCount": "{count, plural, one {# Vorschlag} other {# Vorschläge}}",
-        "noteRuleName": "Prüfung: {name}",
+        "flaggedItems": {
+          "cameraFileName": "{count, plural, one {# Kamera-Dateiname} other {# Kamera-Dateinamen}}",
+          "imgWithoutAlt": "{count, plural, one {# Bild ohne Alt-Text} other {# Bilder ohne Alt-Text}}",
+          "linkStatus": "{count, plural, one {# Link} other {# Links}}"
+        },
+        "showMoreItems": "{count} weitere anzeigen",
+        "unlistedItems": "{count} weitere, die die Prüfung nicht aufgelistet hat",
+        "inlineImage": "Bild in der Seite",
+        "plainNote": {
+          "cameraFileNames": {
+            "title": "Bilder mit Kamera-Dateinamen",
+            "found": "{found, plural, one {# von {total} Bildern hat} other {# von {total} Bildern haben}} einen Kamera-Dateinamen",
+            "why": "Namen wie IMG_1234.jpg sagen nichts über das Bild. Google liest einen Dateinamen als kleinen Hinweis für die Bildersuche. Wenn du ein Bild neu hochlädst, benenne es nach seinem Inhalt, zum Beispiel hafen-bei-sonnenuntergang.jpg."
+          },
+          "brokenLinks": {
+            "title": "Links, die zu einem Fehler führen",
+            "found": "{found, plural, one {# von {total} Links führt} other {# von {total} Links führen}} zu einem Fehler",
+            "why": "Ein Link, der mit einer Fehlernummer antwortet, führt Besucher und Google in eine Sackgasse. Korrigiere oder entferne jeden Link. Die Zahl nach einem Link ist die Antwort der Website: 404 heißt, die Seite gibt es nicht. 429 ist etwas anderes: Die Website hat unsere Prüfung kurz abgewiesen, prüfe diesen Link also erneut, bevor du ihn änderst."
+          },
+          "xDefault": {
+            "title": "Keine x-default-Sprachversion",
+            "why": "Die Seite nennt Versionen für andere Sprachen oder Regionen, aber keine ist als x-default markiert. x-default sagt Google, welche Version Menschen sehen, deren Sprache nicht in der Liste steht, zum Beispiel eine Seite zur Sprachauswahl. Google empfiehlt es, verlangt es aber nicht."
+          },
+          "metaKeywords": {
+            "title": "Die Seite hat ein Meta-Keywords-Tag",
+            "why": "Google nutzt das Meta-Keywords-Tag nicht. Es wirkt sich in der Google-Suche nicht aus, du kannst es also behalten oder entfernen."
+          },
+          "twoWayFacts": {
+            "title": "Datums- oder Zeitangaben, die man zweifach lesen kann",
+            "why": "Ein Datum wie 04/05/2026 heißt in manchen Ländern 5. April und in anderen 4. Mai. Eine Zahl wie 1:30 kann 1 Minute 30 Sekunden, 1 Stunde 30 Minuten oder eine Uhrzeit heißen. Schreib den Monat als Wort (5. Mai 2026) und Dauern aus (1 Minute 30 Sekunden)."
+          },
+          "retiredMarkup": {
+            "title": "Markup für eine Suchfunktion, die Google nicht mehr zeigt",
+            "why": "Die Seite hat strukturierte Daten, etwa FAQ oder How-to, für ein Rich Result, das Google eingestellt hat. Laut Google schadet dieses Markup nicht, das Entfernen ist also freiwillig."
+          },
+          "titlePerDevice": {
+            "title": "Google zeigt auf Handy und Computer einen anderen Titel",
+            "why": "Google kann je nach Gerät einen anderen Titel für die Seite zeigen. Vergleiche beide Titel in den Details. Wenn beide die Seite gut beschreiben, musst du nichts ändern. Ein Titel, der nur auf einem Gerät kürzer abgeschnitten ist, ist kein echter Unterschied."
+          },
+          "noFieldData": {
+            "title": "Keine Geschwindigkeitsdaten von echten Besuchern",
+            "why": "Chrome veröffentlicht Geschwindigkeitsdaten echter Besucher nur für öffentliche Seiten (Status 200, kein noindex) mit genug Besuchen, und Google nennt keine Zahl. Bis dahin gilt der Labortest zur Geschwindigkeit aus diesem Audit."
+          },
+          "rawRenderedDiff": {
+            "title": "JavaScript ändert die Seite nach dem Laden",
+            "why": "Das HTML der Seite und die Seite nach JavaScript zeigen einen anderen Titel, eine andere Beschreibung, eine andere h1, andere Links oder Texte. Google liest die Seite nach JavaScript. Crawler, die kein JavaScript ausführen, sehen nur das HTML. Bring das HTML auf den Stand, den JavaScript zeigt."
+          },
+          "googleExtended": {
+            "title": "robots.txt sperrt Google-Extended",
+            "why": "Das hindert Google daran, deine Inhalte für Training und Grounding von Gemini zu nutzen. Es entfernt die Seite nicht aus der Google-Suche, den KI-Übersichten oder dem KI-Modus. Wenn du das so willst, musst du nichts ändern."
+          },
+          "canonicalTarget": {
+            "title": "Der Canonical-Link zeigt auf eine Seite mit einem Problem",
+            "why": "Der Canonical-Link sagt Google, welche Adresse die Hauptadresse dieser Seite ist. Er muss auf eine erreichbare Seite ohne Weiterleitung und ohne noindex zeigen. Setze ihn auf die erreichbare Adresse, die Google zeigen soll. Wenn das Ziel weiterleitet, ist das meist die Adresse, auf der die Weiterleitung endet."
+          },
+          "siteName": {
+            "title": "Die Startseite nennt Google den Namen der Website nicht",
+            "why": "Ohne strukturierte WebSite-Daten mit einem Namen auf der Startseite nimmt Google den Namen der Website aus anderen Teilen der Seite, etwa dem Titel. Füge der Startseite strukturierte WebSite-Daten mit dem Namen deiner Website hinzu."
+          },
+          "queryWords": {
+            "title": "Suchwörter fehlen in Titel und Hauptüberschrift",
+            "why": "Google hat diese Seite bei Suchen gezeigt, deren Wörter nicht in Titel und h1 stehen. Google erkennt auch verwandte Wörter, füge ein Wort also nur hinzu, wo es die Seite beschreibt."
+          },
+          "shopping": {
+            "title": "Produkt nicht in Google Shopping gefunden",
+            "why": "Die Prüfung hat dieses Produkt deiner Website nicht in Google Shopping gefunden. Es kann trotzdem unter einem anderen Namen gelistet sein. Das Google Merchant Center ist der wichtigste Weg, ein Produkt im Shopping-Tab zu zeigen."
+          },
+          "authorship": {
+            "title": "Kein klarer Autor oder Betreiber",
+            "why": "Leser suchen, wer einen Artikel geschrieben hat und wer die Website betreibt. Nenne den Autor mit einem Link zu einer Profilseite, und verlinke eine Über-uns-, Impressums- oder Kontaktseite."
+          },
+          "sitemap": {
+            "title": "Seite fehlt in der Sitemap",
+            "why": "Das Audit hat nichts gefunden, was Google am Indexieren dieser Seite hindert, aber sie steht nicht in deiner Sitemap. Google findet verlinkte Seiten auch ohne Sitemap, das ist also ein schwaches Signal. Füge die Seite der Sitemap hinzu, damit Google einen Weg mehr hat, sie zu finden."
+          },
+          "moneyLinked": {
+            "title": "Wichtige Seite ohne Link von deinen anderen Seiten",
+            "why": "Keine der anderen Seiten, die dieses Audit gelesen hat, verlinkt auf diese Seite. Jede wichtige Seite braucht einen Link von mindestens einer anderen Seite. Verlinke sie von einer passenden Seite. Das Audit liest nur einige Seiten, ein Link kann also auf einer nicht gelesenen Seite stehen."
+          },
+          "twoForKeyword": {
+            "title": "Mehrere deiner Seiten ranken für dieselbe Suche",
+            "why": "Google zeigt oben meist höchstens zwei Ergebnisse einer Website. Prüfe, ob jede dieser Seiten für diese Suche ranken soll oder ob eine Seite das Thema abdeckt. Das ist ein Punkt zum Prüfen, kein Fehler."
+          },
+          "noH1": {
+            "title": "Keine Hauptüberschrift (h1)",
+            "why": "Die Seite hat keine h1-Überschrift. In einem SEO-Test auf Reise-Listenseiten hat das Ändern der ersten Überschrift in eine h1 den Suchverkehr um 4,5 % gesteigert. Probiere eine h1, die sagt, worum es geht, und miss die Wirkung."
+          },
+          "aiSearchBots": {
+            "title": "robots.txt sperrt KI-Suchbots",
+            "why": "robots.txt sperrt einen oder mehrere der Bots, mit denen KI-Suchdienste wie ChatGPT, Claude oder Perplexity Seiten finden, diese Dienste zeigen die Seite also eventuell nicht in ihren Antworten. Wenn du sie absichtlich sperrst, musst du nichts ändern."
+          }
+        },
+        "checkFound": "Was die Prüfung gefunden hat",
         "suggestion": "Vorschlag:",
         "periodCompare": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous} ({change})",
         "periodBetter": "{days, plural, one {Vorheriger Tag} other {Vorherige # Tage}}: {previous}, jetzt besser",
