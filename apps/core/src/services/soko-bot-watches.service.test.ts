@@ -153,6 +153,31 @@ describe("watchOutcome", () => {
       "- Hannah: Yes, about 200 credits.",
     );
   });
+
+  it("waits while a Coworker's reply is still being written", async () => {
+    const chat = { ...studio, kind: "chat_reply", targetId: "room-1" };
+    const reply = {
+      content: "Yes, abo",
+      senderUser: null,
+      senderCoworker: { name: "Hannah" },
+      senderSokoBot: null,
+    };
+    db.chatRoomMessage.findMany.mockResolvedValueOnce([
+      { ...reply, metadata: { streaming: true } },
+    ]);
+    expect(await watchOutcome(chat)).toBeNull();
+    // An empty placeholder is never read at all.
+    expect(db.chatRoomMessage.findMany.mock.calls[0][0].where).toMatchObject({
+      content: { not: "" },
+    });
+
+    db.chatRoomMessage.findMany.mockResolvedValueOnce([
+      { ...reply, content: "Yes, about 200 credits.", metadata: {} },
+    ]);
+    expect(await watchOutcome(chat)).toContain(
+      "- Hannah: Yes, about 200 credits.",
+    );
+  });
 });
 
 describe("followUpMessage", () => {
