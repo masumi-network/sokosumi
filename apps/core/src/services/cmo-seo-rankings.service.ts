@@ -35,7 +35,8 @@ function requestKeywords(request: unknown): string[] {
  * Asks the SEO specialist (the SEO check service, through a Core-approved
  * rankings check on the brand's homepage, mobile) where the site ranks for up
  * to five searches. The same searches checked in the last day are not paid
- * for again: a running check is followed, a finished one is answered at once.
+ * for again: a running check is followed, a finished one is answered at once,
+ * and a failed one runs again.
  */
 export async function checkCmoSearchRankings(
   cuso: Cuso,
@@ -54,14 +55,21 @@ export async function checkCmoSearchRankings(
       projectId: cuso.projectId,
       kind: "rankings",
       createdAt: { gte: new Date(now.getTime() - REUSE_MS) },
-      status: { in: ["requested", "completed"] },
     },
     orderBy: { createdAt: "desc" },
-    select: { id: true, status: true, request: true },
+    select: { id: true, status: true, request: true, taskId: true },
   });
-  const same = recent.find(
+  const sameSearches = recent.filter(
     (row) => requestKeywords(row.request).join("|") === keywords.join("|"),
   );
+  const stopped = await stoppedTaskIds(
+    sameSearches.flatMap((row) => (row.taskId ? [row.taskId] : [])),
+  );
+  // A check that failed is neither followed nor answered: it runs again.
+  const failed = sameSearches.filter(
+    (row) => row.status === "failed" || (row.taskId && stopped.has(row.taskId)),
+  );
+  const same = sameSearches.find((row) => !failed.includes(row));
   if (same?.status === "completed") {
     const outcome = await seoCheckOutcome(same.id);
     if (outcome) return { status: "done", analysisId: same.id, outcome };
@@ -77,7 +85,10 @@ export async function checkCmoSearchRankings(
   const market = await cmoSeoMarket(cuso);
   const day = now.toISOString().slice(0, 10);
   const idempotencyKey = `cmo-rankings:${createHash("sha256")
-    .update(`${day}|${keywords.join("|")}`)
+    // Each failed try gets a key of its own, or the failed row would answer.
+    .update(
+      `${day}|${keywords.join("|")}${failed.length > 0 ? `|retry-${failed.length}` : ""}`,
+    )
     .digest("hex")
     .slice(0, 40)}`;
   try {
@@ -116,6 +127,16 @@ export async function checkCmoSearchRankings(
       return { status: "unavailable", message: error.message };
     throw error;
   }
+}
+
+/** The Tasks among these that failed or were canceled. */
+async function stoppedTaskIds(taskIds: string[]): Promise<Set<string>> {
+  if (taskIds.length === 0) return new Set();
+  const tasks = await prisma.task.findMany({
+    where: { id: { in: taskIds }, status: { in: ["FAILED", "CANCELED"] } },
+    select: { id: true },
+  });
+  return new Set(tasks.map((task) => task.id));
 }
 
 /**
