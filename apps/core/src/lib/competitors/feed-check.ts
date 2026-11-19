@@ -5,6 +5,12 @@ import { z } from "zod";
 import { evaluateWithJev } from "@/lib/soko-bot/jev";
 
 import type { NewsEvent } from "./news-pick";
+import {
+  isChangelog,
+  isOwnSource,
+  isReputableSource,
+  type SourceOwner,
+} from "./source-trust";
 
 /** What a fact may cite: a stored signal of the same Project. */
 export interface CitableSignal {
@@ -15,6 +21,7 @@ export interface CitableSignal {
   quote: string | null;
   sourceTitle: string | null;
   sourcePublisher: string | null;
+  sourceUrl: string | null;
   observedAt: Date;
   raw: unknown;
 }
@@ -98,51 +105,60 @@ export function unsupportedNumbers(
 /** Never in anything the owner reads on CMO: it is its own product. */
 const SOKOSUMI = /sokosumi/i;
 
-/**
- * How big a move is, from its signals: 0 for a price change, 1 for a launch,
- * 2 for an ad burst, null for anything the owner can hear about on Monday.
- */
-export function moveRank(signals: readonly CitableSignal[]): number | null {
-  const ranks = signals.map((signal): number | null => {
-    if (signal.kind === "PRICE_CHANGE" || newsEvent(signal) === "pricing")
-      return 0;
-    if (signal.kind === "AD") return isBigMove([signal]) ? 2 : null;
-    return isBigMove([signal]) ? 1 : null;
-  });
-  const found = ranks.filter((rank): rank is number => rank !== null);
-  return found.length > 0 ? Math.min(...found) : null;
-}
-
+/** What the owner hears called out: who did it, and whether it is a price. */
 const BIG_NEWS_EVENTS: readonly NewsEvent[] = [
-  "launch",
   "pricing",
+  "launch",
   "funding",
   "acquisition",
 ];
 
-function newsEvent(signal: CitableSignal): unknown {
-  return signal.kind === "NEWS"
-    ? (signal.raw as { event?: unknown } | null)?.event
-    : undefined;
+/**
+ * The event of a news signal that is big by itself: a price change, a
+ * launch, funding or an acquisition (the news model's label, `raw.event`,
+ * never the wording), told by the competitor or by a newsroom. A tracker, a
+ * directory or a blog retelling it is not enough, and an entry on a
+ * changelog is an update, not a launch.
+ */
+function bigNewsEvent(
+  signal: CitableSignal,
+  competitor: SourceOwner,
+): NewsEvent | null {
+  if (signal.kind !== "NEWS") return null;
+  const label = (signal.raw as { event?: unknown } | null)?.event;
+  const event = BIG_NEWS_EVENTS.find((big) => big === label);
+  if (!event) return null;
+  if (event === "launch" && isChangelog(signal.sourceUrl)) return null;
+  return isOwnSource(signal.sourceUrl, competitor) ||
+    isReputableSource(signal.sourceUrl)
+    ? event
+    : null;
 }
 
-/** A move the owner hears about at once rather than on Monday. */
-export function isBigMove(signals: readonly CitableSignal[]): boolean {
-  return signals.some((signal) => {
-    if (signal.kind === "PRICE_CHANGE") return true;
-    if (signal.kind === "AD") {
-      const count = (signal.raw as { count?: unknown } | null)?.count;
-      return typeof count === "number" && count >= 3;
-    }
-    if (signal.kind === "WEBSITE_CHANGE")
-      return (signal.raw as { about?: unknown } | null)?.about === "product";
-    if (signal.kind === "NEWS") {
-      // The news model's label, not the wording: a roaster "launches" a voter
-      // campaign too, and that is no product launch.
-      return BIG_NEWS_EVENTS.some((big) => big === newsEvent(signal));
-    }
-    return false;
+/**
+ * How big a move is, from its signals: 0 for a price change (the
+ * competitor's own pricing page moved, or first-hand pricing news), 1 for a
+ * launch, funding or an acquisition, null for anything else. One first-hand
+ * signal is enough; second-hand ones beside it change nothing.
+ */
+export function moveRank(
+  signals: readonly CitableSignal[],
+  competitor: SourceOwner,
+): number | null {
+  const ranks = signals.flatMap((signal) => {
+    if (signal.kind === "PRICE_CHANGE") return [0];
+    const event = bigNewsEvent(signal, competitor);
+    return event ? [event === "pricing" ? 0 : 1] : [];
   });
+  return ranks.length > 0 ? Math.min(...ranks) : null;
+}
+
+/** A move the owner sees called out in the week's message. */
+export function isBigMove(
+  signals: readonly CitableSignal[],
+  competitor: SourceOwner,
+): boolean {
+  return moveRank(signals, competitor) !== null;
 }
 
 function cited(

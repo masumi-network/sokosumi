@@ -25,6 +25,7 @@ import {
 import { AdsPanel, SearchAdControl } from "./ads";
 import { CalendarPage } from "./app/calendar-page";
 import {
+  CompetitorWeekCard,
   LearningCard,
   learningSteps,
   StrategyCard,
@@ -301,6 +302,45 @@ describe("learning steps", () => {
 });
 
 describe("cards", () => {
+  it("shows the competitors' week as one card: a line per move, the big one called out", () => {
+    const html = renderToStaticMarkup(
+      <CompetitorWeekCard
+        actions={noop}
+        week={{
+          checkDay: "2026-11-16",
+          moves: [
+            {
+              competitor: "Calendly",
+              text: "Calendly raised Standard from $10 to $12 per seat.",
+              source: {
+                label: "Calendly",
+                url: "https://calendly.com/pricing",
+              },
+              big: true,
+              meaning: "Your Teams plan is now the cheaper one.",
+              move: "Lead your pricing page with the price per seat.",
+            },
+            {
+              competitor: "Zcal",
+              text: "Zcal added team pages.",
+              source: { label: "zcal.co", url: "https://zcal.co/blog/teams" },
+              big: false,
+              meaning: "Never shown in chat.",
+              move: "Never shown in chat.",
+            },
+          ],
+        }}
+      />,
+    );
+    expect(html.match(/class="card"/g)).toHaveLength(1);
+    expect(html.match(/<li/g)).toHaveLength(2);
+    expect(html).toContain("What your competitors did this week");
+    expect(html).toContain('href="https://calendly.com/pricing"');
+    expect(html).toContain("Your Teams plan is now the cheaper one.");
+    expect(html).not.toContain("Never shown in chat.");
+    expect(html).toContain(">See every move<");
+  });
+
   it("offers Change and Pause on what is up next only after approval", () => {
     const update = {
       id: "u0",
