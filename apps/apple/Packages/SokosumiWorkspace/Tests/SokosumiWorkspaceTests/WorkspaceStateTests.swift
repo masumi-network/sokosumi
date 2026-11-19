@@ -14,6 +14,7 @@ private let timestamp = "2026-01-01T00:00:00.000Z"
 private final class ScriptedTransport: ClientTransport {
   private(set) var operationIDs: [String] = []
   private(set) var paths: [String] = []
+  private(set) var lastHeaders: HTTPFields?
   private(set) var bodies: [Data] = []
   private var responses: [(Int, String)]
   var remainingStubs: Int {
@@ -78,6 +79,7 @@ private final class ScriptedTransport: ClientTransport {
     }
     operationIDs.append(operationID)
     paths.append(request.path ?? "")
+    lastHeaders = request.headerFields
     if let body, let bytes = try? await Array(collecting: body, upTo: 1_000_000) {
       bodies.append(Data(bytes))
     } else {
@@ -267,6 +269,54 @@ private func waitForOutboundIdle(_ state: WorkspaceState) async {
 }
 
 struct WorkspaceStateTests {
+  @Test(arguments: [false, true]) func contactCardReadsOnlyItsActiveWorkspace(merged: Bool) async throws {
+    let id = "018f0000-0000-7000-8000-000000000001"
+    let preview = try #require(URL(string: "https://chat.example"))
+    func mention(_ workspaceId: String?) throws -> ContactMention {
+      let scope = workspaceId.map { "&workspace=\($0)" } ?? ""
+      let url = try #require(URL(string: "/contacts?contact=\(id)\(scope)", relativeTo: preview))
+      guard case let .contact(contact) = ChatLink(url: url, webBaseURL: preview) else { throw CancellationError() }
+      return contact
+    }
+    let mergedInto = merged ? #""018f0000-0000-7000-8000-000000000077""# : "null"
+    let record = """
+    {"id":"\(id)","mergedIntoId":\(mergedInto),"name":"Mira Quill","role":"Editor","stage":"COMMUNITY","kind":"PERSON","customFields":{},
+    "firstContactAt":"\(timestamp)","interactionCount":0,"version":1,"createdAt":"\(timestamp)","updatedAt":"\(timestamp)",
+    "channels":[],"lists":[],"knownBy":[],"recentInteractions":[],"mergeSuggestions":[]}
+    """
+    let (state, _, transport, _) = try ephemeralState([
+      (200, workspacesBody(preferring: "org_1")), (200, userBody), (200, roomsBody(names: [])), (200, envelope(record))
+    ], visible: false)
+    let previousContext = state.compositionContext
+    await state.reload()
+    let context = state.compositionContext
+    guard case .unavailable = try await state.contactMentionDetails(mention(acmeWorkspaceId), context: previousContext) else {
+      Issue.record("A card opened in an old session cannot read the current workspace")
+      return
+    }
+    guard case .otherWorkspace = try await state.contactMentionDetails(mention(personalWorkspaceId), context: context) else {
+      Issue.record("A contact in another accessible workspace should offer its Contacts link")
+      return
+    }
+    guard case .unavailable = try await state.contactMentionDetails(mention("018f0000-0000-7000-8000-000000000099"), context: context) else {
+      Issue.record("A contact in an inaccessible workspace should not be revealed")
+      return
+    }
+    let details = try await state.contactMentionDetails(mention(merged ? nil : acmeWorkspaceId), context: context)
+    switch (merged, details) {
+    case let (false, .available(contact, url)):
+      #expect(contact.name == "Mira Quill")
+      #expect(url.absoluteString == "https://chat.example/contacts?contact=\(id)&workspace=\(acmeWorkspaceId)")
+    case let (true, .merged(url)):
+      #expect(url.absoluteString == "https://chat.example/contacts?contact=018f0000-0000-7000-8000-000000000077&workspace=\(acmeWorkspaceId)")
+    default: Issue.record("Only the current workspace's unmerged contact should open")
+    }
+    #expect(transport.paths.filter { $0.contains("/contacts/") }.count == 1)
+    #expect(transport.paths.last?.hasSuffix("/contacts/\(id)") == true)
+    let slugHeader = try #require(HTTPField.Name("X-Organization-Slug"))
+    #expect(transport.lastHeaders?[slugHeader] == "acme")
+  }
+
   @Test(arguments: ["stay", "leave", "reset"], [false, true])
   func channelMembershipRespectsNavigation(action: String, joining: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"

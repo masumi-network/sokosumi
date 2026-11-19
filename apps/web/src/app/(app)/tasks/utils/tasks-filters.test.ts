@@ -10,7 +10,9 @@ import {
   getTaskTagQuery,
   hasActiveTasksFilters,
   hasClearableTasksFilters,
+  hasTasksViewParams,
   parseTasksFilters,
+  pickTasksViewQuery,
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
@@ -305,7 +307,6 @@ describe("tasks-filters", () => {
         visibility: null,
         stuck: false,
       },
-      "org-1",
     );
 
     // `owned` is now the non-default in an org, so it is written explicitly.
@@ -334,7 +335,7 @@ describe("tasks-filters", () => {
     });
   });
 
-  it("removes default filters from the query string", () => {
+  it("removes default filters from the query string but keeps the scope", () => {
     const currentSearchParams = new URLSearchParams({
       assigneeId: "coworker-1",
       status: TaskStatus.READY,
@@ -353,11 +354,10 @@ describe("tasks-filters", () => {
         visibility: null,
         stuck: false,
       },
-      "org-1",
     );
 
-    // `workspace` is now the org default, so it is dropped from the URL.
-    expect(nextSearchParams.toString()).toBe("");
+    // The scope stays even as the default: it marks a view the reader chose.
+    expect(nextSearchParams.toString()).toBe("scope=workspace");
   });
 
   it("derives stable reset keys", () => {
@@ -468,36 +468,28 @@ describe("tasks-filters", () => {
   });
 
   it("omits default visibility from the URL and writes PRIVATE", () => {
-    const allParams = buildTasksFiltersSearchParams(
-      new URLSearchParams(),
-      {
-        scope: "workspace",
-        assigneeId: null,
-        assigneeSokoBotId: null,
-        assigneeUserId: null,
-        status: null,
-        projectId: null,
-        visibility: null,
-        stuck: false,
-      },
-      "org-1",
-    );
+    const allParams = buildTasksFiltersSearchParams(new URLSearchParams(), {
+      scope: "workspace",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: null,
+      projectId: null,
+      visibility: null,
+      stuck: false,
+    });
     expect(allParams.has("visibility")).toBe(false);
 
-    const privateParams = buildTasksFiltersSearchParams(
-      new URLSearchParams(),
-      {
-        scope: "workspace",
-        assigneeId: null,
-        assigneeSokoBotId: null,
-        assigneeUserId: null,
-        status: null,
-        projectId: null,
-        visibility: TaskVisibility.PRIVATE,
-        stuck: false,
-      },
-      "org-1",
-    );
+    const privateParams = buildTasksFiltersSearchParams(new URLSearchParams(), {
+      scope: "workspace",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      status: null,
+      projectId: null,
+      visibility: TaskVisibility.PRIVATE,
+      stuck: false,
+    });
     expect(privateParams.get("visibility")).toBe("PRIVATE");
   });
 
@@ -589,11 +581,28 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
       expect(getTasksFiltersResetKey(filters, "org-1")).not.toBe(
         getTasksFiltersResetKey(cleared, "org-1"),
       );
-      expect(
-        buildTasksFiltersSearchParams(initial, cleared, "org-1").toString(),
-      ).toBe(`projectId=${PROJECT_ID}`);
+      expect(buildTasksFiltersSearchParams(initial, cleared).toString()).toBe(
+        `projectId=${PROJECT_ID}&scope=workspace`,
+      );
     },
   );
+
+  it("keeps a picked sort and sub-tasks through the URL and through Clear", () => {
+    const initial = new URLSearchParams({
+      sort: "priority",
+      subtasks: "1",
+      status: "READY",
+    });
+    const filters = getTasksFiltersFromSearchParams(initial, "org-1", []);
+    expect(filters.sort).toBe("priority");
+    expect(filters.subtasks).toBe(true);
+    expect(parseTasksFilters({ sort: "bogus" }, "org-1").sort).toBeUndefined();
+    const cleared = clearTasksFilters(filters, "org-1");
+    expect(hasClearableTasksFilters(cleared, "org-1")).toBe(false);
+    expect(
+      buildTasksFiltersSearchParams(new URLSearchParams(), cleared).toString(),
+    ).toBe("scope=workspace&subtasks=1&sort=priority");
+  });
 
   it("drops malformed tag identifiers before sending a Core query", () => {
     expect(
@@ -608,23 +617,22 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
     expect(filters.stuck).toBe(true);
     expect(parseTasksFilters({ stuck: "yes" }, "org-1").stuck).toBe(false);
     expect(hasClearableTasksFilters(filters, "org-1")).toBe(true);
-    // Stuck is its own toggle, not part of the Filters menu dot.
+    // Stuck is a Filters menu section, so it lights the menu dot.
     expect(hasActiveTasksFilters({ ...filters, scope: "owned" }, null)).toBe(
-      false,
+      true,
     );
 
     const params = buildTasksFiltersSearchParams(
       new URLSearchParams(),
       filters,
-      "org-1",
     );
     expect(params.get("stuck")).toBe("1");
 
     const cleared = clearTasksFilters(filters, "org-1");
     expect(cleared.stuck).toBe(false);
-    expect(
-      buildTasksFiltersSearchParams(params, cleared, "org-1").has("stuck"),
-    ).toBe(false);
+    expect(buildTasksFiltersSearchParams(params, cleared).has("stuck")).toBe(
+      false,
+    );
   });
 
   it("reads, writes and clears the Needs me filter", () => {
@@ -636,14 +644,13 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
     const params = buildTasksFiltersSearchParams(
       new URLSearchParams(),
       filters,
-      "org-1",
     );
     expect(params.get("needsMe")).toBe("1");
 
     const cleared = clearTasksFilters(filters, "org-1");
-    expect(
-      buildTasksFiltersSearchParams(params, cleared, "org-1").has("needsMe"),
-    ).toBe(false);
+    expect(buildTasksFiltersSearchParams(params, cleared).has("needsMe")).toBe(
+      false,
+    );
   });
 
   it("reads, writes and clears the Mentions filter", () => {
@@ -654,13 +661,36 @@ describe("hasClearableTasksFilters and clearTasksFilters", () => {
     const params = buildTasksFiltersSearchParams(
       new URLSearchParams(),
       filters,
-      "org-1",
     );
     expect(params.get("mentions")).toBe("1");
 
     const cleared = clearTasksFilters(filters, "org-1");
+    expect(buildTasksFiltersSearchParams(params, cleared).has("mentions")).toBe(
+      false,
+    );
+  });
+});
+
+describe("hasTasksViewParams and pickTasksViewQuery", () => {
+  it("treats a project alone as no view, and any filter key as one", () => {
+    expect(hasTasksViewParams(new URLSearchParams())).toBe(false);
     expect(
-      buildTasksFiltersSearchParams(params, cleared, "org-1").has("mentions"),
+      hasTasksViewParams(new URLSearchParams({ projectId: PROJECT_ID })),
     ).toBe(false);
+    expect(hasTasksViewParams({ create: "true", assignee: "cow" })).toBe(false);
+    expect(hasTasksViewParams(new URLSearchParams({ scope: "owned" }))).toBe(
+      true,
+    );
+    expect(hasTasksViewParams({ sort: "priority" })).toBe(true);
+  });
+
+  it("keeps only the view keys of a URL, in one order", () => {
+    expect(
+      pickTasksViewQuery(
+        new URLSearchParams(
+          `status=READY&projectId=${PROJECT_ID}&create=true&scope=owned`,
+        ),
+      ),
+    ).toBe("scope=owned&status=READY");
   });
 });

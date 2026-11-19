@@ -2,16 +2,14 @@
 
 import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
 import {
-  AtSign,
   Building2,
   CircleDashed,
   Eye,
-  Hand,
   Hourglass,
   Tag,
   Users,
 } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 import {
@@ -24,6 +22,7 @@ import {
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   hasActiveTasksFilters,
+  hasTasksViewParams,
   type ProjectFilterOption,
   STUCK_AFTER_DAYS,
   type TasksFilters,
@@ -32,19 +31,22 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import type { CoworkerOption } from "@/lib/types/coworker";
-import { cn } from "@/lib/utils";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
 import { TaskTagDot } from "./task-tag-colors";
+import { replaceTasksQuery, useTasksSearchParams } from "./tasks-search-params";
+import {
+  getTasksView,
+  getTasksViewPatch,
+  TasksViewSwitcher,
+} from "./tasks-view-switcher";
 
 /**
  * Focuses the first visible toolbar button outside the chip list. A removed
  * chip or a cleared empty state unmounts the focused button, which would
  * otherwise drop keyboard focus to the page. The Filters menu is preferred:
- * a quick filter is a toggle, and one more press there would set a filter.
+ * one more press on a view in the switcher would change the view.
  */
 export function focusToolbarControl(toolbar: Element | null | undefined) {
   const buttons = Array.from(toolbar?.querySelectorAll("button") ?? []).filter(
@@ -57,13 +59,17 @@ export function focusToolbarControl(toolbar: Element | null | undefined) {
 }
 
 const FILTERS_MENU_ATTRIBUTE = "data-filters-menu";
+const STUCK_OPTION_VALUE = "stuck";
 
 interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
-  /** The viewer, for the My tasks toggle; hidden when they are not an option. */
+  /** The viewer, for the view switcher; without one it is hidden. */
   userId?: string | null;
-  /** The Display control, shown after the quick filters. */
-  display?: React.ReactNode;
+  /**
+   * The view options menu, shown after the Filters menu. As a function it
+   * gets the view and filters in effect, each named for a reader.
+   */
+  display?: React.ReactNode | ((activeFilters: string[]) => React.ReactNode);
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   labels: {
@@ -119,7 +125,7 @@ export function TasksViewFilters({
   );
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const searchParams = useTasksSearchParams();
 
   const filters = useMemo(
     () =>
@@ -139,11 +145,14 @@ export function TasksViewFilters({
 
   const handleFilterChange = useCallback(
     (patch: Partial<TasksFilters>) => {
-      const paramsForMerge = new URLSearchParams(
-        typeof window !== "undefined"
-          ? window.location.search
-          : searchParams.toString(),
+      const windowParams = new URLSearchParams(
+        typeof window !== "undefined" ? window.location.search : "",
       );
+      // The address bar can lag behind a restored saved view; then the view
+      // lives only in the restored search params.
+      const paramsForMerge = hasTasksViewParams(windowParams)
+        ? windowParams
+        : new URLSearchParams(searchParams.toString());
       const current = getTasksFiltersFromSearchParams(
         paramsForMerge,
         activeOrganizationId,
@@ -151,14 +160,12 @@ export function TasksViewFilters({
         projectOptions,
       );
       const nextFilters: TasksFilters = { ...current, ...patch };
-      const nextSearchParams = buildTasksFiltersSearchParams(
-        paramsForMerge,
-        nextFilters,
+      replaceTasksQuery(
+        router,
+        pathname,
+        buildTasksFiltersSearchParams(paramsForMerge, nextFilters),
         activeOrganizationId,
       );
-      const nextQuery = nextSearchParams.toString();
-
-      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
     },
     [
       activeOrganizationId,
@@ -284,6 +291,24 @@ export function TasksViewFilters({
       ),
     });
 
+    // Stuck narrows by how long a status has waited, so it sits beside
+    // Status rather than in the toolbar.
+    nextSections.push({
+      id: "stuck",
+      label: t("stuck"),
+      icon: Hourglass,
+      value: filters.stuck ? STUCK_OPTION_VALUE : null,
+      allLabel: labels.all,
+      onChange: (value) =>
+        handleFilterChange({ stuck: value === STUCK_OPTION_VALUE }),
+      options: [
+        {
+          value: STUCK_OPTION_VALUE,
+          label: t("stuckDays", { days: STUCK_AFTER_DAYS }),
+        },
+      ],
+    });
+
     nextSections.push({
       id: "tag",
       label: tTags("label"),
@@ -310,6 +335,7 @@ export function TasksViewFilters({
     labels.statusOptions,
     labels.visibilityLabel,
     labels.visibilityPrivate,
+    t,
     tTags,
     tagOptions,
   ]);
@@ -317,7 +343,9 @@ export function TasksViewFilters({
   const me = coworkerOptions.find(
     (option) => option.kind === "user" && option.id === userId,
   );
-  const showingMine = !!me && filters.assigneeUserId === userId;
+  // From the view, so an assignee set beside Needs me or Mentions still
+  // shows as a chip.
+  const showingMine = getTasksView(filters, userId) === "mine";
 
   // One removable chip per filter the Filters menu set; the project switcher owns projectId.
   const assigneeId =
@@ -341,18 +369,20 @@ export function TasksViewFilters({
       value: labels.visibilityPrivate,
       clear: { visibility: null },
     },
-    assigneeId && {
-      id: "coworker",
-      label: labels.coworkerLabel,
-      value:
-        coworkerOptions.find((option) => option.id === assigneeId)?.name ??
-        assigneeId,
-      clear: {
-        assigneeId: null,
-        assigneeSokoBotId: null,
-        assigneeUserId: null,
+    // My tasks is a view in the switcher, not a chip.
+    assigneeId &&
+      !showingMine && {
+        id: "coworker",
+        label: labels.coworkerLabel,
+        value:
+          coworkerOptions.find((option) => option.id === assigneeId)?.name ??
+          assigneeId,
+        clear: {
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+        },
       },
-    },
     filters.tag && {
       id: "tag",
       label: tTags("label"),
@@ -367,87 +397,46 @@ export function TasksViewFilters({
       value: labels.statusOptions[filters.status],
       clear: { status: null },
     },
+    filters.stuck && {
+      id: "stuck",
+      label: t("stuck"),
+      value: t("stuckDays", { days: STUCK_AFTER_DAYS }),
+      clear: { stuck: false },
+    },
   ].filter((chip) => !!chip);
 
+  const currentView = getTasksView(filters, userId);
+  const project = projectOptions.find(
+    (option) => option.id === filters.projectId,
+  );
+  const viewName = {
+    all: labels.all,
+    mine: labels.assignedToMe,
+    "needs-me": t("needsMe"),
+    mentions: t("mentions"),
+  }[currentView];
+  const activeFilters = [
+    t("chip", { label: t("viewLabel"), value: viewName }),
+    project && t("chip", { label: t("projectLabel"), value: project.name }),
+    ...chips.map((chip) => t("chip", { label: chip.label, value: chip.value })),
+  ].filter((name): name is string => !!name);
+
   return (
-    // Anchored to the board's left edge: the quick filters first, then how
-    // the Tasks are shown, then what is active, because those are what a
-    // reader changes most. Chips wrap under them. The menu holds the rest
-    // and sits at the right edge.
+    // Anchored to the board's left edge: the view switcher first, then what
+    // is active, because those are what a reader changes most. Chips wrap
+    // under them. The Filters menu holds the rest and sits at the right
+    // edge, with the view options menu after it.
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-      {me ? (
-        <Button
-          variant={showingMine ? "secondary" : "ghost"}
-          size="sm"
-          aria-pressed={showingMine}
-          // On is a fill and an outline: the fill alone is too close to the
-          // page to read as pressed.
-          className={cn("ps-1.5", showingMine && "border-control-border")}
-          onClick={() =>
-            handleFilterChange({
-              assigneeId: null,
-              assigneeSokoBotId: null,
-              assigneeUserId: showingMine ? null : (userId ?? null),
-            })
+      {userId ? (
+        <TasksViewSwitcher
+          value={currentView}
+          onChange={(view) =>
+            handleFilterChange(getTasksViewPatch(view, filters, userId))
           }
-        >
-          <Avatar aria-hidden className="size-5 shrink-0">
-            {me.image ? <AvatarImage src={me.image} alt="" /> : null}
-            <AvatarFallback className="bg-muted text-2xs font-medium">
-              {me.name.trim().charAt(0).toUpperCase() || "?"}
-            </AvatarFallback>
-          </Avatar>
-          {labels.assignedToMe}
-        </Button>
+          showMine={!!me}
+          labels={{ all: labels.all, assignedToMe: labels.assignedToMe }}
+        />
       ) : null}
-      <Button
-        variant={filters.stuck ? "secondary" : "ghost"}
-        size="sm"
-        aria-pressed={filters.stuck}
-        title={t("stuckHint", { days: STUCK_AFTER_DAYS })}
-        className={cn("hit-area", filters.stuck && "border-control-border")}
-        onClick={() => handleFilterChange({ stuck: !filters.stuck })}
-      >
-        <Hourglass aria-hidden />
-        {/* Icon only on a phone, so the toolbar stays one row. */}
-        <span className="max-sm:sr-only">
-          {t("stuck", { days: STUCK_AFTER_DAYS })}
-        </span>
-      </Button>
-      {userId ? (
-        <Button
-          variant={filters.needsMe ? "secondary" : "ghost"}
-          size="sm"
-          aria-pressed={!!filters.needsMe}
-          title={t("needsMeHint")}
-          className={cn("hit-area", filters.needsMe && "border-control-border")}
-          onClick={() => handleFilterChange({ needsMe: !filters.needsMe })}
-        >
-          <Hand aria-hidden />
-          {/* Icon only below lg, so the toolbar stays one row beside an
-              open sidebar. */}
-          <span className="max-lg:sr-only">{t("needsMe")}</span>
-        </Button>
-      ) : null}
-      {userId ? (
-        <Button
-          variant={filters.mentions ? "secondary" : "ghost"}
-          size="sm"
-          aria-pressed={!!filters.mentions}
-          title={t("mentionsHint")}
-          className={cn(
-            "hit-area",
-            filters.mentions && "border-control-border",
-          )}
-          onClick={() => handleFilterChange({ mentions: !filters.mentions })}
-        >
-          <AtSign aria-hidden />
-          {/* Icon only below lg, so the toolbar stays one row beside an
-              open sidebar. */}
-          <span className="max-lg:sr-only">{t("mentions")}</span>
-        </Button>
-      ) : null}
-      {display}
       {chips.length > 0 ? (
         <ul aria-label={t("activeFilters")} className="flex flex-wrap gap-2">
           {chips.map((chip) => {
@@ -486,8 +475,25 @@ export function TasksViewFilters({
           sections={sections}
           showActiveIndicator={showActiveIndicator}
           align="end"
+          resetAction={
+            chips.length > 0
+              ? {
+                  label: t("clear"),
+                  onReset: () =>
+                    handleFilterChange(
+                      chips.reduce<Partial<TasksFilters>>(
+                        (patch, chip) => ({ ...patch, ...chip.clear }),
+                        // Needs me and Mentions hide the scope chip, but a
+                        // scope set before them would come back after.
+                        { scope: getDefaultTasksScope(activeOrganizationId) },
+                      ),
+                    ),
+                }
+              : undefined
+          }
         />
       </span>
+      {typeof display === "function" ? display(activeFilters) : display}
     </div>
   );
 }

@@ -414,7 +414,7 @@ export function PasskeySettings({
         )}
         <Button
           type="button"
-          className="w-full"
+          className="ms-auto"
           disabled={!canAddPasskey || isLoadingPasskeys || isMutatingPasskeys}
           loading={isAddingPasskey}
           onClick={() => {

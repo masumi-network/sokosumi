@@ -1,5 +1,6 @@
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { TaskStatus } from "@sokosumi/core-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
   fireEvent,
@@ -135,6 +136,9 @@ vi.mock("@/lib/actions/task/action", () => ({
 vi.mock("@/app/tasks/actions", () => ({
   loadMoreTasksColumn: vi.fn(),
   loadMoreTasksList: vi.fn(),
+  exportTasks: vi.fn(),
+  previewTasksExport: vi.fn(async () => ({ rows: [], matched: 0 })),
+  saveTasksView: vi.fn(async () => true),
 }));
 
 vi.mock("./create-task-modal", () => ({
@@ -153,13 +157,18 @@ vi.mock("./tasks-view-filters", async (importOriginal) => ({
   focusToolbarControl: (
     await importOriginal<typeof import("./tasks-view-filters")>()
   ).focusToolbarControl,
-  // The filter row places the Display control, so the stub does too.
-  TasksViewFilters: ({ display }: { display?: React.ReactNode }) => (
+  // The filter row places the view options menu after Filters, so the stub
+  // does too.
+  TasksViewFilters: ({
+    display,
+  }: {
+    display?: React.ReactNode | ((activeFilters: string[]) => React.ReactNode);
+  }) => (
     <>
-      {display}
       <span data-filters-menu>
         <button type="button">Filters</button>
       </span>
+      {typeof display === "function" ? display([]) : display}
     </>
   ),
 }));
@@ -245,11 +254,20 @@ const labels = {
   } as Record<KanbanColumnId, string>,
   display: {
     button: "Display",
+    layout: "Layout",
     list: "List",
     board: "Board",
     density: "Density",
     normal: "Normal",
     compact: "Compact",
+    sortBy: "Sort by",
+    sortOptions: {
+      updatedAt: "Last updated",
+      createdAt: "Newest",
+      priority: "Priority",
+      dueOn: "Due date",
+    },
+    showSubtasks: "Show subtasks",
   },
   listPlaceholder: "No tasks",
   loadMore: "Load more",
@@ -315,7 +333,7 @@ function boardView(
   );
 }
 
-it("applies Display density to board and list and restores the saved preference", async () => {
+it("applies density from the view options menu to board and list and restores the saved preference", async () => {
   document.cookie = "tasks_density=; max-age=0; path=/";
   const user = userEvent.setup();
   const { unmount } = renderBoard();
@@ -355,8 +373,8 @@ it("applies Display density to board and list and restores the saved preference"
   document.cookie = "tasks_density=; max-age=0; path=/";
 });
 
-// The toolbar has no Archived button, so the Display popover is the way there.
-it("reaches archived Tasks from the Display popover", async () => {
+// The toolbar has no Archived button, so the view options menu is the way there.
+it("reaches archived Tasks from the view options menu", async () => {
   const user = userEvent.setup();
   render(boardView([TASK]));
   expect(screen.queryByRole("link", { name: "link" })).toBeNull();
@@ -367,6 +385,24 @@ it("reaches archived Tasks from the Display popover", async () => {
     "href",
     "/tasks/archived",
   );
+});
+
+// Export as CSV opens a dialog from a menu item that is gone once the menu
+// closes, so closing the dialog must hand focus back to the menu button.
+it("returns focus to the view options button when the export dialog closes", async () => {
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      {boardView([TASK])}
+    </QueryClientProvider>,
+  );
+  const menuButton = screen.getByRole("button", { name: "Display" });
+
+  await user.click(menuButton);
+  await user.click(await screen.findByRole("button", { name: "button" }));
+  await user.click(await screen.findByRole("button", { name: "cancel" }));
+
+  await waitFor(() => expect(menuButton).toHaveFocus());
 });
 
 // New task lives in the sidebar header, so the Tasks page shows it once; the
@@ -654,6 +690,26 @@ it("hands a link's ?view=board back to the saved view when List is picked", asyn
   searchParamsRef.current = new URLSearchParams();
 });
 
+it("turns on Show sub-tasks without reloading the page", async () => {
+  replaceMock.mockClear();
+  const replaceState = vi.spyOn(window.history, "replaceState");
+  try {
+    const user = userEvent.setup();
+    renderBoard();
+    await user.click(screen.getByRole("button", { name: "Display" }));
+    await user.click(screen.getByRole("switch", { name: "Show subtasks" }));
+
+    expect(replaceState).toHaveBeenCalledWith(
+      null,
+      "",
+      expect.stringContaining("subtasks=1"),
+    );
+    expect(replaceMock).not.toHaveBeenCalled();
+  } finally {
+    replaceState.mockRestore();
+  }
+});
+
 it("keeps a task that left the server page when this tab did not archive it", () => {
   const shifted: TaskWithCoworker = { ...TASK, id: "task-shifted" };
   const { rerender } = renderBoard([TASK, shifted]);
@@ -814,7 +870,9 @@ describe("TasksView filtered empty state", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Filters.clear" }),
     );
-    expect(replaceMock).toHaveBeenCalledWith(`/tasks?projectId=${PROJECT_ID}`);
+    expect(replaceMock).toHaveBeenCalledWith(
+      `/tasks?projectId=${PROJECT_ID}&scope=owned`,
+    );
   });
 
   it("keeps the plain board when nothing is filtered", () => {

@@ -15,6 +15,7 @@ vi.mock("@/lib/db/prisma", () => ({
 
 import {
   calendarPeopleBlock,
+  confirmedMeetingContacts,
   contactLinesByEmail,
   emailsIn,
 } from "./contacts-context.service";
@@ -82,6 +83,44 @@ describe("contactLinesByEmail", () => {
       }),
     ).toEqual(new Map());
     expect(channelFindMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("confirmedMeetingContacts", () => {
+  it("never attaches a conflicting CRM identity or a role to an unnamed attendee", async () => {
+    channelFindMany.mockResolvedValue([
+      {
+        value: "team@studio.example",
+        contact: { ...nina, kind: "PERSON", name: "Morgan" },
+      },
+      { value: "office@unknown.example", contact: { ...nina, kind: "PERSON" } },
+      { value: "nina@acme.com", contact: { ...nina, kind: "PERSON" } },
+      {
+        value: "press@studio.example",
+        contact: { ...nina, name: "Studio", kind: "ORGANIZATION" },
+      },
+      {
+        value: "alex@other.example",
+        contact: {
+          id: "c-2",
+          kind: "PERSON",
+          name: "Alex",
+          role: null,
+          organization: null,
+        },
+      },
+    ]);
+    const matches = await confirmedMeetingContacts("ws-1", [
+      { email: "team@studio.example", name: "Avery" },
+      { email: "office@unknown.example", name: null },
+      { email: "nina@acme.com", name: "Nina Keller" },
+      { email: "press@studio.example", name: "Studio" },
+      { email: "alex@other.example", name: "Alex" },
+    ]);
+    expect([...matches]).toEqual([
+      ["nina@acme.com", { id: "c-1", role: "CEO @ Acme" }],
+      ["alex@other.example", { id: "c-2", role: null }],
+    ]);
   });
 });
 

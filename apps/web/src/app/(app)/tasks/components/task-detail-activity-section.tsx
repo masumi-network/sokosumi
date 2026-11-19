@@ -20,6 +20,7 @@ import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
 import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors";
 import { taskActivityFeedFromEvents } from "@/app/tasks/utils/task-activity-feed";
 import { canCommentOnTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import { ContactMentionScope } from "@/components/contact-mention-card";
 
 export async function TaskActivitySectionContent({
   taskId,
@@ -113,7 +114,7 @@ export async function TaskActivitySectionContent({
     hasAssignedSeat,
   });
 
-  return (
+  const activity = (
     <TaskActivitySection
       key={taskId}
       taskId={taskId}
@@ -140,7 +141,10 @@ export async function TaskActivitySectionContent({
       expandLabel={t("expand")}
       collapseLabel={t("collapse")}
       viewerPlan={viewerPlan}
-      mentionableUsers={mentionableUsers.map(({ id, name }) => ({ id, name }))}
+      mentionableUsers={mentionableUsers.map(({ id, name }) => ({
+        id,
+        name,
+      }))}
       canComment={canComment}
       headerAction={
         <TaskFollowControl
@@ -154,4 +158,5 @@ export async function TaskActivitySectionContent({
       }
     />
   );
+  return <ContactMentionScope>{activity}</ContactMentionScope>;
 }

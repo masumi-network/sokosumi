@@ -7,12 +7,16 @@ import { Suspense } from "react";
 import { calendarUrl } from "@/app/calendar/calendar-url";
 import { TasksPageSkeletonHost } from "@/app/tasks/components/tasks-page-skeleton-host";
 import { TasksPendingVendorGrantBannerSlot } from "@/app/tasks/components/tasks-pending-vendor-grant-banner-slot";
+import { TasksSearchParamsProvider } from "@/app/tasks/components/tasks-search-params";
 import { TasksView } from "@/app/tasks/components/tasks-view";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
-import { firstQueryString } from "@/app/tasks/utils/tasks-filters";
+import {
+  firstQueryString,
+  hasTasksViewParams,
+} from "@/app/tasks/utils/tasks-filters";
 import { loadTasksPageData } from "@/app/tasks/utils/tasks-page-data";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import {
@@ -40,7 +44,9 @@ interface TasksPageProps {
     tag?: string | string[];
     stuck?: string | string[];
     needsMe?: string | string[];
+    subtasks?: string | string[];
     mentions?: string | string[];
+    sort?: string | string[];
     /** The retired Calendar tab (`tab=calendar`) moved to `/calendar`. */
     tab?: string | string[];
     date?: string;
@@ -85,6 +91,8 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     stuck,
     needsMe,
     mentions,
+    sort,
+    subtasks,
   } = resolvedSearchParams;
   const [t, tColumns, tDetailActions, cookieStore, defaultViewMode] =
     await Promise.all([
@@ -116,6 +124,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     canCreateTask,
     initialAssigneeId,
     parkedTaskCount,
+    restoredQuery,
   } = await loadTasksPageData({
     filterParams: {
       scope,
@@ -130,12 +139,15 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       stuck,
       needsMe,
       mentions,
+      sort,
+      subtasks,
     },
     viewMode: defaultViewMode,
     personalAssistantFallback: t("personalAssistant"),
     createAssigneeSlug: initialCreateTaskOpen
       ? (resolvedAssigneeSlug ?? null)
       : null,
+    restoreSavedView: !hasTasksViewParams(resolvedSearchParams),
   });
   const initialProjectId = activeFilters.projectId;
 
@@ -156,89 +168,103 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           parkedTaskCount={parkedTaskCount}
         />
       </Suspense>
-      <TasksView
-        tasks={tasks}
-        listNextCursor={listNextCursor}
-        columnNextCursorById={columnNextCursorById}
-        columnHiddenCountById={columnHiddenCountById}
-        columns={KANBAN_COLUMNS}
-        coworkerOptions={coworkerOptions}
-        projectOptions={projectOptions}
-        userId={userId}
+      <TasksSearchParamsProvider
+        restoredQuery={restoredQuery}
         activeOrganizationId={activeOrganizationId}
-        initialFilters={activeFilters}
-        defaultViewMode={defaultViewMode}
-        defaultDensity={defaultDensity}
-        initialCreateTaskOpen={initialCreateTaskOpen && canCreateTask}
-        canCreateTask={canCreateTask}
-        initialAssigneeId={initialAssigneeId}
-        initialCreateTaskPrompt={
-          initialCreateTaskOpen ? (promptParam ?? null) : null
-        }
-        createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialAssigneeId ?? resolvedAssigneeSlug ?? ""}-${initialProjectId ?? ""}-${(promptParam ?? "").slice(0, 32)}`}
-        labels={{
-          filters: {
-            title: t("Filters.title"),
-            searchPlaceholder: t("Filters.searchPlaceholder"),
-            emptyResults: t("Filters.emptyResults"),
-            all: t("Filters.all"),
-            scopeLabel: t("Filters.scopeLabel"),
-            scopeOwned: t("Filters.scopeOwned"),
-            assignedToMe: t("Filters.assignedToMe"),
-            scopeWorkspace: t("Filters.scopeWorkspace"),
-            coworkerLabel: t("Filters.coworkerLabel"),
-            statusLabel: t("Filters.statusLabel"),
-            visibilityLabel: t("Filters.visibilityLabel"),
-            visibilityPrivate: t("Filters.visibilityPrivate"),
-            statusOptions: {
-              [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
-              [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
-              [TaskStatus.READY]: t("Filters.statusOptions.READY"),
-              [TaskStatus.GRANT_PENDING]: t(
-                "Filters.statusOptions.GRANT_PENDING",
-              ),
-              [TaskStatus.INPUT_REQUIRED]: t(
-                "Filters.statusOptions.INPUT_REQUIRED",
-              ),
-              [TaskStatus.APPROVAL_REQUIRED]: t(
-                "Filters.statusOptions.APPROVAL_REQUIRED",
-              ),
-              [TaskStatus.AUTHENTICATION_REQUIRED]: t(
-                "Filters.statusOptions.AUTHENTICATION_REQUIRED",
-              ),
-              [TaskStatus.OUT_OF_CREDITS]: t(
-                "Filters.statusOptions.OUT_OF_CREDITS",
-              ),
-              [TaskStatus.CREDITS_TOPPED_UP]: t(
-                "Filters.statusOptions.CREDITS_TOPPED_UP",
-              ),
-              [TaskStatus.RUNNING]: t("Filters.statusOptions.RUNNING"),
-              [TaskStatus.AWAITING_EXTERNAL]: t(
-                "Filters.statusOptions.AWAITING_EXTERNAL",
-              ),
-              [TaskStatus.COMPLETED]: t("Filters.statusOptions.COMPLETED"),
-              [TaskStatus.FAILED]: t("Filters.statusOptions.FAILED"),
-              [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
+      >
+        <TasksView
+          tasks={tasks}
+          listNextCursor={listNextCursor}
+          columnNextCursorById={columnNextCursorById}
+          columnHiddenCountById={columnHiddenCountById}
+          columns={KANBAN_COLUMNS}
+          coworkerOptions={coworkerOptions}
+          projectOptions={projectOptions}
+          userId={userId}
+          activeOrganizationId={activeOrganizationId}
+          initialFilters={activeFilters}
+          defaultViewMode={defaultViewMode}
+          defaultDensity={defaultDensity}
+          initialCreateTaskOpen={initialCreateTaskOpen && canCreateTask}
+          canCreateTask={canCreateTask}
+          initialAssigneeId={initialAssigneeId}
+          initialCreateTaskPrompt={
+            initialCreateTaskOpen ? (promptParam ?? null) : null
+          }
+          createTaskModalResetKey={`${String(initialCreateTaskOpen)}-${initialAssigneeId ?? resolvedAssigneeSlug ?? ""}-${initialProjectId ?? ""}-${(promptParam ?? "").slice(0, 32)}`}
+          labels={{
+            filters: {
+              title: t("Filters.title"),
+              searchPlaceholder: t("Filters.searchPlaceholder"),
+              emptyResults: t("Filters.emptyResults"),
+              all: t("Filters.all"),
+              scopeLabel: t("Filters.scopeLabel"),
+              scopeOwned: t("Filters.scopeOwned"),
+              assignedToMe: t("Filters.assignedToMe"),
+              scopeWorkspace: t("Filters.scopeWorkspace"),
+              coworkerLabel: t("Filters.coworkerLabel"),
+              statusLabel: t("Filters.statusLabel"),
+              visibilityLabel: t("Filters.visibilityLabel"),
+              visibilityPrivate: t("Filters.visibilityPrivate"),
+              statusOptions: {
+                [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
+                [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
+                [TaskStatus.READY]: t("Filters.statusOptions.READY"),
+                [TaskStatus.GRANT_PENDING]: t(
+                  "Filters.statusOptions.GRANT_PENDING",
+                ),
+                [TaskStatus.INPUT_REQUIRED]: t(
+                  "Filters.statusOptions.INPUT_REQUIRED",
+                ),
+                [TaskStatus.APPROVAL_REQUIRED]: t(
+                  "Filters.statusOptions.APPROVAL_REQUIRED",
+                ),
+                [TaskStatus.AUTHENTICATION_REQUIRED]: t(
+                  "Filters.statusOptions.AUTHENTICATION_REQUIRED",
+                ),
+                [TaskStatus.OUT_OF_CREDITS]: t(
+                  "Filters.statusOptions.OUT_OF_CREDITS",
+                ),
+                [TaskStatus.CREDITS_TOPPED_UP]: t(
+                  "Filters.statusOptions.CREDITS_TOPPED_UP",
+                ),
+                [TaskStatus.RUNNING]: t("Filters.statusOptions.RUNNING"),
+                [TaskStatus.AWAITING_EXTERNAL]: t(
+                  "Filters.statusOptions.AWAITING_EXTERNAL",
+                ),
+                [TaskStatus.COMPLETED]: t("Filters.statusOptions.COMPLETED"),
+                [TaskStatus.FAILED]: t("Filters.statusOptions.FAILED"),
+                [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
+              },
             },
-          },
-          columns: columnLabels,
-          dragError: t("Errors.updateStatus"),
-          loadMoreError: t("Errors.loadMore"),
-          reopenToReady: {
-            commentRequired: tDetailActions("reopenToReadyCommentRequired"),
-          },
-          display: {
-            button: t("Display.button"),
-            list: t("Display.list"),
-            board: t("Display.board"),
-            density: t("Display.density"),
-            normal: t("Display.normal"),
-            compact: t("Display.compact"),
-          },
-          listPlaceholder: t("List.placeholder"),
-          loadMore: t("Actions.loadMore"),
-        }}
-      />
+            columns: columnLabels,
+            dragError: t("Errors.updateStatus"),
+            loadMoreError: t("Errors.loadMore"),
+            reopenToReady: {
+              commentRequired: tDetailActions("reopenToReadyCommentRequired"),
+            },
+            display: {
+              button: t("Display.button"),
+              layout: t("Display.layout"),
+              list: t("Display.list"),
+              board: t("Display.board"),
+              density: t("Display.density"),
+              normal: t("Display.normal"),
+              compact: t("Display.compact"),
+              sortBy: t("Display.sortBy"),
+              sortOptions: {
+                updatedAt: t("Display.sortOptions.updatedAt"),
+                createdAt: t("Display.sortOptions.createdAt"),
+                priority: t("Display.sortOptions.priority"),
+                dueOn: t("Display.sortOptions.dueOn"),
+              },
+              showSubtasks: t("Display.showSubtasks"),
+            },
+            listPlaceholder: t("List.placeholder"),
+            loadMore: t("Actions.loadMore"),
+          }}
+        />
+      </TasksSearchParamsProvider>
     </div>
   );
 }

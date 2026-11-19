@@ -7,6 +7,7 @@ const pendingTurns: Promise<unknown>[] = [];
 const {
   reconcileRuntimeCompletionMock,
   authorizeMock,
+  activeRunsMock,
   createEventMock,
   executeToolMock,
   findFirstMock,
@@ -20,6 +21,7 @@ const {
   cmoTurnPartsMock: vi.fn(),
   reconcileRuntimeCompletionMock: vi.fn(),
   authorizeMock: vi.fn(),
+  activeRunsMock: vi.fn(async (_id: string, text: string) => text),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
   findFirstMock: vi.fn(),
@@ -85,7 +87,7 @@ vi.mock("./jev", async (importOriginal) => ({
   evaluateWithJev: () => Promise.reject(new Error("No Jev in tests")),
 }));
 vi.mock("./active-background-runs", () => ({
-  withActiveBackgroundRuns: async (_turnId: string, text: string) => text,
+  withActiveBackgroundRuns: activeRunsMock,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: {
@@ -133,6 +135,7 @@ describe("InProcessSokoBotRuntime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     pendingTurns.length = 0;
+    activeRunsMock.mockReset().mockImplementation(async (_, text) => text);
     findFirstMock.mockResolvedValue(null);
     authorizeMock.mockResolvedValue({
       turn: { id: TURN_ID, versionId: "v11" },
@@ -388,6 +391,56 @@ describe("InProcessSokoBotRuntime", () => {
       recordedEvents().find((event) => event.type === "message.completed")?.data
         .message,
     ).toBe("Scheduling for everyone");
+  });
+
+  it("sends only prepared meeting evidence and recipient details to the model", async () => {
+    const message = "Confirmed meeting with Guest One at 15:00.";
+    authorizeMock.mockResolvedValue({
+      turn: { id: TURN_ID, versionId: "cmo-v1", source: "SCHEDULE" },
+      grant: { capabilities: [] },
+      meetingPrep: true,
+    });
+    activeRunsMock.mockImplementationOnce(
+      async (_, text) => text + " unrelated-background",
+    );
+    getContextMock.mockResolvedValue({
+      version: { id: "cmo-v1", name: "test", systemPrompt: "Be useful." },
+      packet: {
+        actor: {
+          name: "Recipient",
+          locale: "de",
+          timezone: "Europe/Berlin",
+          organizationName: "unrelated-workspace",
+        },
+        tasks: [{ name: "unrelated-task" }],
+        memory: { markdown: "unrelated-memory" },
+        recentTurns: [
+          {
+            source: "CHAT",
+            userMessage: "unrelated-history",
+            finalAnswer: "unrelated-answer",
+            completedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    });
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message,
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+    const call = streamModelCallMock.mock.calls[0]?.[0];
+    expect(call.system).toContain("Recipient");
+    expect(call.system).toContain("Europe/Berlin");
+    expect(call.system).toContain('"locale":"de"');
+    expect(call.system).not.toContain("unrelated-");
+    expect(call.messages).toEqual([{ role: "user", content: message }]);
+    expect(activeRunsMock).not.toHaveBeenCalled();
+    expect(cmoTurnPartsMock).not.toHaveBeenCalled();
   });
 
   it("reports the model and metered usage the drain bills on", async () => {

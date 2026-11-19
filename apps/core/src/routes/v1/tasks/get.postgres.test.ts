@@ -69,6 +69,7 @@ const unrelated = [
     status: TaskStatus.CANCELED,
   },
   { name: "No due date", ownerId: adaId, dueOn: null },
+  { name: "No due date either", ownerId: adaId, dueOn: null },
   {
     name: "Archived",
     ownerId: adaId,
@@ -111,8 +112,26 @@ function createApp() {
 }
 
 interface Page {
-  data: Array<{ name: string }>;
+  data: Array<{
+    name: string;
+    openSubtasks?: Array<{ name: string; status: string }>;
+    subtaskProgress: { completed: number; total: number };
+  }>;
   meta: { pagination: { total: number; nextCursor: string | null } };
+}
+
+async function dueOnPage(limit: number, cursor?: string): Promise<Page> {
+  const params = new URLSearchParams({
+    scope: "mine",
+    sort: "dueOn",
+    status: TaskStatus.READY,
+    limit: String(limit),
+    ...(cursor ? { cursor } : {}),
+  });
+  const response = await createApp().request(`http://localhost/?${params}`);
+  const body = await response.json();
+  expect(response.status, JSON.stringify(body)).toBe(200);
+  return body as Page;
 }
 
 async function myDayPage(cursor?: string): Promise<Page> {
@@ -216,5 +235,67 @@ describe.skipIf(!enabled)("GET /tasks for Home's My day", () => {
     expect(second.data.map((task) => task.name)).toEqual(["Due 6"]);
     expect(second.meta.pagination.total).toBe(6);
     expect(second.meta.pagination.nextCursor).toBeNull();
+  });
+
+  it("names a parent's first three open sub-tasks in sub-task order", async () => {
+    const parent = await prisma.task.create({
+      data: {
+        workspaceId,
+        ownerId: adaId,
+        name: "Parent with steps",
+        // Not READY and no due day, so the other lists here never show it.
+        status: TaskStatus.RUNNING,
+      },
+    });
+    await prisma.task.createMany({
+      data: [
+        { name: "C", position: 3 },
+        { name: "A", position: 1 },
+        { name: "B done", position: 2, status: TaskStatus.COMPLETED },
+        { name: "D", position: 4 },
+        { name: "E", position: 5 },
+        { name: "Archived", position: 0.5, archivedAt: new Date() },
+      ].map((subtask) => ({
+        workspaceId,
+        ownerId: adaId,
+        parentTaskId: parent.id,
+        status: TaskStatus.READY,
+        ...subtask,
+      })),
+    });
+
+    const params = new URLSearchParams({
+      scope: "mine",
+      q: "Parent with steps",
+    });
+    const response = await createApp().request(`http://localhost/?${params}`);
+    const body = (await response.json()) as Page;
+
+    expect(response.status, JSON.stringify(body)).toBe(200);
+    expect(body.data.map((task) => task.name)).toEqual(["Parent with steps"]);
+    expect(body.data[0]?.subtaskProgress).toEqual({ completed: 1, total: 5 });
+    expect(body.data[0]?.openSubtasks?.map((task) => task.name)).toEqual([
+      "A",
+      "C",
+      "D",
+    ]);
+  });
+
+  // Sort by Due date on the Tasks board pages past the dated Tasks into the
+  // ones without a due day, which sort last.
+  it("pages a dueOn sort into the Tasks without a due day", async () => {
+    const all = (await dueOnPage(100)).data.map((task) => task.name);
+    // Two undated Tasks, so one page's cursor sits on an undated row.
+    expect(all.slice(-2).sort()).toEqual(["No due date", "No due date either"]);
+
+    const paged: string[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await dueOnPage(2, cursor);
+      paged.push(...page.data.map((task) => task.name));
+      cursor = page.meta.pagination.nextCursor ?? undefined;
+    } while (cursor && paged.length <= all.length);
+
+    expect(paged).toEqual(all);
   });
 });

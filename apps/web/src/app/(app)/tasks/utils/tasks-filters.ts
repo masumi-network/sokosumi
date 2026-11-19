@@ -1,6 +1,7 @@
 import { TaskStatus, TaskTagId, TaskVisibility } from "@sokosumi/core-client";
 
 import { isUuidString } from "@/lib/utils/uuid";
+import { parseTasksSort, type TasksSort } from "./task-sort";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
@@ -45,6 +46,16 @@ export interface TasksFilters {
    * commented since, anywhere in the workspace.
    */
   mentions?: boolean;
+  /**
+   * The order the reader picked. Left out, each layout keeps its own default.
+   * A view setting, not a filter: clearing filters keeps it.
+   */
+  sort?: TasksSort;
+  /**
+   * Open sub-tasks listed under each Task. A view setting like `sort`:
+   * clearing filters keeps it, and it does not change which Tasks load.
+   */
+  subtasks?: boolean;
 }
 
 /** Days in one status after which a waiting Task counts as stuck. */
@@ -81,8 +92,10 @@ export interface TasksFiltersSearchParams {
   visibility?: TasksFilterQueryParam;
   stuck?: TasksFilterQueryParam;
   needsMe?: TasksFilterQueryParam;
+  subtasks?: TasksFilterQueryParam;
   mentions?: TasksFilterQueryParam;
   tag?: TasksFilterQueryParam;
+  sort?: TasksFilterQueryParam;
 }
 
 export const TASKS_FILTER_PARAM_KEYS = {
@@ -97,9 +110,44 @@ export const TASKS_FILTER_PARAM_KEYS = {
   visibility: "visibility",
   stuck: "stuck",
   needsMe: "needsMe",
+  subtasks: "subtasks",
   mentions: "mentions",
   tag: "tag",
+  sort: "sort",
 } as const;
+
+/**
+ * The keys a saved Tasks view holds: every filter, the sort and sub-tasks.
+ * Not the project: the project switcher owns it.
+ */
+const TASKS_VIEW_PARAM_KEYS: readonly string[] = Object.values(
+  TASKS_FILTER_PARAM_KEYS,
+).filter((key) => key !== TASKS_FILTER_PARAM_KEYS.projectId);
+
+/**
+ * True when the URL names a view. The toolbar always writes `scope`, so only
+ * a plain entry (the sidebar, a project link) names none and opens the saved view.
+ */
+export function hasTasksViewParams(
+  params: URLSearchParams | Record<string, unknown>,
+): boolean {
+  return TASKS_VIEW_PARAM_KEYS.some((key) =>
+    params instanceof URLSearchParams
+      ? params.has(key)
+      : params[key] !== undefined,
+  );
+}
+
+/** The view part of a Tasks URL, as a query string to save. */
+export function pickTasksViewQuery(params: URLSearchParams): string {
+  const picked = new URLSearchParams();
+  for (const [key, value] of params) {
+    if (TASKS_VIEW_PARAM_KEYS.includes(key)) picked.append(key, value);
+  }
+  // One order for client and server, so equal views compare equal.
+  picked.sort();
+  return picked.toString();
+}
 
 type SearchParamsLike = Pick<URLSearchParams, "toString">;
 const UUID_PATTERN =
@@ -256,7 +304,9 @@ export function getTasksFiltersFromSearchParams(
       tag: searchParams.get(TASKS_FILTER_PARAM_KEYS.tag) ?? undefined,
       stuck: searchParams.get(TASKS_FILTER_PARAM_KEYS.stuck) ?? undefined,
       needsMe: searchParams.get(TASKS_FILTER_PARAM_KEYS.needsMe) ?? undefined,
+      subtasks: searchParams.get(TASKS_FILTER_PARAM_KEYS.subtasks) ?? undefined,
       mentions: searchParams.get(TASKS_FILTER_PARAM_KEYS.mentions) ?? undefined,
+      sort: searchParams.get(TASKS_FILTER_PARAM_KEYS.sort) ?? undefined,
     },
     activeOrganizationId,
   );
@@ -350,7 +400,16 @@ export function parseTasksFilters(
     ...(sanitizeTasksStuckInput(firstQueryString(searchParams.mentions))
       ? { mentions: true }
       : {}),
+    ...withTasksSort(parseTasksSort(firstQueryString(searchParams.sort))),
+    ...(sanitizeTasksStuckInput(firstQueryString(searchParams.subtasks))
+      ? { subtasks: true }
+      : {}),
   };
+}
+
+/** Left out when unset, so a filter set without a sort keeps its shape. */
+function withTasksSort(sort: TasksSort | undefined): { sort?: TasksSort } {
+  return sort ? { sort } : {};
 }
 
 /** `stuck=1` in the URL, or `true` from server-action JSON. */
@@ -361,16 +420,11 @@ export function sanitizeTasksStuckInput(raw: unknown): boolean {
 export function buildTasksFiltersSearchParams(
   currentSearchParams: URLSearchParams | SearchParamsLike,
   filters: TasksFilters,
-  activeOrganizationId: string | null,
 ): URLSearchParams {
   const nextSearchParams = new URLSearchParams(currentSearchParams.toString());
-  const defaultScope = getDefaultTasksScope(activeOrganizationId);
-
-  if (filters.scope === defaultScope) {
-    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.scope);
-  } else {
-    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.scope, filters.scope);
-  }
+  // Written even when it is the default: a URL the toolbar wrote names a
+  // view, so the saved view does not replace it (see hasTasksViewParams).
+  nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.scope, filters.scope);
 
   // Always drop the legacy key when writing so URLs migrate forward.
   nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.coworkerId);
@@ -441,6 +495,18 @@ export function buildTasksFiltersSearchParams(
     nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.mentions);
   }
 
+  if (filters.subtasks) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.subtasks, "1");
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.subtasks);
+  }
+
+  if (filters.sort) {
+    nextSearchParams.set(TASKS_FILTER_PARAM_KEYS.sort, filters.sort);
+  } else {
+    nextSearchParams.delete(TASKS_FILTER_PARAM_KEYS.sort);
+  }
+
   return applyProjectIdSearchParam(nextSearchParams, filters.projectId);
 }
 
@@ -463,7 +529,7 @@ export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.scope}:${filters.assigneeSokoBotId ?? filters.assigneeUserId ?? filters.assigneeId ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}:${filters.visibility ?? "all"}:${filters.stuck ? "stuck" : "any"}:${filters.tag ?? "all"}${filters.needsMe ? ":needs-me" : ""}${filters.mentions ? ":mentions" : ""}${filters.sort ? `:sort-${filters.sort}` : ""}`;
 }
 
 /**
@@ -519,10 +585,11 @@ export function clearTasksFilters(
  * - Organization boards: Show the dot when `scope` is "owned" or "workspace"
  *   (either explicit choice signals the board is scoped — "My Tasks" or "All
  *   workspace tasks" — as opposed to a hypothetical unfiltered view). The
- *   default here is "workspace". Also show when assigneeId or status is set.
+ *   default here is "workspace". Also show when assigneeId, status or
+ *   Stuck is set.
  *   `projectId` is owned by the project switcher, not the Filters panel.
  * - Personal boards: Show the dot only when a non-default filter is applied
- *   (assigneeId or status). The default "owned" scope alone does
+ *   (assigneeId, status or Stuck). The default "owned" scope alone does
  *   not show the dot, as there's no workspace context to distinguish from.
  */
 export function hasActiveTasksFilters(
@@ -535,6 +602,7 @@ export function hasActiveTasksFilters(
       filters.assigneeUserId ||
       filters.status ||
       filters.tag ||
+      filters.stuck ||
       filters.visibility === TaskVisibility.PRIVATE,
   );
 

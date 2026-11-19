@@ -85,15 +85,15 @@ describe("PurchaseSuccessCoworkerRow", () => {
 
     expect(screen.getByText("Elena").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=elena",
+      "/tasks?scope=workspace&create=true&assignee=elena",
     );
     expect(screen.getByText("Hannah").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=hannah",
+      "/tasks?scope=workspace&create=true&assignee=hannah",
     );
     expect(screen.getByText("Alex").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=alex",
+      "/tasks?scope=workspace&create=true&assignee=alex",
     );
   });
 
@@ -110,7 +110,7 @@ describe("PurchaseSuccessCoworkerRow", () => {
 
     expect(screen.getByText("A B").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=a%20b",
+      "/tasks?scope=workspace&create=true&assignee=a%20b",
     );
   });
 

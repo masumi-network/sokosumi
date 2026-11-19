@@ -8,6 +8,7 @@ const resolveEffectiveDesignMdMock = vi.fn();
 const getTasksColumnPageMock = vi.fn();
 const getTasksListPageMock = vi.fn();
 const getSessionMock = vi.fn();
+const saveTasksViewQueryMock = vi.fn(async (_query: string) => undefined);
 const listTaskAssigneeOptionsMock = vi.fn();
 const listTaskScheduleAssigneeOptionsMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
@@ -63,17 +64,26 @@ vi.mock("./utils/task-schedule-assignee-options", () => ({
   listTaskScheduleAssigneeOptions: () => listTaskScheduleAssigneeOptionsMock(),
 }));
 
+vi.mock("@/lib/services/task.service", () => ({
+  taskService: {
+    saveTasksViewQuery: (query: string) => saveTasksViewQueryMock(query),
+  },
+}));
+
 vi.mock("@/lib/helpers/project-filter-options", () => ({
   getProjectFilterOptions: (...args: unknown[]) =>
     getProjectFilterOptionsMock(...args),
 }));
 
 import {
+  exportTasks,
   loadCreateTaskModalData,
   loadMoreTasksColumn,
   loadMoreTasksList,
   loadNewTaskWizardOptions,
   loadTaskScheduleDialogOptions,
+  previewTasksExport,
+  saveTasksView,
 } from "./actions";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
@@ -557,5 +567,134 @@ describe("loadNewTaskWizardOptions", () => {
     await loadNewTaskWizardOptions();
 
     expect(listTaskAssigneeOptionsMock).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("exportTasks", () => {
+  const filters = {
+    scope: "workspace" as const,
+    assigneeId: null,
+    assigneeSokoBotId: null,
+    assigneeUserId: null,
+    status: null,
+    projectId: null,
+    visibility: null,
+  };
+
+  // Core's cursor paging over `total` Tasks; the cursor is the next offset.
+  function serveTasks(total: number) {
+    getTasksListPageMock.mockImplementation(
+      async ({ cursor, limit }: { cursor: string | null; limit: number }) => {
+        const start = cursor ? Number(cursor) : 0;
+        const end = Math.min(total, start + limit);
+        return {
+          tasks: Array.from({ length: end - start }, (_, index) => ({
+            id: `task-${start + index}`,
+            name: `Task ${start + index}`,
+          })),
+          nextCursor: end < total ? String(end) : null,
+          total,
+        };
+      },
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getMineMock.mockResolvedValue(null);
+    listCoworkersMock.mockResolvedValue([]);
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+    });
+  });
+
+  it("stops at 1,000 Tasks and says more matched", async () => {
+    serveTasks(1500);
+
+    const { rows, truncated } = await exportTasks(filters);
+
+    expect(rows).toHaveLength(1000);
+    expect(rows.at(-1)?.name).toBe("Task 999");
+    expect(truncated).toBe(true);
+    // Ten full pages, then one row to learn whether more match.
+    expect(
+      getTasksListPageMock.mock.calls.map(([params]) => params.limit),
+    ).toEqual([...Array(10).fill(100), 1]);
+  });
+
+  it("exports exactly 1,000 matching Tasks as complete", async () => {
+    serveTasks(1000);
+
+    const { rows, truncated } = await exportTasks(filters);
+
+    expect(rows).toHaveLength(1000);
+    expect(truncated).toBe(false);
+  });
+
+  it("lists a Task once when it moves to a later page mid-export", async () => {
+    getTasksListPageMock
+      .mockResolvedValueOnce({
+        tasks: [
+          { id: "a", name: "A" },
+          { id: "b", name: "B" },
+        ],
+        nextCursor: "b",
+      })
+      .mockResolvedValueOnce({
+        tasks: [
+          { id: "a", name: "A" },
+          { id: "c", name: "C" },
+        ],
+        nextCursor: null,
+      });
+
+    const { rows } = await exportTasks(filters);
+
+    expect(rows.map((row) => row.name)).toEqual(["A", "B", "C"]);
+  });
+
+  it("exports a short list in one request", async () => {
+    serveTasks(30);
+
+    const { rows, truncated } = await exportTasks(filters);
+
+    expect(rows).toHaveLength(30);
+    expect(truncated).toBe(false);
+    expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("previews from one small page and counts every match from Core", async () => {
+    serveTasks(1500);
+
+    const { rows, matched } = await previewTasksExport(filters);
+
+    expect(rows.map((row) => row.name)).toEqual(["Task 0", "Task 1", "Task 2"]);
+    expect(matched).toBe(1500);
+    expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("saveTasksView", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+    });
+  });
+
+  it("saves only the view keys for the page's workspace", async () => {
+    await expect(
+      saveTasksView(`status=READY&projectId=${PROJECT_ID}`, "org-1"),
+    ).resolves.toBe(true);
+
+    expect(saveTasksViewQueryMock).toHaveBeenCalledExactlyOnceWith(
+      "status=READY",
+    );
+  });
+
+  it("drops the save after another tab switched the workspace", async () => {
+    await expect(saveTasksView("status=READY", "org-2")).resolves.toBe(false);
+
+    expect(saveTasksViewQueryMock).not.toHaveBeenCalled();
   });
 });

@@ -57,7 +57,7 @@ function CoworkerRowInner({
       {coworkers.map((coworker) => (
         <Link
           key={coworker.id}
-          href={`/tasks?create=true&assignee=${encodeURIComponent(coworker.slug)}`}
+          href={`/tasks?scope=workspace&create=true&assignee=${encodeURIComponent(coworker.slug)}`}
           aria-label={t("startTaskWith", { name: coworker.name })}
           onNavigate={onNavigate}
           className="group focus-visible:ring-ring flex flex-col items-center gap-2 rounded-lg p-1 outline-none focus-visible:ring-2"

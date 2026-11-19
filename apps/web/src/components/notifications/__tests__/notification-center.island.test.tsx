@@ -1617,13 +1617,16 @@ describe("Notification Center Needs you view", () => {
       const links = within(tasks).getAllByRole("link");
       // Three wait and two are listed, so the rest are one click away.
       expect(links.map((link) => link.getAttribute("href"))).toEqual([
-        "/tasks",
+        "/tasks?scope=workspace",
         "/tasks/task-brief",
         "/tasks/task-newsletter",
       ]);
       expect(links[1]?.textContent).toContain("Q4 launch brief");
       expect(links[1]?.textContent).toContain("ask.INPUT_REQUIRED");
-      expect(links[1]?.textContent).toContain("action.INPUT_REQUIRED");
+      // Input is answered in place, so its move is a button beside the link.
+      expect(
+        within(tasks).getByRole("button", { name: "action.INPUT_REQUIRED" }),
+      ).toBeTruthy();
       expect(links[2]?.textContent).toContain("status.APPROVAL_REQUIRED");
       expect(links[2]?.textContent).toContain("action.APPROVAL_REQUIRED");
       expect(screen.getByText("job-ask")).toBeTruthy();

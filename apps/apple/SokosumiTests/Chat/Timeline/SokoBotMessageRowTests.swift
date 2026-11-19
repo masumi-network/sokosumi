@@ -33,6 +33,33 @@
       )
     }
 
+    @Test(arguments: [DirectRecipient.sokoBot("bot"), .coworker("coworker"), .human("person")])
+    func senderHeaderIdentifiesAgentsEvenWithoutTurnMetadata(_ recipient: DirectRecipient) async throws {
+      var message = try botMessage(id: "sender", content: "Here is the brief.", metadata: [:])
+      let isAgent: Bool
+      switch recipient {
+      case .sokoBot: isAgent = true
+      case let .coworker(id):
+        isAgent = true
+        message.sender = .case2(.init(_type: .coworker, coworker: .init(id: id, name: "Soko", slug: "soko", caption: nil, image: nil, presence: .online)))
+      case let .human(id):
+        isAgent = false
+        message.sender = .case1(.init(_type: .user, user: .init(id: id, name: "Soko", email: "person@example.org", image: nil, presence: .online)))
+      }
+      let host = NSHostingView(rootView: MessageRowView(message: message, row: transcriptRow(message), outbound: nil)
+        .environmentObject(WorkspaceState()).environmentObject(AuthState()).environment(\.locale, Locale(identifier: "en")))
+      let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 120), styleMask: [.titled], backing: .buffered, defer: false)
+      window.contentView = host
+      defer { window.orderOut(nil) }
+      window.orderFront(nil)
+      host.layoutSubtreeIfNeeded()
+      let labels = await hostedTexts(in: host)
+      #expect(labels.contains("Soko (AI agent)") == isAgent)
+      if !isAgent {
+        #expect(labels.contains("Soko"))
+      }
+    }
+
     @Test func turnAndChainMetadataAreReadFromTheGeneratedDTO() throws {
       let settled = try botMessage(id: "settled", content: "Done.", metadata: [
         "mention_id": "mention_1",

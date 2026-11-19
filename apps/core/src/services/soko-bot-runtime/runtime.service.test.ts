@@ -88,6 +88,7 @@ const {
   transactionWorkspaceFindFirstMock,
   transactionMock,
   turnFindUniqueMock,
+  scheduleRunOriginMock,
   transactionChatMessageCreateMock,
   transactionChatMessageFindFirstMock,
   transactionChatMentionCreateManyMock,
@@ -229,6 +230,7 @@ const {
   transactionWorkspaceFindFirstMock: vi.fn(),
   transactionMock: vi.fn(),
   turnFindUniqueMock: vi.fn(),
+  scheduleRunOriginMock: vi.fn(),
   transactionChatMessageCreateMock: vi.fn(),
   transactionChatMessageFindFirstMock: vi.fn(),
   transactionChatMentionCreateManyMock: vi.fn(),
@@ -556,6 +558,7 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: decisionUpdateManyMock,
       findUniqueOrThrow: vi.fn(async () => ({ status: "REJECTED" })),
     },
+    sokoBotScheduleRun: { findFirst: scheduleRunOriginMock },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
       update: turnUpdateMock,
@@ -1168,6 +1171,69 @@ describe("SokoBotRuntimeService authorization", () => {
       ).rejects.toThrow("Capability is not granted for this turn");
       expect(transactionTaskCreateMock).not.toHaveBeenCalled();
       expect(transactionTaskUpdateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    ["SCHEDULE", false],
+    ["ADMIN_RETRY", false],
+    ["SCHEDULE", true],
+    ["ADMIN_RETRY", true],
+  ] as const)(
+    "guards context and reads for %s meeting packets (rebuilt: %s)",
+    async (source, rebuilt) => {
+      scheduleRunOriginMock.mockResolvedValue({
+        scheduledFor: new Date("2026-11-19T13:30:00.000Z"),
+        schedule: { systemKey: "meeting-prep" },
+      });
+      turnFindUniqueMock.mockResolvedValue({
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        requestedByUserId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        source,
+        clientTurnId:
+          "admin-schedule-retry:01960001-0001-7001-8001-000000000045:operation",
+        classifierVersion: "soko-bot-system-route-v1",
+        classification: rebuilt
+          ? {
+              systemKey: "meeting-prep",
+              ...(source === "ADMIN_RETRY"
+                ? { meetingPrepSlot: "2026-11-19T13:30:00.000Z" }
+                : {}),
+            }
+          : {
+              rationaleSummary:
+                source === "SCHEDULE"
+                  ? "Meeting prep: brief the owner, change nothing."
+                  : "Operator retry on the failed turn's route.",
+            },
+        capabilityNames: ["search_inbox"],
+        contextSnapshot: { id: "snapshot", packet: {} },
+        createdAt: new Date(),
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { userId: SCOPE.userId, archivedAt: null, status: "RUNNING" },
+      });
+      const service = new SokoBotRuntimeService();
+      if (rebuilt) {
+        await expect(service.authorize(SCOPE)).resolves.toMatchObject({
+          meetingPrep: true,
+          grant: { capabilities: [] },
+        });
+        await expect(
+          service.authorize({ ...SCOPE, capability: "search_inbox" }),
+        ).rejects.toThrow("Capability is not granted for this turn");
+        return;
+      }
+      await expect(
+        service.authorize({ ...SCOPE, capability: "search_inbox" }),
+      ).rejects.toThrow("rebuild meeting evidence");
+      await expect(service.authorize(SCOPE)).rejects.toThrow(
+        "rebuild meeting evidence",
+      );
     },
   );
 
@@ -8625,7 +8691,17 @@ describe("Soko Bot project social tools", () => {
       "refuses ad tools on a %s turn",
       async (source) => {
         const turn = await turnFindUniqueMock();
-        turnFindUniqueMock.mockResolvedValue({ ...turn, source });
+        scheduleRunOriginMock.mockResolvedValue({
+          schedule: { systemKey: "standup" },
+        });
+        turnFindUniqueMock.mockResolvedValue({
+          ...turn,
+          source,
+          clientTurnId:
+            source === "ADMIN_RETRY"
+              ? "admin-schedule-retry:01960001-0001-7001-8001-000000000045:operation"
+              : turn.clientTurnId,
+        });
         await expect(
           new SokoBotRuntimeService().executeTool({
             ...SCOPE,
