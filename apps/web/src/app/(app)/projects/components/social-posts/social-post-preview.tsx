@@ -160,7 +160,7 @@ function PreviewMore({
     <button
       type="button"
       aria-label={edit.label}
-      className="hover:text-foreground -m-1 shrink-0 rounded-sm p-1"
+      className="hover:text-foreground hit-area -m-1 shrink-0 rounded-sm p-1"
       onClick={edit.onSelect}
     >
       <MoreHorizontal className={className} aria-hidden />

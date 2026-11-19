@@ -34,6 +34,7 @@ const STUCK_POST = `post."socialConnectionId" = retired."id"
     SELECT 1 FROM "project_social_connection_intent" AS intent
     WHERE intent."socialConnectionId" = retired."id"
       AND intent."action" = 'replace'
+      AND intent."authConfigId" <> 'expired'
       AND intent."expiresAt" > NOW()
   )
   AND active."projectId" = post."projectId"

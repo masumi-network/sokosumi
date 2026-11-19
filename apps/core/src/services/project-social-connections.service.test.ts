@@ -2305,9 +2305,6 @@ describe("project social connections service", () => {
           status: "disconnected",
           provider: "x",
           externalAccountId: { in: ["123"] },
-          intents: {
-            none: { action: "replace", expiresAt: { gt: expect.any(Date) } },
-          },
         },
       },
       data: {
@@ -2317,32 +2314,97 @@ describe("project social connections service", () => {
     });
   });
 
-  it("leaves posts on a row a pending replace is moving to another account", async () => {
-    socialConnectionIntentFindUniqueMock.mockResolvedValue(
-      createIntent("connect"),
-    );
-    socialConnectionCreateMock.mockResolvedValue({
-      ...socialConnection,
-      id: "77777777-7777-4777-8777-777777777777",
-      composioConnectedAccountId: CONNECTION_ID,
-      status: "active",
-    });
-    const { finalizeProjectSocialConnection } = await import(
-      "./project-social-connections.service"
-    );
-
-    const before = Date.now();
-    await finalizeProjectSocialConnection({
-      projectId: PROJECT_ID,
-      workspaceId: WORKSPACE_ID,
-      userId: USER_ID,
-      connectionId: CONNECTION_ID,
+  describe("while a replace still holds the account's posts", () => {
+    beforeEach(() => {
+      socialConnectionIntentFindUniqueMock.mockResolvedValue(
+        createIntent("connect"),
+      );
+      socialConnectionCreateMock.mockResolvedValue({
+        ...socialConnection,
+        id: "77777777-7777-4777-8777-777777777777",
+        composioConnectedAccountId: CONNECTION_ID,
+        status: "active",
+      });
     });
 
-    const [call] = socialPostUpdateManyMock.mock.calls.at(-1) ?? [];
-    const pending = call?.where?.socialConnection?.intents?.none;
-    expect(pending?.action).toBe("replace");
-    expect(pending?.expiresAt?.gt.getTime()).toBeGreaterThanOrEqual(before);
+    async function connectAgain() {
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      return finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      });
+    }
+
+    it("refuses to connect the account from the moment the replace retires its row", async () => {
+      socialConnectionAuditFindFirstMock.mockResolvedValue({ id: "audit-1" });
+
+      await expect(connectAgain()).rejects.toMatchObject({ status: 409 });
+
+      expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+      expect(socialConnectionAuditFindFirstMock).toHaveBeenCalledWith({
+        where: {
+          action: "replace_retire",
+          createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) },
+          projectSocialConnection: {
+            projectId: PROJECT_ID,
+            provider: "x",
+            status: "disconnected",
+            externalAccountId: { in: ["123"] },
+            socialPosts: {
+              some: {
+                status: { in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED"] },
+              },
+            },
+          },
+        },
+        select: { id: true },
+      });
+    });
+
+    it("refuses to connect the account while the replace's sign-in can still finish", async () => {
+      vi.mocked(
+        transactionClient.projectSocialConnectionIntent.findFirst,
+      ).mockResolvedValue({ connectionId: "other-sign-in" } as never);
+
+      await expect(connectAgain()).rejects.toMatchObject({ status: 409 });
+
+      expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+      expect(
+        transactionClient.projectSocialConnectionIntent.findFirst,
+      ).toHaveBeenCalledWith({
+        where: {
+          projectId: PROJECT_ID,
+          action: "replace",
+          expiresAt: { gt: new Date() },
+          authConfigId: { not: "expired" },
+          socialConnection: expect.objectContaining({
+            status: "disconnected",
+            externalAccountId: { in: ["123"] },
+          }),
+        },
+        select: { connectionId: true },
+      });
+    });
+
+    it("connects and moves every unsent post once no replace holds them", async () => {
+      await connectAgain();
+
+      expect(socialConnectionCreateMock).toHaveBeenCalledTimes(1);
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: {
+              in: ["DRAFT", "NEEDS_APPROVAL", "SCHEDULED", "FAILED", "MISSED"],
+            },
+          }),
+        }),
+      );
+    });
   });
 
   it("moves unsent posts off a retired row when a reconnect activates the account's newer row", async () => {
@@ -2379,9 +2441,6 @@ describe("project social connections service", () => {
           status: "disconnected",
           provider: "x",
           externalAccountId: { in: ["123"] },
-          intents: {
-            none: { action: "replace", expiresAt: { gt: expect.any(Date) } },
-          },
         },
       },
       data: {
@@ -2440,9 +2499,6 @@ describe("project social connections service", () => {
             status: "disconnected",
             provider: "linkedin",
             externalAccountId: { in: ["abc", "urn:li:person:abc"] },
-            intents: {
-              none: { action: "replace", expiresAt: { gt: expect.any(Date) } },
-            },
           },
         }),
       }),
