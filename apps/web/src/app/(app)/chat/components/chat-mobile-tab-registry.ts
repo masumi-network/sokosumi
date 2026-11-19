@@ -10,6 +10,7 @@ import {
   CHAT_CATCH_UP_PATH,
   classifyChatChromeSurface,
 } from "@/app/chat/utils/chat-route-base";
+import { isOpenedYouRow } from "@/app/components/mobile-app-chrome";
 
 type SearchParamsLike =
   | URLSearchParams
@@ -134,19 +135,20 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     labelKey: "home",
     icon: Home,
     isActive: (pathname, searchParams) =>
-      classifyChatChromeSurface(pathname, searchParams) === "home" ||
-      pathname === "/agents" ||
-      pathname === "/drive" ||
-      pathname === "/calendar" ||
-      pathname === "/schedules" ||
-      pathname === "/contacts" ||
-      pathname === "/social" ||
-      pathname === "/newsletter" ||
-      pathname.startsWith("/newsletter/") ||
-      pathname === "/studio" ||
-      pathname === "/tiktok-studio" ||
-      pathname === "/notifications" ||
-      pathname === "/history",
+      !isOpenedYouRow(pathname, searchParams) &&
+      (classifyChatChromeSurface(pathname, searchParams) === "home" ||
+        pathname === "/agents" ||
+        pathname === "/drive" ||
+        pathname === "/calendar" ||
+        pathname === "/schedules" ||
+        pathname === "/contacts" ||
+        pathname === "/social" ||
+        pathname === "/newsletter" ||
+        pathname.startsWith("/newsletter/") ||
+        pathname === "/studio" ||
+        pathname === "/tiktok-studio" ||
+        pathname === "/notifications" ||
+        pathname === "/history"),
   },
   {
     id: "tasks",
@@ -182,6 +184,8 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/you",
     labelKey: "you",
     affordance: "avatar",
-    isActive: (pathname) => pathname === "/you",
+    // A You row opened from You keeps You lit.
+    isActive: (pathname, searchParams) =>
+      pathname === "/you" || isOpenedYouRow(pathname, searchParams),
   },
 ];
