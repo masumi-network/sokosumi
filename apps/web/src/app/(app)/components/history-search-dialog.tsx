@@ -10,7 +10,6 @@ import type {
 import { Copy, FileText, ListPlus, ListTodo } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -36,6 +35,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { escapeMarkdownDisplayText } from "@/lib/utils/mention-parser";
 
@@ -53,6 +53,7 @@ interface HistorySearchDialogLabels {
   peopleGroup: string;
   copyEmail: (email: string) => string;
   emailCopied: string;
+  emailCopyFailed: string;
   mentionInTask: (name: string) => string;
   tagsGroup: string;
   tagTasksGroup: (tag: string) => string;
@@ -161,9 +162,10 @@ export function HistorySearchDialog({
   }
 
   function handleCopyEmail(email: string) {
-    void navigator.clipboard
-      ?.writeText(email)
-      .then(() => toast.success(labels.emailCopied));
+    void copyTextWithToast(email, {
+      copySuccessMessage: labels.emailCopied,
+      copyErrorMessage: labels.emailCopyFailed,
+    });
   }
 
   function handleMentionInTask(contact: Contact) {

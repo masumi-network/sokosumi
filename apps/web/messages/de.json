@@ -5878,6 +5878,7 @@
       "peopleGroup": "Personen",
       "copyEmail": "{email} kopieren",
       "emailCopied": "E-Mail-Adresse kopiert",
+      "emailCopyFailed": "E-Mail-Adresse konnte nicht kopiert werden",
       "mentionInTask": "{name} in einer neuen Aufgabe erwähnen",
       "tagsGroup": "Tags",
       "tagTasksGroup": "Aufgaben mit dem Tag {tag}",

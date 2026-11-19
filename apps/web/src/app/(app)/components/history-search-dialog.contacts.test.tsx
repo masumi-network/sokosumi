@@ -3,15 +3,23 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { listContactsMock, pushMock, openNewTaskWizardMock, toastSuccessMock } =
-  vi.hoisted(() => ({
-    listContactsMock: vi.fn(),
-    pushMock: vi.fn(),
-    openNewTaskWizardMock: vi.fn(),
-    toastSuccessMock: vi.fn(),
-  }));
+const {
+  listContactsMock,
+  pushMock,
+  openNewTaskWizardMock,
+  toastSuccessMock,
+  toastErrorMock,
+} = vi.hoisted(() => ({
+  listContactsMock: vi.fn(),
+  pushMock: vi.fn(),
+  openNewTaskWizardMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+}));
 
-vi.mock("sonner", () => ({ toast: { success: toastSuccessMock } }));
+vi.mock("sonner", () => ({
+  toast: { success: toastSuccessMock, error: toastErrorMock },
+}));
 
 vi.mock("@/app/components/new-task-wizard-provider", () => ({
   useOptionalNewTaskWizard: () => ({
@@ -59,6 +67,7 @@ const labels = {
   peopleGroup: "People",
   copyEmail: (email: string) => `Copy ${email}`,
   emailCopied: "Email copied",
+  emailCopyFailed: "Couldn't copy the email",
   mentionInTask: (name: string) => `Mention ${name} in a new task`,
   tagsGroup: "Tags",
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
@@ -192,6 +201,49 @@ describe("HistorySearchDialog People group", () => {
     );
     expect(await navigator.clipboard.readText()).toBe("nina@acme.test");
     expect(onOpenChange).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("says so when the browser refuses the clipboard write", async () => {
+    listContactsMock.mockResolvedValue({
+      contacts: [contact("c-1", "Nina Berg", "Acme", "nina@acme.test")],
+    });
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValueOnce(
+      new DOMException("denied", "NotAllowedError"),
+    );
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "nina");
+    await user.click(
+      await screen.findByRole("option", { name: "Copy nina@acme.test" }),
+    );
+
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Couldn't copy the email"),
+    );
+    expect(toastSuccessMock).not.toHaveBeenCalled();
+  });
+
+  it("copies with the keyboard: arrow to the action, Enter", async () => {
+    listContactsMock.mockResolvedValue({
+      contacts: [contact("c-1", "Nina Berg", "Acme", "nina@acme.test")],
+    });
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.type(screen.getByPlaceholderText("Search..."), "nina");
+    const copy = await screen.findByRole("option", {
+      name: "Copy nina@acme.test",
+    });
+    // First option is the row itself; one step down is Copy email.
+    await user.keyboard("{ArrowDown}");
+    expect(copy).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Enter}");
+
+    await waitFor(() =>
+      expect(toastSuccessMock).toHaveBeenCalledWith("Email copied"),
+    );
     expect(pushMock).not.toHaveBeenCalled();
   });
 

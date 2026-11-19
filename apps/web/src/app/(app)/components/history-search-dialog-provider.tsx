@@ -130,6 +130,7 @@ export function HistorySearchDialogProvider({
           peopleGroup: tSearch("peopleGroup"),
           copyEmail: (email) => tSearch("copyEmail", { email }),
           emailCopied: tSearch("emailCopied"),
+          emailCopyFailed: tSearch("emailCopyFailed"),
           mentionInTask: (name) => tSearch("mentionInTask", { name }),
           tagsGroup: tSearch("tagsGroup"),
           tagTasksGroup: (tag) => tSearch("tagTasksGroup", { tag }),
