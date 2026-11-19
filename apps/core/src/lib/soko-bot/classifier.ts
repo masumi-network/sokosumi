@@ -6,7 +6,10 @@ import type {
   TurnClassification,
 } from "@sokosumi/soko-bot";
 import { experimental_evaluate, gateway } from "ai";
-import { rethrowAiGatewayFailure } from "@/lib/ai-gateway-budget";
+import {
+  AiGatewayBudgetError,
+  rethrowAiGatewayFailure,
+} from "@/lib/ai-gateway-budget";
 import { recordCoreWarning } from "@/lib/evlog";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
@@ -553,7 +556,9 @@ export class JevTurnClassifier implements TurnClassifier {
           abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
         });
       } catch (error) {
-        if (attempt >= MAX_ATTEMPTS) throw error;
+        if (error instanceof AiGatewayBudgetError || attempt >= MAX_ATTEMPTS) {
+          throw error;
+        }
       }
     }
   }

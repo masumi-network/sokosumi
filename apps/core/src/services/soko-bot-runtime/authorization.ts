@@ -296,6 +296,8 @@ export async function requireMutationAuthority(
   });
   if (intentTurn?.intentId) {
     await tx.$queryRaw`SELECT "id" FROM "soko_bot_intent" WHERE "id" = ${intentTurn.intentId}::uuid FOR UPDATE`;
+    // Sample after the lock so an intent that expires during the wait is refused.
+    const now = await databaseNow(tx);
     const intent = await tx.sokoBotIntent.findFirst({
       where: {
         id: intentTurn.intentId,
@@ -305,8 +307,7 @@ export async function requireMutationAuthority(
         sokoBotId: authorized.turn.sokoBotId,
         workspaceId: authorized.turn.workspaceId,
         state: { notIn: ["CANCELLED", "SUPERSEDED", "EXPIRED"] },
-        // Host time: intents are issued and looked up on the host clock.
-        expiresAt: { gt: new Date() },
+        expiresAt: { gt: now },
       },
       select: { id: true },
     });

@@ -1,5 +1,6 @@
 import { capabilitiesForClassification } from "@sokosumi/soko-bot";
 import { describe, expect, it, vi } from "vitest";
+import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 import {
   type ClassifierContextSummary,
   JevTurnClassifier,
@@ -505,6 +506,29 @@ describe("failing closed", () => {
     expect(evaluate).toHaveBeenCalledTimes(2);
     expect(result.classification.route).toBe("HIRE_AGENT");
     expect(result.failed).toBe(false);
+  });
+
+  it("stops on a budget refusal and falls back to read-only clarification", async () => {
+    expectCoreLogWhys(
+      "warn",
+      "The Soko Bot classifier failed, so the request became a clarification",
+      ["The routing model call failed, or its answer did not parse"],
+    );
+    const evaluate = vi
+      .fn<RouteEvaluator>()
+      .mockRejectedValue(new AiGatewayBudgetError());
+
+    const result = await new JevTurnClassifier(evaluate).classify(
+      "Hire an agent",
+      EMPTY_CONTEXT,
+    );
+
+    expect(evaluate).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      failed: true,
+      usage: null,
+      classification: { route: "CLARIFY", confidence: 0 },
+    });
   });
 
   it("reads only when Jev is unreachable", async () => {

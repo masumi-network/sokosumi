@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
+import type { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
 
 import { dateTimeSchema } from "./datetime.js";
 
@@ -241,6 +242,15 @@ export const serviceUnavailable = (
 ): HTTPException => {
   return createHTTPException(503, message, metadata);
 };
+
+export function aiBudgetUnavailable(
+  error: AiGatewayBudgetError,
+): HTTPException {
+  return serviceUnavailable(error.message, {
+    kind: error.code,
+    reportToSentry: false,
+  });
+}
 
 /** 503 for a `ComposioConfigError`: Web matches on the kind, not the message. */
 export const integrationNotConfigured = (): HTTPException =>
