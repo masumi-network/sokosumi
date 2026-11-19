@@ -70,7 +70,14 @@ export async function publishInstagramPost(
         : {
             ig_user_id: igUserId,
             ...caption,
-            ...(video ? { video_url: video.fileUrl } : {}),
+            // A single video is a Reel, which also shows in the feed.
+            ...(video
+              ? {
+                  media_type: "REELS",
+                  video_url: video.fileUrl,
+                  share_to_feed: true,
+                }
+              : {}),
             ...(!video && context.media[0]
               ? { image_url: context.media[0].fileUrl }
               : {}),

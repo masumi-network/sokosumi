@@ -192,6 +192,60 @@ describe("publishFacebookPost", () => {
     ]);
   });
 
+  it("publishes a vertical short video as a Reel, labelled when a person in it is generated", async () => {
+    const fetchMock = stubSession(() =>
+      toolResponse({
+        video_id: "987",
+        upload_success: true,
+        finish_success: true,
+        video_state: "PUBLISHED",
+      }),
+    );
+
+    const published = await publishFacebookPost({
+      ...context,
+      media: [VIDEO_REF],
+      reel: true,
+      aiGenerated: true,
+    });
+
+    expect(executeCalls(fetchMock)).toEqual([
+      {
+        tool_slug: "FACEBOOK_PUBLISH_PAGE_REEL",
+        arguments: {
+          page_id: "page_123",
+          file_url: VIDEO_REF.fileUrl,
+          description: "Hello Facebook",
+          video_state: "PUBLISHED",
+          is_ai_generated: true,
+        },
+      },
+    ]);
+    expect(published).toEqual({
+      externalId: "987",
+      publishedUrl: "https://www.facebook.com/reel/987",
+      toolSlug: "FACEBOOK_PUBLISH_PAGE_REEL",
+    });
+  });
+
+  it("fails a Reel Facebook uploaded but did not publish", async () => {
+    stubSession(() =>
+      toolResponse({
+        video_id: "987",
+        upload_success: true,
+        finish_success: false,
+        video_state: "PUBLISHED",
+      }),
+    );
+
+    await expect(
+      publishFacebookPost({ ...context, media: [VIDEO_REF], reel: true }),
+    ).rejects.toMatchObject({
+      constructor: ComposioToolError,
+      message: "Facebook took the video but did not publish the Reel",
+    });
+  });
+
   it("raises a tool error when the Page refuses the post", async () => {
     stubSession(() =>
       Response.json({

@@ -25,6 +25,8 @@ export interface SocialPostPublishContext {
   tikTokSettings?: TikTokPostSettings;
   /** The media shows a generated person (a talking video): label it AI-made where the network can. */
   aiGenerated?: boolean;
+  /** The video is vertical and at most 90 seconds: a Reel where the network has them. */
+  reel?: boolean;
   quoteExternalId?: string;
   signal?: AbortSignal;
 }
