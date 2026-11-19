@@ -895,12 +895,7 @@ describe("saving versions", () => {
       [
         "a network without talking videos",
         { ...video, alsoOn: ["youtube", "x"] },
-        /tv cannot also go out on x: alsoOn takes other live networks with a talking_video format \(linkedin, facebook, youtube\)/,
-      ],
-      [
-        "TikTok while it is not live",
-        { ...video, alsoOn: ["tiktok"] },
-        /tv cannot also go out on tiktok/,
+        /tv cannot also go out on x: alsoOn takes other live networks with a talking_video format \(linkedin, facebook, youtube, tiktok\)/,
       ],
       [
         "its own channel",
