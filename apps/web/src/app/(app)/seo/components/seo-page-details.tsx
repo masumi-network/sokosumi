@@ -17,13 +17,17 @@ import {
   noteFinding,
   pageDetailGuidance,
   pageDetailGuidanceRows,
+  pageDetailItems,
+  pageDetailLines,
   pageDetailReferences,
+  plainNote,
   seoCheckedAt,
   seoOverviewModel,
   toolRangeFit,
   toolRangesList,
   withoutRuleCodes,
 } from "./seo-overview-model";
+import { SeoPageDetailItemList } from "./seo-page-detail-item-list";
 import { SeoRankDetailRow } from "./seo-rank-detail";
 import { seoRankDetail } from "./seo-rank-detail-model";
 import {
@@ -93,8 +97,15 @@ function PageDetail({
   const measure = finding.severity === "measure";
   // The position measure is a short row of its own; its lines stay in a fold there.
   const rank = measure ? seoRankDetail(finding.evidence) : null;
-  const guidance =
-    showGuidance && !rank ? pageDetailGuidance(finding.evidence) : [];
+  // Items the check flagged (a file per line) belong to this page; the rule's guidance shows once.
+  const later = rank
+    ? { groups: [], guidance: [] }
+    : pageDetailItems(pageDetailGuidance(finding.evidence));
+  // A note with plain words of its own: a count heading (share), or a title with the check's lines folded.
+  const plain = measure ? null : plainNote(finding.rowId, first);
+  const titled = plain?.kind === "title";
+  const guidance = showGuidance && !titled ? later.guidance : [];
+  const groups = titled ? [] : later.groups;
   const value = measure && first ? measureValue(name, first) : undefined;
   // Each page's value gets its own fit, though only the first row shows the ranges.
   const fit = value
@@ -103,10 +114,10 @@ function PageDetail({
   // A note leads with what the check found on the page; its rule name can read as the opposite.
   // A long finding stays a foldable value under the rule, not a heading.
   const split =
-    !measure && first !== undefined ? noteFinding(first) : undefined;
+    !measure && !plain && first !== undefined ? noteFinding(first) : undefined;
   const note =
     split && split.found.length <= NOTE_VALUE_FOLD_CHARS ? split : undefined;
-  const detail = note ? note.detail : measure ? undefined : first;
+  const detail = note ? note.detail : measure || plain ? undefined : first;
   const foldable =
     detail !== undefined && detail.length > NOTE_VALUE_FOLD_CHARS;
   // With one page there is nothing to tell apart, unless the row is for a page removed since.
@@ -135,10 +146,16 @@ function PageDetail({
   // A note can always be asked about; a measurement only when some tool range leaves it out.
   const ask = measure ? (offersFix ? onAsk : undefined) : onAsk;
   return (
-    <li className="space-y-1 py-3 first:pt-0 last:pb-0">
+    <li
+      className={cn(
+        // Measures are one line each; a note has a heading, words and a list, so each sits in its own box.
+        measure
+          ? "space-y-1 py-3 first:pt-0 last:pb-0"
+          : "border-border space-y-1.5 rounded-md border p-3",
+      )}
+    >
       {rank ? (
         <SeoRankDetailRow
-          name={name}
           headingId={headingId}
           detail={rank}
           evidence={finding.evidence}
@@ -181,20 +198,26 @@ function PageDetail({
         </p>
       ) : (
         <>
-          {/* The heading is the check's own finding; the rule name, e.g. "No meta keywords", follows it. */}
+          {/* The heading is what the check found on the page. The rule's own name ("No meta keywords") is
+              an internal label and can read as the opposite, so it shows only when no finding fits a heading. */}
           <NoteHeading
             id={headingId}
             className="text-sm font-medium break-words"
           >
-            {note
-              ? t("overview.noteFound", { found: note.found })
-              : t("overview.noteRule", { name })}
+            {plain?.kind === "share" ? (
+              t(`overview.plainNote.${plain.key}.found`, plain)
+            ) : plain ? (
+              t(`overview.plainNote.${plain.key}.title`)
+            ) : note ? (
+              note.found
+            ) : (
+              <>
+                {t("overview.noteRule")}
+                {/* Several such notes would read alike; a screen reader hears which rule each is. */}
+                <span className="sr-only">{`: ${name}`}</span>
+              </>
+            )}
           </NoteHeading>
-          {note ? (
-            <p className="text-muted-foreground text-xs">
-              {t("overview.noteRuleName", { name })}
-            </p>
-          ) : null}
           {detail ? (
             <p
               id={valueId}
@@ -207,8 +230,47 @@ function PageDetail({
               {detail}
             </p>
           ) : null}
+          {plain ? (
+            <p className="text-muted-foreground text-sm">
+              {t(`overview.plainNote.${plain.key}.why`)}
+            </p>
+          ) : null}
         </>
       )}
+      {titled ? (
+        // The check's own lines stay one click away; the title and why say what they mean.
+        <details className="text-muted-foreground text-xs">
+          <SeoFoldSummary className="py-1.5">
+            {t("overview.checkFound")}
+            {/* Every titled note has this fold; a screen reader hears which note it belongs to. */}
+            <span className="sr-only">{`: ${t(`overview.plainNote.${plain.key}.title`)}`}</span>
+          </SeoFoldSummary>
+          <ul className="list-disc space-y-0.5 ps-4 pt-1">
+            {pageDetailLines(finding.evidence).map((line, index) => (
+              <li key={`${index}:${line}`} className="break-words">
+                {withoutRuleCodes(line)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      {groups.map((group) => (
+        <div key={group.label} className="space-y-0.5 text-xs">
+          {/* A plain note's heading already says what the items are. */}
+          {plain ? null : (
+            <p className="text-muted-foreground">
+              {t(`overview.flaggedItems.${group.label}`, {
+                count: group.values.length + group.more,
+              })}
+            </p>
+          )}
+          <SeoPageDetailItemList
+            values={group.values}
+            more={group.more}
+            pageUrl={finding.pageUrl}
+          />
+        </div>
+      ))}
       {/* The check's own guidance: Google's rule, then what tools use. */}
       {guidance.length ? (
         <ul className="text-muted-foreground space-y-0.5 text-xs">
@@ -513,7 +575,7 @@ export function SeoPageDetails({
             <SectionHeading className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
               {t("overview.pageNotes", { count: notes.length })}
             </SectionHeading>
-            <ul className="divide-border divide-y">
+            <ul className="space-y-2">
               {notes.map((finding) => (
                 <PageDetail
                   key={finding.id}

@@ -200,6 +200,19 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     await prisma.user.deleteMany({ where: { id: ownerId } });
   });
 
+  it("leases a due job across pipelines when no pipeline is supplied", async () => {
+    await queueSuggestionJob(1);
+
+    await expect(leaseNextFileIndexJob({})).resolves.toMatchObject({
+      job: {
+        resourceId,
+        pipeline: FileIndexJobPipeline.SUGGEST,
+        state: "LEASED",
+        fence: 1,
+      },
+    });
+  });
+
   it("writes a suggestion row for an owned resource", async () => {
     await queueSuggestionJob(1);
     const leased = await leaseNextFileIndexJob({

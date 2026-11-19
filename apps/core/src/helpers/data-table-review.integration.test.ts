@@ -124,10 +124,11 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       return Promise.all(calls);
     }
     it("replays overlapping creates with supplied column IDs from a fresh snapshot", async () => {
+      const columnId = randomUUID();
       const body = createDataTableSchema.parse({
         key: randomUUID(),
         title: randomUUID(),
-        columns: [{ id: randomUUID(), name: "Company", type: "text" }],
+        columns: [{ id: columnId, name: "Company", type: "text" }],
       });
       const [first, retry] = await overlap(body.key, () =>
         createDataTable(actor, body),
@@ -138,15 +139,16 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
           where: { workspaceId, title: body.title },
         }),
       ).toBe(1);
-      expect(
-        await prisma.tableColumn.count({ where: { id: body.columns[0].id } }),
-      ).toBe(1);
+      expect(await prisma.tableColumn.count({ where: { id: columnId } })).toBe(
+        1,
+      );
     });
     it("replays overlapping batches with supplied row IDs from a fresh snapshot", async () => {
       const table = await make();
+      const rowId = randomUUID();
       const body = tableBatchSchema.parse({
         key: randomUUID(),
-        insert: [{ id: randomUUID(), values: {} }],
+        insert: [{ id: rowId, values: {} }],
       });
       const [first, retry] = await overlap(body.key, () =>
         batchTableRows(actor, table.id, body),
@@ -157,7 +159,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       ).toBe(1);
       expect(
         await prisma.tableChange.count({
-          where: { tableId: table.id, rowId: body.insert[0].id },
+          where: { tableId: table.id, rowId },
         }),
       ).toBe(1);
     });
@@ -199,9 +201,10 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
         },
       });
       const scopedActor = { ...actor, taskId: task.id };
+      const rowId = randomUUID();
       const body = tableBatchSchema.parse({
         key: randomUUID(),
-        insert: [{ id: randomUUID(), values: {} }],
+        insert: [{ id: rowId, values: {} }],
       });
       await batchTableRows(scopedActor, table.id, body);
       // Force a real P2002 and rollback: PostgreSQL may otherwise choose a
@@ -212,7 +215,7 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
           try {
             await prisma.$transaction(async (tx) => {
               await tx.tableRow.create({
-                data: { id: body.insert[0].id, tableId: table.id, values: {} },
+                data: { id: rowId, tableId: table.id, values: {} },
               });
             });
           } catch (error) {
