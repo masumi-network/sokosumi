@@ -114,6 +114,7 @@ function renderTasksViewFilters(
   return filterDropdownMenuMock.mock.calls.at(-1)?.[0] as {
     buttonLabel: string;
     sections: FilterDropdownMenuSection[];
+    resetAction?: { label: string; onReset: () => void };
   };
 }
 
@@ -234,11 +235,8 @@ describe("TasksViewFilters", () => {
     expect(screen.queryByRole("list")).toBeNull();
   });
 
-  it("shows Clear only from two chips on, and it clears every chip", async () => {
-    window.history.replaceState(null, "", "/tasks?stuck=1");
-    searchParams = new URLSearchParams(window.location.search);
-    renderTasksViewFilters("org-1");
-    expect(screen.queryByRole("button", { name: "clear" })).toBeNull();
+  it("offers Reset in the Filters menu only while a filter is set, and it clears every chip", () => {
+    expect(renderTasksViewFilters("org-1").resetAction).toBeUndefined();
 
     window.history.replaceState(
       null,
@@ -246,23 +244,22 @@ describe("TasksViewFilters", () => {
       "/tasks?stuck=1&status=FAILED&scope=owned",
     );
     searchParams = new URLSearchParams(window.location.search);
-    renderTasksViewFilters("org-1");
-    await userEvent.click(screen.getByRole("button", { name: "clear" }));
+    const props = renderTasksViewFilters("org-1");
+    expect(props.resetAction?.label).toBe("clear");
+    props.resetAction?.onReset();
 
     expect(replaceMock).toHaveBeenLastCalledWith("/tasks");
     window.history.replaceState(null, "", "/");
   });
 
-  it("clears a scope hidden under Needs me with the other chips", async () => {
+  it("clears a scope hidden under Needs me with the other chips", () => {
     window.history.replaceState(
       null,
       "",
       "/tasks?needsMe=1&scope=owned&stuck=1&status=FAILED",
     );
     searchParams = new URLSearchParams(window.location.search);
-    renderTasksViewFilters("org-1", "user-1");
-
-    await userEvent.click(screen.getByRole("button", { name: "clear" }));
+    renderTasksViewFilters("org-1", "user-1").resetAction?.onReset();
 
     expect(replaceMock).toHaveBeenLastCalledWith("/tasks?needsMe=1");
     window.history.replaceState(null, "", "/");

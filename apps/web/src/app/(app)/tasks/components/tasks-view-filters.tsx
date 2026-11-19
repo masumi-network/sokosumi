@@ -58,8 +58,6 @@ export function focusToolbarControl(toolbar: Element | null | undefined) {
 
 const FILTERS_MENU_ATTRIBUTE = "data-filters-menu";
 const STUCK_OPTION_VALUE = "stuck";
-/** One chip clears itself; from two on, a Clear button clears them all. */
-const MIN_CHIPS_FOR_CLEAR = 2;
 
 interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
@@ -492,26 +490,6 @@ export function TasksViewFilters({
           })}
         </ul>
       ) : null}
-      {chips.length >= MIN_CHIPS_FOR_CLEAR ? (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={(event) => {
-            const toolbar = event.currentTarget.parentElement;
-            handleFilterChange(
-              chips.reduce<Partial<TasksFilters>>(
-                (patch, chip) => ({ ...patch, ...chip.clear }),
-                // Needs me and Mentions hide the scope chip, but a scope
-                // set before them would come back with All.
-                { scope: getDefaultTasksScope(activeOrganizationId) },
-              ),
-            );
-            focusToolbarControl(toolbar);
-          }}
-        >
-          {t("clear")}
-        </Button>
-      ) : null}
       <span className="ms-auto flex" data-filters-menu>
         <FilterDropdownMenu
           buttonLabel={labels.title}
@@ -520,6 +498,22 @@ export function TasksViewFilters({
           sections={sections}
           showActiveIndicator={showActiveIndicator}
           align="end"
+          resetAction={
+            chips.length > 0
+              ? {
+                  label: t("clear"),
+                  onReset: () =>
+                    handleFilterChange(
+                      chips.reduce<Partial<TasksFilters>>(
+                        (patch, chip) => ({ ...patch, ...chip.clear }),
+                        // Needs me and Mentions hide the scope chip, but a
+                        // scope set before them would come back after.
+                        { scope: getDefaultTasksScope(activeOrganizationId) },
+                      ),
+                    ),
+                }
+              : undefined
+          }
         />
       </span>
     </div>
