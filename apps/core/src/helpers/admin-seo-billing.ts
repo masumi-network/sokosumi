@@ -1,13 +1,14 @@
 import { PrismaRaw } from "@sokosumi/database/client";
 import {
   convertCreditsToCents,
-  PAID_DATA_MARKUP_PERCENT,
   SEO_FULL_AUDIT_CREDITS,
+  SEO_FULL_AUDIT_MARKUP_PERCENT,
 } from "@sokosumi/utils";
 
 export const SEO_PRICE_PENDING_COMMENT =
   "The audit finished. Its final price is pending while we verify the cost receipts. No credits have been charged.";
 
+const CREDITS_PER_USD = 100;
 const MICRO_USD_PER_USD = 1_000_000;
 const CREDIT_UNITS = convertCreditsToCents(1);
 
@@ -42,7 +43,7 @@ export const seoBillingCtes = PrismaRaw.sql`
       AND (CASE WHEN jsonb_typeof(receipt)='object' THEN receipt - ARRAY['version','gatewayMicroUsd','directModelMicroUsd','dataForSeoMicroUsd','otherApiMicroUsd'] END) = '{}'::jsonb
       AND parts.n=4 AND parts.total <= ${Number.MAX_SAFE_INTEGER}::numeric
       THEN least((cap #>> '{}')::numeric, greatest(${SEO_FULL_AUDIT_CREDITS}::numeric,
-        ceil(parts.total * ${PAID_DATA_MARKUP_PERCENT}::numeric / ${MICRO_USD_PER_USD}::numeric))) * ${CREDIT_UNITS}::numeric
+        ceil(parts.total * ${CREDITS_PER_USD * (1 + SEO_FULL_AUDIT_MARKUP_PERCENT / 100)}::numeric / ${MICRO_USD_PER_USD}::numeric))) * ${CREDIT_UNITS}::numeric
       END AS receipt_units, parts.data_cost
     FROM billing_evidence b LEFT JOIN LATERAL (
       SELECT count(n) FILTER (WHERE n>=0 AND n=trunc(n)) AS n, sum(n) AS total,

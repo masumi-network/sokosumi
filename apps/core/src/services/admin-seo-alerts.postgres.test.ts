@@ -332,6 +332,19 @@ it.skipIf(!enabled)(
         severity: "critical",
         reasons: ["priceUnverified"],
       });
+      // Billing anomalies stay attached to the original run when the next scheduled audit fails.
+      await tx.$executeRaw`INSERT INTO project_seo_analysis VALUES (${id(931)}::uuid,${id(31)}::uuid,NULL,'owner','{}','failed','next31','audit_full',timezone('UTC',now())+interval '1 minute',timezone('UTC',now()),NULL)`;
+      await tx.$executeRaw`INSERT INTO task VALUES ('next31','worker','FAILED',timezone('UTC',now()))`;
+      await tx.$executeRaw`INSERT INTO "taskEvent" ("taskId",status,"coworkerId","createdAt",id) VALUES ('next31','FAILED','worker',timezone('UTC',now()),'failure')`;
+      expect(await incident("next31")).toMatchObject({
+        severity: "critical",
+        reasons: ["workerFailed"],
+      });
+      expect(await incident("metered31")).toMatchObject({
+        severity: "critical",
+        reasons: ["priceUnverified"],
+      });
+      await tx.$executeRaw`DELETE FROM project_seo_analysis WHERE "taskId"='next31'`;
       // Close these temporary runs so the existing all-period historic assertions stay independent.
       await tx.$executeRaw`UPDATE seo_audit SET "archivedAt"=timezone('UTC',now()) WHERE id IN (${id(31)}::uuid,${id(32)}::uuid,${id(33)}::uuid,${id(34)}::uuid,${id(35)}::uuid)`;
 

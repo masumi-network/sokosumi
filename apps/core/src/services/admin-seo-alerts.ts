@@ -76,11 +76,13 @@ export async function listAdminSeoAlerts(
       SELECT p.*, b.cap AS "approvedMaxCredits", b.billing_status, b.cost, b.attempted_credits, b.charged_credits, b.data_budget, b.over_budget,
         coalesce(b.billing_status IN ('unverified', 'abandoned') OR b.over_budget, false) AS billing_attention
       FROM progress p LEFT JOIN billing_summary b USING(run)
-    ), latest AS (
-      SELECT DISTINCT ON (id) * FROM priced_runs
+    ), ranked_runs AS (
+      SELECT *, row_number() OVER (PARTITION BY id ORDER BY "createdAt" DESC, run DESC) AS recency FROM priced_runs
       WHERE billing_attention OR (metered AND price_pending) OR needs_credits OR retrying OR overdue OR status IN ('completed','failed') OR task_status = 'FAILED' OR
         (task_status = 'COMPLETED' AND settled_at <= (now() AT TIME ZONE 'UTC') - make_interval(mins => ${SEO_IMPORT_GRACE_MINUTES}::int))
-      ORDER BY id, coalesce(billing_status = 'unverified', false) DESC, (billing_attention OR (metered AND price_pending) OR needs_credits OR retrying) DESC NULLS LAST, "createdAt" DESC, run DESC
+    ), latest AS (
+      SELECT * FROM ranked_runs
+      WHERE recency = 1 OR billing_attention OR (metered AND price_pending) OR needs_credits OR retrying
     ), billing_runs AS (
       SELECT run AS id,"taskId","auditId","projectId",workspace AS "workspaceId",at,"approvedMaxCredits",
         billing_status AS status,cost,attempted_credits AS "attemptedCredits",charged_credits AS "chargedCredits",data_budget AS "dataBudgetUsd",billing_attention
@@ -127,14 +129,14 @@ export async function listAdminSeoAlerts(
       ) page_errors ON true
       WHERE true ${periodFilter}
     ), classified AS (
-      SELECT id, "taskId", "auditId", "projectId", workspace AS "workspaceId", "workspaceUserId", "workspaceOrganizationSlug", at, failed_pages AS "failedPages", completed_pages + failed_pages AS "attemptedPages",
+      SELECT CASE WHEN recency = 1 THEN id ELSE run END AS id, "taskId", "auditId", "projectId", workspace AS "workspaceId", "workspaceUserId", "workspaceOrganizationSlug", at, failed_pages AS "failedPages", completed_pages + failed_pages AS "attemptedPages",
         array_remove(ARRAY[
           CASE WHEN billing_status='unverified' THEN 'priceUnverified'
                WHEN billing_status='abandoned' THEN 'priceUnpaid'
                WHEN needs_credits THEN 'priceNeedsCredits'
                WHEN retrying THEN 'priceRetry'
-               WHEN metered AND price_pending THEN 'priceReceiptPending'
-               WHEN overdue AND NOT imported THEN 'workerOverdue'
+               WHEN metered AND price_pending THEN 'priceReceiptPending' END,
+          CASE WHEN overdue AND NOT imported AND NOT (metered AND coalesce(price_pending, false)) THEN 'workerOverdue'
                WHEN task_status = 'FAILED' AND worker_failed THEN 'workerFailed'
                WHEN status = 'failed' AND rejected THEN 'reportRejected'
                WHEN status = 'failed' OR task_status = 'FAILED' THEN 'auditFailed'
