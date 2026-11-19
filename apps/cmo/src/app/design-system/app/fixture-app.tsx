@@ -21,6 +21,9 @@ const actions: CmoAppActions = {
   saveBrandBrain: async () => overview,
   retryLearning: async () => ({ overview, error: null }),
   pauseEntry: async () => overview,
+  approveDraft: async () => ({ overview, error: null }),
+  declineDraft: async () => ({ overview, error: null }),
+  editDraft: async () => ({ overview, error: null }),
   competitors: {
     loadCompetitors: async () => competitors,
     addCompetitor: async () => ({ competitors, error: null }),

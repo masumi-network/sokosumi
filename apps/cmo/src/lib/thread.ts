@@ -91,9 +91,18 @@ export function buildThread(
     const latest = production.map((update) => iso(update.at) ?? created).sort();
     items.push({ kind: "production", at: latest.at(-1) ?? approvedAt });
   }
+  // A file shown where Cuso made it is not shown again under his report.
+  const shown = new Set(work.map((made) => made.url));
   for (const update of overview.updates) {
     if (update.kind === "production") continue;
-    items.push({ kind: "update", at: iso(update.at) ?? created, update });
+    items.push({
+      kind: "update",
+      at: iso(update.at) ?? created,
+      update: {
+        ...update,
+        media: update.media.filter((file) => !shown.has(file.url)),
+      },
+    });
   }
   for (const made of work) {
     const at = iso(made.at) ?? created;

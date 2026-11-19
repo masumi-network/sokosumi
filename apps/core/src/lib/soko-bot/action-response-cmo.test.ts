@@ -132,6 +132,76 @@ describe("Cuso's replies stay inside CMO.xyz", () => {
       expect(reply).toContain(`](${route}`);
   });
 
+  it("stays silent beside the report card when a turn only delivered something", async () => {
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      versionId: "cmo-v1",
+      workspaceId: "workspace-one",
+    });
+    // The video was fetched and reported; nothing was written.
+    db.sokoBotToolCall.findMany.mockResolvedValue([]);
+    db.sokoBotToolCall.count.mockImplementation(async ({ where }) =>
+      where.capability === "report_update" ? 1 : 0,
+    );
+    db.task.findMany.mockResolvedValue([]);
+    db.job.findMany.mockResolvedValue([]);
+
+    const narrative = {
+      kind: "REPORT",
+      message: null,
+      question: null,
+      observationToolCallIds: [],
+    };
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      JSON.stringify(narrative),
+      true,
+      narrative,
+    );
+
+    expect(response.answerText).toBe("Nothing to add.");
+  });
+
+  it.each([
+    ["a follow-up run posts its card alone", "turn-parent", "Nothing to add."],
+    [
+      "a chat turn keeps its sentence beside the card",
+      null,
+      "The draft waits for you.",
+    ],
+  ])("%s", async (_name, parentTurnId, expected) => {
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "CHAT",
+      versionId: "cmo-v1",
+      workspaceId: "workspace-one",
+      parentTurnId,
+    });
+    db.sokoBotToolCall.findMany.mockResolvedValue([
+      receipt("create_social_post", 1),
+    ]);
+    db.sokoBotToolCall.count.mockImplementation(async ({ where }) =>
+      where.capability === "report_update" ? 1 : 0,
+    );
+    db.task.findMany.mockResolvedValue([]);
+    db.job.findMany.mockResolvedValue([]);
+
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "The draft waits for you.",
+      true,
+      {
+        kind: "REPORT",
+        message: "The draft waits for you.",
+        question: null,
+        observationToolCallIds: [],
+      },
+    );
+
+    expect(response.answerText).toBe(expected);
+  });
+
   it("names no Sokosumi product in a receipt's label", () => {
     expect(sokosumiIn(Object.values(ACTION_LABELS).join("\n"))).toEqual([]);
   });

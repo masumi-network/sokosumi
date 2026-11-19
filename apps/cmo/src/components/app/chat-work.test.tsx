@@ -102,6 +102,31 @@ describe("thread", () => {
     ).toEqual(["welcome", "connect", "m1", "m2", "work", "m3"]);
   });
 
+  it("shows a file once: in its own card, not again under the report", () => {
+    const report = {
+      id: "u1",
+      kind: "request" as const,
+      headline: "Picture ready",
+      at: new Date("2026-11-18T12:02:00Z"),
+      revertible: false,
+      revertedAt: null,
+      posts: [],
+      media: [
+        { kind: "image" as const, url: "https://blob/p.jpg", name: "p.jpg" },
+        { kind: "image" as const, url: "https://blob/other.jpg", name: "o" },
+      ],
+    };
+    const thread = buildThread(
+      { ...hired, updates: [report] },
+      [],
+      [work({ state: "ready", url: "https://blob/p.jpg" })],
+    );
+    const update = thread.find((item) => item.kind === "update");
+    expect(update?.kind === "update" ? update.update.media : null).toEqual([
+      { kind: "image", url: "https://blob/other.jpg", name: "o" },
+    ]);
+  });
+
   it("leaves out what was made while hiring", () => {
     const thread = buildThread(
       hired,
