@@ -162,6 +162,7 @@
     "UserAvatar": {
       "account": "Account",
       "notifications": "Notifications",
+      "notificationSettings": "Notification settings",
       "billing": "Billing",
       "connections": "Connections",
       "developer": "Developer",
@@ -5812,7 +5813,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, job results, images or files",
+      "description": "Search for tasks, tags, jobs, job results, images or files",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
@@ -5820,7 +5821,11 @@
       "created": "Created",
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
-      "filesFilenameMatch": "Filename match"
+      "filesFilenameMatch": "Filename match",
+      "tagsGroup": "Tags",
+      "tagTasksGroup": "Tasks tagged {tag}",
+      "tagsError": "Couldn't load tags",
+      "tagTasksError": "Couldn't load these tasks"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",
@@ -9280,6 +9285,7 @@
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back",
+        "backToYou": "Back to You",
         "goHome": "Go to home",
         "home": "Home",
         "searchAgents": "Search agents"

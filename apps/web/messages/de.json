@@ -162,6 +162,7 @@
     "UserAvatar": {
       "account": "Konto",
       "notifications": "Benachrichtigungen",
+      "notificationSettings": "Benachrichtigungseinstellungen",
       "billing": "Abrechnung",
       "connections": "Verbindungen",
       "developer": "Entwickler",
@@ -5812,7 +5813,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -5820,7 +5821,11 @@
       "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
-      "filesFilenameMatch": "Treffer im Dateinamen"
+      "filesFilenameMatch": "Treffer im Dateinamen",
+      "tagsGroup": "Tags",
+      "tagTasksGroup": "Aufgaben mit dem Tag {tag}",
+      "tagsError": "Tags konnten nicht geladen werden",
+      "tagTasksError": "Diese Aufgaben konnten nicht geladen werden"
     },
     "NoticeDialog": {
       "defaultTitle": "Hinweis",
@@ -9280,6 +9285,7 @@
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
         "back": "Zurück",
+        "backToYou": "Zurück zu „Du“",
         "goHome": "Zur Startseite",
         "home": "Startseite",
         "searchAgents": "Agenten suchen"

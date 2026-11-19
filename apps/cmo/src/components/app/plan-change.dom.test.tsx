@@ -76,6 +76,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
         plans={cmoPlans}
         actions={{
           loadState: async () => ({ overview, messages: [] }),
+          loadChatWork: async () => [],
           sendMessage: async () => {},
           skipSubscription: async () => ({ error: null }),
           loadSeo: async () => null,
@@ -89,6 +90,9 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           saveBrandBrain: same,
           retryLearning: result,
           pauseEntry: same,
+          approveDraft: result,
+          declineDraft: result,
+          editDraft: result,
           competitors: {
             loadCompetitors: async () => null,
             addCompetitor: async () => ({ competitors: null, error: null }),
@@ -104,6 +108,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           setAdCampaignStatus: result,
           loadAdCampaigns: async () => [],
           startOver: async () => null,
+          setTimeZone: async () => null,
           startTopUp: none,
           subscribe: none,
           changePlan: async () => ({ change: null, error: null }),

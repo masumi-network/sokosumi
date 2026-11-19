@@ -8,6 +8,7 @@ import { channelLabel, planRange } from "../../lib/calendar";
 import { strategyApproved } from "../../lib/strategy";
 import { StatusText } from "../status";
 import { OutOfCredits, type StartTopUp } from "../top-up";
+import { type DraftActions, MadeByCuso } from "./draft-post";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -26,6 +27,8 @@ export interface CardActions {
   ) => void;
   /** The top-up checkout, or null when this Cuso may not top up. */
   topUp: StartTopUp | null;
+  /** Approve, rewrite or decline a post Cuso made outside the month. */
+  drafts: DraftActions;
 }
 
 type BrandBrain = NonNullable<CmoOverview["brandBrain"]>;
@@ -408,9 +411,11 @@ const CHANGE_LABELS = {
 function RequestNote({
   update,
   superseded,
+  drafts,
 }: {
   update: Update;
   superseded: boolean;
+  drafts: DraftActions;
 }) {
   const done = update.done ?? [];
   const upNext = superseded ? [] : (update.upNext ?? []);
@@ -435,6 +440,7 @@ function RequestNote({
           ))}
         </div>
       ) : null}
+      <MadeByCuso update={update} actions={drafts} />
     </div>
   );
 }
@@ -462,7 +468,13 @@ export function UpdateCard({
 }) {
   const [pending, startTransition] = useTransition();
   if (update.kind === "request") {
-    return <RequestNote update={update} superseded={superseded} />;
+    return (
+      <RequestNote
+        update={update}
+        superseded={superseded}
+        drafts={actions.drafts}
+      />
+    );
   }
   return (
     <div className="card">
@@ -473,6 +485,7 @@ export function UpdateCard({
         <span className="note num">{formatTime(update.at)}</span>
       </div>
       <div className="cb">
+        <MadeByCuso update={update} actions={actions.drafts} />
         {changesStrategy(update.kind) ? (
           <div>
             <span className="label">Results</span>

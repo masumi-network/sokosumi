@@ -13043,6 +13043,10 @@ export type CmoOverview = {
      */
     onboardingStep: 'brandBrain' | 'strategy' | 'checkout' | 'accounts' | 'done';
     routines: Array<CmoRoutine>;
+    /**
+     * The time zone Cuso's routines run in, as the owner set it.
+     */
+    timeZone: string;
     brandBrain: {
         summary: string;
         voice: {
@@ -13469,6 +13473,10 @@ export type CmoOverview = {
      */
     hiredAt: Date | null;
     updates: Array<CmoUpdate>;
+    /**
+     * Social posts Cuso made that wait for the owner's approval, newest first.
+     */
+    drafts: Array<CmoDraft>;
     channels: Array<CmoChannel>;
     upNext: Array<CmoUpNextItem>;
     connectChannelUrl: string;
@@ -13936,6 +13944,34 @@ export type CmoUpdate = {
     at: Date;
     revertible: boolean;
     revertedAt: Date | null;
+    /**
+     * The Social posts the report's turn made, as they are now.
+     */
+    posts: Array<CmoDraft>;
+    /**
+     * Pictures and videos the report's turn made that are on none of its posts.
+     */
+    media: Array<CmoMediaItem>;
+};
+
+export type CmoDraft = {
+    id: string;
+    provider: string;
+    text: string;
+    /**
+     * The Social post's status. NEEDS_APPROVAL waits for the owner; SCHEDULED goes out at scheduledAt.
+     */
+    status: string;
+    revision: number;
+    scheduledAt: Date | null;
+    publishedUrl: string | null;
+    media: Array<CmoMediaItem>;
+};
+
+export type CmoMediaItem = {
+    kind: 'image' | 'video';
+    url: string;
+    name: string;
 };
 
 export type CmoChannel = {
@@ -14024,6 +14060,10 @@ export type CmoOnboardingRequest = {
      * An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.
      */
     organizationId?: string;
+    /**
+     * The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.
+     */
+    timeZone?: string;
 };
 
 export type CmoSubscriptionPlan = {
@@ -14069,6 +14109,34 @@ export type CmoAdsFinalized = {
 
 export type CmoPieceText = {
     text: string;
+};
+
+export type CmoChatWork = {
+    items: Array<CmoChatWorkItem>;
+};
+
+export type CmoChatWorkItem = {
+    /**
+     * The tool call that started it.
+     */
+    id: string;
+    kind: 'image' | 'video' | 'audio';
+    /**
+     * making until the file exists; failed when it never will.
+     */
+    state: 'making' | 'ready' | 'failed';
+    /**
+     * When Cuso started it.
+     */
+    at: Date;
+    /**
+     * What was asked for: the prompt, or the words spoken.
+     */
+    title: string;
+    /**
+     * Where the finished file plays from; null until it is ready.
+     */
+    url: string | null;
 };
 
 export type CmoCompetitors = {
@@ -14146,6 +14214,10 @@ export type CmoPlanChange = {
 
 export type CmoCustomerPortal = {
     url: string;
+};
+
+export type CmoTimeZone = {
+    timeZone: string;
 };
 
 export type CmoSeo = {
@@ -14287,6 +14359,17 @@ export type CmoStrategyRequest = {
 
 export type CmoTopUpCheckout = {
     url: string;
+};
+
+export type CmoDraftRevision = {
+    /**
+     * The draft's revision as shown; a changed draft is refused.
+     */
+    revision: number;
+};
+
+export type CmoDraftEdit = CmoDraftRevision & {
+    text: string;
 };
 
 export type CmoBrandFixStarted = {
@@ -87800,6 +87883,81 @@ export type GetCmoOverviewForProjectResponses = {
 
 export type GetCmoOverviewForProjectResponse = GetCmoOverviewForProjectResponses[keyof GetCmoOverviewForProjectResponses];
 
+export type GetCmoChatWorkForProjectData = {
+    body?: never;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/chat-work';
+};
+
+export type GetCmoChatWorkForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoChatWorkForProjectError = GetCmoChatWorkForProjectErrors[keyof GetCmoChatWorkForProjectErrors];
+
+export type GetCmoChatWorkForProjectResponses = {
+    /**
+     * What Cuso made in chat
+     */
+    200: {
+        data: CmoChatWork;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoChatWorkForProjectResponse = GetCmoChatWorkForProjectResponses[keyof GetCmoChatWorkForProjectResponses];
+
 export type GetCmoCompetitorsForProjectData = {
     body?: never;
     path: {
@@ -88966,6 +89124,96 @@ export type StartCmoOverForProjectResponses = {
 };
 
 export type StartCmoOverForProjectResponse = StartCmoOverForProjectResponses[keyof StartCmoOverForProjectResponses];
+
+export type SetCmoTimeZoneForProjectData = {
+    body: CmoTimeZone;
+    path: {
+        projectId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/time-zone';
+};
+
+export type SetCmoTimeZoneForProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a time zone
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetCmoTimeZoneForProjectError = SetCmoTimeZoneForProjectErrors[keyof SetCmoTimeZoneForProjectErrors];
+
+export type SetCmoTimeZoneForProjectResponses = {
+    /**
+     * Cuso works in this time zone now
+     */
+    200: {
+        data: CmoTimeZone;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetCmoTimeZoneForProjectResponse = SetCmoTimeZoneForProjectResponses[keyof SetCmoTimeZoneForProjectResponses];
 
 export type GetCmoSeoForProjectData = {
     body?: never;
@@ -90136,6 +90384,324 @@ export type RevertCmoUpdateForProjectResponses = {
 };
 
 export type RevertCmoUpdateForProjectResponse = RevertCmoUpdateForProjectResponses[keyof RevertCmoUpdateForProjectResponses];
+
+export type ApproveCmoDraftForProjectData = {
+    body: CmoDraftRevision;
+    path: {
+        projectId: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/drafts/{postId}/approve';
+};
+
+export type ApproveCmoDraftForProjectErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such post
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The post changed since it was shown, or it can no longer be changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ApproveCmoDraftForProjectError = ApproveCmoDraftForProjectErrors[keyof ApproveCmoDraftForProjectErrors];
+
+export type ApproveCmoDraftForProjectResponses = {
+    /**
+     * Draft approved
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ApproveCmoDraftForProjectResponse = ApproveCmoDraftForProjectResponses[keyof ApproveCmoDraftForProjectResponses];
+
+export type DeclineCmoDraftForProjectData = {
+    body: CmoDraftRevision;
+    path: {
+        projectId: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/drafts/{postId}/decline';
+};
+
+export type DeclineCmoDraftForProjectErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such post
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The post changed since it was shown, or it can no longer be changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeclineCmoDraftForProjectError = DeclineCmoDraftForProjectErrors[keyof DeclineCmoDraftForProjectErrors];
+
+export type DeclineCmoDraftForProjectResponses = {
+    /**
+     * Draft declined
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeclineCmoDraftForProjectResponse = DeclineCmoDraftForProjectResponses[keyof DeclineCmoDraftForProjectResponses];
+
+export type EditCmoDraftForProjectData = {
+    body: CmoDraftEdit;
+    path: {
+        projectId: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/cmo/projects/{projectId}/drafts/{postId}';
+};
+
+export type EditCmoDraftForProjectErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is not hired yet, or no such post
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The post changed since it was shown, or it can no longer be changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type EditCmoDraftForProjectError = EditCmoDraftForProjectErrors[keyof EditCmoDraftForProjectErrors];
+
+export type EditCmoDraftForProjectResponses = {
+    /**
+     * Draft changed
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type EditCmoDraftForProjectResponse = EditCmoDraftForProjectResponses[keyof EditCmoDraftForProjectResponses];
 
 export type UpdateCmoBrandBrainForProjectData = {
     body: BrandBrainRequest;

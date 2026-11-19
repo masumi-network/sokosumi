@@ -50793,6 +50793,10 @@ export const CmoOverviewSchema = {
                 $ref: '#/components/schemas/CmoRoutine'
             }
         },
+        timeZone: {
+            type: 'string',
+            description: 'The time zone Cuso\'s routines run in, as the owner set it.'
+        },
         brandBrain: {
             anyOf: [
                 {
@@ -53147,6 +53151,13 @@ export const CmoOverviewSchema = {
                 $ref: '#/components/schemas/CmoUpdate'
             }
         },
+        drafts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoDraft'
+            },
+            description: 'Social posts Cuso made that wait for the owner\'s approval, newest first.'
+        },
         channels: {
             type: 'array',
             items: {
@@ -53328,6 +53339,7 @@ export const CmoOverviewSchema = {
         'presenterSet',
         'onboardingStep',
         'routines',
+        'timeZone',
         'brandBrain',
         'brandBrainUpdatedAt',
         'brandBrainConfirmedAt',
@@ -53339,6 +53351,7 @@ export const CmoOverviewSchema = {
         'strategyVersions',
         'hiredAt',
         'updates',
+        'drafts',
         'channels',
         'upNext',
         'connectChannelUrl',
@@ -55646,6 +55659,20 @@ export const CmoUpdateSchema = {
                     type: 'null'
                 }
             ]
+        },
+        posts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoDraft'
+            },
+            description: 'The Social posts the report\'s turn made, as they are now.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoMediaItem'
+            },
+            description: 'Pictures and videos the report\'s turn made that are on none of its posts.'
         }
     },
     required: [
@@ -55654,7 +55681,93 @@ export const CmoUpdateSchema = {
         'id',
         'at',
         'revertible',
-        'revertedAt'
+        'revertedAt',
+        'posts',
+        'media'
+    ]
+} as const;
+
+export const CmoDraftSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            description: 'The Social post\'s status. NEEDS_APPROVAL waits for the owner; SCHEDULED goes out at scheduledAt.'
+        },
+        revision: {
+            type: 'integer'
+        },
+        scheduledAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        publishedUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoMediaItem'
+            }
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'text',
+        'status',
+        'revision',
+        'scheduledAt',
+        'publishedUrl',
+        'media'
+    ]
+} as const;
+
+export const CmoMediaItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video'
+            ]
+        },
+        url: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        }
+    },
+    required: [
+        'kind',
+        'url',
+        'name'
     ]
 } as const;
 
@@ -55949,6 +56062,12 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             minLength: 1,
             description: 'An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.'
+        },
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64,
+            description: 'The owner\'s time zone, from their browser: Cuso\'s routines run at their local times in it. Without it he works on Europe/Berlin time.'
         }
     },
     required: [
@@ -56097,6 +56216,77 @@ export const CmoPieceTextSchema = {
     },
     required: [
         'text'
+    ]
+} as const;
+
+export const CmoChatWorkSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChatWorkItem'
+            }
+        }
+    },
+    required: [
+        'items'
+    ]
+} as const;
+
+export const CmoChatWorkItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'The tool call that started it.'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'video',
+                'audio'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'making',
+                'ready',
+                'failed'
+            ],
+            description: 'making until the file exists; failed when it never will.'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When Cuso started it.'
+        },
+        title: {
+            type: 'string',
+            description: 'What was asked for: the prompt, or the words spoken.'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Where the finished file plays from; null until it is ready.'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'state',
+        'at',
+        'title',
+        'url'
     ]
 } as const;
 
@@ -56312,6 +56502,20 @@ export const CmoCustomerPortalSchema = {
     },
     required: [
         'url'
+    ]
+} as const;
+
+export const CmoTimeZoneSchema = {
+    type: 'object',
+    properties: {
+        timeZone: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 64
+        }
+    },
+    required: [
+        'timeZone'
     ]
 } as const;
 
@@ -57011,6 +57215,40 @@ export const CmoTopUpCheckoutSchema = {
     },
     required: [
         'url'
+    ]
+} as const;
+
+export const CmoDraftRevisionSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            description: 'The draft\'s revision as shown; a changed draft is refused.'
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
+export const CmoDraftEditSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/CmoDraftRevision'
+        },
+        {
+            type: 'object',
+            properties: {
+                text: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 25000
+                }
+            },
+            required: [
+                'text'
+            ]
+        }
     ]
 } as const;
 

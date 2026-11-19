@@ -1,6 +1,7 @@
 import type { CmoOverview, CmoSeo } from "@sokosumi/core-client";
 import { AGENT_NAME } from "../../../lib/agent";
 import type { CusoMessage } from "../../../lib/chat-messages";
+import type { ChatWork } from "../../../lib/chat-work";
 import { VIEW_PATHS, type View } from "../../../lib/views";
 import {
   cmoBilling,
@@ -84,6 +85,18 @@ const plan: Plan = {
 
 const at = (iso: string) => new Date(`2026-11-${iso}Z`);
 
+/** A post Cuso made on request, outside the month: it waits for the owner. */
+const WAITING_DRAFT: CmoOverview["drafts"][number] = {
+  id: "d1",
+  provider: "x",
+  text: "Every engine we ship runs on the test stand first.\n\nHere is what a full burn looks like from two metres away.",
+  status: "NEEDS_APPROVAL",
+  revision: 0,
+  scheduledAt: null,
+  publishedUrl: null,
+  media: [{ kind: "image", url: PICTURE, name: "test-stand.jpg" }],
+};
+
 export const overview: CmoOverview = cmoOverview({
   ...cmoStrategyVersion(new Date("2026-11-01T09:10:00Z")),
   businessName: "Acme",
@@ -165,6 +178,7 @@ export const overview: CmoOverview = cmoOverview({
       rewriting: false,
     },
   },
+  timeZone: "Europe/Berlin",
   routines: [
     {
       key: "cmo-daily-run",
@@ -245,6 +259,8 @@ export const overview: CmoOverview = cmoOverview({
       at: at("04T09:05:00"),
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
     },
     {
       id: "u2",
@@ -256,6 +272,8 @@ export const overview: CmoOverview = cmoOverview({
       at: at("03T09:00:00"),
       revertible: true,
       revertedAt: null,
+      posts: [],
+      media: [],
     },
     {
       id: "u3",
@@ -266,8 +284,23 @@ export const overview: CmoOverview = cmoOverview({
       at: at("04T10:03:40"),
       revertible: false,
       revertedAt: null,
+      posts: [],
+      media: [],
+    },
+    {
+      id: "u4",
+      kind: "request",
+      headline: "Test stand post ready for you",
+      done: ["Made the picture", "Wrote the post for X"],
+      upNext: [],
+      at: at("04T11:20:00"),
+      revertible: false,
+      revertedAt: null,
+      posts: [WAITING_DRAFT],
+      media: [],
     },
   ],
+  drafts: [WAITING_DRAFT],
   measurement: [
     {
       provider: "google_analytics",
@@ -353,7 +386,41 @@ export const chat = {
       "Bitte schreibe die LinkedIn-Beiträge für die Produkteinführung auf Deutsch, mit einem klaren Nutzenversprechen für Produktverantwortliche und einem Hinweis auf die vierzehntägige Testphase. Die Geschwindigkeitsbegrenzung im Wettbewerbsvergleich darf nicht fehlen.",
       "04T10:05:00",
     ),
+    message(
+      "m7",
+      false,
+      "Make a picture, a short video and a voice-over for the launch.",
+      "04T10:20:00",
+    ),
+    message("m8", true, "Started image.\n\nStarted video.", "04T10:20:01"),
   ],
+  // What Cuso makes in the chat, in each state it can be in.
+  work: [
+    {
+      id: "w1",
+      kind: "image",
+      state: "ready",
+      at: new Date("2026-11-04T10:20:10Z"),
+      title: "The launch on a phone",
+      url: "/cuso/walking.png",
+    },
+    {
+      id: "w2",
+      kind: "video",
+      state: "making",
+      at: new Date("2026-11-04T10:20:20Z"),
+      title: "A walk through the launch",
+      url: null,
+    },
+    {
+      id: "w3",
+      kind: "audio",
+      state: "failed",
+      at: new Date("2026-11-04T10:20:30Z"),
+      title: "Launch day is here.",
+      url: null,
+    },
+  ] satisfies ChatWork[],
 };
 
 const seoAt = (iso: string) => new Date(iso);

@@ -561,12 +561,16 @@ export async function buildActionResponse(
   // card does not carry, still follow as lines.
   // One read of the turn serves every question about it below.
   let turnRow:
-    | Promise<{ source: string | null; versionId: string | null } | null>
+    | Promise<{
+        source: string | null;
+        versionId: string | null;
+        parentTurnId: string | null;
+      } | null>
     | undefined;
   const turnInfo = () => {
     turnRow ??= tx.sokoBotTurn.findUnique({
       where: { id: turnId },
-      select: { source: true, versionId: true },
+      select: { source: true, versionId: true, parentTurnId: true },
     });
     return turnRow;
   };
@@ -725,19 +729,33 @@ export async function buildActionResponse(
       !question &&
       (narrative?.kind === "SILENT" ||
         isSokoBotSilentAnswer(message ?? (narrative ? "" : answerText))));
-  const text = silent
-    ? "Nothing to add."
-    : calls.length || narrativeText.length
-      ? [
-          actionText.join("\n"),
-          reportedByCard ? "" : attachments.join("\n"),
-          narrativeText.join("\n"),
-        ]
-          .filter(Boolean)
-          .join("\n\n") || "Nothing to add."
-      : actionRequested && !(await cmoSavedRecord(tx, turnId, await isCmo()))
-        ? "Nothing was changed in this turn."
-        : answerText;
+  // A background run of Cuso's (a follow-up once a video is ready) that
+  // filed its card has delivered: its closing words would be a second
+  // message saying the same.
+  const cardSaysIt =
+    reportedByCard &&
+    !actionText.length &&
+    !question &&
+    Boolean((await turnInfo())?.parentTurnId);
+  const text =
+    silent || cardSaysIt
+      ? "Nothing to add."
+      : calls.length || narrativeText.length
+        ? [
+            actionText.join("\n"),
+            reportedByCard ? "" : attachments.join("\n"),
+            narrativeText.join("\n"),
+          ]
+            .filter(Boolean)
+            .join("\n\n") || "Nothing to add."
+        : reportedByCard
+          ? // The card says what Cuso did; a line beside it would only repeat
+            // it, or call a delivered video "nothing changed".
+            "Nothing to add."
+          : actionRequested &&
+              !(await cmoSavedRecord(tx, turnId, await isCmo()))
+            ? "Nothing was changed in this turn."
+            : answerText;
   return {
     appliedReceiptIds,
     narrative,

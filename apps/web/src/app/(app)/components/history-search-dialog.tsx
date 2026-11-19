@@ -1,8 +1,14 @@
 "use client";
 
-import type { FileResource, HistoryItem } from "@sokosumi/core-client";
-import { FileText } from "lucide-react";
+import type {
+  FileResource,
+  HistoryItem,
+  TaskListItem,
+  WorkspaceLabel,
+} from "@sokosumi/core-client";
+import { FileText, ListTodo } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -12,6 +18,10 @@ import { getHistorySearchItemHref } from "@/app/components/history-search-item-h
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
+import { useTagSearchGroup } from "@/app/components/use-tag-search-group";
+import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
+import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import {
   CommandDialog,
   CommandEmpty,
@@ -33,11 +43,16 @@ interface HistorySearchDialogLabels {
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
+  tagsGroup: string;
+  tagTasksGroup: (tag: string) => string;
+  tagsError: string;
+  tagTasksError: string;
 }
 
 interface HistorySearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   labels: HistorySearchDialogLabels;
   activeOrganizationId: string | null;
 }
@@ -45,6 +60,7 @@ interface HistorySearchDialogProps {
 export function HistorySearchDialog({
   open,
   onOpenChange,
+  onCloseAutoFocus,
   labels,
   activeOrganizationId,
 }: HistorySearchDialogProps) {
@@ -64,6 +80,21 @@ export function HistorySearchDialog({
     activeOrganizationId,
     debouncedQuery: query,
   });
+  const { tags, tagsState, topTag, tasks, tasksState } = useTagSearchGroup({
+    open,
+    activeOrganizationId,
+    debouncedQuery: query,
+  });
+  // Tags still loading or failed never read as "No results found".
+  const searching = isLoading || tagsState === "loading";
+  const nothingFound =
+    !searching &&
+    history.length === 0 &&
+    tags.length === 0 &&
+    files.length === 0 &&
+    tagsState !== "error";
+
+  const { listRef, listMaxHeight } = useListFitsVisibleViewport(open);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -73,24 +104,47 @@ export function HistorySearchDialog({
     onOpenChange(nextOpen);
   }
 
-  function handleSelectFile(file: FileResource) {
-    handleOpenChange(false);
-    router.push(`/drive/files/${file.id}`);
+  // A result opens another page: focus belongs there, not back on the
+  // Search button (its tooltip would open over the new page).
+  const navigatingRef = useRef(false);
+
+  function handleCloseAutoFocus(event: Event) {
+    if (navigatingRef.current) {
+      navigatingRef.current = false;
+      event.preventDefault();
+      return;
+    }
+    onCloseAutoFocus?.(event);
   }
 
-  function handleSeeAllFiles() {
-    handleOpenChange(false);
-    router.push(
-      `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
-    );
-  }
-
-  function handleSelect(item: HistoryItem) {
-    const href = getHistorySearchItemHref(item);
+  function closeAndGo(href: string) {
+    navigatingRef.current = true;
     // Use the same close path as the dialog itself so we reset state
     // and ignore any in-flight history requests.
     handleOpenChange(false);
     router.push(href);
+  }
+
+  function handleSelectFile(file: FileResource) {
+    closeAndGo(`/drive/files/${file.id}`);
+  }
+
+  function handleSeeAllFiles() {
+    closeAndGo(
+      `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
+    );
+  }
+
+  function handleSelectTag(tag: WorkspaceLabel) {
+    closeAndGo(`/tasks?tag=${encodeURIComponent(tag.id)}`);
+  }
+
+  function handleSelectTask(task: TaskListItem) {
+    closeAndGo(taskHref(task));
+  }
+
+  function handleSelect(item: HistoryItem) {
+    closeAndGo(getHistorySearchItemHref(item));
   }
 
   return (
@@ -100,28 +154,48 @@ export function HistorySearchDialog({
       title={labels.dialogTitle}
       description={labels.dialogDescription}
       commandProps={{ shouldFilter: false }}
+      contentProps={{
+        // Phones: pin under the safe area, not centered, so the on-screen
+        // keyboard does not cover the results.
+        className:
+          "max-sm:top-[calc(env(safe-area-inset-top)+1rem)] max-sm:translate-y-0",
+      }}
+      onCloseAutoFocus={handleCloseAutoFocus}
     >
       <CommandInput
         placeholder={labels.searchPlaceholder}
         value={query}
         onValueChange={setQuery}
       />
-      <CommandList>
-        {isLoading && history.length === 0 ? (
+      <CommandList ref={listRef} style={{ maxHeight: listMaxHeight }}>
+        {searching && history.length === 0 ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {labels.loading}
           </div>
         ) : null}
 
-        {!isLoading && error && history.length === 0 ? (
+        {nothingFound && error ? (
           <div className="text-muted-foreground px-2 py-6 text-center text-sm">
             {error}
           </div>
         ) : null}
 
-        {!isLoading && !error && history.length === 0 ? (
+        {nothingFound && !error ? (
           <CommandEmpty>{labels.empty}</CommandEmpty>
         ) : null}
+
+        <TagSearchGroups
+          tags={tags}
+          tagsState={tagsState}
+          topTag={topTag}
+          tasks={tasks}
+          tasksState={tasksState}
+          labels={labels}
+          showOwner={showOwner}
+          formatShortDate={formatDateWithYear}
+          onSelectTag={handleSelectTag}
+          onSelectTask={handleSelectTask}
+        />
 
         {history.length > 0 ? (
           <CommandGroup heading={labels.dialogTitle}>
@@ -132,25 +206,20 @@ export function HistorySearchDialog({
                 onSelect={() => handleSelect(item)}
                 className="flex items-start gap-2"
               >
-                <HistorySearchItemIcon item={item} className="mt-0.5 size-4" />
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate">{item.title}</span>
-                  <HistorySearchItemTime
-                    createdAt={item.createdAt}
-                    formatShortDate={formatDateWithYear}
-                    createdLabel={labels.created}
-                    className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
-                  />
-                </div>
-                <div className="flex shrink-0 items-center gap-2 self-center">
-                  {showOwner && (
-                    <HistorySearchItemOwner
-                      owner={item.owner}
-                      className="hidden sm:inline-flex"
+                <SearchResultRow
+                  icon={
+                    <HistorySearchItemIcon
+                      item={item}
+                      className="mt-0.5 size-4"
                     />
-                  )}
-                  <HistorySearchItemStatus item={item} />
-                </div>
+                  }
+                  title={item.title}
+                  createdAt={item.createdAt}
+                  owner={showOwner ? item.owner : null}
+                  status={<HistorySearchItemStatus item={item} />}
+                  formatShortDate={formatDateWithYear}
+                  createdLabel={labels.created}
+                />
               </CommandItem>
             ))}
           </CommandGroup>
@@ -188,4 +257,212 @@ export function HistorySearchDialog({
       </CommandList>
     </CommandDialog>
   );
+}
+
+interface TagSearchGroupsProps {
+  tags: WorkspaceLabel[];
+  topTag: WorkspaceLabel | undefined;
+  tasks: TaskListItem[];
+  tagsState: "loading" | "error" | "ready" | null;
+  tasksState: "loading" | "error" | "ready";
+  labels: Pick<
+    HistorySearchDialogLabels,
+    | "tagsGroup"
+    | "tagTasksGroup"
+    | "tagsError"
+    | "tagTasksError"
+    | "loading"
+    | "created"
+  >;
+  showOwner: boolean;
+  formatShortDate: (date: string | Date) => string;
+  onSelectTag: (tag: WorkspaceLabel) => void;
+  onSelectTask: (task: TaskListItem) => void;
+}
+
+function TagSearchGroups({
+  tags,
+  topTag,
+  tasks,
+  tagsState,
+  tasksState,
+  labels,
+  showOwner,
+  formatShortDate,
+  onSelectTag,
+  onSelectTask,
+}: TagSearchGroupsProps) {
+  return (
+    <>
+      {tagsState === "error" ? (
+        <SearchNote>{labels.tagsError}</SearchNote>
+      ) : null}
+
+      {tags.length > 0 ? (
+        <CommandGroup heading={labels.tagsGroup}>
+          {tags.map((tag) => (
+            <CommandItem
+              key={tag.id}
+              value={`tag:${tag.id}`}
+              onSelect={() => onSelectTag(tag)}
+              className="flex items-center gap-2"
+            >
+              <TaskTagDot
+                id={tag.id}
+                color={tag.color}
+                customColor={tag.customColor}
+                taskTopicId={tag.taskTopicId}
+              />
+              <span className="min-w-0 flex-1 truncate">
+                #{tag.displayName}
+              </span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ) : null}
+
+      {topTag && (tasks.length > 0 || tasksState !== "ready") ? (
+        <CommandGroup heading={labels.tagTasksGroup(topTag.displayName)}>
+          {tasksState === "loading" ? (
+            <SearchNote>{labels.loading}</SearchNote>
+          ) : null}
+          {tasksState === "error" ? (
+            <SearchNote>{labels.tagTasksError}</SearchNote>
+          ) : null}
+          {tasks.map((task) => (
+            <CommandItem
+              key={task.id}
+              value={`tag-task:${task.id}`}
+              onSelect={() => onSelectTask(task)}
+              className="flex items-start gap-2"
+            >
+              <SearchResultRow
+                icon={<ListTodo className="mt-0.5 size-4" aria-hidden />}
+                title={task.name}
+                createdAt={task.createdAt}
+                owner={
+                  showOwner && task.owner
+                    ? {
+                        userId: task.owner.id,
+                        name: task.owner.name,
+                        image: task.owner.image ?? null,
+                      }
+                    : null
+                }
+                status={
+                  <TaskStatusBadge
+                    status={task.status}
+                    className="ml-auto shrink-0"
+                  />
+                }
+                formatShortDate={formatShortDate}
+                createdLabel={labels.created}
+              />
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      ) : null}
+    </>
+  );
+}
+
+/** One result's body: icon, title over its date, then owner and status. */
+function SearchResultRow({
+  icon,
+  title,
+  createdAt,
+  owner,
+  status,
+  formatShortDate,
+  createdLabel,
+}: {
+  icon: ReactNode;
+  title: string;
+  createdAt: string | Date;
+  owner: HistoryItem["owner"];
+  status: ReactNode;
+  formatShortDate: (date: string | Date) => string;
+  createdLabel: string;
+}) {
+  return (
+    <>
+      {icon}
+      <div className="min-w-0 flex-1">
+        <span className="block truncate">{title}</span>
+        <HistorySearchItemTime
+          createdAt={createdAt}
+          formatShortDate={formatShortDate}
+          createdLabel={createdLabel}
+          className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
+        />
+      </div>
+      <div className="flex shrink-0 items-center gap-2 self-center">
+        {owner ? (
+          <HistorySearchItemOwner
+            owner={owner}
+            className="hidden sm:inline-flex"
+          />
+        ) : null}
+        {status}
+      </div>
+    </>
+  );
+}
+
+/** A non-selectable status line in the results, read out when it changes. */
+function SearchNote({ children }: { children: string }) {
+  return (
+    <div
+      role="status"
+      className="text-muted-foreground px-2 py-3 text-center text-sm"
+    >
+      {children}
+    </div>
+  );
+}
+
+/** `CommandList`'s usual `max-h-[300px]`. */
+const LIST_MAX_HEIGHT_PX = 300;
+const LIST_KEYBOARD_GAP_PX = 8;
+/** Tailwind `max-sm`, where the dialog is pinned to the top. */
+const PHONE_LAYOUT_QUERY = "(width < 40rem)";
+
+/**
+ * Phone layout only: caps the results list at the bottom of the visual
+ * viewport, which the on-screen keyboard shrinks, so every row stays
+ * reachable by scrolling. No floor: a floor would push the list's end back
+ * under the keyboard. The centered tablet and desktop dialog keeps its
+ * 300px cap, since its list top moves with result count.
+ */
+function useListFitsVisibleViewport(open: boolean) {
+  // State, not a ref: the dialog portal mounts the list after the first effect.
+  const [list, listRef] = useState<HTMLDivElement | null>(null);
+  const [listMaxHeight, setListMaxHeight] = useState<number>();
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!open || !viewport || !list) return;
+
+    function fit() {
+      if (!list || !viewport) return;
+      if (!window.matchMedia(PHONE_LAYOUT_QUERY).matches) {
+        setListMaxHeight(undefined);
+        return;
+      }
+      const visibleBottom = viewport.offsetTop + viewport.height;
+      const room =
+        visibleBottom - list.getBoundingClientRect().top - LIST_KEYBOARD_GAP_PX;
+      setListMaxHeight(Math.min(LIST_MAX_HEIGHT_PX, Math.max(0, room)));
+    }
+
+    fit();
+    viewport.addEventListener("resize", fit);
+    viewport.addEventListener("scroll", fit);
+    return () => {
+      viewport.removeEventListener("resize", fit);
+      viewport.removeEventListener("scroll", fit);
+    };
+  }, [open, list]);
+
+  return { listRef, listMaxHeight };
 }

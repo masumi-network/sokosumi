@@ -1015,6 +1015,46 @@ describe("plan questions", () => {
     expect(kept[1]).not.toHaveProperty("answer");
   });
 
+  it("drops a check that repeats a Brand Brain question when Cuso saves the strategy", async () => {
+    cusoFind.mockResolvedValue(HIRE);
+    brainFindUnique.mockResolvedValue({
+      body: {
+        summary: "Acme sells rockets.",
+        voice: { tone: "Direct", do: [], dont: [], examples: [] },
+        audience: ["Founders"],
+        products: ["Rockets"],
+        competitors: [],
+        channels: [],
+        profile: {},
+        questions: [
+          {
+            id: "primary-buyer",
+            question: "Are independent writers the main buyer for Acme?",
+            statement: "Independent writers are the main buyer",
+            section: "customers",
+          },
+        ],
+      },
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      {
+        ...strategy,
+        questions: [
+          question("buyers", {
+            question: "Are independent writers your main buyers?",
+          }),
+          question("orders"),
+        ],
+      },
+      { turnId: "turn-1" },
+    );
+    const saved = strategyRows.at(-1)?.plan as {
+      questions: { id: string }[];
+    };
+    expect(saved.questions.map((asked) => asked.id)).toEqual(["orders"]);
+  });
+
   it("turns each no into a change for Cuso, and all yes into none", () => {
     expect(
       cmoPlanAnswerNote([

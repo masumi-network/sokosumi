@@ -11,6 +11,24 @@ import { errorResponseWithExtensionsSchema } from "@/helpers/error";
 import { marketingStrategyVersionSchema } from "@/schemas/marketing-strategy.schema";
 import { CMO_ONBOARDING_STEPS } from "@/services/cmo-overview.service";
 
+/** An IANA time zone this server knows, such as "America/New_York". */
+export const cmoTimeZoneSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .refine(
+    (value) => {
+      try {
+        new Intl.DateTimeFormat("en-US", { timeZone: value });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { message: "Not a time zone" },
+  );
+
 export const cmoOnboardingRequestSchema = z
   .object({
     websiteUrl: z
@@ -25,6 +43,11 @@ export const cmoOnboardingRequestSchema = z
       .optional()
       .describe(
         "An organization the caller belongs to, to hire Cuso into a new Project there. Without it, Cuso is hired into a new organization named after the website.",
+      ),
+    timeZone: cmoTimeZoneSchema
+      .optional()
+      .describe(
+        "The owner's time zone, from their browser: Cuso's routines run at their local times in it. Without it he works on Europe/Berlin time.",
       ),
   })
   .openapi("CmoOnboardingRequest");
@@ -207,8 +230,74 @@ export const cmoPieceTextSchema = z
   .object({ text: z.string() })
   .openapi("CmoPieceText");
 
+export const cmoChatWorkItemSchema = z
+  .object({
+    id: z.string().describe("The tool call that started it."),
+    kind: z.enum(["image", "video", "audio"]),
+    state: z
+      .enum(["making", "ready", "failed"])
+      .describe("making until the file exists; failed when it never will."),
+    at: dateTimeSchema.describe("When Cuso started it."),
+    title: z
+      .string()
+      .describe("What was asked for: the prompt, or the words spoken."),
+    url: z
+      .union([z.string(), z.null()])
+      .describe("Where the finished file plays from; null until it is ready."),
+  })
+  .openapi("CmoChatWorkItem");
+
+export const cmoChatWorkSchema = z
+  .object({ items: z.array(cmoChatWorkItemSchema) })
+  .openapi("CmoChatWork");
+
 /** A report is its card's message in Cuso's shared room. */
 export const cmoReportIdParamsSchema = z.object({ id: z.string().uuid() });
+
+export const cmoMediaItemSchema = z
+  .object({
+    kind: z.enum(["image", "video"]),
+    url: z.string(),
+    name: z.string(),
+  })
+  .openapi("CmoMediaItem");
+
+export const cmoDraftSchema = z
+  .object({
+    id: z.string(),
+    provider: z.string(),
+    text: z.string(),
+    status: z
+      .string()
+      .describe(
+        "The Social post's status. NEEDS_APPROVAL waits for the owner; SCHEDULED goes out at scheduledAt.",
+      ),
+    revision: z.number().int(),
+    scheduledAt: z.union([dateTimeSchema, z.null()]),
+    publishedUrl: z.union([z.string(), z.null()]),
+    media: z.array(cmoMediaItemSchema),
+  })
+  .openapi("CmoDraft");
+
+export const cmoDraftParamsSchema = cmoProjectParamsSchema.extend({
+  postId: z
+    .string()
+    .uuid()
+    .openapi({ param: { name: "postId", in: "path" } }),
+});
+
+export const cmoDraftRevisionSchema = z
+  .object({
+    revision: z
+      .number()
+      .int()
+      .describe("The draft's revision as shown; a changed draft is refused."),
+  })
+  .openapi("CmoDraftRevision");
+
+export const cmoDraftEditSchema = cmoDraftRevisionSchema
+  .extend({ text: z.string().trim().min(1).max(25_000) })
+  .openapi("CmoDraftEdit");
 
 export const cmoUpdateSchema = cmoReportUpdateInputSchema
   .extend({
@@ -216,6 +305,14 @@ export const cmoUpdateSchema = cmoReportUpdateInputSchema
     at: dateTimeSchema,
     revertible: z.boolean(),
     revertedAt: z.union([dateTimeSchema, z.null()]),
+    posts: z
+      .array(cmoDraftSchema)
+      .describe("The Social posts the report's turn made, as they are now."),
+    media: z
+      .array(cmoMediaItemSchema)
+      .describe(
+        "Pictures and videos the report's turn made that are on none of its posts.",
+      ),
   })
   .openapi("CmoUpdate");
 
@@ -401,6 +498,9 @@ export const cmoOverviewSchema = z
         "Where Hiring Cuso stands, read from the data: the Brand Brain until a member confirms it, the strategy until a version is approved, the checkout until his Project has a CMO subscription (or Tester credits), then the accounts until the Project has a Social connection. CMO opens on the chat once done.",
       ),
     routines: z.array(cmoRoutineSchema),
+    timeZone: z
+      .string()
+      .describe("The time zone Cuso's routines run in, as the owner set it."),
     brandBrain: z.union([brandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
@@ -440,6 +540,11 @@ export const cmoOverviewSchema = z
         "When a plan was first approved, so hiring ended. Unlike the approved version's approvedAt, a later approval does not move it.",
       ),
     updates: z.array(cmoUpdateSchema),
+    drafts: z
+      .array(cmoDraftSchema)
+      .describe(
+        "Social posts Cuso made that wait for the owner's approval, newest first.",
+      ),
     channels: z.array(cmoChannelSchema),
     upNext: z.array(cmoUpNextItemSchema),
     connectChannelUrl: z.string(),

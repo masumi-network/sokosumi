@@ -6,6 +6,7 @@ import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import { expectCoreLog } from "@/test/core-log";
 
 const m = vi.hoisted(() => ({
   requireProjectAccess: vi.fn(),
@@ -220,6 +221,27 @@ describe("a Project's competitors", () => {
     );
     expect(m.setCompetitorChecks).toHaveBeenLastCalledWith(PROJECT_ID, false);
     expect((await send("PUT", `${BASE}/checks`, {})).status).toBe(422);
+  });
+
+  it("starts the first check when the weekly check is turned on, not when off", async () => {
+    m.runProjectCompetitorCheck.mockResolvedValue("checked");
+    await send("PUT", `${BASE}/checks`, { on: false });
+    expect(m.runProjectCompetitorCheck).not.toHaveBeenCalled();
+    await send("PUT", `${BASE}/checks`, { on: true });
+    expect(m.runProjectCompetitorCheck).toHaveBeenCalledWith(PROJECT_ID);
+  });
+
+  it("turns the check on even when the first check fails", async () => {
+    const warnings = expectCoreLog(
+      "warn",
+      "The first competitor check did not run",
+    );
+    m.runProjectCompetitorCheck.mockRejectedValue(new Error("site down"));
+    expect((await send("PUT", `${BASE}/checks`, { on: true })).status).toBe(
+      200,
+    );
+    await vi.waitFor(() => expect(warnings).toHaveLength(1));
+    expect(JSON.stringify(warnings)).not.toContain("site down");
   });
 
   it("runs the check that is due and answers with how it went", async () => {

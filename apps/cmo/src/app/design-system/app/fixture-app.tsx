@@ -10,6 +10,7 @@ import { chat, messages, overview, seo } from "./fixtures";
 const actions: CmoAppActions = {
   // The same data every time, so the app's polling never changes the screen.
   loadState: async () => ({ overview, messages }),
+  loadChatWork: async () => [],
   sendMessage: async () => {},
   skipSubscription: async () => ({ error: null }),
   loadPieceText: async (id) =>
@@ -20,6 +21,9 @@ const actions: CmoAppActions = {
   saveBrandBrain: async () => overview,
   retryLearning: async () => ({ overview, error: null }),
   pauseEntry: async () => overview,
+  approveDraft: async () => ({ overview, error: null }),
+  declineDraft: async () => ({ overview, error: null }),
+  editDraft: async () => ({ overview, error: null }),
   competitors: {
     loadCompetitors: async () => competitors,
     addCompetitor: async () => ({ competitors, error: null }),
@@ -61,6 +65,7 @@ const actions: CmoAppActions = {
   ],
   // Both would leave the preview.
   startOver: async () => null,
+  setTimeZone: async () => null,
   startTopUp: async () => ({ url: null, error: null }),
   subscribe: async () => ({ url: null, error: null }),
   changePlan: async () => ({ change: null, error: null }),
@@ -92,6 +97,7 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
     <CmoApp
       overview={data.overview}
       messages={data.messages}
+      work={view === "chat" ? chat.work : []}
       name="Francis Luz"
       email="francis@acme.io"
       initialView={view}
@@ -99,6 +105,7 @@ export function FixtureApp({ view, state }: FixtureAppProps) {
       actions={{
         ...actions,
         loadState: async () => data,
+        loadChatWork: async () => (view === "chat" ? chat.work : []),
         competitors: { ...actions.competitors, loadCompetitors },
       }}
     />
