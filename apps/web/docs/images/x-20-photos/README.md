@@ -10,6 +10,6 @@ Real Chromium screenshots, captured locally on 2026-11-13 at 1440 and 390 px wid
 The production `SocialPostComposerDialog` and `SocialPostPreview` were rendered in
 a local Vite harness with a mocked X account and mocked uploads. They don't come
 from a signed-in Project, and nothing was posted, scheduled or saved. Fixture
-images come from the repo (`docs/images` fixtures and `public/studio/empty-ads`).
+images come from the repo (`docs/images` fixtures and `public/images/studio/empty-ads`).
 The capture checked the item counts, that there's no "+N" badge, no page-level
 horizontal scroll, and a clean browser console at both widths.
