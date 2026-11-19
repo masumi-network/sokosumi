@@ -340,6 +340,24 @@ export const IN_PROCESS_WEB_TOOLS: ReadonlySet<string> = new Set([
 ]);
 
 /** Authorizes the turn and assembles exactly what the model is given. */
+/**
+ * The MCP servers the owner added, by name. Without it a bot asked to "use
+ * DeepWiki" searched the web for the site instead of calling the server it
+ * has (ADR 0074).
+ */
+async function mcpServersGuidance(sokoBotId: string): Promise<string[]> {
+  const servers = await prisma.sokoBotMcpServer.findMany({
+    where: { sokoBotId },
+    select: { name: true },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!servers.length) return [];
+  return [
+    "",
+    `# Your MCP servers\nYour owner connected these MCP servers: ${servers.map((server) => server.name).join(", ")}. When a request names one of them, or needs what one of them holds, use it rather than the web: list_mcp_tools with its name, then read_mcp_tool or run_mcp_tool.`,
+  ];
+}
+
 export async function prepareTurn(
   sessionId: string,
   turnId: string,
@@ -387,6 +405,9 @@ export async function prepareTurn(
       : []),
     ...(hasSandbox ? ["", SANDBOX_GUIDANCE] : []),
     ...(hasWebOnly ? ["", WEB_GUIDANCE] : []),
+    ...(capabilities.includes("list_mcp_tools")
+      ? await mcpServersGuidance(authorized.turn.sokoBotId)
+      : []),
     ...(requiresActionProof ? [ACTION_PROOF_INSTRUCTION] : []),
     ...contextBlock(
       context.packet,
