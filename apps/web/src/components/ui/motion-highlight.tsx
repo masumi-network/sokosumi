@@ -177,7 +177,6 @@ function MotionHighlightItem({
     "data-highlight": true,
   };
 
-  // Check if the child element is disabled (e.g., a disabled button)
   const childDisabled = (element.props as { disabled?: boolean })?.disabled;
 
   // Don't attach click handlers when the child element is disabled
