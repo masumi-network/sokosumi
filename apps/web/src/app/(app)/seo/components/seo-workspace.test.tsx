@@ -364,7 +364,7 @@ describe("SEO workspace integration", () => {
     },
   );
 
-  it("keeps passing measurements behind closed check details and offers statistics after limited checks", async () => {
+  it("opens the page details beside a short Actions list and offers statistics after limited checks", async () => {
     const user = userEvent.setup();
     const workspace = seoTestWorkspace();
     workspace.observations.push({
@@ -408,9 +408,10 @@ describe("SEO workspace integration", () => {
       ),
     );
     renderWorkspace(workspace, "?tab=health");
+    // No action rows: the tab would look empty, so the measurements start open.
     const measurement = screen.getByText("Title length measured:");
-    expect(measurement).not.toBeVisible();
-    expect(measurement.closest("details")).not.toHaveAttribute("open");
+    expect(measurement).toBeVisible();
+    expect(measurement.closest("details")).toHaveAttribute("open");
     expect(screen.getByTestId("seo-summary-tests")).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Agent" }));
     expect(screen.getByTestId("seo-agent-verdict")).toHaveTextContent(
@@ -423,6 +424,124 @@ describe("SEO workspace integration", () => {
     expect(
       await screen.findByRole("dialog", { name: "Google connections" }),
     ).toBeVisible();
+  });
+
+  it.each([
+    [3, true],
+    [4, false],
+  ])("with %i action rows, opens the page details: %s", (rows, open) => {
+    const workspace = seoTestWorkspace();
+    workspace.observations.push({
+      id: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: workspace.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 2, skipped: 0, failed: 0 },
+    });
+    workspace.findings.push({
+      id: "measured-title",
+      observationId: workspace.observations[0].id,
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Title length measured",
+      severity: "measure",
+      evidence: ["The title has 42 characters."],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    // 3 rows leave room for open details; one more row keeps them closed.
+    for (let n = 1; n <= rows; n++)
+      workspace.actions.push({
+        id: `suggestion-${n}`,
+        observationId: workspace.observations[0].id,
+        pageUrl: workspace.pages[0].url,
+        findingIds: [],
+        title: `Suggestion ${n}`,
+        why: "A search shows the page.",
+        effort: "low",
+        expectedEffect: "More people see the page.",
+        edit: null,
+        taskId: null,
+        status: "recommended",
+        kind: "opportunity",
+        evidence: [],
+      });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    expect(screen.getAllByText(/^Suggestion \d$/)).toHaveLength(rows);
+    const measurement = screen.getByText("Title length measured:");
+    expect(measurement.closest("details")?.hasAttribute("open")).toBe(open);
+  });
+
+  it("lets the first check decide whether the page details open", async () => {
+    const empty = seoTestWorkspace();
+    const checked = seoTestWorkspace();
+    checked.observations.push({
+      id: "962a86bb-5702-4d64-a6c4-15be5bf8ed80",
+      kind: "page_check",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: checked.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 2, skipped: 0, failed: 0 },
+    });
+    checked.findings.push({
+      id: "measured-title",
+      observationId: checked.observations[0].id,
+      pageUrl: checked.pages[0].url,
+      device: "desktop",
+      rowId: "title-length",
+      title: "Title length measured",
+      severity: "measure",
+      evidence: ["The title has 42 characters."],
+      sourceRef: "html:title",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+    });
+    for (let n = 1; n <= 4; n++)
+      checked.actions.push({
+        id: `suggestion-${n}`,
+        observationId: checked.observations[0].id,
+        pageUrl: checked.pages[0].url,
+        findingIds: [],
+        title: `Suggestion ${n}`,
+        why: "A search shows the page.",
+        effort: "low",
+        expectedEffect: "More people see the page.",
+        edit: null,
+        taskId: null,
+        status: "recommended",
+        kind: "opportunity",
+        evidence: [],
+      });
+    // The tab opens before any check; the first check then brings a long list.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(checked)),
+    );
+    renderWorkspace(empty, "?tab=actions");
+    const measurement = await screen.findByText("Title length measured:");
+    expect(screen.getAllByText(/^Suggestion \d$/)).toHaveLength(4);
+    expect(measurement.closest("details")).not.toHaveAttribute("open");
   });
 
   it("keeps raw issue evidence out of the default findings cards", async () => {
@@ -448,7 +567,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=health");
     expect(
       screen.getByRole("heading", {
-        name: "Not passed: The page has no description",
+        name: "Issue: The page has no description",
       }),
     ).toBeVisible();
     // No action fixes this issue, so no link promises a fix.
@@ -462,7 +581,7 @@ describe("SEO workspace integration", () => {
     // The row is the switch: it opens the evidence of its issue.
     await user.click(
       screen.getByRole("heading", {
-        name: "Not passed: The page has no description",
+        name: "Issue: The page has no description",
       }),
     );
     expect(evidence).toBeVisible();
@@ -512,7 +631,7 @@ describe("SEO workspace integration", () => {
     // The fix row names the check: an issue row over it would say the same thing twice.
     expect(
       screen.queryByRole("heading", {
-        name: "Not passed: Markup matches the visible page",
+        name: "Issue: Markup matches the visible page",
       }),
     ).toBeNull();
     const row = screen.getByRole("button", {
@@ -521,7 +640,7 @@ describe("SEO workspace integration", () => {
     expect(within(row).getByText("High impact")).toBeVisible();
     // The row names the page and what the check found in one line; the reasons wait in the dialog.
     expect(row).toHaveTextContent(
-      "Home · Not passed: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
+      "Home · Issue: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99.",
     );
     expect(screen.queryByText("The two prices differ.")).toBeNull();
     await user.click(row);
@@ -531,7 +650,7 @@ describe("SEO workspace integration", () => {
     // The line alone can be a bare count, so the name of its check goes with it, and the rule's footnote.
     expect(
       within(dialog).getByText(
-        "Not passed: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99. (prices in USD)",
+        "Issue: Markup matches the visible page. Found: The markup says 6.99, the page shows 9.99. (prices in USD)",
       ),
     ).toBeVisible();
     expect(within(dialog).getByText("The two prices differ.")).toBeVisible();
@@ -805,7 +924,7 @@ describe("SEO workspace integration", () => {
       "an AI Overview shows and does not cite the page",
       "position rule: rank_group counts the items of one type (organic, featured_snippet), rank_absolute counts every result item (DataForSEO, N2-508)",
       '"mac battery health checker" (goal): the page is not in the top 18 organic results',
-      '"macbook battery health" (goal): the page is not in the top 15 organic results',
+      '"macbook battery health" (goal): the page is not in the top 16 organic results',
     ];
     workspace.findings.push({
       id: "organic-position",
@@ -824,21 +943,30 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     renderWorkspace(workspace, "?tab=actions");
-    await user.click(
-      screen.getByRole("heading", {
-        name: "Title, description and other page details",
-      }),
-    );
-    const row = screen.getByText("Organic position per device").closest("li");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    const row = screen.getByText("Google ranking").closest("li");
     if (!row) throw new Error("no position row");
     // The result leads; the other keywords are one line; the rule and the raw head wait in the fold.
     expect(row).toHaveTextContent(
-      "Not in the top 16 for “macbook charge limit”",
+      "Not in Google's top 15 for “macbook charge limit”",
     );
+    // The Market reads as a country and a language, not as codes.
+    expect(row).toHaveTextContent("Google · United States · English");
+    // An AI Overview that leaves the page out shows only in the fold.
+    expect(
+      within(row).queryByText(
+        "Google's AI Overview cites this page as a source",
+      ),
+    ).toBeNull();
+    expect(
+      within(row).getByText(/AI Overview shows and does not cite/),
+    ).not.toBeVisible();
     expect(row).toHaveTextContent(
-      "An AI Overview shows and does not cite the page",
+      "Also not in the top 15 for 2 other keywords",
     );
-    expect(row).toHaveTextContent("2 other keywords: none in the top 15");
     const rule = within(row).getByText(/^position rule:/);
     expect(rule).not.toBeVisible();
     await user.click(within(row).getByText("All details"));
@@ -849,6 +977,208 @@ describe("SEO workspace integration", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("says when Google's AI Overview cites the page", async () => {
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "organic-position-cited",
+      observationId: "check-position",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "query.serp.position",
+      title: "Organic position per device",
+      severity: "measure",
+      evidence: [
+        '"häfen auf rügen", Market DE, de (location_code 2276), desktop, DataForSEO SERP of 2026-11-19 09:00:00 +00:00: 18 organic results read',
+        "the page is not in the top 18 organic results",
+        "the AI Overview cites the page",
+      ],
+      sourceRef: "serp:desktop",
+      observedAt: new Date("2026-11-19T09:01:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    expect(
+      screen.getByText("Google's AI Overview cites this page as a source"),
+    ).toBeVisible();
+  });
+
+  it("says in plain words what a camera file name note found and lists the files by name", async () => {
+    const workspace = seoTestWorkspace();
+    const file =
+      "https://i0.wp.com/telsche.blog/wp-content/uploads/2024/04/img_2696-1.jpg?resize=150%2C150&ssl=1";
+    workspace.findings.push({
+      id: "camera-names",
+      observationId: "check-images",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-21",
+      title: "Image file names",
+      severity: "note",
+      evidence: [
+        "2 of 23 image file names",
+        `camera file name: ${file}`,
+        "camera file name: javascript:alert(1)",
+      ],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    workspace.findings.push({
+      id: "alt-missing",
+      observationId: "check-images",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-18",
+      title: "Image alt text",
+      severity: "note",
+      evidence: [
+        "1 of 23 images",
+        "img without alt: https://example.com/a.png",
+        "+2 more",
+      ],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    const heading = screen.getByRole("heading", {
+      name: "2 of 23 images have a camera file name",
+    });
+    const row = heading.closest("li");
+    if (!row) throw new Error("no note row");
+    // The rule's own name is an internal label: the row does not show it.
+    expect(row).not.toHaveTextContent("Image file names");
+    expect(row).toHaveTextContent("for example harbor-at-sunset.jpg");
+    // Each file shows by its name and opens the full address; a non-web value is text, not a link.
+    expect(
+      within(row).getByRole("link", { name: "img_2696-1.jpg" }),
+    ).toHaveAttribute("href", file);
+    expect(within(row).getByText("alert(1)")).not.toHaveAttribute("href");
+    expect(row).not.toHaveTextContent("Found:");
+    expect(row).not.toHaveTextContent("camera file name:");
+    // Another rule's list says in words what its items are, counting the ones the bot left out.
+    expect(screen.getByText("3 images without alt text")).toBeVisible();
+    expect(screen.getByText("2 more the check did not list")).toBeVisible();
+  });
+
+  it("lists a broken links note's links by path with the site's answer", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    const site = new URL(workspace.pages[0].url).origin;
+    workspace.findings.push({
+      id: "broken-links",
+      observationId: "check-links",
+      pageUrl: workspace.pages[0].url,
+      device: "mobile",
+      rowId: "IL-04",
+      title: "Links reach live pages",
+      severity: "note",
+      evidence: [
+        "13 of 43 link targets answer 400 or more (12 on the page's host)",
+        `${site}/segeln-mit-kindern/ → 429`,
+        "https://other.example/gone → 404",
+        `${site}/rund-ruegen-segeln/haefen/ → 429`,
+        `${site}/rund-ruegen-segeln/segeltoern/ → 429`,
+        `${site}/buecher-ruegen-ostsee/ → 429`,
+        "+8 more",
+      ],
+      sourceRef: "links",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    const row = screen
+      .getByRole("heading", { name: "13 of 43 links lead to an error" })
+      .closest("li");
+    if (!row) throw new Error("no note row");
+    expect(row).toHaveTextContent("404 means the page does not exist");
+    expect(row).toHaveTextContent("check that link again before you change it");
+    // A link on the page's own site shows its path; another site's shows its host too.
+    expect(
+      within(row).getByRole("link", { name: "/segeln-mit-kindern/" }),
+    ).toHaveAttribute("href", `${site}/segeln-mit-kindern/`);
+    expect(
+      within(row).getByRole("link", { name: "other.example/gone" }),
+    ).toBeVisible();
+    expect(row).toHaveTextContent("/segeln-mit-kindern/ → 429");
+    // The first three links always show; the rest of the list opens on request.
+    expect(row).toHaveTextContent("/rund-ruegen-segeln/haefen/ → 429");
+    expect(row).not.toHaveTextContent("segeltoern");
+    expect(row).not.toHaveTextContent("did not list");
+    const toggle = within(row).getByRole("button", { name: "Show 2 more" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(
+      within(row).getByRole("link", { name: "/buecher-ruegen-ostsee/" }),
+    ).toBeVisible();
+    // Links the check counted but did not send cannot open; the list says so at its end.
+    expect(row).toHaveTextContent("8 more the check did not list");
+    expect(row).not.toHaveTextContent("+8 more");
+    await user.click(within(row).getByRole("button", { name: "Show less" }));
+    expect(row).not.toHaveTextContent("segeltoern");
+    expect(row).not.toHaveTextContent("Links reach live pages");
+  });
+
+  it("keeps the found line of a camera file name note without a share line", async () => {
+    const user = userEvent.setup();
+    const workspace = seoTestWorkspace();
+    workspace.findings.push({
+      id: "camera-names-old",
+      observationId: "check-images-old",
+      pageUrl: workspace.pages[0].url,
+      device: "desktop",
+      rowId: "O-21",
+      title: "Image file names",
+      severity: "note",
+      evidence: ["camera file name: https://example.com/IMG_0001.jpg"],
+      sourceRef: "html:img",
+      observedAt: new Date("2026-11-19T10:00:00Z"),
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(workspace)),
+    );
+    renderWorkspace(workspace, "?tab=actions");
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
+    // No count to put in plain words: the rule's title leads, and the check's lines wait in a fold.
+    const heading = screen.getByRole("heading", {
+      name: "Images with a camera file name",
+    });
+    const row = heading.closest("li");
+    if (!row) throw new Error("no note row");
+    expect(row).toHaveTextContent("Names like IMG_1234.jpg");
+    const line = within(row).getByText(
+      "camera file name: https://example.com/IMG_0001.jpg",
+    );
+    expect(line).not.toBeVisible();
+    await user.click(within(row).getByText("What the check found"));
+    expect(line).toBeVisible();
   });
 
   it("splits page details into measurements and notes and folds their references", async () => {
@@ -914,7 +1244,7 @@ describe("SEO workspace integration", () => {
       title: "Raw HTML: AI search bots may fetch the page",
       severity: "test",
       evidence: [
-        "robots.txt blocks GPTBot",
+        "https://example.com/robots.txt disallows OAI-SearchBot for this page",
         "Source: raw HTML; the rendered DOM was not requested.",
       ],
       sourceRef: "robots",
@@ -964,7 +1294,7 @@ describe("SEO workspace integration", () => {
     // The folded section says whether opening it pays off.
     expect(screen.getByText("2 notes")).toBeInTheDocument();
     const detailsHeading = screen.getByRole("heading", {
-      name: "Title, description and other page details",
+      name: "Page details",
     });
     // The fold closes the Actions list: it sits in that section, under its rows.
     const actionsSection = detailsHeading.closest("section");
@@ -972,10 +1302,10 @@ describe("SEO workspace integration", () => {
     expect(
       within(actionsSection as HTMLElement).getByRole("heading", {
         level: 2,
-        name: "Actions",
+        name: "Recommended actions",
       }),
     ).toBeInTheDocument();
-    await user.click(detailsHeading);
+    expect(detailsHeading.closest("details")).toHaveAttribute("open");
     // A measurement is one line; its value drops the words its name says.
     expect(screen.getAllByText("Title length:")[0]).toBeVisible();
     expect(screen.getByText("56 characters")).toBeVisible();
@@ -987,9 +1317,9 @@ describe("SEO workspace integration", () => {
     ).toBeVisible();
     // A note leads with what the check found; the rule name follows, so it does not read as a claim.
     expect(
-      screen.getByRole("heading", { name: "Found: meta keywords in head" }),
+      screen.getByRole("heading", { name: "meta keywords in head" }),
     ).toBeVisible();
-    expect(screen.getByText("Rule: “No meta keywords”")).toBeVisible();
+    expect(screen.queryByText(/No meta keywords/)).toBeNull();
     expect(screen.getByRole("heading", { name: "Measurements" })).toBeVisible();
     // A 1-page Audit does not repeat its URL on every row.
     const details = screen.getAllByText("Title length:")[0].closest("details");
@@ -1009,14 +1339,14 @@ describe("SEO workspace integration", () => {
     ).toBe(true);
     // The fold counts suggestions apart from notes, as the Agent tab does.
     expect(details.querySelector("summary")).toHaveTextContent(
-      /1 suggestion,\s*2 notes$/,
+      /^Page details1 suggestion,\s*2 notesWhat we found on your pages\./,
     );
     // Rows from different checks keep their own date.
-    expect(within(details).queryByText(/From the check on/)).toBeNull();
+    expect(within(details).queryByText(/Checked on/)).toBeNull();
     expect(details.querySelectorAll("time")).toHaveLength(5);
     expect(
       screen.getByRole("heading", {
-        name: "Found: robots.txt blocks GPTBot",
+        name: "robots.txt blocks AI search bots",
       }),
     ).toBeVisible();
     // A measurement shows the check's guidance under its value, once per rule.
@@ -1048,7 +1378,7 @@ describe("SEO workspace integration", () => {
     );
     // Each note offers a question to the agent; a measurement offers a fix only when a tool range leaves it out.
     expect(
-      screen.getAllByRole("button", { name: "Ask the agent" }),
+      screen.getAllByRole("button", { name: "Ask about this note" }),
     ).toHaveLength(2);
     expect(
       screen.getAllByRole("button", { name: "Ask the agent for a fix" }),
@@ -1065,13 +1395,13 @@ describe("SEO workspace integration", () => {
     // A note on a page removed since names that page in the question; nothing is sent.
     await user.click(
       screen.getByRole("button", {
-        name: "Ask the agent",
-        description: "Found: robots.txt blocks GPTBot https://example.com/old",
+        name: "Ask about this note",
+        description: "robots.txt blocks AI search bots https://example.com/old",
       }),
     );
     const sheet = await screen.findByRole("dialog");
     expect(within(sheet).getByLabelText("Your question")).toHaveValue(
-      "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?",
+      "What does “AI search bots may fetch the page” mean for https://example.com/old? Should I change anything?",
     );
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -1086,7 +1416,7 @@ describe("SEO workspace integration", () => {
       "Your question",
     ) as HTMLTextAreaElement;
     expect(question.value).toBe(
-      "A check flagged “AI search bots may fetch the page” on https://example.com/old. What does it mean, and should I change anything?\n\nThe check measured “Title length” on https://example.com/old as 80 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.",
+      "What does “AI search bots may fetch the page” mean for https://example.com/old? Should I change anything?\n\nThe check measured “Title length” on https://example.com/old as 80 characters, outside the range of Ahrefs. Draft a change and suggest it as an action I can approve.",
     );
     // Nothing is sent until the owner sends it.
     expect(asked).toEqual([]);
@@ -1239,11 +1569,10 @@ describe("SEO workspace integration", () => {
     );
     workspace.runs = runsOf(workspace);
     renderWorkspace(workspace, "?tab=health");
-    await user.click(
-      screen.getByRole("heading", {
-        name: "Title, description and other page details",
-      }),
-    );
+    // A short Actions list leaves room: the page details start open.
+    expect(
+      screen.getByRole("heading", { name: "Page details" }).closest("details"),
+    ).toHaveAttribute("open");
     const details = screen.getByText("Title length:").closest("details");
     if (!details) throw new Error("Page details missing");
     expect(
@@ -1252,7 +1581,7 @@ describe("SEO workspace integration", () => {
         .some((link) => link.getAttribute("href") === workspace.pages[0].url),
     ).toBe(true);
     // One check behind every row: its time and record show once, above the rows.
-    expect(within(details).getByText(/From the check on/)).toBeInTheDocument();
+    expect(within(details).getByText(/Checked on/)).toBeInTheDocument();
     const times = details.querySelectorAll("time");
     expect(times).toHaveLength(1);
     expect(times[0].getAttribute("datetime")).toBe("2026-01-03T12:00:00.000Z");
@@ -1263,7 +1592,7 @@ describe("SEO workspace integration", () => {
     // A long line without a label is the value under its rule, not a heading.
     expect(
       within(details).getByRole("heading", {
-        name: "Rule not met: “Descriptive link text”",
+        name: /^The check flagged this on the page\s*: Descriptive link text$/,
       }),
     ).toBeVisible();
     // A long note the clamp does not cut needs no toggle.
@@ -2217,7 +2546,7 @@ describe("SEO workspace integration", () => {
       // The day's details carry the coverage of a check with a Timeline row; a second list would repeat it.
       expect(
         screen.queryByRole("heading", {
-          name: "Title, description and other page details",
+          name: "Page details",
         }) !== null,
       ).toBe(!onTimeline);
       if (onTimeline)
@@ -4080,7 +4409,7 @@ describe("SEO workspace integration", () => {
     renderWorkspace(workspace, "?tab=health");
     expect(
       screen.getByRole("heading", {
-        name: "Not passed: Previous page finding",
+        name: "Issue: Previous page finding",
       }),
     ).toBeVisible();
     await user.click(screen.getByRole("combobox", { name: "Pages" }));
@@ -4088,7 +4417,7 @@ describe("SEO workspace integration", () => {
     await waitFor(() =>
       expect(
         screen.queryByRole("heading", {
-          name: "Not passed: Previous page finding",
+          name: "Issue: Previous page finding",
         }),
       ).not.toBeInTheDocument(),
     );
@@ -6129,7 +6458,7 @@ describe("SEO workspace integration", () => {
     // Without an Actions list the page details stand in a card of their own, a section of the tab.
     const details = screen.getByRole("heading", {
       level: 2,
-      name: "Title, description and other page details",
+      name: "Page details",
     });
     expect(details.closest("section")).not.toBeNull();
     expect(screen.getByRole("tab", { name: "Actions" })).toHaveAttribute(
@@ -6220,7 +6549,7 @@ describe("SEO workspace integration", () => {
     expect(asked).toEqual([]);
   });
 
-  it("names the fixes on the Actions tab when the strategy actions follow them", async () => {
+  it("names the fixes on the Actions tab, with or without the strategy actions", async () => {
     const workspace = seoTestWorkspace();
     workspace.actions.push({
       id: "action-row",
@@ -6242,13 +6571,23 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     const first = renderWorkspace(workspace, "?tab=actions");
-    // Alone on the tab, the fixes need no title: the tab says it.
+    // Alone on the tab, the fixes keep their title and its line: the export menu stands beside them.
     expect(
       await screen.findByRole("button", { name: /^Fix the page title/ }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Actions" }).closest(".sr-only"),
-    ).not.toBeNull();
+      screen
+        .getByRole("heading", { name: "Recommended actions" })
+        .closest(".sr-only"),
+    ).toBeNull();
+    expect(screen.getByText("Changes our agent recommends.")).toBeVisible();
+    // The export menu stands on the title line, inside the header of the section.
+    expect(
+      screen
+        .getByRole("button", { name: "Export: Actions" })
+        .closest("section")
+        ?.querySelector("h2")?.parentElement,
+    ).toContainElement(screen.getByRole("button", { name: "Export: Actions" }));
     first.unmount();
     const strategy = seoTestStrategy();
     strategy.actions = Array.from({ length: 5 }, (_, index) => ({
@@ -6258,9 +6597,9 @@ describe("SEO workspace integration", () => {
     workspace.strategy = strategy;
     const second = renderWorkspace(workspace, "?tab=actions");
     expect(
-      (await screen.findByRole("heading", { name: "Actions" })).closest(
-        ".sr-only",
-      ),
+      (
+        await screen.findByRole("heading", { name: "Recommended actions" })
+      ).closest(".sr-only"),
     ).toBeNull();
     expect(
       screen.getByRole("heading", {

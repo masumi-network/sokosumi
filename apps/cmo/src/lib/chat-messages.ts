@@ -25,6 +25,21 @@ function turnOf(metadata: unknown): string | null {
   return typeof turnId === "string" ? turnId : null;
 }
 
+function budgetFailureOf(metadata: ChatRoomMessage["metadata"]) {
+  if (metadata?.mention_failed !== true) return null;
+  const failure = metadata.mention_failure;
+  if (
+    !failure ||
+    typeof failure !== "object" ||
+    !("kind" in failure) ||
+    failure.kind !== "ai_budget_exceeded" ||
+    !("message" in failure) ||
+    typeof failure.message !== "string"
+  )
+    return null;
+  return failure.message;
+}
+
 /**
  * A mention by id ("@<uuid>", "@<uuid>:slug" or a 32-character user id),
  * as Sokosumi stores it.
@@ -88,7 +103,7 @@ export function toCusoMessages(messages: ChatRoomMessage[]): CusoMessage[] {
                 ? message.sender.coworker.name
                 : "Team",
         content: fromCuso
-          ? cusoText(message.content)
+          ? (budgetFailureOf(message.metadata) ?? cusoText(message.content))
           : withoutIdMentions(message.content),
         createdAt: new Date(message.createdAt).toISOString(),
         trace: fromCuso ? traceOf(message.metadata) : null,

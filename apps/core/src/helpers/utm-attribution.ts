@@ -11,12 +11,12 @@ export function recordUtmAttribution(
 ) {
   const data = {
     utmSource: body.utm_source,
-    utmMedium: body.utm_medium,
-    utmCampaign: body.utm_campaign,
-    utmTerm: body.utm_term,
-    utmContent: body.utm_content,
-    referrer: body.referrer,
-    landingPage: body.landingPage,
+    ...(body.utm_medium !== undefined && { utmMedium: body.utm_medium }),
+    ...(body.utm_campaign !== undefined && { utmCampaign: body.utm_campaign }),
+    ...(body.utm_term !== undefined && { utmTerm: body.utm_term }),
+    ...(body.utm_content !== undefined && { utmContent: body.utm_content }),
+    ...(body.referrer !== undefined && { referrer: body.referrer }),
+    ...(body.landingPage !== undefined && { landingPage: body.landingPage }),
     capturedAt: new Date(body.capturedAt),
     convertedAt: new Date(),
   };

@@ -11,7 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authClient } from "@/lib/auth/auth.client";
-import { uploadOrganizationLogoDirect } from "@/lib/utils/organization-logo-upload.client";
+import { uploadOwnedLogoDirect } from "@/lib/utils/user-file-upload.client";
 import OrganizationEditButton from "./organization-edit-button";
 import { OrganizationMetadataProvider } from "./organization-metadata-context";
 
@@ -49,13 +49,13 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-vi.mock("@/lib/utils/organization-logo-upload.client", () => ({
-  uploadOrganizationLogoDirect: vi.fn(),
-  cleanupOrganizationLogoBestEffort: vi.fn(),
-  getOrganizationLogoUploadErrorMessage: () => "upload failed",
+vi.mock("@/lib/utils/user-file-upload.client", () => ({
+  uploadOwnedLogoDirect: vi.fn(),
+  cleanupOwnedLogoBestEffort: vi.fn(),
+  getUserFileUploadErrorMessage: () => "upload failed",
 }));
 
-const mockedUploadLogo = vi.mocked(uploadOrganizationLogoDirect);
+const mockedUploadLogo = vi.mocked(uploadOwnedLogoDirect);
 const mockedOrganizationUpdate = vi.mocked(authClient.organization.update);
 
 function createOrganization(
@@ -150,10 +150,13 @@ describe("OrganizationEditButton", () => {
     });
 
     expect(mockedUploadLogo).toHaveBeenCalledWith(
-      "org_1",
-      expect.any(File),
       expect.objectContaining({
-        maxSizeBytes: expect.any(Number),
+        kind: "organization",
+        ownerId: "org_1",
+        file: expect.any(File),
+        options: expect.objectContaining({
+          maxSizeBytes: expect.any(Number),
+        }),
       }),
     );
 

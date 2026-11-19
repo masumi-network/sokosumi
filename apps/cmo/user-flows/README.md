@@ -28,3 +28,4 @@ What an owner typically does with Cuso, from hiring on, and what they expect. Ro
 | [SEO pages](seo-pages.md)                                 | The owner's website                 | Text only; the owner publishes it                |
 | [Newsletter](newsletter.md)                               | Email                               | Not finished: no sending from CMO                |
 | [Month review](month-review.md)                           | All                                 | Works                                            |
+| [Chat usage limit](chat-usage-limit.md)                   | Chat                                | Shows why Cuso cannot answer                     |

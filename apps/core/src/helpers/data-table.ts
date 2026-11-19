@@ -4,6 +4,7 @@ import { PrismaRaw } from "@sokosumi/database/client";
 import {
   createDataTableSchema,
   tableBatchSchema,
+  tableColumnInputSchema,
   tableEvidenceSchema,
   tableInsertRowSchema,
   tableMutationSchema,
@@ -267,9 +268,9 @@ function changeData(
     batchId,
     actorId: actor.actorId,
     actorKind: actor.actorKind,
-    taskId: actor.taskId,
-    rowId,
-    columnId,
+    ...(actor.taskId !== undefined && { taskId: actor.taskId }),
+    ...(rowId !== undefined && { rowId }),
+    ...(columnId !== undefined && { columnId }),
     before: json({ value: before }),
     after: json({ value: after }),
     evidence: json(evidence),
@@ -308,10 +309,36 @@ function assertUnique(ids: string[], label: string) {
   if (new Set(ids).size !== ids.length)
     throw unprocessableEntity(`Duplicate ${label}`);
 }
-function suppliedIds(rows: readonly { id?: string }[]): string[] {
+function suppliedIds(rows: readonly { id?: string | undefined }[]): string[] {
   const ids: string[] = [];
   for (const row of rows) if (typeof row.id === "string") ids.push(row.id);
   return ids;
+}
+
+function columnData({
+  id,
+  width,
+  wrap,
+  ...column
+}: z.output<typeof tableColumnInputSchema>) {
+  return {
+    ...column,
+    id: id ?? randomUUID(),
+    ...(width !== undefined && { width }),
+    ...(wrap !== undefined && { wrap }),
+  };
+}
+
+function rowData({
+  id,
+  values,
+  evidence,
+}: z.output<typeof tableInsertRowSchema>) {
+  return {
+    ...(id !== undefined && { id }),
+    values,
+    evidence: json(evidence),
+  };
 }
 function assertEditable(table: { archivedAt: Date | null }) {
   if (table.archivedAt) throw conflict("Restore this table before editing");
@@ -388,8 +415,7 @@ export async function createDataTable(
       )
         throw notFound("Project not found");
       const columns = body.columns.map((column, position) => ({
-        ...column,
-        id: column.id ?? randomUUID(),
+        ...columnData(column),
         position,
       }));
       assertUnique(
@@ -400,7 +426,7 @@ export async function createDataTable(
       const table = await tx.dataTable.create({
         data: {
           workspaceId: actor.workspaceId,
-          projectId,
+          ...(projectId !== undefined && { projectId }),
           title: body.title,
           description: body.description,
           createdBy: actor.actorId,
@@ -416,7 +442,7 @@ export async function createDataTable(
         const created = await tx.tableRow.createManyAndReturn({
           data: body.rows
             .slice(start, start + 200)
-            .map((row) => ({ ...row, tableId: table.id })),
+            .map((row) => ({ ...rowData(row), tableId: table.id })),
         });
         await persistChanges(
           tx,
@@ -533,10 +559,7 @@ export async function mutateDataTable(
       }
       if (body.columns) {
         assertEditable(table);
-        const columns = body.columns.map((column) => ({
-          ...column,
-          id: column.id ?? randomUUID(),
-        }));
+        const columns = body.columns.map(columnData);
         assertUnique(
           columns.map((column) => column.id),
           "column IDs",
@@ -597,14 +620,13 @@ export async function mutateDataTable(
       const updated = await tx.dataTable.update({
         where: { id },
         data: {
-          title: body.title,
-          description: body.description,
-          archivedAt:
-            body.archived === undefined
-              ? undefined
-              : body.archived
-                ? new Date()
-                : null,
+          ...(body.title !== undefined && { title: body.title }),
+          ...(body.description !== undefined && {
+            description: body.description,
+          }),
+          ...(body.archived !== undefined && {
+            archivedAt: body.archived ? new Date() : null,
+          }),
           version: { increment: 1 },
         },
         include: tableInclude,
@@ -834,7 +856,8 @@ export async function batchTableRows(
   const body = tableBatchSchema.parse(input);
   if (actor.taskId && body.taskId && actor.taskId !== body.taskId)
     throw forbidden("Task context mismatch");
-  const scopedActor = { ...actor, taskId: actor.taskId ?? body.taskId };
+  const taskId = actor.taskId ?? body.taskId;
+  const scopedActor = taskId === undefined ? actor : { ...actor, taskId };
   await scopeForTask(scopedActor, id, prisma);
   return operation(
     scopedActor,
@@ -867,7 +890,7 @@ export async function batchTableRows(
       for (const row of body.insert) {
         validateTableValues(columns, row.values, row.evidence);
         const created = await tx.tableRow.create({
-          data: { ...row, tableId: id },
+          data: { ...rowData(row), tableId: id },
         });
         audit.push(
           changeData(scopedActor, id, batchId, null, created, created.id),
@@ -941,15 +964,12 @@ export async function batchTableRows(
           where: { id: previous.id },
           data: {
             values,
-            evidence,
-            position,
+            evidence: json(evidence),
+            ...(position !== undefined && { position }),
             version: { increment: 1 },
-            archivedAt:
-              patch.archived === undefined
-                ? undefined
-                : patch.archived
-                  ? new Date()
-                  : null,
+            ...(patch.archived !== undefined && {
+              archivedAt: patch.archived ? new Date() : null,
+            }),
           },
         });
         if (patch.archived !== undefined)
@@ -1109,13 +1129,22 @@ export async function saveTableView(
         : null;
       if (input.id && (!previous || previous.version !== input.version))
         throw conflict("View changed. Reload before saving.");
+      const storedDefinition = json(definition);
       const result = previous
         ? await tx.tableView.update({
             where: { id: previous.id },
-            data: { name: input.name, definition, version: { increment: 1 } },
+            data: {
+              name: input.name,
+              definition: storedDefinition,
+              version: { increment: 1 },
+            },
           })
         : await tx.tableView.create({
-            data: { tableId: id, name: input.name, definition },
+            data: {
+              tableId: id,
+              name: input.name,
+              definition: storedDefinition,
+            },
           });
       await change(tx, actor, id, batchId, previous, result);
       return { tableId: id, result };
@@ -1245,10 +1274,9 @@ export async function undoTableBatch(
                 values,
                 evidence,
                 archivedAt,
-                position:
-                  moveAfter === undefined
-                    ? undefined
-                    : await positionAfter(tx, id, row.id, moveAfter),
+                ...(moveAfter !== undefined && {
+                  position: await positionAfter(tx, id, row.id, moveAfter),
+                }),
                 version: { increment: 1 },
               },
             }),

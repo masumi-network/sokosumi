@@ -3314,6 +3314,23 @@ describe("ChatMessageRow coworker Thought", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("explains that a Soko Bot hit its usage limit", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          mention_failure: { kind: "ai_budget_exceeded" },
+        },
+      }),
+    });
+
+    expect(screen.getByTestId("coworker-mention-failed")).toHaveTextContent(
+      "aiBudgetExceeded",
+    );
+  });
+
   it("shows a Soko Bot's live Thinking with its latest step and elapsed clock", () => {
     renderRow({
       message: sokoBotMessage({

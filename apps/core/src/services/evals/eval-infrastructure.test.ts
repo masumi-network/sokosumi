@@ -9,6 +9,16 @@ const budget = {
 };
 
 describe("typed evaluation infrastructure failures", () => {
+  it("stops later eval cases for the classified budget failure", () => {
+    expect(
+      evalInfrastructureFailure({
+        status: "FAILED",
+        errorKind: "ai_budget_exceeded",
+        errorDetail: "Your assistant has reached its usage limit.",
+      }),
+    ).toMatchObject({ code: "provider_budget_exhausted", stopsRun: true });
+  });
+
   it("recognizes a hard provider budget cap and bounds its stored detail", () => {
     expect(evalInfrastructureFailure(budget)).toMatchObject({
       code: "provider_budget_exhausted",
