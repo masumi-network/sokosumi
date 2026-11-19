@@ -873,7 +873,16 @@
           "AUTHENTICATION_REQUIRED": "Sign in",
           "OUT_OF_CREDITS": "Open",
           "GRANT_PENDING": "Open"
-        }
+        },
+        "answerPlaceholder": "Answer {name}…",
+        "answerPlaceholderNoName": "Write your answer…",
+        "send": "Send",
+        "answerSent": "Answer sent",
+        "answerError": "Couldn't send your answer. Try again.",
+        "questionLoading": "Loading the question…",
+        "questionError": "Couldn't load the question.",
+        "questionOnTask": "Read it on the Task",
+        "waitEnded": "This Task isn't waiting for this answer anymore."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# data room question is waiting for an answer} other {# data room questions are waiting for an answer}}",
@@ -1880,12 +1889,20 @@
         "date": "Date"
       },
       "Display": {
-        "button": "Display",
+        "button": "View options",
+        "layout": "Layout",
         "list": "List",
         "board": "Board",
         "density": "Density",
         "normal": "Normal",
-        "compact": "Compact"
+        "compact": "Compact",
+        "sortBy": "Sort by",
+        "sortOptions": {
+          "updatedAt": "Last updated",
+          "createdAt": "Newest",
+          "priority": "Priority",
+          "dueOn": "Due date"
+        }
       },
       "List": {
         "placeholder": "No tasks"
@@ -1926,11 +1943,12 @@
         "clear": "Clear filters",
         "noMatchesTitle": "No tasks match these filters",
         "noMatchesDescription": "Remove a filter or clear them all to see your tasks again.",
-        "stuck": "Stuck {days}+ days",
+        "stuck": "Stuck",
+        "stuckDays": "{days}+ days",
         "workspaceTags": "Workspace tags",
         "archivedTags": "Archived tags",
         "topicTags": "Default topics",
-        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more",
+        "viewLabel": "Tasks view",
         "needsMe": "Needs me",
         "needsMeHint": "Tasks that wait for a person, where you are the owner or the assignee",
         "mentions": "Mentions",
@@ -2637,6 +2655,12 @@
         "label": "Time in this status:",
         "stuck": "Stuck",
         "since": "In this status since"
+      },
+      "SimilarTasks": {
+        "title": "Open tasks with similar titles",
+        "hint": "Already asked for? Open the task instead of making a duplicate.",
+        "opensInNewTab": "(opens in a new tab)",
+        "announcement": "{count, plural, one {# open task with a similar title} other {# open tasks with similar titles}}"
       }
     },
     "Projects": {

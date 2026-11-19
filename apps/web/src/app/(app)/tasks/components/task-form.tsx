@@ -58,6 +58,7 @@ export type {
   TaskFormLabels,
 } from "./task-form-types";
 
+import { SimilarTasksHint } from "./similar-tasks-hint";
 import { useTaskFormModel } from "./use-task-form-model";
 import { useTaskFormSubmission } from "./use-task-form-submission";
 export function TaskForm(props: TaskFormProps) {
@@ -420,6 +421,15 @@ function TaskFormContent({
                   </div>
                 ) : null}
               </div>
+
+              {session && mode === "create" && !isCopy ? (
+                <SimilarTasksHint
+                  brief={description}
+                  activeOrganizationId={
+                    session.session.activeOrganizationId ?? null
+                  }
+                />
+              ) : null}
 
               {session &&
               (!isCopy ||

@@ -21,6 +21,7 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -110,9 +111,6 @@ export async function requireDataTable(
   return table;
 }
 
-function json(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value));
-}
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value && typeof value === "object")
@@ -211,7 +209,7 @@ async function operation<T>(
           key,
           requestHash,
           tableId,
-          result: json(result),
+          result: jsonInput(result),
         },
       });
       await complete?.(tx, { tableId, result, replayed: false });
@@ -271,9 +269,9 @@ function changeData(
     ...(actor.taskId !== undefined && { taskId: actor.taskId }),
     ...(rowId !== undefined && { rowId }),
     ...(columnId !== undefined && { columnId }),
-    before: json({ value: before }),
-    after: json({ value: after }),
-    evidence: json(evidence),
+    before: jsonInput({ value: before }),
+    after: jsonInput({ value: after }),
+    evidence: jsonInput(evidence),
   };
 }
 
@@ -336,8 +334,8 @@ function rowData({
 }: z.output<typeof tableInsertRowSchema>) {
   return {
     ...(id !== undefined && { id }),
-    values,
-    evidence: json(evidence),
+    values: jsonInput(values),
+    evidence: jsonInput(evidence),
   };
 }
 function assertEditable(table: { archivedAt: Date | null }) {
@@ -963,8 +961,8 @@ export async function batchTableRows(
         const updated = await tx.tableRow.update({
           where: { id: previous.id },
           data: {
-            values,
-            evidence: json(evidence),
+            values: jsonInput(values),
+            evidence: jsonInput(evidence),
             ...(position !== undefined && { position }),
             version: { increment: 1 },
             ...(patch.archived !== undefined && {
@@ -1129,7 +1127,7 @@ export async function saveTableView(
         : null;
       if (input.id && (!previous || previous.version !== input.version))
         throw conflict("View changed. Reload before saving.");
-      const storedDefinition = json(definition);
+      const storedDefinition = jsonInput(definition);
       const result = previous
         ? await tx.tableView.update({
             where: { id: previous.id },
@@ -1271,8 +1269,8 @@ export async function undoTableBatch(
             await tx.tableRow.update({
               where: { id: row.id },
               data: {
-                values,
-                evidence,
+                values: jsonInput(values),
+                evidence: jsonInput(evidence),
                 archivedAt,
                 ...(moveAfter !== undefined && {
                   position: await positionAfter(tx, id, row.id, moveAfter),

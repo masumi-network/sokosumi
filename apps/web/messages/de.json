@@ -857,7 +857,16 @@
           "AUTHENTICATION_REQUIRED": "Anmelden",
           "OUT_OF_CREDITS": "Öffnen",
           "GRANT_PENDING": "Öffnen"
-        }
+        },
+        "answerPlaceholder": "{name} antworten…",
+        "answerPlaceholderNoName": "Deine Antwort…",
+        "send": "Senden",
+        "answerSent": "Antwort gesendet",
+        "answerError": "Deine Antwort konnte nicht gesendet werden. Versuch es noch einmal.",
+        "questionLoading": "Frage wird geladen…",
+        "questionError": "Die Frage konnte nicht geladen werden.",
+        "questionOnTask": "In der Aufgabe lesen",
+        "waitEnded": "Diese Aufgabe wartet nicht mehr auf diese Antwort."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# Frage im Datenraum wartet auf eine Antwort} other {# Fragen im Datenraum warten auf eine Antwort}}",
@@ -1880,12 +1889,20 @@
         "date": "Datum"
       },
       "Display": {
-        "button": "Ansicht",
+        "button": "Ansichtsoptionen",
+        "layout": "Layout",
         "list": "Liste",
         "board": "Board",
         "density": "Dichte",
         "normal": "Standard",
-        "compact": "Kompakt"
+        "compact": "Kompakt",
+        "sortBy": "Sortieren nach",
+        "sortOptions": {
+          "updatedAt": "Zuletzt aktualisiert",
+          "createdAt": "Neueste",
+          "priority": "Priorität",
+          "dueOn": "Fälligkeit"
+        }
       },
       "List": {
         "placeholder": "Keine Tasks"
@@ -1926,11 +1943,12 @@
         "clear": "Filter zurücksetzen",
         "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
         "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen.",
-        "stuck": "Hängt seit {days}+ Tagen",
+        "stuck": "Hängt",
+        "stuckDays": "seit {days}+ Tagen",
         "workspaceTags": "Workspace-Tags",
         "archivedTags": "Archivierte Tags",
         "topicTags": "Standardthemen",
-        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat",
+        "viewLabel": "Task-Ansicht",
         "needsMe": "Wartet auf mich",
         "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
         "mentions": "Erwähnungen",
@@ -2637,6 +2655,12 @@
         "label": "Zeit in diesem Status:",
         "stuck": "Hängt",
         "since": "In diesem Status seit"
+      },
+      "SimilarTasks": {
+        "title": "Offene Aufgaben mit ähnlichem Titel",
+        "hint": "Schon angefragt? Öffne die Aufgabe, statt ein Duplikat anzulegen.",
+        "opensInNewTab": "(öffnet in einem neuen Tab)",
+        "announcement": "{count, plural, one {# offene Aufgabe mit ähnlichem Titel} other {# offene Aufgaben mit ähnlichem Titel}}"
       }
     },
     "Projects": {

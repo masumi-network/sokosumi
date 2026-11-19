@@ -104,15 +104,15 @@ describe("createCompensatingRefund", () => {
       ],
     });
 
-    expect(
-      created.map(({ data }) => [
-        data.amount,
-        data.sourceCreditBucket?.create?.amount,
-        data.sourceCreditBucket?.create?.projectId,
-      ]),
-    ).toEqual([
-      [10n, 10n, PROJECT_ID],
-      [90n, 90n, null],
+    expect(created.map(({ data }) => data)).toMatchObject([
+      {
+        amount: 10n,
+        sourceCreditBucket: { create: { amount: 10n, projectId: PROJECT_ID } },
+      },
+      {
+        amount: 90n,
+        sourceCreditBucket: { create: { amount: 90n, projectId: null } },
+      },
     ]);
     // The parent links the Project part, the part its charge drew first.
     expect(id).toBe("refund-1");
@@ -130,9 +130,8 @@ describe("createCompensatingRefund", () => {
     });
 
     expect(created).toHaveLength(1);
-    expect(created[0]?.data.sourceCreditBucket?.create).toMatchObject({
-      amount: 100n,
-      projectId: PROJECT_ID,
+    expect(created[0]?.data).toMatchObject({
+      sourceCreditBucket: { create: { amount: 100n, projectId: PROJECT_ID } },
     });
     // Cuso is live: nothing is written off.
     expect(queryRaw).not.toHaveBeenCalled();
@@ -207,8 +206,9 @@ describe("createCompensatingRefund", () => {
 
     // A bucket's (referenceId, referenceType) is unique; the suffix is how
     // history and usage find the pool part from the linked one.
-    expect(
-      created.map(({ data }) => data.sourceCreditBucket?.create?.referenceId),
-    ).toEqual(["job-1", "job-1#pool"]);
+    expect(created.map(({ data }) => data)).toMatchObject([
+      { sourceCreditBucket: { create: { referenceId: "job-1" } } },
+      { sourceCreditBucket: { create: { referenceId: "job-1#pool" } } },
+    ]);
   });
 });

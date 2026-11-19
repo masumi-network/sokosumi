@@ -12,13 +12,13 @@ import {
   type NewsletterBrand,
 } from "@sokosumi/utils";
 import slugify from "slugify";
-
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { jsonInput } from "@/helpers/prisma-json";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import prisma from "@/lib/db/prisma";
 import type { SokoBotAuthenticationContext } from "@/middleware/auth";
@@ -129,7 +129,7 @@ export async function createNewsletterIssue(
           newsletterId: newsletter.id,
           subject: input.subject,
           template: input.template,
-          content: input.content,
+          content: jsonInput(input.content),
           ...(input.previewText !== undefined
             ? { previewText: input.previewText }
             : {}),
@@ -214,7 +214,7 @@ export async function patchNewsletterIssue(
         ...(subject !== undefined ? { subject } : {}),
         ...(previewText !== undefined ? { previewText } : {}),
         ...(template !== undefined ? { template } : {}),
-        ...(content !== undefined ? { content } : {}),
+        ...(content !== undefined ? { content: jsonInput(content) } : {}),
         status: "DRAFT",
         approvedAt: null,
         approvedByUserId: null,

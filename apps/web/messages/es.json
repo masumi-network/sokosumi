@@ -857,7 +857,16 @@
           "AUTHENTICATION_REQUIRED": "Iniciar sesión",
           "OUT_OF_CREDITS": "Abrir",
           "GRANT_PENDING": "Abrir"
-        }
+        },
+        "answerPlaceholder": "Responder a {name}…",
+        "answerPlaceholderNoName": "Escribe tu respuesta…",
+        "send": "Enviar",
+        "answerSent": "Respuesta enviada",
+        "answerError": "No se pudo enviar tu respuesta. Inténtalo de nuevo.",
+        "questionLoading": "Cargando la pregunta…",
+        "questionError": "No se pudo cargar la pregunta.",
+        "questionOnTask": "Léela en la tarea",
+        "waitEnded": "Esta tarea ya no espera esta respuesta."
       },
       "DataRoomQuestions": {
         "heading": "{count, plural, one {# pregunta de la sala de datos espera respuesta} other {# preguntas de las salas de datos esperan respuesta}}",
@@ -1880,12 +1889,20 @@
         "date": "Fecha"
       },
       "Display": {
-        "button": "Vista",
+        "button": "Opciones de vista",
+        "layout": "Diseño",
         "list": "Lista",
         "board": "Tablero",
         "density": "Densidad",
         "normal": "Normal",
-        "compact": "Compacto"
+        "compact": "Compacto",
+        "sortBy": "Ordenar por",
+        "sortOptions": {
+          "updatedAt": "Última actualización",
+          "createdAt": "Más recientes",
+          "priority": "Prioridad",
+          "dueOn": "Fecha de vencimiento"
+        }
       },
       "List": {
         "placeholder": "Sin Tasks"
@@ -1926,11 +1943,12 @@
         "clear": "Borrar filtros",
         "noMatchesTitle": "Ninguna Task coincide con estos filtros",
         "noMatchesDescription": "Quita un filtro o bórralos todos para volver a ver tus Tasks.",
-        "stuck": "Atascadas {days}+ días",
+        "stuck": "Atascadas",
+        "stuckDays": "{days}+ días",
         "workspaceTags": "Etiquetas del espacio de trabajo",
         "archivedTags": "Etiquetas archivadas",
         "topicTags": "Temas predeterminados",
-        "stuckHint": "Tareas en espera cuyo estado no ha cambiado en {days} días o más",
+        "viewLabel": "Vista de tareas",
         "needsMe": "Me necesita",
         "needsMeHint": "Tareas que esperan a una persona, de las que eres propietario o responsable",
         "mentions": "Menciones",
@@ -2637,6 +2655,12 @@
         "label": "Tiempo en este estado:",
         "stuck": "Atascada",
         "since": "En este estado desde"
+      },
+      "SimilarTasks": {
+        "title": "Tareas abiertas con títulos parecidos",
+        "hint": "¿Ya se pidió? Abre la tarea en lugar de crear un duplicado.",
+        "opensInNewTab": "(se abre en una pestaña nueva)",
+        "announcement": "{count, plural, one {# tarea abierta con un título parecido} other {# tareas abiertas con títulos parecidos}}"
       }
     },
     "Projects": {

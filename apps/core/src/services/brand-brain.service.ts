@@ -16,6 +16,7 @@ import {
   cmoSaveBrandBrainInputSchema,
 } from "@sokosumi/soko-bot";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import { keepAskedQuestions } from "@/helpers/question-answers";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
@@ -156,7 +157,9 @@ export async function saveBrandBrain(
           questions,
         }
       : null;
-    const body = essentials ? { ...essentials, profile } : { profile };
+    const body = jsonInput(
+      essentials ? { ...essentials, profile } : { profile },
+    );
     const updatedAt = essentials ? { updatedAt: new Date() } : {};
     return tx.brandBrain.upsert({
       where: { projectId },
@@ -178,21 +181,23 @@ export async function saveStudioBrandCopy(
       throw conflict("The brand kit changed. Reload it before saving.");
     }
     const existing = parseBrandBrain(row?.body);
-    const body = brandBrainSchema.parse({
-      products: [],
-      competitors: [],
-      channels: [],
-      profile: storedBrandBrain(row?.body).profile,
-      ...existing,
-      summary: copy.summary,
-      audience: copy.audience,
-      voice: {
-        do: existing?.voice.do ?? [],
-        dont: existing?.voice.dont ?? [],
-        tone: copy.tone,
-        examples: copy.approvedLines,
-      },
-    });
+    const body = jsonInput(
+      brandBrainSchema.parse({
+        products: [],
+        competitors: [],
+        channels: [],
+        profile: storedBrandBrain(row?.body).profile,
+        ...existing,
+        summary: copy.summary,
+        audience: copy.audience,
+        voice: {
+          do: existing?.voice.do ?? [],
+          dont: existing?.voice.dont ?? [],
+          tone: copy.tone,
+          examples: copy.approvedLines,
+        },
+      }),
+    );
     const updatedAt = new Date(
       Math.max(Date.now(), (row?.updatedAt?.getTime() ?? 0) + 1),
     );
@@ -286,7 +291,10 @@ export async function requestBrandBrainFix(
       ...brain,
       profile: { ...brain.profile, [input.section]: { ...section, fix } },
     };
-    await tx.brandBrain.update({ where: { projectId }, data: { body: fixed } });
+    await tx.brandBrain.update({
+      where: { projectId },
+      data: { body: jsonInput(fixed) },
+    });
     return fixed;
   };
   return db ? write(db) : prisma.$transaction(write);
@@ -326,7 +334,7 @@ export async function withdrawBrandBrainFix(
     };
     await tx.brandBrain.update({
       where: { projectId },
-      data: { body: withdrawn },
+      data: { body: jsonInput(withdrawn) },
     });
   };
   await (db ? write(db) : prisma.$transaction(write));
@@ -455,13 +463,13 @@ export async function answerBrandBrainQuestion(
     await tx.brandBrain.update({
       where: { projectId },
       data: {
-        body: {
+        body: jsonInput({
           ...brain,
           profile,
           questions: brain.questions.map((candidate) =>
             candidate.id === question.id ? answered : candidate,
           ),
-        },
+        }),
       },
     });
     return { asked: question, answered };

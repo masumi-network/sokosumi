@@ -41,6 +41,28 @@ describe("createPrismaClient", () => {
     }
   });
 
+  it("rejects an undefined deleteMany filter before reaching PostgreSQL", async () => {
+    const pool = new Pool({ connectionString: DATABASE_URL });
+    const query = vi.spyOn(pool, "query").mockImplementation(() =>
+      Promise.resolve({
+        ...QUERY_RESULT,
+        command: "DELETE",
+        fields: [],
+        rows: [],
+      }),
+    );
+    const prisma = createPrismaClient(pool);
+    try {
+      await expect(
+        prisma.user.deleteMany({ where: { id: undefined } }),
+      ).rejects.toThrow("explicitly `undefined` values are not allowed");
+      expect(query).not.toHaveBeenCalled();
+    } finally {
+      await prisma.$disconnect();
+      await pool.end();
+    }
+  });
+
   it("queries through a supplied pool without closing the caller's pool", async () => {
     const pool = new Pool({ connectionString: DATABASE_URL });
     vi.spyOn(pool, "query").mockImplementation(() =>

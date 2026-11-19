@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ListFilter, type LucideIcon } from "lucide-react";
+import { Check, ListFilter, type LucideIcon, RotateCcw } from "lucide-react";
 import { type ReactElement, type ReactNode, useMemo, useState } from "react";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,6 +16,8 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -91,6 +93,8 @@ interface FilterDropdownMenuProps {
   hideMobileTrigger?: boolean;
   sheetOpen?: boolean;
   onSheetOpenChange?: (open: boolean) => void;
+  /** A last item that resets every filter in the menu; omit it when none is set. */
+  resetAction?: { label: string; onReset: () => void };
 }
 
 const ALL_FILTER_VALUE = "__all__";
@@ -109,6 +113,7 @@ export function FilterDropdownMenu({
   hideMobileTrigger = false,
   sheetOpen: sheetOpenProp,
   onSheetOpenChange,
+  resetAction,
 }: FilterDropdownMenuProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [uncontrolledSheetOpen, setUncontrolledSheetOpen] = useState(false);
@@ -177,6 +182,20 @@ export function FilterDropdownMenu({
               onSelect={handleClose}
             />
           ))}
+          {resetAction ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => {
+                  resetAction.onReset();
+                  handleClose();
+                }}
+              >
+                <RotateCcw aria-hidden />
+                {resetAction.label}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -227,6 +246,19 @@ export function FilterDropdownMenu({
                   onSelect={handleClose}
                 />
               ))}
+              {resetAction ? (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    resetAction.onReset();
+                    handleClose();
+                  }}
+                >
+                  <RotateCcw aria-hidden />
+                  {resetAction.label}
+                </Button>
+              ) : null}
             </div>
           </ScrollArea>
         </SheetContent>

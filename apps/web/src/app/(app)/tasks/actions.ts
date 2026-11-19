@@ -31,6 +31,7 @@ import {
   parseTaskScheduleStateFilter,
   TASK_SCHEDULES_PAGE_LIMIT,
 } from "./utils/task-schedules-filters";
+import { parseTasksSort } from "./utils/task-sort";
 import { getTasksColumnPage } from "./utils/tasks-column-page";
 import { getTasksListPage } from "./utils/tasks-list-page";
 
@@ -46,6 +47,7 @@ interface TasksLoadMoreFilters {
   stuck?: boolean;
   needsMe?: boolean;
   mentions?: boolean;
+  sort?: string;
 }
 
 interface LoadMoreTasksColumnParams extends TasksLoadMoreFilters {
@@ -81,6 +83,7 @@ async function loadSanitizedTasksPageFilters({
   stuck,
   needsMe,
   mentions,
+  sort,
 }: TasksLoadMoreFilters) {
   const [session, coworkers, ownerBot, t] = await Promise.all([
     getSession(),
@@ -120,6 +123,7 @@ async function loadSanitizedTasksPageFilters({
     stuck: sanitizeTasksStuckInput(stuck),
     needsMe: sanitizeTasksStuckInput(needsMe),
     mentions: sanitizeTasksStuckInput(mentions),
+    sort: parseTasksSort(sort),
     coworkersById,
     personalAssistantFallback: t("personalAssistant"),
   };

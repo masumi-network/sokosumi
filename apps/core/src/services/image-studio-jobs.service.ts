@@ -1,5 +1,4 @@
 import crypto from "node:crypto";
-
 import {
   Prisma,
   ProjectImageJobKind,
@@ -16,9 +15,7 @@ import {
 } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 import { waitUntil } from "@vercel/functions";
-
 import { HTTPException } from "hono/http-exception";
-
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
 import { DriveFileDownloadError } from "@/helpers/drive-file-download";
@@ -27,6 +24,7 @@ import {
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import {
   createTaskEventTransaction,
   isInsufficientBalanceError,
@@ -587,7 +585,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         ...(productCutoutChecksum !== undefined
           ? { productCutoutChecksum }
           : {}),
-        settings: {
+        settings: jsonInput({
           ...input.settings,
           ...(input.letteringSettings
             ? {
@@ -597,7 +595,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
                   : {}),
               }
             : {}),
-        },
+        }),
         referenceAssetIds: input.referenceAssetIds,
         referenceFileIds,
         referenceLibraryIds: input.referenceLibraryIds ?? [],
@@ -1453,7 +1451,7 @@ async function prepareTalkingVideo(
     where: { id: job.id },
     data: {
       voiceBlobPathname: stored.pathname,
-      settings: { ...made },
+      settings: jsonInput(made),
       // What could not be started is not charged for.
       ...((settings.siteShots && !made.siteShots) ||
       (settings.broll && !made.broll) ||
@@ -1752,7 +1750,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         .createHash("sha256")
         .update(studioBrandPromptBlock(promptBrand))
         .digest("hex"),
-      brandLook: brand.look ?? Prisma.DbNull,
+      brandLook: brand.look ? jsonInput(brand.look) : Prisma.DbNull,
       assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
       templateId: job.templateId ?? null,
       creativeDirection: job.creativeDirection ?? null,
@@ -3146,7 +3144,7 @@ async function insertAsset(input: {
           prompt: `Add the approved headline: ${input.job.exportHeadline}`,
           exportHeadline: input.job.exportHeadline,
           lettering: "ideogram",
-          settings: { ...readSettings(secondSettings ?? {}) },
+          settings: jsonInput(readSettings(secondSettings ?? {})),
           productId: input.job.productId,
           productName: input.job.productName,
           batchSlotId: input.job.batchSlotId ?? input.job.id,
