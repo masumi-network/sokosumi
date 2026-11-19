@@ -149,8 +149,8 @@ describe("loadTasksPageData", () => {
       status: "READY",
       sort: "priority",
     });
-    expect(new URLSearchParams(data.restoredQuery ?? "")).toEqual(
-      new URLSearchParams("scope=workspace&status=READY&sort=priority"),
+    expect(data.restoredQuery).toBe(
+      "scope=workspace&sort=priority&status=READY",
     );
   });
 
@@ -173,13 +173,16 @@ describe("loadTasksPageData", () => {
     expect(data.restoredQuery).toBeNull();
   });
 
-  it("opens the defaults when the saved view cannot be read", async () => {
+  it("opens the defaults uncached when the saved view cannot be read", async () => {
     getSessionResultMock.mockResolvedValue(ok(SESSION));
+    getSessionMock.mockResolvedValue(SESSION);
     getSavedTasksViewQueryMock.mockRejectedValue(new Error("Core down"));
     expectConsole("error", "Failed to load the saved Tasks view");
 
     const data = await load("list", { restoreSavedView: true });
 
+    // The cached read threw, so the page rendered from the uncached retry.
+    expect(connectionMock).toHaveBeenCalled();
     expect(data.activeFilters.status).toBeNull();
     expect(data.restoredQuery).toBe("");
   });

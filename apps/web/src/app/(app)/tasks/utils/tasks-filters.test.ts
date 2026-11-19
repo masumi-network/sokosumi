@@ -684,11 +684,11 @@ describe("hasTasksViewParams and pickTasksViewQuery", () => {
     expect(hasTasksViewParams({ sort: "priority" })).toBe(true);
   });
 
-  it("keeps only the view keys of a URL", () => {
+  it("keeps only the view keys of a URL, in one order", () => {
     expect(
       pickTasksViewQuery(
         new URLSearchParams(
-          `scope=owned&projectId=${PROJECT_ID}&create=true&status=READY`,
+          `status=READY&projectId=${PROJECT_ID}&create=true&scope=owned`,
         ),
       ),
     ).toBe("scope=owned&status=READY");

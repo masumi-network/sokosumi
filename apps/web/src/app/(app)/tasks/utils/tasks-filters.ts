@@ -144,6 +144,8 @@ export function pickTasksViewQuery(params: URLSearchParams): string {
   for (const [key, value] of params) {
     if (TASKS_VIEW_PARAM_KEYS.includes(key)) picked.append(key, value);
   }
+  // One order for client and server, so equal views compare equal.
+  picked.sort();
   return picked.toString();
 }
 

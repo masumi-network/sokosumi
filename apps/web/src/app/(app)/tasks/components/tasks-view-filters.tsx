@@ -22,6 +22,7 @@ import {
   getDefaultTasksScope,
   getTasksFiltersFromSearchParams,
   hasActiveTasksFilters,
+  hasTasksViewParams,
   type ProjectFilterOption,
   STUCK_AFTER_DAYS,
   type TasksFilters,
@@ -144,11 +145,14 @@ export function TasksViewFilters({
 
   const handleFilterChange = useCallback(
     (patch: Partial<TasksFilters>) => {
-      const paramsForMerge = new URLSearchParams(
-        typeof window !== "undefined"
-          ? window.location.search
-          : searchParams.toString(),
+      const windowParams = new URLSearchParams(
+        typeof window !== "undefined" ? window.location.search : "",
       );
+      // The address bar can lag behind a restored saved view; then the view
+      // lives only in the restored search params.
+      const paramsForMerge = hasTasksViewParams(windowParams)
+        ? windowParams
+        : new URLSearchParams(searchParams.toString());
       const current = getTasksFiltersFromSearchParams(
         paramsForMerge,
         activeOrganizationId,

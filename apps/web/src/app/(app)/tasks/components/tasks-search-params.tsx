@@ -88,8 +88,10 @@ export function TasksSearchParamsProvider({
       return;
     }
     if (!restoredQuery) return;
+    // A null state lets Next adopt the new URL into useSearchParams; its own
+    // state would make Next skip the sync and later restore the bare URL.
     window.history.replaceState(
-      window.history.state,
+      null,
       "",
       `${window.location.pathname}?${withView(current, restoredQuery)}${window.location.hash}`,
     );

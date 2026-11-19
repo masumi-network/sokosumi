@@ -21,6 +21,7 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 
 import type { FilterDropdownMenuSection } from "@/components/common/filter-dropdown-menu";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
+import { TasksSearchParamsProvider } from "./tasks-search-params";
 import { TasksViewFilters } from "./tasks-view-filters";
 
 const replaceMock = vi.fn();
@@ -80,6 +81,7 @@ const labels = {
 function renderTasksViewFilters(
   activeOrganizationId: string | null,
   userId: string | null = null,
+  restoredQuery: string | null = null,
   display?: (activeFilters: string[]) => React.ReactNode,
 ) {
   const queryClient = new QueryClient();
@@ -93,27 +95,32 @@ function renderTasksViewFilters(
   ]);
   render(
     <QueryClientProvider client={queryClient}>
-      <TasksViewFilters
+      <TasksSearchParamsProvider
+        restoredQuery={restoredQuery}
         activeOrganizationId={activeOrganizationId}
-        userId={userId}
-        coworkerOptions={[
-          mockCoworkerOption({ id: "user-1", name: "Me", kind: "user" }),
-          mockCoworkerOption({
-            id: "coworker-1",
-            slug: "elena",
-            name: "Elena",
-            image: "elena.png",
-          }),
-        ]}
-        projectOptions={[
-          {
-            id: "33333333-3333-4333-8333-333333333333",
-            name: "Research",
-          },
-        ]}
-        labels={labels}
-        display={display}
-      />
+      >
+        <TasksViewFilters
+          activeOrganizationId={activeOrganizationId}
+          userId={userId}
+          coworkerOptions={[
+            mockCoworkerOption({ id: "user-1", name: "Me", kind: "user" }),
+            mockCoworkerOption({
+              id: "coworker-1",
+              slug: "elena",
+              name: "Elena",
+              image: "elena.png",
+            }),
+          ]}
+          projectOptions={[
+            {
+              id: "33333333-3333-4333-8333-333333333333",
+              name: "Research",
+            },
+          ]}
+          labels={labels}
+          display={display}
+        />
+      </TasksSearchParamsProvider>
     </QueryClientProvider>,
   );
 
@@ -201,7 +208,7 @@ describe("TasksViewFilters", () => {
     );
     searchParams = new URLSearchParams(window.location.search);
     const display = vi.fn((_activeFilters: string[]) => null);
-    renderTasksViewFilters("org-1", "user-1", display);
+    renderTasksViewFilters("org-1", "user-1", null, display);
 
     expect(display.mock.calls.at(-1)?.[0]).toEqual([
       "chip(viewLabel, needsMe)",
@@ -236,6 +243,24 @@ describe("TasksViewFilters", () => {
     expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=owned&stuck=1");
     stuck?.onChange(null);
     expect(replaceMock).toHaveBeenLastCalledWith("/tasks?scope=owned");
+  });
+
+  it("keeps a restored saved view when a filter changes before the address bar has it", () => {
+    window.history.replaceState(null, "", "/tasks");
+    const props = renderTasksViewFilters(
+      null,
+      null,
+      "scope=owned&status=READY",
+    );
+    // Next can commit the bare URL again after the restore wrote it.
+    window.history.replaceState(null, "", "/tasks");
+    const stuck = props.sections.find((section) => section.id === "stuck");
+
+    stuck?.onChange(stuck.options[0]?.value ?? null);
+
+    expect(replaceMock).toHaveBeenLastCalledWith(
+      "/tasks?scope=owned&status=READY&stuck=1",
+    );
   });
 
   it("hides My tasks when the viewer is not an assignee option", () => {
