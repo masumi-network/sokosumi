@@ -393,8 +393,9 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     const [blum] = (
       await listCompanies(actor, { name: "Blum Studio", limit: 5 })
     ).items;
+    if (!blum) throw new Error("Missing Blum Studio fixture");
     await prisma.contactCompany.update({
-      where: { id: blum?.id },
+      where: { id: blum.id },
       data: { website: "https://blum.studio", enrichedAt: null },
     });
     await enrichCompanies(workspaceId, {
@@ -404,7 +405,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         fetchPage: async () => {
           // A teammate saves a description meanwhile.
           await prisma.contactCompany.update({
-            where: { id: blum?.id },
+            where: { id: blum.id },
             data: {
               description: "Written by Alice.",
               version: { increment: 1 },
@@ -419,7 +420,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
       },
     });
     const row = await prisma.contactCompany.findUniqueOrThrow({
-      where: { id: blum?.id },
+      where: { id: blum.id },
     });
     // A name-only company with a website is read too.
     expect(row).toMatchObject({
@@ -434,8 +435,9 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     const [ostwerk] = (await listCompanies(actor, { limit: 50 })).items.filter(
       (company) => company.name === "Ostwerk",
     );
-    await updateCompany(actor, ostwerk?.id ?? "", {
-      version: ostwerk?.version ?? 1,
+    if (!ostwerk) throw new Error("Missing Ostwerk fixture");
+    await updateCompany(actor, ostwerk.id, {
+      version: ostwerk.version,
       whyItMatters: "Supplier.",
     });
     await prisma.contactChannel.create({
@@ -465,7 +467,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     await listCompanies(actor, { limit: 50 });
     expect(
       await prisma.contactCompany.findUniqueOrThrow({
-        where: { id: ostwerk?.id },
+        where: { id: ostwerk.id },
       }),
     ).toMatchObject({
       key: "d:ostwerk.com",
@@ -479,6 +481,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     const [ostwerk] = (
       await listCompanies(actor, { name: "Ostwerk", limit: 5 })
     ).items;
+    if (!ostwerk) throw new Error("Missing Ostwerk fixture");
     await enrichCompanies(workspaceId, {
       limit: 10,
       usd: 1,
@@ -486,7 +489,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         fetchPage: async (url) => {
           if (url === "https://ostwerk.com")
             await prisma.contactCompany.update({
-              where: { id: ostwerk?.id },
+              where: { id: ostwerk.id },
               data: { website: "https://ostwerk.example", enrichedAt: null },
             });
           return "<p>Old site</p>";
@@ -499,7 +502,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     });
     expect(
       await prisma.contactCompany.findUniqueOrThrow({
-        where: { id: ostwerk?.id },
+        where: { id: ostwerk.id },
       }),
     ).toMatchObject({ description: null, enrichedAt: null });
   });
@@ -617,6 +620,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
     });
     const [rot] = (await listCompanies(actor, { name: "Rotfabrik", limit: 5 }))
       .items;
+    if (!rot) throw new Error("Missing Rotfabrik fixture");
     await prisma.contactChannel.updateMany({
       where: { contactId: ines.id },
       data: { value: "ines@rotfabrik.example" },
@@ -632,7 +636,7 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         if (!raced && args.data?.key) {
           raced = true;
           await prisma.contactCompany.update({
-            where: { id: rot?.id },
+            where: { id: rot.id },
             data: {
               website: "https://custom.example",
               version: { increment: 1 },

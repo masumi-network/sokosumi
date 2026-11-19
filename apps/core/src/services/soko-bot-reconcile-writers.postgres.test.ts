@@ -703,9 +703,9 @@ describe.skipIf(!enabled)("reconciling beside another writer", () => {
       sequence: from + offset,
       type,
       summary: code ?? type,
-      payload: type.endsWith(".failed")
-        ? { code: code ?? "unknown" }
-        : undefined,
+      ...(type.endsWith(".failed")
+        ? { payload: { code: code ?? "unknown" } }
+        : {}),
       providerAt: new Date(),
     }));
   }

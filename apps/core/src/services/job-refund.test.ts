@@ -88,11 +88,11 @@ describe("refundJob", () => {
 
     await refundJob("job-1", tx);
 
-    expect(
-      created().map((data) => data.sourceCreditBucket?.create),
-    ).toMatchObject([
-      { amount: 10n, projectId: PROJECT_ID },
-      { amount: 90n, projectId: null },
+    expect(created()).toMatchObject([
+      {
+        sourceCreditBucket: { create: { amount: 10n, projectId: PROJECT_ID } },
+      },
+      { sourceCreditBucket: { create: { amount: 90n, projectId: null } } },
     ]);
   });
 
