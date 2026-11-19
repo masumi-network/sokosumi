@@ -576,7 +576,7 @@ export class SokoBotSchedulesSyncService {
           source: "SCHEDULE",
           ownScheduleId: schedule.systemKey ? undefined : schedule.id,
           // Built-in rhythms run on the route Core gives them; a schedule the
-          // owner or the bot wrote is classified like any message.
+          // owner or the bot wrote runs with the tools stored with it.
           presetRoute:
             systemScheduleRoute(schedule.systemKey) ??
             inheritedScheduleRoute(schedule.capabilityNames),
