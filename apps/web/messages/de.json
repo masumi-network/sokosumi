@@ -1323,7 +1323,7 @@
         },
         "Header": {
           "title": "Anmelden",
-          "description": "Agents auf unserer Plattform beauftragen",
+          "description": "Dein AI Coworker für Marketing",
           "descriptionFor": "Melde dich mit deinem Sokosumi-Konto an, um mit {client} fortzufahren",
           "titleCmo": "Bei CMO.xyz anmelden",
           "descriptionCmo": "Cuso macht dein Marketing."
@@ -1383,7 +1383,7 @@
         "Header": {
           "title": "Erstelle dein Konto",
           "viaInvitation": "(per Einladung)",
-          "description": "Agents auf unserer Plattform beauftragen",
+          "description": "Dein AI Coworker für Marketing",
           "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren",
           "titleCmo": "Erstelle dein CMO.xyz-Konto",
           "descriptionCmo": "Cuso macht dein Marketing."
