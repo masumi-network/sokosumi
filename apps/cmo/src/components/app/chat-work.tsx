@@ -123,7 +123,11 @@ function MadeWords({ work, compose, loadText }: MadeInChatProps) {
       </p>
       {file ? null : <p className="made-title">{work.title}</p>}
       {work.state === "making" ? (
-        <p className="note">I tell you here when it is done.</p>
+        <p className="note">
+          {work.kind === "audit"
+            ? "It takes about ten minutes. What it finds shows in your SEO tab."
+            : "I tell you here when it is done."}
+        </p>
       ) : null}
       {work.text && words === null ? (
         <p className="made-text">{work.text}</p>
@@ -178,11 +182,17 @@ function MadeWords({ work, compose, loadText }: MadeInChatProps) {
             Answer
           </button>
         ) : null}
-        {work.state === "failed" && !file ? (
+        {work.state === "failed" && !file && work.kind !== "audit" ? (
           <button
             type="button"
             className="button button-secondary button-small"
-            onClick={() => compose(`Try "${work.title}" again`)}
+            onClick={() =>
+              compose(
+                work.kind === "seo"
+                  ? `Check again: ${work.title.toLowerCase()}`
+                  : `Try "${work.title}" again`,
+              )
+            }
           >
             Ask {AGENT_NAME} to try again
           </button>

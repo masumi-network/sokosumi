@@ -14117,13 +14117,13 @@ export type CmoChatWork = {
 
 export type CmoChatWorkItem = {
     /**
-     * The tool call that started it.
+     * The tool call that started it; a weekly audit's own id.
      */
     id: string;
     /**
-     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).
+     * A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).
      */
-    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent';
+    kind: 'image' | 'video' | 'audio' | 'file' | 'task' | 'agent' | 'seo' | 'audit';
     /**
      * making until it is done; waiting when handed work needs the owner; failed when it never will be done.
      */
@@ -14141,7 +14141,7 @@ export type CmoChatWorkItem = {
      */
     url: string | null;
     /**
-     * Who does handed work: the Coworker or the Agent.
+     * Who does handed work: the Coworker, the Agent or the SEO specialist.
      */
     by: string | null;
     /**

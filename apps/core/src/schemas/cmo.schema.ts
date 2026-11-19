@@ -232,11 +232,22 @@ export const cmoPieceTextSchema = z
 
 export const cmoChatWorkItemSchema = z
   .object({
-    id: z.string().describe("The tool call that started it."),
+    id: z
+      .string()
+      .describe("The tool call that started it; a weekly audit's own id."),
     kind: z
-      .enum(["image", "video", "audio", "file", "task", "agent"])
+      .enum([
+        "image",
+        "video",
+        "audio",
+        "file",
+        "task",
+        "agent",
+        "seo",
+        "audit",
+      ])
       .describe(
-        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent).",
+        "A picture, video or voice-over Cuso made, a file he wrote, work he handed to a Coworker (task) or to a hired Agent (agent), a check he asked of the SEO specialist (seo), or the SEO specialist's weekly audit of the site (audit).",
       ),
     state: z
       .enum(["making", "waiting", "ready", "failed"])
@@ -254,7 +265,9 @@ export const cmoChatWorkItemSchema = z
       .describe("Where the finished file plays or downloads from."),
     by: z
       .union([z.string(), z.null()])
-      .describe("Who does handed work: the Coworker or the Agent."),
+      .describe(
+        "Who does handed work: the Coworker, the Agent or the SEO specialist.",
+      ),
     text: z
       .union([z.string(), z.null()])
       .describe(

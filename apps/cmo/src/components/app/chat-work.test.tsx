@@ -72,6 +72,64 @@ describe("MadeInChat", () => {
     expect(html).not.toContain("Read it");
   });
 
+  it("shows a check asked of the SEO specialist: running, then its result, or another try", () => {
+    const check = {
+      kind: "seo" as const,
+      title: 'Where you rank on Google for "calendly alternative"',
+      by: "The SEO specialist",
+    };
+    const running = card(work(check));
+    expect(running).toContain('role="status"');
+    expect(running).toContain("The SEO specialist is working on this");
+    expect(running).toContain("Where you rank on Google for");
+    expect(running).toContain("I tell you here when it is done.");
+
+    const done = card(
+      work({
+        ...check,
+        state: "ready",
+        text: "position 7, 1,300 searches a month",
+        readable: true,
+      }),
+    );
+    expect(done).toContain("The SEO specialist is done");
+    expect(done).toContain("position 7, 1,300 searches a month");
+    expect(done).toContain("Read it");
+
+    const failed = card(
+      work({ ...check, state: "failed", text: "The check failed." }),
+    );
+    expect(failed).toContain("The SEO specialist could not finish this");
+    expect(failed).toContain("The check failed.");
+    expect(failed).toContain("Ask Cuso to try again");
+    expect(`${running}${done}${failed}`).not.toMatch(/Sokosumi|Task|Coworker/);
+  });
+
+  it("shows the weekly audit like handed work, without a retry it cannot grant", () => {
+    const audit = {
+      kind: "audit" as const,
+      title: "Weekly audit of your site",
+      by: "The SEO specialist",
+    };
+    const running = card(work(audit));
+    expect(running).toContain("The SEO specialist is working on this");
+    expect(running).toContain("What it finds shows in your SEO tab.");
+    expect(
+      card(
+        work({
+          ...audit,
+          state: "ready",
+          text: "86 of 110 checks passed. 5 things to fix are in your SEO tab.",
+        }),
+      ),
+    ).toContain("5 things to fix are in your SEO tab.");
+    const failed = card(
+      work({ ...audit, state: "failed", text: "No charge." }),
+    );
+    expect(failed).toContain("The SEO specialist could not finish this");
+    expect(failed).not.toContain("try again");
+  });
+
   it("shows what handed work asks, with a way to answer", () => {
     const html = card(
       work({
