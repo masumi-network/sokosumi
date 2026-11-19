@@ -170,13 +170,15 @@ for (const { name: size, ...viewport } of PROJECTS) {
         .click();
       await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
       // Saving refreshes Properties; each row shows once, not once per refresh.
+      const assigneeRows = page
+        .getByRole("combobox", { name: /^Assignee:/ })
+        .filter({ visible: true });
+      await assigneeRows.first().waitFor();
+      const assigneeCount = await assigneeRows.count();
       assert.equal(
-        await page
-          .getByRole("combobox", { name: /^Assignee:/ })
-          .filter({ visible: true })
-          .count(),
+        assigneeCount,
         1,
-        "the Assignee row shows more than once after Save",
+        `the Assignee row shows ${assigneeCount} times after Save`,
       );
 
       // Back on the board: a card without tags has no empty tags line. Only
