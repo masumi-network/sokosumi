@@ -1033,6 +1033,7 @@ describe("ProjectSocialPosts", () => {
       projectId: PROJECT_ID,
       action: "reconnect",
       socialConnectionId: "connection-1",
+      accountChoice: true,
     });
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText("Retry 1 failed posts?")).toBeVisible();
@@ -6546,16 +6547,26 @@ describe("ProjectSocialPosts", () => {
         );
         expect(initiateProjectSocialConnection).toHaveBeenCalledWith(
           status === "disconnected"
-            ? { projectId: PROJECT_ID, action: "connect", provider: "x" }
+            ? {
+                projectId: PROJECT_ID,
+                action: "connect",
+                provider: "x",
+                accountChoice: true,
+              }
             : {
                 projectId: PROJECT_ID,
                 action: "reconnect",
                 socialConnectionId: connection.id,
+                accountChoice: true,
               },
         );
         expect(finalizeProjectSocialConnection).toHaveBeenCalledWith({
           projectId: PROJECT_ID,
           connectionId: "ca-1",
+          callbackProof: undefined,
+          pendingDataToken: undefined,
+          connectToken: undefined,
+          offerChoice: true,
         });
         expect(within(dialog).getByLabelText("Text")).toHaveValue("Fixed copy");
         expect(

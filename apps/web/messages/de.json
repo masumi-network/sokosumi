@@ -2866,7 +2866,7 @@
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe die App unter Verbindungen."
         },
         "errors": {
-          "facebookPage": "Verbinde ein Facebook-Konto, das genau eine Seite verwaltet. Konten ohne Seiten oder mit mehreren Seiten werden noch nicht unterstützt.",
+          "facebookPage": "Dieses Facebook-Login verwaltet keine Seite. Verbinde dich erneut mit dem Login, das deine Seite verwaltet.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
@@ -2879,14 +2879,23 @@
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
           "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren.",
-          "sync": "Synchronisierung konnte nicht gestartet werden."
+          "sync": "Synchronisierung konnte nicht gestartet werden.",
+          "youtubeChannel": "Diese Google-Anmeldung hat keinen YouTube-Kanal. Verbinde dich erneut und wähle auf dem Google-Bildschirm das Konto des Kanals."
         },
         "comingSoon": "Bald verfügbar",
-        "linkedinPersonalOnly": "Nur persönliches Profil. Unternehmensseiten werden noch nicht unterstützt.",
         "personalProfile": "Persönliches Profil",
         "connectComingSoon": "{provider} (bald verfügbar)",
         "empty": "Noch keine Konten.",
-        "emptyHint": "Verbinde eines, um zu posten."
+        "emptyHint": "Verbinde eines, um zu posten.",
+        "choose": {
+          "title": "Welches Konto?",
+          "description": "Deine {provider}-Anmeldung erreicht mehr als ein Konto. Beiträge erscheinen unter dem Konto, das du auswählst.",
+          "listLabel": "Konten",
+          "page": "Unternehmensseite",
+          "profile": "Dein persönliches Profil",
+          "cancel": "Abbrechen",
+          "confirm": "Verbinden"
+        }
       },
       "SocialPosts": {
         "loadError": {

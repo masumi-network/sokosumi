@@ -96,11 +96,9 @@ function SocialPostFan() {
 
 function SocialPlatformCard({
   comingSoonLabel,
-  personalProfileLabel,
   provider,
 }: {
   comingSoonLabel: string;
-  personalProfileLabel: string;
   provider: (typeof SOCIAL_PROVIDERS)[number];
 }) {
   const { isProviderEnabled } = useSocialProviderAvailability();
@@ -111,10 +109,6 @@ function SocialPlatformCard({
         <p className="text-sm font-medium">{provider.name}</p>
         {!isProviderEnabled(provider.id) ? (
           <Badge variant="secondary">{comingSoonLabel}</Badge>
-        ) : provider.id === "linkedin" ? (
-          <span className="text-muted-foreground block text-xs">
-            {personalProfileLabel}
-          </span>
         ) : null}
       </div>
     </div>
@@ -126,7 +120,6 @@ function SocialPlatformCarousel() {
   const t = useTranslations("App.Social");
   const accounts = useTranslations("App.Projects.ProjectSocialAccounts");
   const comingSoonLabel = accounts("comingSoon");
-  const personalProfileLabel = accounts("personalProfile");
   const providers = socialProvidersEnabledFirst(
     useSocialProviderAvailability().enabledProviders,
   );
@@ -175,7 +168,6 @@ function SocialPlatformCarousel() {
                 >
                   <SocialPlatformCard
                     comingSoonLabel={comingSoonLabel}
-                    personalProfileLabel={personalProfileLabel}
                     provider={provider}
                   />
                 </li>

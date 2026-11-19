@@ -318,10 +318,32 @@ describe("project social connections service", () => {
 
     afterEach(() => vi.unstubAllEnvs());
 
-    it("stays on Composio outside utxo AG until Pages open to everyone", async () => {
+    it("signs in through Zernio for a Project in any organization", async () => {
       projectFindFirstMock.mockResolvedValue({
         ...utxo,
         workspace: { id: "ws-other", organization: { slug: "acme" } },
+      });
+      zernioRequest
+        .mockResolvedValueOnce({ profile: { _id: profileId } })
+        .mockResolvedValueOnce({
+          authUrl: "https://www.linkedin.com/oauth/v2/authorization",
+        });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await initiateProjectSocialConnection({
+        ...input,
+        action: "connect",
+        provider: "linkedin",
+        accountChoice: true,
+      });
+      expect(zernioRequest.mock.calls[1][0]).toMatch(/^\/connect\/linkedin\?/);
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
+    });
+
+    it("stays on Composio where Core holds no Zernio key", async () => {
+      getEnvMock.mockReturnValue({
+        COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: "ac_linkedin",
       });
       const { initiateProjectSocialConnection } = await import(
         "./project-social-connections.service"
