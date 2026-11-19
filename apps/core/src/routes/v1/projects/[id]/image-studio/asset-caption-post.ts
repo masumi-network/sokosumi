@@ -1,6 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { notFound, serviceUnavailable } from "@/helpers/error";
+import {
+  aiBudgetUnavailable,
+  notFound,
+  serviceUnavailable,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { AiGatewayBudgetError } from "@/lib/ai-gateway-budget";
@@ -54,7 +58,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     try {
       result = await writeStudioAssetCaption({ projectId, assetId });
     } catch (error) {
-      if (error instanceof AiGatewayBudgetError) throw error;
+      if (error instanceof AiGatewayBudgetError)
+        throw aiBudgetUnavailable(error);
       throw serviceUnavailable("Could not write a caption");
     }
     if (result.isErr()) {

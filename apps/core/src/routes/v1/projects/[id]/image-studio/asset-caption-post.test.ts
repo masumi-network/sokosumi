@@ -1,5 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -121,7 +122,7 @@ describe("POST /projects/{id}/image-studio/assets/{assetId}/caption", () => {
     expect(response.status).toBe(503);
   });
 
-  it("returns 500 for a budget refusal with a single shared alert and no Sentry capture", async () => {
+  it("returns a 503 budget refusal with a single shared alert and no Sentry capture", async () => {
     vi.mocked(incrementRedisRateLimit)
       .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(2);
@@ -140,15 +141,21 @@ describe("POST /projects/{id}/image-studio/assets/{assetId}/caption", () => {
         method: "POST",
       });
 
-    expect((await request()).status).toBe(500);
-    expect((await request()).status).toBe(500);
+    for (const response of [await request(), await request()]) {
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        kind: CORE_API_ERROR_KINDS.AI_BUDGET_EXCEEDED,
+        message:
+          "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
+      });
+    }
     expect(coreLogEvents()).toMatchObject([
       {
-        status: 500,
+        status: 503,
         level: "error",
         error: { message: "AI Gateway budget exhausted" },
       },
-      { status: 500, level: "warn" },
+      { status: 503, level: "warn" },
     ]);
     expect(coreLogEvents()[1]).not.toHaveProperty("error");
     expect(Sentry.captureException).not.toHaveBeenCalled();
