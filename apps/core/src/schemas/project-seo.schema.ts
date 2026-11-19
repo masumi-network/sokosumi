@@ -5,6 +5,7 @@ import {
   SEO_MIN_AUDIT_USD,
 } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { seoArticleDates, seoTopicLaunch } from "@/helpers/seo-content-history";
 import { SEO_SHARING_SCOPES } from "@/lib/seo/data-visibility";
 import { SEO_STATS_MAX_DAYS } from "@/lib/seo/native-statistics";
 import { seoActionSchema } from "./project-seo-action.schema";
@@ -689,6 +690,8 @@ export const projectSeoWorkspaceSchema = z
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
     landingEngagementChange: seoLandingEngagementChange.optional(),
+    articleDates: z.array(seoArticleDates).optional(),
+    topicLaunches: z.array(seoTopicLaunch).optional(),
     seasonalIdeas: z.array(seoWorkspaceSeasonalIdeaSchema).optional(),
     /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */
     serpHistory: z

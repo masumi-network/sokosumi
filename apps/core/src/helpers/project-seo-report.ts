@@ -15,14 +15,13 @@ import {
 } from "@/schemas/project-seo-action.schema";
 import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
-import {
-  bindMarketSource,
-  readPublicSeoDecisions,
-} from "./project-seo-decisions";
+import { bindMarketSource, readWorkerDecisions } from "./project-seo-decisions";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import {
   reportObject as object,
+  omitUndefinedProperties,
   refusePrivateReport,
+  skippedPages,
 } from "./project-seo-public-report";
 import { legacyReportKeywords } from "./project-seo-report-keywords";
 import {
@@ -36,6 +35,17 @@ import {
   publicSiteFindings,
 } from "./project-seo-site-findings";
 import { publicSeoStrategy } from "./project-seo-strategy";
+import {
+  articleDates,
+  boundTopicLaunches,
+  publicSiteArticles,
+  seoArticleDates,
+  seoTopicLaunch,
+} from "./seo-content-history";
+import {
+  readReviewSources,
+  seoReviewSource,
+} from "./seo-recommendation-evidence";
 
 const text = z.string().max(20_000);
 const nullableNumber = z.number().finite().nullable();
@@ -95,17 +105,6 @@ const action = z.object({
     .object({ target: text, before: text.nullable(), after: text })
     .nullable(),
 });
-// Prisma rejects explicit undefined inside JSON. Zod can retain it for an absent or unreadable optional field.
-function omitUndefinedProperties<T extends object>(parsed: T): T {
-  for (const key of Object.keys(parsed) as (keyof T)[]) {
-    const value = parsed[key];
-    if (value === undefined) delete parsed[key];
-    else if (value !== null && typeof value === "object")
-      omitUndefinedProperties(value);
-  }
-  return parsed;
-}
-
 const publicSeoPayload = z.object({
   version: z.literal(1),
   kind: z.string().max(100),
@@ -139,6 +138,9 @@ const publicSeoPayload = z.object({
   /** A site audit's strategy results. Older rows and focused checks have none. */
   strategy: seoStrategyPayloadSchema.optional(),
   strategyDecisions: storedSeoDecisionsSchema.optional(),
+  articleDates: z.array(seoArticleDates).max(10).optional(),
+  topicLaunches: z.array(seoTopicLaunch).max(10).optional(),
+  reviewSources: z.array(seoReviewSource).max(10).optional(),
   seasonalIdeas: z.array(seoSeasonalIdeaSchema).max(100).optional(),
   decisionSources: z
     .array(publicDecisionSourceSchema)
@@ -196,19 +198,8 @@ const sameSet = (a: string[], b: string[]) =>
   a.length === b.length &&
   a.every((value) => b.includes(value));
 
-// A site audit keeps going when one page Run fails. The worker names that page in `selection.skipped`.
-const siteSkipped = z.object({
-  selection: z.object({
-    skipped: z
-      .array(z.object({ url: seoUrlSchema, reason: z.string() }))
-      .max(10),
-  }),
-});
-export const skippedPages = (raw: unknown) => {
-  if (object(raw)?.kind !== "site") return [];
-  const parsed = siteSkipped.safeParse(raw);
-  return parsed.success ? parsed.data.selection.skipped : [];
-};
+export { skippedPages } from "./project-seo-public-report";
+
 const SKIPPED_REASON_CHARS = 300;
 
 /** Bind evidence to the durable request, including Market, devices and approved external targets. */
@@ -541,6 +532,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         snapshotId: url === sourceUrl ? child?.snapshotId : undefined,
       }));
     });
+    const articles = publicSiteArticles(raw, pages);
     const sources = bindMarketSource(
       object(raw),
       eligible.flatMap((item) => {
@@ -548,10 +540,12 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
         return result.success ? [result.data] : [];
       }),
     );
-    const decisions = readPublicSeoDecisions(
-      object(raw)?.strategyDecisions,
+    const ranks = pages.flatMap((p) => p.reviewSources ?? []);
+    const decisions = readWorkerDecisions(
+      raw,
       eligible.map((page) => page.url),
       sources,
+      ranks,
     );
     return publicSeoPayloadSchema.parse({
       ...first,
@@ -561,6 +555,13 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       decisionSources: decisions?.some((d) => d.kind === OPEN_STRATEGY)
         ? sources
         : undefined,
+      articleDates: articles.length ? articles : undefined,
+      topicLaunches: boundTopicLaunches(
+        raw,
+        articles,
+        Math.max(...pages.map((p) => Date.parse(p.observedAt))),
+      ),
+      reviewSources: ranks,
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),
@@ -669,7 +670,8 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       observedAt: at,
     })),
   );
-  const keywords = legacyReportKeywords(result, pageUrl, at);
+  const keywords = legacyReportKeywords(result, pageUrl, at),
+    ranks = readReviewSources(raw);
   const competitors: z.infer<typeof competitor>[] = (
     result.rankingData?.competitors ?? []
   ).map((row) => ({
@@ -703,13 +705,13 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     kind: "audit_full",
     requestId: null,
     pageUrls: [pageUrl],
+    reviewSources: ranks,
+    articleDates: articleDates(raw, pageUrl, at),
     observedAt: at,
     countryCode: result.header.market?.country ?? "",
     languageCode: result.header.market?.language ?? "",
     rulebookVersion: result.rulebookVersion,
-    strategyDecisions: readPublicSeoDecisions(object(raw)?.strategyDecisions, [
-      pageUrl,
-    ]),
+    strategyDecisions: readWorkerDecisions(raw, [pageUrl], [], ranks ?? []),
     ...(seasonalIdeas && { seasonalIdeas }),
     checks: result.checklist.map((row) => ({
       rowId: row.row,

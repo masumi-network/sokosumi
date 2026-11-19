@@ -7,6 +7,7 @@ import { createDataTableSchema } from "@sokosumi/utils";
 import { tableImportBatches } from "@/app/drive/tables/table-import";
 import type { SeoCompetitorSite } from "./seo-competitors-model";
 import type { SeoCsvCell } from "./seo-csv";
+import { seoFollowUpText } from "./seo-followup-review";
 import type { SeoKeywordGroup } from "./seo-keyword-rows-model";
 import type { SeoTopPage } from "./seo-search-model";
 import type { seoKeyEvents } from "./seo-traffic-model";
@@ -179,6 +180,7 @@ export function seoActionsExport(
   actions: ProjectSeoAction[],
   t: Label,
 ): SeoExport {
+  const hasReviews = actions.some((action) => action.followUpReview);
   const hasDecisions = actions.some((action) => action.decision);
   return {
     header: [
@@ -191,6 +193,7 @@ export function seoActionsExport(
       t("actions.effect"),
       t("actions.before"),
       t("actions.after"),
+      ...(hasReviews ? [t("actions.reviewAgain")] : []),
       ...(hasDecisions
         ? [
             t("actions.alternative"),
@@ -209,6 +212,13 @@ export function seoActionsExport(
       action.decision ? null : action.expectedEffect,
       action.edit?.before ?? null,
       action.edit?.after ?? null,
+      ...(hasReviews
+        ? [
+            action.followUpReview
+              ? seoFollowUpText(action.followUpReview, t)
+              : null,
+          ]
+        : []),
       ...(hasDecisions
         ? [
             action.decision?.alternative ?? null,

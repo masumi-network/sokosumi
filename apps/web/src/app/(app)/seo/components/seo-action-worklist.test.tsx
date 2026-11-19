@@ -273,3 +273,72 @@ it("shows the alternative, evidence and next check for a strategy action", async
   );
   expect(detail.queryByText(/9 occurrences of sign_up/)).toBeNull();
 });
+
+it("shows the new observation on a completed recommendation while keeping its original Task", async () => {
+  const user = userEvent.setup();
+  const item: ProjectSeoAction = {
+    ...low,
+    status: "implemented",
+    taskId: "same-task",
+    followUpReview: {
+      kind: "rank_crosses",
+      keyword: "printed manuals",
+      before: 12,
+      after: 8,
+      baselineObservationId: "earlier",
+      baselineObservedAt: new Date("2026-09-01T00:00:00Z"),
+      observationId: "later",
+      observedAt: new Date("2026-11-01T00:00:00Z"),
+    },
+  };
+  render(view([item]));
+  expect(screen.getByText("Review again")).toBeVisible();
+  await user.click(
+    within(screen.getByRole("list", { name: "Actions" })).getByRole("button"),
+  );
+  expect(
+    screen.getByText(
+      /DataForSEO recorded “printed manuals” at position 12 on Sep 1, 2026 and 8 on Nov 1, 2026/,
+    ),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("link", { name: messages.App.Seo.openTask }),
+  ).toHaveAttribute("href", "/tasks/same-task");
+});
+
+it("puts a historical review first, filters it, and acknowledges without creating a task", async () => {
+  const user = userEvent.setup();
+  const acknowledgeReview = vi.fn();
+  const item: ProjectSeoAction = {
+    ...low,
+    kind: "opportunity",
+    status: "needs_review",
+    followUpReview: {
+      kind: "demand_returns",
+      keyword: "電池",
+      period: "2026-10",
+      before: 90,
+      after: 280,
+      observationId: "newer",
+      observedAt: new Date("2026-11-01T12:00:00Z"),
+      baselineObservationId: "earlier",
+      baselineObservedAt: new Date("2026-06-01T12:00:00Z"),
+    },
+  };
+  render(view([high, item], { ...model, acknowledgeReview }));
+  expect(titles()).toEqual([item.title, high.title]);
+  await user.click(screen.getByRole("button", { name: "Review again 1" }));
+  expect(titles()).toEqual([item.title]);
+  await user.click(screen.getByRole("button", { name: item.title }));
+  const dialog = within(screen.getByRole("dialog"));
+  expect(
+    dialog.getByText(
+      /DataForSEO estimated 280 searches for “電池” in October 2026/,
+    ),
+  ).toBeVisible();
+  expect(
+    dialog.queryByRole("button", { name: messages.App.Seo.actions.createTask }),
+  ).toBeNull();
+  await user.click(dialog.getByRole("button", { name: "Mark reviewed" }));
+  expect(acknowledgeReview).toHaveBeenCalledWith(item);
+});

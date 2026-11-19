@@ -44632,11 +44632,132 @@ export const ProjectSeoWorkspaceSchema = {
                 'viewsPerSession'
             ]
         },
+        articleDates: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    url: {
+                        type: 'string',
+                        format: 'uri'
+                    },
+                    publishedOn: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    revisedOn: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    record: {
+                        type: 'string'
+                    },
+                    section: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 96
+                    }
+                },
+                required: [
+                    'url',
+                    'publishedOn',
+                    'record'
+                ]
+            }
+        },
+        topicLaunches: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    topic: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 96
+                    },
+                    publishedFrom: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    publishedThrough: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    pages: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                url: {
+                                    type: 'string',
+                                    format: 'uri'
+                                },
+                                publishedOn: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                revisedOn: {
+                                    type: 'string',
+                                    format: 'date'
+                                },
+                                record: {
+                                    type: 'string'
+                                }
+                            },
+                            required: [
+                                'url',
+                                'publishedOn',
+                                'record'
+                            ]
+                        },
+                        minItems: 2,
+                        maxItems: 10
+                    },
+                    earlierArticle: {
+                        type: 'object',
+                        properties: {
+                            url: {
+                                type: 'string',
+                                format: 'uri'
+                            },
+                            publishedOn: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            revisedOn: {
+                                type: 'string',
+                                format: 'date'
+                            },
+                            record: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'url',
+                            'publishedOn',
+                            'record'
+                        ]
+                    }
+                },
+                required: [
+                    'topic',
+                    'publishedFrom',
+                    'publishedThrough',
+                    'pages'
+                ]
+            }
+        },
         seasonalIdeas: {
             type: 'array',
             items: {
                 type: 'object',
                 properties: {
+                    marketBasis: {
+                        type: 'string',
+                        enum: [
+                            'vendor_scenario'
+                        ]
+                    },
                     origin: {
                         type: 'string',
                         enum: [
@@ -44734,6 +44855,89 @@ export const ProjectSeoWorkspaceSchema = {
                                     'insufficient'
                                 ]
                             },
+                            earlierEdition: {
+                                type: 'object',
+                                properties: {
+                                    previousEventDate: {
+                                        type: 'string',
+                                        format: 'date'
+                                    },
+                                    leadMonth: {
+                                        type: 'object',
+                                        properties: {
+                                            period: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                            },
+                                            volume: {
+                                                type: [
+                                                    'integer',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            }
+                                        },
+                                        required: [
+                                            'period',
+                                            'volume'
+                                        ]
+                                    },
+                                    eventMonth: {
+                                        type: 'object',
+                                        properties: {
+                                            period: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                            },
+                                            volume: {
+                                                type: [
+                                                    'integer',
+                                                    'null'
+                                                ],
+                                                minimum: 0
+                                            }
+                                        },
+                                        required: [
+                                            'period',
+                                            'volume'
+                                        ]
+                                    },
+                                    baselineMonths: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                period: {
+                                                    type: 'string',
+                                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                                },
+                                                volume: {
+                                                    type: [
+                                                        'integer',
+                                                        'null'
+                                                    ],
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'period',
+                                                'volume'
+                                            ]
+                                        }
+                                    },
+                                    baselineMedian: {
+                                        type: 'number',
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'previousEventDate',
+                                    'leadMonth',
+                                    'eventMonth',
+                                    'baselineMonths',
+                                    'baselineMedian'
+                                ]
+                            },
                             leadMonth: {
                                 type: [
                                     'object',
@@ -44824,6 +45028,37 @@ export const ProjectSeoWorkspaceSchema = {
                                     },
                                     minItems: 6,
                                     maxItems: 8
+                                },
+                                earlierCycle: {
+                                    type: 'object',
+                                    properties: {
+                                        historicalPeriod: {
+                                            type: 'string',
+                                            pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                        },
+                                        historicalVolume: {
+                                            type: 'integer',
+                                            minimum: 0
+                                        },
+                                        baselineMedian: {
+                                            type: 'number',
+                                            minimum: 0
+                                        },
+                                        referenceMonths: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                            },
+                                            minItems: 6,
+                                            maxItems: 8
+                                        }
+                                    },
+                                    required: [
+                                        'historicalPeriod',
+                                        'historicalVolume',
+                                        'baselineMedian'
+                                    ]
                                 }
                             },
                             required: [
@@ -45720,6 +45955,63 @@ export const ProjectSeoActionSchema = {
                 'nextCheck'
             ]
         },
+        followUpReview: {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'rank_crosses',
+                        'demand_returns'
+                    ]
+                },
+                keyword: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 256
+                },
+                before: {
+                    type: 'number',
+                    minimum: 0
+                },
+                after: {
+                    type: 'number',
+                    minimum: 0
+                },
+                period: {
+                    type: 'string',
+                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                },
+                baselineObservationId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                baselineObservedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                observationId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                observedAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'kind',
+                'keyword',
+                'before',
+                'after',
+                'baselineObservationId',
+                'baselineObservedAt',
+                'observationId',
+                'observedAt'
+            ]
+        },
         taskId: {
             type: [
                 'string',
@@ -45730,6 +46022,7 @@ export const ProjectSeoActionSchema = {
             type: 'string',
             enum: [
                 'recommended',
+                'needs_review',
                 'task_created',
                 'unavailable',
                 'implemented',
@@ -48375,6 +48668,97 @@ export const CreateProjectSeoMonitorRequestSchema = {
         'operationId',
         'rule',
         'analysis'
+    ],
+    additionalProperties: false
+} as const;
+
+export const AcknowledgeProjectSeoReviewRequestSchema = {
+    type: 'object',
+    properties: {
+        pageId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        view: {
+            type: 'object',
+            properties: {
+                scopeId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                pageId: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                pageIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    minItems: 1,
+                    maxItems: 10
+                },
+                from: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                to: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                channel: {
+                    type: 'string',
+                    enum: [
+                        'all',
+                        'organic',
+                        'ai_assistant'
+                    ]
+                },
+                searchType: {
+                    type: 'string',
+                    enum: [
+                        'web',
+                        'image',
+                        'video',
+                        'news',
+                        'discover',
+                        'googleNews'
+                    ]
+                }
+            }
+        },
+        actionId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'rank_crosses',
+                'demand_returns'
+            ]
+        },
+        period: {
+            type: 'string',
+            pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+        },
+        baselineObservationId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        observationId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'pageId',
+        'actionId',
+        'kind',
+        'baselineObservationId',
+        'observationId'
     ],
     additionalProperties: false
 } as const;

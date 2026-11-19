@@ -7,6 +7,7 @@ import {
   seoSeasonalIdeaSchema,
 } from "@/schemas/project-seo-seasonal.schema";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
+import { validateEarlierCycles } from "./seo-seasonal-recurrence";
 
 type SeasonalIdea = z.infer<typeof seoSeasonalIdeaSchema>;
 
@@ -20,7 +21,7 @@ const workerDemand = z.object({
       z.object({
         year: z.number().int().min(1900).max(9999),
         month: z.number().int().min(1).max(MONTHS_PER_YEAR),
-        search_volume: z.number().int().nonnegative().safe(),
+        search_volume: z.number().int().nonnegative().safe().nullable(),
       }),
     )
     .min(1)
@@ -36,8 +37,14 @@ function observedMonths(raw: unknown, idea: SeasonalIdea) {
     raw && typeof raw === "object" && "demand" in raw ? raw.demand : undefined,
   );
   if (!demand.success || demand.data.keyword !== idea.keyword) return undefined;
-  const auditMonth = idea.asOf.slice(0, 7);
-  const months = demand.data.months
+  return completeKeywordMonths(demand.data.months, idea.asOf);
+}
+
+export function completeKeywordMonths(input: unknown, asOf: string) {
+  const rows = workerDemand.shape.months.safeParse(input);
+  if (!rows.success) return;
+  const auditMonth = asOf.slice(0, 7);
+  const months = rows.data
     .map((row) => ({
       period: period(row.year, row.month),
       volume: row.search_volume,
@@ -53,7 +60,10 @@ function observedMonths(raw: unknown, idea: SeasonalIdea) {
     )
   )
     return undefined;
-  return months;
+  const measured = months.flatMap((row) =>
+    row.volume === null ? [] : [{ period: row.period, volume: row.volume }],
+  );
+  return measured.length ? measured : undefined;
 }
 
 /** One worker insight as a public idea. Reviewer identity, record IDs and unknown fields stay out. */
@@ -62,12 +72,14 @@ export function readSeasonalInsight(raw: unknown): SeasonalIdea | null {
   if (!parsed.success) return null;
   const { observedMonths: _supplied, ...idea } = parsed.data;
   const months = observedMonths(raw, idea);
-  return months ? { ...idea, observedMonths: months } : idea;
+  const supported = validateEarlierCycles(idea, months ?? []);
+  return months ? { ...supported, observedMonths: months } : supported;
 }
 
 /** Only an update to the audited page with a measured rise, and no open doubt besides timing, becomes work. */
 export function seasonalIdeaAction(idea: SeasonalIdea) {
   if (
+    idea.marketBasis ||
     idea.origin === "market_history" ||
     idea.action !== "improve_existing_page" ||
     idea.limitations.some((limit) => limit !== "timing_uncertain")
@@ -133,7 +145,12 @@ export function seasonalIdeaAction(idea: SeasonalIdea) {
 }
 
 /** Seasonal actions of one audit, limited to its market and audited pages. */
-export function seasonalPayloadActions(data: PublicSeoPayload) {
+export function seasonalPayloadActions(
+  data: Pick<
+    PublicSeoPayload,
+    "pageUrls" | "countryCode" | "languageCode" | "seasonalIdeas"
+  >,
+) {
   const pages = new Set(data.pageUrls.map(auditedSeoPageKey));
   return (data.seasonalIdeas ?? []).flatMap((idea) => {
     if (

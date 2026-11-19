@@ -542,10 +542,11 @@ async function resolveSeoTaskSource(
         data.pageUrls,
         data.decisionSources,
       )
-        ?.map((d) =>
-          publicDecisionAction(d, data.countryCode, data.languageCode),
-        )
-        .find((d) => d.id === input.actionId);
+        ?.map((d) => ({
+          action: publicDecisionAction(d, data.countryCode, data.languageCode),
+          rank: d.kind === "content_opportunity" && !!d.reviewTrigger,
+        }))
+        .find((d) => d.action.id === input.actionId);
     const seasonal =
       !strategy && observation.kind === "audit_full"
         ? seasonalPayloadActions(data).find(
@@ -563,9 +564,12 @@ async function resolveSeoTaskSource(
     if (!strategy) throw notFound("SEO recommendation not found");
     return {
       observation,
-      action: strategy,
-      evidence: strategy.evidence,
-      decision: strategy.decision,
+      action: strategy.action,
+      evidence: strategy.action.evidence,
+      decision: strategy.action.decision,
+      rankMarket: strategy.rank
+        ? { country: data.countryCode, language: data.languageCode }
+        : undefined,
     };
   }
   if (!observation || !(await canReadSeoMetricsSource(tx, actor, observation)))
@@ -638,8 +642,14 @@ export async function createProjectSeoActionTask(
         throw notFound("SEO observation not found");
       return existingTask(previous);
     }
-    const { observation, action, evidence, decision, seasonalIdea } =
-      await resolveSeoTaskSource(tx, actor, input);
+    const {
+      observation,
+      action,
+      evidence,
+      decision,
+      seasonalIdea,
+      rankMarket,
+    } = await resolveSeoTaskSource(tx, actor, input);
     // Stable opportunity IDs refer to the same work across later audits and Search Console syncs.
     const sameOpportunity = evidence.length
       ? await tx.projectSeoActionTask.findFirst({
@@ -647,6 +657,44 @@ export async function createProjectSeoActionTask(
         })
       : null;
     if (sameOpportunity) return existingTask(sameOpportunity);
+    if (rankMarket) {
+      const target = await tx.projectSeoPage.findFirst({
+        where: {
+          ...seoOwnerWhere(actor),
+          url: normalizeSeoUrl(action.pageUrl),
+          id: { in: observation.pageIds },
+        },
+        select: { id: true },
+      });
+      const newer =
+        target &&
+        (await tx.projectSeoObservation.findFirst({
+          where: {
+            ...seoOwnerWhere(actor),
+            ownerId: null,
+            kind: "audit_full",
+            scopeVersion: observation.scopeVersion,
+            pageIds: { has: target.id },
+            observedAt: { gt: observation.observedAt },
+            AND: [
+              {
+                payload: { path: ["countryCode"], equals: rankMarket.country },
+              },
+              {
+                payload: {
+                  path: ["languageCode"],
+                  equals: rankMarket.language,
+                },
+              },
+            ],
+          },
+          select: { id: true },
+        }));
+      if (!target || newer)
+        throw conflict(
+          "The page or its latest audit has changed. Open the current recommendation to create a Task.",
+        );
+    }
     if (seasonalIdea && seasonalUpdateHasPassed(seasonalIdea, new Date()))
       throw conflict(
         "This seasonal window has passed. Run a new audit to find the next opportunity.",

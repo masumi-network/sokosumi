@@ -1,14 +1,18 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import {
+  MAX_RANKED_DECISIONS,
   marketSourceSchema,
   OPEN_STRATEGY,
   type PublicSeoDecision,
   publicDecisionSourceSchema,
   publicSeoDecisionSchema,
+  rankReviewTrigger,
   withinStrategyLimit,
 } from "@/schemas/project-seo-action.schema";
+import { reportObject } from "./project-seo-public-report";
 import { auditedSeoPageKey } from "./project-seo-site-findings";
+import { type ReviewSource, uniqueRank } from "./seo-recommendation-evidence";
 
 type Source = z.infer<typeof publicDecisionSourceSchema>;
 
@@ -72,6 +76,53 @@ export function readPublicSeoDecisions(
     (row): row is PublicSeoDecision => row !== null,
   );
   return decisions.length ? decisions : undefined;
+}
+
+/** Keep the action even when optional review metadata is malformed, ambiguous or stale. */
+export function readWorkerDecisions(
+  raw: unknown,
+  destinations: string[],
+  snapshots: Source[],
+  sources: ReviewSource[],
+) {
+  const report = reportObject(raw);
+  const rows = Array.isArray(report?.strategyDecisions)
+    ? report.strategyDecisions.map((value) => {
+        const candidate = reportObject(value);
+        if (!candidate || !Object.hasOwn(candidate, "reviewTrigger"))
+          return value;
+        const { reviewTrigger: _unbound, ...row } = candidate;
+        return row;
+      })
+    : undefined;
+  const decisions = readPublicSeoDecisions(rows, destinations, snapshots);
+  const meta = report?.rankReviewTriggers;
+  if (!Array.isArray(meta) || meta.length > MAX_RANKED_DECISIONS)
+    return decisions;
+  return decisions?.map((d) => {
+    if (
+      d.kind !== "content_opportunity" ||
+      decisions.filter((other) => other.id === d.id).length !== 1
+    )
+      return d;
+    const matching = meta.filter((m) => reportObject(m)?.decisionId === d.id);
+    if (matching.length !== 1) return d;
+    const parsed = rankReviewTrigger
+      .extend({ decisionId: z.string() })
+      .safeParse(matching[0]);
+    if (!parsed.success) return d;
+    const { decisionId: _id, ...trigger } = parsed.data;
+    const possible = sources.filter(
+      (s) => s.url === d.targetUrl && d.evidence.includes(s.snapshotId),
+    );
+    if (
+      possible.length !== 1 ||
+      !d.evidence.includes("rankingData.page.ranked") ||
+      uniqueRank(possible[0], trigger.keyword) !== trigger.position
+    )
+      return d;
+    return { ...d, reviewTrigger: trigger };
+  });
 }
 
 export function publicDecisionAction(

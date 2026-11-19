@@ -53,8 +53,10 @@ import {
   seoOwnerWhere,
   sha256,
 } from "./project-seo-store";
+import { pendingSeoActionReviews } from "./seo-action-review-store";
 import { SEO_LANDING_OUTCOMES_KIND } from "./seo-brief-landing-outcomes";
 import { projectLegacyIndexingProvenance } from "./seo-indexing-provenance";
+import { loadSeoReviewHistory } from "./seo-recommendation-history";
 
 export async function addProjectSeoPage(
   actor: SeoActor,
@@ -554,6 +556,20 @@ export async function getProjectSeoWorkspace(
     status: task.status,
     completedAt: task.events[0]?.createdAt ?? null,
   }));
+  const visibleTasks = new Set(tasks.map((task) => task.id));
+  const origins = actionTasks
+    .filter(
+      (link) =>
+        visibleTasks.has(link.taskId) &&
+        (link.actionId.startsWith("decision:") ||
+          link.actionId.startsWith("seasonal:")),
+    )
+    .map((link) => link.observationId);
+  const reviewHistory = evidenceLimited
+    ? await loadSeoReviewHistory(actor, scope.pageIds, query, observations, [
+        ...new Set(origins),
+      ])
+    : [];
   const currentOwner = await requireSeoOwner(actor);
   const monitorOfTask = await seoMonitorOfTasks(
     actor.workspaceId,
@@ -569,6 +585,7 @@ export async function getProjectSeoWorkspace(
     observations,
     historyLimited,
     evidenceLimited,
+    reviewHistory,
     keywords,
     competitors,
     analyses,
@@ -580,11 +597,13 @@ export async function getProjectSeoWorkspace(
     canSchedule: executor?.canSchedule === true,
     monitors,
   });
+  const actions = await pendingSeoActionReviews(actor, workspace);
   const sourceTask = new Map(
     observations.map((row) => [row.id, row.sourceTaskId]),
   );
   const monitored = {
     ...workspace,
+    actions,
     runs: workspace.runs?.map((run) => ({
       ...run,
       monitorId:

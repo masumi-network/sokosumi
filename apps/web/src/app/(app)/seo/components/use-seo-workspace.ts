@@ -563,6 +563,28 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       },
     });
   }
+  function acknowledgeReview(action: ProjectSeoAction) {
+    const review = action.followUpReview;
+    const page = data.pages.find((p) => p.url === action.pageUrl);
+    if (!review || !page) return;
+    return execute({
+      kind: "acknowledge_review",
+      body: {
+        pageId: page.id,
+        view: {
+          scopeId: data.scope.id ?? undefined,
+          pageId: !data.scope.id && filters.pageId ? page.id : undefined,
+          from: data.scope.from ?? undefined,
+          to: data.scope.to ?? undefined,
+        },
+        actionId: action.id,
+        kind: review.kind,
+        period: review.period,
+        baselineObservationId: review.baselineObservationId,
+        observationId: review.observationId,
+      },
+    });
+  }
   function createActionTask(action: ProjectSeoAction) {
     return execute({
       kind: "create_action_task",
@@ -671,6 +693,7 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
     editingKeyword,
     toggleCompetitor,
     createActionTask,
+    acknowledgeReview,
     loadingScope: !result.data && !waitingForSession,
     /** The page shows the read of other dates while the read of the picked ones loads. */
     updating: result.isPlaceholderData,

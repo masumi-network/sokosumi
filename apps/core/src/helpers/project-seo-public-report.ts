@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { badRequest } from "@/helpers/error";
+import { seoUrlSchema } from "@/schemas/seo-page.schema";
 
 export const reportObject = (value: unknown): Record<string, unknown> | null =>
   value !== null && typeof value === "object" && !Array.isArray(value)
@@ -90,3 +92,28 @@ export function failedSeoSpecialists(raw: unknown) {
   }
   return failed;
 }
+
+// Prisma rejects explicit undefined inside JSON. Zod can retain it for an absent or unreadable optional field.
+export function omitUndefinedProperties<T extends object>(parsed: T): T {
+  for (const key of Object.keys(parsed) as (keyof T)[]) {
+    const value = parsed[key];
+    if (value === undefined) delete parsed[key];
+    else if (value !== null && typeof value === "object")
+      omitUndefinedProperties(value);
+  }
+  return parsed;
+}
+
+// A site audit keeps going when one page Run fails. The worker names that page in `selection.skipped`.
+const siteSkipped = z.object({
+  selection: z.object({
+    skipped: z
+      .array(z.object({ url: seoUrlSchema, reason: z.string() }))
+      .max(10),
+  }),
+});
+export const skippedPages = (raw: unknown) => {
+  if (reportObject(raw)?.kind !== "site") return [];
+  const parsed = siteSkipped.safeParse(raw);
+  return parsed.success ? parsed.data.selection.skipped : [];
+};

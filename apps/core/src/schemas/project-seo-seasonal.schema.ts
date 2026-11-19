@@ -9,7 +9,23 @@ const chronological = (periods: string[]) =>
 /** DataForSEO keeps up to three years of monthly history for a query. */
 export const MAX_SEASONAL_HISTORY_MONTHS = 36;
 
+const historicalCycle = z.object({
+  historicalPeriod: period,
+  historicalVolume: volume,
+  baselineMedian: z.number().nonnegative(),
+  referenceMonths: z
+    .array(period)
+    .min(6)
+    .max(8)
+    .refine(
+      chronological,
+      "Reference months must be distinct and chronological",
+    )
+    .optional(),
+});
+
 export const seoSeasonalIdeaSchema = z.object({
+  marketBasis: z.literal("vendor_scenario").optional(),
   origin: z.literal("market_history").optional(),
   keyword: z.string().min(2).max(80),
   audience: z.string().min(2).max(80),
@@ -36,6 +52,15 @@ export const seoSeasonalIdeaSchema = z.object({
   comparison: z
     .object({
       status: z.enum(["above_baseline", "no_observed_rise", "insufficient"]),
+      earlierEdition: z
+        .object({
+          previousEventDate: day,
+          leadMonth: month,
+          eventMonth: month,
+          baselineMonths: z.array(month).length(3),
+          baselineMedian: z.number().nonnegative(),
+        })
+        .optional(),
       leadMonth: month.nullable(),
       eventMonth: month.nullable(),
       baselineMedian: z.number().nonnegative().nullable(),
@@ -45,18 +70,8 @@ export const seoSeasonalIdeaSchema = z.object({
     .array(
       z.object({
         targetPeriod: period,
-        historicalPeriod: period,
-        historicalVolume: volume,
-        baselineMedian: z.number().nonnegative(),
-        referenceMonths: z
-          .array(period)
-          .min(6)
-          .max(8)
-          .refine(
-            chronological,
-            "Reference months must be distinct and chronological",
-          )
-          .optional(),
+        ...historicalCycle.shape,
+        earlierCycle: historicalCycle.optional(),
       }),
     )
     .max(4),

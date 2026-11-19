@@ -4,6 +4,7 @@ import { Play, Plug, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { SeoActionWorklist } from "./seo-action-worklist";
+import { SeoArticleDates } from "./seo-article-dates";
 import { SeoBriefPagePriority } from "./seo-brief-summary";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoActionsExport } from "./seo-export-model";
@@ -28,9 +29,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const strategyFollows = Boolean(model.data.strategy?.actions.length);
   const searchLoaded = model.data.searchQueries !== null;
   // The recheck rule matters only once a Task exists for an action.
-  const tracked = overview.actions.some(
-    (action) => action.status !== "recommended",
-  );
+  const tracked = overview.actions.some((action) => Boolean(action.taskId));
   // "No recommended actions" above the strategy actions would say two things at once.
   const strategyOnly = !overview.actions.length && strategyFollows;
   if (strategyOnly)
@@ -39,6 +38,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         <SeoBriefPagePriority model={model} />
         <SeoStrategyActions model={model} />
         <SeoPageDetails model={model} standalone />
+        <SeoArticleDates workspace={model.data} />
         <SeoStrategyPlaceNotes model={model} />
       </div>
     );
@@ -124,6 +124,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         <SeoPageDetails model={model} />
       </SeoSection>
       <SeoStrategyActions model={model} afterFixes />
+      <SeoArticleDates workspace={model.data} />
       <SeoStrategyPlaceNotes model={model} />
     </div>
   );

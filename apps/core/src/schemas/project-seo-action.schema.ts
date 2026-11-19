@@ -88,6 +88,16 @@ const observationSchema = publicPageSnapshotSchema.extend({
   record: z.hash("sha256"),
   quote: publicText(8, 180),
 });
+export const rankReviewTrigger = z.strictObject({
+  kind: z.literal("rank_crosses"),
+  keyword: visible(256),
+  position: z.number().int().positive(),
+  boundary: z.literal(10),
+});
+const rankDecision = fixedDecision.extend({
+  kind: z.literal("content_opportunity"),
+  reviewTrigger: rankReviewTrigger.optional(),
+});
 const experiment = fixedDecision
   .extend({
     kind: z.literal(OPEN_STRATEGY),
@@ -116,7 +126,10 @@ const experiment = fixedDecision
     );
   });
 export const publicSeoDecisionSchema = z.discriminatedUnion("kind", [
-  fixedDecision,
+  rankDecision,
+  fixedDecision.extend({
+    kind: z.enum(["internal_link_opportunity", "offer_availability"]),
+  }),
   experiment,
 ]);
 /** A stored optional experiment can predate a tighter public evidence rule. Keep the audited recommendations. */
@@ -152,9 +165,26 @@ export const seoActionSchema = z
       z.null(),
     ]),
     decision: decisionDetail.optional(),
+    followUpReview: z
+      .object({
+        kind: z.enum(["rank_crosses", "demand_returns"]),
+        keyword: visible(256),
+        before: z.number().nonnegative(),
+        after: z.number().nonnegative(),
+        period: z
+          .string()
+          .regex(/^\d{4}-(?:0[1-9]|1[0-2])$/)
+          .optional(),
+        baselineObservationId: seoIdSchema,
+        baselineObservedAt: dateTimeSchema,
+        observationId: seoIdSchema,
+        observedAt: dateTimeSchema,
+      })
+      .optional(),
     taskId: z.string().nullable(),
     status: z.enum([
       "recommended",
+      "needs_review",
       "task_created",
       "unavailable",
       "implemented",

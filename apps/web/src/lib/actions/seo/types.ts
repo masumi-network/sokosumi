@@ -1,4 +1,5 @@
 import type {
+  AcknowledgeProjectSeoReviewRequest,
   AddProjectSeoPageRequest,
   CreateProjectSeoActionTaskRequest,
   CreateProjectSeoMonitorRequest,
@@ -46,6 +47,7 @@ export type SeoCommand =
   | { kind: "request_analysis"; body: RequestProjectSeoAnalysisRequest }
   | { kind: "save_keyword"; body: SaveProjectSeoKeywordRequest }
   | { kind: "save_competitor"; body: SaveProjectSeoCompetitorRequest }
+  | { kind: "acknowledge_review"; body: AcknowledgeProjectSeoReviewRequest }
   | { kind: "create_action_task"; body: CreateProjectSeoActionTaskRequest }
   | { kind: "sync_statistics"; body: SyncProjectSeoStatisticsRequest };
 
