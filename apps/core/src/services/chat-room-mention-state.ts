@@ -401,18 +401,29 @@ export async function failSokoBotReplyIfOwned(params: {
         error: errorMessage(params.error).slice(0, 500),
       },
     });
+    const reply = mention.responseMessage;
+    const previousMetadata = reply?.metadata;
+    const previousFailure =
+      previousMetadata &&
+      typeof previousMetadata === "object" &&
+      !Array.isArray(previousMetadata)
+        ? previousMetadata.mention_failure
+        : undefined;
+    const mentionFailure =
+      holder?.status === "CANCELLED"
+        ? { kind: "turn_cancelled" }
+        : previousFailure;
     const metadata = {
       in_reply_to_message_id: mention.messageId,
       mention_id: mentionId,
       mention_failed: true,
+      ...(mentionFailure !== undefined && { mention_failure: mentionFailure }),
       soko_bot: {
         ...(holder ? { turn_id: holder.id } : {}),
         attempt_at:
-          readSokoBotAttemptAt(mention.responseMessage?.metadata) ??
-          params.stamp.getTime(),
+          readSokoBotAttemptAt(previousMetadata) ?? params.stamp.getTime(),
       },
     };
-    const reply = mention.responseMessage;
     if (reply) {
       // Same guards as `failMentionThoughtPlaceholder`: never erase final
       // content, never touch a withdrawn (soft-deleted) reply.
