@@ -11,15 +11,13 @@ const REST = { near: GROUND - ANKLE_UP - HIPS.near[1], far: GROUND - ANKLE_UP - 
 const REACH = { near: REST.near * 1.22, far: REST.far * 1.1 }; // full leg length
 const ARMS = { armL: [365, 700], armR: [880, 815] };
 const WAVE_PIVOT = [1265, 1190]; // the friendly pose's shoulder
-const GAIT = { T: 0.48, stance: 0.6, S: 270, LIFT: 70, ARM: 28, LEAN: 4, BOB: 32 };
+const GAIT = { T: 0.44, stance: 0.6, S: 190, LIFT: 56, ARM: 24, LEAN: 4, BOB: 24 }; // short legs: short, quick steps
 const REACTIONS = ["idea", "done", "correct"];
 
 const smooth = (t) => t * t * (3 - 2 * t);
 const wrap = (p) => ((p % 1) + 1) % 1;
 const lerp = (a, b, t) => a + (b - a) * t;
 const easeOut = (t) => 1 - (1 - t) ** 3;
-// A damped spring: starts at 1, rings f times a second and dies out at rate k.
-const ring = (t, f, k) => Math.exp(-k * t) * Math.cos(2 * Math.PI * f * t);
 
 // A foot at phase p of its cycle: offset from its hip, height, shoe angle (+ is toe down).
 // It stays planted while the hip passes over it and rolls heel to toe, then swings forward.
@@ -80,7 +78,10 @@ async function bringCusoToLife() {
   let pose = "";
   const show = (k) => {
     pose = k;
-    Object.entries(poses).forEach(([n, el]) => (el.style.visibility = n === k ? "visible" : "hidden"));
+    Object.entries(poses).forEach(([n, el]) => {
+      el.style.visibility = n === k ? "visible" : "hidden";
+      el.style.opacity = "";
+    });
   };
   const turn = (el, pivot, deg, pre = "") => el.setAttribute("transform", `${pre}rotate(${deg.toFixed(2)} ${pivot[0]} ${pivot[1]})`);
 
@@ -185,14 +186,22 @@ async function bringCusoToLife() {
     if (!walked) return;
     // Last step: shorter, slower, feet come together under him.
     const from = { x, phase };
-    if (!(await tween(GAIT.T * 650, (t) => { depth(lerp(from.x, 0, t)); walkPose(from.phase + 0.42 * t, 1 - t); }, easeOut))) return;
+    if (!(await tween(GAIT.T * 520, (t) => { depth(lerp(from.x, 0, t)); walkPose(from.phase + 0.42 * t, 1 - t); }, easeOut))) return;
     Object.assign(st, { x: 0, gy: 0, scale: 1, alpha: 1 });
-    // His knees give a little as he stops; he turns to us at the bottom of the dip and straightens up.
-    if (!(await tween(140, (t) => walkPose(0, 0, 26 * t), easeOut))) return;
+    // He turns to us: the walking drawing fades into the friendly one (drawn on top) while his
+    // knees give a little, and he lifts his hand into the wave.
+    const turning = (t) => {
+      poses.friendly.style.opacity = smooth(Math.min(1, t / 0.5));
+      poses.walk.style.opacity = 1 - smooth(Math.max(0, (t - 0.3) / 0.5));
+      walkPose(0, 0, 22 * Math.sin(Math.PI * t));
+      turn(rig.wave, WAVE_PIVOT, 26 * (1 - easeOut(t)));
+    };
     show("friendly");
-    st.y = 5;
-    if (!(await tween(560, (t, r) => { st.y = 5 * ring(r * 0.56, 2.4, 6.5); st.rot = -1.2 * Math.sin(Math.PI * r) * (1 - r); }))) return;
-    Object.assign(st, { y: 0, rot: 0 });
+    poses.walk.style.visibility = "visible";
+    turning(0); // before the next paint, or the friendly pose flashes in at full strength
+    const turned = await tween(240, turning);
+    show("friendly");
+    if (!turned) return;
     idle = true;
     if (mine === token) await wave(2.5);
   }
