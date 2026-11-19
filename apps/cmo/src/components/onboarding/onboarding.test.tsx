@@ -481,6 +481,7 @@ describe("Brand", () => {
             handle: "@acme",
             displayName: "Acme",
             status: "ACTIVE",
+            personalProfile: false,
           },
         ],
       }),
@@ -787,6 +788,7 @@ describe("Launch", () => {
     handle: "acme",
     displayName: "Acme",
     status: "ACTIVE",
+    personalProfile: false,
   });
 
   it("offers to connect only the social networks in the plan", () => {

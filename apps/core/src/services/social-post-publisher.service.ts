@@ -18,6 +18,7 @@ import {
   SOCIAL_POST_ATTEMPT_TOOL_SLUGS,
 } from "@/clients/social-post-providers";
 import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
+import { ZERNIO_LINKEDIN_CREATE_POST } from "@/clients/social-post-providers/linkedin";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import { ComposioPublishOutcomeUnknownError } from "@/clients/social-post-providers/tools";
 import type {
@@ -863,11 +864,15 @@ async function attemptPublish(
     return settled ? "failed" : "skipped";
   }
 
+  const zernio = Boolean(
+    getZernioAccountId(connection.composioConnectedAccountId),
+  );
   const toolSlug =
-    provider === "tiktok" &&
-    getZernioAccountId(connection.composioConnectedAccountId)
+    zernio && provider === "tiktok"
       ? ZERNIO_TIKTOK_CREATE_POST
-      : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
+      : zernio && provider === "linkedin"
+        ? ZERNIO_LINKEDIN_CREATE_POST
+        : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
   const attempt = await prisma.socialPostPublishAttempt.create({
     data: {
       socialPostId: post.id,
@@ -947,7 +952,11 @@ async function attemptPublish(
     if (projectOutcome) return projectOutcome;
     const studioVideo = await studioVideoOfMedia(post.projectId, media);
     const context: SocialPostPublishContext = {
-      ...(toolSlug === ZERNIO_TIKTOK_CREATE_POST && { postId: post.id }),
+      // Zernio's idempotency key, and the first comment it posts itself.
+      ...(zernio && { postId: post.id }),
+      ...(zernio && post.firstComment
+        ? { firstComment: post.firstComment }
+        : {}),
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: connectionExecutorUserId({
@@ -1086,7 +1095,12 @@ async function attemptPublish(
     attemptCount,
   });
   const firstComment = post.firstComment?.trim() ?? "";
-  if (settled && firstComment && published.externalId) {
+  if (
+    settled &&
+    firstComment &&
+    published.externalId &&
+    !published.firstCommentIncluded
+  ) {
     try {
       await publishSocialPostFirstComment({
         provider,

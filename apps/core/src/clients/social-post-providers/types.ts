@@ -28,6 +28,8 @@ export interface SocialPostPublishContext {
   /** The video is vertical and at most 90 seconds: a Reel where the network has them. */
   reel?: boolean;
   quoteExternalId?: string;
+  /** For a provider that posts the first comment in the same call as the post. */
+  firstComment?: string;
   signal?: AbortSignal;
 }
 
@@ -38,6 +40,8 @@ export interface SocialPostPublishResult {
   providerOutcome?: string;
   /** Set when the tool that produced the id differs from the attempt's default. */
   toolSlug?: string;
+  /** The provider took the first comment with the post: do not post it again. */
+  firstCommentIncluded?: boolean;
 }
 
 /** Downloaded Drive bytes handed to adapters that upload files. */

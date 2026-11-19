@@ -6850,7 +6850,7 @@ export const initiateCmoSocialConnectionForProject = <ThrowOnError extends boole
 });
 
 /**
- * Finalizes a redeemed X social connection for the Cuso's Project, as `POST /v1/projects/{id}/social-connections/finalize` does. An interactive session or a first-party app's token.
+ * Finalizes a redeemed social connection for the Cuso's Project, as `POST /v1/projects/{id}/social-connections/finalize` does. When the sign-in reaches several accounts (a person's LinkedIn Pages, a login's Facebook Pages) it answers `choose` with them and keeps nothing; finalize again with `externalAccountId`. An interactive session or a first-party app's token.
  */
 export const finalizeCmoSocialConnectionForProject = <ThrowOnError extends boolean = false>(options: Options<FinalizeCmoSocialConnectionForProjectData, ThrowOnError>): RequestResult<FinalizeCmoSocialConnectionForProjectResponses, FinalizeCmoSocialConnectionForProjectErrors, ThrowOnError> => (options.client ?? client).post<FinalizeCmoSocialConnectionForProjectResponses, FinalizeCmoSocialConnectionForProjectErrors, ThrowOnError>({
     responseTransformer: finalizeCmoSocialConnectionForProjectResponseTransformer,

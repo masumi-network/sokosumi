@@ -352,6 +352,9 @@ export type ConnectChannel = (
   provider: Provider,
 ) => Promise<{ url: string | null; error: string | null }>;
 
+/** Networks where one sign-in reaches several accounts, so the pick can change. */
+const PICKED_ACCOUNT: ReadonlySet<Provider> = new Set(["linkedin", "facebook"]);
+
 const AD_PROVIDERS = [
   ["google_ads", "Google Ads"],
   ["meta_ads", "Meta ads"],
@@ -363,7 +366,8 @@ export function ChannelsPage({
   connectAds,
   addMailingList,
   onChange,
-  connectFailed = false,
+  connectError = null,
+  change,
   openSeo,
   connectSearchConsole,
 }: PageProps & {
@@ -371,7 +375,10 @@ export function ChannelsPage({
   addMailingList: AddMailingList;
   onChange: (overview: CmoOverview) => void;
   connectAds: AdActions["connectAds"];
-  connectFailed?: boolean;
+  /** Why the connection that sent the founder back did not finish. */
+  connectError?: string | null;
+  /** Signs in again to put another account in a connection's place. */
+  change?: (socialConnectionId: string) => ReturnType<ConnectChannel>;
   /** Opens the SEO tab, where search work and Search Console live. */
   openSeo: () => void;
   connectSearchConsole: () => Promise<{
@@ -380,20 +387,19 @@ export function ChannelsPage({
   }>;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
-  const [error, setError] = useState<string | null>(
-    connectFailed ? "That connection didn't finish. Try again." : null,
-  );
+  const [error, setError] = useState<string | null>(connectError);
   useEffect(() => {
     const adsError = adsReturnError();
     if (adsError) setError(adsError);
   }, []);
   const [, startTransition] = useTransition();
 
-  function start(provider: Provider) {
+  function start(provider: Provider, replaceId?: string) {
     setPending(provider);
     setError(null);
     startTransition(async () => {
-      const result = await connect(provider);
+      const result =
+        replaceId && change ? await change(replaceId) : await connect(provider);
       if (result.url) {
         window.location.assign(result.url);
         return;
@@ -436,12 +442,31 @@ export function ChannelsPage({
                   <br />
                   <span className="note">
                     {account
-                      ? (account.handle ?? account.displayName ?? "Connected")
+                      ? `${account.handle ?? account.displayName ?? "Connected"}${account.personalProfile ? " · your personal profile" : ""}`
                       : "Not connected"}
                   </span>
                 </span>
                 {active ? (
-                  <StatusText>Connected</StatusText>
+                  <>
+                    <StatusText>Connected</StatusText>
+                    {account && change && PICKED_ACCOUNT.has(provider) ? (
+                      <button
+                        type="button"
+                        className="button button-secondary button-small"
+                        disabled={pending !== null}
+                        onClick={() => start(provider, account.id)}
+                      >
+                        {pending === provider ? (
+                          <Loader2
+                            size={14}
+                            className="spin"
+                            aria-hidden="true"
+                          />
+                        ) : null}
+                        Change
+                      </button>
+                    ) : null}
+                  </>
                 ) : (
                   <button
                     type="button"
