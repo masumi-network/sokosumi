@@ -225,10 +225,6 @@ import SwiftUI
       return retryMention
     }
 
-    private var failedMentionView: some View {
-      CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention)
-    }
-
     private var pinnedLabel: some View {
       Label {
         Text("Pinned", tableName: "ChatPins", comment: "A channel message that is pinned.")
@@ -435,8 +431,8 @@ import SwiftUI
       switch part {
       case let .sokoBotSource(label):
         SokoBotSourceLabelView(label: label)
-      case .failedMention:
-        failedMentionView
+      case let .failedMention(aiBudgetExceeded):
+        CoworkerMentionFailedView(onRetry: mentionRetryHandler, isRetrying: isRetryingMention, aiBudgetExceeded: aiBudgetExceeded)
       case let .thought(startedAt, shellWorking):
         CoworkerThoughtView(thought: CoworkerThought(message: message), working: streamThinking || shellWorking,
                             startedAt: startedAt)

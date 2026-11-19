@@ -4,6 +4,22 @@ import { cmoChatMessage } from "../test-fixtures/cmo";
 import { cusoText, toCusoMessages, withoutIdMentions } from "./chat-messages";
 
 describe("toCusoMessages", () => {
+  it("shows the usage-limit reason in place of Cuso's empty failed reply", () => {
+    const message =
+      "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.";
+    expect(
+      toCusoMessages([
+        cmoChatMessage({
+          content: "",
+          metadata: {
+            mention_failed: true,
+            mention_failure: { kind: "ai_budget_exceeded", message },
+          },
+        }),
+      ]),
+    ).toMatchObject([{ fromCuso: true, content: message }]);
+  });
+
   it("names a Coworker who writes in Cuso's room, never Sokosumi", () => {
     const [fromCoworker, fromNobody] = toCusoMessages([
       cmoChatMessage({
