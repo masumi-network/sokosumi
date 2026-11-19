@@ -40,6 +40,7 @@ interface TasksPageProps {
     tag?: string | string[];
     stuck?: string | string[];
     needsMe?: string | string[];
+    subtasks?: string | string[];
     mentions?: string | string[];
     sort?: string | string[];
     /** The retired Calendar tab (`tab=calendar`) moved to `/calendar`. */
@@ -87,6 +88,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     needsMe,
     mentions,
     sort,
+    subtasks,
   } = resolvedSearchParams;
   const [t, tColumns, tDetailActions, cookieStore, defaultViewMode] =
     await Promise.all([
@@ -133,6 +135,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       needsMe,
       mentions,
       sort,
+      subtasks,
     },
     viewMode: defaultViewMode,
     personalAssistantFallback: t("personalAssistant"),
@@ -245,6 +248,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
               priority: t("Display.sortOptions.priority"),
               dueOn: t("Display.sortOptions.dueOn"),
             },
+            showSubtasks: t("Display.showSubtasks"),
           },
           listPlaceholder: t("List.placeholder"),
           loadMore: t("Actions.loadMore"),

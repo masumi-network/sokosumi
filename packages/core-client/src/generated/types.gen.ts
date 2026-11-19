@@ -15527,6 +15527,17 @@ export type TaskListItem = {
      * True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.
      */
     hasUnansweredMention?: boolean;
+    /**
+     * The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.
+     */
+    openSubtasks?: Array<TaskOpenSubtask>;
+};
+
+export type TaskOpenSubtask = {
+    id: string;
+    identifier: string | null;
+    name: string;
+    status: TaskStatus;
 };
 
 export type TaskActivitySummary = {

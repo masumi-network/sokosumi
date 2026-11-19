@@ -534,11 +534,28 @@ export function mapTask(
   };
 }
 
+/** How many open sub-tasks a list item names; the counter covers the rest. */
+export const OPEN_SUBTASKS_LIMIT = 3;
+
 export function mapTaskListItem(task: TaskListItemWithIncludes) {
   return {
     ...mapTaskSummary(task),
     jobsCount: task._count.jobs,
     commentsCount: task._count.events,
     statusSince: task.events[0]?.createdAt ?? task.createdAt,
+    // Open means not COMPLETED, the same rule as `subtaskProgress`.
+    openSubtasks: (task.subtasks ?? [])
+      .filter((subtask) => subtask.status !== TaskStatus.COMPLETED)
+      .slice(0, OPEN_SUBTASKS_LIMIT)
+      .map((subtask) => ({
+        id: subtask.id,
+        // A sub-task always shares its parent's Project.
+        identifier: formatTaskIdentifier(
+          task.project?.identifier,
+          subtask.number,
+        ),
+        name: subtask.name,
+        status: subtask.status,
+      })),
   };
 }

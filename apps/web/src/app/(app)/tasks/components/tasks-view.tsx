@@ -40,6 +40,7 @@ import { TaskCard } from "./task-card";
 import { isTaskDnDDraggable } from "./task-dnd";
 import { TaskListItem } from "./task-list-item";
 import { TaskListView } from "./task-list-view";
+import { ShowOpenSubtasksContext } from "./task-open-subtasks";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
@@ -76,6 +77,11 @@ function TasksRealtimeListener({
   return null;
 }
 
+// Only the URL changes: Core already sends each Task's open sub-tasks, so a
+// display switch needs no server reload. Next keeps useSearchParams in step.
+const URL_ONLY_NAVIGATOR = {
+  replace: (href: string) => window.history.replaceState(null, "", href),
+};
 export interface TasksViewProps {
   tasks: TaskWithCoworker[];
   listNextCursor: string | null;
@@ -117,6 +123,7 @@ export interface TasksViewProps {
       layout: string;
       sortBy: string;
       sortOptions: Record<TasksSort, string>;
+      showSubtasks: string;
       list: string;
       board: string;
       density: string;
@@ -245,13 +252,16 @@ export function TasksView(props: TasksViewProps) {
     hasClearableTasksFilters(routeFilters, activeOrganizationId);
 
   const shownSort = effectiveTasksSort(routeFilters.sort, viewMode);
-  const handleSortChange = (sort: TasksSort) => {
+  const replaceRouteFilters = (
+    patch: Partial<TasksFilters>,
+    navigator: { replace: (href: string) => void } = router,
+  ) => {
     const nextQuery = buildTasksFiltersSearchParams(
       searchParams,
-      { ...routeFilters, sort },
+      { ...routeFilters, ...patch },
       activeOrganizationId,
     ).toString();
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+    navigator.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
 
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -287,7 +297,10 @@ export function TasksView(props: TasksViewProps) {
             density,
             onDensityChange: handleDensityChange,
             sort: shownSort,
-            onSortChange: handleSortChange,
+            onSortChange: (sort) => replaceRouteFilters({ sort }),
+            showSubtasks: routeFilters.subtasks === true,
+            onShowSubtasksChange: (subtasks) =>
+              replaceRouteFilters({ subtasks }, URL_ONLY_NAVIGATOR),
             labels: labels.display,
           }}
         />
@@ -441,7 +454,9 @@ export function TasksView(props: TasksViewProps) {
         {/* The page's seat check is fresher than the layout's after a soft navigation. */}
         <OrganizationSeatContext value={canCreateTask}>
           <TasksKeyboard />
-          {content}
+          <ShowOpenSubtasksContext value={routeFilters.subtasks === true}>
+            {content}
+          </ShowOpenSubtasksContext>
         </OrganizationSeatContext>
         {canCreateTask ? <TasksMobileCreateFabSlot /> : null}
         <CreateTaskModal

@@ -1895,7 +1895,8 @@
           "createdAt": "Newest",
           "priority": "Priority",
           "dueOn": "Due date"
-        }
+        },
+        "showSubtasks": "Show open sub-tasks"
       },
       "List": {
         "placeholder": "No tasks"
@@ -2399,7 +2400,9 @@
         "assignee": "Assignee",
         "dueOn": "Due date",
         "cancel": "Cancel",
-        "create": "Add sub-task"
+        "create": "Add sub-task",
+        "openListLabel": "Open sub-tasks of {name}",
+        "moreOpen": "+{count, number} more"
       },
       "Due": {
         "label": "Due date",

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 
 import { TaskListItem } from "./task-list-item";
+import { ShowOpenSubtasksContext } from "./task-open-subtasks";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) =>
@@ -259,5 +260,33 @@ describe("TaskListItem time in status", () => {
 
     expect(screen.queryByText("stuck")).toBeNull();
     expect(screen.queryByText("label")).toBeNull();
+  });
+});
+
+describe("TaskListItem open sub-tasks", () => {
+  it("lists them beside the row's link, never inside it", () => {
+    render(
+      <ShowOpenSubtasksContext value>
+        <TaskListItem
+          task={{
+            ...buildTask(TaskVisibility.PUBLIC),
+            subtaskProgress: { completed: 0, total: 1 },
+            openSubtasks: [
+              {
+                id: "sub-1",
+                identifier: null,
+                name: "Write copy",
+                status: TaskStatus.READY,
+              },
+            ],
+          }}
+        />
+      </ShowOpenSubtasksContext>,
+    );
+
+    const subtaskLink = screen.getByText("Write copy").closest("a");
+    expect(subtaskLink).toHaveAttribute("href", "/tasks/sub-1");
+    // A link inside a link is invalid HTML; the browser splits the row.
+    expect(subtaskLink?.parentElement?.closest("a")).toBeNull();
   });
 });

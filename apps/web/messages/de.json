@@ -1895,7 +1895,8 @@
           "createdAt": "Neueste",
           "priority": "Priorität",
           "dueOn": "Fälligkeit"
-        }
+        },
+        "showSubtasks": "Offene Teilaufgaben anzeigen"
       },
       "List": {
         "placeholder": "Keine Tasks"
@@ -2399,7 +2400,9 @@
         "assignee": "Zuständig",
         "dueOn": "Fälligkeitsdatum",
         "cancel": "Abbrechen",
-        "create": "Teilaufgabe hinzufügen"
+        "create": "Teilaufgabe hinzufügen",
+        "openListLabel": "Offene Teilaufgaben von {name}",
+        "moreOpen": "+{count, number} weitere"
       },
       "Due": {
         "label": "Fälligkeitsdatum",

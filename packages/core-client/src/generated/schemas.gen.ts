@@ -61670,6 +61670,14 @@ export const TaskListItemSchema = {
             type: 'boolean',
             example: false,
             description: 'True when a comment on the Task mentions the caller and the caller has not commented on the Task since. Sent only to people.'
+        },
+        openSubtasks: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskOpenSubtask'
+            },
+            example: [],
+            description: 'The first three direct, non-archived sub-tasks that are not COMPLETED, in sub-task order. `subtaskProgress` counts all of them. Sent only to people.'
         }
     },
     required: [
@@ -61715,6 +61723,33 @@ export const TaskListItemSchema = {
         'jobsCount',
         'commentsCount',
         'statusSince'
+    ]
+} as const;
+
+export const TaskOpenSubtaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        }
+    },
+    required: [
+        'id',
+        'identifier',
+        'name',
+        'status'
     ]
 } as const;
 

@@ -1895,7 +1895,8 @@
           "createdAt": "Más recientes",
           "priority": "Prioridad",
           "dueOn": "Fecha de vencimiento"
-        }
+        },
+        "showSubtasks": "Mostrar subtareas abiertas"
       },
       "List": {
         "placeholder": "Sin Tasks"
@@ -2399,7 +2400,9 @@
         "assignee": "Responsable",
         "dueOn": "Fecha límite",
         "cancel": "Cancelar",
-        "create": "Añadir subtarea"
+        "create": "Añadir subtarea",
+        "openListLabel": "Subtareas abiertas de {name}",
+        "moreOpen": "+{count, number} más"
       },
       "Due": {
         "label": "Fecha límite",
