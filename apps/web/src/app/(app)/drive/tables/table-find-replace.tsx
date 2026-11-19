@@ -1,7 +1,7 @@
 "use client";
 import type { DataTable, TableRow } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type RefObject, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { createTableMutations } from "./table-mutations";
@@ -20,30 +21,42 @@ import { parseTableInput, tableError } from "./table-value";
 
 /** One batch writes at most this many rows, and one batch is one undo. */
 const LIMIT = 100;
+/** Core refuses table requests over 1 MB. */
+const MAX_BYTES = 1_000_000;
+/** Columns whose cells hold one piece of text, so a whole-cell match is meaningful. */
+const TEXT_TYPES = new Set(["text", "long_text", "url", "email"]);
 
-/** Replaces one exact cell value with another across a table, as one undoable batch. */
+type Patch = { id: string; version: number; values: TableRow["values"] };
+type Found =
+  | { kind: "none" }
+  | { kind: "tooMany" }
+  | { kind: "unchanged" }
+  | { kind: "ready"; patch: Patch[] };
+
+/** Replaces one cell value, matched whole and ignoring case, across a column as one undoable batch. */
 export function TableFindReplace({
   table,
+  returnFocus,
   onClose,
   onDone,
 }: {
   table: DataTable;
+  returnFocus?: RefObject<HTMLElement | null>;
   onClose: () => void;
   onDone: (count: number) => void;
 }) {
   const t = useTranslations("App.Tables");
-  const columns = table.columns.filter(
-    (column) => column.type !== "last_updated",
-  );
+  const columns = table.columns.filter((column) => TEXT_TYPES.has(column.type));
   const [columnId, setColumnId] = useState(columns[0]?.id ?? "");
   const [find, setFind] = useState("");
   const [replace, setReplace] = useState("");
-  const [found, setFound] = useState<{ rows: TableRow[]; total: number }>();
+  const [found, setFound] = useState<Found>();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [mutate] = useState(createTableMutations);
   const column = columns.find((item) => item.id === columnId);
   const locked = mutate.hasPending();
+  const Field = column?.type === "long_text" ? Textarea : Input;
 
   function edit(set: (value: string) => void) {
     return (value: string) => {
@@ -55,40 +68,64 @@ export function TableFindReplace({
   async function handleFind() {
     if (!column) return;
     setError("");
+    setPending(true);
     try {
-      const value = parseTableInput(column, find);
-      parseTableInput(column, replace);
-      setPending(true);
-      const page = await dataTableService.query(table.id, {
-        filters: [{ columnId, operator: "equals", value }],
-        limit: LIMIT,
-        archived: false,
-      });
-      setFound({ rows: page.rows, total: page.total ?? page.rows.length });
+      const value = parseTableInput(column, replace);
+      const wanted = find.toLowerCase();
+      const matches: TableRow[] = [];
+      let cursor: string | undefined;
+      // ponytail: Core has no case-insensitive whole-cell filter (its operators are
+      // shared with Soko Bot's read_table), so read every `contains` hit and keep
+      // whole-cell matches here. Up to 100 requests on a 10,000-row table.
+      do {
+        const page = await dataTableService.query(table.id, {
+          filters: [{ columnId, operator: "contains", value: find }],
+          limit: LIMIT,
+          cursor,
+          archived: false,
+        });
+        for (const row of page.rows) {
+          const cell = row.values[columnId];
+          if (typeof cell === "string" && cell.toLowerCase() === wanted)
+            matches.push(row);
+        }
+        cursor = page.nextCursor ?? undefined;
+      } while (cursor && matches.length <= LIMIT);
+      // A cell that already holds the replacement keeps its value and its sources.
+      const patch = matches
+        .filter((row) => row.values[columnId] !== value)
+        .map((row) => ({
+          id: row.id,
+          version: row.version,
+          values: { [columnId]: value },
+        }));
+      if (new Blob([JSON.stringify({ patch })]).size > MAX_BYTES) {
+        setError(t("errors.requestSize"));
+        return;
+      }
+      setFound(
+        matches.length === 0
+          ? { kind: "none" }
+          : matches.length > LIMIT
+            ? { kind: "tooMany" }
+            : patch.length === 0
+              ? { kind: "unchanged" }
+              : { kind: "ready", patch },
+      );
     } catch (error) {
       setError(tableError(error, t));
     } finally {
       setPending(false);
     }
   }
-  async function handleApply() {
-    if (!column || !found) return;
+  async function handleApply(patch: Patch[]) {
     setPending(true);
     setError("");
     try {
-      const value = parseTableInput(column, replace);
-      await mutate(
-        "find-replace",
-        {
-          patch: found.rows.map((row) => ({
-            id: row.id,
-            version: row.version,
-            values: { [columnId]: value },
-          })),
-        },
-        (body) => dataTableService.batch(table.id, body),
+      await mutate("find-replace", { patch }, (body) =>
+        dataTableService.batch(table.id, body),
       );
-      onDone(found.rows.length);
+      onDone(patch.length);
       onClose();
     } catch (error) {
       setError(tableError(error, t));
@@ -96,8 +133,7 @@ export function TableFindReplace({
       setPending(false);
     }
   }
-  const tooMany = !!found && found.total > LIMIT;
-  const ready = !!found && found.total > 0 && !tooMany;
+  const ready = found?.kind === "ready" ? found.patch : undefined;
   return (
     <Dialog
       open
@@ -105,7 +141,13 @@ export function TableFindReplace({
         if (!open && !pending && !locked) onClose();
       }}
     >
-      <DialogContent>
+      <DialogContent
+        onCloseAutoFocus={(event) => {
+          if (!returnFocus?.current) return;
+          event.preventDefault();
+          returnFocus.current.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{t("findReplace.title")}</DialogTitle>
           <DialogDescription>{t("findReplace.description")}</DialogDescription>
@@ -114,7 +156,7 @@ export function TableFindReplace({
           className="grid gap-4"
           onSubmit={(event) => {
             event.preventDefault();
-            void (ready ? handleApply() : handleFind());
+            void (ready ? handleApply(ready) : handleFind());
           }}
         >
           <fieldset disabled={pending || locked} className="grid gap-4">
@@ -139,7 +181,7 @@ export function TableFindReplace({
             </div>
             <div className="grid gap-2">
               <Label htmlFor="find-replace-find">{t("findReplace.find")}</Label>
-              <Input
+              <Field
                 id="find-replace-find"
                 value={find}
                 required
@@ -151,7 +193,7 @@ export function TableFindReplace({
               <Label htmlFor="find-replace-replace">
                 {t("findReplace.replace")}
               </Label>
-              <Input
+              <Field
                 id="find-replace-replace"
                 value={replace}
                 autoComplete="off"
@@ -162,14 +204,11 @@ export function TableFindReplace({
           </fieldset>
           <p role="status" aria-live="polite" className="text-sm empty:hidden">
             {found &&
-              (found.total === 0
-                ? t("findReplace.none")
-                : tooMany
-                  ? t("findReplace.tooMany", {
-                      count: found.total,
-                      limit: LIMIT,
-                    })
-                  : t("findReplace.matches", { count: found.total }))}
+              (found.kind === "ready"
+                ? t("findReplace.matches", { count: found.patch.length })
+                : found.kind === "tooMany"
+                  ? t("findReplace.tooMany", { limit: LIMIT })
+                  : t(`findReplace.${found.kind}`))}
           </p>
           {error && (
             <p role="alert" className="text-destructive text-sm">
@@ -177,9 +216,13 @@ export function TableFindReplace({
             </p>
           )}
           <DialogFooter>
-            <Button type="submit" loading={pending} disabled={!find.trim()}>
+            <Button
+              type="submit"
+              loading={pending}
+              disabled={!find.trim() || !column}
+            >
               {ready
-                ? t("findReplace.apply", { count: found.total })
+                ? t("findReplace.apply", { count: ready.length })
                 : t("findReplace.findMatches")}
             </Button>
           </DialogFooter>

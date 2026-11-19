@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TableFindReplace } from "./table-find-replace";
 
@@ -24,30 +25,36 @@ const company = {
   type: "text",
   options: [],
 };
-const score = {
+const notes = {
   id: "00000000-0000-4000-8000-000000000002",
-  name: "Score",
-  type: "number",
+  name: "Notes",
+  type: "long_text",
   options: [],
 };
-const updated = {
-  id: "00000000-0000-4000-8000-000000000003",
-  name: "Updated",
-  type: "last_updated",
-  options: [],
-};
+const others = ["number", "date", "checkbox", "single_select", "last_updated"];
 const table = {
   id: "00000000-0000-4000-8000-000000000009",
-  columns: [company, score, updated],
+  columns: [
+    company,
+    notes,
+    ...others.map((type, i) => ({
+      id: `00000000-0000-4000-8000-00000000002${i}`,
+      name: type,
+      type,
+      options: [],
+    })),
+  ],
 } as unknown as DataTable;
-function row(n: number) {
+function row(n: number, value: string, columnId = company.id) {
   return {
-    id: `00000000-0000-4000-8000-0000000001${String(n).padStart(2, "0")}`,
+    id: `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`,
     version: n,
-    values: { [company.id]: "Acme Inc" },
+    values: { [columnId]: value },
   } as unknown as TableRow;
 }
-
+function page(rows: TableRow[], nextCursor: string | null = null) {
+  return { rows, nextCursor, total: rows.length };
+}
 function fill(find: string, replace: string) {
   fireEvent.change(screen.getByLabelText("findReplace.find"), {
     target: { value: find },
@@ -56,6 +63,24 @@ function fill(find: string, replace: string) {
     target: { value: replace },
   });
 }
+function findMatches() {
+  fireEvent.click(
+    screen.getByRole("button", { name: "findReplace.findMatches" }),
+  );
+}
+function open(returnFocus?: React.RefObject<HTMLElement | null>) {
+  const onDone = vi.fn();
+  const onClose = vi.fn();
+  render(
+    <TableFindReplace
+      table={table}
+      returnFocus={returnFocus}
+      onClose={onClose}
+      onDone={onDone}
+    />,
+  );
+  return { onDone, onClose };
+}
 
 describe("TableFindReplace", () => {
   afterEach(() => {
@@ -63,33 +88,29 @@ describe("TableFindReplace", () => {
     vi.clearAllMocks();
   });
 
-  it("offers every column that stores a value", () => {
-    render(
-      <TableFindReplace table={table} onClose={vi.fn()} onDone={vi.fn()} />,
-    );
+  it("offers only text columns", () => {
+    open();
     const options = screen.getAllByRole("option").map((o) => o.textContent);
-    expect(options).toEqual(["Company", "Score"]);
+    expect(options).toEqual(["Company", "Notes"]);
   });
 
-  it("counts exact matches first, then replaces them in one batch", async () => {
-    f.query.mockResolvedValue({ rows: [row(1), row(2)], total: 2 });
+  it("matches whole cells ignoring case, then replaces them in one batch", async () => {
+    f.query.mockResolvedValue(
+      page([row(1, "Acme Inc"), row(2, "ACME INC"), row(3, "Acme Inc Ltd")]),
+    );
     f.batch.mockResolvedValue({ batchId: "b", rows: [] });
-    const onDone = vi.fn();
-    render(
-      <TableFindReplace table={table} onClose={vi.fn()} onDone={onDone} />,
-    );
-    fill("Acme Inc", "Acme");
-    fireEvent.click(
-      screen.getByRole("button", { name: "findReplace.findMatches" }),
-    );
+    const { onDone } = open();
+    fill("acme inc", "Acme");
+    findMatches();
     expect(
       await screen.findByText('findReplace.matches {"count":2}'),
     ).toBeTruthy();
     expect(f.query).toHaveBeenCalledWith(table.id, {
       filters: [
-        { columnId: company.id, operator: "equals", value: "Acme Inc" },
+        { columnId: company.id, operator: "contains", value: "acme inc" },
       ],
       limit: 100,
+      cursor: undefined,
       archived: false,
     });
     expect(f.batch).not.toHaveBeenCalled();
@@ -100,56 +121,87 @@ describe("TableFindReplace", () => {
     expect(f.batch).toHaveBeenCalledWith(table.id, {
       key: expect.any(String),
       patch: [
-        { id: row(1).id, version: 1, values: { [company.id]: "Acme" } },
-        { id: row(2).id, version: 2, values: { [company.id]: "Acme" } },
+        { id: row(1, "").id, version: 1, values: { [company.id]: "Acme" } },
+        { id: row(2, "").id, version: 2, values: { [company.id]: "Acme" } },
       ],
     });
   });
 
-  it("refuses more than one batch of rows before writing", async () => {
-    f.query.mockResolvedValue({ rows: [row(1)], total: 140 });
-    render(
-      <TableFindReplace table={table} onClose={vi.fn()} onDone={vi.fn()} />,
-    );
-    fill("Acme Inc", "Acme");
-    fireEvent.click(
-      screen.getByRole("button", { name: "findReplace.findMatches" }),
-    );
+  it("reads every page of candidates before counting", async () => {
+    f.query
+      .mockResolvedValueOnce(page([row(1, "Acme")], "next"))
+      .mockResolvedValueOnce(page([row(2, "acme")]));
+    open();
+    fill("Acme", "Globex");
+    findMatches();
     expect(
-      await screen.findByText('findReplace.tooMany {"count":140,"limit":100}'),
+      await screen.findByText('findReplace.matches {"count":2}'),
     ).toBeTruthy();
+    expect(f.query.mock.calls[1][1].cursor).toBe("next");
+  });
+
+  it("refuses more than one batch of rows before writing", async () => {
+    const rows = Array.from({ length: 100 }, (_, i) => row(i + 1, "Acme"));
+    f.query
+      .mockResolvedValueOnce(page(rows, "next"))
+      .mockResolvedValueOnce(page([row(101, "acme")], "more"));
+    open();
+    fill("Acme", "Globex");
+    findMatches();
+    expect(
+      await screen.findByText('findReplace.tooMany {"limit":100}'),
+    ).toBeTruthy();
+    expect(f.query).toHaveBeenCalledTimes(2);
     expect(
       screen.queryByRole("button", { name: /findReplace.apply/ }),
     ).toBeNull();
   });
 
-  it("says when nothing matches", async () => {
-    f.query.mockResolvedValue({ rows: [], total: 0 });
-    render(
-      <TableFindReplace table={table} onClose={vi.fn()} onDone={vi.fn()} />,
-    );
-    fill("Nope", "Acme");
+  it("leaves cells that already hold the new value, and their sources, alone", async () => {
+    f.query.mockResolvedValue(page([row(1, "Acme"), row(2, "acme")]));
+    f.batch.mockResolvedValue({ batchId: "b", rows: [] });
+    open();
+    fill("acme", "Acme");
+    findMatches();
     fireEvent.click(
-      screen.getByRole("button", { name: "findReplace.findMatches" }),
+      await screen.findByRole("button", {
+        name: 'findReplace.apply {"count":1}',
+      }),
     );
+    await waitFor(() => expect(f.batch).toHaveBeenCalled());
+    expect(
+      f.batch.mock.calls[0][1].patch.map((p: { id: string }) => p.id),
+    ).toEqual([row(2, "").id]);
+  });
+
+  it("says when every match already holds the new value", async () => {
+    f.query.mockResolvedValue(page([row(1, "Acme")]));
+    open();
+    fill("acme", "Acme");
+    findMatches();
+    expect(await screen.findByText("findReplace.unchanged")).toBeTruthy();
+  });
+
+  it("says when nothing matches", async () => {
+    f.query.mockResolvedValue(page([row(1, "Acme Inc")]));
+    open();
+    fill("Acme", "Globex");
+    findMatches();
     expect(await screen.findByText("findReplace.none")).toBeTruthy();
   });
 
-  it("reads find and replace as the column's type and clears on empty", async () => {
-    f.query.mockResolvedValue({
-      rows: [{ ...row(1), values: { [score.id]: 3 } }],
-      total: 1,
-    });
+  it("keeps line breaks in long text and clears on an empty replacement", async () => {
+    f.query.mockResolvedValue(page([row(1, "Line one\nLine two", notes.id)]));
     f.batch.mockResolvedValue({ batchId: "b", rows: [] });
-    render(
-      <TableFindReplace table={table} onClose={vi.fn()} onDone={vi.fn()} />,
-    );
+    open();
     fireEvent.change(screen.getByLabelText("findReplace.column"), {
-      target: { value: score.id },
+      target: { value: notes.id },
     });
-    fill("3", "");
-    fireEvent.click(
-      screen.getByRole("button", { name: "findReplace.findMatches" }),
+    expect(screen.getByLabelText("findReplace.find").tagName).toBe("TEXTAREA");
+    fill("line one\nline two", "");
+    findMatches();
+    expect(f.query.mock.calls[0][1].filters[0].value).toBe(
+      "line one\nline two",
     );
     fireEvent.click(
       await screen.findByRole("button", {
@@ -157,41 +209,48 @@ describe("TableFindReplace", () => {
       }),
     );
     await waitFor(() => expect(f.batch).toHaveBeenCalled());
-    expect(f.query.mock.calls[0][1].filters[0].value).toBe(3);
     expect(f.batch.mock.calls[0][1].patch[0].values).toEqual({
-      [score.id]: null,
+      [notes.id]: null,
     });
   });
 
-  it("shows the column's input error instead of searching", () => {
-    render(
-      <TableFindReplace table={table} onClose={vi.fn()} onDone={vi.fn()} />,
+  it("refuses a replacement too large to send in one request", async () => {
+    const rows = Array.from({ length: 100 }, (_, i) => row(i + 1, "Acme"));
+    f.query.mockResolvedValue(page(rows));
+    open();
+    fill("Acme", "x".repeat(12_000));
+    findMatches();
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "errors.requestSize",
     );
-    fireEvent.change(screen.getByLabelText("findReplace.column"), {
-      target: { value: score.id },
-    });
-    fill("three", "4");
-    fireEvent.click(
-      screen.getByRole("button", { name: "findReplace.findMatches" }),
-    );
-    expect(screen.getByRole("alert").textContent).toBe("errors.number");
-    expect(f.query).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: /findReplace.apply/ }),
+    ).toBeNull();
   });
 
   it("asks to find again after the inputs change", async () => {
-    f.query.mockResolvedValue({ rows: [row(1)], total: 1 });
-    render(
-      <TableFindReplace table={table} onClose={vi.fn()} onDone={vi.fn()} />,
-    );
+    f.query.mockResolvedValue(page([row(1, "Acme Inc")]));
+    open();
     fill("Acme Inc", "Acme");
-    fireEvent.click(
-      screen.getByRole("button", { name: "findReplace.findMatches" }),
-    );
+    findMatches();
     await screen.findByText('findReplace.matches {"count":1}');
     fill("Acme Inc", "Acme Ltd");
     expect(screen.queryByText('findReplace.matches {"count":1}')).toBeNull();
     expect(
       screen.getByRole("button", { name: "findReplace.findMatches" }),
     ).toBeTruthy();
+  });
+
+  it("returns focus to the given control when closed with Escape", async () => {
+    const trigger = document.createElement("button");
+    document.body.append(trigger);
+    const ref = createRef<HTMLElement>();
+    (ref as { current: HTMLElement }).current = trigger;
+    const { onClose } = open(ref);
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalled();
+    cleanup();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    trigger.remove();
   });
 });

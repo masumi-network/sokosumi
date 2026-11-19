@@ -342,6 +342,7 @@ function TableWorkspace({
   const [pending, setPending] = useState(false);
   const [column, setColumn] = useState<TableColumn | "new" | null>(null);
   const [findReplace, setFindReplace] = useState(false);
+  const tableMenu = useRef<HTMLButtonElement>(null);
   const [dialog, setDialog] = useState<
     "views" | "history" | "enrich" | "rename" | "archive" | null
   >(null);
@@ -805,6 +806,7 @@ function TableWorkspace({
               <Button
                 size="icon"
                 variant="ghost"
+                ref={tableMenu}
                 className={TOOLBAR_ICON_CONTROL}
                 aria-label={t("tableMenu")}
               >
@@ -1503,6 +1505,7 @@ function TableWorkspace({
       {findReplace && (
         <TableFindReplace
           table={table}
+          returnFocus={tableMenu}
           onClose={() => setFindReplace(false)}
           onDone={(count) => {
             void refresh();
