@@ -1,12 +1,13 @@
 "use client";
 
 import type {
+  Contact,
   FileResource,
   HistoryItem,
   TaskListItem,
   WorkspaceLabel,
 } from "@sokosumi/core-client";
-import { FileText, ListTodo } from "lucide-react";
+import { Copy, FileText, ListTodo, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
@@ -16,9 +17,13 @@ import {
 } from "@/app/components/history-search-item";
 import { getHistorySearchItemHref } from "@/app/components/history-search-item-href";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
+import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
+import { useContactSearchGroup } from "@/app/components/use-contact-search-group";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
 import { useTagSearchGroup } from "@/app/components/use-tag-search-group";
+import { ContactAvatar } from "@/app/contacts/components/contact-visuals";
+import { primaryEmail } from "@/app/contacts/contacts-view";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { TaskTagDot } from "@/app/tasks/components/task-tag-colors";
 import { taskHref } from "@/app/tasks/utils/task-href";
@@ -30,7 +35,9 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { escapeMarkdownDisplayText } from "@/lib/utils/mention-parser";
 
 interface HistorySearchDialogLabels {
   dialogTitle: string;
@@ -43,6 +50,11 @@ interface HistorySearchDialogLabels {
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
+  peopleGroup: string;
+  copyEmail: (email: string) => string;
+  emailCopied: string;
+  emailCopyFailed: string;
+  mentionInTask: (name: string) => string;
   tagsGroup: string;
   tagTasksGroup: (tag: string) => string;
   tagsError: string;
@@ -67,7 +79,7 @@ export function HistorySearchDialog({
   const router = useRouter();
   const { formatDateWithYear } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
-  const { query, setQuery, history, error, isLoading, reset } =
+  const { query, debouncedQuery, setQuery, history, error, isLoading, reset } =
     useHistorySearchCorpus({
       open,
       activeOrganizationId,
@@ -80,19 +92,29 @@ export function HistorySearchDialog({
     activeOrganizationId,
     debouncedQuery: query,
   });
+  const { contacts, isLoading: contactsLoading } = useContactSearchGroup({
+    open,
+    activeOrganizationId,
+    debouncedQuery,
+  });
+  // Until the debounce settles, People still shows the previous query's
+  // contacts: they open, but their quick actions wait.
+  const contactsStale = query.trim() !== debouncedQuery.trim();
+  const wizard = useOptionalNewTaskWizard();
   const { tags, tagsState, topTag, tasks, tasksState } = useTagSearchGroup({
     open,
     activeOrganizationId,
     debouncedQuery: query,
   });
-  // Tags still loading or failed never read as "No results found".
-  const searching = isLoading || tagsState === "loading";
+  // Tags or People still loading, or Tags failed, never read as "No
+  // results found".
+  const searching = [isLoading, contactsLoading, tagsState === "loading"].some(
+    Boolean,
+  );
   const nothingFound =
     !searching &&
-    history.length === 0 &&
-    tags.length === 0 &&
-    files.length === 0 &&
-    tagsState !== "error";
+    tagsState !== "error" &&
+    [history, tags, files, contacts].every((group) => group.length === 0);
 
   const { listRef, listMaxHeight } = useListFitsVisibleViewport(open);
 
@@ -133,6 +155,32 @@ export function HistorySearchDialog({
     closeAndGo(
       `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
     );
+  }
+
+  function handleSelectContact(contact: Contact) {
+    closeAndGo(`/contacts?contact=${encodeURIComponent(contact.id)}`);
+  }
+
+  function handleCopyEmail(email: string) {
+    void copyTextWithToast(email, {
+      copySuccessMessage: labels.emailCopied,
+      copyErrorMessage: labels.emailCopyFailed,
+    });
+  }
+
+  function handleMentionInTask(contact: Contact) {
+    if (!wizard) return;
+    // Absolute, since a Coworker reading the Task is not inside the app.
+    const href = new URL(
+      `/contacts?contact=${encodeURIComponent(contact.id)}`,
+      window.location.origin,
+    );
+    // Focus belongs to the new Task draft, not the Search button.
+    navigatingRef.current = true;
+    handleOpenChange(false);
+    wizard.openNewTaskWizard({
+      prompt: `[${escapeMarkdownDisplayText(contact.name)}](${href}) `,
+    });
   }
 
   function handleSelectTag(tag: WorkspaceLabel) {
@@ -195,6 +243,15 @@ export function HistorySearchDialog({
           formatShortDate={formatDateWithYear}
           onSelectTag={handleSelectTag}
           onSelectTask={handleSelectTask}
+        />
+
+        <PeopleSearchGroup
+          contacts={contacts}
+          labels={labels}
+          actionsDisabled={contactsStale}
+          onSelect={handleSelectContact}
+          onCopyEmail={handleCopyEmail}
+          onMentionInTask={wizard ? handleMentionInTask : undefined}
         />
 
         {history.length > 0 ? (
@@ -362,6 +419,104 @@ function TagSearchGroups({
           ))}
         </CommandGroup>
       ) : null}
+    </>
+  );
+}
+
+/**
+ * Contacts matching the query; picking one opens its panel in Contacts.
+ * Copy email and Mention in a new Task sit beside each row as their own
+ * options, so arrow keys reach them and nothing interactive nests.
+ */
+function PeopleSearchGroup({
+  contacts,
+  labels,
+  actionsDisabled,
+  onSelect,
+  onCopyEmail,
+  onMentionInTask,
+}: {
+  contacts: Contact[];
+  labels: Pick<
+    HistorySearchDialogLabels,
+    "peopleGroup" | "copyEmail" | "mentionInTask"
+  >;
+  actionsDisabled: boolean;
+  onSelect: (contact: Contact) => void;
+  onCopyEmail: (email: string) => void;
+  onMentionInTask?: (contact: Contact) => void;
+}) {
+  if (contacts.length === 0) return null;
+  const actionClassName = "size-10 shrink-0 justify-center px-0 md:size-8";
+  return (
+    <CommandGroup heading={labels.peopleGroup}>
+      {contacts.map((contact) => {
+        const email = primaryEmail(contact.channels);
+        return (
+          <div key={contact.id} className="flex items-center gap-1">
+            <CommandItem
+              value={`contact:${contact.id}`}
+              onSelect={() => onSelect(contact)}
+              className="min-w-0 flex-1"
+            >
+              <PersonRow contact={contact} email={email} />
+            </CommandItem>
+            {email ? (
+              <CommandItem
+                value={`contact-email:${contact.id}`}
+                aria-label={labels.copyEmail(email)}
+                title={labels.copyEmail(email)}
+                disabled={actionsDisabled}
+                onSelect={() => onCopyEmail(email)}
+                className={actionClassName}
+              >
+                <Copy aria-hidden />
+              </CommandItem>
+            ) : null}
+            {onMentionInTask ? (
+              <CommandItem
+                value={`contact-task:${contact.id}`}
+                aria-label={labels.mentionInTask(contact.name)}
+                title={labels.mentionInTask(contact.name)}
+                disabled={actionsDisabled}
+                onSelect={() => onMentionInTask(contact)}
+                className={actionClassName}
+              >
+                <SquarePen aria-hidden />
+              </CommandItem>
+            ) : null}
+          </div>
+        );
+      })}
+    </CommandGroup>
+  );
+}
+
+/** Avatar, name, then role and company. */
+function PersonRow({
+  contact,
+  email,
+}: {
+  contact: Contact;
+  email: string | null;
+}) {
+  return (
+    <>
+      <ContactAvatar
+        name={contact.name}
+        src={contact.avatarUrl}
+        email={email}
+        kind={contact.kind}
+        className="size-5"
+      />
+      <div className="min-w-0 flex-1">
+        <span className="block truncate">{contact.name}</span>
+        {contact.organization || contact.role ? (
+          <span className="text-muted-foreground block truncate text-xs">
+            {[contact.role, contact.organization].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
+      </div>
     </>
   );
 }

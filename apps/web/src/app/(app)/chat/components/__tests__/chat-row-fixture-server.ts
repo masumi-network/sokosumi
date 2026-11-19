@@ -34,7 +34,14 @@ export async function startChatRowFixtureServer({
           if (id === "@/contexts/org-presence-provider")
             return "\0fixture-presence";
           if (id === "@/app/chat/actions") return "\0fixture-room-action";
-          if (id === "@/lib/actions/soko-bot/action") return "\0fixture-action";
+          if (
+            id === "@/lib/actions/soko-bot/action" ||
+            id === "@/lib/actions/project/action" ||
+            id === "@/app/chat/signal-actions" ||
+            id === "@/lib/actions/task/action" ||
+            id === "@/lib/actions/task/load-workspace-tags"
+          )
+            return "\0fixture-action";
           if (id === "./select-project-action")
             return "\0fixture-project-action";
         },
@@ -46,6 +53,7 @@ export async function startChatRowFixtureServer({
             return `const forbidden = () => {throw new Error('Room actions forbidden in this fixture');};
               export const createDirectRoomAction = forbidden;
               export const ensureCoworkerDirectRoomAction = forbidden;
+              export const saveRoomMessageAction = forbidden;
               export const ensureSokoBotDirectRoomAction = forbidden;`;
           }
           if (id === "\0fixture-navigation") {
@@ -59,6 +67,13 @@ export async function startChatRowFixtureServer({
             return `const forbidden = () => {
               throw new Error('Server mutations are forbidden in this fixture');
             };
+              export const approveProjectSocialPost = forbidden;
+              export const rejectProjectSocialPost = forbidden;
+              export const correctChatSignalTagAction = forbidden;
+              export const setChatSignalLoopAction = forbidden;
+              export const suggestChatCoworkersAction = forbidden;
+              export const setTaskWorkspaceTags = forbidden;
+              export const loadTaskWorkspaceTags = forbidden;
               export const sendSokoBotTurnFeedbackAction = forbidden;
               export const resolveSokoBotDecisionAction = forbidden;`;
           }

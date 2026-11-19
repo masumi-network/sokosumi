@@ -171,7 +171,7 @@ export function TaskDetailActions(props: TaskDetailActionsProps) {
             <Button
               ref={menuTriggerRef}
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
               className="size-10 md:size-8 shrink-0"
               aria-label={actionsMenuLabel}

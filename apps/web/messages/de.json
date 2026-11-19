@@ -1,5 +1,12 @@
 {
   "Components": {
+    "ContactMention": {
+      "merged": "Dieser Kontakt wurde zusammengeführt.",
+      "loading": "Kontakt wird geladen…",
+      "unavailable": "Kontaktdaten sind nicht verfügbar.",
+      "otherWorkspace": "Dieser Kontakt ist in einem anderen Workspace.",
+      "open": "In Kontakten öffnen"
+    },
     "SokoBotTurnFailure": {
       "aiBudgetExceeded": "Dein Assistent hat sein Nutzungslimit erreicht. Er kann wieder antworten, sobald das Limit erhöht oder zurückgesetzt wird.",
       "generic": "Bei uns ist etwas schiefgelaufen. Versuch es erneut. Wenn das Problem weiterhin auftritt, wende dich an den Support.",
@@ -1814,6 +1821,33 @@
         "title": "Task Manager",
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
       },
+      "Export": {
+        "button": "Als CSV exportieren…",
+        "title": "Aufgaben als CSV exportieren",
+        "description": "Die Datei enthält die Aufgaben dieser Ansicht.",
+        "filtersLabel": "Ansicht und Filter",
+        "sortChip": "Sortierung: {sort}",
+        "counting": "Aufgaben werden gezählt…",
+        "count": "{count, plural, =0 {Keine Aufgaben passen} one {# Aufgabe passt} other {# Aufgaben passen}}",
+        "truncated": "Die Datei enthält die ersten {limit, number}. Grenze die Filter ein, um den Rest zu exportieren.",
+        "preview": "Vorschau",
+        "cancel": "Abbrechen",
+        "confirm": "Exportieren",
+        "countError": "Die Aufgaben konnten nicht gezählt werden. Schließe dies und versuche es erneut.",
+        "error": "Die Aufgaben konnten nicht exportiert werden. Versuche es erneut.",
+        "columns": {
+          "identifier": "ID",
+          "name": "Name",
+          "status": "Status",
+          "priority": "Priorität",
+          "assignee": "Zuständig",
+          "owner": "Eigentümer",
+          "project": "Projekt",
+          "dueOn": "Fälligkeitsdatum",
+          "createdAt": "Erstellt",
+          "updatedAt": "Aktualisiert"
+        }
+      },
       "Archived": {
         "title": "Archivierte Aufgaben",
         "link": "Archiviert",
@@ -1882,12 +1916,21 @@
         "date": "Datum"
       },
       "Display": {
-        "button": "Ansicht",
+        "button": "Ansichtsoptionen",
+        "layout": "Layout",
         "list": "Liste",
         "board": "Board",
         "density": "Dichte",
         "normal": "Standard",
-        "compact": "Kompakt"
+        "compact": "Kompakt",
+        "sortBy": "Sortieren nach",
+        "sortOptions": {
+          "updatedAt": "Zuletzt aktualisiert",
+          "createdAt": "Neueste",
+          "priority": "Priorität",
+          "dueOn": "Fälligkeit"
+        },
+        "showSubtasks": "Offene Teilaufgaben anzeigen"
       },
       "List": {
         "placeholder": "Keine Tasks"
@@ -1928,15 +1971,17 @@
         "clear": "Filter zurücksetzen",
         "noMatchesTitle": "Keine Tasks passen zu diesen Filtern",
         "noMatchesDescription": "Entferne einen Filter oder setze alle zurück, um deine Tasks wieder zu sehen.",
-        "stuck": "Hängt seit {days}+ Tagen",
+        "stuck": "Hängt",
+        "stuckDays": "seit {days}+ Tagen",
         "workspaceTags": "Workspace-Tags",
         "archivedTags": "Archivierte Tags",
         "topicTags": "Standardthemen",
-        "stuckHint": "Wartende Tasks, deren Status sich seit {days} Tagen oder länger nicht geändert hat",
+        "viewLabel": "Task-Ansicht",
         "needsMe": "Wartet auf mich",
         "needsMeHint": "Tasks, die auf eine Person warten und die dir gehören oder dir zugewiesen sind",
         "mentions": "Erwähnungen",
-        "mentionsHint": "Tasks, in denen dich ein Kommentar erwähnt und du seitdem nicht kommentiert hast"
+        "mentionsHint": "Tasks, in denen dich ein Kommentar erwähnt und du seitdem nicht kommentiert hast",
+        "projectLabel": "Projekt"
       },
       "Detail": {
         "back": "Zurück zu Tasks",
@@ -2390,7 +2435,9 @@
         "assignee": "Zuständig",
         "dueOn": "Fälligkeitsdatum",
         "cancel": "Abbrechen",
-        "create": "Teilaufgabe hinzufügen"
+        "create": "Teilaufgabe hinzufügen",
+        "openListLabel": "Offene Teilaufgaben von {name}",
+        "moreOpen": "+{count, number} weitere"
       },
       "Due": {
         "label": "Fälligkeitsdatum",
@@ -2639,6 +2686,12 @@
         "label": "Zeit in diesem Status:",
         "stuck": "Hängt",
         "since": "In diesem Status seit"
+      },
+      "SimilarTasks": {
+        "title": "Offene Aufgaben mit ähnlichem Titel",
+        "hint": "Schon angefragt? Öffne die Aufgabe, statt ein Duplikat anzulegen.",
+        "opensInNewTab": "(öffnet in einem neuen Tab)",
+        "announcement": "{count, plural, one {# offene Aufgabe mit ähnlichem Titel} other {# offene Aufgaben mit ähnlichem Titel}}"
       }
     },
     "Projects": {
@@ -5915,7 +5968,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Tags, Jobs, Job-Ergebnissen, Bildern oder Dateien",
+      "description": "Suche nach Aufgaben, Tags, Personen, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
@@ -5924,6 +5977,11 @@
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
       "filesFilenameMatch": "Treffer im Dateinamen",
+      "peopleGroup": "Personen",
+      "copyEmail": "{email} kopieren",
+      "emailCopied": "E-Mail-Adresse kopiert",
+      "emailCopyFailed": "E-Mail-Adresse konnte nicht kopiert werden",
+      "mentionInTask": "{name} in einer neuen Aufgabe erwähnen",
       "tagsGroup": "Tags",
       "tagTasksGroup": "Aufgaben mit dem Tag {tag}",
       "tagsError": "Tags konnten nicht geladen werden",
@@ -9434,6 +9492,7 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
+      "aiAgentSender": "{name} (KI-Agent)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Persönlicher Assistent",
       "openDirectMessage": "Nachricht",
@@ -11633,6 +11692,10 @@
       "searching": "Projekte werden gesucht..."
     },
     "Contacts": {
+      "workspaceSwitch": {
+        "title": "Dieser Kontakt ist in einem anderen Arbeitsbereich",
+        "description": "Wechsle zu {account}, um diesen Kontakt zu öffnen."
+      },
       "Metadata": {
         "title": "Kontakte",
         "description": "Alle, die dein Team kennt, mit jedem Weg, sie zu erreichen."

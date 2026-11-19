@@ -115,6 +115,7 @@ export interface SokoBotActionContext {
 }
 
 export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
+  meetingPrep?: true;
   grant: SokoBotTurnGrantClaims;
   toolCallLimit: number;
   askedByKind?: SokoBotPacketAudience;

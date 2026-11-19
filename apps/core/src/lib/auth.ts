@@ -103,7 +103,10 @@ import {
   validateUpdatedUserName,
   validateUserNameLength,
 } from "./auth-user-name";
-import { betterAuthLogger } from "./evlog-library-logs";
+import {
+  betterAuthLogger,
+  captureBetterAuthOAuthErrorURL,
+} from "./evlog-library-logs";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -416,6 +419,7 @@ export const auth = betterAuth({
         );
       }
 
+      await captureBetterAuthOAuthErrorURL(ctx.path);
       await afterNewSession(ctx);
     }),
   },

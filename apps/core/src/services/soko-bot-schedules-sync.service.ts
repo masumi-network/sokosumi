@@ -1,16 +1,8 @@
 import { randomUUID } from "node:crypto";
-import {
-  getSokoBotVersion,
-  redactSokoBotSensitiveText,
-  SOKO_BOT_CMO_RHYTHMS,
-  SOKO_BOT_SYSTEM_SCHEDULES,
-  sokoBotSystemSchedulePrompt,
-} from "@sokosumi/soko-bot";
+import { redactSokoBotSensitiveText } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
 import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
-import { isSharedSokoBot } from "@/helpers/soko-bot-kind";
-import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import { createCoreLogger, logCoreWarning } from "@/lib/evlog";
@@ -31,11 +23,12 @@ import {
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
 import {
-  buildSystemBeatMessage,
   proactiveGate,
   stageSokoBotNudges,
 } from "@/services/soko-bot-proactive.service";
 import { MAX_CONSECUTIVE_SCHEDULE_FAILURES } from "@/services/soko-bot-schedule.service";
+
+import { buildScheduledSystemBeat } from "@/services/soko-bot-scheduled-beat.service";
 
 const SCHEDULE_LEASE_MS = 5 * 60 * 1_000;
 const BUSY_RETRY_DELAY_MS = 60_000;
@@ -505,36 +498,12 @@ export class SokoBotSchedulesSyncService {
             },
           });
           if (bot) {
-            // A CMO bot's rhythms carry one prompt, its own: a dream there
-            // must not read like an assistant's with its morning stand-up.
-            const cmo = getSokoBotVersion(bot.versionId).profile === "cmo";
-            const cmoRhythm = cmo
-              ? SOKO_BOT_CMO_RHYTHMS.find(
-                  (candidate) => candidate.key === schedule.systemKey,
-                )
-              : undefined;
-            const rhythm = SOKO_BOT_SYSTEM_SCHEDULES.find(
-              (candidate) => candidate.key === schedule.systemKey,
-            );
-            const beat = await buildSystemBeatMessage({
+            const beat = await buildScheduledSystemBeat(
               bot,
-              key: schedule.systemKey,
-              // Registry prompt wins so wording changes ship without a migration.
-              prompt: cmo
-                ? (cmoRhythm?.prompt ?? schedule.prompt)
-                : ((rhythm &&
-                    sokoBotSystemSchedulePrompt(
-                      rhythm,
-                      isSharedSokoBot(bot),
-                    )) ??
-                  schedule.prompt),
-              // Meeting prep reads the window after its own half-hour slot,
-              // so a late or retried run briefs the same meetings, once.
-              now:
-                schedule.systemKey === "meeting-prep"
-                  ? new Date(scheduledFor)
-                  : await databaseNow(),
-            });
+              schedule.systemKey,
+              scheduledFor,
+              schedule.prompt,
+            );
             // Nothing to brief on (no external meeting, no mail waiting):
             // the occurrence is done without a turn or a cent spent.
             if (beat.skip) {

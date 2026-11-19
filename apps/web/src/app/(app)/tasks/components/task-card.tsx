@@ -12,6 +12,7 @@ import type { DragHandleProps } from "./task-dnd";
 import { TaskDueBadge } from "./task-due-badge";
 import { TaskMentionMark } from "./task-mention-mark";
 import { TaskMetaDetails } from "./task-meta";
+import { TaskOpenSubtasks } from "./task-open-subtasks";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
@@ -42,6 +43,7 @@ export interface TaskCardData
     | "dueOn"
     | "statusSince"
     | "subtaskProgress"
+    | "openSubtasks"
     | "hasUnansweredMention"
   > {}
 interface TaskCardProps {
@@ -202,6 +204,7 @@ export function TaskCard({
             commentsCount={task.commentsCount}
           />
         </div>
+        <TaskOpenSubtasks task={task} />
       </article>
     </div>
   );

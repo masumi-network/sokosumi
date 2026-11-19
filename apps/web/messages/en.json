@@ -1,5 +1,12 @@
 {
   "Components": {
+    "ContactMention": {
+      "merged": "This contact has been merged.",
+      "loading": "Loading contact…",
+      "unavailable": "Contact details are unavailable.",
+      "otherWorkspace": "This contact is in another workspace.",
+      "open": "Open in Contacts"
+    },
     "SokoBotTurnFailure": {
       "aiBudgetExceeded": "Your assistant has reached its usage limit. It can respond again when the limit is raised or resets.",
       "generic": "Something went wrong on our side. Try again. If it keeps happening, contact support.",
@@ -1814,6 +1821,33 @@
         "title": "Task manager",
         "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
       },
+      "Export": {
+        "button": "Export as CSV…",
+        "title": "Export tasks as CSV",
+        "description": "The file holds the tasks this view shows.",
+        "filtersLabel": "View and filters",
+        "sortChip": "Sort: {sort}",
+        "counting": "Counting tasks…",
+        "count": "{count, plural, =0 {No tasks match} one {# task matches} other {# tasks match}}",
+        "truncated": "The file holds the first {limit, number}. Narrow the filters to export the rest.",
+        "preview": "Preview",
+        "cancel": "Cancel",
+        "confirm": "Export",
+        "countError": "Could not count the tasks. Close this and try again.",
+        "error": "Could not export the tasks. Try again.",
+        "columns": {
+          "identifier": "ID",
+          "name": "Name",
+          "status": "Status",
+          "priority": "Priority",
+          "assignee": "Assignee",
+          "owner": "Owner",
+          "project": "Project",
+          "dueOn": "Due date",
+          "createdAt": "Created",
+          "updatedAt": "Updated"
+        }
+      },
       "Archived": {
         "title": "Archived tasks",
         "link": "Archived",
@@ -1882,12 +1916,21 @@
         "date": "Date"
       },
       "Display": {
-        "button": "Display",
+        "button": "View options",
+        "layout": "Layout",
         "list": "List",
         "board": "Board",
         "density": "Density",
         "normal": "Normal",
-        "compact": "Compact"
+        "compact": "Compact",
+        "sortBy": "Sort by",
+        "sortOptions": {
+          "updatedAt": "Last updated",
+          "createdAt": "Newest",
+          "priority": "Priority",
+          "dueOn": "Due date"
+        },
+        "showSubtasks": "Show open sub-tasks"
       },
       "List": {
         "placeholder": "No tasks"
@@ -1928,15 +1971,17 @@
         "clear": "Clear filters",
         "noMatchesTitle": "No tasks match these filters",
         "noMatchesDescription": "Remove a filter or clear them all to see your tasks again.",
-        "stuck": "Stuck {days}+ days",
+        "stuck": "Stuck",
+        "stuckDays": "{days}+ days",
         "workspaceTags": "Workspace tags",
         "archivedTags": "Archived tags",
         "topicTags": "Default topics",
-        "stuckHint": "Waiting Tasks whose status has not changed for {days} days or more",
+        "viewLabel": "Tasks view",
         "needsMe": "Needs me",
         "needsMeHint": "Tasks that wait for a person, where you are the owner or the assignee",
         "mentions": "Mentions",
-        "mentionsHint": "Tasks where a comment mentions you and you have not commented since"
+        "mentionsHint": "Tasks where a comment mentions you and you have not commented since",
+        "projectLabel": "Project"
       },
       "Detail": {
         "back": "Back to tasks",
@@ -2390,7 +2435,9 @@
         "assignee": "Assignee",
         "dueOn": "Due date",
         "cancel": "Cancel",
-        "create": "Add sub-task"
+        "create": "Add sub-task",
+        "openListLabel": "Open sub-tasks of {name}",
+        "moreOpen": "+{count, number} more"
       },
       "Due": {
         "label": "Due date",
@@ -2639,6 +2686,12 @@
         "label": "Time in this status:",
         "stuck": "Stuck",
         "since": "In this status since"
+      },
+      "SimilarTasks": {
+        "title": "Open tasks with similar titles",
+        "hint": "Already asked for? Open the task instead of making a duplicate.",
+        "opensInNewTab": "(opens in a new tab)",
+        "announcement": "{count, plural, one {# open task with a similar title} other {# open tasks with similar titles}}"
       }
     },
     "Projects": {
@@ -5915,7 +5968,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, tags, jobs, job results, images or files",
+      "description": "Search for tasks, tags, people, jobs, job results, images or files",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
@@ -5924,6 +5977,11 @@
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
       "filesFilenameMatch": "Filename match",
+      "peopleGroup": "People",
+      "copyEmail": "Copy {email}",
+      "emailCopied": "Email copied",
+      "emailCopyFailed": "Failed to copy email",
+      "mentionInTask": "Mention {name} in a new task",
       "tagsGroup": "Tags",
       "tagTasksGroup": "Tasks tagged {tag}",
       "tagsError": "Couldn't load tags",
@@ -9434,6 +9492,7 @@
       "editChannel": "Edit channel",
       "send": "Send message",
       "noTopic": "No topic set.",
+      "aiAgentSender": "{name} (AI agent)",
       "coworkerBadge": "AI coworker",
       "personalAssistantBadge": "Personal assistant",
       "openDirectMessage": "Message",
@@ -11633,6 +11692,10 @@
       "searching": "Searching projects..."
     },
     "Contacts": {
+      "workspaceSwitch": {
+        "title": "This contact is in another workspace",
+        "description": "Switch to {account} to open this contact."
+      },
       "Metadata": {
         "title": "Contacts",
         "description": "Everyone your team knows, with every way to reach them."

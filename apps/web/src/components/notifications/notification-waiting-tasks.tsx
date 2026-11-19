@@ -411,7 +411,7 @@ export function NotificationWaitingTasks({
         </h2>
         {data.count > data.tasks.length ? (
           <Link
-            href="/tasks"
+            href="/tasks?scope=workspace"
             onClick={onNavigate}
             className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-sm outline-none focus-visible:ring-2"
           >

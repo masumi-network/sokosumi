@@ -37,7 +37,7 @@ export function ProjectsLoadingView() {
         data-testid="projects-loading-toolbar"
         className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
       >
-        <Skeleton className="h-10 min-w-0 flex-1 rounded-md" />
+        <Skeleton className="h-10 min-w-0 flex-1 basis-full rounded-md sm:basis-0" />
         {/* The Open / Hidden / Closed control: three segments, no copy
             (locale flash). */}
         <Skeleton

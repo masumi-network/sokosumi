@@ -147,9 +147,9 @@ Runtime authorization is the only check that rejects on `leaseExpiresAt`. `autho
 3. `deadlineAt` and `leaseExpiresAt` > now (AUTH:96-102).
 4. Session: attach under bot and turn row locks with the same time checks (AUTH:111-207), else equality with the stored session (AUTH:211-213).
 
-`requireMutationAuthority` (AUTH:244-383) runs inside the write transaction:
+`requireMutationAuthority` (AUTH:260-399) runs inside the write transaction:
 
-- An unapproved write re-checks the turn's status, deadline, lease and `cancellationRequestedAt: null` (AUTH:346-375).
+- An unapproved write re-checks the turn's status, deadline, lease and `cancellationRequestedAt: null` (AUTH:362-391).
 - An approved write checks the bot and, when present, checks the confirmation turn's status, deadline, lease and cancellation flag after the confirmation, bot and intent row locks.
 
 The watchdog reclaims on heartbeat age or an explicit release. Lease expiry controls runtime authorization and the live-start duplicate fence.
@@ -194,8 +194,8 @@ Other PostgreSQL clock readers:
 
 - Eval case start and finish stamps, result elapsed-time checks, and the CMO month result's `createdAt >= context.startedAt` filter share PostgreSQL time. The month case's production-turn lookup also uses its approval id and parent chain.
 - Three CMO eval checks compare the PostgreSQL case start with host-stamped `createdAt`. The report headline and competitor update read chat messages in `services/evals/eval-cmo-report-headline.ts:42` and `services/evals/eval-cmo-competitors.ts:344`. The styled-picture check reads image jobs in `services/evals/eval-cmo-runner.ts:598`.
-- Mail triage's 24-hour published-post window and `latestExchange` use a PostgreSQL cutoff. The CMO activity feed selects reasoning by turn and session.
-- Daily usage and quality, CMO spend, and the scheduled activity and dreaming context use PostgreSQL windows. The meeting prep rhythm uses its scheduled slot. Chat Thought uses the stored start and completion, with PostgreSQL time for a legacy missing completion.
+- Mail triage's 24-hour published-post window and `latestExchange` in `lib/soko-bot/turn-model-context.ts` use a PostgreSQL cutoff. Meeting prep uses the invite evidence supplied in its message. The CMO activity feed selects reasoning by turn and session.
+- Daily usage and quality, CMO spend, and the scheduled activity and dreaming context use PostgreSQL windows. `services/soko-bot-scheduled-beat.service.ts` keeps the scheduled slot for meeting prep. Chat Thought uses the stored start and completion, with PostgreSQL time for a legacy missing completion.
 
 ### Mixed clocks after the switch
 

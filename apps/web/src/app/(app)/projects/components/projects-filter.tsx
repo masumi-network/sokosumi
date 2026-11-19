@@ -71,7 +71,7 @@ export function ProjectsFilter({
   }
 
   return (
-    <div className="relative min-w-0 flex-1">
+    <div className="relative min-w-0 flex-1 basis-full sm:basis-0">
       <Search
         className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
         aria-hidden

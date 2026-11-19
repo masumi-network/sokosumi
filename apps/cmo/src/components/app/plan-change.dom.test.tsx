@@ -88,6 +88,7 @@ function render(overview: CmoOverview, actions: Partial<CmoAppActions>) {
           askCusoForArticles: async () => null,
           loadPieceText: async () => null,
           approveStrategy: same,
+          requestStrategy: result,
           setAdBudget: result,
           revertUpdate: same,
           saveBrandBrain: same,

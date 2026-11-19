@@ -1,6 +1,30 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ (AI agent)" : {
+      "comment" : "VoiceOver label for the sender of a chat message written by a Coworker or Soko Bot.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (AI agent)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (KI-Agent)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (agente de IA)"
+          }
+        }
+      }
+    },
     "Background run \"%@\" failed before it could report." : {
       "comment" : "Heading for a failed background run. %@ is the name of the run.",
       "extractionState" : "manual",

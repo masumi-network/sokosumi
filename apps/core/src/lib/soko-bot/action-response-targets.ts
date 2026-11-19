@@ -2,6 +2,114 @@ import type { Prisma } from "@sokosumi/database";
 import { SOKO_BOT_SEO_WRITE_CAPABILITIES } from "@sokosumi/soko-bot";
 import { z } from "zod";
 
+export const ACTION_LABELS: Record<string, string> = {
+  save_competitor_feed: "Saved this week's competitor moves",
+  add_seo_page: "Added SEO page",
+  save_seo_scope: "Saved SEO page group",
+  save_seo_keyword: "Saved SEO keyword",
+  save_seo_competitor: "Saved SEO competitor",
+  import_seo_audit: "Imported SEO audit",
+  request_seo_analysis: "Requested SEO analysis",
+  create_seo_action_task: "Created SEO action task",
+  sync_seo_statistics: "Synced SEO statistics",
+  record_seo_page_change: "Recorded SEO page change",
+
+  newsletter_draft_issue: "Drafted newsletter issue for review",
+  create_newsletter_issue: "Created newsletter draft",
+  update_newsletter_issue: "Updated newsletter issue",
+  delete_newsletter_issue: "Deleted newsletter issue",
+  submit_newsletter_issue: "Submitted newsletter issue for approval",
+  update_newsletter_settings: "Updated newsletter settings",
+  save_announcement: "Saved announcement draft",
+  publish_announcement: "Changed what every user sees",
+  add_newsletter_subscriber: "Added newsletter subscriber",
+  import_newsletter_subscribers: "Imported newsletter subscribers",
+  add_newsletter_subscribers_from_contacts: "Added contacts to the newsletter",
+  update_newsletter_subscriber: "Updated newsletter subscriber",
+  remove_newsletter_subscriber: "Removed newsletter subscriber",
+  manage_reminder: "Updated reminder",
+  create_task: "Created task",
+  create_table: "Created table",
+  write_table_rows: "Updated table rows",
+  update_table_columns: "Updated table columns",
+  update_task: "Updated task",
+  archive_task: "Archived task",
+  assign_task: "Assigned task",
+  reply_to_task: "Added a task comment",
+  update_assigned_task: "Updated assigned task",
+  link_tasks: "Linked tasks",
+  set_task_parent: "Changed a task's parent",
+  stop_following_task: "Stopped following task",
+  post_chat: "Queued chat message",
+  open_direct_chat: "Queued direct message",
+  ask_coworker: "Asked a Coworker",
+  upsert_contact: "Saved contact",
+  update_contact: "Updated contact",
+  log_contact_interaction: "Logged a contact interaction",
+  merge_contacts: "Merged contacts",
+  manage_contact_lists: "Updated contact list",
+  bulk_update_contacts: "Updated contacts",
+  update_company: "Updated company",
+  export_contacts_to_table: "Exported contacts to a table",
+  find_people: "Found people",
+  enrich_contact: "Enriched contact",
+  create_project: "Created project",
+  update_project: "Updated project",
+  create_schedule: "Configured schedule",
+  update_schedule: "Updated schedule",
+  delete_schedule: "Deleted schedule",
+  update_memory: "Updated memory",
+  hire_agent: "Hired agent",
+  provide_job_input: "Submitted job input",
+  run_integration_tool: "Integration acknowledged operation",
+  run_mcp_tool: "Ran a tool on an MCP server",
+  upload_file: "Uploaded file",
+  generate_voiceover: "Made voice-over",
+  move_file: "Moved file",
+  delete_file: "Deleted file",
+  update_emails: "Updated mail",
+  draft_email: "Drafted email",
+  send_email_draft: "Sent email",
+  save_email_attachment: "Saved email attachment",
+  install_skill: "Installed skill",
+  remove_skill: "Removed skill",
+  generate_image: "Started image",
+  generate_video: "Started video",
+  generate_talking_video: "Started talking video",
+  create_social_post: "Created social post",
+  update_social_post: "Updated social post",
+  schedule_social_post: "Scheduled social post",
+  cancel_social_post: "Canceled social post",
+  publish_social_post: "Published social post",
+  create_ad_campaign: "Created paused ad campaign",
+  update_ad_campaign: "Updated ad campaign",
+  edit_ad_campaign: "Edited ad campaign",
+  // No link: the campaign is gone.
+  delete_ad_campaign: "Deleted ad campaign",
+};
+
+/** A comment that also changed the status says which change it was. */
+export function actionLabel(call: {
+  capability: string;
+  result?: unknown;
+}): string {
+  const reply = z
+    .object({ statusChanged: z.literal(true), status: z.string() })
+    .safeParse(call.result);
+  if (call.capability === "reply_to_task" && reply.success)
+    return reply.data.status === "CANCELED"
+      ? "Canceled task"
+      : reply.data.status === "COMPLETED"
+        ? "Completed task"
+        : "Resumed task";
+  if (
+    call.capability === "upload_file" &&
+    z.object({ replaced: z.literal(true) }).safeParse(call.result).success
+  )
+    return "Updated file";
+  return ACTION_LABELS[call.capability] ?? call.capability;
+}
+
 const NEWSLETTER_ISSUE_CAPABILITIES = new Set([
   "create_newsletter_issue",
   "update_newsletter_issue",

@@ -75,6 +75,10 @@ import {
 import { contactsService } from "@/lib/services/contacts.client";
 import { cn } from "@/lib/utils";
 import { ChannelTypeSelect } from "./channel-type-select";
+import {
+  CopyContactLinkItem,
+  useContactWorkspaceId,
+} from "./contact-link-workspace";
 import { ContactListDialog } from "./contact-list-dialog";
 import {
   ChannelIcon,
@@ -134,8 +138,9 @@ export function ContactPanel({
   onMerge,
 }: Props) {
   const t = useTranslations("App.Contacts.panel");
+  const workspaceId = useContactWorkspaceId();
   const detail = useQuery({
-    queryKey: contactKey(contactId),
+    queryKey: [...contactKey(contactId), workspaceId],
     queryFn: () => contactsService.get(contactId),
   });
   return (
@@ -455,18 +460,7 @@ function PanelBody({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() =>
-                void navigator.clipboard
-                  ?.writeText(
-                    `${window.location.origin}/contacts?contact=${contact.id}`,
-                  )
-                  .then(() => toast.success(t("panel.linkCopied")))
-              }
-            >
-              <Copy aria-hidden className="size-4" />
-              {t("panel.copyLink")}
-            </DropdownMenuItem>
+            <CopyContactLinkItem contactId={contact.id} />
             <DropdownMenuItem
               onClick={() =>
                 void save({

@@ -128,11 +128,11 @@ describe("PurchaseSuccessModal", () => {
 
     expect(screen.getByText("Elena").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=elena",
+      "/tasks?scope=workspace&create=true&assignee=elena",
     );
     expect(screen.getByText("Hannah").closest("a")).toHaveAttribute(
       "href",
-      "/tasks?create=true&assignee=hannah",
+      "/tasks?scope=workspace&create=true&assignee=hannah",
     );
   });
 

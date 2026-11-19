@@ -137,8 +137,8 @@ import {
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import {
+  matchesReservedTurnMessage,
   PERSON_SCHEDULE_CAPABILITIES,
-  systemScheduleRoute,
   withOwnScheduleTools,
 } from "@/lib/soko-bot/system-routes";
 import type {
@@ -988,6 +988,23 @@ export class SokoBotControlPlane {
     message: string,
   ): Promise<void> {
     if (!input.scheduleReservation && !input.adminScheduleReservation) return;
+    const reservation = input.adminScheduleReservation;
+    if (
+      input.presetRoute?.meetingPrepSlot &&
+      reservation?.kind === "TERMINAL"
+    ) {
+      // The same operation won the race and bound the turn in its transaction.
+      // Verify that binding instead of spending another attempt.
+      input = {
+        ...input,
+        adminScheduleReservation: {
+          kind: "BOUND_REPLAY",
+          runId: reservation.runId,
+          boundTurnId: turnId,
+          attempt: reservation.expectedAttempt + 1,
+        },
+      };
+    }
     await serializableTransaction(
       (tx) => this.bindTurnReservation(tx, input, sokoBotId, turnId, message),
       "Soko Bot schedule occurrence lease was replaced",
@@ -1126,6 +1143,13 @@ export class SokoBotControlPlane {
       );
     }
     if (turn.deadlineAt <= (await databaseNow())) return null;
+    if (turn.source === "SCHEDULE" || turn.source === "ADMIN_RETRY") {
+      const { meetingReplayRefusal } = await import(
+        "./soko-bot-admin-retry.service"
+      );
+      const refusal = await meetingReplayRefusal(turn);
+      if (refusal) throw new SokoBotValidationError(refusal);
+    }
     if (
       turn.intentId &&
       storedContinuation(turn.classification) === "CONTINUE" &&
@@ -2191,7 +2215,7 @@ export class SokoBotControlPlane {
     });
     if (duplicate) {
       if (
-        duplicate.userMessage !== message ||
+        !matchesReservedTurnMessage(duplicate, message, input.presetRoute) ||
         duplicate.workspaceId !== input.workspaceId ||
         duplicate.source !== source
       ) {
@@ -2203,7 +2227,7 @@ export class SokoBotControlPlane {
         input,
         bot.id,
         duplicate.id,
-        message,
+        duplicate.userMessage,
       );
       if (
         duplicate.status === "STARTING" &&
@@ -2582,6 +2606,7 @@ export class SokoBotControlPlane {
           : routeCapabilities) as readonly SokoBotCapability[],
     ).filter(
       (capability) =>
+        input.presetRoute?.systemKey !== "meeting-prep" &&
         (!isSokoBotNewsletterCapability(capability) || newsletterAvailable) &&
         (!isSokoBotCompetitorCapability(capability) || competitorsAvailable) &&
         (!isSokoBotAnnouncementCapability(capability) ||
@@ -3062,7 +3087,11 @@ export class SokoBotControlPlane {
       });
       if (racedDuplicate) {
         if (
-          racedDuplicate.userMessage !== message ||
+          !matchesReservedTurnMessage(
+            racedDuplicate,
+            message,
+            input.presetRoute,
+          ) ||
           racedDuplicate.workspaceId !== input.workspaceId ||
           racedDuplicate.source !== source
         ) {
@@ -3074,7 +3103,7 @@ export class SokoBotControlPlane {
           input,
           bot.id,
           racedDuplicate.id,
-          message,
+          racedDuplicate.userMessage,
         );
         return observedStartResult(racedDuplicate, bot.eveSessionId);
       }
@@ -4969,23 +4998,10 @@ export class SokoBotControlPlane {
         throw error;
       }
       const retryClientTurnId = `admin-schedule-retry:${input.targetId}:${adminRetryOperationKey(operationId)}`;
-      const scheduleRun = await prisma.sokoBotScheduleRun.findFirst({
-        where: {
-          id: input.targetId,
-          schedule: { sokoBotId: bot.id },
-        },
-        include: {
-          schedule: true,
-          turn: {
-            select: {
-              id: true,
-              source: true,
-              clientTurnId: true,
-              status: true,
-            },
-          },
-        },
-      });
+      const { loadAdminScheduleRun, scheduleRetryInput } = await import(
+        "./soko-bot-admin-retry.service"
+      );
+      const scheduleRun = await loadAdminScheduleRun(bot.id, input.targetId);
       const durableRetryTurn = await prisma.sokoBotTurn.findUnique({
         where: {
           sokoBotId_clientTurnId: {
@@ -5022,8 +5038,11 @@ export class SokoBotControlPlane {
       }
       let retry: SokoBotTurnStartResult;
       try {
-        const occurrencePrompt =
-          scheduleRun.prompt ?? scheduleRun.schedule.prompt;
+        const retryInput = await scheduleRetryInput(
+          bot,
+          scheduleRun,
+          boundReplayTurnId,
+        );
         retry = await this.startTurn({
           userId: sokoBotScheduleActingUserId({
             requestedByUserId: scheduleRun.schedule.requestedByUserId,
@@ -5033,9 +5052,8 @@ export class SokoBotControlPlane {
           sokoBotId: bot.id,
           workspaceId: scheduleRun.schedule.workspaceId,
           clientTurnId: retryClientTurnId,
-          message: occurrencePrompt,
+          ...retryInput,
           source: "ADMIN_RETRY",
-          presetRoute: systemScheduleRoute(scheduleRun.schedule.systemKey),
           adminScheduleReservation: boundReplayTurnId
             ? {
                 kind: "BOUND_REPLAY",
@@ -5108,48 +5126,16 @@ export class SokoBotControlPlane {
       }
       let retry: SokoBotTurnStartResult;
       try {
-        // A replay acts only for the person the failed turn acted for.
-        retry = await this.startTurn({
-          userId: sokoBotActingUserId({
-            requestedByUserId: failed.requestedByUserId,
-            sokoBot: bot,
-          }),
-          sokoBotId: bot.id,
-          workspaceId: failed.workspaceId,
-          clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
-          message: failed.userMessage,
-          source: "ADMIN_RETRY",
-          // Replays on the route the failed turn had, never a wider one.
-          presetRoute: failed.route
-            ? {
-                route: failed.route,
-                writeScope: storedWriteScope(failed.classification),
-                reason: "Operator retry on the failed turn's route.",
-                sandbox: failed.capabilityNames.includes("bash"),
-                // The failed turn's own writes: a stand-up's narrower set,
-                // not its route's.
-                writes: failed.capabilityNames.filter(isSokoBotCapability),
-              }
-            : undefined,
-          // A retry replays untrusted text, so it must not replay it with a
-          // wider grant than the turn that failed. Dropping these turned a
-          // failed depth-1 turn another assistant asked for — read-only, and
-          // its message written by that assistant — into an owner-audience
-          // turn holding the whole route ceiling.
-          ...(failed.chainDepth > 0 ||
-          (failed.askedByUserId &&
-            failed.askedByUserId !== failed.requestedByUserId)
-            ? {
-                chat: {
-                  mentionId: failed.chatMentionId ?? "",
-                  responseMessageId: failed.chatResponseMessageId ?? "",
-                  askedByUserId: failed.askedByUserId,
-                  askedByBot: failed.chainDepth > 0,
-                  chainDepth: failed.chainDepth,
-                },
-              }
-            : {}),
-        });
+        const { failedRetryInput } = await import(
+          "./soko-bot-admin-retry.service"
+        );
+        retry = await this.startTurn(
+          await failedRetryInput(
+            bot,
+            failed,
+            `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
+          ),
+        );
       } catch (error) {
         await recordFailure(error);
         throw error;

@@ -188,8 +188,11 @@ export async function switchOrganizationWorkspace(
     if (options.pathname === "/tasks") {
       const filters = new URLSearchParams(window.location.search);
       // Custom tags belong to the old workspace. Built-in topics exist in both.
-      if (isUuidString(filters.get("tag") ?? "")) {
-        filters.delete("tag");
+      // Scope defaults differ per workspace, so the target picks its own.
+      const oldTag = isUuidString(filters.get("tag") ?? "");
+      if (oldTag || filters.has("scope")) {
+        if (oldTag) filters.delete("tag");
+        filters.delete("scope");
         const query = filters.toString();
         runRouterTransition(() => {
           options.router?.replace(query ? `/tasks?${query}` : "/tasks");

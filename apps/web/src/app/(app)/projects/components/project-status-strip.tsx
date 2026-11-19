@@ -57,7 +57,8 @@ export function ProjectStatusStrip({
   formatCount,
   labels,
 }: ProjectStatusStripProps) {
-  const href = `/tasks?${new URLSearchParams({ projectId }).toString()}`;
+  // The default scope names a view, so a saved one does not change the count.
+  const href = `/tasks?${new URLSearchParams({ projectId, scope: "workspace" }).toString()}`;
   const items = (Object.keys(STRIP_COLUMNS) as StripCount[]).map((key) => ({
     key,
     label: labels[key],

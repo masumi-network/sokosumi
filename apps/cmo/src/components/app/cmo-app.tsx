@@ -78,6 +78,11 @@ export interface CmoAppActions
   /** The words of a piece kept in the owner's Files. */
   loadPieceText: (entryId: string) => Promise<string | null>;
   approveStrategy: (versionId?: string) => Promise<CmoOverview>;
+  /** A whole new strategy, written as a new hire's first one. */
+  requestStrategy: () => Promise<{
+    overview: CmoOverview | null;
+    error: string | null;
+  }>;
   /** The owner's own monthly ad budget; Cuso re-plans around it. */
   setAdBudget: (
     monthly: number,
@@ -582,6 +587,11 @@ export function CmoApp({
                   onApprove={async (versionId) =>
                     setOverview(await actions.approveStrategy(versionId))
                   }
+                  onWriteNew={async () => {
+                    const result = await actions.requestStrategy();
+                    if (result.overview) setOverview(result.overview);
+                    return result.error;
+                  }}
                 />
               ) : view === "seo" ? (
                 <SeoPage

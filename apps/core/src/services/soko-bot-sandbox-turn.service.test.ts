@@ -16,6 +16,8 @@ const envState = vi.hoisted(() => ({
 
 const {
   authorizeMock,
+  getContextMock,
+  storedTurnMock,
   createEventMock,
   executeToolMock,
   grantUploadMock,
@@ -39,6 +41,8 @@ const {
   toolCallUpsertMock: vi.fn(),
   toolCallUpdateManyMock: vi.fn(),
   authorizeMock: vi.fn(),
+  getContextMock: vi.fn(),
+  storedTurnMock: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
   grantUploadMock: vi.fn(),
@@ -55,6 +59,7 @@ vi.mock("@/lib/redis-rate-limit", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => {
   const client = {
+    $queryRaw: async () => [{ now: new Date() }],
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstEventMock,
@@ -63,7 +68,7 @@ vi.mock("@/lib/db/prisma", () => {
     evalLane: { findUnique: vi.fn().mockResolvedValue(null) },
     sokoBotTurn: {
       findUnique: turnFindUniqueMock,
-      findUniqueOrThrow: vi.fn().mockResolvedValue({ userMessage: "Hello" }),
+      findUniqueOrThrow: storedTurnMock,
       updateMany: turnUpdateManyMock,
     },
     sokoBotToolCall: {
@@ -79,7 +84,6 @@ vi.mock("@/lib/db/prisma", () => {
         const result = await operation({
           ...client,
           $executeRaw: vi.fn(),
-          $queryRaw: async () => [{ now: new Date() }],
         });
         const waiting = afterCommit.next;
         afterCommit.next = null;
@@ -92,6 +96,7 @@ vi.mock("@/lib/db/prisma", () => {
 vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
     authorize: authorizeMock,
+    getContext: getContextMock,
     executeTool: executeToolMock,
     grantWorkspaceUpload: grantUploadMock,
   },
@@ -119,6 +124,7 @@ import {
   recordSandboxAction,
   recordSandboxActionResult,
   runSandboxTool,
+  startSandboxTurn,
 } from "./soko-bot-sandbox-turn.service";
 
 const claims = {
@@ -200,6 +206,32 @@ describe("sandbox turn service", () => {
         ],
       },
     });
+  });
+
+  it("gives the sandbox only the prepared meeting evidence and recipient", async () => {
+    const userMessage = "The guest confirmed the planning meeting.";
+    authorizeMock.mockResolvedValueOnce({
+      turn: { id: claims.turnId },
+      grant: { capabilities: [] },
+      meetingPrep: true,
+    });
+    getContextMock.mockResolvedValueOnce({
+      version: { id: "v16", name: "v16", systemPrompt: "Be useful." },
+      packet: {
+        actor: { name: "Recipient" },
+        memory: { markdown: "other-project" },
+      },
+    });
+    storedTurnMock.mockResolvedValueOnce({
+      userMessage,
+      createdAt: new Date(),
+      deadlineAt: new Date(Date.now() + 60_000),
+    });
+    const start = await startSandboxTurn(claims);
+    expect(start.message).toBe(userMessage);
+    expect(start.system).toContain("Recipient");
+    expect(start.system).not.toContain("other-project");
+    expect(start.capabilities).toEqual([]);
   });
 
   it("marks the 409 of a turn that is no longer active, so the runner stops", async () => {

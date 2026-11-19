@@ -1617,7 +1617,7 @@ describe("Notification Center Needs you view", () => {
       const links = within(tasks).getAllByRole("link");
       // Three wait and two are listed, so the rest are one click away.
       expect(links.map((link) => link.getAttribute("href"))).toEqual([
-        "/tasks",
+        "/tasks?scope=workspace",
         "/tasks/task-brief",
         "/tasks/task-newsletter",
       ]);

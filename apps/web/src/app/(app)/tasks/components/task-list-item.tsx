@@ -11,6 +11,7 @@ import type { DragHandleProps } from "./task-dnd";
 import { TaskDueBadge } from "./task-due-badge";
 import { TaskMentionMark } from "./task-mention-mark";
 import { TaskActorCluster } from "./task-meta";
+import { TaskOpenSubtasks } from "./task-open-subtasks";
 import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
@@ -164,6 +165,12 @@ export function TaskListItem({
           {row}
         </TaskDetailLink>
       )}
+      {/* Beside the row's link, not in it: each sub-task is a link too.
+          Starts under the title: row padding, mark, gap, ID, gap. */}
+      <TaskOpenSubtasks
+        task={task}
+        className={cn("ms-[8.25rem] me-3", compact ? "pb-1.5" : "pb-2.5")}
+      />
     </div>
   );
 }

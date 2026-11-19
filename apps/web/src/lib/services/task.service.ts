@@ -36,7 +36,7 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "createdAt" | "updatedAt" | "dueOn";
+  sort?: "createdAt" | "updatedAt" | "priority" | "dueOn";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
   /** Only Tasks due on or before this day, `YYYY-MM-DD`. */
@@ -510,7 +510,19 @@ export const taskService = (() => {
     }
   }
 
+  /** The saved Tasks page query, or null when the person never chose one. */
+  async function getSavedTasksViewQuery(): Promise<string | null> {
+    const result = await coreClient.getTasksView();
+    return result.data?.query ?? null;
+  }
+
+  async function saveTasksViewQuery(query: string): Promise<void> {
+    await coreClient.putTasksView(query);
+  }
+
   return {
+    getSavedTasksViewQuery,
+    saveTasksViewQuery,
     getActivitySummary,
     getWorkspaceCalendar,
     getWorkspaceCalendarSources,

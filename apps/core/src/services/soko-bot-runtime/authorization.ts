@@ -11,6 +11,7 @@ import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { sokoBotActingUserId } from "@/lib/soko-bot/acting-user";
+import { isStoredMeetingPrep } from "@/lib/soko-bot/system-routes";
 import {
   type SokoBotWriteTargets,
   sokoBotWriteScopeRefusal,
@@ -49,12 +50,14 @@ export async function authorize(
     where: { id: input.turnId },
     select: {
       id: true,
+      clientTurnId: true,
       sokoBotId: true,
       requestedByUserId: true,
       workspaceId: true,
       eveSessionId: true,
       status: true,
       classification: true,
+      classifierVersion: true,
       userMessage: true,
       versionId: true,
       source: true,
@@ -102,8 +105,20 @@ export async function authorize(
   ) {
     throw new SokoBotRuntimeAuthorizationError("Soko Bot turn lease expired");
   }
+  if (turn.source === "SCHEDULE" || turn.source === "ADMIN_RETRY") {
+    const { meetingReplayRefusal } = await import(
+      "../soko-bot-admin-retry.service"
+    );
+    const refusal = await meetingReplayRefusal(turn);
+    if (refusal) throw new SokoBotRuntimeAuthorizationError(refusal);
+  }
   const actingUserId = sokoBotActingUserId(turn);
-  const grant = buildTurnGrant(turn, input.sessionId);
+  const meetingPrep = isStoredMeetingPrep(turn);
+  // An in-flight turn from before meeting prep lost its read tools can still have a stale grant.
+  const grant = buildTurnGrant(
+    meetingPrep ? { ...turn, capabilityNames: [] } : turn,
+    input.sessionId,
+  );
   if (input.capability && !grant.capabilities.includes(input.capability)) {
     throw new SokoBotRuntimeAuthorizationError(
       "Capability is not granted for this turn",
@@ -215,6 +230,7 @@ export async function authorize(
 
   return {
     grant,
+    ...(meetingPrep ? { meetingPrep: true as const } : {}),
     toolCallLimit: sokoBotToolCallLimit(turn),
     askedByKind: sokoBotTurnAudience(turn),
     reader: sokoBotTurnReaderOf(turn),
