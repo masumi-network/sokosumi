@@ -57,6 +57,7 @@ export function focusToolbarControl(toolbar: Element | null | undefined) {
 }
 
 const FILTERS_MENU_ATTRIBUTE = "data-filters-menu";
+const STUCK_OPTION_VALUE = "stuck";
 
 interface TasksViewFiltersProps {
   activeOrganizationId: string | null;
@@ -284,6 +285,24 @@ export function TasksViewFilters({
       ),
     });
 
+    // Stuck narrows by how long a status has waited, so it sits beside
+    // Status rather than in the toolbar.
+    nextSections.push({
+      id: "stuck",
+      label: t("stuck"),
+      icon: Hourglass,
+      value: filters.stuck ? STUCK_OPTION_VALUE : null,
+      allLabel: labels.all,
+      onChange: (value) =>
+        handleFilterChange({ stuck: value === STUCK_OPTION_VALUE }),
+      options: [
+        {
+          value: STUCK_OPTION_VALUE,
+          label: t("stuckDays", { days: STUCK_AFTER_DAYS }),
+        },
+      ],
+    });
+
     nextSections.push({
       id: "tag",
       label: tTags("label"),
@@ -310,6 +329,7 @@ export function TasksViewFilters({
     labels.statusOptions,
     labels.visibilityLabel,
     labels.visibilityPrivate,
+    t,
     tTags,
     tagOptions,
   ]);
@@ -367,6 +387,12 @@ export function TasksViewFilters({
       value: labels.statusOptions[filters.status],
       clear: { status: null },
     },
+    filters.stuck && {
+      id: "stuck",
+      label: t("stuck"),
+      value: t("stuckDays", { days: STUCK_AFTER_DAYS }),
+      clear: { stuck: false },
+    },
   ].filter((chip) => !!chip);
 
   return (
@@ -400,20 +426,6 @@ export function TasksViewFilters({
           {labels.assignedToMe}
         </Button>
       ) : null}
-      <Button
-        variant={filters.stuck ? "secondary" : "ghost"}
-        size="sm"
-        aria-pressed={filters.stuck}
-        title={t("stuckHint", { days: STUCK_AFTER_DAYS })}
-        className={cn("hit-area", filters.stuck && "border-control-border")}
-        onClick={() => handleFilterChange({ stuck: !filters.stuck })}
-      >
-        <Hourglass aria-hidden />
-        {/* Icon only on a phone, so the toolbar stays one row. */}
-        <span className="max-sm:sr-only">
-          {t("stuck", { days: STUCK_AFTER_DAYS })}
-        </span>
-      </Button>
       {userId ? (
         <Button
           variant={filters.needsMe ? "secondary" : "ghost"}
@@ -486,6 +498,22 @@ export function TasksViewFilters({
           sections={sections}
           showActiveIndicator={showActiveIndicator}
           align="end"
+          resetAction={
+            chips.length > 0
+              ? {
+                  label: t("clear"),
+                  onReset: () =>
+                    handleFilterChange(
+                      chips.reduce<Partial<TasksFilters>>(
+                        (patch, chip) => ({ ...patch, ...chip.clear }),
+                        // Needs me and Mentions hide the scope chip, but a
+                        // scope set before them would come back after.
+                        { scope: getDefaultTasksScope(activeOrganizationId) },
+                      ),
+                    ),
+                }
+              : undefined
+          }
         />
       </span>
     </div>
