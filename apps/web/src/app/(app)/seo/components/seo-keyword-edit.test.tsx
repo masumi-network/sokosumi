@@ -1085,9 +1085,9 @@ describe("Keywords after a check", () => {
     expect(screen.getByText("idea 9")).toBeVisible();
     expect(screen.queryByText("idea 10")).toBeNull();
     // The reason of each idea waits behind its info button: ten rows in view, ten buttons, no reason line.
-    expect(
-      screen.getAllByRole("button", { name: "Why it is listed" }),
-    ).toHaveLength(10);
+    expect(screen.getAllByRole("button", { name: /^idea \d+$/ })).toHaveLength(
+      10,
+    );
     expect(screen.queryByText("From competitors")).toBeNull();
     const more = screen.getByRole("button", { name: "Show 2 more ideas" });
     await user.click(more);
@@ -1096,7 +1096,7 @@ describe("Keywords after a check", () => {
     expect(screen.getByRole("button", { name: "Show less" })).toHaveFocus();
   });
 
-  it("shows the reason of an idea only when it tells the ideas in view apart", async () => {
+  it("opens keyword details and the Studio availability even when every idea has the same source", async () => {
     const user = userEvent.setup();
     const { workspace } = savedKeywordWorkspace();
     const idea = (
@@ -1119,9 +1119,11 @@ describe("Keywords after a check", () => {
     workspace.keywords = [idea(0, "opportunity"), idea(1, "opportunity")];
     const { unmount } = renderWorkspace(workspace);
     expect(screen.getByText("idea 1")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "idea 1" }));
     expect(
-      screen.queryByRole("button", { name: "Why it is listed" }),
-    ).toBeNull();
+      screen.getByRole("button", { name: /Draft in Content Studio/ }),
+    ).toBeDisabled();
+    expect(screen.getByText("Related search")).toBeVisible();
     unmount();
     workspace.keywords[1] = idea(1, "gap");
     renderWorkspace(workspace);
@@ -1129,7 +1131,7 @@ describe("Keywords after a check", () => {
     expect(screen.getAllByRole("columnheader")).toHaveLength(3);
     expect(screen.queryByText("From competitors")).toBeNull();
     const [first, second] = screen.getAllByRole("button", {
-      name: "Why it is listed",
+      name: /^idea \d+$/,
     });
     await user.click(second);
     expect(second).toHaveAttribute("aria-expanded", "true");

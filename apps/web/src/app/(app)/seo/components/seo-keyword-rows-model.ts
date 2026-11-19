@@ -1,4 +1,8 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
+import {
+  MEDIUM_DIFFICULTY_FROM,
+  recommendedOrder,
+} from "./seo-keyword-recommendations";
 import { seoFoldCount } from "./seo-list-model";
 import { normalizeQuery } from "./seo-search-model";
 
@@ -143,7 +147,9 @@ export function keywordGroups(rows: Keyword[]) {
     );
   return {
     checked: groups.filter(checked).toSorted(byReach),
-    ideas: groups.filter((group) => !checked(group)).toSorted(byConversion),
+    ideas: recommendedOrder(
+      groups.filter((group) => !checked(group)).toSorted(byConversion),
+    ),
   };
 }
 
@@ -232,7 +238,7 @@ export function keywordPositions(reads: Keyword[]) {
 }
 
 /** Keyword difficulty (0 to 100) from here reads "Medium", and from the next one "Hard". */
-export const SEO_DIFFICULTY_MEDIUM_FROM = 30;
+export const SEO_DIFFICULTY_MEDIUM_FROM = MEDIUM_DIFFICULTY_FROM;
 export const SEO_DIFFICULTY_HARD_FROM = 60;
 export type SeoDifficultyBand = "easy" | "medium" | "hard";
 
