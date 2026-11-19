@@ -19,8 +19,10 @@ import {
   seoSerpSeriesSchema,
   seoShareOfVoiceSchema,
 } from "./project-seo-rankings.schema";
+import { seoSeasonalIdeaSchema } from "./project-seo-seasonal.schema";
 import { seoStrategySchema } from "./project-seo-strategy.schema";
 import {
+  seoSearchQueryRowSchema,
   seoSearchTypeSchema,
   seoTrafficChannelSchema,
   seoWorkspaceLandingPagesSchema,
@@ -36,6 +38,10 @@ import {
   seoUrlSchema,
 } from "./seo-page.schema";
 
+export {
+  SEO_SEARCH_QUERY_ROW_LIMIT,
+  seoSearchQueryRowSchema,
+} from "./project-seo-traffic.schema";
 export {
   SEO_MAX_PAGES,
   seoIdSchema,
@@ -454,16 +460,6 @@ export const seoMetricSchema = z
     searchType: seoSearchTypeSchema.optional(),
   })
   .openapi("ProjectSeoMetric");
-export const SEO_SEARCH_QUERY_ROW_LIMIT = 250;
-/** One Search Console row grouped by query and page. Average position is not a live rank. */
-export const seoSearchQueryRowSchema = z.object({
-  query: z.string().min(1).max(2048),
-  pageUrl: seoUrlSchema,
-  clicks: z.number().finite().nonnegative(),
-  impressions: z.number().finite().nonnegative(),
-  ctr: z.number().finite().min(0).max(1),
-  averagePosition: z.number().finite().min(1),
-});
 export const SEO_KEYWORD_SERIES_ROW_LIMIT = 10_000;
 export const SEO_KEYWORD_SERIES_MAX_KEYWORDS = 25;
 /** One daily read per country; a sync reads at most this many. */
@@ -711,6 +707,7 @@ export const projectSeoWorkspaceSchema = z
     indexTriage: z.union([seoIndexTriageSchema, z.null()]).optional(),
     /** The newest site audit's strategy results in the period: verdict, keyword groups, actions off the site. */
     strategy: z.union([seoStrategySchema, z.null()]).optional(),
+    seasonalIdeas: z.array(seoSeasonalIdeaSchema).optional(),
     /** SERP features, featured snippet, People also ask and AI Overview per keyword and device over time. */
     serpHistory: z
       .array(seoSerpSeriesSchema)

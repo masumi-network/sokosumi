@@ -44184,6 +44184,226 @@ export const ProjectSeoWorkspaceSchema = {
                 }
             ]
         },
+        seasonalIdeas: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    origin: {
+                        type: 'string',
+                        enum: [
+                            'market_history'
+                        ]
+                    },
+                    keyword: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 80
+                    },
+                    audience: {
+                        type: 'string',
+                        minLength: 2,
+                        maxLength: 80
+                    },
+                    url: {
+                        type: 'string',
+                        format: 'uri'
+                    },
+                    asOf: {
+                        type: 'string',
+                        format: 'date'
+                    },
+                    country: {
+                        type: 'string',
+                        pattern: '^[A-Z]{2}$'
+                    },
+                    language: {
+                        type: 'string',
+                        pattern: '^[a-z]{2}$'
+                    },
+                    pageQuote: {
+                        type: 'string',
+                        minLength: 8,
+                        maxLength: 180
+                    },
+                    action: {
+                        type: 'string',
+                        enum: [
+                            'improve_existing_page',
+                            'investigate_angle'
+                        ]
+                    },
+                    limitations: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            enum: [
+                                'demand_unverified',
+                                'timing_uncertain',
+                                'audience_fit_uncertain',
+                                'offer_unverified',
+                                'existing_page_may_cover'
+                            ]
+                        },
+                        maxItems: 5
+                    },
+                    event: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            name: {
+                                type: 'string',
+                                maxLength: 80
+                            },
+                            scope: {
+                                type: 'string',
+                                maxLength: 250
+                            },
+                            date: {
+                                type: 'string',
+                                format: 'date'
+                            }
+                        },
+                        required: [
+                            'name',
+                            'scope',
+                            'date'
+                        ]
+                    },
+                    comparison: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            status: {
+                                type: 'string',
+                                enum: [
+                                    'above_baseline',
+                                    'no_observed_rise',
+                                    'insufficient'
+                                ]
+                            },
+                            leadMonth: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    period: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    volume: {
+                                        type: [
+                                            'integer',
+                                            'null'
+                                        ],
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'period',
+                                    'volume'
+                                ]
+                            },
+                            eventMonth: {
+                                type: [
+                                    'object',
+                                    'null'
+                                ],
+                                properties: {
+                                    period: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    volume: {
+                                        type: [
+                                            'integer',
+                                            'null'
+                                        ],
+                                        minimum: 0
+                                    }
+                                },
+                                required: [
+                                    'period',
+                                    'volume'
+                                ]
+                            },
+                            baselineMedian: {
+                                type: [
+                                    'number',
+                                    'null'
+                                ],
+                                minimum: 0
+                            }
+                        },
+                        required: [
+                            'status',
+                            'leadMonth',
+                            'eventMonth',
+                            'baselineMedian'
+                        ]
+                    },
+                    windows: {
+                        type: 'array',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                targetPeriod: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                historicalPeriod: {
+                                    type: 'string',
+                                    pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                },
+                                historicalVolume: {
+                                    type: 'integer',
+                                    minimum: 0
+                                },
+                                baselineMedian: {
+                                    type: 'number',
+                                    minimum: 0
+                                },
+                                referenceMonths: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-(?:0[1-9]|1[0-2])$'
+                                    },
+                                    minItems: 6,
+                                    maxItems: 8
+                                }
+                            },
+                            required: [
+                                'targetPeriod',
+                                'historicalPeriod',
+                                'historicalVolume',
+                                'baselineMedian'
+                            ]
+                        },
+                        maxItems: 4
+                    }
+                },
+                required: [
+                    'keyword',
+                    'audience',
+                    'url',
+                    'asOf',
+                    'country',
+                    'language',
+                    'pageQuote',
+                    'action',
+                    'limitations',
+                    'event',
+                    'comparison',
+                    'windows'
+                ]
+            }
+        },
         serpHistory: {
             type: 'array',
             items: {

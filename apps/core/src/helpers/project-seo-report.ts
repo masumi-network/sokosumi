@@ -8,6 +8,7 @@ import {
   seoSeveritySchema,
   seoUrlSchema,
 } from "@/schemas/project-seo.schema";
+import { seoSeasonalIdeaSchema } from "@/schemas/project-seo-seasonal.schema";
 import { seoStrategyPayloadSchema } from "@/schemas/project-seo-strategy.schema";
 import { assertValidPartialSeoActions } from "./project-seo-partial-actions";
 import { legacyReportKeywords } from "./project-seo-report-keywords";
@@ -112,6 +113,7 @@ export const publicSeoPayloadSchema = z.object({
   notes: z.array(text).max(500),
   /** A site audit's strategy results. Older rows and focused checks have none. */
   strategy: seoStrategyPayloadSchema.optional(),
+  seasonalIdeas: z.array(seoSeasonalIdeaSchema).max(100).optional(),
   /** A focused result's SERP reads per keyword and device. Older results and audits have none. */
   serps: seoSerpReadsSchema.optional(),
   /** Monitor rule ids that fired in a focused result's Run. */
@@ -358,12 +360,25 @@ const estimate = {
     .optional()
     .catch(undefined),
 };
+// Two seasonal reviewers can each propose five searches. History can supply three further terms.
+const MAX_SEASONAL_IDEAS = 13;
 const legacy = z.object({
+  seasonalReview: z
+    .object({ insights: z.array(z.unknown()).max(MAX_SEASONAL_IDEAS) })
+    .optional()
+    .catch(undefined),
   request: z.object({ url: seoUrlSchema }),
   snapshotId: text,
   rulebookVersion: text,
   header: z.object({
     capturedAt: observedAt,
+    finalUrl: z
+      .object({
+        mobile: seoUrlSchema.nullable().optional(),
+        desktop: seoUrlSchema.nullable().optional(),
+      })
+      .optional()
+      .catch(undefined),
     market: z.object({ country: text, language: text }).nullable(),
     focusKeywords: z
       .array(
@@ -529,6 +544,15 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
       checks: pages.flatMap((page) => page.checks),
       keywords: pages.flatMap((page) => page.keywords),
       competitors: pages.flatMap((page) => page.competitors),
+      ...(pages.some((page) => page.seasonalIdeas) && {
+        seasonalIdeas: pages
+          .filter(
+            (page) =>
+              page.countryCode === first.countryCode &&
+              page.languageCode === first.languageCode,
+          )
+          .flatMap((page) => page.seasonalIdeas ?? []),
+      }),
       findings: [
         ...pages.flatMap((page, index) =>
           page.findings.map((row) => ({ ...row, id: `${index}:${row.id}` })),
@@ -600,6 +624,22 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
   const result = parsed.data,
     pageUrl = result.request.url,
     at = result.header.capturedAt;
+  const publicTargets = [
+    pageUrl,
+    ...Object.values(result.header.finalUrl ?? {}),
+  ].flatMap((value) => (value ? [auditedSeoPageKey(value)] : []));
+  const seasonalIdeas = result.seasonalReview?.insights
+    .flatMap((row) => {
+      const parsed = seoSeasonalIdeaSchema.safeParse(row);
+      return parsed.success ? [parsed.data] : [];
+    })
+    .filter(
+      (idea) =>
+        publicTargets.includes(auditedSeoPageKey(idea.url)) &&
+        idea.country === result.header.market?.country &&
+        idea.language === result.header.market?.language,
+    )
+    .map((idea) => ({ ...idea, url: pageUrl }));
   const findings = result.findings.flatMap((row) =>
     row.devices.map((device) => ({
       id: `${row.id}:${device}`,
@@ -651,6 +691,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     countryCode: result.header.market?.country ?? "",
     languageCode: result.header.market?.language ?? "",
     rulebookVersion: result.rulebookVersion,
+    ...(seasonalIdeas && { seasonalIdeas }),
     checks: result.checklist.map((row) => ({
       rowId: row.row,
       pageUrl,

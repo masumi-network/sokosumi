@@ -1730,3 +1730,113 @@ describe("stored SEO workspace projections", () => {
     ).toMatchObject({ confirmed: false, canConfirm: false });
   });
 });
+
+it("keeps seasonal suggestions within their audited page and market and retires them after a fresh full audit", () => {
+  const input = fixture();
+  const raw = legacyReport();
+  const idea = {
+    keyword: "canvas storage",
+    audience: "sailboat owners",
+    url: SEO_TEST_PAGE,
+    asOf: "2026-11-01",
+    country: raw.header.market.country,
+    language: raw.header.market.language,
+    pageQuote: "Cover your canvas before storing it.",
+    event: null,
+    action: "investigate_angle",
+    limitations: ["timing_uncertain"],
+    comparison: null,
+    windows: [
+      {
+        targetPeriod: "2026-12",
+        historicalPeriod: "2025-12",
+        historicalVolume: 95,
+        baselineMedian: 10,
+        referenceMonths: [
+          "2026-03",
+          "2026-04",
+          "2026-05",
+          "2026-06",
+          "2026-07",
+          "2026-08",
+        ],
+      },
+    ],
+  };
+  const read = parsePublicSeoArtifact({
+    ...raw,
+    seasonalReview: {
+      insights: [
+        idea,
+        { keyword: "incomplete row" },
+        { ...idea, url: SEO_TEST_SECOND_PAGE },
+        { ...idea, country: "GB" },
+      ],
+    },
+  });
+  expect(read.seasonalIdeas).toEqual([idea]);
+  const article = SEO_TEST_PAGE + "?p=42";
+  const redirectedArticle = SEO_TEST_SECOND_PAGE + "?p=42";
+  const redirectedIdea = {
+    ...idea,
+    keyword: "winter cover",
+    url: redirectedArticle,
+  };
+  const articlePayload = parsePublicSeoArtifact({
+    ...raw,
+    request: { url: article },
+    header: {
+      ...raw.header,
+      finalUrl: { mobile: redirectedArticle + "#mast" },
+    },
+    seasonalReview: {
+      insights: [
+        { ...idea, url: article },
+        redirectedIdea,
+        { ...idea, url: SEO_TEST_PAGE + "?p=43" },
+        { ...idea, url: SEO_TEST_PAGE },
+      ],
+    },
+  });
+  expect(articlePayload.seasonalIdeas).toEqual([
+    { ...idea, url: article },
+    { ...redirectedIdea, url: article },
+  ]);
+  input.observations = [observation(input, read, raw.header.capturedAt)];
+  expect(projectSeoProjection(input).seasonalIdeas).toEqual([idea]);
+  input.observations.unshift(
+    observation(input, parsePublicSeoArtifact(raw), "2026-11-02T12:00:00Z"),
+  );
+  expect(projectSeoProjection(input).seasonalIdeas).toBeUndefined();
+
+  const britishIdea = { ...idea, country: "GB" };
+  const british = parsePublicSeoArtifact({
+    ...raw,
+    header: { ...raw.header, market: { country: "GB", language: "en" } },
+    seasonalReview: { insights: [britishIdea] },
+  });
+  const mixedSite = parsePublicSeoArtifact({
+    ...siteStrategyReport(),
+    pages: [
+      raw,
+      {
+        ...raw,
+        request: { url: SEO_TEST_SECOND_PAGE },
+        header: { ...raw.header, market: { country: "GB", language: "en" } },
+        seasonalReview: {
+          insights: [{ ...britishIdea, url: SEO_TEST_SECOND_PAGE }],
+        },
+      },
+    ],
+  });
+  expect(mixedSite.seasonalIdeas ?? []).toEqual([]);
+  input.observations = [
+    observation(
+      input,
+      { ...read, seasonalIdeas: british.seasonalIdeas },
+      "2026-11-02T12:00:00Z",
+    ),
+    observation(input, british, raw.header.capturedAt),
+  ];
+  expect(projectSeoProjection(input).seasonalIdeas).toEqual([britishIdea]);
+});

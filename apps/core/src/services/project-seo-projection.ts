@@ -139,6 +139,8 @@ export function projectSeoProjection(
   );
   const scopedPublicSources = new Map<string, ProjectSeoObservation>();
   let strategy: ProjectSeoWorkspace["strategy"] = null;
+  const seasonalIdeas: NonNullable<ProjectSeoWorkspace["seasonalIdeas"]> = [];
+  const seasonalPages = new Set<string>();
   const searchSources: SearchEvidenceSource[] = [];
   const indexSources: Array<{ at: Date; pages: SeoIndexedPage[] }> = [];
   const metricRows: SeoMetricsProjection = {
@@ -228,6 +230,22 @@ export function projectSeoProjection(
           : ""),
     });
     if (!matchesSeoPeriod(row.observedAt, query)) continue;
+    if (row.kind === "audit_full") {
+      for (const url of data.pageUrls) {
+        const page = normalizeSeoUrl(url);
+        const identity = key(page, data.countryCode, data.languageCode);
+        if (!selectedUrls.has(page) || seasonalPages.has(identity)) continue;
+        seasonalPages.add(identity);
+        seasonalIdeas.push(
+          ...(data.seasonalIdeas ?? []).filter(
+            (idea) =>
+              normalizeSeoUrl(idea.url) === page &&
+              idea.country === data.countryCode &&
+              idea.language === data.languageCode,
+          ),
+        );
+      }
+    }
     // Rows come newest first, so the first strategy is the newest site audit's.
     if (data.strategy && !strategy) {
       const {
@@ -686,6 +704,7 @@ export function projectSeoProjection(
     indexStatus: newestIndexStatus(indexSources, selectedUrls),
     indexTriage: indexing.triage,
     strategy,
+    ...(seasonalIdeas.length && { seasonalIdeas }),
     metricsStatus: !metrics.length
       ? "unavailable"
       : metrics.some((metric) => metric.coverage !== "complete")

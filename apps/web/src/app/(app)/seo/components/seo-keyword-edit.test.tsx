@@ -159,6 +159,34 @@ function savedKeywordWorkspace() {
   return { workspace, pricingPage };
 }
 
+it("opens Rankings on Ideas when seasonal research is the only result", () => {
+  const workspace = seoTestWorkspace();
+  workspace.seasonalIdeas = [
+    {
+      keyword: "winter sail cover",
+      audience: "boat owners",
+      country: "DE",
+      language: "de",
+      url: workspace.pages[0].url,
+      asOf: new Date("2026-11-01T00:00:00Z"),
+      pageQuote: "Learn how to cover a sail for the winter.",
+      action: "investigate_angle",
+      limitations: ["demand_unverified"],
+      event: null,
+      comparison: null,
+      windows: [],
+    },
+  ];
+  renderWorkspace(workspace);
+  expect(screen.getByRole("button", { name: "Ideas" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(
+    screen.getByRole("heading", { name: "winter sail cover" }),
+  ).toBeVisible();
+});
+
 describe("Saved keyword edits", () => {
   it("removes a saved keyword without replacing its target with the observed ranking page", async () => {
     const user = userEvent.setup();

@@ -12639,6 +12639,29 @@
           "action": "Seitenziel: {action}",
           "studio": "Entwurf im Content Studio erstellen (demnächst)"
         },
+        "seasonal": {
+          "timing": "DataForSEO Labs schätzt die monatlichen Suchanfragen für diesen Markt. Prüfe die aktuelle Nachfrage vor dem geplanten Zeitraum.",
+          "planFor": "Für {months} planen",
+          "datedEvent": "{event} · {date}",
+          "evidence": "Seitenbeleg und Nachfragedaten",
+          "above_baseline": "Die lokalen Suchanfragen lagen im Vorjahr über dem früheren Median.",
+          "no_observed_rise": "Die lokalen Suchanfragen lagen im Vorjahr nicht über dem früheren Median.",
+          "windowRise": "In diesen Monaten gab es im Vorjahr mehr lokale Suchanfragen als in den Vergleichsmonaten.",
+          "windowOther": "Vergleich für {target}: Im {prior} gab es geschätzt {volume, number} lokale Suchanfragen. Der Median der anderen beobachteten Monate ({months}) lag bei {baseline, number}.",
+          "incompleteComparison": "Verfügbare Schätzwerte für lokale Suchanfragen im Vorjahr: {counts}. Für einen Vergleich fehlen Daten.",
+          "historicalIdea": "Prüfe diese Suchanfrage anhand der lokalen Daten von DataForSEO.",
+          "title": "Saisonale Keyword-Ideen",
+          "audit": "{market} · Audit vom {date}",
+          "investigate_angle": "Prüfe diese Suchanfrage für die Zielgruppe {audience}.",
+          "improve_existing_page": "Überarbeite die vorhandene Seite für die Zielgruppe {audience}.",
+          "window": "Vergleich für {target}: Im {prior} gab es geschätzt {volume, number} lokale Suchanfragen. Der Median der drei früheren Monate lag bei {baseline, number}.",
+          "comparison": "Im Vorjahr: {counts}. Der Median vor der Vorlaufzeit lag bei geschätzt {baseline, number} lokalen Suchanfragen.",
+          "count": "{month}: {volume, number}",
+          "verifyDemand": "Prüfe die lokale Nachfrage, bevor du einen Veröffentlichungstermin festlegst.",
+          "audience_fit_uncertain": "Prüfe, ob diese Zielgruppe die Seite zu diesem Anlass nutzen würde.",
+          "offer_unverified": "Prüfe, ob das Angebot verfügbar ist.",
+          "existing_page_may_cover": "Prüfe, welche Fragen die vorhandene Seite bereits beantwortet."
+        },
         "ideas": {
           "title": "{count, plural, one {# Keyword-Idee} other {# Keyword-Ideen}}",
           "source": {

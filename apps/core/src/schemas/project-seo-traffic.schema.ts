@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { seoUrlSchema } from "./seo-page.schema";
 
 /**
  * Which sessions a Google Analytics read counts: all, organic search, or the GA4
@@ -25,6 +26,17 @@ export type SeoSearchType = z.infer<typeof seoSearchTypeSchema>;
 export function seoSearchTypeHasQueries(type: SeoSearchType = "web"): boolean {
   return type !== "discover" && type !== "googleNews";
 }
+
+export const SEO_SEARCH_QUERY_ROW_LIMIT = 250;
+/** One Search Console row grouped by query and page. Average position is not a live rank. */
+export const seoSearchQueryRowSchema = z.object({
+  query: z.string().min(1).max(2048),
+  pageUrl: seoUrlSchema,
+  clicks: z.number().finite().nonnegative(),
+  impressions: z.number().finite().nonnegative(),
+  ctr: z.number().finite().min(0).max(1),
+  averagePosition: z.number().finite().min(1),
+});
 
 /** At most one landing row per selected page; equal to the page limit of a sync. */
 const SEO_LANDING_PAGE_ROW_LIMIT = 10;

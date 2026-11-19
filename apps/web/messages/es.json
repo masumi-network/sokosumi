@@ -12639,6 +12639,29 @@
           "action": "Objetivo de la página: {action}",
           "studio": "Redactar en Content Studio (próximamente)"
         },
+        "seasonal": {
+          "timing": "DataForSEO Labs estima las búsquedas mensuales en este mercado. Comprueba la demanda de este año cuando se acerque el periodo.",
+          "planFor": "Planifica para {months}",
+          "datedEvent": "{event} · {date}",
+          "evidence": "Fuente de la página y datos de demanda",
+          "above_baseline": "El año pasado, las búsquedas locales superaron la mediana anterior.",
+          "no_observed_rise": "El año pasado, las búsquedas locales no superaron la mediana anterior.",
+          "windowRise": "En esos meses del año pasado hubo más búsquedas locales que en los meses de referencia.",
+          "windowOther": "Para {target}, en {prior} hubo unas {volume, number} búsquedas locales. La mediana de los demás meses observados ({months}) fue de {baseline, number}.",
+          "incompleteComparison": "Estimaciones disponibles de búsquedas locales del año pasado: {counts}. Faltan datos para comparar la demanda.",
+          "historicalIdea": "Investiga esta búsqueda con el historial local de DataForSEO.",
+          "title": "Ideas de palabras clave de temporada",
+          "audit": "{market} · Auditoría del {date}",
+          "investigate_angle": "Investiga esta búsqueda para el público {audience}.",
+          "improve_existing_page": "Actualiza la página existente para el público {audience}.",
+          "window": "Para {target}, consulta {prior}: hubo unas {volume, number} búsquedas locales. La mediana de los tres meses anteriores fue de {baseline, number}.",
+          "comparison": "El año pasado: {counts}. La mediana antes del periodo previo fue de unas {baseline, number} búsquedas locales.",
+          "count": "{month}: {volume, number}",
+          "verifyDemand": "Comprueba la demanda local antes de elegir la fecha de publicación.",
+          "audience_fit_uncertain": "Comprueba si este público usaría la página para esta celebración.",
+          "offer_unverified": "Confirma que la oferta está disponible.",
+          "existing_page_may_cover": "Comprueba qué preguntas ya responde la página."
+        },
         "ideas": {
           "title": "{count, plural, one {# idea de palabra clave} other {# ideas de palabras clave}}",
           "source": {

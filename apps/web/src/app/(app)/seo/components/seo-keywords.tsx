@@ -46,6 +46,7 @@ import {
   normalizeQuery,
   searchConsoleIndex,
 } from "./seo-search-model";
+import { SeoSeasonalIdeas } from "./seo-seasonal-ideas";
 import { seoSerpMarkers } from "./seo-serp-features-model";
 import {
   SEO_COMPACT_ROWS_CLASS,
@@ -719,6 +720,7 @@ export function SeoKeywords({
         </SeoSection>
       </div>
       <div className={seoSectionClass(bothLists || section === "ideas")}>
+        <SeoSeasonalIdeas model={model} />
         <SeoKeywordIdeas model={model} ideas={ideas} />
       </div>
     </div>

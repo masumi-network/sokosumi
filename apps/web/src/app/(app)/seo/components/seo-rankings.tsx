@@ -22,7 +22,7 @@ import type { SeoWorkspaceModel } from "./use-seo-workspace";
 export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const groups = keywordGroups(model.data.keywords);
-  const ideas = groups.ideas.length;
+  const ideas = groups.ideas.length + (model.data.seasonalIdeas?.length ?? 0);
   // With ideas and no checked keyword, the Keywords list is empty: the tab opens on the ideas.
   const [chosen, setSection] = useState<SeoRankingsSection>(() =>
     ideas && !groups.checked.length ? "ideas" : "keywords",
@@ -78,9 +78,7 @@ export function SeoRankings({ model }: { model: SeoWorkspaceModel }) {
           <SeoQueryFilter
             model={model}
             // The list in view decides: 16 keywords need no filter box, 71 ideas do.
-            rows={
-              section === "ideas" ? groups.ideas.length : groups.checked.length
-            }
+            rows={section === "ideas" ? ideas : groups.checked.length}
           />
         </div>
       </div>

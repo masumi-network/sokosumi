@@ -11694,6 +11694,42 @@ export type ProjectSeoWorkspace = {
     indexStatus?: ProjectSeoIndexStatus | null;
     indexTriage?: ProjectSeoIndexTriage | null;
     strategy?: ProjectSeoStrategy | null;
+    seasonalIdeas?: Array<{
+        origin?: 'market_history';
+        keyword: string;
+        audience: string;
+        url: string;
+        asOf: Date;
+        country: string;
+        language: string;
+        pageQuote: string;
+        action: 'improve_existing_page' | 'investigate_angle';
+        limitations: Array<'demand_unverified' | 'timing_uncertain' | 'audience_fit_uncertain' | 'offer_unverified' | 'existing_page_may_cover'>;
+        event: {
+            name: string;
+            scope: string;
+            date: Date;
+        } | null;
+        comparison: {
+            status: 'above_baseline' | 'no_observed_rise' | 'insufficient';
+            leadMonth: {
+                period: string;
+                volume: number | null;
+            } | null;
+            eventMonth: {
+                period: string;
+                volume: number | null;
+            } | null;
+            baselineMedian: number | null;
+        } | null;
+        windows: Array<{
+            targetPeriod: string;
+            historicalPeriod: string;
+            historicalVolume: number;
+            baselineMedian: number;
+            referenceMonths?: Array<string>;
+        }>;
+    }>;
     serpHistory?: Array<ProjectSeoSerpSeries>;
     shareOfVoice?: ProjectSeoShareOfVoice | null;
     timeline: Array<ProjectSeoTimelineItem>;

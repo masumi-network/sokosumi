@@ -4724,6 +4724,15 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
     if (data.strategy) {
         data.strategy = projectSeoStrategySchemaResponseTransformer(data.strategy);
     }
+    if (data.seasonalIdeas) {
+        data.seasonalIdeas = data.seasonalIdeas.map((item: any) => {
+            item.asOf = new Date(item.asOf);
+            if (item.event) {
+                item.event.date = new Date(item.event.date);
+            }
+            return item;
+        });
+    }
     if (data.serpHistory) {
         data.serpHistory = data.serpHistory.map((item: any) => projectSeoSerpSeriesSchemaResponseTransformer(item));
     }

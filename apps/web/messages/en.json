@@ -12639,6 +12639,29 @@
           "action": "Page goal: {action}",
           "studio": "Draft in Content Studio (coming soon)"
         },
+        "seasonal": {
+          "timing": "DataForSEO Labs estimates monthly searches in this market. Check this year’s demand as the period approaches.",
+          "planFor": "Plan for {months}",
+          "datedEvent": "{event} · {date}",
+          "evidence": "Page and demand evidence",
+          "above_baseline": "Local searches exceeded the earlier median last year.",
+          "no_observed_rise": "Local searches did not rise above the earlier median last year.",
+          "windowRise": "These months had more local searches last year than the comparison months.",
+          "windowOther": "For {target}, {prior} had {volume, number} estimated local searches. The median was {baseline, number} across the other observed months ({months}).",
+          "incompleteComparison": "Available local search estimates from last year: {counts}. There is too little data to compare demand.",
+          "historicalIdea": "Research this search using the local DataForSEO history.",
+          "title": "Seasonal keyword ideas",
+          "audit": "{market} · Audit on {date}",
+          "investigate_angle": "Check this search for {audience}.",
+          "improve_existing_page": "Update the existing page for {audience}.",
+          "window": "For {target}, review {prior}: {volume, number} estimated local searches. The earlier three-month median was {baseline, number}.",
+          "comparison": "Last year: {counts}. The median before the lead-up was {baseline, number} estimated local searches.",
+          "count": "{month}: {volume, number}",
+          "verifyDemand": "Check local demand before deciding when to publish.",
+          "audience_fit_uncertain": "Check whether this audience would use the page for the event.",
+          "offer_unverified": "Confirm the offer is available.",
+          "existing_page_may_cover": "Check what the existing page already answers."
+        },
         "ideas": {
           "title": "{count, plural, one {# keyword idea} other {# keyword ideas}}",
           "source": {
