@@ -12408,7 +12408,7 @@
         "failedCheck": "<prefix>Problema:</prefix> {name}",
         "checkedOn": "Comprobado el",
         "diagnostics": "Detalles de la página",
-        "diagnosticsHelp": "Lo que la comprobación midió en tus páginas. Las notas y sugerencias no son errores.",
+        "diagnosticsHelp": "Lo que encontramos en tus páginas.",
         "rank": {
           "absent": "Fuera del top {top}",
           "position": "Posición {position}",
