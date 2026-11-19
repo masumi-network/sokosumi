@@ -18,6 +18,7 @@ import {
   SOCIAL_POST_ATTEMPT_TOOL_SLUGS,
 } from "@/clients/social-post-providers";
 import { publishSocialPostFirstComment } from "@/clients/social-post-providers/first-comment";
+import { ZERNIO_LINKEDIN_CREATE_POST } from "@/clients/social-post-providers/linkedin";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import { ComposioPublishOutcomeUnknownError } from "@/clients/social-post-providers/tools";
 import type {
@@ -28,6 +29,7 @@ import type {
 import { ZERNIO_TIKTOK_CREATE_POST } from "@/clients/social-post-providers/zernio-tiktok";
 import { getZernioAccountId } from "@/clients/zernio.client";
 import {
+  requireOwnTikTokAppAllowed,
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
   socialProviderWorkspaceForProject,
@@ -728,11 +730,27 @@ async function attemptPublish(
         socialProviderWorkspaceForProject(post.project),
       ) !== null,
   );
-  if (disabledProvider) {
-    const message = socialProviderUnavailableMessage(
-      disabledProvider,
-      socialProviderWorkspaceForProject(post.project),
-    );
+  // Our own TikTok app's connections publish only where it is allowed.
+  const ownTikTokApp =
+    provider === "tiktok" &&
+    !!post.socialConnection &&
+    !getZernioAccountId(post.socialConnection.composioConnectedAccountId);
+  let closedMessage = disabledProvider
+    ? socialProviderUnavailableMessage(
+        disabledProvider,
+        socialProviderWorkspaceForProject(post.project),
+      )
+    : null;
+  if (!closedMessage && ownTikTokApp) {
+    try {
+      requireOwnTikTokAppAllowed(post.project);
+    } catch (error) {
+      if (!(error instanceof HTTPException)) throw error;
+      closedMessage = error.message;
+    }
+  }
+  if (closedMessage) {
+    const message = closedMessage;
     await prisma.socialPostPublishAttempt.create({
       data: {
         socialPostId: post.id,
@@ -741,7 +759,7 @@ async function attemptPublish(
         actorUserId: options.actorUserId ?? null,
         finishedAt: now,
         outcome: "failed_permanent",
-        errorKind: `provider_coming_soon:${disabledProvider}`,
+        errorKind: `provider_coming_soon:${disabledProvider ?? provider}`,
         providerOutcome: message,
       },
       select: { id: true },
@@ -846,11 +864,15 @@ async function attemptPublish(
     return settled ? "failed" : "skipped";
   }
 
+  const zernio = Boolean(
+    getZernioAccountId(connection.composioConnectedAccountId),
+  );
   const toolSlug =
-    provider === "tiktok" &&
-    getZernioAccountId(connection.composioConnectedAccountId)
+    zernio && provider === "tiktok"
       ? ZERNIO_TIKTOK_CREATE_POST
-      : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
+      : zernio && provider === "linkedin"
+        ? ZERNIO_LINKEDIN_CREATE_POST
+        : SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider];
   const attempt = await prisma.socialPostPublishAttempt.create({
     data: {
       socialPostId: post.id,
@@ -930,7 +952,11 @@ async function attemptPublish(
     if (projectOutcome) return projectOutcome;
     const studioVideo = await studioVideoOfMedia(post.projectId, media);
     const context: SocialPostPublishContext = {
-      ...(toolSlug === ZERNIO_TIKTOK_CREATE_POST && { postId: post.id }),
+      // Zernio's idempotency key, and the first comment it posts itself.
+      ...(zernio && { postId: post.id }),
+      ...(zernio && post.firstComment
+        ? { firstComment: post.firstComment }
+        : {}),
       provider,
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: connectionExecutorUserId({
@@ -1069,7 +1095,12 @@ async function attemptPublish(
     attemptCount,
   });
   const firstComment = post.firstComment?.trim() ?? "";
-  if (settled && firstComment && published.externalId) {
+  if (
+    settled &&
+    firstComment &&
+    published.externalId &&
+    !published.firstCommentIncluded
+  ) {
     try {
       await publishSocialPostFirstComment({
         provider,

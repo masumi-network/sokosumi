@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   CMO_CHANNELS,
+  isCmoOwnerConfirmedChannel,
   isCmoTalkingFormat,
   socialPostMediaKindForMime,
 } from "@sokosumi/utils";
@@ -1037,7 +1038,10 @@ async function scheduleWhenComplete(
   );
 }
 
-/** Schedules a written post at its planned time on a connected network. */
+/**
+ * Schedules a written post at its planned time on a connected network, or
+ * hands it to the owner where the network wants each post confirmed.
+ */
 async function schedule(
   context: MediaContext,
   scope: {
@@ -1061,13 +1065,17 @@ async function schedule(
     post.text.trim() !== "" &&
     post.text !== planning?.brief &&
     post.text !== planning?.title;
-  if (
-    !written ||
-    !context.connected.has(post.provider) ||
-    !post.scheduledAt ||
-    post.scheduledAt.getTime() <= Date.now()
-  )
+  if (!written || !context.connected.has(post.provider)) return;
+  // TikTok asks the creator to confirm each video, so a made post waits for
+  // the owner's tap instead of a schedule.
+  if (isCmoOwnerConfirmedChannel(post.provider)) {
+    await prisma.socialPost.updateMany({
+      where: { id: post.id, status: "DRAFT", revision: post.revision },
+      data: { status: "NEEDS_APPROVAL", revision: { increment: 1 } },
+    });
     return;
+  }
+  if (!post.scheduledAt || post.scheduledAt.getTime() <= Date.now()) return;
   await scheduleSocialPost({
     ...scope,
     revision: post.revision,

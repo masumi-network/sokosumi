@@ -870,7 +870,7 @@ describe("getConnectedSocialIdentity", () => {
     {
       provider: "facebook",
       slug: "FACEBOOK_LIST_MANAGED_PAGES",
-      args: { fields: "id,name,picture", limit: 2 },
+      args: { fields: "id,name,picture", limit: 25 },
       payload: {
         data: [
           {
@@ -1009,13 +1009,6 @@ describe("getConnectedSocialIdentity", () => {
       provider: "facebook",
       payload: { data: [{ id: "", name: "Alice" }] },
     },
-    {
-      provider: "facebook",
-      payload: {
-        data: [{ id: "page_one", name: "One" }],
-        paging: { next: "https://backend.composio.dev/next" },
-      },
-    },
     { provider: "youtube", payload: { items: [] } },
     {
       provider: "youtube",
@@ -1043,11 +1036,71 @@ describe("getConnectedSocialIdentity", () => {
               name: "ComposioIdentityError",
               kind: "social_facebook_page_required",
             }
-          : { name: "ComposioApiError" },
+          : provider === "youtube" &&
+              (payload as { items: unknown[] }).items.length !== 1
+            ? {
+                name: "ComposioIdentityError",
+                kind: "social_youtube_channel_required",
+              }
+            : { name: "ComposioApiError" },
       );
       expect(fetchMock).toHaveBeenCalledTimes(3);
     },
   );
+
+  describe("a Facebook login that manages several Pages", () => {
+    const pages = {
+      data: [
+        { id: "page_one", name: "One" },
+        { id: "page_two", name: "Two" },
+      ],
+    };
+    const lookUp = async (pick?: {
+      externalAccountId?: string;
+      offerChoice?: boolean;
+    }) => {
+      stubIdentity({ data: { data: pages } });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      return getConnectedSocialIdentity({
+        provider: "facebook",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+        pick,
+      });
+    };
+
+    it("offers the Pages to pick from", async () => {
+      await expect(lookUp({ offerChoice: true })).rejects.toMatchObject({
+        name: "SocialAccountChoiceRequiredError",
+        choices: [
+          {
+            externalAccountId: "page_one",
+            name: "One",
+            handle: null,
+            kind: "page",
+          },
+          {
+            externalAccountId: "page_two",
+            name: "Two",
+            handle: null,
+            kind: "page",
+          },
+        ],
+      });
+    });
+
+    it("connects the picked Page", async () => {
+      await expect(
+        lookUp({ externalAccountId: "page_two", offerChoice: true }),
+      ).resolves.toMatchObject({ id: "page_two", handle: "Two" });
+    });
+
+    it("refuses a pick the login does not manage", async () => {
+      await expect(
+        lookUp({ externalAccountId: "page_three", offerChoice: true }),
+      ).rejects.toMatchObject({ kind: "social_facebook_page_required" });
+    });
+  });
 
   it.each([
     null,

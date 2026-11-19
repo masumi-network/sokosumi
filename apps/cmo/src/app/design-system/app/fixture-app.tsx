@@ -23,6 +23,7 @@ const actions: CmoAppActions = {
     total: 12,
   }),
   sendMessage: async () => {},
+  changeChannel: async () => ({ url: null, error: null }),
   skipSubscription: async () => ({ error: null }),
   loadPieceText: async (id) =>
     overview.strategy?.calendar.find((entry) => entry.id === id)?.draft ?? null,

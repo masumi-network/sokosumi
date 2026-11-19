@@ -11,8 +11,10 @@ import { getZernioAccountId } from "@/clients/zernio.client";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import {
   isProjectSocialProvider,
+  linkedInPagesEnabled,
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
+  requireOwnTikTokAppAllowed,
   requireSocialProviderEnabled,
   socialProviderProjectSelect,
 } from "@/config/social-providers";
@@ -28,10 +30,11 @@ import {
   deleteSocialAccountAvatarIfOwned,
   snapshotSocialAccountAvatar,
 } from "@/lib/social-account-avatar";
+import { connectZernioLinkedInAccount } from "./zernio-linkedin-connection.service";
 import {
-  createZernioTikTokIntent,
-  deleteZernioTikTokProfile,
-  getZernioTikTokAuthUrl,
+  createZernioIntent,
+  deleteZernioProfile,
+  getZernioAuthUrl,
   getZernioTikTokIdentity,
   zernioProofDigest,
 } from "./zernio-tiktok-connection.service";
@@ -59,6 +62,11 @@ export type InitiateProjectSocialConnectionInput = {
    * callback; a first-party app passes its own page, checked by the route.
    */
   callbackUrl?: string;
+  /**
+   * The caller lets the owner pick the account a sign-in connects. LinkedIn
+   * then signs in through Zernio, which reaches the person's Pages.
+   */
+  accountChoice?: boolean;
 } & (
   | {
       provider: ProjectSocialProvider;
@@ -77,6 +85,16 @@ export interface FinalizeProjectSocialConnectionInput {
   userId: string;
   connectionId: string;
   callbackProof?: string;
+  /** Zernio's handle on a LinkedIn sign-in that waits for its account. */
+  pendingDataToken?: string;
+  connectToken?: string;
+  /** The Page or profile the owner picked among the sign-in's accounts. */
+  externalAccountId?: string;
+  /**
+   * Throw `SocialAccountChoiceRequiredError` when the sign-in reaches several
+   * accounts and none is picked, instead of refusing or taking the profile.
+   */
+  offerChoice?: boolean;
 }
 
 export interface ListProjectSocialConnectionsInput {
@@ -265,7 +283,7 @@ function isLiveIntent(
       isProjectSocialProvider(intent.provider) &&
       isConnectionAction(intent.action) &&
       (getZernioAccountId(input.connectionId)
-        ? intent.provider === "tiktok" &&
+        ? (intent.provider === "tiktok" || intent.provider === "linkedin") &&
           input.callbackProof &&
           zernioProofDigest(input.callbackProof) === intent.authConfigId
         : intent.callbackRedeemedAt !== null) &&
@@ -347,7 +365,7 @@ export async function initiateProjectSocialConnection(
     throw conflict("A new connection cannot target an existing social account");
   }
   let provider: ProjectSocialProvider;
-  let legacyTikTokReconnect = false;
+  let composioReconnect = false;
   if (input.action === "connect") {
     provider = input.provider;
   } else {
@@ -357,13 +375,27 @@ export async function initiateProjectSocialConnection(
       throw notFound("Unsupported social connection provider");
     }
     provider = target.provider;
-    legacyTikTokReconnect =
+    // A reconnect stays with the provider that holds the account.
+    composioReconnect =
       input.action === "reconnect" &&
       !getZernioAccountId(target.composioConnectedAccountId);
   }
 
   requireSocialProviderEnabled(provider, project);
-  const useZernio = provider === "tiktok" && !legacyTikTokReconnect;
+  if (provider === "tiktok" && composioReconnect) {
+    requireOwnTikTokAppAllowed(project);
+  }
+  const zernioPlatform = composioReconnect
+    ? null
+    : provider === "tiktok"
+      ? ("tiktok" as const)
+      : provider === "linkedin" &&
+          input.accountChoice &&
+          linkedInPagesEnabled(project) &&
+          getEnv().ZERNIO_API_KEY
+        ? ("linkedin" as const)
+        : null;
+  const useZernio = zernioPlatform !== null;
   const composioConfigId = useZernio
     ? null
     : requireProjectSocialAuthConfigId(provider);
@@ -414,7 +446,10 @@ export async function initiateProjectSocialConnection(
         })),
         authConfigId: composioConfigId,
       }
-    : await createZernioTikTokIntent(input.callbackUrl ?? getWebAppBaseUrl());
+    : await createZernioIntent(
+        input.callbackUrl ?? getWebAppBaseUrl(),
+        zernioPlatform === "linkedin" ? "LinkedIn" : "TikTok",
+      );
   try {
     await serializableTransaction(async (tx) => {
       requireSocialProviderEnabled(
@@ -441,8 +476,10 @@ export async function initiateProjectSocialConnection(
   }
 
   if ("profileId" in connection) {
+    if (!zernioPlatform) throw new Error("Missing Zernio platform");
     // Persist the profile before requesting consent so abandoned or failed handoffs can be reclaimed.
-    const redirectUrl = await getZernioTikTokAuthUrl(
+    const redirectUrl = await getZernioAuthUrl(
+      zernioPlatform,
       connection.profileId,
       connection.callback,
     );
@@ -456,6 +493,18 @@ export async function initiateProjectSocialConnection(
       connectionId: connection.connectionId,
     }),
   };
+}
+
+/** A reconnect signs in to the account the row already holds: nothing to pick. */
+async function reconnectedAccountId(
+  intent: ProjectSocialConnectionIntentClaim,
+): Promise<string | undefined> {
+  if (intent.action !== "reconnect" || !intent.socialConnectionId) return;
+  const target = await prisma.projectSocialConnection.findUnique({
+    where: { id: intent.socialConnectionId },
+    select: { externalAccountId: true },
+  });
+  return target?.externalAccountId;
 }
 
 async function getClaimedComposioIdentity(
@@ -481,8 +530,35 @@ async function getClaimedComposioIdentity(
     provider: intent.provider,
     connectedAccountId: input.connectionId,
     executorUserId: projectExecutorUserId(input.projectId),
+    ...(intent.provider === "facebook" &&
+      (input.externalAccountId || input.offerChoice) && {
+        pick: {
+          externalAccountId:
+            input.externalAccountId ?? (await reconnectedAccountId(intent)),
+          offerChoice: input.offerChoice,
+        },
+      }),
   });
   return { identity, connectedAccountId: input.connectionId };
+}
+
+async function getZernioIdentity(
+  input: FinalizeProjectSocialConnectionInput,
+  intent: ProjectSocialConnectionIntentClaim,
+  profileId: string,
+) {
+  if (intent.provider !== "linkedin") return getZernioTikTokIdentity(profileId);
+  if (!input.pendingDataToken || !input.connectToken) {
+    throw notFound("Unknown or expired connection");
+  }
+  return connectZernioLinkedInAccount({
+    profileId,
+    pendingDataToken: input.pendingDataToken,
+    connectToken: input.connectToken,
+    externalAccountId:
+      input.externalAccountId ?? (await reconnectedAccountId(intent)),
+    offerChoice: input.offerChoice,
+  });
 }
 
 export async function finalizeProjectSocialConnection(
@@ -501,7 +577,7 @@ export async function finalizeProjectSocialConnection(
   const connectorUserId = projectConnectorUserId(input.userId);
   const profileId = getZernioAccountId(input.connectionId);
   const { identity, connectedAccountId } = profileId
-    ? await getZernioTikTokIdentity(profileId)
+    ? await getZernioIdentity(input, intent, profileId)
     : await getClaimedComposioIdentity(input, intent);
   const avatarUrl = identity.avatarUrl
     ? await snapshotSocialAccountAvatar({
@@ -731,8 +807,8 @@ async function revokeRetiredProjectSocialConnection(
   try {
     const accountId = getZernioAccountId(input.connectedAccountId);
     if (accountId) {
-      if (!input.zernioProfileId) throw new Error("Missing TikTok profile");
-      await deleteZernioTikTokProfile(input.zernioProfileId, accountId);
+      if (!input.zernioProfileId) throw new Error("Missing Zernio profile");
+      await deleteZernioProfile(input.zernioProfileId, accountId);
     } else {
       await revokeComposioConnectedAccount({
         connectedAccountId: input.connectedAccountId,
@@ -963,7 +1039,7 @@ async function deleteProviderIntent(
 ) {
   const profileId = getZernioAccountId(connectionId);
   if (profileId) {
-    await deleteZernioTikTokProfile(profileId, undefined, signal);
+    await deleteZernioProfile(profileId, undefined, signal);
   } else {
     await deleteProjectSocialConnectionIntent({
       connectedAccountId: connectionId,
@@ -1053,7 +1129,9 @@ export async function backfillLinkedInAccountProfile(connection: {
   if (
     connection.provider !== "linkedin" ||
     connection.status !== "active" ||
-    connection.avatarUrl
+    connection.avatarUrl ||
+    // Zernio's account carries its own picture; Composio cannot read it.
+    getZernioAccountId(connection.composioConnectedAccountId)
   ) {
     return false;
   }

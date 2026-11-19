@@ -5,6 +5,7 @@ const {
   jobFindMany,
   jobCount,
   postFindUnique,
+  postUpdateMany,
   fileUpdateMany,
   createImageJob,
   createVideoJob,
@@ -17,6 +18,7 @@ const {
   jobFindMany: vi.fn(),
   jobCount: vi.fn(),
   postFindUnique: vi.fn(),
+  postUpdateMany: vi.fn(),
   fileUpdateMany: vi.fn(),
   createImageJob: vi.fn(),
   createVideoJob: vi.fn(),
@@ -31,7 +33,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     project: { findUnique: async () => null },
     projectImageJob: { findMany: jobFindMany, count: jobCount },
-    socialPost: { findUnique: postFindUnique },
+    socialPost: { findUnique: postFindUnique, updateMany: postUpdateMany },
     marketingStrategyFile: { updateMany: fileUpdateMany },
   },
 }));
@@ -588,6 +590,27 @@ describe("advanceCmoMedia", () => {
       }),
     );
     expect(createImageJob).not.toHaveBeenCalled();
+  });
+
+  it("hands a finished TikTok video to the owner instead of scheduling it", async () => {
+    postFindUnique.mockResolvedValue({
+      id: "post-1",
+      provider: "tiktok",
+      text: "Three things nobody tells you about minting.",
+      revision: 4,
+      status: "DRAFT",
+      scheduledAt: new Date(Date.now() + 86_400_000),
+      planning: { title: "Minting myths" },
+    });
+    await advanceCmoMedia(
+      { ...context, connected: new Set([...context.connected, "tiktok"]) },
+      [piece({ channel: "tiktok", format: "video", media: ["file-1"] })],
+    );
+    expect(scheduleSocialPost).not.toHaveBeenCalled();
+    expect(postUpdateMany).toHaveBeenCalledWith({
+      where: { id: "post-1", status: "DRAFT", revision: 4 },
+      data: { status: "NEEDS_APPROVAL", revision: { increment: 1 } },
+    });
   });
 
   it("puts slides on in order and hands back a carousel whose cover failed twice", async () => {

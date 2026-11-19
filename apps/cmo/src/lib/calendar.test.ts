@@ -55,6 +55,7 @@ describe("a written post on a network that is not connected", () => {
           handle: null,
           displayName: null,
           status: "active",
+          personalProfile: false,
         },
         {
           id: "2",
@@ -62,6 +63,7 @@ describe("a written post on a network that is not connected", () => {
           handle: null,
           displayName: null,
           status: "EXPIRED",
+          personalProfile: false,
         },
       ]),
     ).toEqual(["x"]);
