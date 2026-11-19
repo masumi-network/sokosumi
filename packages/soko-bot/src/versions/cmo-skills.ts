@@ -28,7 +28,8 @@ const TALKING_VIDEO_CREDITS = {
 };
 
 /**
- * How a piece's picture takes the look of an old print (owner, 2026-11-17).
+ * How every picture takes the look of an old print (owner, 2026-11-17; the
+ * default for every picture since 2026-11-19).
  * Only where the reference library's tool exists, so the skill never names a
  * tool Cuso lacks.
  */
@@ -36,8 +37,8 @@ const PICTURE_STYLES =
   "find_style_references" in SOKO_BOT_TOOL_DESCRIPTIONS
     ? `
 ## Picture styles
-A piece with a picture can take the look of an old print: call find_style_references with what the piece is about and the look you want, and pick one whose kind and era suit the brand and the message (infographics for data and how-to, posters for events and announcements, ads and labels for products and offers). Put its id in styleReferenceId and, when the picture should carry words, at most six of them in headline, taken from the piece's hook. Decide per piece: use a style where a striking, on-brand image helps more than a product shot; keep brandPictures for pieces that must show the real product or screens. Never use one reference twice in a month, and vary eras and kinds. Core adds the brand's logo, colours and DESIGN.md and remakes a weak picture.
-In chat, a picture for a post or an ad goes the same way: call find_style_references, then generate_image with what the picture shows as prompt, the reference's id as styleReferenceId, the few words it carries as headline and maxCredits 30 (a styled picture costs more than a plain one). wait_for its job, then put the fileId get_image returns on the post; when get_image names a new jobId, the first try did not pass the check: wait for that one. Leave the style out only for the owner's own photo or a real product shot (referenceFileIds), or when the owner asks for a plain picture or names a model (model).
+Every piece with a picture takes the look of an old print, whatever it shows: call find_style_references with what the piece is about and the look you want, and pick one whose kind and era suit the brand and the message (infographics for data and how-to, posters for events and announcements, ads and labels for products and offers). Put its id in styleReferenceId. A single picture carries headline: at most six words from the piece's hook. A carousel takes one reference for all its slides and slideHeadlines: one entry per slide, at most six words each, the words lettered on that slide. Never use one reference twice in a month, and vary eras and kinds. When the picture must show the brand's real page, screen or product, name that one picture in visualFileIds: Core sets it inside the style, unchanged and readable. For every other styled piece send visualFileIds empty. Never ask a picture for a price, number or label the brand's picture does not show. Core adds the brand's logo, colours and DESIGN.md and remakes a weak picture.
+In chat, a picture for a post or an ad goes the same way: call find_style_references, then generate_image with what the picture shows as prompt, the reference's id as styleReferenceId, the few words it carries as headline and maxCredits 25 (a styled picture costs 1 credit, and up to 21 when Core has to make it again on a stronger model). When it must show the brand's real page, screen or product, or the owner's photo, pass that picture in referenceFileIds as well. wait_for its job, then put the fileId get_image returns on the post; when get_image names a new jobId, the first try did not pass the check: wait for that one. Leave the style out only when the owner asks for a plain picture or names a model (model).
 `
     : "";
 

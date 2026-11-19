@@ -8,6 +8,10 @@ import { cmoReportMessageWhere } from "@/helpers/cmo-report-card";
 import { databaseNow } from "@/lib/db/database-now";
 import prisma from "@/lib/db/prisma";
 import { EVAL_CONNECTED_ACCOUNT_PREFIX } from "@/lib/evals/eval-guard";
+import {
+  CMO_BRAND_MEDIA_FOLDER,
+  captureCmoHomepage,
+} from "@/services/cmo-brand-media.service";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
 import { startCmoResearch } from "@/services/cmo-hiring.service";
 import { parseCmoMonthReview } from "@/services/cmo-month-review.service";
@@ -19,6 +23,7 @@ import {
   isMarketingFilePiece,
   newestMarketingStrategy,
   parseMarketingPlan,
+  parseSocialPostPlanning,
 } from "@/services/marketing-strategy.service";
 import { readMarketingPieceText } from "@/services/marketing-strategy-files.service";
 import { referenceLibraryAvailable } from "@/services/reference-library.service";
@@ -173,6 +178,13 @@ async function pointCusoAt(
   });
   await prisma.marketingStrategy.deleteMany({ where: { projectId } });
   await prisma.brandBrain.deleteMany({ where: { projectId } });
+  // The brand before this one left its page screenshots as brand pictures.
+  await prisma.fileProjectLink.deleteMany({
+    where: {
+      projectId,
+      resource: { sourceId: { contains: `/${CMO_BRAND_MEDIA_FOLDER}/` } },
+    },
+  });
   // Cuso reads his last reports: an earlier case's "done" is not this one's.
   await prisma.chatRoomMessage.deleteMany({
     where: cmoReportMessageWhere(lane.cusoBotId),
@@ -618,6 +630,7 @@ export async function startCmoCase(
     const frozen = parseMarketingPlan(evalCase.plan) as MarketingStrategyPlan;
     if (!frozen) throw new Error("The frozen plan does not parse");
     const cuso = await pointCusoAt(lane, evalCase.brand, evalCase.brandBrain);
+    if (evalCase.pictures) await captureCmoHomepage(cuso);
     // Core starts at most four production runs a day per Cuso; a lane makes
     // several months a day, so earlier months' runs count as yesterday's.
     // createdAt and the cap's window are PostgreSQL time.
@@ -726,8 +739,105 @@ async function monthProductionTurns(botId: string, prefix: string) {
   return [...turns.values()];
 }
 
+/**
+ * How the month's pictures were made, from Core's own jobs: each in a
+ * reference library style, no reference on two pieces and, for the pictures
+ * month, the homepage's screenshot sent with a style and every slide with
+ * its own words. No check where the library is not set up.
+ */
+async function monthPictureChecks(
+  lane: EvalLaneRecord,
+  strategyId: string,
+  pictures: boolean,
+): Promise<ScenarioCheck[]> {
+  if (!referenceLibraryAvailable()) return [];
+  const rows = await prisma.projectImageJob.findMany({
+    where: {
+      projectId: lane.cusoProjectId,
+      idempotencyKey: { startsWith: `cmo-media:${strategyId}:` },
+    },
+    select: {
+      idempotencyKey: true,
+      referenceLibraryIds: true,
+      referenceFileIds: true,
+    },
+  });
+  // A video's still is animated, not posted: it takes no style.
+  const jobs = rows.filter(
+    (job) => job.idempotencyKey.split(":")[4] === "image",
+  );
+  if (jobs.length === 0 && !pictures) return [];
+  const plain = jobs.filter((job) => job.referenceLibraryIds.length === 0);
+  const pieceOf = new Map<string, Set<string>>();
+  for (const job of jobs) {
+    const [reference] = job.referenceLibraryIds;
+    const piece = job.idempotencyKey.split(":")[2];
+    if (!reference || !piece) continue;
+    pieceOf.set(reference, (pieceOf.get(reference) ?? new Set()).add(piece));
+  }
+  const shared = [...pieceOf.values()].filter((pieces) => pieces.size > 1);
+  const checks: ScenarioCheck[] = [
+    {
+      label: "Every picture is in a reference library style",
+      pass: jobs.length > 0 && plain.length === 0,
+      actual: `${jobs.length - plain.length} of ${jobs.length} picture jobs styled`,
+    },
+    {
+      label: "No reference on two pieces",
+      pass: shared.length === 0,
+      actual: `${pieceOf.size} references, ${shared.length} shared`,
+    },
+  ];
+  if (!pictures) return checks;
+  const withPage = jobs.filter(
+    (job) =>
+      job.referenceLibraryIds.length > 0 && job.referenceFileIds.length > 0,
+  );
+  const posts = await prisma.socialPost.findMany({
+    where: { marketingStrategyId: strategyId },
+    select: { planning: true },
+  });
+  const carousels = posts.flatMap((post) => {
+    const planning = parseSocialPostPlanning(post.planning);
+    return planning?.slides?.length ? [planning] : [];
+  });
+  return [
+    ...checks,
+    {
+      label: "The homepage's screenshot sits inside a styled picture",
+      pass: withPage.length > 0,
+      actual: `${withPage.length} styled job${withPage.length === 1 ? "" : "s"} with a brand picture`,
+    },
+    {
+      // Every piece given the screenshot would paste it into each picture.
+      label: "Only a piece that shows the page gets the screenshot",
+      pass:
+        new Set(withPage.map((job) => job.idempotencyKey.split(":")[2])).size <=
+        1,
+      actual: `${new Set(withPage.map((job) => job.idempotencyKey.split(":")[2])).size} pieces with a brand picture`,
+    },
+    {
+      label: "Each carousel slide has its own words",
+      pass:
+        carousels.length > 0 &&
+        carousels.every(
+          (planning) =>
+            (planning.slideHeadlines?.length ?? 0) >=
+            (planning.slides?.length ?? 0),
+        ),
+      actual: carousels
+        .map(
+          (planning) =>
+            `${planning.id}: ${planning.slideHeadlines?.length ?? 0} of ${planning.slides?.length ?? 0}`,
+        )
+        .join(", "),
+    },
+  ];
+}
+
 /** The month's pieces once Core says they are made and Jev is done reading. */
 async function pollMonth(
+  evalCase: Extract<CmoEvalCase, { kind: "cmo-month" }>,
   lane: EvalLaneRecord,
   state: unknown,
   context: CaseContext,
@@ -857,24 +967,32 @@ async function pollMonth(
         ? `round ${review.round}, ${reads.length} read`
         : "no review",
     },
-    {
-      label: `Jev flags at most ${Math.round(MAX_FLAGGED_SHARE * 100)}% of pieces`,
-      pass:
-        reads.length > 0 && flagged.length / reads.length <= MAX_FLAGGED_SHARE,
-      actual: flagged.length
-        ? flagged
-            .map(
-              ([id, read]) =>
-                `${id}: ${[
-                  ...read.missed,
-                  ...read.problems,
-                  ...(read.soundsLikeBrand ? [] : ["brand voice"]),
-                ].join(", ")}`,
-            )
-            .join(" · ")
-            .slice(0, 600)
-        : "none flagged",
-    },
+    // The pictures month is scored on its pictures: its three posts are too
+    // few for a share of flagged ones to mean anything.
+    ...(evalCase.pictures
+      ? []
+      : [
+          {
+            label: `Jev flags at most ${Math.round(MAX_FLAGGED_SHARE * 100)}% of pieces`,
+            pass:
+              reads.length > 0 &&
+              flagged.length / reads.length <= MAX_FLAGGED_SHARE,
+            actual: flagged.length
+              ? flagged
+                  .map(
+                    ([id, read]) =>
+                      `${id}: ${[
+                        ...read.missed,
+                        ...read.problems,
+                        ...(read.soundsLikeBrand ? [] : ["brand voice"]),
+                      ].join(", ")}`,
+                  )
+                  .join(" · ")
+                  .slice(0, 600)
+              : "none flagged",
+          },
+        ]),
+    ...(await monthPictureChecks(lane, strategyId, evalCase.pictures ?? false)),
   ];
   await cancelMonthPosts(strategyId);
   return {
@@ -901,7 +1019,7 @@ export async function pollCmoCase(
   context: CaseContext,
 ): Promise<CasePoll> {
   if (evalCase.kind === "cmo-month")
-    return pollMonth(lane, result.state, context);
+    return pollMonth(evalCase, lane, result.state, context);
   if (!result.turnId)
     return {
       kind: "done",
