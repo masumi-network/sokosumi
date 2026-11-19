@@ -667,8 +667,10 @@ body:has(.ob) .site-header {
   list-style: none;
 }
 
+/* Row even when working: the chat's `.working` stacks its children. */
 .ob-checklist li {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 10px;
   color: var(--muted);
