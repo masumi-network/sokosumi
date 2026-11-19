@@ -112,6 +112,8 @@ Inputs use 16px text so iOS does not zoom. Sizes are rem in code.
 
 **Number.** A count to read (Results, SEO) is a small muted label over the value step, with no box: an outlined box reads as a field to type in.
 
+**Calendar weeks.** The month opens on this week: its head carries an Iris "This week" label (flat, a 2px line), a post going out today says "Today" on an Iris fill where its day stands, and a post without a picture shows its opening words on its network's fill (`.net-<channel>`), so a week reads by network at a glance.
+
 **Post (Calendar sheet).** A social post as it will look on its network: a hairline card with the business's mark, name, handle and time, the network's mark at the right, the words, then the picture or video (Instagram: picture first). Flat. Under it, where the post stands (`.state`) on the left and "Edit text" (a small secondary button) on the right; editing swaps the words for an input and Save / Cancel.
 
 **Tile.** A row in one outlined gray group, hairlines between: label (small 500, muted), value (16px 500, one line), one line of detail (small, muted), chevron right. Tap opens the row's sheet, which carries the source.
