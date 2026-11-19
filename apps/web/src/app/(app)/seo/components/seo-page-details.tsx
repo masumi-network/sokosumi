@@ -225,7 +225,8 @@ function PageDetail({
       ) : null}
       {toggle || ask || showPage ? (
         // One row keeps the controls apart and the page link off the buttons.
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        // The top padding sets the row off the text above it.
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 pt-2">
           {toggle ? (
             <button
               type="button"
