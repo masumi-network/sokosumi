@@ -6,7 +6,7 @@ import type {
 } from "@sokosumi/core-client";
 import { Download, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import {
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { cn } from "@/lib/utils";
 
 import { imageRepeatRoute, resolveModel } from "./catalog";
@@ -151,16 +152,18 @@ export function StudioLightbox({
   }>();
 
   const viewed = useRef(new Set<string>());
-  useEffect(() => {
-    const timer = setTimeout(() => {
+  const viewResetKey = useMemo(() => [assets, onViewed], [assets, onViewed]);
+  useTimeout(
+    () => {
       for (const asset of assets) {
         if (viewed.current.has(asset.id)) continue;
         viewed.current.add(asset.id);
         onViewed?.(asset);
       }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [assets, onViewed]);
+    },
+    assets.length > 0 ? 500 : null,
+    viewResetKey,
+  );
 
   if (assets.length === 0) return null;
 
