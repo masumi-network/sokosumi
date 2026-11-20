@@ -170,7 +170,8 @@
       "othersCategory": "Others",
       "ActionButtons": {
         "back": "Back",
-        "close": "Close"
+        "close": "Close",
+        "startTask": "Start a task"
       }
     },
     "UserAvatar": {
@@ -1868,7 +1869,9 @@
         "searchResultsLimited": "Showing the latest {shown, number} of {total, number} archived tasks that match “{query}”.",
         "noProject": "No project",
         "archivedOn": "Archived {date}",
-        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
+        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it.",
+        "loading": "Loading archived tasks…",
+        "loadingTask": "Loading archived task…"
       },
       "NotFound": {
         "title": "This task isn’t here",
@@ -9233,7 +9236,9 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need."
+        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need.",
+        "coworkersFound": "{count, plural, =0 {No coworkers match your search} one {# coworker matches your search} other {# coworkers match your search}}",
+        "noCoworkers": "No coworkers to show right now."
       },
       "Jobs": {
         "switchedWorkspace": "Switched to {account} account",
@@ -9261,14 +9266,20 @@
       "allAgentsTitle": "Browse all agents",
       "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do.",
       "FilterSection": {
-        "searchPlaceholder": "Search agents",
         "reset": "Reset",
         "kind": {
           "all": "All",
           "cardano": "Cardano",
           "x402": "x402"
+        },
+        "scope": {
+          "label": "Show",
+          "all": "All",
+          "coworkers": "Coworkers",
+          "agents": "Agents"
         }
-      }
+      },
+      "agentsFound": "{count, plural, =0 {No agents match your search} one {# agent matches your search} other {# agents match your search}}"
     },
     "DesignMd": {
       "adHocDialogTitle": "Use a different brand",

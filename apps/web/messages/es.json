@@ -170,7 +170,8 @@
       "othersCategory": "Otros",
       "ActionButtons": {
         "back": "Atrás",
-        "close": "Cerrar"
+        "close": "Cerrar",
+        "startTask": "Iniciar una tarea"
       }
     },
     "UserAvatar": {
@@ -1868,7 +1869,9 @@
         "searchResultsLimited": "Se muestran las {shown, number} más recientes de {total, number} tareas archivadas que coinciden con «{query}».",
         "noProject": "Sin proyecto",
         "archivedOn": "Archivada el {date}",
-        "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
+        "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla.",
+        "loading": "Cargando tareas archivadas…",
+        "loadingTask": "Cargando tarea archivada…"
       },
       "NotFound": {
         "title": "Esta tarea no está aquí",
@@ -9197,7 +9200,9 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "Aún no hay tareas listas para ejecutar. Inicia una tarea nueva y describe lo que necesitas."
+        "coworkerNoOffers": "Aún no hay tareas listas para ejecutar. Inicia una tarea nueva y describe lo que necesitas.",
+        "coworkersFound": "{count, plural, =0 {Ningún coworker coincide con tu búsqueda} one {# coworker coincide con tu búsqueda} other {# coworkers coinciden con tu búsqueda}}",
+        "noCoworkers": "No hay coworkers disponibles en este momento."
       },
       "Jobs": {
         "switchedWorkspace": "Cambiado a la cuenta de {account}",
@@ -9225,14 +9230,20 @@
       "allAgentsTitle": "Explorar todos los agents",
       "allAgentsSubtitle": "Todos los agents de Sokosumi, agrupados por lo que hacen.",
       "FilterSection": {
-        "searchPlaceholder": "Buscar agents",
         "reset": "Restablecer",
         "kind": {
           "all": "Todos",
           "cardano": "Cardano",
           "x402": "x402"
+        },
+        "scope": {
+          "label": "Mostrar",
+          "all": "Todo",
+          "coworkers": "Coworkers",
+          "agents": "Agents"
         }
-      }
+      },
+      "agentsFound": "{count, plural, =0 {Ningún agent coincide con tu búsqueda} one {# agent coincide con tu búsqueda} other {# agents coinciden con tu búsqueda}}"
     },
     "EmailVerificationNotice": {
       "title": "Verifica tu dirección de correo",
@@ -9528,7 +9539,7 @@
     "Channels": {
       "MobileNav": {
         "tasks": "Tareas",
-        "agents": "Agentes",
+        "agents": "Agents",
         "chats": "Chats",
         "projects": "Proyectos",
         "chatsUnread": "Chats no leídos",

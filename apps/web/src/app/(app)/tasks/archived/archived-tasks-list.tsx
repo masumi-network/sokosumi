@@ -114,7 +114,8 @@ export function ArchivedTasksList({
             : t("searchResults", { count: matches, query })
           : null}
       </p>
-      <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
+      {/* Fades in alone: the loading shell already drew the heading and search. */}
+      <div className={cn(HOLDER_CLASS, "content-in flex flex-col gap-2")}>
         {rows.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
             <Archive className="text-muted-foreground size-6" aria-hidden />

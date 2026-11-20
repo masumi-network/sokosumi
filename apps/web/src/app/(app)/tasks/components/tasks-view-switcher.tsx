@@ -72,9 +72,11 @@ function isTasksView(value: string): value is TasksView {
 
 /**
  * All, My tasks, Needs me and Mentions as one single-choice control, because
- * the views do not combine. Needs me and Mentions keep their names on wide
- * screens and drop to an icon below lg, so the toolbar stays one row beside
- * an open sidebar. My tasks drops to its icon on a phone for the same row.
+ * the views do not combine. Needs me and Mentions keep their names on a wide
+ * toolbar and drop to an icon when the toolbar is narrower than 56rem (the
+ * `page-toolbar` container, so an open sidebar counts), which leaves the
+ * filter chips beside them room for a whole label. My tasks drops to its
+ * icon on a phone for the same row.
  */
 export function TasksViewSwitcher({
   value,
@@ -114,7 +116,7 @@ export function TasksViewSwitcher({
         title={t("needsMeHint")}
       >
         <Hand aria-hidden />
-        <span className="max-lg:sr-only">{t("needsMe")}</span>
+        <span className="@max-4xl/page-toolbar:sr-only">{t("needsMe")}</span>
       </ToggleGroupItem>
       <ToggleGroupItem
         value="mentions"
@@ -123,7 +125,7 @@ export function TasksViewSwitcher({
         title={t("mentionsHint")}
       >
         <AtSign aria-hidden />
-        <span className="max-lg:sr-only">{t("mentions")}</span>
+        <span className="@max-4xl/page-toolbar:sr-only">{t("mentions")}</span>
       </ToggleGroupItem>
     </ToggleGroup>
   );
