@@ -48,6 +48,8 @@ export async function findStyleReferences(
     kinds?: ReferenceKind[];
     purpose?: ReferencePurpose;
     limit?: number;
+    /** References already taken, left out of the results. */
+    exclude?: readonly string[];
   },
   embed: EmbedTexts = embedTexts,
 ): Promise<StyleReference[]> {
@@ -56,6 +58,7 @@ export async function findStyleReferences(
   const vector = vectorLiteral(embedding);
   const kinds = input.kinds?.length ? input.kinds : null;
   const limit = Math.min(input.limit ?? 5, MAX_RESULTS);
+  const exclude = [...(input.exclude ?? [])];
   return prisma.$queryRaw<StyleReference[]>`
     SELECT "id"::text AS id, "kind", "era", "description", "technique",
       "layout", "lettering", "palette", "suits"
@@ -64,9 +67,45 @@ export async function findStyleReferences(
       AND "usable" >= ${MIN_USABLE}
       AND (${kinds}::text[] IS NULL OR "kind" = ANY(${kinds}::text[]))
       AND (${input.purpose ?? null}::text IS NULL OR ${input.purpose ?? null} = ANY("suits"))
+      AND NOT ("id"::text = ANY(${exclude}::text[]))
     ORDER BY "embedding" <=> ${vector}::vector
     LIMIT ${limit}
   `;
+}
+
+/**
+ * The references a Project's approved month already gives its pieces. Each
+ * piece takes its own, and the search kept offering taken ones: on NMKR's
+ * 171-piece month (2026-11-20) 58 of 381 results were taken, and 8 saves
+ * of up to 12 pieces were refused for it.
+ */
+export async function monthStyleReferenceIds(
+  projectId: string,
+): Promise<string[]> {
+  const approved = await prisma.marketingStrategy.findFirst({
+    where: { projectId, approvedAt: { not: null } },
+    select: { id: true, plan: true },
+  });
+  if (!approved) return [];
+  const posts = await prisma.socialPost.findMany({
+    where: { marketingStrategyId: approved.id, status: { not: "CANCELED" } },
+    select: { planning: true },
+  });
+  const calendar =
+    (approved.plan as { calendar?: unknown } | null)?.calendar ?? [];
+  const entries = [
+    ...posts.map((post) => post.planning),
+    ...(Array.isArray(calendar) ? calendar : []),
+  ];
+  return [
+    ...new Set(
+      entries.flatMap((entry) => {
+        const id = (entry as { styleReferenceId?: unknown } | null)
+          ?.styleReferenceId;
+        return typeof id === "string" ? [id] : [];
+      }),
+    ),
+  ];
 }
 
 /** The image a reference names, as bytes for the image model. */
