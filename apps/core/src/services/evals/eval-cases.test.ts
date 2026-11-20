@@ -7,6 +7,8 @@ function toolsCaseChecks(): Set<string> {
   const tools = new Set<string>();
   for (const evalCase of EVAL_CASES) {
     if (evalCase.kind === "cmo-research") tools.add("save_brand_brain");
+    // A month on cmo-v6 checks that Core wrote it (write_month_pieces).
+    if (evalCase.kind === "cmo-month") tools.add("write_month_pieces");
     if (evalCase.kind === "cmo-strategy") tools.add("save_strategy");
     if (evalCase.kind !== "scenario") continue;
     const { expect: wanted } = evalCase.scenario;

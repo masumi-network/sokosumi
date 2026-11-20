@@ -58,6 +58,7 @@ const CAPABILITY_LABELS: Record<string, string> = {
   read_social_profile: "Reading a social profile",
   read_writing_skill: "Reading a writing skill",
   find_style_references: "Looking for a picture style",
+  write_month_pieces: "Writing the month",
   handle_social_comment: "Replying to a comment",
   read_seo: "Reading the SEO numbers",
   research_keywords: "Researching keywords",

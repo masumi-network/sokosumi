@@ -1,4 +1,5 @@
 import {
+  CMO_BATCHED_PRODUCTION_SKILL,
   CMO_PRODUCTION_TURN_PREFIX,
   getSokoBotVersion,
   type MarketingStrategyPlan,
@@ -675,7 +676,9 @@ export async function startCmoCase(
       },
       data: { createdAt: new Date(now - DAY_MS - 60 * 60_000) },
     });
-    const plan = monthPlanFromTomorrow(frozen, new Date());
+    const plan = evalCase.timed
+      ? changeRequestPlan(new Date())
+      : monthPlanFromTomorrow(frozen, new Date());
     await connectPlanChannels(lane, plan);
     const strategy = await prisma.marketingStrategy.create({
       data: {
@@ -761,6 +764,7 @@ async function cancelMonthPosts(strategyId: string) {
 async function monthProductionTurns(botId: string, prefix: string) {
   const select = {
     id: true,
+    clientTurnId: true,
     status: true,
     errorKind: true,
     errorDetail: true,
@@ -884,6 +888,91 @@ async function monthPictureChecks(
   ];
 }
 
+/**
+ * Most input tokens production may read per piece in the timed month. A
+ * regression guard, not a target: on 28 pieces Cuso's own steps and the
+ * rewrite run dominate (cmo-v5 147,000, cmo-v6 156,000 to 181,000); on
+ * NMKR's 171-post month cmo-v5 read 380,000 a piece and cmo-v6 32,000 to
+ * 64,000.
+ */
+const TIMED_TOKENS_PER_PIECE = 200_000;
+/** How soon after approval every word of the timed month is written. */
+const TIMED_WORDS_MS = 15 * 60_000;
+
+/**
+ * What making the month took, from Core's own records: when the last words
+ * were saved and the media settled, and what production's turns read, wrote
+ * and cost. Core's month writer counts as the turn that called it.
+ */
+export async function monthProductionMetrics(input: {
+  turnIds: readonly string[];
+  /** The first pass's runs: words are timed on them, not on the rewrite. */
+  madeBy: readonly string[];
+  projectId: string;
+  strategyId: string;
+  startedAt: Date;
+}) {
+  const turnIds = [...input.turnIds];
+  const [turns, writes, jobs, coreWrote] = await Promise.all([
+    prisma.sokoBotTurn.findMany({
+      where: { id: { in: turnIds } },
+      select: { usage: true, costUsdMicros: true, overheadCostUsdMicros: true },
+    }),
+    prisma.sokoBotToolCall.aggregate({
+      where: {
+        turnId: { in: [...input.madeBy] },
+        capability: "update_social_post",
+        status: "COMPLETED",
+      },
+      _max: { committedAt: true },
+    }),
+    prisma.projectImageJob.aggregate({
+      where: {
+        projectId: input.projectId,
+        idempotencyKey: { startsWith: `cmo-media:${input.strategyId}:` },
+      },
+      _min: { createdAt: true },
+      _max: { settledAt: true },
+    }),
+    prisma.sokoBotToolCall.count({
+      where: {
+        turnId: { in: turnIds },
+        capability: "write_month_pieces",
+        status: "COMPLETED",
+      },
+    }),
+  ]);
+  const tokens = (
+    turn: (typeof turns)[number],
+    key: "inputTokens" | "outputTokens",
+  ) => Number((turn.usage as Record<string, unknown> | null)?.[key] ?? 0) || 0;
+  const minutes = (from?: Date | null, to?: Date | null) =>
+    from && to
+      ? Math.round((to.getTime() - from.getTime()) / 6_000) / 10
+      : null;
+  return {
+    wordsMinutes: minutes(input.startedAt, writes._max.committedAt),
+    mediaMinutes: minutes(jobs._min.createdAt, jobs._max.settledAt),
+    inputTokens: turns.reduce(
+      (sum, turn) => sum + tokens(turn, "inputTokens"),
+      0,
+    ),
+    outputTokens: turns.reduce(
+      (sum, turn) => sum + tokens(turn, "outputTokens"),
+      0,
+    ),
+    costUsd:
+      turns.reduce(
+        (sum, turn) =>
+          sum +
+          Number(turn.costUsdMicros) +
+          Number(turn.overheadCostUsdMicros ?? 0),
+        0,
+      ) / 1e6,
+    coreWrote,
+  };
+}
+
 /** The month's pieces once Core says they are made and Jev is done reading. */
 async function pollMonth(
   evalCase: Extract<CmoEvalCase, { kind: "cmo-month" }>,
@@ -993,6 +1082,30 @@ async function pollMonth(
     const planning = post.planning as { brief?: unknown; title?: unknown };
     return post.text !== planning?.brief && post.text !== planning?.title;
   });
+  const productionTurns = approval.approvedAt
+    ? await monthProductionTurns(
+        lane.cusoBotId,
+        `${CMO_PRODUCTION_TURN_PREFIX}${lane.cusoBotId}:${approval.approvedAt.getTime()}:`,
+      )
+    : [];
+  const metrics = await monthProductionMetrics({
+    turnIds: productionTurns.map((turn) => turn.id),
+    madeBy: productionTurns
+      .filter((turn) => !turn.clientTurnId?.includes(":review:"))
+      .map((turn) => turn.id),
+    projectId: lane.cusoProjectId,
+    strategyId,
+    // Set by Core like the receipts it is compared with; the case's own
+    // start is PostgreSQL time, an hour off on a local database.
+    startedAt: approval.approvedAt ?? context.startedAt,
+  });
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: lane.cusoBotId },
+    select: { versionId: true },
+  });
+  const coreWrites = getSokoBotVersion(bot?.versionId).skills.includes(
+    CMO_BATCHED_PRODUCTION_SKILL,
+  );
   const reads = Object.entries(review?.writing ?? {});
   const flagged = reads.filter(
     ([, read]) =>
@@ -1045,6 +1158,33 @@ async function pollMonth(
         ]),
     ...(await monthPictureChecks(lane, strategyId, evalCase.pictures ?? false)),
     ...(evalCase.newsletter ? [newsletterIssueCheck(plan, files)] : []),
+    ...(coreWrites
+      ? [
+          {
+            label: "Core wrote the month (write_month_pieces)",
+            pass: metrics.coreWrote > 0,
+            actual: `${metrics.coreWrote} write_month_pieces call${metrics.coreWrote === 1 ? "" : "s"}`,
+          },
+        ]
+      : []),
+    ...(evalCase.timed
+      ? [
+          {
+            label: `Every word written within ${TIMED_WORDS_MS / 60_000} minutes of approval`,
+            pass:
+              metrics.wordsMinutes !== null &&
+              metrics.wordsMinutes * 60_000 <= TIMED_WORDS_MS,
+            actual: `${metrics.wordsMinutes ?? "?"} minutes`,
+          },
+          {
+            label: `At most ${TIMED_TOKENS_PER_PIECE.toLocaleString("en-US")} input tokens a piece`,
+            pass:
+              pieces > 0 &&
+              metrics.inputTokens / pieces <= TIMED_TOKENS_PER_PIECE,
+            actual: `${Math.round(metrics.inputTokens / Math.max(1, pieces)).toLocaleString("en-US")} a piece (${metrics.inputTokens.toLocaleString("en-US")} in, ${metrics.outputTokens.toLocaleString("en-US")} out, $${metrics.costUsd.toFixed(2)}, media ${metrics.mediaMinutes ?? "?"} minutes)`,
+          },
+        ]
+      : []),
   ];
   await cancelMonthPosts(strategyId);
   return {
@@ -1058,6 +1198,7 @@ async function pollMonth(
             `${post.provider}${Array.isArray(post.media) && post.media.length ? " (with media)" : ""}: ${post.text}`,
         ),
         files: files.filter((file) => file !== null),
+        production: { pieces, ...metrics },
       },
       turnIds: turns.map((turn) => turn.id),
     },

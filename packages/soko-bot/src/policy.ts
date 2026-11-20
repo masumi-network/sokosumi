@@ -159,6 +159,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "read_social_profile",
   "read_writing_skill",
   "find_style_references",
+  "write_month_pieces",
   "list_social_comments",
   "handle_social_comment",
   "read_seo",
@@ -216,6 +217,8 @@ export const SOKO_BOT_CMO_CAPABILITIES = [
   "read_writing_skill",
   // Old ads, posters and labels a picture can take its look from.
   "find_style_references",
+  // Core writes the month's pieces at once (cmo-v6's production run).
+  "write_month_pieces",
   // The daily reply round: comments on the Project's own posts.
   "list_social_comments",
   "handle_social_comment",
