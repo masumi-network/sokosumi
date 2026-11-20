@@ -7,15 +7,14 @@ import {
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useRef } from "react";
+import { authorizeAbly } from "@/lib/ably/authorize.client";
+import { organizationIdsFromAblyCapability } from "@/lib/ably/organization-ids-from-ably-capability";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
-import { authorizeAbly } from "./authorize.client";
-
-import { organizationIdsFromAblyCapability } from "./organization-ids-from-ably-capability";
-import { safeDetachChannel } from "./safe-detach-channel";
+import { safeDetachChannel } from "@/lib/ably/safe-detach-channel";
 import {
   ORG_PRESENCE_PUBLISH_MIN_INTERVAL_MS,
   shouldPublishOrgPresenceUpdate,
-} from "./should-publish-org-presence";
+} from "@/lib/ably/should-publish-org-presence";
 
 const ACTIVITY_EVENTS = [
   "pointerdown",

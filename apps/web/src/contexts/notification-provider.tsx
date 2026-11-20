@@ -23,12 +23,12 @@ import { NotificationToastListener } from "@/app/components/notification-toast-l
 import { NotificationUrlTargetOpener } from "@/app/components/notification-url-target-opener";
 import { NeedsYouTasksRealtimeRefresh } from "@/components/notifications/notification-waiting-tasks";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useNotificationFrontPresence } from "@/hooks/effects/use-notification-front-presence";
+import { useNotificationRealtime } from "@/hooks/effects/use-notification-realtime";
+import { usePushRecovery } from "@/hooks/effects/use-push-recovery";
 import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import type { NotificationEventData } from "@/lib/ably/schema";
-import { useNotificationFrontPresence } from "@/lib/ably/use-notification-front-presence";
-import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
-import { usePushRecovery } from "@/lib/ably/use-push-recovery";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";

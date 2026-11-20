@@ -14,7 +14,7 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
     lazyAblyProviderMock(props),
 }));
 
-vi.mock("@/lib/ably/use-org-presence-publisher", () => ({
+vi.mock("@/hooks/effects/use-org-presence-publisher", () => ({
   useOrgPresencePublisher: vi.fn(),
 }));
 
@@ -44,7 +44,7 @@ import {
   OrgPresenceProvider,
   useMemberPresence,
 } from "@/contexts/org-presence-provider";
-import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
+import { useOrgPresencePublisher } from "@/hooks/effects/use-org-presence-publisher";
 
 function PresenceProbe({
   userId,
