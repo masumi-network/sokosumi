@@ -554,7 +554,6 @@ export function CmoApp({
                     setFocusEntry(id);
                     go("calendar");
                   }}
-                  ask={() => compose("")}
                 />
               ) : view === "calendar" ? (
                 <CalendarPage

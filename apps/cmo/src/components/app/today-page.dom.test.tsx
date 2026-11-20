@@ -45,11 +45,15 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-it("opens on Today: what needs the owner, the week with today marked, and the chat a tap away", async () => {
+it("opens on Today: the greeting, the month, what needs the owner, then the week", async () => {
   await act(async () => root.render(<FixtureApp view="today" />));
   expect(container.querySelector("h1")?.textContent).toBe(
     "Good morning, Francis",
   );
+  const sections = [...container.querySelectorAll(".today h2")].map(
+    (head) => head.textContent,
+  );
+  expect(sections).toEqual(["This month", "Needs you", "This week"]);
   const needs = [...container.querySelectorAll(".needs-row b")].map(
     (row) => row.textContent,
   );
@@ -73,12 +77,45 @@ it("opens on Today: what needs the owner, the week with today marked, and the ch
   const today = container.querySelector(".week-today");
   expect(today?.textContent).toContain("9");
   expect(today?.textContent).toContain("Today");
+  // The chat has its own tab; Today asks nothing of its own.
+  expect(container.textContent).not.toContain("Ask Cuso anything");
+});
 
-  await act(async () => {
-    container.querySelector<HTMLButtonElement>(".today-ask")?.click();
-  });
-  expect(container.querySelector(".nav a.active")?.textContent).toBe("Cuso");
-  expect(document.activeElement?.tagName).toBe("TEXTAREA");
+it("keeps a full week short: per network counts, three posts a day, the rest on tap", async () => {
+  await act(async () => root.render(<FixtureApp view="today" state="busy" />));
+  const wednesday = [...container.querySelectorAll(".week-day")][2];
+  if (!wednesday) throw new Error("no Wednesday");
+  // Six posts on Wednesday 11: X twice, the other four networks once.
+  expect(
+    [...wednesday.querySelectorAll(".week-net")].map((chip) =>
+      chip.getAttribute("aria-label"),
+    ),
+  ).toEqual([
+    "X: 2",
+    "LinkedIn: 1",
+    "Instagram: 1",
+    "Facebook: 1",
+    "YouTube: 1",
+  ]);
+  expect(wednesday.querySelectorAll(".week-post")).toHaveLength(3);
+  const more = wednesday.querySelector<HTMLButtonElement>(".week-more");
+  expect(more?.textContent).toBe("+3 more");
+  // Every day shows at most three.
+  for (const day of container.querySelectorAll(".week-day")) {
+    expect(day.querySelectorAll(".week-post").length).toBeLessThanOrEqual(3);
+  }
+
+  await act(async () => more?.click());
+  expect(wednesday.querySelectorAll(".week-post")).toHaveLength(6);
+  expect(wednesday.querySelector(".week-more")).toBeNull();
+  expect(
+    wednesday.querySelector(".week-date")?.getAttribute("aria-expanded"),
+  ).toBe("true");
+  // The phone shows the day picked, today until then.
+  expect(wednesday.hasAttribute("data-shown")).toBe(true);
+  expect(
+    container.querySelector(".week-today")?.hasAttribute("data-shown"),
+  ).toBe(false);
 });
 
 it("opens a post of the week on the Calendar in one tap", async () => {

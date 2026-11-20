@@ -462,6 +462,33 @@ const media = {
   turnId: null,
 };
 
+/** A full month: five or six posts a day on five networks (150 in all). */
+export const busyOverview: CmoOverview = (() => {
+  const networks = ["x", "linkedin", "instagram", "facebook", "youtube", "x"];
+  const titles = [
+    "Why we built it",
+    "Inside the test stand",
+    "What a slipped launch costs",
+    "Meet the crew",
+    "How we plan a launch window",
+    "Three, two, one",
+  ];
+  const calendar = Array.from({ length: 30 }, (_, index) => index + 1).flatMap(
+    (day) =>
+      Array.from({ length: 4 + (day % 3) }, (_, slot) => {
+        const channel = networks[(day + slot) % networks.length] ?? "x";
+        return {
+          ...entry(day, channel, titles[(day + slot) % titles.length] ?? ""),
+          id: `busy-${day}-${slot}`,
+          time: `${String(8 + slot * 2).padStart(2, "0")}:00`,
+          status: day < 19 ? ("published" as const) : ("scheduled" as const),
+        };
+      }),
+  );
+  const strategy = { ...plan, calendar };
+  return { ...overview, strategy, approvedStrategy: strategy };
+})();
+
 /**
  * The chat page's own state: a long German message, to check how the thread
  * wraps, and Cuso at work, so the typing row shows above the composer.
