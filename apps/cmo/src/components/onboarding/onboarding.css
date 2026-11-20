@@ -2318,8 +2318,14 @@ body:has(.ob) .site-header {
     right: 58%;
   }
 
+  /*
+   * Its right edge keeps the screen's 16px gutter, whatever the width, and
+   * it sits above Cuso's face rather than across it.
+   */
   .ob-tilt-b {
-    left: 58%;
+    top: 20%;
+    left: auto;
+    right: calc(16px - (100vw - 200px) / 2);
   }
 
   .ob-tilt-c {

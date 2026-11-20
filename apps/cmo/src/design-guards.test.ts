@@ -655,3 +655,15 @@ describe("Cuso on every page", () => {
     );
   });
 });
+
+describe("hire screen on a phone", () => {
+  it("keeps the label right of Cuso inside the screen's 16px gutter", () => {
+    const css = FILES.find(
+      (file) => file.rel === "components/onboarding/onboarding.css",
+    )?.text;
+    const phone = css?.slice(css.indexOf("The labels would hang off a phone"));
+    const rule = phone?.match(/\.ob-tilt-b\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toContain("left: auto");
+    expect(rule).toMatch(/right:\s*calc\(16px - \(100vw - 200px\) \/ 2\)/);
+  });
+});
