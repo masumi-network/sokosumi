@@ -46,7 +46,7 @@ Answer each field from what you see:
 
 /** Added when the picture was made from the brand's own pictures too. */
 const BRAND_PICTURES = `
-Images after the second are the brand's own pictures (its site, a screen, its product), which the picture was told to show inside the style. Words, numbers and the brand's own logo that stand in them may appear in the picture as part of that page, screen or product: they do not count against headlineCorrect, are not extraMarks and are not garbled when they read as in the brand's picture. Every other rule stays.`;
+Images after the second are the brand's own pictures (its site, a screen, its product), which the picture was told to show inside the style. Words, numbers and the brand's own logo that stand in them may appear in the picture as part of that page, screen or product: they do not count against headlineCorrect, are not extraMarks and are not garbled when they read as in the brand's picture. The brand's picture may sit in a plain browser frame (a light bar with three dots) that Core placed: the frame is not an alteration, and a page shown smaller inside it, or only its top part (its first screen), is unchanged. Every other rule stays.`;
 
 async function jpeg(bytes: Uint8Array): Promise<Buffer> {
   return sharp(bytes)

@@ -20,6 +20,7 @@ const {
   turnFindMany,
   turnFindFirst,
   botFindUniqueOrThrow,
+  botFindUnique,
   startTurn,
   isCmoSubscribed,
   listCmoChannels,
@@ -50,6 +51,7 @@ const {
   turnFindMany: vi.fn(),
   turnFindFirst: vi.fn(),
   botFindUniqueOrThrow: vi.fn(),
+  botFindUnique: vi.fn(),
   startTurn: vi.fn(),
   isCmoSubscribed: vi.fn(),
   listCmoChannels: vi.fn(),
@@ -69,7 +71,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: turnFindFirst,
       count: turnCount,
     },
-    sokoBot: { findUniqueOrThrow: botFindUniqueOrThrow },
+    sokoBot: {
+      findUniqueOrThrow: botFindUniqueOrThrow,
+      findUnique: botFindUnique,
+    },
     polarSubscription: { findFirst: subscriptionFindFirst },
   },
 }));
@@ -640,6 +645,7 @@ describe("advanceCmoProduction", () => {
     listCmoChannels.mockResolvedValue([]);
     turnFindFirst.mockResolvedValue({ id: "turn-0" });
     botFindUniqueOrThrow.mockResolvedValue({ sharedRoomId: "room-1" });
+    botFindUnique.mockResolvedValue({ versionId: "cmo-v5" });
     cmoRunnerUserId.mockResolvedValue("user-1");
     startTurn.mockResolvedValue({ turnId: "run-1", status: "QUEUED" });
     listMediaJobs.mockResolvedValue([]);
@@ -1028,6 +1034,27 @@ describe("advanceCmoProduction", () => {
     const status = await advanceCmoProduction(cuso([post({})], earlier), NOW);
     expect(status.state).toBe("running");
     expect(startTurn.mock.calls[0]?.[0].clientTurnId).toBe(`${RUN}:1:0`);
+  });
+
+  it("has Core write the social pieces on cmo-v6 and lists only Cuso's own", async () => {
+    botFindUnique.mockResolvedValue({ versionId: "cmo-v6" });
+    await advanceCmoProduction(
+      cuso([post({ id: "post-a" }), post({ id: "post-b" })]),
+      NOW,
+    );
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).toContain(
+      "Core writes 2 social pieces of the month for you: call write_month_pieces first, and again until left is 0.",
+    );
+    expect(message).not.toContain("- post-a");
+    expect(message).not.toContain("Pieces (");
+  });
+
+  it("keeps cmo-v5's brief: every piece listed, no month writer", async () => {
+    await advanceCmoProduction(cuso([post({ id: "post-a" })]), NOW);
+    const message = startTurn.mock.calls[0]?.[0].message as string;
+    expect(message).not.toContain("write_month_pieces");
+    expect(message).toContain("- post-a");
   });
 
   it("waits for a run still working on the version approved before", async () => {

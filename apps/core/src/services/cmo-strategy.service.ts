@@ -47,8 +47,11 @@ import {
 } from "@/services/cmo-cuso.service";
 import { cmoPictureStyleProblem } from "@/services/cmo-media-maker.service";
 import {
+  CMO_MAX_VIDEOS_PER_MONTH,
   cmoCalendarWeeks,
+  cmoMonthShortfall,
   cmoPlanRulesBrokenSince,
+  cmoPromiseGaps,
   cmoStrategyRules,
   cmoWithOwnerPace,
 } from "@/services/cmo-plan-review.service";
@@ -450,8 +453,10 @@ function finishRound(clientTurnId: string | null): number {
 /**
  * A weekly Cuso saves his month a week a call, and once ended his turn with
  * week one saved although the review asked for the rest: NMKR's month came
- * back with 20 posts. A draft still short of four weeks when a plan turn ends
- * gets a short turn that saves the missing weeks.
+ * back with 20 posts. Another ended with four weeks at 16 pieces a week
+ * against the pace's 43. A draft still short of its weeks, pace or cadences
+ * (or the video its funnel promises) when a plan turn ends gets a short
+ * turn that adds what is missing.
  */
 async function startCmoMonthFinish(
   input: { userId: string | null; clientTurnId: string | null },
@@ -466,17 +471,16 @@ async function startCmoMonthFinish(
     }),
     newestMarketingStrategy(cuso.projectId),
   ]);
-  if (
-    !bot?.versionId ||
-    !cmoStrategyRules(getSokoBotVersion(bot.versionId).skills).weekly
-  )
-    return null;
+  if (!bot?.versionId) return null;
+  const rules = cmoStrategyRules(getSokoBotVersion(bot.versionId).skills);
+  if (!rules.weekly) return null;
   const plan = version?.approvedAt ? null : parseMarketingPlan(version?.plan);
   if (!plan) return null;
-  const weeks = cmoCalendarWeeks(plan.calendar);
-  if (weeks >= 4) return null;
+  const gaps = cmoPromiseGaps(plan, rules);
+  if (gaps.length === 0) return null;
   const userId = input.userId ?? (await cmoRunnerUserId(cuso));
   if (!userId) return null;
+  const weeks = cmoCalendarWeeks(plan.calendar);
   const last = plan.calendar
     .filter((entry) => entry.status !== "skipped")
     .map((entry) => entry.date)
@@ -484,14 +488,25 @@ async function startCmoMonthFinish(
     .at(-1);
   return startCmoTurn(cuso, userId, {
     clientTurnId: `${STRATEGY_TURN_PREFIX}${cuso.sokoBotId}:${FINISH_KIND}:${Date.now()}:${round + 1}`,
-    message: [
-      `Finish ${cuso.businessName}'s marketing strategy: its calendar covers ${weeks} of four weeks${last ? `, up to ${last}` : ""}.`,
-      weeks === 0
-        ? "Save week one with save_strategy part calendar, then each later week with part patch (only that week's entries, new ids)."
-        : "Save each missing week with save_strategy part patch, one week a call (only that week's entries, new ids), until the calendar covers four weeks from its first day.",
-      "Every week holds the pace's perWeek pieces at each channel's cadence and role, in the mix and pillar shares. Change nothing already saved. When a save is refused or names problems, fix them and save again.",
-      "Then tell the owner in one sentence that the month is complete. The strategy card is your report: do not call report_update.",
-    ].join("\n"),
+    message: (weeks < 4
+      ? [
+          `Finish ${cuso.businessName}'s marketing strategy: its calendar covers ${weeks} of four weeks${last ? `, up to ${last}` : ""}.`,
+          weeks === 0
+            ? "Save week one with save_strategy part calendar, then each later week with part patch (only that week's entries, new ids)."
+            : "Save each missing week with save_strategy part patch, one week a call (only that week's entries, new ids), until the calendar covers four weeks from its first day.",
+          "Every week holds the pace's perWeek pieces at each channel's cadence and role, in the mix and pillar shares. Change nothing already saved.",
+        ]
+      : [
+          `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
+          ...gaps.map((gap) => `- ${gap}`),
+          `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan). Change nothing else already saved.`,
+        ]
+    )
+      .concat([
+        "When a save is refused or names problems, fix them and save again.",
+        "Then tell the owner in one sentence that the month is complete. The strategy card is your report: do not call report_update.",
+      ])
+      .join("\n"),
     route: CMO_STRATEGY_ROUTE,
   });
 }
@@ -1509,18 +1524,47 @@ export function cmoStrategyUnfitted(plan: unknown): boolean {
   );
 }
 
-/** The owner approves what they read: never a strategy that still shows an answer they said no to. */
+/**
+ * A weekly Cuso's month that does not hold what it promises (`cmoPromiseGaps`),
+ * in the owner's numbers; null when it is whole or not a weekly Cuso's.
+ */
+export function cmoStrategyShortfall(
+  versionId: string | null,
+  plan: unknown,
+): { planned: number; promised: number } | null {
+  if (!versionId) return null;
+  const rules = cmoStrategyRules(getSokoBotVersion(versionId).skills);
+  const parsed = rules.weekly ? parseMarketingPlan(plan) : null;
+  return parsed ? cmoMonthShortfall(parsed, rules) : null;
+}
+
+/**
+ * The owner approves what they read: never a strategy that still shows an
+ * answer they said no to, nor a month that does not hold what it promises.
+ */
 export async function requireCmoStrategyFitted(
-  cuso: Pick<Cuso, "projectId">,
+  cuso: Pick<Cuso, "projectId" | "sokoBotId">,
   strategyId: string,
 ): Promise<void> {
-  const version = await prisma.marketingStrategy.findFirst({
-    where: { id: strategyId, projectId: cuso.projectId },
-    select: { plan: true, approvedAt: true },
-  });
-  if (version && !version.approvedAt && cmoStrategyUnfitted(version.plan)) {
+  const [version, bot] = await Promise.all([
+    prisma.marketingStrategy.findFirst({
+      where: { id: strategyId, projectId: cuso.projectId },
+      select: { plan: true, approvedAt: true },
+    }),
+    prisma.sokoBot.findUnique({
+      where: { id: cuso.sokoBotId },
+      select: { versionId: true },
+    }),
+  ]);
+  if (!version || version.approvedAt) return;
+  if (cmoStrategyUnfitted(version.plan)) {
     throw new CmoConflictError(
       "You answered no to one of the checks. Update the strategy first, then approve it.",
+    );
+  }
+  if (cmoStrategyShortfall(bot?.versionId ?? null, version.plan)) {
+    throw new CmoConflictError(
+      "This strategy promises more than its calendar holds. Ask Cuso to write it again, then approve it.",
     );
   }
 }

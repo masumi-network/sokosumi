@@ -90,6 +90,15 @@ function renderShell(readOnly = false) {
   return { ...result, scroller, wrapper, slot };
 }
 
+// The app frame owns the page's one `main`. A second one inside it gave
+// screen readers two "main" landmarks on every chat.
+describe("RoomShellLayout landmarks", () => {
+  it("adds no main landmark of its own", () => {
+    const { container } = renderShell();
+    expect(container.querySelector("main")).toBeNull();
+  });
+});
+
 describe("RoomShellLayout composer overlay", () => {
   it("overlays a click-through composer slot and reserves its measured height before paint", () => {
     const { scroller, wrapper, slot } = renderShell();

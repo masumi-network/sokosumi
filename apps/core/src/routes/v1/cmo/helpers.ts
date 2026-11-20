@@ -51,6 +51,7 @@ function mapOverview(overview: CmoOverview) {
     brandBrainConfirmedAt: cuso.brandBrainConfirmedAt,
     brandMedia: overview.brandMedia,
     strategy: overview.strategy,
+    strategyShort: overview.strategyShort,
     approvedStrategy: overview.approvedStrategy,
     media: overview.media,
     postRevisions: overview.postRevisions,

@@ -738,6 +738,20 @@ export const cmoOverviewSchema = z
     brandBrainConfirmedAt: z.union([dateTimeSchema, z.null()]),
     brandMedia: z.union([cmoBrandMediaSchema, z.null()]),
     strategy: z.union([cmoPlanSchema, z.null()]),
+    strategyShort: z
+      .union([
+        z.object({
+          planned: z.number().int().describe("Pieces the calendar plans."),
+          promised: z
+            .number()
+            .int()
+            .describe("About how many its pace and cadences promise."),
+        }),
+        z.null(),
+      ])
+      .describe(
+        "Set while the newest draft does not hold what it promises: fewer pieces than its own pace and cadences, or no video where its funnel or a video network promises one (after Cuso's finish turns). Approving it is refused (409); the owner asks for a new strategy instead. `promised` equals `planned` when only a video is missing.",
+      ),
     approvedStrategy: z
       .union([cmoPlanSchema, z.null()])
       .describe(

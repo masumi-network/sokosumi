@@ -7,11 +7,12 @@
 3. Asks for a change in words if they want one. There is no pace to pick: the month is written at the most a plan makes, and the plan they buy next decides how much of it is made.
 4. Answers "Do you want ads?" with Yes or No. No is the start; after Yes they set a monthly budget, which is extra to their plan, and Cuso plans the ads around it. A budget set while Cuso is still writing or changing the strategy waits, and he plans it as soon as he is done.
 5. Says no to an assumption chip if it's wrong; Cuso updates the strategy.
-6. Approves.
+6. Approves. If Cuso could not fill the month to what the strategy itself promises, in volume or in the videos its funnel names (he gets two short turns to add what is missing), there is no Approve button: a plain line says how many posts it plans against how many it promises, and "Write it again" asks for a new strategy.
 
 **They expect**
 
 - A month they could picture: how many posts, where, about what, how many videos.
+- The month they approve holds as many posts as its own pace and channel cadences say, and every video its funnel promises.
 - Changes reflected without starting over.
 - To understand what they will have to do themselves.
 - No ads, no ad budget and no question about ads unless they said yes.

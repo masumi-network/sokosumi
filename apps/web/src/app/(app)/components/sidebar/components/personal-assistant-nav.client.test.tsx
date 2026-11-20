@@ -1,17 +1,19 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { cloneElement, isValidElement, type ReactNode } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { pathnameRef, relativeTime } = vi.hoisted(() => ({
+const { pathnameRef, relativeTime, dateTime } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
   relativeTime: vi.fn(() => "2h ago"),
+  dateTime: vi.fn(() => "10:00 AM"),
 }));
 
 // Values show up in the text, so a test can tell "Active {time}" got its time.
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
     values ? `${key}(${Object.values(values).join(",")})` : key,
-  useFormatter: () => ({ relativeTime }),
+  useFormatter: () => ({ relativeTime, dateTime }),
   useNow: () => NOW,
 }));
 
@@ -72,6 +74,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
 import PersonalAssistantNav, {
+  LastActive,
   type SidebarSokoBotLive,
 } from "./personal-assistant-nav.client";
 
@@ -255,6 +258,21 @@ describe("PersonalAssistantNav live Soko Bot row", () => {
       now: NOW,
       style: "narrow",
     });
+  });
+
+  // The server's clock and the browser's differ by the time the page takes to
+  // load, so "Active 27s ago" from the server hydrated as "Active 18s ago"
+  // (React #418). The server sends the clock time alone, short enough for
+  // the row; the browser counts.
+  it("sends the time of day from the server, never a clock-relative one", () => {
+    const lastActivityAt = new Date("2026-10-27T10:00:00Z");
+
+    const html = renderToString(<LastActive at={lastActivityAt} />);
+
+    expect(html).toContain("activeAgo(10:00 AM)");
+    expect(html).not.toContain("2h ago");
+    expect(relativeTime).not.toHaveBeenCalled();
+    expect(dateTime).toHaveBeenCalledWith(lastActivityAt, "time");
   });
 
   it("opens your own bot", () => {

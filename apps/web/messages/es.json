@@ -9632,6 +9632,9 @@
         "noChannelTitle": "Ningún chat seleccionado",
         "noChannelDescription": "Elige un canal o un mensaje directo en la barra lateral."
       },
+      "CoworkerFirstPrompts": {
+        "title": "Prueba a pedirle a {name}"
+      },
       "Dialog": {
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",

@@ -3,9 +3,8 @@
  * the relationship they add up to, editing facts, and the website lookup
  * (with a fake page and model).
  */
-import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { promisify } from "node:util";
+import { requeueEmptyCompanyLookups } from "@sokosumi/database/helpers";
 import {
   afterAll,
   beforeAll,
@@ -51,7 +50,6 @@ const alice = randomUUID();
 const organizationId = randomUUID();
 const workspaceId = randomUUID();
 const actor: ContactActor = { workspaceId, userId: alice, sokoBotId: null };
-const execFileAsync = promisify(execFile);
 
 function create(
   input: Partial<Parameters<typeof upsertContact>[2]>,
@@ -508,31 +506,14 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
         orderBy: { key: "asc" },
       });
     const original = await read();
-    const run = async (...args: string[]) =>
-      (
-        await execFileAsync(
-          "pnpm",
-          [
-            "--filter",
-            "@sokosumi/database",
-            "data-migration:requeue-empty-company-lookups",
-            "--",
-            `--before=${cutoff.toISOString()}`,
-            ...args,
-          ],
-          {
-            cwd: new URL("../../../../", import.meta.url),
-            env: {
-              ...process.env,
-              DATABASE_URL_UNPOOLED: process.env.DATABASE_URL,
-            },
-          },
-        )
-      ).stdout;
 
-    expect(await run()).toContain("Company lookups eligible to requeue: 2");
+    expect(await requeueEmptyCompanyLookups(prisma, { before: cutoff })).toBe(
+      2,
+    );
     expect(await read()).toEqual(original);
-    expect(await run("--apply")).toContain("Company lookups requeued: 2");
+    expect(
+      await requeueEmptyCompanyLookups(prisma, { before: cutoff, apply: true }),
+    ).toBe(2);
     expect(await read()).toEqual(
       original.map((row) =>
         row.key === "empty" || row.key === "linkedin"
@@ -545,7 +526,9 @@ describe.runIf(enabled)("companies on PostgreSQL", () => {
       data: { enrichedAt: recent },
     });
     const afterLookup = await read();
-    expect(await run("--apply")).toContain("Company lookups requeued: 0");
+    expect(
+      await requeueEmptyCompanyLookups(prisma, { before: cutoff, apply: true }),
+    ).toBe(0);
     expect(await read()).toEqual(afterLookup);
   });
 
