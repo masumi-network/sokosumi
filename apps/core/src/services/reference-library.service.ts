@@ -37,6 +37,17 @@ export function referenceLibraryAvailable(): boolean {
   return Boolean(getEnv().REFERENCE_LIBRARY_READ_WRITE_TOKEN);
 }
 
+/** The purposes a picture that shows numbers has: the only ones an infographic suits. */
+const INFOGRAPHIC_PURPOSES: readonly ReferencePurpose[] = [
+  "data",
+  "comparison",
+];
+
+/** Whether a picture for this purpose may take an infographic (cmo-v8). */
+export function infographicSuits(purpose: ReferencePurpose | undefined) {
+  return purpose !== undefined && INFOGRAPHIC_PURPOSES.includes(purpose);
+}
+
 /**
  * The library images whose look best fits what the piece is about, by
  * meaning; `kinds` and `purpose` narrow it (an infographic for data, a
@@ -50,6 +61,8 @@ export async function findStyleReferences(
     limit?: number;
     /** References already taken, left out of the results. */
     exclude?: readonly string[];
+    /** False leaves infographics out, whatever kinds asks for. */
+    infographics?: boolean;
   },
   embed: EmbedTexts = embedTexts,
 ): Promise<StyleReference[]> {
@@ -57,6 +70,7 @@ export async function findStyleReferences(
   if (!embedding) return [];
   const vector = vectorLiteral(embedding);
   const kinds = input.kinds?.length ? input.kinds : null;
+  const leftOut = input.infographics === false ? ["infographic"] : [];
   const limit = Math.min(input.limit ?? 5, MAX_RESULTS);
   const exclude = [...(input.exclude ?? [])];
   return prisma.$queryRaw<StyleReference[]>`
@@ -66,6 +80,7 @@ export async function findStyleReferences(
     WHERE "embedding" IS NOT NULL
       AND "usable" >= ${MIN_USABLE}
       AND (${kinds}::text[] IS NULL OR "kind" = ANY(${kinds}::text[]))
+      AND NOT ("kind" = ANY(${leftOut}::text[]))
       AND (${input.purpose ?? null}::text IS NULL OR ${input.purpose ?? null} = ANY("suits"))
       AND NOT ("id"::text = ANY(${exclude}::text[]))
     ORDER BY "embedding" <=> ${vector}::vector

@@ -7,6 +7,7 @@ import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { withoutSokosumiLinks } from "@sokosumi/utils";
 import { ArrowUp, CalendarDays } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useEventListener } from "../../hooks/effects/use-event-listener";
 import { AGENT_NAME } from "../../lib/agent";
 import { changeIdeas } from "../../lib/change-ideas";
 import type { CusoMessage } from "../../lib/chat-messages";
@@ -279,12 +280,9 @@ export function CmoApp({
     },
     [selectView],
   );
-  useEffect(() => {
-    const onPop = () =>
-      selectView(viewFromPath(window.location.pathname) ?? "today");
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, [selectView]);
+  useEventListener("window", "popstate", () =>
+    selectView(viewFromPath(window.location.pathname) ?? "today"),
+  );
   const [draft, setDraft] = useState("");
   // A post opened from Today opens on the Calendar.
   const [focusEntry, setFocusEntry] = useState<string | null>(null);

@@ -1,4 +1,4 @@
-import { normalizeHex } from "@sokosumi/utils";
+import { studioRgbColors } from "./palette";
 
 export type AdEvalCheck = {
   id:
@@ -267,18 +267,7 @@ function paletteDistance(
   colors: DominantColor[],
   palette: string[],
 ): number | null {
-  const brand = palette.flatMap((color) => {
-    const hex = normalizeHex(color);
-    return hex
-      ? [
-          rgbToLab({
-            r: Number.parseInt(hex.slice(1, 3), 16),
-            g: Number.parseInt(hex.slice(3, 5), 16),
-            b: Number.parseInt(hex.slice(5, 7), 16),
-          }),
-        ]
-      : [];
-  });
+  const brand = studioRgbColors(palette).map(rgbToLab);
   const weightedColors = colors.filter(
     (color) => Number.isFinite(color.weight) && color.weight > 0,
   );

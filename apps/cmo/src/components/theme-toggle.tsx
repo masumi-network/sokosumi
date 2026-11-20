@@ -3,31 +3,25 @@
 import { Moon, Sun } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
+import { useMediaQuery } from "../hooks/effects/use-media-query";
 import { THEME_COOKIE, type Theme } from "../lib/theme";
 
 const themeListeners = new Set<() => void>();
 
-function subscribeTheme(onStoreChange: () => void): () => void {
-  themeListeners.add(onStoreChange);
+function subscribeThemeOverride(listener: () => void): () => void {
+  themeListeners.add(listener);
   return () => {
-    themeListeners.delete(onStoreChange);
+    themeListeners.delete(listener);
   };
 }
 
-function notifyThemeChange(): void {
-  for (const listener of themeListeners) listener();
-}
-
-function getServerTheme(): Theme | null {
-  return null;
-}
-
-function currentTheme(): Theme {
+function getThemeOverride(): Theme | null {
   const chosen = document.documentElement.dataset.theme;
-  if (chosen === "light" || chosen === "dark") return chosen;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return chosen === "light" || chosen === "dark" ? chosen : null;
+}
+
+function getServerThemeOverride(): null {
+  return null;
 }
 
 /**
@@ -43,11 +37,14 @@ export function ThemeToggle({
   withLabel?: boolean;
   role?: "menuitem";
 }) {
-  const theme = useSyncExternalStore(
-    subscribeTheme,
-    currentTheme,
-    getServerTheme,
+  const override = useSyncExternalStore(
+    subscribeThemeOverride,
+    getThemeOverride,
+    getServerThemeOverride,
   );
+  const prefersDark = useMediaQuery("(prefers-color-scheme: dark)", null);
+  const theme: Theme | null =
+    override ?? (prefersDark === null ? null : prefersDark ? "dark" : "light");
   const next: Theme = theme === "dark" ? "light" : "dark";
   const label = `${next === "dark" ? "Dark" : "Light"} mode`;
 
@@ -61,7 +58,7 @@ export function ThemeToggle({
       onClick={() => {
         document.documentElement.dataset.theme = next;
         document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-        notifyThemeChange();
+        for (const listener of themeListeners) listener();
       }}
     >
       {next === "dark" ? (

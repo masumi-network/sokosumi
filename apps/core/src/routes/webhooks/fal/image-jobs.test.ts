@@ -132,7 +132,7 @@ describe("fal completion callback", () => {
     expect(settleWithMediaMock).toHaveBeenCalledExactlyOnceWith(
       JOB_ID,
       "https://v3b.fal.media/files/a.png",
-      { width: 1344, height: 768 },
+      expect.objectContaining({ width: 1344, height: 768 }),
       // The request the media answers: a talking video's row carries two.
       REQUEST_ID,
     );

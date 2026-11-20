@@ -1,6 +1,7 @@
 import { expectConsole } from "@sokosumi/utils/test-console";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Activity } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NOTIFICATION_PREFERENCES_HREF } from "@/app/account/constants";
 import { NotificationBrowserPermissionPrimer } from "./notification-browser-permission-primer";
@@ -378,5 +379,38 @@ describe("NotificationBrowserPermissionPrimer", () => {
     const { container } = render(<NotificationBrowserPermissionPrimer />);
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("updates when permission changes on focus and when revealed from React Activity", () => {
+    setNotificationPermission("default");
+    const { rerender } = render(
+      <Activity mode="visible">
+        <NotificationBrowserPermissionPrimer />
+      </Activity>,
+    );
+
+    expect(settingsLink()).toBeInTheDocument();
+
+    act(() => {
+      setNotificationPermission("denied");
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(
+      screen.getByText("browserPermissionDeniedDescription"),
+    ).toBeInTheDocument();
+
+    rerender(
+      <Activity mode="hidden">
+        <NotificationBrowserPermissionPrimer />
+      </Activity>,
+    );
+    setNotificationPermission("default");
+
+    rerender(
+      <Activity mode="visible">
+        <NotificationBrowserPermissionPrimer />
+      </Activity>,
+    );
+    expect(settingsLink()).toBeInTheDocument();
   });
 });

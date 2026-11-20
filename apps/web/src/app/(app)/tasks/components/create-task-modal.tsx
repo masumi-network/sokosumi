@@ -464,6 +464,7 @@ export function CreateTaskModal({
           onCreated={onTaskCreated}
           onSuccess={(task) => {
             storeTasksReturnPath();
+            setIsCreated(false);
             handleClose();
             router.push(taskHref(task));
           }}

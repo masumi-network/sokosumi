@@ -8882,4 +8882,77 @@ describe("SEO workspace integration", () => {
     );
     expect(readViewerHeaders.at(-1)).toBe("owner");
   });
+
+  it("does not reopen an action dialog when the last action leaves and later returns", async () => {
+    const user = userEvent.setup();
+    const base = { ...seoTestWorkspace(), auditId: SEO_TEST_AUDIT };
+    const observation: ProjectSeoWorkspace["observations"][number] = {
+      id: "b5efedab-c394-4ce9-a089-0979e8a18fdb",
+      kind: "audit_full",
+      source: "seo_coworker",
+      observedAt: new Date("2026-01-03T12:00:00Z"),
+      pageIds: base.scope.pageIds,
+      scopeVersion: 2,
+      sourceTaskId: "3c34c8d3-5c56-47ef-8ddc-a17898de494e",
+      countryCode: "US",
+      languageCode: "en",
+      devices: ["mobile", "desktop"],
+      rulebookVersion: "html-v1",
+      artifactHash: "checked-html",
+      issues: 0,
+      coverage: { checked: 12, skipped: 0, failed: 0 },
+    };
+    const onlyAction: ProjectSeoWorkspace["actions"][number] = {
+      id: "only-action",
+      observationId: observation.id,
+      pageUrl: "https://example.com/",
+      findingIds: [],
+      title: "Fix the page title",
+      why: "The title is missing",
+      effort: "low",
+      expectedEffect: "A descriptive search result",
+      edit: null,
+      taskId: null,
+      status: "recommended",
+      kind: "fix",
+      evidence: [],
+    };
+    const withAction = {
+      ...base,
+      observations: [observation],
+      actions: [onlyAction],
+    };
+    const withoutAction = {
+      ...base,
+      observations: [observation],
+      actions: [],
+    };
+    let currentData = withAction;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(currentData)),
+    );
+
+    renderWorkspace(withAction);
+    const client = clients.at(-1)!;
+    const openAction = await screen.findByRole("button", {
+      name: "Open action",
+    });
+    await user.click(openAction);
+    expect(
+      await screen.findByRole("dialog", { name: "Fix the page title" }),
+    ).toBeVisible();
+
+    // Removing the last action unmounts SeoActionWorklist (SeoEmpty renders).
+    currentData = withoutAction;
+    await client.invalidateQueries();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.queryByRole("list", { name: "Actions" })).toBeNull();
+
+    // Restoring the action remounts SeoActionWorklist; the old dialog must stay closed.
+    currentData = withAction;
+    await client.invalidateQueries();
+    expect(await screen.findByRole("list", { name: "Actions" })).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });

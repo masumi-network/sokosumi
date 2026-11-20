@@ -7,7 +7,14 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -477,5 +484,38 @@ describe("ToolConnectors", () => {
     // Unconnected popular apps would only invite a connect Core refuses.
     await waitFor(() => expect(searchCatalog).not.toHaveBeenCalled());
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("debounces catalog searches by 250ms and resets on new input", async () => {
+    vi.useFakeTimers();
+    try {
+      renderConnectors([integration({ provider: "gmail", name: "Gmail" })]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      searchCatalog.mockClear();
+
+      const input = screen.getByRole("searchbox");
+      fireEvent.change(input, { target: { value: "fi" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(searchCatalog).not.toHaveBeenCalled();
+
+      // Another keystroke before 250ms resets the debounce window.
+      fireEvent.change(input, { target: { value: "fig" } });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(249);
+      });
+      expect(searchCatalog).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(searchCatalog).toHaveBeenCalledTimes(1);
+      expect(searchCatalog).toHaveBeenCalledWith({ query: "fig" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

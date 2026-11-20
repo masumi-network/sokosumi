@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 const {
   startGeneration,
   listImageOptions,
   readGeneration,
+  readBrandContext,
   listStudioProducts,
   readAdHeadline,
   saveAdHeadline,
@@ -14,6 +15,7 @@ const {
   startGeneration: vi.fn(),
   listImageOptions: vi.fn(),
   readGeneration: vi.fn(),
+  readBrandContext: vi.fn(),
   listStudioProducts: vi.fn(),
   readAdHeadline: vi.fn(),
   saveAdHeadline: vi.fn(),
@@ -22,6 +24,7 @@ vi.mock("../lib/core", () => ({
   startGeneration,
   listImageOptions,
   readGeneration,
+  readBrandContext,
   listStudioProducts,
   readAdHeadline,
   saveAdHeadline,
@@ -32,6 +35,7 @@ import check from "./check_generation";
 import generate from "./generate_image";
 import options from "./list_image_options";
 import products from "./list_products";
+import brandContext from "./read_brand_context";
 import refine from "./refine_image";
 
 // These tools use only session identity and turn ID from the runtime context.
@@ -79,29 +83,11 @@ const base = {
   variant: 1,
 };
 
-function withSelection(selection: Record<string, unknown>) {
-  const current = ctx.session.auth.current;
-  if (!current) throw new Error("Missing test principal");
-  return {
-    ...ctx,
-    session: {
-      ...ctx.session,
-      auth: {
-        ...ctx.session.auth,
-        current: {
-          ...current,
-          attributes: {
-            ...current.attributes,
-            sokosumiStudioSelection: JSON.stringify(selection),
-          },
-        },
-      },
-    },
-  };
-}
-
 describe("image generation tools", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   beforeEach(() => {
+    vi.stubEnv("STUDIO_AGENT_ROUTER_TRIAL", "off");
     vi.clearAllMocks();
     startGeneration.mockResolvedValue({
       job: {
@@ -154,6 +140,7 @@ describe("image generation tools", () => {
     const input = {
       ...base,
       modelId: "ideogram-v3" as const,
+      route: "text_heavy" as const,
       placementId: "pinterest-pin",
       outputFormat: "jpeg" as const,
       seed: 17,
@@ -164,6 +151,8 @@ describe("image generation tools", () => {
       expect.objectContaining({
         modelId: "ideogram-v3",
         placementId: "pinterest-pin",
+        route: "text_heavy",
+        experimentArm: "router:sonnet-5",
         outputFormat: "jpeg",
         seed: 17,
         parentAssetId: null,
@@ -190,22 +179,26 @@ describe("image generation tools", () => {
 
   it("keeps refinement lineage and references while switching model", async () => {
     const sourceVersionId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    vi.stubEnv("STUDIO_AGENT_ROUTER_TRIAL", "opus");
     await refine.execute(
       {
         ...base,
         sourceVersionId,
         modelId: "gemini-pro",
         placementId: "x-square",
+        route: "edit",
       },
-      ctx,
+      { ...ctx, session: { ...ctx.session, id: "session-2" } },
     );
     expect(startGeneration).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         parentAssetId: sourceVersionId,
         referenceAssetIds: [sourceVersionId],
+        experimentArm: "router:opus-5.5",
         modelId: "gemini-pro",
         placementId: "x-square",
+        route: "edit",
       }),
     );
   });
@@ -216,8 +209,12 @@ describe("image generation tools", () => {
       if (!(schema instanceof z.ZodObject))
         throw new Error("Expected Zod schema");
       const sourceVersionId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
-      const input = { prompt: "A calm coffee campaign", sourceVersionId };
+      const input = { prompt: "A coffee cup icon", sourceVersionId };
       expect(schema.parse(input).modelId).toBe("gemini-pro");
+      expect(
+        schema.safeParse({ ...input, modelId: "recraft-v4-1-text-to-vector" })
+          .success,
+      ).toBe(tool === generate);
       for (const modelId of ["gemini-pro", "ideogram-v3"]) {
         expect(schema.safeParse({ ...input, modelId }).success).toBe(true);
       }
@@ -225,78 +222,6 @@ describe("image generation tools", () => {
         expect(schema.safeParse({ ...input, modelId }).success).toBe(false);
       }
     }
-  });
-
-  it("enforces the current Advanced model and settings for generation and refinement", async () => {
-    const pinnedContext = withSelection({
-      studioModelId: "flux-2-pro",
-      studioSettings: {
-        aspectRatio: "16:9",
-        resolution: "2K",
-        outputFormat: "jpeg",
-        seed: 17,
-      },
-    });
-    await generate.execute(base, pinnedContext);
-    await refine.execute(
-      {
-        ...base,
-        sourceVersionId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
-        modelId: "ideogram-v3",
-      },
-      pinnedContext,
-    );
-    for (const call of startGeneration.mock.calls) {
-      expect(call[1]).toMatchObject({
-        modelId: "flux-2-pro",
-        aspectRatio: "16:9",
-        resolution: "2K",
-        outputFormat: "jpeg",
-        seed: 17,
-      });
-    }
-    expect(startGeneration).toHaveBeenCalledTimes(2);
-  });
-
-  it("lets Auto use the curated tool choice and its settings", async () => {
-    await generate.execute(
-      { ...base, modelId: "ideogram-v3" },
-      withSelection({
-        studioModelId: null,
-        studioSettings: { ...base, aspectRatio: "16:9", resolution: "2K" },
-      }),
-    );
-    expect(startGeneration).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        modelId: "ideogram-v3",
-        aspectRatio: "1:1",
-        resolution: "1K",
-      }),
-    );
-  });
-
-  it("accepts Advanced settings when the provider chooses the output format", async () => {
-    await generate.execute(
-      base,
-      withSelection({
-        studioModelId: "recraft-v3",
-        studioSettings: { aspectRatio: "16:9", resolution: "1K" },
-      }),
-    );
-    expect(startGeneration).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ modelId: "recraft-v3", aspectRatio: "16:9" }),
-    );
-  });
-
-  it("refuses malformed pinned selection without submitting a paid job", async () => {
-    const malformed = withSelection({ studioModelId: "flux-2-pro" });
-    malformed.session.auth.current.attributes.sokosumiStudioSelection = "{";
-    await expect(generate.execute(base, malformed)).rejects.toThrow(
-      "Invalid Studio model selection.",
-    );
-    expect(startGeneration).not.toHaveBeenCalled();
   });
 
   it("returns only the curated catalog with no paid generation", async () => {
@@ -319,31 +244,6 @@ describe("image generation tools", () => {
       },
     });
     expect(startGeneration).not.toHaveBeenCalled();
-  });
-
-  it("includes the Advanced pin in the catalog without exposing other models", async () => {
-    listImageOptions.mockResolvedValue({
-      catalog: {
-        defaultModelId: "muse-image",
-        models: [
-          { id: "muse-image" },
-          { id: "gemini-pro" },
-          { id: "ideogram-v3" },
-          { id: "flux-2-pro" },
-        ],
-      },
-    });
-    const pinnedContext = withSelection({ studioModelId: "flux-2-pro" });
-    expect(await options.execute({}, pinnedContext)).toMatchObject({
-      catalog: {
-        defaultModelId: "flux-2-pro",
-        models: [
-          { id: "gemini-pro" },
-          { id: "ideogram-v3" },
-          { id: "flux-2-pro" },
-        ],
-      },
-    });
   });
 
   it("looks up the project's products and passes the chosen replacement on an edit", async () => {
@@ -398,6 +298,18 @@ describe("image generation tools", () => {
     expect(startGeneration).not.toHaveBeenCalled();
   });
 
+  it("stops after a vector conversion failure", async () => {
+    readGeneration.mockResolvedValue({
+      job: { status: "FAILED", failureReason: "invalid_vector_image" },
+      version: null,
+    });
+    expect(await check.execute({ jobId: "job-1" }, ctx)).toMatchObject({
+      status: "FAILED",
+      guidance: expect.stringContaining("Do not start another generation"),
+    });
+    expect(startGeneration).not.toHaveBeenCalled();
+  });
+
   it("propagates a refused job without retrying", async () => {
     startGeneration.mockRejectedValue(new Error("Project busy"));
     await expect(generate.execute(base, ctx)).rejects.toThrow("Project busy");
@@ -415,16 +327,31 @@ describe("non-billed agent behavior contract", () => {
       "generate first with sensible defaults",
       "then suggest improvements",
       "Default to one image",
-      "gemini-pro, 1:1",
-      "Use ideogram-v3 for",
-      "An Advanced model selection overrides your choice",
-      "Do not\nstart a second generation to add lettering yourself",
+      "Photos, ads and product scenes: use `generate_image` with `gemini-pro`",
+      "Text-heavy images (posters, typography, quotes, infographics with words, signage): use `generate_image` with `ideogram-v3`",
+      "Logos, icons and flat diagrams: use `generate_image` with",
+      "recraft-v4-1-text-to-vector",
+      "Edits to an existing image: use `refine_image`",
+      "preserve them unless the person asks for a change",
+      "State the chosen route in one short line before or with generation",
+      "The ad flow letters an approved headline with Ideogram v3",
+      "Never start a second paid job on your own, including for lettering",
       "greetings, critique/review-only",
       "capped at three jobs per turn",
       "submission was not confirmed, **stop**",
       "Use the placement ID in the generation tool",
     ]) {
-      expect(instructions).toContain(rule);
+      expect(instructions.replace(/\s+/g, " ")).toContain(rule);
     }
+  });
+});
+
+it("reads brand context with only the session identity", async () => {
+  const reference = { fonts: ["Inter"] };
+  readBrandContext.mockResolvedValueOnce(reference);
+  expect(await brandContext.execute({}, ctx)).toEqual(reference);
+  expect(readBrandContext).toHaveBeenCalledWith({
+    userId: "user-1",
+    projectId: "project-1",
   });
 });

@@ -3,7 +3,7 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useIsMobile } from "@/hooks/effects/use-mobile";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { coreClient } from "@/lib/clients/core.browser.client";
@@ -121,7 +122,7 @@ export function RoomSearchPanel({
   }
 
   /** The hotkey toggles: a press on a focused field puts it away again. */
-  const toggleFromHotkey = useEffectEvent(() => {
+  function toggleFromHotkey() {
     if (document.activeElement === inputRef.current) {
       // The close would otherwise hand focus straight back to the field.
       interactedOutsideRef.current = open;
@@ -135,30 +136,21 @@ export function RoomSearchPanel({
     if (query) {
       setOpen(true);
     }
-  });
+  }
 
-  useEffect(() => {
-    if (isMobile) {
+  useEventListener(isMobile ? null : "window", "keydown", (event) => {
+    if (event.key?.toLowerCase() !== SEARCH_HOTKEY || event.repeat) {
       return;
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key?.toLowerCase() !== SEARCH_HOTKEY || event.repeat) {
-        return;
-      }
+    const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
+    if (!hostModifier || event.altKey || event.shiftKey) {
+      return;
+    }
 
-      const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
-      if (!hostModifier || event.altKey || event.shiftKey) {
-        return;
-      }
-
-      event.preventDefault();
-      toggleFromHotkey();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isApplePlatform, isMobile]);
+    event.preventDefault();
+    toggleFromHotkey();
+  });
 
   function isEventInsideField(target: EventTarget | null) {
     return (

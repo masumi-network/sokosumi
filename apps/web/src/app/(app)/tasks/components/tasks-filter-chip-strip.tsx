@@ -1,6 +1,8 @@
 "use client";
 
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useState } from "react";
+
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 
 /** Width of the fade on a clipped edge; focus scrolls a chip clear of it. */
 const FADE = "1.5rem";
@@ -33,39 +35,37 @@ export function TasksFilterChipStrip({
   itemsKey: string;
   children: ReactNode;
 }) {
-  const listRef = useRef<HTMLUListElement>(null);
+  const [list, setList] = useState<HTMLUListElement | null>(null);
   const [edges, setEdges] = useState<Edges>({ start: false, end: false });
 
+  const updateEdges = useCallback((element: HTMLUListElement) => {
+    const max = element.scrollWidth - element.clientWidth;
+    const next = {
+      start: element.scrollLeft > 1,
+      end: element.scrollLeft < max - 1,
+    };
+    setEdges((prev) =>
+      prev.start === next.start && prev.end === next.end ? prev : next,
+    );
+  }, []);
+
   // Syncs with the browser's layout: scroll position and box size.
-  useEffect(() => {
-    const list = listRef.current;
-    // New chips change the line's width without resizing its box.
-    if (!list || !itemsKey) return;
-    const update = () => {
-      const max = list.scrollWidth - list.clientWidth;
-      const next = {
-        start: list.scrollLeft > 1,
-        end: list.scrollLeft < max - 1,
-      };
-      setEdges((prev) =>
-        prev.start === next.start && prev.end === next.end ? prev : next,
-      );
-    };
-    update();
-    list.addEventListener("scroll", update, { passive: true });
-    const observer =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
-    observer?.observe(list);
-    return () => {
-      list.removeEventListener("scroll", update);
-      observer?.disconnect();
-    };
-  }, [itemsKey]);
+  // New chips change the line's width without resizing its box.
+  useResizeObserver(
+    itemsKey ? list : null,
+    () => {
+      if (list) updateEdges(list);
+    },
+    { immediate: true, resetKey: itemsKey },
+  );
 
   return (
     // The padding keeps focus rings inside the scroll box.
     <ul
-      ref={listRef}
+      ref={setList}
+      onScroll={
+        itemsKey ? (event) => updateEdges(event.currentTarget) : undefined
+      }
       aria-label={label}
       // A scroll region the keyboard pans with the arrow keys.
       tabIndex={0}

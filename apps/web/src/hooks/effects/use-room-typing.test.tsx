@@ -32,7 +32,7 @@ const { authorizeMock, getMock, channelsByName, ablyClient } = vi.hoisted(
   },
 );
 
-vi.mock("./realtime-channel-environment", () => ({
+vi.mock("@/lib/ably/realtime-channel-environment", () => ({
   getRealtimeChannelEnvironment: () => PRODUCTION,
 }));
 

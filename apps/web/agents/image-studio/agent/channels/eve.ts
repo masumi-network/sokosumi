@@ -10,7 +10,6 @@ import {
   transitionInitialTurn,
 } from "../lib/core";
 import { type GrantClaims, verifyGrant } from "../lib/grant";
-import { studioSelectionSchema } from "../lib/models";
 
 /**
  * Who may reach this agent, and which conversation they may reach.
@@ -94,30 +93,7 @@ const studioToken: AuthFn<Request> = withAuthChallenges(
   [{ scheme: "Bearer" }],
 );
 
-const base = eveChannel({
-  auth: [studioToken],
-  onMessage({ eve }) {
-    const selection = studioSelectionSchema.parse(
-      typeof eve.clientContext === "object" &&
-        eve.clientContext !== null &&
-        !Array.isArray(eve.clientContext)
-        ? eve.clientContext
-        : {},
-    );
-    return {
-      auth: eve.caller
-        ? {
-            ...eve.caller,
-            attributes: {
-              ...eve.caller.attributes,
-              // A per-turn UI choice, outside the model's tool arguments.
-              sokosumiStudioSelection: JSON.stringify(selection),
-            },
-          }
-        : null,
-    };
-  },
-});
+const base = eveChannel({ auth: [studioToken] });
 
 /**
  * The header a browser client names its creation with.

@@ -54,6 +54,7 @@ vi.mock("next-intl", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { TestQueryProvider } from "@/test/query-provider";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
 import { DecisionCard } from "../chat/decision-card";
 import { TurnExplain } from "../chat/turn-explain";
@@ -68,9 +69,11 @@ import { useIntegrationActions } from "../use-integration-actions";
 
 function SharedBot({ children }: { children: ReactNode }) {
   return (
-    <SokoBotTargetContext.Provider value={BOT_ID}>
-      {children}
-    </SokoBotTargetContext.Provider>
+    <TestQueryProvider>
+      <SokoBotTargetContext.Provider value={BOT_ID}>
+        {children}
+      </SokoBotTargetContext.Provider>
+    </TestQueryProvider>
   );
 }
 

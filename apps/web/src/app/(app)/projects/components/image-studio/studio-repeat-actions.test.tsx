@@ -163,6 +163,7 @@ describe("actions on a result", () => {
     expect(mocks.enqueue).toHaveBeenCalledWith([
       expect.objectContaining({
         modelId: "ideogram-v3",
+        letterExistingBackdrop: true,
         parentAssetId: "backdrop",
         referenceAssetIds: ["backdrop"],
         exportHeadline: "Made to last",
@@ -221,22 +222,43 @@ describe("actions on a result", () => {
       modelId: "model-a",
       parentAssetId: null,
       referenceAssetIds: [],
-      settings: { aspectRatio: "2:3", resolution: "2K", seed: null },
+      settings: { aspectRatio: "1:1", resolution: "2K", seed: null },
     });
   });
 
-  it("makes a variation from the image itself", () => {
-    mount();
+  it("edits a retired model's image using the automatic model's supported settings", () => {
+    mount(
+      [
+        {
+          ...ASSET,
+          model: "vendor/retired",
+          settings: {
+            aspectRatio: "2:3",
+            resolution: "2K",
+            outputFormat: "webp",
+            seed: 7,
+          },
+        },
+      ],
+      { ...TEST_CATALOG, defaultModelId: "model-b" },
+    );
     fireEvent.click(screen.getByRole("button", { name: "regenerate" }));
 
     const [[requests]] = mocks.enqueue.mock.calls;
     expect(requests[0]).toMatchObject({
+      modelId: "model-b",
       parentAssetId: "a",
       referenceAssetIds: ["a"],
+      settings: {
+        aspectRatio: "1:1",
+        resolution: "2K",
+        outputFormat: "png",
+        seed: null,
+      },
     });
   });
 
-  it("refines the image with its frame even when a selected model cannot edit", async () => {
+  it("refines the image with its frame even when another model cannot edit", async () => {
     const asset: StudioAsset = {
       ...ASSET,
       projectId: "source-project",
@@ -275,7 +297,7 @@ describe("actions on a result", () => {
     });
   });
 
-  it("keeps the base visible and blocks submission until an editing model is selected", () => {
+  it("keeps the base visible and blocks submission when the automatic model cannot edit", () => {
     const catalog = {
       ...TEST_CATALOG,
       models: TEST_CATALOG.models.map((model) => ({

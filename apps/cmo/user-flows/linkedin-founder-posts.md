@@ -15,6 +15,7 @@
 
 - To choose who the posts are from. A company's Cuso never posts as the founder by accident: the connected account's name shows in Channels.
 - Posts that sound like them, not like an AI: no hashtag walls, no emojis in every line, the link in the first comment.
+- Posts that make people tap "see more": the first two lines carry a result, a number, a customer's name or a decision, never a tip (cmo-v8).
 - To change a post in one sentence, without opening an editor, and to fix a word themselves when that is quicker.
 - A post written for a network that is not connected says so ("Waiting for LinkedIn") with Connect beside it, never just "Written".
 - An opened post looks like it will on LinkedIn: their name, the words, the picture.

@@ -1,7 +1,8 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { useEffect } from "react";
+
+import { useTimeout } from "@/hooks/effects/use-timeout";
 
 /** Longer than a read-attention write takes to clear the count. */
 export const OPEN_ROOM_UNREAD_RECHECK_MS = 4_000;
@@ -27,12 +28,9 @@ export function useOpenRoomUnreadRecheck(options: {
       ? `${room.id}:${unread}:${new Date(room.updatedAt).getTime()}`
       : null;
 
-  useEffect(() => {
-    if (!signal) return;
-    const timer = window.setTimeout(
-      requestRefresh,
-      OPEN_ROOM_UNREAD_RECHECK_MS,
-    );
-    return () => window.clearTimeout(timer);
-  }, [signal, requestRefresh]);
+  useTimeout(
+    requestRefresh,
+    signal ? OPEN_ROOM_UNREAD_RECHECK_MS : null,
+    signal,
+  );
 }

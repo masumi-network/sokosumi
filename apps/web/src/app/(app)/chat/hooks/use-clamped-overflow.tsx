@@ -5,9 +5,10 @@ import {
   type ReactNode,
   useContext,
   useLayoutEffect,
-  useRef,
   useState,
 } from "react";
+
+import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
 
 interface ClampedOverflowState {
   cacheKey: string;
@@ -52,7 +53,9 @@ export function useClampedOverflow({
     setState(current);
   }
   const { expanded, overflows } = current;
-  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [contentElement, setContentElement] = useState<HTMLDivElement | null>(
+    null,
+  );
 
   function toggleExpanded() {
     setState((previous) => ({ ...previous, expanded: !previous.expanded }));
@@ -64,30 +67,22 @@ export function useClampedOverflow({
     states?.set(cacheKey, current);
   }, [cacheKey, current, states]);
 
-  useLayoutEffect(() => {
-    const node = contentRef.current;
-    if (!node || expanded) {
-      return;
-    }
-
-    function measureOverflow() {
-      const el = contentRef.current;
-      if (!el) {
+  useLayoutResizeObserver(
+    expanded ? null : contentElement,
+    () => {
+      if (!contentElement) {
         return;
       }
-      const overflows = el.scrollHeight > el.clientHeight + 1;
+      const nextOverflows =
+        contentElement.scrollHeight > contentElement.clientHeight + 1;
       setState((previous) =>
-        previous.overflows === overflows
+        previous.overflows === nextOverflows
           ? previous
-          : { ...previous, overflows },
+          : { ...previous, overflows: nextOverflows },
       );
-    }
+    },
+    { immediate: true, resetKey: `${cacheKey}\0${resetKey}` },
+  );
 
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [cacheKey, expanded, resetKey]);
-
-  return { expanded, toggleExpanded, overflows, contentRef };
+  return { expanded, toggleExpanded, overflows, contentRef: setContentElement };
 }

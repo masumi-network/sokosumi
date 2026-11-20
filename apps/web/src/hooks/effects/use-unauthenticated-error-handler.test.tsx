@@ -1,12 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const pushMock = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock }),
-}));
-
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 
 import { useUnAuthenticatedErrorHandler } from "./use-unauthenticated-error-handler";
@@ -28,11 +22,16 @@ function asProductionMasksIt(error: Error & { digest?: string }): Error & {
 }
 
 describe("useUnAuthenticatedErrorHandler", () => {
+  let assignSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    assignSpy = vi
+      .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
   });
 
-  it("redirects a logout that production masked down to a digest", () => {
+  it("redirects a logout that production masked down to a digest via a full document load", () => {
     const { result } = renderHook(() =>
       useUnAuthenticatedErrorHandler(
         asProductionMasksIt(new UnAuthenticatedError()),
@@ -40,18 +39,18 @@ describe("useUnAuthenticatedErrorHandler", () => {
     );
 
     expect(result.current.isUnAuthenticatedError).toBe(true);
-    expect(pushMock).toHaveBeenCalledWith(
+    expect(assignSpy).toHaveBeenCalledWith(
       expect.stringContaining("/signin?returnUrl="),
     );
   });
 
-  it("redirects a logout that kept its name in development", () => {
+  it("redirects a logout that kept its name in development via a full document load", () => {
     const { result } = renderHook(() =>
       useUnAuthenticatedErrorHandler(new UnAuthenticatedError()),
     );
 
     expect(result.current.isUnAuthenticatedError).toBe(true);
-    expect(pushMock).toHaveBeenCalledWith(
+    expect(assignSpy).toHaveBeenCalledWith(
       expect.stringContaining("/signin?returnUrl="),
     );
   });
@@ -65,6 +64,6 @@ describe("useUnAuthenticatedErrorHandler", () => {
     const { result } = renderHook(() => useUnAuthenticatedErrorHandler(masked));
 
     expect(result.current.isUnAuthenticatedError).toBe(false);
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(assignSpy).not.toHaveBeenCalled();
   });
 });

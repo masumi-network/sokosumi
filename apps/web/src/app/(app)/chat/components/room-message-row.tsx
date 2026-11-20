@@ -39,7 +39,6 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
-  type RefObject,
   useCallback,
   useEffect,
   useId,
@@ -1500,7 +1499,8 @@ function useBottomSheetSwipeDismiss(
   open: boolean,
   onDismiss: () => void,
 ): {
-  contentRef: RefObject<HTMLDivElement | null>;
+  setContentRef: (node: HTMLDivElement | null) => void;
+  resetSwipe: () => void;
   swipeHandlers: {
     onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
     onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -1508,7 +1508,7 @@ function useBottomSheetSwipeDismiss(
     onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
   };
 } {
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     pointerId: number | null;
     startY: number;
@@ -1528,17 +1528,33 @@ function useBottomSheetSwipeDismiss(
     el.style.transition = "";
   }, []);
 
-  useEffect(() => {
-    if (!open) {
-      dragRef.current = {
-        pointerId: null,
-        startY: 0,
-        dragging: false,
-        dismissing: false,
-      };
-      resetTransform();
-    }
-  }, [open, resetTransform]);
+  const resetSwipe = useCallback(() => {
+    dragRef.current = {
+      pointerId: null,
+      startY: 0,
+      dragging: false,
+      dismissing: false,
+    };
+    resetTransform();
+  }, [resetTransform]);
+
+  const setContentRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (contentRef.current && contentRef.current !== node) {
+        resetTransform();
+      }
+      contentRef.current = node;
+      if (!node) {
+        dragRef.current = {
+          pointerId: null,
+          startY: 0,
+          dragging: false,
+          dismissing: false,
+        };
+      }
+    },
+    [resetTransform],
+  );
 
   function finishPointer(event: ReactPointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
@@ -1571,9 +1587,11 @@ function useBottomSheetSwipeDismiss(
   }
 
   return {
-    contentRef,
+    setContentRef,
+    resetSwipe,
     swipeHandlers: {
       onPointerDown(event) {
+        if (!open) return;
         if (event.button !== 0) return;
         if (dragRef.current.dismissing) return;
         const fromHandle = Boolean(
@@ -1658,15 +1676,23 @@ function TouchMessageActionsSheet({
 }) {
   const t = useTranslations("App.Channels");
   const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null);
-  const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
-    onOpenChange(false);
-  });
+  const { setContentRef, resetSwipe, swipeHandlers } =
+    useBottomSheetSwipeDismiss(open, () => {
+      onOpenChange(false);
+    });
   const setSheetContentRef = useCallback(
     (node: HTMLDivElement | null) => {
-      contentRef.current = node;
+      setContentRef(node);
       setPortalHost(node);
     },
-    [contentRef],
+    [setContentRef],
+  );
+  const handleSheetOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) resetSwipe();
+      onOpenChange(nextOpen);
+    },
+    [onOpenChange, resetSwipe],
   );
   const whoReactedRows = message.reactions.flatMap((reaction) => {
     const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -1688,7 +1714,7 @@ function TouchMessageActionsSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleSheetOpenChange}>
       <SheetContent
         ref={setSheetContentRef}
         side="bottom"

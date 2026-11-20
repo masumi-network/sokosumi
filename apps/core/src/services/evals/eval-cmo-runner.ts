@@ -1,6 +1,6 @@
 import {
-  CMO_BATCHED_PRODUCTION_SKILL,
   CMO_PRODUCTION_TURN_PREFIX,
+  cmoWritesMonthAtOnce,
   getSokoBotVersion,
   type MarketingStrategyPlan,
   type ScenarioCheck,
@@ -32,6 +32,11 @@ import { advanceCmoProduction } from "@/services/cmo-production.service";
 import { cmoSeoMarket } from "@/services/cmo-seo-market";
 import { requestCmoStrategy } from "@/services/cmo-strategy.service";
 import { ADS_CASE_BUDGET } from "@/services/evals/eval-cmo-funnel";
+import {
+  claimChecks,
+  linkedInOpeningChecks,
+  pictureVarietyChecks,
+} from "@/services/evals/eval-cmo-variety";
 import {
   approveMarketingStrategy,
   isMarketingFilePiece,
@@ -109,6 +114,7 @@ export function monthPlanFromTomorrow(
       ...(entry.brief ? { brief: entry.brief } : {}),
       ...(entry.why ? { why: entry.why } : {}),
       ...(entry.story ? { story: entry.story } : {}),
+      ...(entry.claim ? { claim: entry.claim } : {}),
       ...(entry.pillar ? { pillar: entry.pillar } : {}),
       ...(entry.approach ? { approach: entry.approach } : {}),
       ...(entry.campaignId ? { campaignId: entry.campaignId } : {}),
@@ -1075,7 +1081,13 @@ async function pollMonth(
   });
   const posts = await prisma.socialPost.findMany({
     where: { marketingStrategyId: strategyId, status: { not: "CANCELED" } },
-    select: { provider: true, text: true, planning: true, media: true },
+    select: {
+      id: true,
+      provider: true,
+      text: true,
+      planning: true,
+      media: true,
+    },
   });
   const plan = parseMarketingPlan(version.plan) as MarketingStrategyPlan | null;
   const pieces = plan?.calendar.length ?? 0;
@@ -1115,8 +1127,8 @@ async function pollMonth(
     where: { id: lane.cusoBotId },
     select: { versionId: true },
   });
-  const coreWrites = getSokoBotVersion(bot?.versionId).skills.includes(
-    CMO_BATCHED_PRODUCTION_SKILL,
+  const coreWrites = cmoWritesMonthAtOnce(
+    getSokoBotVersion(bot?.versionId).skills,
   );
   const reads = Object.entries(review?.writing ?? {});
   const flagged = reads.filter(
@@ -1143,9 +1155,10 @@ async function pollMonth(
         ? `round ${review.round}, ${reads.length} read`
         : "no review",
     },
-    // The pictures month is scored on its pictures: its three posts are too
-    // few for a share of flagged ones to mean anything.
-    ...(evalCase.pictures
+    // The pictures, variety and openings months are scored on what they
+    // test: their few posts are too few for a share of flagged ones to mean
+    // anything, and the other month cases measure the writing.
+    ...(evalCase.pictures || evalCase.variety || evalCase.openings
       ? []
       : [
           {
@@ -1169,6 +1182,12 @@ async function pollMonth(
           },
         ]),
     ...(await monthPictureChecks(lane, strategyId, evalCase.pictures ?? false)),
+    ...(evalCase.variety
+      ? await pictureVarietyChecks(strategyId, lane.cusoProjectId)
+      : []),
+    ...(evalCase.openings
+      ? linkedInOpeningChecks(posts, review?.writing ?? {})
+      : []),
     ...(evalCase.newsletter ? [newsletterIssueCheck(plan, files)] : []),
     ...(coreWrites
       ? [
@@ -1324,6 +1343,8 @@ export async function pollCmoCase(
         ? cmoStrategyRules(getSokoBotVersion(turn.versionId).skills)
         : {},
     );
+    if (evalCase.brand.focus === "claims" && strategy)
+      checks.push(...(await claimChecks(strategy)));
     if (evalCase.brand.testerCredits && strategy) {
       const level = await cmoPlanLevel(projectId, await databaseNow());
       const made = cmoMonthAtLevel(strategy.calendar, strategy.channels, level);

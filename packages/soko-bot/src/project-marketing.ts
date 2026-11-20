@@ -485,6 +485,11 @@ export const cmoCalendarEntrySchema = z.object({
    * customer and what they did, a launch, a number, a decision.
    */
   story: shortText.optional(),
+  /**
+   * The one point the piece argues, in a sentence (cmo-v8). Core compares
+   * the month's claims by meaning, so no point is made again in other words.
+   */
+  claim: shortText.optional(),
   imageFileId: z.string().max(100).optional(),
   /** A carousel's slides in order, the cover first (also its imageFileId). */
   slideFileIds: z.array(z.string().max(100)).max(10).optional(),
@@ -541,6 +546,7 @@ export const socialPostPlanningSchema = cmoCalendarEntrySchema.pick({
   alsoOn: true,
   videoOf: true,
   story: true,
+  claim: true,
 });
 export type SocialPostPlanning = z.infer<typeof socialPostPlanningSchema>;
 

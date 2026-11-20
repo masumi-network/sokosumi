@@ -2,12 +2,13 @@
 
 import { Bot, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
 } from "@/components/ui/holder-surface";
+import { useLayoutResizeObserver } from "@/hooks/effects/use-resize-observer";
 import {
   useSeoResultFormatter,
   useSeoResultTranslations,
@@ -95,7 +96,9 @@ function PageDetail({
   const valueId = useId();
   const pageLabelId = useId();
   const [fullValue, setFullValue] = useState(false);
-  const valueRef = useRef<HTMLParagraphElement>(null);
+  const [valueElement, setValueElement] = useState<HTMLParagraphElement | null>(
+    null,
+  );
   const [clamped, setClamped] = useState(false);
   const name = checkName(finding.title);
   const first = finding.evidence[0];
@@ -130,23 +133,23 @@ function PageDetail({
     data.pages.length > 1 || finding.pageUrl !== data.pages[0]?.url;
   // The toggle shows only once the clamp cuts the text. A closed fold has no size,
   // so the check runs again when it opens.
-  useLayoutEffect(() => {
-    const element = valueRef.current;
-    // New text in the same box does not resize it, so the text itself starts a new check.
-    if (!foldable || fullValue || !element || !detail) return;
-    // Once cut, the toggle stays: dropping it on a resize would drop the focus on it.
-    const check = () =>
-      setClamped((cut) => cut || element.scrollHeight > element.clientHeight);
-    check();
-    // Without an observer the fold cannot be measured again; keep the toggle so the text can open.
-    if (typeof ResizeObserver === "undefined") {
-      setClamped(true);
-      return;
-    }
-    const observer = new ResizeObserver(check);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [foldable, fullValue, detail]);
+  // New text in the same box does not resize it, so the text itself starts a new check.
+  useLayoutResizeObserver(
+    foldable && !fullValue && detail ? valueElement : null,
+    () => {
+      if (!valueElement) return;
+      // Without an observer the fold cannot be measured again; keep the toggle so the text can open.
+      if (typeof ResizeObserver === "undefined") {
+        setClamped(true);
+        return;
+      }
+      // Once cut, the toggle stays: dropping it on a resize would drop the focus on it.
+      setClamped(
+        (cut) => cut || valueElement.scrollHeight > valueElement.clientHeight,
+      );
+    },
+    { immediate: true, resetKey: detail },
+  );
   const toggle = foldable && clamped;
   // A note can always be asked about; a measurement only when some tool range leaves it out.
   const ask = measure ? (offersFix ? onAsk : undefined) : onAsk;
@@ -226,7 +229,7 @@ function PageDetail({
           {detail ? (
             <p
               id={valueId}
-              ref={valueRef}
+              ref={setValueElement}
               className={cn(
                 "text-muted-foreground text-sm break-words",
                 foldable && !fullValue && "line-clamp-3",

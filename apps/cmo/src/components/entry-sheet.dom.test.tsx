@@ -126,4 +126,59 @@ describe("EntrySheet PostPreview", () => {
     });
     expect(host.querySelector("textarea")?.value).toBe("Updated copy.");
   });
+
+  it("handles Escape and arrow keys, skipping arrows while typing in the edit textarea", async () => {
+    const overview = cmoOverview();
+    const onClose = vi.fn();
+    const onPrev = vi.fn();
+    const onNext = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <EntrySheet
+          entry={baseEntry}
+          overview={overview}
+          onClose={onClose}
+          onPrev={onPrev}
+          onNext={onNext}
+          onEdit={async () => null}
+        />,
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+    });
+    expect(onPrev).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledTimes(1);
+
+    // Open the edit textarea: arrows stay with the editor, Escape still closes.
+    const editButton = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent === "Edit text",
+    );
+    await act(async () => {
+      editButton?.click();
+    });
+    const textarea = host.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    await act(async () => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
+      );
+      textarea?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
+    });
+    expect(onPrev).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      textarea?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

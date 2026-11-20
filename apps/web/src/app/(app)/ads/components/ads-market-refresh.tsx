@@ -8,11 +8,11 @@ import {
   type ReactNode,
   startTransition,
   use,
-  useEffect,
   useState,
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useTimeout } from "@/hooks/effects/use-timeout";
 import { cn } from "@/lib/utils";
 
 /** Long enough for the slowest refresh seen; then the page asks once more. */
@@ -73,14 +73,14 @@ export function AdsMarketRefresh({
       ? confirmed
       : null;
 
-  useEffect(() => {
-    if (!saved || waited) return;
-    const id = setTimeout(() => {
+  useTimeout(
+    () => {
       setWaited(true);
       startTransition(() => router.refresh());
-    }, MARKET_REFRESH_WAIT_MS);
-    return () => clearTimeout(id);
-  }, [saved, waited, router]);
+    },
+    saved && !waited ? MARKET_REFRESH_WAIT_MS : null,
+    saved,
+  );
 
   const results: MarketResultsState = !saved
     ? "current"
