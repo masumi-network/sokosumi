@@ -7,11 +7,11 @@ import { signOut } from "./auth.client";
 
 export interface SignOutWithPushReleaseOptions {
   /**
-   * Destination loaded via a full document navigation after sign-out succeeds,
-   * dropping every in-memory JS cache before another user can sign in.
-   * Defaults to `/signin?returnUrl=<current location>`.
+   * How to end the document after sign-out succeeds so no JS cache outlives
+   * the user: `"signIn"` (default) loads `/signin?returnUrl=<current location>`,
+   * `"reload"` reloads the current URL in place.
    */
-  redirectTo?: string;
+  afterSignOut?: "signIn" | "reload";
   fetchOptions?: NonNullable<Parameters<typeof signOut>[0]>["fetchOptions"];
 }
 
@@ -34,16 +34,18 @@ export function signOutWithPushRelease(
   options?: SignOutWithPushReleaseOptions,
 ): ReturnType<typeof signOut> {
   window.dispatchEvent(new Event("chat-session-ended"));
-  const { redirectTo, fetchOptions } = options ?? {};
-  const destination =
-    redirectTo ??
-    `/signin?returnUrl=${encodeURIComponent(getReturnUrlFromCurrentLocation())}`;
+  const { afterSignOut = "signIn", fetchOptions } = options ?? {};
+  const signInUrl = `/signin?returnUrl=${encodeURIComponent(getReturnUrlFromCurrentLocation())}`;
 
   return releasePushDeviceOnSignOut(userId)
     .then(() => signOut(fetchOptions ? { fetchOptions } : undefined))
     .then((result) => {
       if (!result?.error) {
-        window.location.assign(destination);
+        if (afterSignOut === "reload") {
+          window.location.reload();
+        } else {
+          window.location.assign(signInUrl);
+        }
       }
       return result;
     });

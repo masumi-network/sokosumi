@@ -1,7 +1,9 @@
 import type { Account } from "@sokosumi/utils";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FlashToast } from "@/components/flash-toast.client";
 
 import { DeleteAccountForm } from "./delete-account-form";
 
@@ -133,6 +135,7 @@ describe("DeleteAccountForm", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     releasePushDeviceMock.mockResolvedValue(undefined);
     assignSpy = vi
       .spyOn(window.location, "assign")
@@ -507,6 +510,11 @@ describe("DeleteAccountForm", () => {
       expect(assignSpy).toHaveBeenCalledWith("/");
     });
     expect(deleteUserMock).toHaveBeenCalledWith({});
+    expect(toast.success).not.toHaveBeenCalled();
+
+    render(<FlashToast />);
+    expect(toast.success).toHaveBeenCalledTimes(1);
+    expect(toast.success).toHaveBeenCalledWith("Account deleted successfully");
   });
 
   it("refuses an email that is not the account's", async () => {

@@ -82,6 +82,7 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries
 - `use-latest-ref` (`useLatestRef`) — ref synced to the latest committed value in a layout effect
 - `use-query-error-report` (`useQueryErrorReport`) — calls a query error reporter once per failure while mounted on the active key
+- `use-flash-toast` (`queueFlashSuccessToast`, `useFlashToast`) — shows a one-time `sessionStorage` success toast once on the next document mount
 
 ### React Query in migrations
 
@@ -91,6 +92,7 @@ When migrating a client fetch effect to React Query in `apps/web`:
 - **Scoped reads (`useScopedQuery` / `useScopedInfiniteQuery` in `apps/web/src/queries/scoped-queries.ts`):**
   - Pass `scope` explicitly using the exact same value the request uses (organization slug or workspace id, plus viewer id where the server filters per member); the wrapper prepends `scope` to `queryKey`.
   - Defaults to `networkMode: "always"`, `retry: false`, and `refetchOnWindowFocus: false` without changing global `QueryClient` defaults for existing `useQuery` callers.
-  - Pass `onError` to toast or report failures: `useQueryErrorReport` fires only while the observer is mounted and still on the failing key, so an abandoned read cannot toast on another screen.
+  - `placeholderData` / `keepPreviousData` is intentionally disallowed and stripped so scope A's rows can never render under scope B while loading.
+  - Pass `onError` to toast or report failures: `useQueryErrorReport` fires only while the observer is mounted, enabled (`result.isEnabled`), and still on the failing key, so an abandoned or disabled read cannot toast on another screen.
 - **Writes alongside migrated reads:** Cancel every query under the scoped key prefix before the write; on success apply the result only to already-loaded entries (`status === "success"` — a write's result never marks a failed or unloaded list as loaded), then invalidate that prefix. Keep one-time secrets in the create result/local UI state and never write them into the React Query cache.
-- **Stay on current code (ticket 12):** Write-heavy, protected-preview, public-share, and one-time-secret surfaces stay on their current code rather than migrating to React Query.
+- **Stay on current code / deferred follow-ups (ticket 12):** Write-heavy, protected-preview, public-share, and one-time-secret surfaces stay on their current code rather than migrating to React Query; pre-existing 401 toast `router.push("/signin")` buttons on feature forms and background polling on a document kept open after a declined `beforeunload` prompt are also tracked under ticket 12.

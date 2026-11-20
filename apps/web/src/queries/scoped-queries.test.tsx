@@ -1,5 +1,6 @@
 import {
   focusManager,
+  keepPreviousData,
   onlineManager,
   QueryClient,
   QueryClientProvider,
@@ -310,5 +311,108 @@ describe("scoped-queries", () => {
     });
 
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("does not report a shared-key failure to a disabled observer", async () => {
+    const client = createTestClient();
+    const enabledOnError = vi.fn();
+    const disabledOnError = vi.fn();
+    const infiniteEnabledOnError = vi.fn();
+    const infiniteDisabledOnError = vi.fn();
+    const sharedQueryError = new Error("shared-query-failed");
+    const sharedInfiniteError = new Error("shared-infinite-failed");
+
+    function SharedObservers() {
+      useScopedQuery({
+        scope: "org-a",
+        queryKey: ["shared"],
+        queryFn: () => Promise.reject(sharedQueryError),
+        enabled: true,
+        onError: enabledOnError,
+      });
+      useScopedQuery({
+        scope: "org-a",
+        queryKey: ["shared"],
+        queryFn: () => Promise.reject(sharedQueryError),
+        enabled: false,
+        onError: disabledOnError,
+      });
+
+      useScopedInfiniteQuery({
+        scope: "org-a",
+        queryKey: ["shared-feed"],
+        initialPageParam: null as string | null,
+        queryFn: () => Promise.reject(sharedInfiniteError),
+        getNextPageParam: () => null,
+        enabled: true,
+        onError: infiniteEnabledOnError,
+      });
+      useScopedInfiniteQuery({
+        scope: "org-a",
+        queryKey: ["shared-feed"],
+        initialPageParam: null as string | null,
+        queryFn: () => Promise.reject(sharedInfiniteError),
+        getNextPageParam: () => null,
+        enabled: false,
+        onError: infiniteDisabledOnError,
+      });
+
+      return null;
+    }
+
+    renderWithClient(<SharedObservers />, client);
+
+    await waitFor(() => {
+      expect(enabledOnError).toHaveBeenCalledTimes(1);
+      expect(infiniteEnabledOnError).toHaveBeenCalledTimes(1);
+    });
+    expect(enabledOnError).toHaveBeenLastCalledWith(sharedQueryError);
+    expect(disabledOnError).not.toHaveBeenCalled();
+    expect(infiniteEnabledOnError).toHaveBeenLastCalledWith(
+      sharedInfiniteError,
+    );
+    expect(infiniteDisabledOnError).not.toHaveBeenCalled();
+  });
+
+  it("never forwards placeholderData / keepPreviousData across scopes", async () => {
+    const client = createTestClient();
+    const scopeBDeferred = Promise.withResolvers<string>();
+
+    function UntypedCaller({ scope }: { scope: string }) {
+      const options = {
+        scope,
+        queryKey: ["rows"],
+        queryFn: () =>
+          scope === "org-a"
+            ? Promise.resolve("rows-from-a")
+            : scopeBDeferred.promise,
+        placeholderData: keepPreviousData,
+      } as Parameters<typeof useScopedQuery<string>>[0];
+
+      const { data } = useScopedQuery(options);
+      return <div data-testid="rows">{data ?? "empty"}</div>;
+    }
+
+    const view = renderWithClient(<UntypedCaller scope="org-a" />, client);
+    await waitFor(() => {
+      expect(screen.getByTestId("rows")).toHaveTextContent("rows-from-a");
+    });
+
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <UntypedCaller scope="org-b" />
+      </QueryClientProvider>,
+    );
+
+    // Scope A's rows must never render while scope B is loading.
+    expect(screen.getByTestId("rows")).toHaveTextContent("empty");
+
+    await act(async () => {
+      scopeBDeferred.resolve("rows-from-b");
+      await scopeBDeferred.promise;
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("rows")).toHaveTextContent("rows-from-b");
+    });
   });
 });

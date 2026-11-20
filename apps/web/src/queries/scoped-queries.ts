@@ -39,7 +39,7 @@ export interface UseScopedQueryOptions<
       TData,
       ScopedQueryKey<TScope, TQueryKey>
     >,
-    "queryKey"
+    "queryKey" | "placeholderData"
   > {
   /**
    * Explicit cache scope matching the exact identifier the request uses
@@ -81,6 +81,9 @@ export function useScopedQuery<
   const result = useQuery({
     ...rest,
     queryKey: scopedQueryKey,
+    // Never forward placeholderData / keepPreviousData so scope A's rows cannot
+    // render under scope B while loading.
+    placeholderData: undefined,
     networkMode,
     retry,
     refetchOnWindowFocus,
@@ -90,7 +93,7 @@ export function useScopedQuery<
     hashKey(scopedQueryKey),
     result.error,
     result.errorUpdateCount,
-    onError,
+    result.isEnabled ? onError : undefined,
   );
 
   return result;
@@ -111,7 +114,7 @@ export interface UseScopedInfiniteQueryOptions<
       ScopedQueryKey<TScope, TQueryKey>,
       TPageParam
     >,
-    "queryKey"
+    "queryKey" | "placeholderData"
   > {
   /**
    * Explicit cache scope matching the exact identifier the request uses
@@ -155,6 +158,9 @@ export function useScopedInfiniteQuery<
   const result = useInfiniteQuery({
     ...rest,
     queryKey: scopedQueryKey,
+    // Never forward placeholderData / keepPreviousData so scope A's rows cannot
+    // render under scope B while loading.
+    placeholderData: undefined,
     networkMode,
     retry,
     refetchOnWindowFocus,
@@ -164,7 +170,7 @@ export function useScopedInfiniteQuery<
     hashKey(scopedQueryKey),
     result.error,
     result.errorUpdateCount,
-    onError,
+    result.isEnabled ? onError : undefined,
   );
 
   return result;

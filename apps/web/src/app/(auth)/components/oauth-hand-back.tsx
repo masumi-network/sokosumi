@@ -163,7 +163,7 @@ function AccountChoice({
         });
         if (result.error) throw result.error;
         if (result.data?.user.id !== account.id) {
-          window.location.assign(window.location.href);
+          window.location.reload();
           chooseAgain();
           return false;
         }
@@ -190,7 +190,7 @@ function AccountChoice({
       chooseAgain();
     };
     signOutWithPushRelease(account.id, {
-      redirectTo: window.location.href,
+      afterSignOut: "reload",
       fetchOptions: {
         // Always validate this exact request, including a missing or invalid
         // parameter manifest that the client plugin would otherwise omit.

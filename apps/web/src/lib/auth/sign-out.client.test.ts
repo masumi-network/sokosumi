@@ -22,6 +22,7 @@ import { signOutWithPushRelease } from "./sign-out.client";
 
 describe("signOutWithPushRelease", () => {
   let assignSpy: ReturnType<typeof vi.spyOn>;
+  let reloadSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -31,6 +32,9 @@ describe("signOutWithPushRelease", () => {
     window.history.replaceState({}, "", "/tasks?tab=all");
     assignSpy = vi
       .spyOn(window.location, "assign")
+      .mockImplementation(() => {});
+    reloadSpy = vi
+      .spyOn(window.location, "reload")
       .mockImplementation(() => {});
   });
 
@@ -67,18 +71,17 @@ describe("signOutWithPushRelease", () => {
     );
   });
 
-  it("passes the caller's fetchOptions straight through and supports a custom redirectTo", async () => {
+  it("passes the caller's fetchOptions straight through and reloads in place when requested", async () => {
     const fetchOptions = { onError: () => {} };
 
     await signOutWithPushRelease("user_1", {
-      redirectTo: "https://app.example.com/signin?oauth=1",
+      afterSignOut: "reload",
       fetchOptions,
     });
 
     expect(signOutMock).toHaveBeenCalledWith({ fetchOptions });
-    expect(assignSpy).toHaveBeenCalledWith(
-      "https://app.example.com/signin?oauth=1",
-    );
+    expect(reloadSpy).toHaveBeenCalledOnce();
+    expect(assignSpy).not.toHaveBeenCalled();
   });
 
   it("does not navigate when signOut returns an error", async () => {
@@ -90,6 +93,7 @@ describe("signOutWithPushRelease", () => {
     await signOutWithPushRelease("user_1");
 
     expect(assignSpy).not.toHaveBeenCalled();
+    expect(reloadSpy).not.toHaveBeenCalled();
   });
 
   /**

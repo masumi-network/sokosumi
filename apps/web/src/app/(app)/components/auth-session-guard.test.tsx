@@ -147,6 +147,35 @@ describe("AuthSessionGuard", () => {
     });
   });
 
+  it("retries the sign-in redirect on tab return, not immediate refocus, when beforeunload cancels navigation", async () => {
+    vi.mocked(authClient.getSession).mockResolvedValue(missingSession);
+
+    render(<AuthSessionGuard />);
+
+    await waitFor(() => {
+      expect(assignMock).toHaveBeenCalledTimes(1);
+    });
+
+    // Dismissing a beforeunload prompt refocuses the window; do not immediately
+    // re-prompt so the reader can still reach their editor.
+    window.dispatchEvent(new Event("focus"));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(assignMock).toHaveBeenCalledTimes(1);
+
+    // Returning to the tab retries the expiry redirect.
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() => {
+      expect(assignMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it("keeps the authenticated page during a structured session outage", async () => {
     vi.mocked(authClient.getSession).mockResolvedValue({
       data: null,

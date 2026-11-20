@@ -6,11 +6,11 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
+import { queueFlashSuccessToast } from "@/hooks/effects/use-flash-toast";
 import { resetPasswordWithToken } from "@/lib/actions/auth/action";
 import { signOut } from "@/lib/auth/auth.client";
 import { buildAuthPageUrl, readAuthPageContext } from "@/lib/auth/auth.utils";
@@ -99,7 +99,7 @@ export default function ResetPasswordForm() {
         setSignOutFailed(true);
         return;
       }
-      toast.success(t("success"));
+      queueFlashSuccessToast(t("success"));
       window.location.assign(buildAuthPageUrl("/signin", context));
     } catch {
       setSignOutFailed(true);

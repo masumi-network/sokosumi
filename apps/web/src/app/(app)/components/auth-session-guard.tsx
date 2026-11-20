@@ -153,6 +153,7 @@ export function AuthSessionGuard({ children }: AuthSessionGuardProps) {
   useEventListener("document", "visibilitychange", () => {
     if (document.visibilityState === "visible") {
       reloadAskedRef.current = false;
+      isRedirectingRef.current = false;
       void validateSession();
     }
   });

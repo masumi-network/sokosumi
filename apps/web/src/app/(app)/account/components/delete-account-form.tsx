@@ -36,6 +36,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { queueFlashSuccessToast } from "@/hooks/effects/use-flash-toast";
 import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { dropBrowserPushSubscriptionOnAccountDeletion } from "@/lib/ably/release-push-device.client";
 import {
@@ -195,7 +196,7 @@ export function DeleteAccountForm({
       // After the delete, not before it: a deletion the password check blocks
       // would otherwise turn push off for an account that still exists.
       await dropBrowserPushSubscriptionOnAccountDeletion();
-      toast.success(t("success"));
+      queueFlashSuccessToast(t("success"));
       window.location.assign("/");
     }
   };

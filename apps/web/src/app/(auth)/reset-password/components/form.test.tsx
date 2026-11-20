@@ -11,6 +11,7 @@ import { createAuthClient } from "better-auth/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FlashToast } from "@/components/flash-toast.client";
 import { resetPasswordWithToken } from "@/lib/actions/auth/action";
 import { signOut } from "@/lib/auth/auth.client";
 
@@ -46,6 +47,7 @@ describe("ResetPasswordForm", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     assign = vi.spyOn(window.location, "assign").mockImplementation(() => {});
     searchParams.current = new URLSearchParams();
     vi.mocked(resetPasswordWithToken).mockResolvedValue({
@@ -72,13 +74,20 @@ describe("ResetPasswordForm", () => {
     }
   });
 
-  it("sends the person to sign in afterwards", async () => {
+  it("sends the person to sign in afterwards and shows the success toast on the next document", async () => {
     render(<ResetPasswordForm />);
 
     await submitNewPassword();
 
     await waitFor(() => expect(assign).toHaveBeenCalledWith("/signin"));
+    expect(toast.success).not.toHaveBeenCalled();
+
+    render(<FlashToast />);
+    expect(toast.success).toHaveBeenCalledTimes(1);
     expect(toast.success).toHaveBeenCalledWith("success");
+
+    render(<FlashToast />);
+    expect(toast.success).toHaveBeenCalledTimes(1);
   });
 
   // Core ended every session, but a signed-in browser still holds the session

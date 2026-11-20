@@ -12,7 +12,7 @@ const mockSignOut =
     (
       userId: string,
       options: {
-        redirectTo?: string;
+        afterSignOut?: "signIn" | "reload";
         fetchOptions: {
           body: { oauth_query: string };
           onError: (context: { error: unknown }) => void;
@@ -20,7 +20,7 @@ const mockSignOut =
       },
     ) => Promise<void>
   >();
-let mockAssign: ReturnType<typeof vi.spyOn>;
+let mockReload: ReturnType<typeof vi.spyOn>;
 const mockToastError = vi.fn();
 const mockClaimSignUpConversion = vi.fn();
 const mockSignUpEvent = vi.fn();
@@ -83,8 +83,8 @@ describe("OAuthHandBack", () => {
     mockGetSession.mockReset();
     mockGetSession.mockResolvedValue({ data: { user: ACCOUNT }, error: null });
     mockSignOut.mockReset();
-    mockAssign = vi
-      .spyOn(window.location, "assign")
+    mockReload = vi
+      .spyOn(window.location, "reload")
       .mockImplementation(() => {});
     mockToastError.mockReset();
     mockClaimSignUpConversion.mockReset();
@@ -280,7 +280,7 @@ describe("OAuthHandBack", () => {
       });
       expect(mockSignOut).not.toHaveBeenCalled();
       // It never navigates itself: Better Auth's client follows the answer.
-      expect(mockAssign).not.toHaveBeenCalled();
+      expect(mockReload).not.toHaveBeenCalled();
     });
 
     it.each(["continueAs:Ada Lovelace", "useAnotherAccount"])(
@@ -299,7 +299,7 @@ describe("OAuthHandBack", () => {
         await userEvent
           .setup()
           .click(screen.getByRole("button", { name: buttonName }));
-        await waitFor(() => expect(mockAssign).toHaveBeenCalledOnce());
+        await waitFor(() => expect(mockReload).toHaveBeenCalledOnce());
         expect(mockGetSession).toHaveBeenCalledWith({
           query: { disableCookieCache: true },
         });
@@ -337,7 +337,7 @@ describe("OAuthHandBack", () => {
         });
         await act(async () => finishClaim());
 
-        expect(mockAssign).toHaveBeenCalledOnce();
+        expect(mockReload).toHaveBeenCalledOnce();
         expect(mockContinue).not.toHaveBeenCalled();
         expect(mockSignOut).not.toHaveBeenCalled();
       },
@@ -420,7 +420,7 @@ describe("OAuthHandBack", () => {
       expect(
         screen.getByRole("button", { name: "useAnotherAccount" }),
       ).toBeEnabled();
-      expect(mockAssign).not.toHaveBeenCalled();
+      expect(mockReload).not.toHaveBeenCalled();
     });
 
     it("names the account by email when it has no name", () => {
@@ -478,7 +478,7 @@ describe("OAuthHandBack", () => {
       );
 
       expect(mockSignOut).toHaveBeenCalledWith("user-1", {
-        redirectTo: window.location.href,
+        afterSignOut: "reload",
         fetchOptions: expect.objectContaining({
           body: { oauth_query: CREATE_QUERY },
         }),
@@ -509,7 +509,7 @@ describe("OAuthHandBack", () => {
         "errorDescriptionFor:CMO",
       );
       expect(mockSignOut).not.toHaveBeenCalled();
-      expect(mockAssign).not.toHaveBeenCalled();
+      expect(mockReload).not.toHaveBeenCalled();
     });
 
     it("shows the expiry error when Core refuses the request on sign-out", async () => {
@@ -536,7 +536,7 @@ describe("OAuthHandBack", () => {
         "errorDescriptionFor:CMO",
       );
       expect(mockToastError).not.toHaveBeenCalled();
-      expect(mockAssign).not.toHaveBeenCalled();
+      expect(mockReload).not.toHaveBeenCalled();
     });
 
     it("lets the person choose again when signing out fails", async () => {
@@ -561,7 +561,7 @@ describe("OAuthHandBack", () => {
       await waitFor(() => {
         expect(mockToastError).toHaveBeenCalledWith("signOutError");
       });
-      expect(mockAssign).not.toHaveBeenCalled();
+      expect(mockReload).not.toHaveBeenCalled();
       expect(
         screen.getByRole("button", { name: "useAnotherAccount" }),
       ).toBeEnabled();
