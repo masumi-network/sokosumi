@@ -171,6 +171,10 @@ describe("CMO version", () => {
 
   // Owner, 2026-11-20: varied pictures, no repeated messages, corrections
   // that reach the whole plan, stronger LinkedIn openings.
+  it("makes cmo-v8 the version a new hire gets", () => {
+    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v8");
+  });
+
   it("has cmo-v8 build on cmo-v7 with claims, varied pictures and LinkedIn openings", () => {
     const v7 = getSokoBotVersion("cmo-v7");
     const v8 = getSokoBotVersion("cmo-v8");
@@ -855,10 +859,6 @@ describe("what Cuso is told a talking video costs", () => {
 });
 
 describe("cmo-v7", () => {
-  it("is the version a new hire gets", () => {
-    expect(CMO_SOKO_BOT_VERSION_ID).toBe("cmo-v7");
-  });
-
   it("answers a change without repeating the card or naming internals", () => {
     expect(cmoV6.systemPrompt).toContain("then answer in one or two sentences");
     expect(cmoV7.systemPrompt).not.toContain(
