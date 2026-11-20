@@ -14,6 +14,7 @@ import {
 } from "@/schemas/project-seo-native-metrics.schema";
 import type { SyncProjectSeoStatistics } from "@/schemas/project-seo-statistics.schema";
 import { seoSearchTypeHasQueries } from "@/schemas/project-seo-traffic.schema";
+import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import {
   inspectionCacheKey,
   inspectionsDue,
@@ -30,6 +31,7 @@ import { syncLockService } from "./sync-lock.service";
 
 interface AutomaticStatistics<T> {
   actor: SeoActor;
+  auditTaskId?: string;
   input: SyncProjectSeoStatistics;
   integration: SeoStatisticsIntegration;
   pageIds: string[];
@@ -50,9 +52,11 @@ export async function withAutomaticSeoStatistics<T>(
   context: AutomaticStatistics<T>,
 ): Promise<T> {
   const { actor, input, integration, hooks } = context;
+  const auditTaskId = context.auditTaskId;
   const fingerprint = sha256(
     JSON.stringify({
       workspaceId: actor.workspaceId,
+      ...(auditTaskId && { auditTaskId }),
       owner: actor.owner,
       userId: actor.userId,
       organizationId: actor.organizationId,
@@ -72,7 +76,7 @@ export async function withAutomaticSeoStatistics<T>(
       channel: input.channel ?? "all",
       searchType: input.searchType ?? "web",
       keywords:
-        input.provider === "search_console"
+        !auditTaskId && input.provider === "search_console"
           ? selectTrackedKeywords(context.keywords)
           : null,
     }),
@@ -85,11 +89,14 @@ export async function withAutomaticSeoStatistics<T>(
       where: {
         ...seoOwnerWhere(actor),
         ownerId: actor.userId,
-        visibility: seoVisibilityFor(actor),
-        kind: "metrics",
+        visibility: auditTaskId ? "PRIVATE" : seoVisibilityFor(actor),
+        ...(auditTaskId && { sourceTaskId: auditTaskId }),
+        kind: auditTaskId ? AUDIT_PERFORMANCE_KIND : "metrics",
         source: input.provider,
         payload: { path: ["collectionFingerprint"], equals: fingerprint },
-        observedAt: { gte: new Date(Date.now() - SEO_STATISTICS_FRESH_MS) },
+        ...(!auditTaskId && {
+          observedAt: { gte: new Date(Date.now() - SEO_STATISTICS_FRESH_MS) },
+        }),
       },
       orderBy: [{ observedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: 1,
@@ -98,6 +105,7 @@ export async function withAutomaticSeoStatistics<T>(
     if (!result.success || result.data.collectionFingerprint !== fingerprint)
       return null;
     const data = result.data;
+    if (auditTaskId) return data.auditPerformanceComplete ? data : null;
     const age =
       Date.now() - new Date(data.collectedAt ?? data.observedAt).getTime();
     const retryQueries =
@@ -142,6 +150,7 @@ export async function withAutomaticSeoStatistics<T>(
     return context.readWorkspace();
   }
   const saved = input.automatic ? await fresh() : null;
+  if (auditTaskId && saved) return readCachedWorkspace();
   if (saved && !inspectionsDue(saved) && (await isActive()))
     return readCachedWorkspace();
   // Reports that share URL Inspection data must not both spend the same page quota.
@@ -179,6 +188,7 @@ export async function withAutomaticSeoStatistics<T>(
           throw conflict("Statistics collection expired. Please retry.");
       },
     };
+    if (auditTaskId && current) return await readCachedWorkspace();
     if (current && !inspectionsDue(current)) {
       if (await isActive()) return readCachedWorkspace();
       return await context.activate(

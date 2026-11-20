@@ -2,9 +2,11 @@ import type { z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonInput } from "@/helpers/prisma-json";
+import { reportObject } from "@/helpers/project-seo-public-report";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { findSeoAnalysisExecutor } from "@/lib/seo/analysis-dispatch";
+import { preserveAuditPerformance } from "@/lib/seo/audit-performance-retry";
 import {
   SEO_DATA_VISIBILITY,
   seoSharingFor,
@@ -23,11 +25,13 @@ import {
   type NativeSeoMetrics,
   nativeSeoMetricsSchema,
 } from "@/schemas/project-seo-native-metrics.schema";
+import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import {
   type PrivateLandingOutcomes,
   privateLandingOutcomeSchema,
   privateLandingSourceSchema,
 } from "@/schemas/seo-landing-outcomes.schema";
+import { storedSeoAuditSearchConsoleSchema } from "@/schemas/seo-task-indexing.schema";
 import { listProjectSeoMonitors } from "./project-seo-monitor.service";
 import { seoMonitorOfTasks } from "./project-seo-monitor-runs";
 import { projectSeoProjection } from "./project-seo-projection";
@@ -54,6 +58,7 @@ import {
   sha256,
 } from "./project-seo-store";
 import { pendingSeoActionReviews } from "./seo-action-review-store";
+import { readAuditPerformanceSummaries } from "./seo-audit-performance-summary";
 import { SEO_LANDING_OUTCOMES_KIND } from "./seo-brief-landing-outcomes";
 import { projectLegacyIndexingProvenance } from "./seo-indexing-provenance";
 import { loadPrivateRecommendationReviews } from "./seo-private-recommendation-reviews";
@@ -221,6 +226,7 @@ export async function recordNativeSeoMetrics(
   input: NativeSeoMetrics,
   options: SeoMutationHooks & {
     client?: Prisma.TransactionClient;
+    auditTaskId?: string;
     outcomes?: PrivateLandingOutcomes;
     outcomeAccountKey?: string;
     scope?: { id: string | null; version: number; pageIds: string[] };
@@ -266,26 +272,50 @@ export async function recordNativeSeoMetrics(
           throw conflict("The page group changed during collection");
       }
     }
-    const visibility = seoVisibilityFor(actor);
-    const body = JSON.stringify(payload),
-      artifactHash = sha256(body),
-      sourceKey = `native:${sha256(`${visibility === SEO_DATA_VISIBILITY.SHARED ? `${visibility}:` : ""}${actor.userId}:${payload.provider}:${payload.propertyId}:${artifactHash}`)}`;
+    const visibility = options.auditTaskId
+      ? "PRIVATE"
+      : seoVisibilityFor(actor);
+    const auditKey =
+      options.auditTaskId && `audit-search-console:${options.auditTaskId}`;
+    const previous = auditKey
+      ? await client.projectSeoObservation.findUnique({
+          where: seoOwnerUnique(actor, "sourceKey", { sourceKey: auditKey }),
+          select: { payload: true },
+        })
+      : null;
+    const saved = previous
+      ? preserveAuditPerformance(
+          nativeSeoMetricsSchema.parse(previous.payload),
+          payload,
+        )
+      : payload;
+    const artifactHash = sha256(JSON.stringify(saved));
+    const sourceKey =
+      auditKey ??
+      `native:${sha256(`${visibility === SEO_DATA_VISIBILITY.SHARED ? `${visibility}:` : ""}${actor.userId}:${payload.provider}:${payload.propertyId}:${artifactHash}`)}`;
     const result = await client.projectSeoObservation.upsert({
       where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
       create: {
         ...seoOwnerWhere(actor),
         ownerId: actor.userId,
         visibility,
-        kind: "metrics",
+        kind: options.auditTaskId ? AUDIT_PERFORMANCE_KIND : "metrics",
+        ...(options.auditTaskId && { sourceTaskId: options.auditTaskId }),
         source: payload.provider,
         sourceKey,
         pageIds: options.scope?.pageIds ?? pages.map((page) => page.id),
         scopeVersion: options.scope?.version ?? 0,
         artifactHash,
-        payload: jsonInput(payload),
-        observedAt: new Date(payload.observedAt),
+        payload: jsonInput(saved),
+        observedAt: new Date(saved.observedAt),
       },
-      update: {},
+      update: options.auditTaskId
+        ? {
+            payload: jsonInput(saved),
+            artifactHash,
+            observedAt: new Date(saved.observedAt),
+          }
+        : {},
     });
     const named = options.outcomes
       ? privateLandingOutcomeSchema.parse(options.outcomes)
@@ -468,6 +498,7 @@ export async function getProjectSeoWorkspace(
   options: {
     includePrivateIndexing?: boolean;
     includePrivateReviews?: boolean;
+    includeAuditPerformance?: boolean;
   } = {},
 ) {
   await requireSeoOwner(actor);
@@ -536,6 +567,18 @@ export async function getProjectSeoWorkspace(
   ]);
   const taskIds = [
     ...new Set([
+      ...observations.flatMap((row) => {
+        const strategy = reportObject(reportObject(row.payload)?.strategy);
+        return row.kind === "audit_full" &&
+          row.source === "seo_coworker" &&
+          row.sourceTaskId &&
+          row.sourceFileId &&
+          strategy &&
+          strategy.markets == null &&
+          strategy.marketNote == null
+          ? [row.sourceTaskId]
+          : [];
+      }),
       ...actionTasks.map((item) => item.taskId),
       ...analyses.flatMap((item) => (item.taskId ? [item.taskId] : [])),
     ]),
@@ -549,6 +592,11 @@ export async function getProjectSeoWorkspace(
         select: {
           id: true,
           status: true,
+          ownerId: true,
+          projectId: true,
+          assigneeId: true,
+          visibility: true,
+          archivedAt: true,
           events: {
             where: { status: "COMPLETED" },
             orderBy: { createdAt: "desc" },
@@ -612,6 +660,24 @@ export async function getProjectSeoWorkspace(
     analyses,
     actionTasks,
     tasks,
+    marketRecoveryTaskIds: new Set(
+      taskRows
+        .filter(
+          (task) =>
+            task.status === "COMPLETED" &&
+            task.visibility === "PUBLIC" &&
+            task.ownerId === actor.userId &&
+            task.assigneeId &&
+            (task.projectId === null ||
+              (actor.owner.kind === "project" &&
+                task.projectId === actor.owner.id)) &&
+            !task.archivedAt &&
+            !analyses.some(
+              (a) => a.taskId === task.id && a.requestedBy !== actor.userId,
+            ),
+        )
+        .map((task) => task.id),
+    ),
     privateMetricsAllowed,
     analysisDispatchEnabled: executor !== null,
     canUsePaidSearchData: executor?.canUsePaidSearchData === true,
@@ -632,6 +698,33 @@ export async function getProjectSeoWorkspace(
       : undefined;
   const monitored = {
     ...workspace,
+    ...(options.includeAuditPerformance &&
+      privateMetricsAllowed &&
+      !actor.sokoBotId &&
+      (await readAuditPerformanceSummaries(
+        actor,
+        analyses.flatMap((a) =>
+          a.kind === "audit_full" &&
+          a.requestedBy === actor.userId &&
+          a.taskId &&
+          visibleTasks.has(a.taskId)
+            ? [a.taskId]
+            : [],
+        ),
+        analyses.flatMap((a) =>
+          a.kind === "audit_full" &&
+          a.requestedBy === actor.userId &&
+          a.taskId &&
+          tasks.some(
+            (task) => task.id === a.taskId && task.status === "COMPLETED",
+          ) &&
+          storedSeoAuditSearchConsoleSchema.safeParse(a.request).data
+            ?.searchConsoleAccess
+            ? [a.taskId]
+            : [],
+        ),
+        new Set(scope.pages.map((page) => page.url)),
+      ))),
     ...(topicQueries && { privateTopicQueries: topicQueries }),
     actions,
     runs: workspace.runs?.map((run) => ({

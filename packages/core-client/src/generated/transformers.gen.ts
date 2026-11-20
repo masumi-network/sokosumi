@@ -4641,6 +4641,12 @@ const projectSeoIndexTriageSchemaResponseTransformer = (data: any) => {
 };
 
 const projectSeoStrategySchemaResponseTransformer = (data: any) => {
+    if (data.markets) {
+        data.markets.hosts = data.markets.hosts.map((item: any) => {
+            item.fetchedAt = new Date(item.fetchedAt);
+            return item;
+        });
+    }
     data.observedAt = new Date(data.observedAt);
     return data;
 };
@@ -4790,6 +4796,21 @@ const projectSeoWorkspaceSchemaResponseTransformer = (data: any) => {
         data.runs = data.runs.map((item: any) => projectSeoRunSchemaResponseTransformer(item));
     }
     data.analyses = data.analyses.map((item: any) => projectSeoAnalysisSchemaResponseTransformer(item));
+    if (data.auditSearchConsole) {
+        data.auditSearchConsole = data.auditSearchConsole.map((item: any) => {
+            item.from = new Date(item.from);
+            item.to = new Date(item.to);
+            if (item.previous) {
+                item.previous.from = new Date(item.previous.from);
+                item.previous.to = new Date(item.previous.to);
+            }
+            if (item.history) {
+                item.history.from = new Date(item.history.from);
+                item.history.to = new Date(item.history.to);
+            }
+            return item;
+        });
+    }
     data.monitors = data.monitors.map((item: any) => projectSeoMonitorSchemaResponseTransformer(item));
     return data;
 };

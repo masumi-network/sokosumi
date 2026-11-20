@@ -4,19 +4,50 @@ import {
   SEO_ISSUE_SEVERITY_NAMES,
   seoOverviewModel,
 } from "./seo-overview-model";
+import { isSeoRuleCheck, seoRunDays } from "./seo-runs-model";
 import { normalizeQuery } from "./seo-search-model";
 
-/**
- * Observations come newest first. Rankings and links reads carry no rule rows,
- * so the last check is the newest observation that asked for rule checks.
- */
+/** Use the rule check at the selected timeline stop, or the newest rule check inside a date range. */
 export function lastRuleCheck(workspace: ProjectSeoWorkspace) {
-  return (
-    workspace.observations.find(
-      ({ coverage }) =>
-        coverage.checked + coverage.skipped + coverage.failed > 0 ||
-        (coverage.modules?.failed ?? 0) > 0,
-    ) ?? null
+  const { scope, observations } = workspace;
+  const stop = seoRunDays(workspace, scope).days.find((day) => day.selected);
+  if (stop) return observations.find((row) => row.id === stop.check) ?? null;
+  return observations.find((row) => isSeoRuleCheck(row.kind)) ?? null;
+}
+
+/** Core has already removed older findings superseded by a later verdict. */
+export function seoIssueScope(
+  workspace: ProjectSeoWorkspace,
+  issues: ReturnType<typeof seoOverviewModel>["issues"],
+) {
+  const check = lastRuleCheck(workspace);
+  // Without a dated observation there is no basis for calling a finding historical.
+  if (!check && !workspace.observations.length && !workspace.runs?.length)
+    return { check, current: issues, earlier: [], total: null };
+  const current = issues.filter((row) => row.observationId === check?.id);
+  const earlier = issues.filter((row) => row.observationId !== check?.id);
+  if (!check) return { check, current, earlier, total: null };
+  const run = workspace.runs?.find((row) => row.observationId === check.id);
+  if (run) return { check, current, earlier, total: run.issues };
+
+  // Workspaces saved before the timeline still carry the scoped observation count.
+  const fullScope = workspace.scope.pageIds.every((id) =>
+    check.pageIds.includes(id),
+  );
+  const complete =
+    check.coverage.checked > 0 &&
+    !check.coverage.failed &&
+    !check.coverage.modules?.failed;
+  const total =
+    fullScope && (check.issues > 0 || complete) ? check.issues : null;
+  return { check, current, earlier, total };
+}
+
+/** The latest full audit with saved research can predate a focused page check. */
+export function lastAuditResearch(workspace: ProjectSeoWorkspace) {
+  return workspace.observations.find(
+    (check) =>
+      check.kind === "audit_full" && check.checklistBreakdown?.research.length,
   );
 }
 
@@ -25,8 +56,10 @@ export function lastRuleCheck(workspace: ProjectSeoWorkspace) {
  * A tile is null where no saved evidence gives its number: a missing read is not a zero.
  */
 export function seoSummary(workspace: ProjectSeoWorkspace) {
-  const check = lastRuleCheck(workspace);
-  const { issues, hasFailedChecks } = seoOverviewModel(workspace);
+  const { check, current, total } = seoIssueScope(
+    workspace,
+    seoOverviewModel(workspace).issues,
+  );
   const groups = keywordGroups(workspace.keywords).checked;
   const rankings = keywordSummary(groups);
   const read = groups.filter((group) => group.reads.length > 0);
@@ -42,28 +75,26 @@ export function seoSummary(workspace: ProjectSeoWorkspace) {
     ).values(),
   ].map((pages) => pages.find((group) => group.volume !== null)?.volume ?? 0);
   const measured = read.filter((group) => group.volume !== null).length;
-  // The same rule as the Agent verdict: a failed test in any check in view proves no clean result.
-  const incomplete =
-    check !== null && (check.coverage.checked === 0 || hasFailedChecks);
   const tests = check
     ? check.coverage.checked + check.coverage.skipped + check.coverage.failed
     : 0;
   return {
-    // No issue after an incomplete check is no "0 issues": the tile stays away.
     issues:
-      check && !(incomplete && issues.length === 0)
-        ? {
-            total: issues.length,
-            fromEarlierChecks: issues.filter(
-              (issue) => issue.observationId !== check.id,
-            ).length,
-            parts: SEO_ISSUE_SEVERITY_NAMES.map((severity) => ({
-              severity,
-              count: issues.filter((issue) => issue.severity === severity)
-                .length,
-            })).filter((part) => part.count > 0),
-          }
-        : null,
+      total === null
+        ? null
+        : {
+            total,
+            // A retained aggregate may have fewer detail rows. Only show a complete severity breakdown.
+            parts:
+              current.length === total
+                ? SEO_ISSUE_SEVERITY_NAMES.map((severity) => ({
+                    severity,
+                    count: current.filter(
+                      (issue) => issue.severity === severity,
+                    ).length,
+                  })).filter((part) => part.count > 0)
+                : [],
+          },
     // Tests that gave a result, tests that could not decide, and tests the check could not run.
     tests:
       check && tests > 0

@@ -4,7 +4,6 @@ import type { Coworker } from "@sokosumi/core-client";
 import { ArrowRight, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useQueryState } from "nuqs";
 import { useMemo, useState } from "react";
 import { StartChatButton } from "@/app/chat/components/landing/start-chat-button.client";
 import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
@@ -17,11 +16,14 @@ import {
 } from "@/components/agents/coworker-gallery-results";
 import { CoworkerGallerySearch } from "@/components/agents/coworker-gallery-search";
 import {
+  GalleryGroupHeading,
+  GalleryResultsStatus,
+} from "@/components/agents/gallery-group-heading";
+import {
   GALLERY_DIVIDER_CLASS,
   GALLERY_HERO_BAND_CLASS,
   GALLERY_HERO_HEADLINE_CLASS,
   GALLERY_HERO_INNER_CLASS,
-  GALLERY_SECTION_HEADLINE_CLASS,
   GALLERY_SOCIAL_PROOF_CAPTION_CLASS,
   GALLERY_SOCIAL_PROOF_FACE_CLASS,
 } from "@/components/agents/gallery-page-classes";
@@ -34,8 +36,11 @@ import {
 import { TagIcon } from "@/components/agents/tag-icon";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
+import useGalleryFilter from "@/hooks/use-gallery-filter";
+import { GALLERY_SCOPES } from "@/lib/agents/gallery-filter";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
 
@@ -439,10 +444,11 @@ function CoworkerGallerySectionInner({
   coworkers,
 }: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
+  const tScope = useTranslations("App.Agents.FilterSection.scope");
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
-  // Coworker gallery search — independent from catalog `agentQuery`.
-  const [query, setQuery] = useQueryState("query", { defaultValue: "" });
+  // The page's one search; the agent catalog below filters by it too.
+  const { query, setQuery, scope, setScope } = useGalleryFilter();
   const { handleOpenWith } = useCreateTaskModal();
   const [selected, setSelected] = useState<OfferItem | null>(null);
   const [showAllCompanies, setShowAllCompanies] = useState(false);
@@ -485,10 +491,8 @@ function CoworkerGallerySectionInner({
     [sortedCoworkers, q],
   );
 
-  if (!coworkers.length) {
-    return null;
-  }
-
+  // No early return without coworkers: the hero holds the page's only search
+  // and Show control, which the agent catalog needs too.
   // While searching, show everything; otherwise cap the number of companies.
   const isSearching = q !== "";
   const visibleGroups =
@@ -496,6 +500,10 @@ function CoworkerGallerySectionInner({
       ? vendorGroups
       : vendorGroups.slice(0, VENDOR_CAP);
   const canShowMoreCompanies = !isSearching && vendorGroups.length > VENDOR_CAP;
+  const matchingCoworkers = vendorGroups.reduce(
+    (total, group) => total + group.coworkers.length,
+    0,
+  );
 
   return (
     <section className="space-y-12 md:space-y-16">
@@ -522,8 +530,37 @@ function CoworkerGallerySectionInner({
           <h2 className={GALLERY_HERO_HEADLINE_CLASS}>{t("heroHeadline")}</h2>
           <CoworkerGallerySearch
             query={query}
-            setQuery={setQuery}
+            setQuery={(value) => void setQuery(value)}
             suggestions={suggestions}
+          />
+          <ToggleGroup
+            type="single"
+            aria-label={tScope("label")}
+            value={scope}
+            onValueChange={(next) => {
+              const match = GALLERY_SCOPES.find((option) => option === next);
+              if (match) void setScope(match);
+            }}
+          >
+            {GALLERY_SCOPES.map((option) => (
+              // flex-none: each option sizes to its label and keeps its px-3.
+              <ToggleGroupItem
+                key={option}
+                value={option}
+                className="flex-none"
+              >
+                {tScope(option)}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <GalleryResultsStatus
+            message={
+              isSearching && scope !== "agents"
+                ? t("coworkersFound", { count: matchingCoworkers })
+                : scope === "coworkers" && vendorGroups.length === 0
+                  ? t("noCoworkers")
+                  : ""
+            }
           />
           {suggestions.length > 0 ? (
             <div className="flex flex-wrap items-center justify-center gap-2">
@@ -531,7 +568,7 @@ function CoworkerGallerySectionInner({
                 <button
                   key={suggestion}
                   type="button"
-                  onClick={() => setQuery(suggestion)}
+                  onClick={() => void setQuery(suggestion)}
                   className={cn(
                     "bg-card border-border text-muted-foreground press hover:text-foreground rounded-full border px-3 py-1.5 text-sm transition-colors",
                     FOCUS_RING,
@@ -545,11 +582,12 @@ function CoworkerGallerySectionInner({
         </div>
       </div>
 
-      {vendorGroups.length > 0 ? (
+      {scope !== "agents" && vendorGroups.length > 0 ? (
         <div className="space-y-8">
-          <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>
-            {t("coworkersTitle")}
-          </h2>
+          <GalleryGroupHeading
+            title={t("coworkersTitle")}
+            count={isSearching ? matchingCoworkers : undefined}
+          />
           <div>
             {visibleGroups.map(
               ({ vendor, coworkers: members, offers }, index) => (
@@ -603,6 +641,10 @@ function CoworkerGallerySectionInner({
             </div>
           ) : null}
         </div>
+      ) : scope === "coworkers" ? (
+        <p className="text-muted-foreground text-center text-sm">
+          {isSearching ? t("noResults") : t("noCoworkers")}
+        </p>
       ) : null}
 
       <OfferDetailDialog

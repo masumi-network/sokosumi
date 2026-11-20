@@ -16,8 +16,9 @@ import {
 import { channelInfo, SOON_CHANNELS } from "../../lib/channels";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { cusoSubscribed } from "../../lib/cuso-subscribed";
+import { nextWeeklyReview } from "../../lib/page-lead";
 import { strategyApproved } from "../../lib/strategy";
-import { monthEntries } from "../../lib/today";
+import { monthEntries, waitingLine } from "../../lib/today";
 import type { View } from "../../lib/views";
 import {
   type AdActions,
@@ -92,6 +93,7 @@ export function ResultsPage({
     (entry) => waitsForNetwork(entry, networks) ?? [],
   );
   const drafts = written.length - waits.length;
+  const waitsLine = waitingLine(overview);
   const review = nextWeeklyReview(overview);
   return (
     <div className="page-body">
@@ -113,15 +115,10 @@ export function ResultsPage({
           <Kpi label="Failed" value={posts.failed} />
         ) : null}
       </div>
-      {waits.length > 0 ? (
+      {waitsLine ? (
         <p className="cal-waits">
           <StatusDisc status="warn" decorative />
-          <span className="grow">
-            {waits.length === 1
-              ? "1 post is written and waits"
-              : `${waits.length} posts are written and wait`}{" "}
-            for {[...new Set(waits)].map(channelLabel).join(" and ")}.
-          </span>
+          <span className="grow">{waitsLine}</span>
           <button
             type="button"
             className="button button-secondary button-small"
@@ -284,18 +281,6 @@ function ComingUp({
   );
 }
 
-/** When the next weekly review runs, once the strategy is approved. */
-function nextWeeklyReview(
-  overview: CmoOverview,
-): { at: Date | string; zone: string | null } | null {
-  const review = overview.routines.find(
-    (routine) => routine.key === "cmo-weekly-review",
-  );
-  return review?.nextRunAt && strategyApproved(overview)
-    ? { at: review.nextRunAt, zone: review.timezone }
-    : null;
-}
-
 /** The line under the Results title: how often, and the real next day. */
 export function ResultsLead({ overview }: { overview: CmoOverview }) {
   const review = nextWeeklyReview(overview);
@@ -354,6 +339,7 @@ export function BrandBrainPage({
         messages={messages}
         onCorrect={onAsk}
         onSave={onSave}
+        withLead={false}
       />
     </div>
   );

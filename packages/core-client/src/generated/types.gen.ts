@@ -11915,6 +11915,70 @@ export type ProjectSeoWorkspace = {
     timeline: Array<ProjectSeoTimelineItem>;
     runs?: Array<ProjectSeoRun>;
     analyses: Array<ProjectSeoAnalysis>;
+    auditSearchConsole?: Array<{
+        clicks: number | null;
+        impressions: number | null;
+        ctr: number | null;
+        averagePosition: number | null;
+        from: Date;
+        to: Date;
+        taskId: string;
+        propertyId: string;
+        pageUrls: Array<string>;
+        measuredPages: Array<{
+            pageUrl: string;
+            measuredUrl: string;
+            basis: 'selected' | 'google_canonical' | 'unverified';
+        }>;
+        coverage: 'complete' | 'partial' | 'unavailable';
+        opportunities: Array<{
+            id: string;
+            title: string;
+            why: string;
+            pageUrl: string;
+            expectedEffect: string;
+            evidence: Array<string>;
+        }>;
+        previous: {
+            clicks: number | null;
+            impressions: number | null;
+            ctr: number | null;
+            averagePosition: number | null;
+            from: Date;
+            to: Date;
+        } | null;
+        history?: {
+            reason: 'recent_click_decline' | 'recent_click_growth';
+            from: Date;
+            to: Date;
+            coverage: 'complete' | 'partial' | 'unavailable';
+            clicks: number | null;
+            decision: 'investigate_loss' | 'investigate_growth' | 'monitor' | 'insufficient_history';
+        };
+        countries?: {
+            rowLimit: number;
+            truncated: boolean;
+            rows: Array<{
+                key: string;
+                clicks: number;
+                impressions: number;
+                ctr: number;
+                averagePosition: number;
+            }>;
+        };
+        queries: {
+            rows: Array<{
+                query: string;
+                pageUrl: string;
+                clicks: number;
+                impressions: number;
+                ctr: number;
+                averagePosition: number;
+            }>;
+            truncated: boolean;
+        } | null;
+    }>;
+    auditSearchConsoleRetryTaskIds?: Array<string>;
     monitors: Array<ProjectSeoMonitor>;
     availableActions: {
         canEdit: boolean;
@@ -11955,6 +12019,33 @@ export type ProjectSeoObservation = {
     rulebookVersion: string;
     artifactHash: string;
     issues: number;
+    checklistBreakdown?: {
+        passed: number | null;
+        flagged: number | null;
+        gaps: Array<{
+            rowId: string;
+            pageUrl: string;
+            device: 'mobile' | 'desktop';
+            reason: string;
+        }>;
+        research: Array<{
+            pageUrl: string;
+            scope: 'page' | 'site';
+            rankedKeywordIdeas?: boolean;
+            stages: Array<{
+                name: 'seasonal' | 'editorial' | 'exploration';
+                status: 'completed' | 'partial' | 'skipped' | 'no_finding' | 'unknown';
+                reason?: string;
+            }>;
+        }>;
+    };
+    pageMarketEvidence?: {
+        regionalVersions: Array<{
+            country: string;
+            language: string;
+            url: string;
+        }>;
+    };
     coverage: {
         checked: number;
         skipped: number;
@@ -11982,6 +12073,7 @@ export type ProjectSeoKeyword = {
         models: Array<'gemini' | 'codex'>;
         record: string;
     };
+    ideaRank?: number | null;
     difficulty: number | null;
     clicks: {
         now: number;
@@ -12250,6 +12342,31 @@ export type ProjectSeoIndexAssessedPage = {
 };
 
 export type ProjectSeoStrategy = {
+    markets?: {
+        rows: Array<{
+            country: string;
+            language: string;
+            start: boolean;
+            rivals: number;
+            of: number;
+            share: number;
+            etv: number;
+            ownShare: number | null;
+            hasLanguage: boolean;
+            regionVersion: string | null;
+            candidate: boolean;
+        }>;
+        outside: number | null;
+        siteVisits: boolean;
+        hosts: Array<{
+            host: string;
+            role: 'site' | 'product';
+            etv: number | null;
+            fetchedAt: Date;
+            unavailable: boolean;
+        }>;
+    };
+    marketNote?: 'local_business' | 'missing_baseline' | 'time_limit' | 'budget_limit' | 'read_error' | 'unverified_competitors' | 'strategy_unavailable' | 'unavailable';
     verdict: string;
     why: string;
     purpose?: 'sales' | 'traffic';
@@ -12341,6 +12458,7 @@ export type ProjectSeoStrategy = {
             volume: number;
         }> | null;
     }>;
+    marketRecoveryFileId?: string;
     observationId: string;
     observedAt: Date;
     countryCode: string | null;
@@ -12518,6 +12636,7 @@ export type UpdateProjectSeoScopeRequest = CreateProjectSeoScopeRequest & {
 export type ImportProjectSeoAuditRequest = {
     taskId: string;
     fileId: string;
+    recoverMarkets?: boolean;
 };
 
 export type RequestProjectSeoAnalysisRequest = {
@@ -79605,7 +79724,9 @@ export type ListProjectSeoStatisticsPropertiesResponses = {
 export type ListProjectSeoStatisticsPropertiesResponse = ListProjectSeoStatisticsPropertiesResponses[keyof ListProjectSeoStatisticsPropertiesResponses];
 
 export type SyncProjectSeoStatisticsData = {
-    body?: SyncProjectSeoStatisticsRequest;
+    body?: SyncProjectSeoStatisticsRequest | {
+        auditTaskId: string;
+    };
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -82482,7 +82603,9 @@ export type ListSeoAuditStatisticsPropertiesResponses = {
 export type ListSeoAuditStatisticsPropertiesResponse = ListSeoAuditStatisticsPropertiesResponses[keyof ListSeoAuditStatisticsPropertiesResponses];
 
 export type SyncSeoAuditStatisticsData = {
-    body?: SyncProjectSeoStatisticsRequest;
+    body?: SyncProjectSeoStatisticsRequest | {
+        auditTaskId: string;
+    };
     headers?: {
         /**
          * Optional organization slug to set the organization context.

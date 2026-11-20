@@ -13,6 +13,8 @@ import {
 } from "vitest";
 import { getEnv } from "@/config/env";
 import { forbidden } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
+import { reportObject } from "@/helpers/project-seo-public-report";
 import { parsePublicSeoArtifact } from "@/helpers/project-seo-report";
 import { SEO_SERPS_NOT_READ } from "@/helpers/project-seo-report-serps";
 import prisma from "@/lib/db/prisma";
@@ -29,6 +31,7 @@ import {
   type SeoActor,
 } from "@/schemas/project-seo.schema";
 import { type NativeSeoMetrics } from "@/schemas/project-seo-native-metrics.schema";
+import { AUDIT_PERFORMANCE_KIND } from "@/schemas/seo-audit-performance.schema";
 import { seoAuditSearchConsoleAccessSchema } from "@/schemas/seo-task-indexing.schema";
 import {
   focusedRankingsReport,
@@ -36,6 +39,7 @@ import {
   legacyReport,
   SEO_TEST_PAGE,
   serpRead,
+  siteStrategyReport,
 } from "@/test-fixtures/project-seo";
 import { searchConsoleToolDescriptors } from "@/test-fixtures/seo-search-console";
 import {
@@ -77,6 +81,12 @@ import {
   runTaskScheduleNow,
   updateTaskSchedule,
 } from "./task-schedule.service";
+
+const pendingDelivery = vi.hoisted(() => [] as Promise<unknown>[]);
+vi.mock("@vercel/functions", async (original) => ({
+  ...(await original<typeof import("@vercel/functions")>()),
+  waitUntil: (work: Promise<unknown>) => pendingDelivery.push(work),
+}));
 
 // Notification and Task events publish after the test that made them: keep them off the network of later tests.
 vi.mock("@/clients/composio.client", async (original) => ({
@@ -903,6 +913,19 @@ describe.skipIf(!enabled)(
         const repaired = await start();
         expect(repaired.status).toBe(201);
         expect(await transactions()).toBe(before);
+        await Promise.all(pendingDelivery.splice(0));
+        const performance = await prisma.projectSeoObservation.findFirst({
+          where: { sourceTaskId: first!.id, kind: AUDIT_PERFORMANCE_KIND },
+        });
+        expect(performance).toMatchObject({
+          ownerId: userId,
+          visibility: "PRIVATE",
+          payload: {
+            provider: "search_console",
+            propertyId: property,
+            pageUrls: [url],
+          },
+        });
         await prisma.task.update({
           where: { id: first!.id },
           data: { status: "COMPLETED" },
@@ -2480,6 +2503,155 @@ describe.skipIf(!enabled)(
       });
       expect(nextTask.taskId).not.toBe(link.taskId);
     });
+
+    it.each([true, false])(
+      "recovers only saved site market fields on the exact existing observation (retained %s)",
+      async (retained) => {
+        const pageUrl = `https://market-recovery.test/${randomUUID()}`;
+        const project = await prisma.project.create({
+          data: { workspaceId, name: "Market recovery test" },
+        });
+        const owner: SeoActor = {
+          ...actor,
+          owner: { kind: "project", id: project.id },
+        };
+        const task = await prisma.task.create({
+          data: {
+            name: "Completed site audit",
+            ownerId: userId,
+            workspaceId,
+            projectId: project.id,
+            status: "COMPLETED",
+            assigneeId: coworkerId,
+          },
+        });
+        const base = siteStrategyReport();
+        const page = legacyReport();
+        const marketHost = {
+          host: "market-recovery.test",
+          role: "site",
+          etv: 114,
+          fetchedAt: "2026-10-01T00:00:00Z",
+          note: null,
+        };
+        const markets = {
+          rows: [
+            {
+              country: "FR",
+              language: "fr",
+              start: false,
+              rivals: 1,
+              of: 1,
+              share: 0.5,
+              etv: 90,
+              ownShare: 0,
+              hasLanguage: false,
+              regionVersion: null,
+              candidate: true,
+            },
+          ],
+          hosts: [
+            marketHost,
+            {
+              ...marketHost,
+              role: "product",
+              host: "direct-product.test",
+              etv: 180,
+            },
+          ],
+          outside: 0.5,
+          siteVisits: true,
+        };
+        const body = JSON.stringify({
+          ...base,
+          pages: [{ ...page, request: { url: pageUrl } }],
+          selection: { pages: [{ n: 1, url: pageUrl }] },
+          strategy: {
+            ...base.strategy,
+            markets: retained ? markets : undefined,
+          },
+        });
+        const file = await prisma.taskFile.create({
+          data: {
+            taskId: task.id,
+            name: `seo-report-${task.id}.json`,
+            fileUrl: `https://seo-test.public.blob.vercel-storage.com/tasks/${task.id}/report.json`,
+            mimeType: "application/json",
+            size: BigInt(Buffer.byteLength(body)),
+            uploadedByCoworkerId: coworkerId,
+          },
+        });
+        const input = { taskId: task.id, fileId: file.id };
+        const recover = { ...input, recoverMarkets: true };
+        const fetchImpl = vi.fn(async () => new Response(body));
+        await expect(
+          importProjectSeoAudit(owner, recover, { fetchImpl }),
+        ).rejects.toMatchObject({ status: 404 });
+        expect(fetchImpl).not.toHaveBeenCalled();
+        const imported = await importProjectSeoAudit(owner, input, {
+          fetchImpl,
+        });
+        const payload = reportObject(imported.payload)!;
+        if (retained)
+          expect(reportObject(payload.strategy)?.markets).toMatchObject({
+            rows: markets.rows,
+          });
+        else
+          expect(reportObject(payload.strategy)?.marketNote).toBe(
+            "unavailable",
+          );
+        const {
+          markets: _markets,
+          marketNote: _note,
+          ...storedStrategy
+        } = reportObject(payload.strategy)!;
+        const legacy = {
+          ...payload,
+          otherStoredField: "preserve",
+          strategy: { ...storedStrategy, otherStoredStrategyField: "preserve" },
+        };
+        await prisma.projectSeoObservation.update({
+          where: { id: imported.id },
+          data: { payload: jsonInput(legacy) },
+        });
+        const before = await getProjectSeoWorkspace(owner);
+        expect(before.strategy?.marketRecoveryFileId).toBe(file.id);
+        await expect(
+          importProjectSeoAudit(owner, recover, {
+            fetchImpl: async () => new Response(body + " "),
+          }),
+        ).rejects.toMatchObject({ status: 409 });
+        await expect(
+          importProjectSeoAudit({ ...owner, userId: otherId }, recover, {
+            fetchImpl,
+          }),
+        ).rejects.toMatchObject({ status: 404 });
+        const [first, second] = await Promise.all([
+          importProjectSeoAudit(owner, recover, { fetchImpl }),
+          importProjectSeoAudit(owner, recover, { fetchImpl }),
+        ]);
+        expect(first.id).toBe(imported.id);
+        expect(second).toEqual(first);
+        const expectedFields = retained
+          ? { markets: reportObject(payload.strategy)!.markets }
+          : { marketNote: "unavailable" };
+        expect(first).toEqual({
+          ...imported,
+          payload: {
+            ...legacy,
+            strategy: { ...legacy.strategy, ...expectedFields },
+          },
+        });
+        const reads = fetchImpl.mock.calls.length;
+        expect(
+          await importProjectSeoAudit(owner, recover, { fetchImpl }),
+        ).toEqual(first);
+        expect(fetchImpl).toHaveBeenCalledTimes(reads);
+        const after = await getProjectSeoWorkspace(owner);
+        expect(after.strategy).toMatchObject(expectedFields);
+        expect(after.strategy?.marketRecoveryFileId).toBeUndefined();
+      },
+    );
 
     it("imports only ready owned artifacts, rechecks source authority after fetch and links each action once", async () => {
       const edit = {

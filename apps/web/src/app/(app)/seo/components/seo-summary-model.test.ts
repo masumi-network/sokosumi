@@ -6,7 +6,7 @@ import {
   seoKeywordDemand,
   seoSummary,
 } from "./seo-summary-model";
-import { seoTestWorkspace } from "./seo-test-fixture";
+import { SEO_TEST_PAGE, seoTestWorkspace } from "./seo-test-fixture";
 
 type Workspace = ProjectSeoWorkspace;
 const CHECK = "962a86bb-5702-4d64-a6c4-15be5bf8ed80";
@@ -20,7 +20,7 @@ function check(
     kind: "audit_full",
     source: "seo_coworker",
     observedAt: new Date("2026-01-03T12:00:00Z"),
-    pageIds: [],
+    pageIds: [SEO_TEST_PAGE],
     scopeVersion: 2,
     sourceTaskId: null,
     countryCode: "US",
@@ -96,7 +96,7 @@ describe("seoSummary", () => {
   it("counts issues by severity once per rule and page, worst first", () => {
     const workspace = seoTestWorkspace();
     workspace.observations = [
-      check(CHECK, { checked: 201, skipped: 30, failed: 2 }),
+      { ...check(CHECK, { checked: 201, skipped: 30, failed: 2 }), issues: 3 },
     ];
     workspace.findings = [
       finding("minor", "minor"),
@@ -111,7 +111,6 @@ describe("seoSummary", () => {
     const summary = seoSummary(workspace);
     expect(summary.issues).toEqual({
       total: 3,
-      fromEarlierChecks: 0,
       parts: [
         { severity: "major", count: 2 },
         { severity: "minor", count: 1 },
@@ -129,6 +128,68 @@ describe("seoSummary", () => {
     });
   });
 
+  it("keeps the selected check's five issues separate from two earlier open issues", () => {
+    const workspace = seoTestWorkspace();
+    workspace.observations = [
+      { ...check(CHECK, { checked: 12, skipped: 0, failed: 0 }), issues: 5 },
+      {
+        ...check("earlier", { checked: 12, skipped: 0, failed: 0 }),
+        issues: 2,
+      },
+    ];
+    workspace.findings = [
+      ...Array.from({ length: 5 }, (_, index) =>
+        finding(`current-${index}`, "major"),
+      ),
+      ...["one", "two"].map((id) => ({
+        ...finding(id, "minor"),
+        observationId: "earlier",
+      })),
+    ];
+    expect(seoSummary(workspace).issues?.total).toBe(5);
+    expect(seoSummary(workspace).issues?.parts).toEqual([
+      { severity: "major", count: 5 },
+    ]);
+  });
+
+  it("does not present an older rule result on a day with only ranking reads", () => {
+    const workspace = seoTestWorkspace();
+    const audit = {
+      ...check(CHECK, { checked: 2, skipped: 0, failed: 0 }),
+      issues: 1,
+    };
+    workspace.observations = [audit];
+    workspace.findings = [finding("old", "minor")];
+    workspace.runs = [
+      {
+        observationId: "rank",
+        kind: "rankings",
+        issues: null,
+        seconds: null,
+        observedAt: new Date("2026-01-04T12:00:00Z"),
+      },
+      {
+        observationId: audit.id,
+        kind: audit.kind,
+        issues: 1,
+        seconds: null,
+        observedAt: audit.observedAt,
+      },
+    ];
+    expect(seoSummary(workspace).issues).toBeNull();
+    workspace.scope.to = "2026-01-03";
+    expect(seoSummary(workspace).issues?.total).toBe(1);
+  });
+
+  it("withholds a partial page total in workspaces saved without a timeline", () => {
+    const workspace = seoTestWorkspace();
+    workspace.observations = [
+      check(CHECK, { checked: 12, skipped: 0, failed: 0 }),
+    ];
+    workspace.scope.pageIds.push("another-page");
+    expect(seoSummary(workspace).issues).toBeNull();
+  });
+
   it("reports a clean check as zero issues, not as a missing tile", () => {
     const workspace = seoTestWorkspace();
     workspace.observations = [
@@ -136,7 +197,6 @@ describe("seoSummary", () => {
     ];
     expect(seoSummary(workspace).issues).toEqual({
       total: 0,
-      fromEarlierChecks: 0,
       parts: [],
     });
   });
@@ -204,12 +264,12 @@ describe("seoSummary", () => {
     // 20 tests did not run: "0 issues" is not proven. The tests tile says what ran.
     expect(summary.issues).toBeNull();
     expect(summary.tests?.total).toBe(25);
-    // A clean newest check with a failed older check in view: the verdict says "incomplete", so no "0 issues".
+    // An older failure cannot change the result of a later complete check.
     workspace.observations = [
       check(CHECK, { checked: 12, skipped: 0, failed: 0 }),
       check("older", { checked: 10, skipped: 0, failed: 3 }),
     ];
-    expect(seoSummary(workspace).issues).toBeNull();
+    expect(seoSummary(workspace).issues?.total).toBe(0);
     // No test gave a result: nothing is decided.
     workspace.observations = [
       check(CHECK, { checked: 0, skipped: 30, failed: 0 }),
@@ -319,7 +379,10 @@ describe("lastRuleCheck", () => {
   it("skips a newer read that asked for no rule checks", () => {
     const workspace = seoTestWorkspace();
     workspace.observations = [
-      check("rankings-read", { checked: 0, skipped: 0, failed: 0 }),
+      {
+        ...check("rankings-read", { checked: 0, skipped: 0, failed: 0 }),
+        kind: "rankings",
+      },
       check(CHECK, { checked: 12, skipped: 0, failed: 0 }),
     ];
     expect(lastRuleCheck(workspace)?.id).toBe(CHECK);

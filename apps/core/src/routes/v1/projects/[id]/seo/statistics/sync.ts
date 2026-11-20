@@ -1,4 +1,4 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 
 import { unprocessableEntity } from "@/helpers/error";
@@ -14,7 +14,10 @@ import {
   seoProjectParamsSchema,
 } from "@/schemas/project-seo.schema";
 import { syncProjectSeoStatisticsSchema } from "@/schemas/project-seo-statistics.schema";
+import { getProjectSeoWorkspace } from "@/services/project-seo.service";
 import { syncProjectSeoStatistics } from "@/services/project-seo-statistics.service";
+import { collectSeoAuditPerformance } from "@/services/seo-audit-performance";
+import { readAuditPerformanceSummaries } from "@/services/seo-audit-performance-summary";
 
 export function createSeoStatisticsSyncRouter(ownerKind: "project" | "audit") {
   const app = new OpenAPIHonoWithAuth({ includeWorkspaceContext: true });
@@ -31,7 +34,12 @@ export function createSeoStatisticsSyncRouter(ownerKind: "project" | "audit") {
         params: seoProjectParamsSchema,
         body: {
           content: {
-            "application/json": { schema: syncProjectSeoStatisticsSchema },
+            "application/json": {
+              schema: z.union([
+                syncProjectSeoStatisticsSchema,
+                z.strictObject({ auditTaskId: z.uuid() }),
+              ]),
+            },
           },
         },
       },
@@ -57,7 +65,46 @@ export function createSeoStatisticsSyncRouter(ownerKind: "project" | "audit") {
       { kind: ownerKind, id: c.req.valid("param").id },
     );
     try {
-      return ok(c, await syncProjectSeoStatistics(actor, c.req.valid("json")));
+      const input = c.req.valid("json");
+      if ("auditTaskId" in input) {
+        const pageIds = await collectSeoAuditPerformance(
+          input.auditTaskId,
+          actor,
+        );
+        const workspace = await getProjectSeoWorkspace(
+          actor,
+          { pageIds },
+          { includeAuditPerformance: true },
+        );
+        if (
+          !workspace.auditSearchConsole?.some(
+            (report) => report.taskId === input.auditTaskId,
+          )
+        ) {
+          const original = await readAuditPerformanceSummaries(
+            actor,
+            [input.auditTaskId],
+            [input.auditTaskId],
+            new Set(
+              workspace.pages
+                .filter((page) => workspace.scope.pageIds.includes(page.id))
+                .map((page) => page.url),
+            ),
+          );
+          workspace.auditSearchConsoleRetryTaskIds = [
+            ...new Set([
+              ...(workspace.auditSearchConsoleRetryTaskIds ?? []),
+              ...original.auditSearchConsoleRetryTaskIds,
+            ]),
+          ];
+          workspace.auditSearchConsole = [
+            ...(workspace.auditSearchConsole ?? []),
+            ...original.auditSearchConsole,
+          ];
+        }
+        return ok(c, workspace);
+      }
+      return ok(c, await syncProjectSeoStatistics(actor, input));
     } catch (error) {
       if (error instanceof HTTPException) throw error;
       throw unprocessableEntity(

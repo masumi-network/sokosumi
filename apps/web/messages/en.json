@@ -170,7 +170,8 @@
       "othersCategory": "Others",
       "ActionButtons": {
         "back": "Back",
-        "close": "Close"
+        "close": "Close",
+        "startTask": "Start a task"
       }
     },
     "UserAvatar": {
@@ -1868,7 +1869,9 @@
         "searchResultsLimited": "Showing the latest {shown, number} of {total, number} archived tasks that match “{query}”.",
         "noProject": "No project",
         "archivedOn": "Archived {date}",
-        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it."
+        "readOnly": "Archived tasks are read-only. Restore this one to edit or run it.",
+        "loading": "Loading archived tasks…",
+        "loadingTask": "Loading archived task…"
       },
       "NotFound": {
         "title": "This task isn’t here",
@@ -9229,7 +9232,9 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need."
+        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need.",
+        "coworkersFound": "{count, plural, =0 {No coworkers match your search} one {# coworker matches your search} other {# coworkers match your search}}",
+        "noCoworkers": "No coworkers to show right now."
       },
       "Jobs": {
         "switchedWorkspace": "Switched to {account} account",
@@ -9257,14 +9262,20 @@
       "allAgentsTitle": "Browse all agents",
       "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do.",
       "FilterSection": {
-        "searchPlaceholder": "Search agents",
         "reset": "Reset",
         "kind": {
           "all": "All",
           "cardano": "Cardano",
           "x402": "x402"
+        },
+        "scope": {
+          "label": "Show",
+          "all": "All",
+          "coworkers": "Coworkers",
+          "agents": "Agents"
         }
-      }
+      },
+      "agentsFound": "{count, plural, =0 {No agents match your search} one {# agent matches your search} other {# agents match your search}}"
     },
     "DesignMd": {
       "adHocDialogTitle": "Use a different brand",
@@ -12612,6 +12623,7 @@
         "partial": "Some statistics are missing. Open each source to see which.",
         "available": "Statistics are available for the stated periods.",
         "priority": "Recommended actions",
+        "earlierFindings": "Still open from earlier checks ({count, number})",
         "findings": "Audit findings",
         "suggestedFix": "Suggested fix",
         "audits": "Captured results",
@@ -13129,6 +13141,24 @@
         "home": "Home page"
       },
       "reportFiles": {
+        "recommendations": "Recommendations from this check",
+        "recoverSearch": "Recover Search Console results",
+        "recoverSearchFailed": "Could not recover Search Console results. Try again.",
+        "auditedUrls": "Audited URLs",
+        "googleCanonical": "Measured Google canonical URL: {url}",
+        "canonicalUnverified": "The audit measured the submitted URL. Its canonical URL is unverified.",
+        "withSearchConsole": "Reports and Search Console",
+        "missingSearchConsole": "No Search Console results are available for this check.",
+        "period": "{from} to {to}",
+        "matchedHistory": "Compared with the same weekdays last year",
+        "matchedClicks": "Clicks during that period: {count, number}.",
+        "historyDecision": {
+          "investigate_loss": "Clicks are lower against both periods. Check which queries and pages lost visibility.",
+          "investigate_growth": "Clicks are higher against both periods. Check which queries and pages contributed to the gain.",
+          "monitor": "The comparison with last year did not confirm the recent change. Monitor the next comparable period.",
+          "insufficient_history": "There is too little comparable history to confirm the recent change."
+        },
+        "previousPeriod": "Previous period",
         "title": "Report files",
         "run": "Check",
         "version": "{checkType} · {date}",
@@ -13144,6 +13174,9 @@
         "access": "You do not have access to the report files for this check.",
         "refresh": "Refresh files",
         "historyLimit": "This list shows recent checks. You can open older reports from their Tasks.",
+        "recoverMarkets": "Recover market comparison",
+        "recoverMarketsHelp": "Read the market comparison from the original report. This uses no audit credits.",
+        "marketsChecked": "Market comparison checked",
         "importHelp": "Import this report to add its findings to your SEO results."
       },
       "timeline": {
@@ -13636,6 +13669,7 @@
           "noCheck": "No check yet. Run one to find issues.",
           "noCheckOff": "No check yet",
           "fixes": "{count, plural, one {# fix to make} other {# fixes to make}}",
+          "noPageCheckInView": "No page check for the selected dates",
           "clearRarelyShown": "{pages, plural, one {Your page passes the last check, but Google rarely shows it yet} other {Your pages pass the last check, but Google rarely shows them yet}}"
         },
         "lastCheckOn": "Last check",
@@ -13910,14 +13944,28 @@
         }
       },
       "summary": {
-        "issues": "Issues",
-        "issuesAcrossChecks": "Issues across checks",
+        "issues": "Issues in this check",
         "issuesInCheck": "{count, plural, one {# issue in this check} other {# issues in this check}}",
-        "issueSources": "{latest, number} from the latest check, {earlier, number} from earlier checks",
         "issuesNone": "None found",
         "severityCount": "{count} {severity, select, critical {critical} major {high impact} other {low impact}}",
         "of": "of {total}",
-        "tests": "Tests completed",
+        "totalsOnly": "This audit saved totals only. A breakdown by check is unavailable.",
+        "verdictCounts": "{passed, number} passed, {flagged, number} flagged, {missing, number} without a verdict",
+        "researchTitle": "Audit research",
+        "wholeSite": "Whole site",
+        "stage": {
+          "seasonal": "Seasonal review",
+          "editorial": "Keyword brainstorming",
+          "exploration": "Free exploration"
+        },
+        "progress": {
+          "completed": "Completed",
+          "partial": "Partially completed",
+          "skipped": "Skipped",
+          "no_finding": "No new finding",
+          "unknown": "No confirmed result"
+        },
+        "tests": "Checklist verdicts",
         "testsNoResult": "{count, plural, one {# test gave no result} other {# tests gave no result}}",
         "testsAll": "Every test gave a result"
       },
@@ -14257,6 +14305,50 @@
         "weekly": "Weekly values",
         "week": "Week of",
         "siteShare": "Your pages' share"
+      },
+      "markets": {
+        "title": "Markets to investigate",
+        "baseline": "Audit market",
+        "unknown": "Unavailable",
+        "next": "Check local queries in {markets}. Compare search volume, intent and ranking pages with the page you would localize.",
+        "basis": "DataForSEO estimates each domain’s monthly organic search visits. Each share uses that domain’s total across markets. Competitors have equal weight in the mean.",
+        "noRivals": "The competitor reads did not provide enough estimated visits for a comparison.",
+        "noSite": "The site has no usable traffic estimate for comparison.",
+        "noCandidates": "No country and language pair met the investigation criteria in this comparison.",
+        "other": "Other markets in the comparison ({count})",
+        "outside": "Mean competitor share outside the compared markets: {share}.",
+        "sources": "Source domains, estimated monthly visits and read dates",
+        "site": "Audited site",
+        "product": "Competing product",
+        "missing": "This audit has no competitor comparison.",
+        "pageBasis": "Single-page check: declared regional versions",
+        "noVersions": "The saved page evidence lists no country-specific language version.",
+        "observed": "Observed search exposure by country",
+        "selectedPages": "Google Search Console, selected pages, outside the audit country",
+        "measuredPages": "Audited pages in these totals",
+        "countryNext": "Filter Search Console to {country} and these pages. Inspect the queries behind the impressions.",
+        "moreCountries": "More countries ({count})",
+        "exposure": "{impressions, plural, one {# impression} other {# impressions}}, {clicks, plural, one {# click} other {# clicks}}",
+        "noExposure": "No other identified country had impressions or clicks in the returned rows.",
+        "truncated": "Search Console returned a limited set of countries.",
+        "partial": "Search Console returned partial coverage for these pages.",
+        "note": {
+          "local_business": "The audit skipped the market comparison for this local business.",
+          "missing_baseline": "The audit could not identify a starting country and language.",
+          "time_limit": "The audit reached its time limit before comparing markets.",
+          "budget_limit": "The audit reached its spending limit before comparing markets.",
+          "read_error": "The audit could not read the market comparison.",
+          "strategy_unavailable": "The audit could not read the site strategy evidence needed for the comparison.",
+          "unverified_competitors": "The audit had no verified competing products to compare.",
+          "unavailable": "The market comparison was unavailable."
+        },
+        "market": "Country and language",
+        "siteShare": "Site share",
+        "rivalShare": "Mean competitor share",
+        "products": "Competitors with visits",
+        "monthlyVisits": "Estimated monthly competitor visits",
+        "rivalCount": "{count} of {total}",
+        "regionalVersion": "Declared version: {tag}"
       },
       "keywordReach": {
         "searches": "{count, plural, one {# search} other {# searches}} a month",

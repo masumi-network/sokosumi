@@ -344,6 +344,8 @@ interface BrandStepProps {
   subscribe?: StartTopUp | null;
   /** Continues without a subscription, for a tester Core allows it. */
   skip?: SkipSubscription | null;
+  /** False in the app, whose page leads itself and shows Cuso in the sidebar. */
+  withLead?: boolean;
 }
 
 /** What Cuso learned, as the founder's brand: a promise, six tiles, a side panel. */
@@ -359,6 +361,7 @@ export function BrandStep({
   topUp = null,
   subscribe = null,
   skip = null,
+  withLead = true,
 }: BrandStepProps) {
   const brain = overview.brandBrain as BrandBrain;
   const profile = brandProfile(brain);
@@ -466,14 +469,16 @@ export function BrandStep({
 
   return (
     <section className="ob-brand">
-      <div className="ob-lead">
-        <CusoScene
-          scene="brand"
-          now={fixing ? "Updating your Brand Brain" : null}
-        />
-        <h1 className="ob-h1">Here's {site} as I see it.</h1>
-        <p className="muted">Tap any line to see the source or fix it.</p>
-      </div>
+      {withLead ? (
+        <div className="ob-lead">
+          <CusoScene
+            scene="brand"
+            now={fixing ? "Updating your Brand Brain" : null}
+          />
+          <h1 className="ob-h1">Here's {site} as I see it.</h1>
+          <p className="muted">Tap any line to see the source or fix it.</p>
+        </div>
+      ) : null}
       {refusal ? (
         <Refusal
           text={refusal}
