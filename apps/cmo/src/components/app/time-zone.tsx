@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
+
+const subscribeNoop = () => () => {};
+const getBrowserTimeZone = () =>
+  Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+const getServerTimeZone = () => null;
 
 export type SetTimeZone = (timeZone: string) => Promise<string | null>;
 
@@ -32,10 +37,11 @@ export function TimeZoneSetting({
   setTimeZone,
 }: TimeZoneSettingProps) {
   // Read after mount: the server does not know the browser's zone.
-  const [here, setHere] = useState<string | null>(null);
-  useEffect(() => {
-    setHere(Intl.DateTimeFormat().resolvedOptions().timeZone ?? null);
-  }, []);
+  const here = useSyncExternalStore(
+    subscribeNoop,
+    getBrowserTimeZone,
+    getServerTimeZone,
+  );
   const [choosing, setChoosing] = useState(false);
   const [saving, startSaving] = useTransition();
   const [error, setError] = useState<string | null>(null);

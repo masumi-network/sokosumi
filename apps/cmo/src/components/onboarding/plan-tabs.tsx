@@ -470,12 +470,14 @@ interface ResultsPanelProps {
   overview: CmoOverview;
   strategy: Strategy;
   onConnectMeasurement: ConnectMeasurement;
+  measureError?: string | null;
 }
 
 export function ResultsPanel({
   overview,
   strategy,
   onConnectMeasurement,
+  measureError = null,
 }: ResultsPanelProps) {
   const { objective, measurement } = strategy;
   const stages = strategy.funnel ?? [];
@@ -526,6 +528,7 @@ export function ResultsPanel({
         <MeasureFunnel
           sources={overview.measurement}
           onConnect={onConnectMeasurement}
+          measureError={measureError}
         />
       </Section>
 

@@ -424,7 +424,9 @@ export function DriveAllFilesPanel({
 
   // Switching workspace is a different scope: drop everything rather than
   // letting one store's rows linger under another store's header.
-  useEffect(() => {
+  const [prevStoreKey, setPrevStoreKey] = useState(storeKey);
+  if (prevStoreKey !== storeKey) {
+    setPrevStoreKey(storeKey);
     setSelectedIds([]);
     setState({
       items: [],
@@ -434,7 +436,7 @@ export function DriveAllFilesPanel({
       error: null,
       restarted: false,
     });
-  }, [storeKey]);
+  }
 
   async function loadMore() {
     const cursor = state.meta?.nextCursor;

@@ -33,17 +33,19 @@ import type {
 } from "./types";
 import { deleteApiKeySchema, validateConfirmationName } from "./utils";
 
-function DeleteApiKeyDialogForm({
+interface DeleteApiKeyFormProps {
+  apiKey: ApiKeyRecord;
+  onOpenChange: DeleteApiKeyDialogProps["onOpenChange"];
+  onSuccess: DeleteApiKeyDialogProps["onSuccess"];
+  deleteApiKey: DeleteApiKeyDialogProps["deleteApiKey"];
+}
+
+function DeleteApiKeyForm({
   apiKey,
   onOpenChange,
   onSuccess,
   deleteApiKey,
-}: {
-  apiKey: ApiKeyRecord;
-  onOpenChange: (open: boolean) => void;
-  onSuccess: () => void;
-  deleteApiKey: DeleteApiKeyDialogProps["deleteApiKey"];
-}) {
+}: DeleteApiKeyFormProps) {
   const t = useTranslations("App.Account.ApiKeys");
   const schema = deleteApiKeySchema(t);
 
@@ -145,7 +147,7 @@ export function DeleteApiKeyDialog({
         </AlertDialogHeader>
 
         {apiKey && (
-          <DeleteApiKeyDialogForm
+          <DeleteApiKeyForm
             key={`${apiKey.id}-${open ? "open" : "closed"}`}
             apiKey={apiKey}
             onOpenChange={onOpenChange}
