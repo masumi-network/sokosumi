@@ -129,6 +129,13 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-browser-time-zone-sync` (`useBrowserTimeZoneSync`) — browser IANA time-zone cookie sync and route refresh
 - `use-canonical-history-path` (`useCanonicalHistoryPath`) — post-render `window.history.replaceState` pathname canonicalization preserving state, search, and hash
 - `use-internal-traffic-gate` (`useInternalTrafficGate`) — internal-traffic cookie sync, `?internal` URL stripping, and Google tags gating
+- `use-url-timezone` (`useUrlTimezone`) — seeds the browser's IANA time zone into a calendar URL that lacks a valid one
+- `use-push-preference` (`usePushPreference`) — browser Web Push capability, permission, subscription, and repair state synchronization
+- `use-record-project-visit` (`useRecordProjectVisit`) — records visited project IDs in the per-user/per-workspace `localStorage` visit log
+- `use-record-page-visit` (`useRecordPageVisit`) — increments the per-pathname likely-pages visit counter on mount
+- `use-remembered-project-scope` (`useRememberedProjectScope`) — `sessionStorage` external store and workspace-switch-guarded project scope synchronization
+- `use-tasks-restored-view-url` (`useTasksRestoredViewUrl`, `rememberSavedTasksView`, `forgetSavedTasksView`, `withTasksView`) — before-paint restored Tasks view URL synchronization via `history.replaceState` / `router.replace`
+- `use-calendar-week-row-label` (`useCalendarWeekRowLabel`) — sets localized ISO week `aria-label` on FullCalendar month week rows
 
 ### React Query in migrations
 

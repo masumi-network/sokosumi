@@ -5,12 +5,9 @@ import { useEffectEvent } from "react";
 
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 
+import { useRecordPageVisit } from "@/hooks/effects/use-record-page-visit";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import {
-  likelyPages,
-  readVisitCounts,
-  recordVisit,
-} from "@/lib/navigation/likely-pages";
+import { likelyPages, readVisitCounts } from "@/lib/navigation/likely-pages";
 import { prefetchRouteContent } from "@/lib/navigation/prefetch-route-content";
 
 /**
@@ -37,9 +34,7 @@ const ACTIVITY_EVENTS = [
 
 /** Counts one visit per page shown; a new pathname remounts it. */
 function RecordVisit({ pathname }: { pathname: string }) {
-  useMountEffect(() => {
-    recordVisit(pathname);
-  });
+  useRecordPageVisit(pathname);
   return null;
 }
 
