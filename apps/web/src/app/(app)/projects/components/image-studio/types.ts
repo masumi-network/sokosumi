@@ -188,10 +188,8 @@ export interface StudioTarget {
   templateId?: string;
   creativeDirection?: StudioCreativeDirection;
   exportHeadlines?: { projectId: string; lines: string[] };
-  lettering?: StudioJob["lettering"];
   useProductCutout?: boolean;
-  modelIds: string[];
-  modelSelection?: "auto";
+  letteringBackdropId?: string;
   placementRatios?: NonNullable<StudioSettings["aspectRatio"]>[];
   settings: StudioSettings;
 }
@@ -259,11 +257,6 @@ export interface StudioLabels {
   resolution: string;
   outputFormat: string;
   copies: string;
-  selectAllModels: string;
-  unselectAllModels: string;
-  searchModels: string;
-  noModelsMatch: string;
-  noModelSelected: string;
   generateOne: string;
   moreOptions: string;
   modelNotInCatalog: string;

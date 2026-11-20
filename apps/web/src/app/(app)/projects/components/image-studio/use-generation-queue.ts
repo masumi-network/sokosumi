@@ -44,6 +44,7 @@ export interface QueuedGeneration {
   creativeDirection?: string;
   variationIndex?: number;
   modelId: string;
+  letterExistingBackdrop?: boolean;
   /** Shown while the request waits, so a batch is legible before it lands. */
   modelLabel: string;
   settings: StudioSettings;
@@ -183,7 +184,9 @@ export function useGenerationQueue({
       try {
         const result = await startImageGeneration({
           projectId: next.projectId,
-          modelId: next.modelId,
+          ...(next.letterExistingBackdrop
+            ? { letterExistingBackdrop: true }
+            : {}),
           prompt: next.prompt,
           ...(next.templateId ? { templateId: next.templateId } : {}),
           ...(next.creativeDirection

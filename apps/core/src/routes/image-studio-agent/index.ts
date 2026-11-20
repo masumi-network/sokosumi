@@ -47,8 +47,15 @@ import { authorizeAgentGrant as authorize } from "./authorize";
 
 const app = new Hono();
 const createAgentImageJobSchema = createImageJobRequestSchema
-  .omit({ exportHeadline: true, useProductCutout: true })
-  .extend({ catalogProductId: z.string().uuid().optional() });
+  .omit({
+    exportHeadline: true,
+    useProductCutout: true,
+    letterExistingBackdrop: true,
+  })
+  .extend({
+    catalogProductId: z.string().uuid().optional(),
+    modelId: z.enum(["gemini-pro", "ideogram-v3"]).default("gemini-pro"),
+  });
 
 /**
  * Confirm the grant's user still has access to the grant's project.
