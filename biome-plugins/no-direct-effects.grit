@@ -12,5 +12,5 @@ or {
   `React.useLayoutEffect($args)`,
   `React.useMountEffect($args)`
 } as $call where {
-  register_diagnostic(span=$call, message="Effects live only in src/hooks/effects/. Compute during render, use an event handler, reset with key, or call a named hook from that folder. See docs/agents/web-ui.md#effects.", severity="error")
+  register_diagnostic(span=$call, message="Effects live only in src/hooks/effects/. Compute during render, use an event handler, reset with key, or call a named hook from that folder. See docs/agents/web-ui.md#effects.", severity="warn")
 }
