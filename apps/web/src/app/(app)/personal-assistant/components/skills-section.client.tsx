@@ -6,9 +6,10 @@ import type {
   SokoBotSkillSearchResult,
   SokoBotVersion,
 } from "@sokosumi/core-client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, Plus, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,7 @@ export function SkillsSection({
   initialInstalled: SokoBotInstalledSkill[];
 }) {
   const t = useTranslations("App.SokoBot.Skills");
+  const queryClient = useQueryClient();
   const [installed, setInstalled] = useState(initialInstalled);
   const [adding, setAdding] = useState(false);
   const [source, setSource] = useState("");
@@ -45,34 +47,48 @@ export function SkillsSection({
   const [results, setResults] = useState<SokoBotSkillSearchResult[] | null>(
     null,
   );
-  const [browse, setBrowse] = useState<SokoBotSkillBrowse | null>(null);
   const [page, setPage] = useState(0);
-  const committedPage = useRef(0);
+  const pageRequestRef = useRef(0);
   const [isPending, startTransition] = useTransition();
   const installedNames = new Set(installed.map((skill) => skill.name));
 
-  useEffect(() => {
-    let cancelled = false;
-    void browseSokoBotSkillsAction({ page })
-      .then((result) => {
-        if (cancelled) return;
-        if (result.ok) {
-          committedPage.current = page;
-          setBrowse(result.value);
-        } else {
-          setPage(committedPage.current);
-        }
-      })
+  async function fetchBrowsePage(
+    targetPage: number,
+  ): Promise<SokoBotSkillBrowse> {
+    const result = await browseSokoBotSkillsAction({ page: targetPage });
+    if (!result.ok) {
+      throw new Error(result.error.message ?? "Failed to browse skills");
+    }
+    return result.value;
+  }
+
+  const browseQuery = useQuery({
+    queryKey: ["personal-assistant", "skills-browse", page],
+    queryFn: () => fetchBrowsePage(page),
+    retry: false,
+    networkMode: "always",
+    refetchOnWindowFocus: false,
+  });
+  const browse = browseQuery.data ?? null;
+
+  async function goToPage(nextPage: number) {
+    const requestId = ++pageRequestRef.current;
+    try {
+      await queryClient.fetchQuery({
+        queryKey: ["personal-assistant", "skills-browse", nextPage],
+        queryFn: () => fetchBrowsePage(nextPage),
+        retry: false,
+        networkMode: "always",
+      });
+      if (requestId === pageRequestRef.current) {
+        setPage(nextPage);
+      }
+    } catch {
       // A server action rejects instead of answering with a result when the
       // POST comes back as something other than RSC. Same outcome as a failed
       // browse: keep showing the page the existing results belong to.
-      .catch(() => {
-        if (!cancelled) setPage(committedPage.current);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [page]);
+    }
+  }
 
   function install(sourceToInstall: string, skillName?: string) {
     startTransition(async () => {
@@ -321,7 +337,7 @@ export function SkillsSection({
                           variant="ghost"
                           size="sm"
                           disabled={page === 0}
-                          onClick={() => setPage((p) => Math.max(0, p - 1))}
+                          onClick={() => void goToPage(Math.max(0, page - 1))}
                         >
                           {t("prev")}
                         </Button>
@@ -332,7 +348,7 @@ export function SkillsSection({
                           disabled={
                             (page + 1) * browse.pageSize >= browse.total
                           }
-                          onClick={() => setPage((p) => p + 1)}
+                          onClick={() => void goToPage(page + 1)}
                         >
                           {t("next")}
                         </Button>
