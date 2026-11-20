@@ -3,7 +3,7 @@ export function SiteDisclosures() {
     <div className="site-disclosures note">
       <div className="foot-ai">
         <img
-          src="/site/assets/ai-generated.png"
+          src="/ai-generated.png"
           alt="AI-generated content mark"
           width="32"
           height="32"

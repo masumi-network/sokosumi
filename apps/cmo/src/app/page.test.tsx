@@ -138,8 +138,7 @@ describe("CMO home page", () => {
     vi.restoreAllMocks();
   });
 
-  // Without a session the proxy serves the waitlist site; what reaches the
-  // page (an error, a stale cookie) goes to the unlinked /login.
+  // Without a session the home page goes to /login, which goes on to sign in.
   it("sends a visitor without a session to /login, without asking Core", async () => {
     getSession.mockResolvedValue(null);
 

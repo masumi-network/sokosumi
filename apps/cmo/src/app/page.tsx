@@ -1,6 +1,6 @@
 import { Home, type HomeSearchParams } from "./home";
 
-/** Today, the home; signed out, the proxy serves the waitlist site here. */
+/** Today, the home; signed out, it goes on to sign in. */
 export default function HomePage({
   searchParams,
 }: {
