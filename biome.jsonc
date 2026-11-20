@@ -26,7 +26,6 @@
       "!apps/web/src/components/ui/**",
       "!apps/web/public/**/*.svg",
       "!apps/web/next-env.d.ts",
-      "!**/.effect-baseline.biome.json",
       "!apps/apple/**"
     ]
   },

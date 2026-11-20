@@ -1,6 +1,6 @@
 {
   "root": false,
-  "extends": ["../../biome.jsonc", "./.effect-baseline.biome.json"],
+  "extends": "//",
   "files": {
     "includes": ["**", "!next-env.d.ts", "!public/site"]
   },
@@ -22,7 +22,10 @@
         "!**/fixtures.*",
         "!**/fixture-*.*"
       ],
-      "plugins": ["../../biome-plugins/no-effect-aliases.grit"]
+      "plugins": [
+        "../../biome-plugins/no-direct-effects.grit",
+        "../../biome-plugins/no-effect-aliases.grit"
+      ]
     }
   ]
 }

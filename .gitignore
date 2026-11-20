@@ -89,6 +89,3 @@ lint-report.json
 /evidence/recon/
 /evidence/v4/
 /apps/web/e2e/results/
-
-# Generated Biome effect-baseline overrides (derived from apps/*/effect-baseline.json)
-apps/*/.effect-baseline.biome.json

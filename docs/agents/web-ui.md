@@ -44,7 +44,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Effects
 
-Product code in Web and CMO never calls `useEffect`, `useLayoutEffect`, or `useMountEffect` directly (named import or `React.*` form). Biome enforces this as an error through `biome-plugins/no-direct-effects.grit` ([ADR-0075](../adr/0075-effects-live-only-in-named-hooks.md)); existing call sites sit in each app's shrink-only `effect-baseline.json` (sorted, one entry per line — the only file a migration PR updates, since `pnpm check` derives the gitignored `.effect-baseline.biome.json` override automatically), and `biome-ignore` suppressions for the effect rule fail CI.
+Product code in Web and CMO never calls `useEffect`, `useLayoutEffect`, or `useMountEffect` directly (named import or `React.*` form). `biome-plugins/no-direct-effects.grit` warns across product files and `biome-plugins/no-effect-aliases.grit` errors on aliases and indirections ([ADR-0075](../adr/0075-effects-live-only-in-named-hooks.md)); `pnpm effects:check` (run in Husky pre-commit and CI) enforces each app's shrink-only `effect-baseline.json` (sorted, one entry per line — the only file a migration PR updates), and `biome-ignore` suppressions for the effect rules fail CI.
 
 Before reaching for an effect, read React's [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect) and [Separating Events from Effects](https://react.dev/learn/separating-events-from-effects), and prefer:
 
