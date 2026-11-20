@@ -12,12 +12,23 @@ function clearConsentCookie() {
 }
 
 describe("useCookieConsentBanner", () => {
+  let hadDataLayer = false;
+  let originalDataLayer: typeof window.dataLayer;
+
   beforeEach(() => {
+    hadDataLayer = Object.hasOwn(window, "dataLayer");
+    originalDataLayer = window.dataLayer;
+    window.dataLayer = [];
     clearConsentCookie();
     window.history.replaceState(null, "", "/");
   });
 
   afterEach(() => {
+    if (hadDataLayer) {
+      window.dataLayer = originalDataLayer;
+    } else {
+      delete window.dataLayer;
+    }
     clearConsentCookie();
     window.history.replaceState(null, "", "/");
   });
