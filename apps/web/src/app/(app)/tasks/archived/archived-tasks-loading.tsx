@@ -113,7 +113,6 @@ export function ArchivedTaskLoading() {
         <div className="flex flex-col gap-6 p-4 md:p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <TextLineSkeleton className="w-20 text-sm" />
               <TextLineSkeleton className="w-3/5 text-xl" />
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <BadgeSkeleton />

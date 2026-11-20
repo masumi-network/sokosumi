@@ -51,12 +51,15 @@ async function ArchivedTaskContent({ params }: ArchivedTaskPageProps) {
         <div className="flex flex-col gap-6 p-4 md:p-6">
           <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-col gap-2">
-              {task.identifier ? (
-                <p className="text-muted-foreground text-sm tabular-nums">
-                  {task.identifier}
-                </p>
-              ) : null}
+              {/* The identifier leads the title, as on the list row, so no
+                  line depends on whether the Task has one and the loading
+                  frame holds for both. */}
               <h1 className="text-xl font-semibold text-pretty wrap-anywhere">
+                {task.identifier ? (
+                  <span className="text-muted-foreground me-2 font-normal tabular-nums">
+                    {task.identifier}
+                  </span>
+                ) : null}
                 {task.name}
               </h1>
               <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
