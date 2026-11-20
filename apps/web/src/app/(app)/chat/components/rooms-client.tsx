@@ -3604,7 +3604,7 @@ function RoomView({
         chatMobileHeightShellClass(pathname, isApple, searchParams),
       )}
     >
-      <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
+      <div className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex flex-1 items-center justify-center p-6">
             <div className="border-border bg-card-background max-w-md rounded-md border border-dashed px-6 py-10 text-center">
@@ -3618,7 +3618,7 @@ function RoomView({
             </div>
           </div>
         </section>
-      </main>
+      </div>
     </div>
   );
 }
