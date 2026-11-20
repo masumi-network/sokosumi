@@ -57,12 +57,12 @@ vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
   },
 }));
 
-vi.mock("@/lib/ably/use-notification-realtime", () => ({
+vi.mock("@/hooks/effects/use-notification-realtime", () => ({
   useNotificationRealtime: (...args: unknown[]) =>
     useNotificationRealtimeMock(...args),
 }));
 
-vi.mock("@/lib/ably/use-notification-front-presence", () => ({
+vi.mock("@/hooks/effects/use-notification-front-presence", () => ({
   useNotificationFrontPresence: (...args: unknown[]) =>
     useNotificationFrontPresenceMock(...args),
 }));

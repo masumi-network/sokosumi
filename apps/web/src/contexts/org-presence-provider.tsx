@@ -16,7 +16,7 @@ import {
   type OrgPresenceStore,
   useOrgPresenceMapSync,
 } from "@/hooks/effects/use-org-presence-map";
-import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
+import { useOrgPresencePublisher } from "@/hooks/effects/use-org-presence-publisher";
 
 const OrgPresenceMapContext = createContext<Map<
   string,

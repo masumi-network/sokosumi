@@ -79,7 +79,14 @@ Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/
 - `use-chat-unread-document-title` (`useChatUnreadDocumentTitle`) — browser tab unread count prefix
 - `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
 - `use-org-presence-map` (`useOrgPresenceMap`, `useOrgPresenceMapSync`, `createOrgPresenceStore`) — Ably organization presence subscription backed by an external store
+- `use-org-presence-publisher` (`useOrgPresencePublisher`) — Ably organization presence publishing and channel lifecycle for the active organization
 - `use-room-typing` (`useRoomTyping`, `useRoomTypingSync`, `createRoomTypingStore`) — Ably room typing subscription and publisher backed by an external store
+- `use-calendar-realtime` (`useCalendarRealtime`) — Ably workspace calendar invalidation, capability checks, and access-revocation subscription
+- `use-chat-control-channel` (`useChatControlChannel`) — ref-counted Ably user chat control channel subscription for revoke and rooms-changed signals
+- `use-selected-room-channel-health` (`useSelectedRoomChannelHealth`) — Ably connection and selected room channel health/continuity observer
+- `use-notification-front-presence` (`useNotificationFrontPresence`) — tab-visibility presence reporting on the user's Ably notifications channel
+- `use-notification-realtime` (`useNotificationRealtime`) — Ably notifications channel subscription and attachment reconciliation
+- `use-push-recovery` (`usePushRecovery`) — throttled web push subscription self-healing on foreground return and reconnect
 - `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
 - `use-location-replace` (`useLocationReplace`) — `window.location.replace` redirect when a target URL is set
 - `use-format-toolbar-open-preference` (`useFormatToolbarOpenPreference`) — before-paint chat formatting toolbar preference read and persistence

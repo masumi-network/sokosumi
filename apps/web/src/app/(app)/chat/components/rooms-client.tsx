@@ -168,6 +168,7 @@ import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-sche
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useIsMobileMedia } from "@/hooks/effects/use-mobile";
+import { useSelectedRoomChannelHealth } from "@/hooks/effects/use-selected-room-channel-health";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import {
   chatRoomMessageIdEnvelopeAction,
@@ -183,7 +184,6 @@ import {
   isChatRoomMessagePatchEvent,
 } from "@/lib/ably/schema";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
-import { useSelectedRoomChannelHealth } from "@/lib/ably/use-selected-room-channel-health";
 import { isRoomOfWorkspace } from "@/lib/chat/room-workspace-scope";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";

@@ -2,14 +2,13 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { resumePushPreferenceForSession } from "@/lib/ably/push-preference.client";
+import { healPushSubscription } from "@/lib/ably/push-self-heal.client";
+import { forgetUnfinishedPushTeardown } from "@/lib/ably/release-push-device.client";
 import {
   clearPushDeviceSnapshot,
   refreshPushDevices,
 } from "@/queries/push-devices";
-
-import { resumePushPreferenceForSession } from "./push-preference.client";
-import { healPushSubscription } from "./push-self-heal.client";
-import { forgetUnfinishedPushTeardown } from "./release-push-device.client";
 
 const PUSH_RECOVERY_SUCCESS_THROTTLE_MS = 60_000;
 const PUSH_RECOVERY_FAILURE_THROTTLE_MS = 5_000;

@@ -7,18 +7,17 @@ import {
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useRef } from "react";
-import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
-
 import {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
   type ChatMembershipRevokedEvent,
   chatMembershipRevokedEventSchema,
-} from "./chat-membership-revoked-event";
+} from "@/lib/ably/chat-membership-revoked-event";
 import {
   type ChatRoomsChangedEvent,
   chatRoomsChangedEventSchema,
-} from "./chat-rooms-changed-event";
-import { safeSubscribeChannel } from "./safe-detach-channel";
+} from "@/lib/ably/chat-rooms-changed-event";
+import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
+import { safeSubscribeChannel } from "@/lib/ably/safe-detach-channel";
 
 interface UseChatControlChannelOptions {
   currentUserId: string;

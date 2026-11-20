@@ -16,7 +16,7 @@ const onNotificationRef = {
 /** Whether the mocked channel is attached, i.e. the page still receives. */
 let isReceiving = true;
 
-vi.mock("@/lib/ably/use-notification-realtime", () => ({
+vi.mock("@/hooks/effects/use-notification-realtime", () => ({
   useNotificationRealtime: ({
     onNotification,
   }: {

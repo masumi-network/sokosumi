@@ -3,8 +3,8 @@
 import { useAbly } from "ably/react";
 import { useEffect } from "react";
 
-import { makeCurrentUserNotificationsChannelName } from "./current-notifications-channel.client";
-import { isExpectedAblyChannelLifecycleError } from "./safe-detach-channel";
+import { makeCurrentUserNotificationsChannelName } from "@/lib/ably/current-notifications-channel.client";
+import { isExpectedAblyChannelLifecycleError } from "@/lib/ably/safe-detach-channel";
 
 interface ChannelPresenceState {
   /**

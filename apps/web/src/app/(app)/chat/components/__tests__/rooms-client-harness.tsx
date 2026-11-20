@@ -182,7 +182,7 @@ vi.mock("@/hooks/effects/use-room-typing", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
+vi.mock("@/hooks/effects/use-selected-room-channel-health", () => ({
   useSelectedRoomChannelHealth: () => undefined,
 }));
 
