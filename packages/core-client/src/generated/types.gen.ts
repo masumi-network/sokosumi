@@ -14988,6 +14988,14 @@ export type CmoPresenterPhoto = {
     consent: true;
 };
 
+export type CmoAdBudgetStarted = {
+    turnId: string | null;
+    /**
+     * Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.
+     */
+    queued: boolean;
+};
+
 export type CmoAdBudgetRequest = {
     monthly: number;
     /**
@@ -91537,10 +91545,10 @@ export type SetCmoAdBudgetForProjectError = SetCmoAdBudgetForProjectErrors[keyof
 
 export type SetCmoAdBudgetForProjectResponses = {
     /**
-     * Cuso is re-planning
+     * Cuso is re-planning, or will once his current turn ends
      */
     201: {
-        data: CmoTurnStarted;
+        data: CmoAdBudgetStarted;
         meta: {
             timestamp: Date;
             requestId: string;

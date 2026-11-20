@@ -231,6 +231,17 @@ export const cmoBrandFixStartedSchema = z
   })
   .openapi("CmoBrandFixStarted");
 
+export const cmoAdBudgetStartedSchema = z
+  .object({
+    turnId: z.union([z.string(), z.null()]),
+    queued: z
+      .boolean()
+      .describe(
+        "Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.",
+      ),
+  })
+  .openapi("CmoAdBudgetStarted");
+
 /** A version of the plan of the Cuso a CMO route acts on. */
 export const cmoTestCopyCheckSchema = z
   .object({

@@ -60030,6 +60030,30 @@ export const CmoPresenterPhotoSchema = {
     ]
 } as const;
 
+export const CmoAdBudgetStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        queued: {
+            type: 'boolean',
+            description: 'Cuso is busy with the strategy: the budget is kept and he plans it when his current turn ends.'
+        }
+    },
+    required: [
+        'turnId',
+        'queued'
+    ]
+} as const;
+
 export const CmoAdBudgetRequestSchema = {
     type: 'object',
     properties: {
