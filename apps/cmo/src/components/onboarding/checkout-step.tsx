@@ -81,21 +81,18 @@ function monthOf(strategy: Strategy) {
   const media = live
     .filter((entry) => !entry.videoOf)
     .map((entry) => formatMedia(entry.channel, entry.format));
-  const names = (ads: boolean) =>
-    [
-      ...new Set(
-        live
-          .filter(
-            (entry) => (channelInfo(entry.channel)?.group === "ads") === ads,
-          )
-          .map((entry) => channelKey(entry.channel) ?? entry.channel),
-      ),
-    ].map(channelLabel);
+  // The networks the posts go out on; ads are named on their own line.
+  const channels = [
+    ...new Set(
+      live
+        .filter((entry) => channelInfo(entry.channel)?.group !== "ads")
+        .map((entry) => channelKey(entry.channel) ?? entry.channel),
+    ),
+  ].map(channelLabel);
   return {
     pieces: monthPostCount(strategy.calendar),
-    channels: names(false),
+    channels,
     ads: monthAdCount(strategy.calendar),
-    adChannels: names(true),
     pictures: media.filter((kind) => kind === "image" || kind === "images")
       .length,
     videos: media.filter((kind) => kind === "video").length,
@@ -226,9 +223,8 @@ export function CheckoutStep({
               <span>
                 <b>
                   {month.ads} {month.ads === 1 ? "ad" : "ads"}
-                </b>{" "}
-                for {joinNames(month.adChannels)}, live only when you launch
-                them
+                </b>
+                , live only when you launch them
               </span>
             </li>
           ) : null}

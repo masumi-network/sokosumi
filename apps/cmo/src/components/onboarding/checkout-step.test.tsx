@@ -185,9 +185,7 @@ describe("CheckoutStep", () => {
     const count = posts.calendar.length;
     expect(text()).toContain(`${count} posts from your strategy`);
     expect(text()).not.toContain("Google Ads, written in your voice");
-    expect(text()).toContain(
-      "2 ads for Google Ads, live only when you launch them",
-    );
+    expect(text()).toContain("2 ads, live only when you launch them");
   });
 
   it("says what each plan makes of the strategy, and marks the smallest that makes all of it", async () => {
