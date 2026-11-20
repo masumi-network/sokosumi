@@ -779,7 +779,7 @@ export async function linkedInOpeningProblem(
         hook: {
           type: "boolean",
           instructions:
-            "Do the opening lines state something specific that happened: a result with its number, a number from the business, a named customer or company and what they did, or a decision that sounds surprising at first? Advice, a tip, a definition, a general truth about the category, a question to the reader, what the reader should do, a founding year or company history, a release note, a listing of what is offered, or a rating is not.",
+            "Do the opening lines state something specific that happened: a result with its number, a number from the business, a named customer or company and what they did, or a decision that sounds surprising at first? Advice, a tip, a definition, a general truth about the category, a question to the reader, what the reader should do, a founding year or company history, a release note, a listing of what is offered, a rating, or an unnamed reviewer's praise is not.",
         },
       },
       timeoutMs: 15_000,

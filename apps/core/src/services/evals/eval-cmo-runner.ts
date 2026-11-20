@@ -1142,9 +1142,10 @@ async function pollMonth(
         ? `round ${review.round}, ${reads.length} read`
         : "no review",
     },
-    // The pictures month is scored on its pictures: its three posts are too
-    // few for a share of flagged ones to mean anything.
-    ...(evalCase.pictures
+    // The pictures, variety and openings months are scored on what they
+    // test: their few posts are too few for a share of flagged ones to mean
+    // anything, and the other month cases measure the writing.
+    ...(evalCase.pictures || evalCase.variety || evalCase.openings
       ? []
       : [
           {

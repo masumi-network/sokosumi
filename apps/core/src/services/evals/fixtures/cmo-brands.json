@@ -50,7 +50,8 @@
     "url": "https://nmkr.io/",
     "goal": "More sales",
     "main": "token|nft|mint|cardano",
-    "contentLanguage": "english"
+    "contentLanguage": "english",
+    "siteLanguage": "English"
   },
   {
     "name": "Allbirds",

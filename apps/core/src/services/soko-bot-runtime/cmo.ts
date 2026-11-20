@@ -278,6 +278,22 @@ export async function reviewCmoPlan(
     await chargeCheck(input, COMPETITOR_CHECK_MODEL, rejected.costUsd);
     problems.push(...cmoRejectedTermProblems(strategy, rejected.terms));
   }
+  // Titles, stories and claims that say one thing in other words, by
+  // meaning; like the rules above, only those this change brought.
+  // Embeddings are cached, so the earlier calendar costs nothing new. A
+  // cmo-v8 Cuso hears them on every reviewed save: he saves a month in four
+  // calendar calls, and repeats across weeks show only in the later ones.
+  if (rules.claims || reviewed < budget) {
+    const [repeats, had] = await Promise.all([
+      cmoCalendarRepeats(strategy.calendar),
+      earlier && earlier.calendar.length > 0
+        ? cmoCalendarRepeats(earlier.calendar)
+        : { problems: [], costUsd: 0 },
+    ]);
+    await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd + had.costUsd);
+    const known = new Set(had.problems);
+    problems.push(...repeats.problems.filter((problem) => !known.has(problem)));
+  }
   if (reviewed >= budget) {
     return {
       save: saves,
@@ -286,18 +302,6 @@ export async function reviewCmoPlan(
       problems,
     };
   }
-  // Titles and stories that say one thing in other words, by meaning; like
-  // the rules above, only those this change brought. Embeddings are cached,
-  // so the earlier calendar costs nothing new.
-  const [repeats, had] = await Promise.all([
-    cmoCalendarRepeats(strategy.calendar),
-    earlier && earlier.calendar.length > 0
-      ? cmoCalendarRepeats(earlier.calendar)
-      : { problems: [], costUsd: 0 },
-  ]);
-  await chargeCheck(input, EMBEDDING_MODEL, repeats.costUsd + had.costUsd);
-  const known = new Set(had.problems);
-  problems.push(...repeats.problems.filter((problem) => !known.has(problem)));
   if (plan.calendarSent) {
     const language = await cmoCalendarLanguage(strategy, earlier);
     problems.push(...language.problems);
