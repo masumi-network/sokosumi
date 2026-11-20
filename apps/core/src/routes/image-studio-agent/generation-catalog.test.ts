@@ -86,6 +86,7 @@ describe("agent catalog and generation HTTP contract", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         route: "edit",
+        experimentArm: "router:opus-5.5",
         prompt: "Switch the product and keep the layout",
         modelId: "flux-2-pro",
         idempotencyKey: "valid-key",
@@ -129,6 +130,7 @@ describe("agent catalog and generation HTTP contract", () => {
     expect(createJob).toHaveBeenCalledWith(
       expect.objectContaining({
         route: "edit",
+        experimentArm: "router:opus-5.5",
         product: { id: productId, name: "Clay mug" },
         parentAssetId: sourceId,
         referenceAssetIds: [sourceId],

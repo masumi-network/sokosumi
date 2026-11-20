@@ -90,6 +90,7 @@ describe("ad evals JSONL export", () => {
           templateId: "Acme",
           creativeDirection: "jane@acme.example",
           route: "vector",
+          experimentArm: null,
           brandLook: {
             colors: ["#23453C", "Acme"],
             fonts: ["Inter", "Jane Smith", "jane@acme.example"],

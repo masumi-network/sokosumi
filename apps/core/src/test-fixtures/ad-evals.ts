@@ -16,6 +16,7 @@ export function adEvalAsset(overrides: Partial<AdEvalAsset> = {}): AdEvalAsset {
         templateId: "ad",
         creativeDirection: "spotlight",
         route: null,
+        experimentArm: null,
         brandLook: { colors: ["#23453C"], fonts: ["Inter"] },
       },
     },

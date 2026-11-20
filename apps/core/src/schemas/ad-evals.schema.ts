@@ -1,6 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
-import { imageStudioRouteSchema } from "./image-studio-route.schema";
+import {
+  imageStudioRouteSchema,
+  studioRouterArmSchema,
+} from "./image-studio-route.schema";
 
 const confidenceIntervalSchema = z.object({
   lower: z.number(),
@@ -12,6 +15,7 @@ export const adEvalsLeaderboardRowSchema = z
     model: z.string(),
     route: z.union([imageStudioRouteSchema, z.null()]),
     routeInferred: z.boolean(),
+    experimentArm: z.union([studioRouterArmSchema, z.null()]),
     template: z.string().nullable(),
     aspect: z.string().nullable(),
     workspaceCount: z.number().int().nonnegative(),

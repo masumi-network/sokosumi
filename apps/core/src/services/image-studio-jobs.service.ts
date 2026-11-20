@@ -130,6 +130,8 @@ import { speakVoiceover } from "@/lib/soko-bot/voiceover";
 import {
   type ImageStudioRoute,
   readImageStudioRoute,
+  readStudioRouterArm,
+  type StudioRouterArm,
 } from "@/schemas/image-studio-route.schema";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { enqueueAdEval } from "@/services/ad-eval.service";
@@ -189,6 +191,7 @@ export const DEFAULT_SETTINGS: ImageJobSettings = {
 
 export interface CreateImageJobInput {
   route?: ImageStudioRoute;
+  experimentArm?: StudioRouterArm;
   modelId?: string;
   /**
    * Core's month media (cmo-media-maker): its own limit at a time and no
@@ -604,6 +607,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
         settings: jsonInput({
           ...input.settings,
           ...(input.route && { route: input.route }),
+          ...(input.experimentArm && { experimentArm: input.experimentArm }),
           ...(input.letteringSettings
             ? {
                 letteringSettings: { ...input.letteringSettings },
@@ -1783,6 +1787,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         .digest("hex"),
       brandLook: brand.look ? jsonInput(brand.look) : Prisma.DbNull,
       route: readImageStudioRoute(job.settings) ?? null,
+      experimentArm: readStudioRouterArm(job.settings),
       assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
       templateId: job.templateId ?? null,
       creativeDirection: job.creativeDirection ?? null,

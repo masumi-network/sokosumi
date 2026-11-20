@@ -3,6 +3,7 @@ import {
   type ProjectImageStudioCatalog,
   readStudioAgentAdHeadline,
   type SaveStudioAgentAdHeadline,
+  type StudioRouterArm,
   saveStudioAgentAdHeadline,
 } from "@sokosumi/core-client";
 
@@ -520,6 +521,7 @@ export async function startGeneration(
     resolution: string;
     modelId?: string;
     route?: ImageStudioRoute;
+    experimentArm: StudioRouterArm;
     placementId?: string | null;
     outputFormat?: string;
     seed?: number | null;

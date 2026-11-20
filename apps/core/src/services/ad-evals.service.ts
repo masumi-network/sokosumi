@@ -12,6 +12,8 @@ import type { adminAdEvalsDashboardSchema } from "@/schemas/ad-evals.schema";
 import {
   type ImageStudioRoute,
   readImageStudioRoute,
+  readStudioRouterArm,
+  type StudioRouterArm,
 } from "@/schemas/image-studio-route.schema";
 
 export const AD_EVALS_MINIMUM_WORKSPACES = 5;
@@ -50,6 +52,7 @@ const adEvalAssetSelect = {
           creativeDirection: true,
           brandLook: true,
           route: true,
+          experimentArm: true,
         },
       },
     },
@@ -189,6 +192,7 @@ export function adFeedbackBelongsToAsset(
 }
 
 interface LeaderboardCell {
+  experimentArm: StudioRouterArm | null;
   route: ImageStudioRoute | null;
   routeInferred: boolean;
   model: string;
@@ -273,7 +277,9 @@ export async function getAdminAdEvalsDashboard(): Promise<
     const template = adAssetTemplate(asset);
     const aspect = adAssetAspect(asset);
     const { route, routeInferred } = adAssetRoute(asset);
+    const experimentArm = readStudioRouterArm(asset.job.promptSnapshot);
     const key = JSON.stringify([
+      experimentArm,
       asset.model,
       template,
       aspect,
@@ -281,6 +287,7 @@ export async function getAdminAdEvalsDashboard(): Promise<
       routeInferred,
     ]);
     const cell = cells.get(key) ?? {
+      experimentArm,
       model: asset.model,
       route,
       routeInferred,
@@ -365,6 +372,7 @@ export async function getAdminAdEvalsDashboard(): Promise<
       );
       return {
         model: cell.model,
+        experimentArm: cell.experimentArm,
         route: cell.route,
         routeInferred: cell.routeInferred,
         template: cell.template,

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 const {
@@ -101,7 +101,10 @@ function withSelection(selection: Record<string, unknown>) {
 }
 
 describe("image generation tools", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
   beforeEach(() => {
+    vi.stubEnv("STUDIO_AGENT_ROUTER_TRIAL", "off");
     vi.clearAllMocks();
     startGeneration.mockResolvedValue({
       job: {
@@ -166,6 +169,7 @@ describe("image generation tools", () => {
         modelId: "ideogram-v3",
         placementId: "pinterest-pin",
         route: "text_heavy",
+        experimentArm: "router:sonnet-5",
         outputFormat: "jpeg",
         seed: 17,
         parentAssetId: null,
@@ -192,6 +196,7 @@ describe("image generation tools", () => {
 
   it("keeps refinement lineage and references while switching model", async () => {
     const sourceVersionId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    vi.stubEnv("STUDIO_AGENT_ROUTER_TRIAL", "opus");
     await refine.execute(
       {
         ...base,
@@ -200,13 +205,14 @@ describe("image generation tools", () => {
         placementId: "x-square",
         route: "edit",
       },
-      ctx,
+      { ...ctx, session: { ...ctx.session, id: "session-2" } },
     );
     expect(startGeneration).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         parentAssetId: sourceVersionId,
         referenceAssetIds: [sourceVersionId],
+        experimentArm: "router:opus-5.5",
         modelId: "gemini-pro",
         placementId: "x-square",
         route: "edit",

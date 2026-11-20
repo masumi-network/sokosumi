@@ -85,6 +85,31 @@ describe("admin ad-evals aggregation", () => {
     ]);
   });
 
+  it("counts workspaces and scores independently for each router arm", async () => {
+    const assets = ratedAssets(6);
+    for (const [index, asset] of assets.entries()) {
+      asset.job.promptSnapshot!.experimentArm =
+        index === 0 ? "router:sonnet-5" : "router:opus-5.5";
+    }
+    findMany.mockResolvedValue(assets);
+    expect((await getAdminAdEvalsDashboard()).leaderboard).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          experimentArm: "router:sonnet-5",
+          n: 1,
+          suppressed: true,
+          judgeMean: null,
+        }),
+        expect.objectContaining({
+          experimentArm: "router:opus-5.5",
+          n: 5,
+          suppressed: false,
+          judgeMean: 4,
+        }),
+      ]),
+    );
+  });
+
   it("requires both consent flags for training data", async () => {
     await loadAdEvalAssets(true);
     expect(findMany).toHaveBeenCalledWith(

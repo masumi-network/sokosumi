@@ -1074,6 +1074,7 @@ describe("image studio job submission", () => {
           .digest("hex"),
         brandLook: Prisma.DbNull,
         route: null,
+        experimentArm: null,
         assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
         templateId: null,
         creativeDirection: null,
@@ -1089,7 +1090,11 @@ describe("image studio job submission", () => {
       variationIndex: 0,
     };
     const look = { colors: ["#123456"], fonts: ["Inter"] };
-    const settings = { ...BASE_INPUT.settings, route: "photo_ad" as const };
+    const settings = {
+      ...BASE_INPUT.settings,
+      route: "photo_ad" as const,
+      experimentArm: "router:opus-5.5" as const,
+    };
     const stored = jobRow({
       ...context,
       settings,
@@ -1100,7 +1105,12 @@ describe("image studio job submission", () => {
     jobFindUniqueOrThrowMock.mockResolvedValue(stored);
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
-    await createImageJob({ ...BASE_INPUT, ...context, route: settings.route });
+    await createImageJob({
+      ...BASE_INPUT,
+      ...context,
+      experimentArm: settings.experimentArm,
+      route: settings.route,
+    });
 
     expect(jobCreateMock).toHaveBeenCalledWith({
       data: expect.objectContaining({ ...context, settings }),
@@ -1115,6 +1125,7 @@ describe("image studio job submission", () => {
         ...context,
         finalPrompt,
         brandLook: look,
+        experimentArm: settings.experimentArm,
         route: settings.route,
         brandContextHash: createHash("sha256")
           .update(
@@ -1131,6 +1142,7 @@ describe("image studio job submission", () => {
         ...context,
         finalPrompt,
         brandLook: look,
+        experimentArm: settings.experimentArm,
         route: settings.route,
       }),
     });

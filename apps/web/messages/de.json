@@ -7998,6 +7998,7 @@
           "empty": "Noch keine Anzeigenbewertungen aus Workspaces mit Datenfreigabe.",
           "model": "Modell",
           "route": "Route",
+          "routerArm": "Router-Variante",
           "inferred": "abgeleitet",
           "downloadCsv": "CSV herunterladen",
           "adType": "Vorlage / Seitenverhältnis",

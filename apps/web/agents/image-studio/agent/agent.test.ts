@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import agent from "./agent";
+import { studioRouterForSession } from "./lib/router-trial";
+
+afterEach(() => vi.unstubAllEnvs());
 
 /**
  * What the studio agent needs from the environment it is deployed into.
@@ -15,8 +18,24 @@ import agent from "./agent";
  */
 describe("image studio agent", () => {
   it("selects its model through the AI Gateway", () => {
-    expect(typeof agent.model).toBe("string");
-    expect(agent.model).toMatch(/^[a-z0-9-]+\/[a-z0-9.-]+$/);
+    vi.stubEnv("STUDIO_AGENT_ROUTER_TRIAL", undefined);
+    const baseline = {
+      model: "anthropic/claude-sonnet-5",
+      arm: "router:sonnet-5",
+    };
+    expect(studioRouterForSession("session-2")).toEqual(baseline);
+    vi.stubEnv("STUDIO_AGENT_ROUTER_TRIAL", "off");
+    expect(studioRouterForSession("session-2")).toEqual(baseline);
+    vi.stubEnv("STUDIO_AGENT_ROUTER_TRIAL", "opus");
+    const opus = { model: "anthropic/claude-opus-5.5", arm: "router:opus-5.5" };
+    expect(studioRouterForSession("session-2")).toEqual(opus);
+    expect(studioRouterForSession("session-1")).toEqual(baseline);
+    expect(studioRouterForSession("session-2")).toEqual(opus);
+  });
+
+  it("rejects unknown trial settings", () => {
+    vi.stubEnv("STUDIO_AGENT_ROUTER_TRIAL", "on");
+    expect(() => studioRouterForSession("session-1")).toThrow();
   });
 
   it("keeps eve's default tools off", () => {

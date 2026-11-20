@@ -23,7 +23,10 @@ import {
   VIDEO_ASPECT_RATIOS,
   VIDEO_DURATIONS_SECONDS,
 } from "@/lib/image-studio/video-model";
-import { imageStudioRouteSchema } from "./image-studio-route.schema";
+import {
+  imageStudioRouteSchema,
+  studioRouterArmSchema,
+} from "./image-studio-route.schema";
 import { studioLogoPositionSchema } from "./studio-logo-position.schema";
 import { studioProductIdentitySchema } from "./studio-product.schema";
 
@@ -812,5 +815,6 @@ export const createAgentImageJobSchema = createImageJobRequestSchema
   .omit({ exportHeadline: true, useProductCutout: true })
   .extend({
     route: imageStudioRouteSchema.optional(),
+    experimentArm: studioRouterArmSchema.optional(),
     catalogProductId: z.string().uuid().optional(),
   });

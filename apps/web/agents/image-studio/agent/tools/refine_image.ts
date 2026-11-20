@@ -5,6 +5,7 @@ import { z } from "zod";
 import { startGeneration } from "../lib/core";
 import { idempotencyKeyFor, identityFrom } from "../lib/identity";
 import { CURATED_IMAGE_MODEL_IDS, pinnedSelectionFrom } from "../lib/models";
+import { studioRouterForSession } from "../lib/router-trial";
 
 export default defineTool({
   description:
@@ -63,6 +64,7 @@ export default defineTool({
     const { job } = await startGeneration(identity, {
       prompt: input.prompt,
       route: input.route,
+      experimentArm: studioRouterForSession(ctx.session.id).arm,
       parentAssetId: input.sourceVersionId,
       // The same version is both the lineage parent and the visual reference.
       referenceAssetIds: [input.sourceVersionId],

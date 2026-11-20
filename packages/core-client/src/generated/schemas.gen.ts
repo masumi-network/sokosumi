@@ -7312,6 +7312,16 @@ export const AdEvalsLeaderboardRowSchema = {
         routeInferred: {
             type: 'boolean'
         },
+        experimentArm: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/StudioRouterArm'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         template: {
             type: [
                 'string',
@@ -7430,6 +7440,7 @@ export const AdEvalsLeaderboardRowSchema = {
         'model',
         'route',
         'routeInferred',
+        'experimentArm',
         'template',
         'aspect',
         'workspaceCount',
@@ -7456,6 +7467,14 @@ export const ImageStudioRouteSchema = {
         'svg_diagram',
         'make_realistic',
         'edit'
+    ]
+} as const;
+
+export const StudioRouterArmSchema = {
+    type: 'string',
+    enum: [
+        'router:sonnet-5',
+        'router:opus-5.5'
     ]
 } as const;
 

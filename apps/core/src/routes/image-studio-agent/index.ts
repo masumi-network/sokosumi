@@ -213,6 +213,7 @@ app.post("/generations", async (c) => {
       ...(product ? { product } : {}),
       modelId: input.modelId,
       route: input.route,
+      experimentArm: input.experimentArm,
       settings: { ...DEFAULT_SETTINGS, ...input.settings },
       referenceAssetIds: input.referenceAssetIds,
       ...(photoId ? { referenceFileIds: [photoId] } : {}),

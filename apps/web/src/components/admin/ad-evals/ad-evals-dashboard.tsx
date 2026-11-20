@@ -32,6 +32,7 @@ export async function AdEvalsDashboard({ data }: AdEvalsDashboardProps) {
     "model",
     "route",
     "routeInferred",
+    "experimentArm",
     "template",
     "aspect",
     "thumbRate",
@@ -111,6 +112,7 @@ export async function AdEvalsDashboard({ data }: AdEvalsDashboardProps) {
                 <TableRow>
                   <TableHead>{t("Leaderboard.model")}</TableHead>
                   <TableHead>{t("Leaderboard.route")}</TableHead>
+                  <TableHead>{t("Leaderboard.routerArm")}</TableHead>
                   <TableHead>{t("Leaderboard.adType")}</TableHead>
                   <TableHead>{t("Leaderboard.thumbs")}</TableHead>
                   <TableHead>{t("Leaderboard.pairwise")}</TableHead>
@@ -122,7 +124,7 @@ export async function AdEvalsDashboard({ data }: AdEvalsDashboardProps) {
               <TableBody>
                 {data.leaderboard.map((row) => (
                   <TableRow
-                    key={`${row.model}:${row.route}:${row.routeInferred}:${row.template}:${row.aspect}`}
+                    key={`${row.model}:${row.route}:${row.routeInferred}:${row.experimentArm}:${row.template}:${row.aspect}`}
                   >
                     <TableCell className="font-medium">{row.model}</TableCell>
                     <TableCell>
@@ -133,6 +135,7 @@ export async function AdEvalsDashboard({ data }: AdEvalsDashboardProps) {
                         </span>
                       )}
                     </TableCell>
+                    <TableCell>{row.experimentArm ?? "—"}</TableCell>
                     <TableCell>
                       {row.template ?? t("unknownTemplate")} ·{" "}
                       {row.aspect ?? "—"}

@@ -8034,6 +8034,7 @@
           "empty": "No ad evaluations from consenting workspaces yet.",
           "model": "Model",
           "route": "Route",
+          "routerArm": "Router arm",
           "inferred": "inferred",
           "downloadCsv": "Download CSV",
           "adType": "Template / aspect",
