@@ -43,7 +43,7 @@ packages:
 # matches the filter when it matches any of the patterns. See the
 # `predicate-quantifier` note in ci.yml.
 local-env:
-  - "{scripts/local-env/**,apps/web/.env.example,apps/core/.env.example,package.json}"
+  - "{scripts/local-env/**,.cursor/skills/verify-sokosumi/bin/verify-sokosumi,apps/web/.env.example,apps/core/.env.example,package.json}"
 
 agent-db:
   - "{scripts/agent-db/**,package.json}"
