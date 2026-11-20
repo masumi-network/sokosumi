@@ -2,10 +2,12 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import {
+  ArrowUpRight,
   Binoculars,
   Brain,
   CalendarDays,
   ChartLine,
+  ChevronsUpDown,
   House,
   type LucideIcon,
   MessageSquare,
@@ -13,7 +15,6 @@ import {
   Settings,
   Share2,
   Target,
-  Users,
 } from "lucide-react";
 import { AGENT_NAME } from "../../lib/agent";
 import { needsYou } from "../../lib/today";
@@ -55,7 +56,62 @@ interface SidebarProps {
   now?: Date;
 }
 
-/** The app's sidebar: the Business, pages, the Cuso picker, Cuso's status and the person. */
+/**
+ * The head of the sidebar, the Business this Cuso works for: its own logo
+ * (read from its DESIGN.md while hiring), else its mark and name; its site;
+ * and, when the person has another Cuso, the switch to the Cuso picker.
+ */
+function BusinessHead({
+  overview,
+  manyCusos,
+}: {
+  overview: CmoOverview;
+  manyCusos: boolean;
+}) {
+  const host = hostOf(overview.websiteUrl);
+  const name = businessDisplayName(overview);
+  const logos = overview.brandMedia?.logos;
+  const logo = logos?.logo?.url;
+  return (
+    <header className="side-head">
+      {logo ? (
+        <span className="side-logo" role="img" aria-label={name}>
+          <img className="side-logo-light" src={logo} alt="" />
+          <img
+            className="side-logo-dark"
+            src={logos?.dark?.url ?? logo}
+            alt=""
+          />
+        </span>
+      ) : (
+        <span className="side-name">
+          <BusinessMark overview={overview} size={32} />
+          <b>{name}</b>
+        </span>
+      )}
+      <span className="side-head-row">
+        <a
+          className="side-site"
+          href={overview.websiteUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {logo || host !== name ? host : "Open site"}
+          <ArrowUpRight size={12} aria-hidden="true" />
+        </a>
+        {/* The Cuso picker: switch Business or hire another (ADR 0065). */}
+        {manyCusos ? (
+          <a className="side-switch" href="/?cusos=1">
+            <ChevronsUpDown size={14} aria-hidden="true" />
+            Your {AGENT_NAME}s
+          </a>
+        ) : null}
+      </span>
+    </header>
+  );
+}
+
+/** The app's sidebar: the Business, pages, Cuso and the person. */
 export function Sidebar({
   overview,
   view,
@@ -66,18 +122,10 @@ export function Sidebar({
   manyCusos = false,
   now,
 }: SidebarProps) {
-  const host = hostOf(overview.websiteUrl);
-  const displayName = businessDisplayName(overview);
   const needs = needsYou(overview).length;
   return (
     <nav className="side" aria-label="Main">
-      <div className="business card" title={overview.websiteUrl}>
-        <BusinessMark overview={overview} size={28} />
-        <span className="business-text">
-          <span className="business-name">{displayName}</span>
-          {host !== displayName ? <span className="note">{host}</span> : null}
-        </span>
-      </div>
+      <BusinessHead overview={overview} manyCusos={manyCusos} />
       <div className="nav">
         {VIEWS.map(([id, label, Icon]) => (
           <ViewLink
@@ -96,19 +144,12 @@ export function Sidebar({
             ) : null}
           </ViewLink>
         ))}
-        {/* The Cuso picker: switch Business or hire another (ADR 0065). */}
-        {manyCusos ? (
-          <a href="/?cusos=1">
-            <Users size={16} aria-hidden="true" />
-            <span>Your {AGENT_NAME}s</span>
-          </a>
-        ) : null}
       </div>
       <div className="grow" />
       <CusoStatus
         overview={overview}
         now={now}
-        onOpen={() => onSelect("chat")}
+        onOpen={() => onSelect("today")}
       />
       {/* The person is the account menu's button, so the name has the row. */}
       <AccountMenu

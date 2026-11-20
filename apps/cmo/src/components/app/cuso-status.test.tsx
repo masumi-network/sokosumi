@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 
 import { cmoOverview, cmoStrategyVersion } from "../../test-fixtures/cmo";
-import { CusoStatus } from "./cuso-status";
+import { CusoStatus, cusoMood } from "./cuso-status";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
 const approved = cmoStrategyVersion(new Date("2026-11-01T09:00:00Z"));
@@ -43,7 +43,11 @@ const production = (
 const cases = [
   {
     name: "researching reads",
-    patch: { learning: "running" as const },
+    patch: {
+      ...approved,
+      channels: [channel],
+      learning: "running" as const,
+    },
     pose: "reading",
     art: "searching",
     line: "Learning",
@@ -64,7 +68,7 @@ const cases = [
     patch: {},
     pose: "needs-you",
     art: "pointing",
-    line: "Waiting for approval",
+    line: "need you",
   },
   {
     name: "a fresh report shows reporting",
@@ -92,30 +96,32 @@ const cases = [
   },
 ];
 
-it.each(cases)("Cuso's status card: $name", ({ patch, pose, art, line }) => {
+it.each(cases)("Cuso's status: $name", ({ patch, pose, art, line }) => {
   const html = renderToStaticMarkup(
     <CusoStatus overview={cmoOverview(patch)} now={NOW} />,
   );
   expect(html).toContain(`src="/cuso/${art}.png"`);
-  expect(html).toContain("Cuso");
-  // One line beside him always says the state, in words.
-  expect(html).toContain("cuso-status-line");
+  expect(html).toContain(`data-pose="${pose}"`);
+  // His bubble always says the state in words; the drawing is decoration.
+  expect(html).toContain("cuso-says-line");
+  expect(html).toMatch(/class="cuso-stage" aria-hidden="true"/);
   if (line) expect(html).toContain(line);
-  // The big stage is gone from the sidebar: the pages keep the room.
-  expect(html).not.toContain("ob-scene-compact");
-  // Needs you calls out on Iris; working runs the bar under his line.
-  expect(html.includes("cuso-status-call")).toBe(pose === "needs-you");
+  // Working runs the bar under his line.
   expect(html.includes("ob-scene-bar")).toBe(
     pose === "reading" || pose === "thinking",
   );
 });
 
-it("is a focused button that opens the chat only while Cuso needs the owner", () => {
+it("points at the owner whenever something needs them, and his bubble opens Today", () => {
+  const overview = cmoOverview();
+  expect(cusoMood(overview, NOW)).toMatchObject({ art: "pointing" });
   const needs = renderToStaticMarkup(
-    <CusoStatus overview={cmoOverview()} now={NOW} onOpen={() => {}} />,
+    <CusoStatus overview={overview} now={NOW} onOpen={() => {}} />,
   );
-  expect(needs).toContain("<button");
-  expect(needs).toContain("Waiting for approval");
+  expect(needs).toContain(
+    '<button type="button" class="cuso-says cuso-says-call"',
+  );
+  expect(needs).toMatch(/(One thing needs you|\d+ things need you)/);
   const calm = renderToStaticMarkup(
     <CusoStatus
       overview={cmoOverview({
@@ -128,4 +134,5 @@ it("is a focused button that opens the chat only while Cuso needs the owner", ()
     />,
   );
   expect(calm).not.toContain("<button");
+  expect(calm).toContain("On schedule");
 });
