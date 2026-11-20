@@ -69,6 +69,7 @@ export function SeoStepRow({
     connectStep ? step.provider : "search_console",
     undefined,
     connectStep,
+    true,
   );
   const sync = connectStep && connection.status.data?.status === "connected";
   // A connection that failed says so in the place of the step's text: nothing in the row moves.

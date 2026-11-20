@@ -24,7 +24,7 @@ export function SeoAgentStatistics({
 }) {
   const t = useTranslations("App.Seo");
   const showConnect = !hidden && action === "connect";
-  const ga4Connection = useSeoConnection("ga4", undefined, showConnect);
+  const ga4Connection = useSeoConnection("ga4", undefined, showConnect, true);
   const connectError =
     showConnect && ga4Connection.status.data?.status !== "unavailable"
       ? ga4Connection.error

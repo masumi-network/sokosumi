@@ -158,6 +158,10 @@ export function useComposioOAuthPopup() {
 
   useMountEffect(() => () => cleanupFlow(activeFlowRef.current));
 
+  const cancelPopupOAuth = useCallback(() => {
+    cleanupFlow(activeFlowRef.current);
+  }, [cleanupFlow]);
+
   const runPopupOAuth = useCallback(
     async <T>(
       action: (flow: ComposioOAuthPopupFlow) => Promise<T>,
@@ -208,5 +212,5 @@ export function useComposioOAuthPopup() {
     [cleanupFlow],
   );
 
-  return { runPopupOAuth };
+  return { runPopupOAuth, cancelPopupOAuth };
 }

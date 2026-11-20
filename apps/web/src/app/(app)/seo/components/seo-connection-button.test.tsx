@@ -9,6 +9,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComposioOAuthPopupFlow } from "@/lib/composio/use-composio-oauth-popup";
 import messages from "../../../../../messages/en.json";
+import { SeoAgentStatistics } from "./seo-agent-statistics";
 import { SeoStepRow } from "./seo-agent-steps";
 import { SeoConnectionButton } from "./seo-connection-button";
 import { seoTestWorkspace } from "./seo-test-fixture";
@@ -21,11 +22,14 @@ const m = vi.hoisted(() => ({
   disconnect: vi.fn(),
   complete: vi.fn(),
   popup: vi.fn(),
+  cancelPopup: vi.fn(),
   navigate: vi.fn(),
   callback: vi.fn(),
   error: vi.fn(),
   status: "not_connected",
   resumable: false,
+  userId: "owner",
+  orgId: "org",
 }));
 vi.mock("@/lib/actions/seo-connections/action", () => ({
   connectSeoStatisticsAction: m.initiate,
@@ -37,11 +41,17 @@ vi.mock("@/lib/actions/composio/action", () => ({
 }));
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: () => ({
-    data: { session: { activeOrganizationId: "org" }, user: { id: "owner" } },
+    data: {
+      session: { activeOrganizationId: m.orgId },
+      user: { id: m.userId },
+    },
   }),
 }));
 vi.mock("@/lib/composio/use-composio-oauth-popup", () => ({
-  useComposioOAuthPopup: () => ({ runPopupOAuth: m.popup }),
+  useComposioOAuthPopup: () => ({
+    runPopupOAuth: m.popup,
+    cancelPopupOAuth: m.cancelPopup,
+  }),
 }));
 vi.mock("sonner", () => ({ toast: { error: m.error } }));
 
@@ -70,6 +80,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.status = "not_connected";
   m.resumable = false;
+  m.userId = "owner";
+  m.orgId = "org";
   m.popup.mockImplementation(
     async (run: (flow: ComposioOAuthPopupFlow) => unknown) => ({
       kind: "completed",
@@ -494,5 +506,116 @@ describe("native SEO connection consent", () => {
       "temporarily unavailable",
     );
     expect(screen.queryByText("Search Console connected")).toBeNull();
+  });
+
+  it("cancels an in-flight SeoStepRow popup when a refetch reports connected from another tab", async () => {
+    const callback = Promise.withResolvers<{
+      kind: "callback";
+      payload: { status: "success"; connectionId: string; sessionUri: string };
+    }>();
+    m.callback.mockReturnValue(callback.promise);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    const model = { data: seoTestWorkspace(), openStatistics: vi.fn() };
+    render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <SeoStepRow
+            step={{ kind: "connect", provider: "search_console" }}
+            model={model as unknown as SeoWorkspaceModel}
+            first
+          />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Connect Google" }),
+    );
+    await waitFor(() => expect(m.callback).toHaveBeenCalledTimes(1));
+
+    // Google approval completed in a second tab; a refetch reports connected and unmounts Connect.
+    m.status = "connected";
+    await client.invalidateQueries();
+    expect(
+      await screen.findByRole("button", { name: "Google connections" }),
+    ).toBeVisible();
+    expect(m.cancelPopup).toHaveBeenCalled();
+
+    // Even if the stale callback resolves afterwards, the old flow must not finalise.
+    callback.resolve({
+      kind: "callback",
+      payload: {
+        status: "success",
+        connectionId: "ca-search",
+        sessionUri: "https://backend.composio.dev/session/one",
+      },
+    });
+    await Promise.resolve();
+    expect(m.finalize).not.toHaveBeenCalled();
+  });
+
+  it("cancels an in-flight SeoAgentStatistics popup when connect deactivates", async () => {
+    const callback = Promise.withResolvers<{
+      kind: "callback";
+      payload: { status: "success"; connectionId: string; sessionUri: string };
+    }>();
+    m.callback.mockReturnValue(callback.promise);
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    clients.push(client);
+    const model = {
+      data: seoTestWorkspace(),
+      dialog: null,
+      openStatistics: vi.fn(),
+    } as unknown as SeoWorkspaceModel;
+    const baseLine = {
+      analytics: "missing" as const,
+      count: 0,
+      property: "",
+      hidden: false,
+    };
+    const { rerender } = render(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <SeoAgentStatistics
+            model={model}
+            line={{ ...baseLine, action: "connect" }}
+          />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Connect Google Analytics" }),
+    );
+    await waitFor(() => expect(m.callback).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <QueryClientProvider client={client}>
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <SeoAgentStatistics
+            model={model}
+            line={{ ...baseLine, action: "manage" }}
+          />
+        </NextIntlClientProvider>
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Google connections" }),
+    ).toBeVisible();
+    expect(m.cancelPopup).toHaveBeenCalled();
+
+    callback.resolve({
+      kind: "callback",
+      payload: {
+        status: "success",
+        connectionId: "ca-search",
+        sessionUri: "https://backend.composio.dev/session/one",
+      },
+    });
+    await Promise.resolve();
+    expect(m.finalize).not.toHaveBeenCalled();
   });
 });

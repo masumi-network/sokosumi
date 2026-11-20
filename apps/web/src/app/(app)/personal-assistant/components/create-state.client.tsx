@@ -5,7 +5,16 @@ import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useRef, useState, useTransition } from "react";
+import {
+  type ComponentProps,
+  type ReactNode,
+  type Ref,
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { CHAT_MOBILE_COMPOSER_SAFE_AREA_PB } from "@/app/chat/components/chat-mobile-tab-registry";
@@ -34,7 +43,20 @@ import { openNewSokoBotRoom } from "./open-new-soko-bot-room";
 /** Loaded when the picture step is mounted: it carries the 16 traced animals. */
 const AvatarStudio = dynamic(
   () =>
-    import("./avatar-studio.client").then((m) => ({ default: m.AvatarStudio })),
+    import("./avatar-studio.client").then((m) => ({
+      default: function LoadedAvatarStudio({
+        studioRef,
+        ...props
+      }: ComponentProps<typeof m.AvatarStudio> & {
+        studioRef?: Ref<HTMLDivElement>;
+      }) {
+        return (
+          <div ref={studioRef} className="contents">
+            <m.AvatarStudio {...props} />
+          </div>
+        );
+      },
+    })),
   { ssr: false, loading: () => <div className="bg-muted h-96 rounded-xl" /> },
 );
 
@@ -65,6 +87,11 @@ export function CreateState({
   const [blank, setBlank] = useState(false);
   // Generated on the client when entering the picture step so SSR stays deterministic.
   const [avatarCode, setAvatarCode] = useState<string | null>(null);
+  // True once the lazy-loaded AvatarStudio chunk has mounted its preview.
+  const [studioReady, setStudioReady] = useState(false);
+  const handleStudioRef = useCallback((node: HTMLDivElement | null) => {
+    setStudioReady(node !== null);
+  }, []);
   const [isPending, startTransition] = useTransition();
   const [created, setCreated] = useState<{
     name: string;
@@ -110,7 +137,7 @@ export function CreateState({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isPending || !avatarCode) return;
+    if (isPending || !avatarCode || !studioReady) return;
     create(avatarCode);
   }
 
@@ -244,7 +271,12 @@ export function CreateState({
           className={cn(HOLDER_CLASS, "min-w-0 [&_button]:scroll-mb-40")}
         >
           <div className={cn(HOLDER_ITEM_CLASS, "p-3")}>
-            <AvatarStudio compact code={avatarCode} onChange={setAvatarCode} />
+            <AvatarStudio
+              compact
+              code={avatarCode}
+              onChange={setAvatarCode}
+              studioRef={handleStudioRef}
+            />
           </div>
         </fieldset>
         {/* Pinned to the foot at every size, so Create stays in reach above the pictures.
@@ -268,8 +300,8 @@ export function CreateState({
             type="submit"
             variant="primary"
             className="min-w-0 flex-1"
-            // Locked while it creates, so a second submit cannot race the first.
-            disabled={isPending || !avatarCode}
+            // Locked while it creates or while the preview chunk loads, so a second submit cannot race the first.
+            disabled={isPending || !avatarCode || !studioReady}
             loading={isPending}
           >
             {/* Buttons do not wrap: a long name would push the phone page sideways. */}

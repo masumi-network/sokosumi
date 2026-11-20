@@ -521,6 +521,20 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
   }
   // The lead of the Agent tab opens its action on the Actions tab, in the list with the other actions.
   const [shownAction, setShownAction] = useState<string | null>(null);
+  const [prevTab, setPrevTab] = useState(filters.tab);
+  if (prevTab !== filters.tab) {
+    setPrevTab(filters.tab);
+    if (prevTab === "actions" && shownAction !== null) {
+      setShownAction(null);
+    }
+  } else if (
+    filters.tab === "actions" &&
+    shownAction !== null &&
+    !data.actions.some((action) => seoActionKey(action) === shownAction)
+  ) {
+    // Clear the request when the action leaves the list (even if it was the last action and the list unmounts).
+    setShownAction(null);
+  }
   function showAction(key: string) {
     setShownAction(key);
     void setFilters({ tab: "actions" });

@@ -256,4 +256,67 @@ describe("CreateState", () => {
     await act(() => vi.advanceTimersByTimeAsync(1500));
     expect(pushMock).toHaveBeenCalled();
   });
+
+  it("keeps Create disabled over the Avatar Studio loading placeholder until the preview mounts", async () => {
+    const user = userEvent.setup();
+    vi.resetModules();
+    const loadGate = Promise.withResolvers<void>();
+    vi.doMock("next/dynamic", async () => {
+      const React = await import("react");
+      return {
+        default: (
+          loader: () => Promise<{ default: React.ComponentType<unknown> }>,
+          options?: { loading?: () => React.ReactNode },
+        ) => {
+          return function DeferredDynamic(props: Record<string, unknown>) {
+            const [Loaded, setLoaded] = React.useState<{
+              Comp: React.ComponentType<Record<string, unknown>>;
+            } | null>(null);
+            React.useEffect(() => {
+              let cancelled = false;
+              void loadGate.promise
+                .then(() => loader())
+                .then((mod) => {
+                  if (!cancelled) {
+                    setLoaded({
+                      Comp: mod.default as React.ComponentType<
+                        Record<string, unknown>
+                      >,
+                    });
+                  }
+                });
+              return () => {
+                cancelled = true;
+              };
+            }, []);
+            if (!Loaded) {
+              return options?.loading ? options.loading() : null;
+            }
+            const Comp = Loaded.Comp;
+            return React.createElement(Comp, props);
+          };
+        },
+      };
+    });
+    const { CreateState: DeferredCreateState } = await import(
+      "./create-state.client"
+    );
+    render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <DeferredCreateState paidByOrganization={false} />
+      </NextIntlClientProvider>,
+    );
+
+    await user.type(screen.getByLabelText("Name"), "Atlas{Enter}");
+    expect(screen.queryByTestId("avatar-studio")).toBeNull();
+    expect(screen.getByRole("button", { name: "Create Atlas" })).toBeDisabled();
+
+    await act(async () => {
+      loadGate.resolve();
+      await Promise.resolve();
+    });
+    expect(await screen.findByTestId("avatar-studio")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Create Atlas" })).toBeEnabled();
+    vi.doUnmock("next/dynamic");
+  });
 });

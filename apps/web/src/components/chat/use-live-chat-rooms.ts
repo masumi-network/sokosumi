@@ -101,8 +101,26 @@ export function useLiveChatRooms(): ChatRoom[] | null {
     : null;
   const [trackedScope, setTrackedScope] = useState<string | null>(scope);
 
+  const mirroredSnapshot =
+    sidebarOwnsReads &&
+    liveSnapshot &&
+    liveSnapshot.currentUserId === currentUserId &&
+    liveSnapshot.organizationId === organizationId
+      ? liveSnapshot
+      : null;
+  const [syncedSnapshot, setSyncedSnapshot] = useState<
+    typeof liveSnapshot | null
+  >(null);
+  if (mirroredSnapshot && mirroredSnapshot !== syncedSnapshot) {
+    setSyncedSnapshot(mirroredSnapshot);
+    setRooms(applyRoomReadOverlays([...mirroredSnapshot.rooms]));
+  } else if (!mirroredSnapshot && syncedSnapshot !== null) {
+    setSyncedSnapshot(null);
+  }
+
   // Drop the previous workspace's rows before the new GET lands so an
   // in-flight response cannot light the dot for the wrong org (SOK-986).
+  // Runs after the mirror so a matching snapshot's local read overlays win.
   if (trackedScope !== scope) {
     const previous = trackedScope;
     setTrackedScope(scope);
@@ -117,23 +135,6 @@ export function useLiveChatRooms(): ChatRoom[] | null {
           : null,
       );
     }
-  }
-
-  const mirroredSnapshot =
-    sidebarOwnsReads &&
-    liveSnapshot &&
-    liveSnapshot.currentUserId === currentUserId &&
-    liveSnapshot.organizationId === organizationId
-      ? liveSnapshot
-      : null;
-  const [syncedSnapshot, setSyncedSnapshot] = useState<
-    typeof liveSnapshot | null
-  >(null);
-  if (mirroredSnapshot && mirroredSnapshot !== syncedSnapshot) {
-    setSyncedSnapshot(mirroredSnapshot);
-    setRooms([...mirroredSnapshot.rooms]);
-  } else if (!mirroredSnapshot && syncedSnapshot !== null) {
-    setSyncedSnapshot(null);
   }
 
   // Same GET read and scheduling rules as the sidebar's active collection
