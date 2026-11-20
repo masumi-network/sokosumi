@@ -35,19 +35,18 @@ export function ComposerAddLinkDialog({
   const urlId = useId();
   const [text, setText] = useState(initialText);
   const [url, setUrl] = useState(initialUrl);
+  const [prevSync, setPrevSync] = useState({ initialText, initialUrl, open });
 
-  const [synced, setSynced] = useState({ open, initialText, initialUrl });
   if (
-    open &&
-    (!synced.open ||
-      synced.initialText !== initialText ||
-      synced.initialUrl !== initialUrl)
+    prevSync.initialText !== initialText ||
+    prevSync.initialUrl !== initialUrl ||
+    prevSync.open !== open
   ) {
-    setSynced({ open, initialText, initialUrl });
-    setText(initialText);
-    setUrl(initialUrl);
-  } else if (!open && synced.open) {
-    setSynced({ open, initialText, initialUrl });
+    setPrevSync({ initialText, initialUrl, open });
+    if (open) {
+      setText(initialText);
+      setUrl(initialUrl);
+    }
   }
 
   const normalizedUrl = normalizeUrl(url);

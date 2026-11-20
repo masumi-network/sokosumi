@@ -135,14 +135,14 @@ export function ProjectDetailActions({
     }
 
     const normalizedReason = closeReason.trim() || undefined;
-    const nextCloseAttempt =
-      closeAttempt && closeAttempt.reason === normalizedReason
-        ? closeAttempt
-        : {
-            operationId: crypto.randomUUID(),
-            reason: normalizedReason,
-          };
-    setCloseAttempt(nextCloseAttempt);
+    let nextCloseAttempt = closeAttempt;
+    if (!nextCloseAttempt || nextCloseAttempt.reason !== normalizedReason) {
+      nextCloseAttempt = {
+        operationId: crypto.randomUUID(),
+        reason: normalizedReason,
+      };
+      setCloseAttempt(nextCloseAttempt);
+    }
 
     startCloseTransition(async () => {
       try {

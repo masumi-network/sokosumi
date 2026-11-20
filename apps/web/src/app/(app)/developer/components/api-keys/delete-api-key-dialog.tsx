@@ -26,11 +26,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import type { DeleteApiKeyDialogProps, DeleteApiKeyFormData } from "./types";
+import type {
+  ApiKeyRecord,
+  DeleteApiKeyDialogProps,
+  DeleteApiKeyFormData,
+} from "./types";
 import { deleteApiKeySchema, validateConfirmationName } from "./utils";
 
 interface DeleteApiKeyFormProps {
-  apiKey: NonNullable<DeleteApiKeyDialogProps["apiKey"]>;
+  apiKey: ApiKeyRecord;
   onOpenChange: DeleteApiKeyDialogProps["onOpenChange"];
   onSuccess: DeleteApiKeyDialogProps["onSuccess"];
   deleteApiKey: DeleteApiKeyDialogProps["deleteApiKey"];
@@ -144,7 +148,7 @@ export function DeleteApiKeyDialog({
 
         {apiKey && (
           <DeleteApiKeyForm
-            key={`${apiKey.id}:${open ? 1 : 0}`}
+            key={`${apiKey.id}-${open ? "open" : "closed"}`}
             apiKey={apiKey}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}

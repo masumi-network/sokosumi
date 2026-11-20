@@ -601,3 +601,48 @@ describe("RoomTranscriptCache.forWorkspace", () => {
     expect(cache.forWorkspace("org-3", "room").get("room")).toBeUndefined();
   });
 });
+
+describe("RoomTranscriptCache top-level normalisation", () => {
+  it("strips leaked thread replies before publishing to the cache", async () => {
+    const cache = new RoomTranscriptCache(
+      new QueryClient(),
+      "reader",
+      "workspace",
+    );
+    const root = message(1);
+    const leakedReply = { ...message(2), parentMessageId: root.id };
+    const entry = cache.seed({
+      activeOrganization: null,
+      rooms: [],
+      organizationMembers: [],
+      currentUserId: "reader",
+      isOrgOwnerOrAdmin: false,
+      coworkers: [],
+      selectedRoomId: "room",
+      messageLoadFailed: false,
+      membersLoadFailed: false,
+      messages: [root, leakedReply],
+      messagesNextCursor: null,
+    });
+    expect(entry.transcript.messages.map((row) => row.id)).toEqual(["m1"]);
+
+    cache.client.setQueryData(cache.key("room"), entry);
+    cache.setTranscript("room", entry.lifetime, (current) => ({
+      ...current,
+      messages: [...current.messages, leakedReply],
+    }));
+    expect(cache.get("room")?.transcript.messages.map((row) => row.id)).toEqual(
+      ["m1"],
+    );
+
+    vi.mocked(fetchRoomMessages).mockResolvedValueOnce({
+      messages: [root, leakedReply, message(3)],
+      nextCursor: null,
+    });
+    await cache.refresh("room", entry.lifetime, () => true);
+    expect(cache.get("room")?.transcript.messages.map((row) => row.id)).toEqual(
+      ["m1", "m3"],
+    );
+    cache.clear();
+  });
+});

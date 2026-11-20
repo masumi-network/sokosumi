@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import {
@@ -39,12 +39,14 @@ export function HistorySearch({
       ),
     [activeOrganizationId, projectOptions, searchParams],
   );
+  const [prevQuery, setPrevQuery] = useState(filters.q);
   const [searchValue, setSearchValue] = useState(filters.q ?? "");
 
   // Syncs local input when URL state changes via navigation or filter resets.
-  useEffect(() => {
+  if (prevQuery !== filters.q) {
+    setPrevQuery(filters.q);
     setSearchValue(filters.q ?? "");
-  }, [filters.q]);
+  }
 
   function replaceWithQuery(nextQuery: string | null) {
     const paramsForMerge = new URLSearchParams(

@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type {
   EditOAuthClientDialogProps,
   EditOAuthClientFormData,
+  OAuthClientRecord,
 } from "./types";
 import {
   editOAuthClientSchema,
@@ -41,7 +42,7 @@ import {
 } from "./utils";
 
 interface EditOAuthClientFormProps {
-  client: NonNullable<EditOAuthClientDialogProps["client"]>;
+  client: OAuthClientRecord;
   onOpenChange: EditOAuthClientDialogProps["onOpenChange"];
   onSuccess: EditOAuthClientDialogProps["onSuccess"];
   updateClient: EditOAuthClientDialogProps["updateClient"];
@@ -271,9 +272,6 @@ export function EditOAuthClientDialog({
   updateClient,
 }: EditOAuthClientDialogProps) {
   const t = useTranslations("App.Account.OAuthClients");
-  const formKey = client
-    ? `${client.client_id}:${client.client_name ?? ""}:${(client.redirect_uris ?? []).join(",")}:${client.client_uri ?? ""}:${client.logo_uri ?? ""}:${client.scope ?? ""}:${open ? 1 : 0}`
-    : "empty";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -285,7 +283,7 @@ export function EditOAuthClientDialog({
 
         {client ? (
           <EditOAuthClientForm
-            key={formKey}
+            key={`${client.client_id}:${client.client_name ?? ""}:${(client.redirect_uris ?? []).join(",")}:${client.client_uri ?? ""}:${client.logo_uri ?? ""}:${client.scope ?? ""}:${open ? "open" : "closed"}`}
             client={client}
             onOpenChange={onOpenChange}
             onSuccess={onSuccess}

@@ -11,7 +11,7 @@
   "src/components/form-field.tsx": 1,
   "src/components/onboarding/brand-step.tsx": 1,
   "src/components/onboarding/checklist.tsx": 1,
-  "src/components/onboarding/flow.tsx": 4,
+  "src/components/onboarding/flow.tsx": 3,
   "src/components/onboarding/launch-step.tsx": 1,
   "src/components/onboarding/tiles.tsx": 2
 }

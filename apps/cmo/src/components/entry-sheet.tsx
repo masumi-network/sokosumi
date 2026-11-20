@@ -321,12 +321,13 @@ function PostPreview({
 }) {
   const channel = entry.channel.toLowerCase();
   const [editing, setEditing] = useState(false);
+  const [prevText, setPrevText] = useState(text);
   const [words, setWords] = useState(text);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
-  const [syncedText, setSyncedText] = useState(text);
-  if (syncedText !== text) {
-    setSyncedText(text);
+  // Stepping to another post, or a save, shows that post's own words.
+  if (prevText !== text) {
+    setPrevText(text);
     setWords(text);
     setEditing(false);
     setRefusal(null);

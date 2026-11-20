@@ -95,14 +95,15 @@ export function EditChannelDialog({
     channel.discoverability === "external" &&
     channel.userMembers.some((member) => member.access === "guest");
 
-  const [synced, setSynced] = useState({ open, channel });
-  if (open && (!synced.open || synced.channel !== channel)) {
-    setSynced({ open, channel });
-    setName(channel.name);
-    setTopic(channel.topic ?? "");
-    setDiscoverability(channelDiscoverability(channel.discoverability));
-  } else if (!open && synced.open) {
-    setSynced({ open, channel });
+  const [prevSync, setPrevSync] = useState({ channel, open });
+
+  if (prevSync.channel !== channel || prevSync.open !== open) {
+    setPrevSync({ channel, open });
+    if (open) {
+      setName(channel.name);
+      setTopic(channel.topic ?? "");
+      setDiscoverability(channelDiscoverability(channel.discoverability));
+    }
   }
 
   const trimmedTopic = topic.trim();

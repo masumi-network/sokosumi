@@ -67,7 +67,7 @@ export function OrgPresenceProvider({
 }: OrgPresenceProviderProps) {
   const [presenceByUserId, setPresenceByUserId] = useState<
     Map<string, ChatPresenceState>
-  >(() => new Map());
+  >(() => EMPTY_PRESENCE_MAP);
 
   const handleMapChange = useCallback((map: Map<string, ChatPresenceState>) => {
     setPresenceByUserId((previous) => {
@@ -91,10 +91,11 @@ export function OrgPresenceProvider({
     setPresenceByUserId(EMPTY_PRESENCE_MAP);
   }
 
+  const providedPresenceMap =
+    organizationId == null ? EMPTY_PRESENCE_MAP : presenceByUserId;
+
   return (
-    <OrgPresenceMapContext
-      value={organizationId == null ? EMPTY_PRESENCE_MAP : presenceByUserId}
-    >
+    <OrgPresenceMapContext value={providedPresenceMap}>
       {children}
       <LazyAblyProvider>
         <OrgPresencePublisherBridge organizationId={organizationId} />
