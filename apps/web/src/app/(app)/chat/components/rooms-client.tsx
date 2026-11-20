@@ -88,6 +88,7 @@ import {
   enqueueClassicOutboundJob,
 } from "@/app/chat/utils/classic-outbound-queue";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
+import { coworkerFirstPrompts } from "@/app/chat/utils/coworker-first-prompts";
 import {
   isCurrentUserMentionerOfFailedShell,
   isFailedMentionThoughtShell,
@@ -191,6 +192,7 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
+import { CoworkerFirstPrompts } from "./coworker-first-prompts";
 import {
   openDirectWithParticipant,
   participantDirectKey,
@@ -200,7 +202,6 @@ import {
   useReadOnlyDirectNotice,
 } from "./read-only-direct-notice";
 import { useRoomCache, useRoomSelection } from "./room-cache-provider";
-import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import { RoomHeaderChrome } from "./room-header-chrome";
 import {
@@ -235,6 +236,7 @@ import { RoomOpenLoadingView } from "./room-open-loading-view";
 import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 import {
   RoomSessionComposer,
+  type RoomSessionComposerHandle,
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
@@ -967,7 +969,7 @@ function RoomView({
     setThreadOlderLoadStatus("idle");
   }
 
-  const roomComposerRef = useRef<RoomComposerHandle | null>(null);
+  const roomComposerRef = useRef<RoomSessionComposerHandle | null>(null);
   // State, not a ref: the viewport needs the element as a prop, and the
   // shell attaches its ref after a same-commit child has already rendered.
   const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
@@ -1236,6 +1238,11 @@ function RoomView({
   const isCoworkerStreamRoom = selectedRoom
     ? shouldUseCoworkerRoomStream(selectedRoom)
     : false;
+  const firstPromptCoworker = isCoworkerStreamRoom
+    ? coworkers.find(
+        (coworker) => coworker.id === selectedRoom?.coworkerMembers[0]?.id,
+      )
+    : undefined;
 
   const refreshRoomMessagesAfterStream = useCallback(
     async (roomId: string): Promise<boolean> => {
@@ -3255,6 +3262,13 @@ function RoomView({
                   ? t("Empty.noDirectMessagesDescription")
                   : t("Empty.noMessagesDescription")}
             </p>
+            {firstPromptCoworker ? (
+              <CoworkerFirstPrompts
+                coworkerName={firstPromptCoworker.name}
+                prompts={coworkerFirstPrompts(firstPromptCoworker.metadata)}
+                onPick={(text) => roomComposerRef.current?.fill(text)}
+              />
+            ) : null}
           </div>
         ) : null}
         {showListSkeleton ? null : (

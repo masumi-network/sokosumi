@@ -25,6 +25,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
@@ -54,6 +55,12 @@ import {
 } from "./room-helpers";
 import { RoomTypingLine } from "./room-typing-line";
 import { useRoomTypingContext } from "./room-typing-provider";
+
+/** The room composer's handle, plus replacing what is typed. */
+export interface RoomSessionComposerHandle extends RoomComposerHandle {
+  /** Replace the draft with `text` and focus at its end; nothing is sent. */
+  fill: (text: string) => void;
+}
 
 export interface RoomSessionSendRequest {
   content: string;
@@ -125,7 +132,7 @@ interface RoomSessionComposerProps {
    * pending so Instant→shell does not open the OSK / jump selection early.
    */
   focusOnMount?: boolean;
-  ref?: Ref<RoomComposerHandle>;
+  ref?: Ref<RoomSessionComposerHandle>;
   /** Claim in-flight lock with clientMessageId; return false to abort clear. */
   onBeforeSend?: (clientMessageId: string) => boolean;
   onSend: (request: RoomSessionSendRequest) => Promise<RoomSessionSendResult>;
@@ -283,6 +290,11 @@ export function RoomSessionComposer({
     () => ({
       attachFiles: (files) => composerRef.current?.attachFiles(files),
       focus: () => composerRef.current?.focus(),
+      fill: (text) => {
+        // Commit before placing the caret, so typing goes after the text.
+        flushSync(() => setComposerValue(text));
+        composerRef.current?.focusAtEnd();
+      },
     }),
     [],
   );
