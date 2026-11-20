@@ -3,10 +3,10 @@
  * temporary fixture repo, isolated from any inherited GIT_* variables (such
  * as GIT_DIR or GIT_INDEX_FILE) and user/system git config.
  */
-export function fixtureGitEnv(baseEnv = process.env) {
+export function fixtureGitEnv() {
   return {
     ...Object.fromEntries(
-      Object.entries(baseEnv).filter(([key]) => !key.startsWith("GIT_")),
+      Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
     ),
     GIT_CONFIG_GLOBAL: "/dev/null",
     GIT_CONFIG_NOSYSTEM: "1",

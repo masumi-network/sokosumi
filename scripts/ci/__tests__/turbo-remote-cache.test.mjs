@@ -566,7 +566,7 @@ describe("Vercel web turbo build command", () => {
     const git = (...args) =>
       execFileSync("git", args, { cwd: fixture, env, encoding: "utf8" }).trim();
     git("init", "-q");
-    git("add", ".");
+    git("add", "-f", ".");
     git("commit", "-qm", "initial fixture");
     for (const [file, content, expected] of [
       [
@@ -583,7 +583,7 @@ describe("Vercel web turbo build command", () => {
     ]) {
       const base = git("rev-parse", "HEAD");
       await writeFile(path.join(fixture, file), content);
-      git("add", file);
+      git("add", "-f", file);
       git("commit", "-qm", `change ${file}`);
       for (const name of ["web", "@sokosumi/core", "cmo"]) {
         const result = spawnSync(
@@ -619,7 +619,7 @@ describe("Vercel web turbo build command", () => {
       }).trim();
     git("init", "-q");
     await writeFile(path.join(canary, "sentinel.txt"), "ok\n");
-    git("add", ".");
+    git("add", "-f", ".");
     git("commit", "-qm", "sentinel");
     const beforeHead = git("rev-parse", "HEAD");
     const beforeCount = git("rev-list", "--all", "--count");
