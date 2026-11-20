@@ -3,7 +3,10 @@
 import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
+import {
+  type NewTaskWizardOptions,
+  useOptionalNewTaskWizard,
+} from "@/app/components/new-task-wizard-provider";
 import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
 import { Button } from "@/components/ui/button";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
@@ -12,15 +15,18 @@ import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-con
  * Opens the New Task wizard scoped to the reader's project, or null when the
  * reader cannot create a Task here: outside the wizard's provider (the Instant
  * Nav shell) or without an assigned Organization seat, since Core rejects task
- * creation without one and the wizard would only fail.
+ * creation without one and the wizard would only fail. `prefill` seeds the
+ * form (a prompt, say); the reader still reviews and submits it.
  */
-export function useNewTaskOpener(): (() => void) | null {
+export function useNewTaskOpener(
+  prefill?: Omit<NewTaskWizardOptions, "projectId">,
+): (() => void) | null {
   const wizard = useOptionalNewTaskWizard();
   const { projectId } = useProjectScope();
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
 
   if (!wizard || !hasAssignedSeat) return null;
-  return () => wizard.openNewTaskWizard({ projectId });
+  return () => wizard.openNewTaskWizard({ projectId, ...prefill });
 }
 
 /** Opens the New Task wizard, like the sidebar header's New task button. */
