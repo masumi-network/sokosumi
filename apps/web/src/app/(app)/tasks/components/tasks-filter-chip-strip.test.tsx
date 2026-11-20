@@ -38,40 +38,53 @@ afterEach(() => {
 function renderStrip() {
   return render(
     <TasksFilterChipStrip label="Active filters" itemsKey="a|b">
-      <li>Status: Draft</li>
-      <li>Stuck: 3+ days</li>
+      <li>
+        Status: Draft <button type="button">Remove Status: Draft</button>
+      </li>
+      <li>
+        Stuck: 3+ days <button type="button">Remove Stuck: 3+ days</button>
+      </li>
     </TasksFilterChipStrip>,
   );
 }
 
 describe("TasksFilterChipStrip", () => {
-  it("shows no edge cue when every chip fits", () => {
-    sizeLists(200, 200);
-    const { container } = renderStrip();
+  it("is a named region the keyboard reaches and pans, with no other controls", () => {
+    sizeLists(400, 200);
+    renderStrip();
 
-    expect(container.querySelector("[data-chip-strip-scroll]")).toBeNull();
+    const list = screen.getByRole("list", { name: "Active filters" });
+    expect(list).toHaveAttribute("tabindex", "0");
+    // Focus on a chip scrolls it clear of the edge fades.
+    expect(list).toHaveClass("scroll-px-6");
+    // Only the chips' own remove buttons: no overlay controls.
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "Remove Status: Draft",
+      "Remove Stuck: 3+ days",
+    ]);
+  });
+
+  it("shows no fade when every chip fits", () => {
+    sizeLists(200, 200);
+    renderStrip();
+
     expect(screen.getByRole("list").style.maskImage).toBe("");
   });
 
-  it("fades the clipped end and offers an arrow, without scroll-driven animation", () => {
+  it("fades only the clipped edge, without scroll-driven animation", () => {
     sizeLists(400, 200);
-    const { container } = renderStrip();
+    renderStrip();
 
-    const list = screen.getByRole("list", { name: "Active filters" });
+    const list = screen.getByRole("list");
     expect(list).toHaveAttribute("data-overflow-end");
-    expect(list.style.maskImage).toContain("transparent");
+    expect(list).not.toHaveAttribute("data-overflow-start");
+    expect(list.style.maskImage).toMatch(/^linear-gradient\(to right, black,/);
     expect(list.className).not.toContain("scroll-edge");
-    expect(
-      container.querySelector('[data-chip-strip-scroll="end"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-chip-strip-scroll="start"]'),
-    ).toBeNull();
   });
 
-  it("shows the start arrow once scrolled", () => {
+  it("fades the start once scrolled to the end", () => {
     sizeLists(400, 200);
-    const { container } = renderStrip();
+    renderStrip();
     const list = screen.getByRole("list");
 
     act(() => {
@@ -82,11 +95,8 @@ describe("TasksFilterChipStrip", () => {
       list.dispatchEvent(new Event("scroll"));
     });
 
-    expect(
-      container.querySelector('[data-chip-strip-scroll="start"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-chip-strip-scroll="end"]'),
-    ).toBeNull();
+    expect(list).toHaveAttribute("data-overflow-start");
+    expect(list).not.toHaveAttribute("data-overflow-end");
+    expect(list.style.maskImage).toMatch(/black\)$/);
   });
 });

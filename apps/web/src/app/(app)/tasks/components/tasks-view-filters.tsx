@@ -54,10 +54,7 @@ import {
  */
 export function focusToolbarControl(toolbar: Element | null | undefined) {
   const buttons = Array.from(toolbar?.querySelectorAll("button") ?? []).filter(
-    (button) =>
-      !button.closest("ul") &&
-      !button.hasAttribute("data-chip-strip-scroll") &&
-      button.offsetParent !== null,
+    (button) => !button.closest("ul") && button.offsetParent !== null,
   );
   (
     buttons.find((button) => button.closest(`[${FILTERS_MENU_ATTRIBUTE}]`)) ??

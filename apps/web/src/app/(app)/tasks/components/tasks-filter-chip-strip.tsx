@@ -1,9 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { cn } from "@/lib/utils";
 
+/** Width of the fade on a clipped edge; focus scrolls a chip clear of it. */
 const FADE = "1.5rem";
 
 interface Edges {
@@ -17,8 +16,12 @@ interface Edges {
  * The active filter chips on one line beside the view switcher. Chips keep
  * their whole label and the line scrolls instead of wrapping, so the toolbar
  * is as tall with any number of filters as with none, and the loading shell
- * holds the board where it lands. A clipped edge fades and shows an arrow
- * that scrolls the line; keyboard focus scrolls a chip into view by itself.
+ * holds the board where it lands.
+ *
+ * The line is its own named scroll region: Tab reaches it, the arrow keys
+ * pan it, and focus on a chip's remove button scrolls the chip clear of the
+ * edge fades (`scroll-padding`). A clipped edge fades. The fade is the only
+ * cue: it is not a control and covers nothing a pointer or keyboard needs.
  */
 export function TasksFilterChipStrip({
   label,
@@ -33,9 +36,11 @@ export function TasksFilterChipStrip({
   const listRef = useRef<HTMLUListElement>(null);
   const [edges, setEdges] = useState<Edges>({ start: false, end: false });
 
+  // Syncs with the browser's layout: scroll position and box size.
   useEffect(() => {
     const list = listRef.current;
-    if (!list) return;
+    // New chips change the line's width without resizing its box.
+    if (!list || !itemsKey) return;
     const update = () => {
       const max = list.scrollWidth - list.clientWidth;
       const next = {
@@ -57,69 +62,27 @@ export function TasksFilterChipStrip({
     };
   }, [itemsKey]);
 
-  const scrollBy = (direction: 1 | -1) => {
-    const list = listRef.current;
-    if (!list) return;
-    const reduce = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    list.scrollBy({
-      left: direction * list.clientWidth * 0.8,
-      behavior: reduce ? "auto" : "smooth",
-    });
-  };
-
   return (
-    <div className="relative flex min-w-0 flex-1">
-      {/* The padding keeps focus rings inside the scroll box. */}
-      <ul
-        ref={listRef}
-        aria-label={label}
-        data-overflow-start={edges.start || undefined}
-        data-overflow-end={edges.end || undefined}
-        className="-m-1 flex min-w-0 flex-1 items-center gap-2 overflow-x-auto p-1 [scrollbar-width:none]"
-        style={
-          edges.start || edges.end
-            ? {
-                maskImage: `linear-gradient(to right, ${
-                  edges.start ? `transparent, black ${FADE}` : "black"
-                }, ${edges.end ? `black calc(100% - ${FADE}), transparent` : "black"})`,
-              }
-            : undefined
-        }
-      >
-        {children}
-      </ul>
-      {/* Pointer help only: the chips themselves stay in the tab order. */}
-      {edges.start ? (
-        <EdgeButton side="start" onClick={() => scrollBy(-1)} />
-      ) : null}
-      {edges.end ? <EdgeButton side="end" onClick={() => scrollBy(1)} /> : null}
-    </div>
-  );
-}
-
-function EdgeButton({
-  side,
-  onClick,
-}: {
-  side: "start" | "end";
-  onClick: () => void;
-}) {
-  const Icon = side === "start" ? ChevronLeft : ChevronRight;
-  return (
-    <button
-      type="button"
-      aria-hidden
-      tabIndex={-1}
-      data-chip-strip-scroll={side}
-      onClick={onClick}
-      className={cn(
-        "bg-muted text-foreground hover:bg-card-background-hover absolute top-1/2 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-full border shadow-sm transition-colors",
-        side === "start" ? "start-0" : "end-0",
-      )}
+    // The padding keeps focus rings inside the scroll box.
+    <ul
+      ref={listRef}
+      aria-label={label}
+      // A scroll region the keyboard pans with the arrow keys.
+      tabIndex={0}
+      data-overflow-start={edges.start || undefined}
+      data-overflow-end={edges.end || undefined}
+      className="focus-visible:ring-ring focus-visible:ring-inset -m-1 flex min-w-0 flex-1 scroll-px-6 items-center gap-2 overflow-x-auto rounded-full p-1 outline-none [scrollbar-width:none] focus-visible:ring-2"
+      style={
+        edges.start || edges.end
+          ? {
+              maskImage: `linear-gradient(to right, ${
+                edges.start ? `transparent, black ${FADE}` : "black"
+              }, ${edges.end ? `black calc(100% - ${FADE}), transparent` : "black"})`,
+            }
+          : undefined
+      }
     >
-      <Icon className="size-4" aria-hidden />
-    </button>
+      {children}
+    </ul>
   );
 }
