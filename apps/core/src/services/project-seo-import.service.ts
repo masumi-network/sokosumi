@@ -182,7 +182,12 @@ function recoveryStrategy(
 
 export async function importProjectSeoAudit(
   actor: SeoActor,
-  input: { taskId: string; fileId: string; recoverMarkets?: boolean },
+  input: {
+    taskId: string;
+    fileId: string;
+    recoverMarkets?: boolean;
+    recoverPageSpeed?: true;
+  },
   options: SeoMutationHooks & { fetchImpl?: typeof fetch } = {},
 ) {
   const { task, file, fileUrl, analysis } = await requireSourceFile(
@@ -193,11 +198,24 @@ export async function importProjectSeoAudit(
   const existing = await prisma.projectSeoObservation.findUnique({
     where: seoOwnerUnique(actor, "sourceKey", { sourceKey }),
   });
-  if (input.recoverMarkets && !existing)
-    throw notFound("The imported site report was not found");
+  const recover = input.recoverMarkets || input.recoverPageSpeed;
+  if (recover && !existing)
+    throw notFound("The imported full audit was not found");
+  if (
+    input.recoverPageSpeed &&
+    existing &&
+    (existing.kind !== "audit_full" ||
+      existing.source !== "seo_coworker" ||
+      existing.sourceTaskId !== input.taskId ||
+      existing.sourceFileId !== input.fileId)
+  )
+    throw conflict("This observation has no recoverable PageSpeed section");
   if (
     existing &&
-    (!input.recoverMarkets || !recoveryStrategy(existing, input).missing)
+    (!recover ||
+      (input.recoverMarkets && !recoveryStrategy(existing, input).missing) ||
+      (input.recoverPageSpeed &&
+        reportObject(existing.payload)?.pageSpeed !== undefined))
   )
     return serializableTransaction(async (tx) => {
       await requireLockedSeoOwner(tx, actor, !analysis);
@@ -207,7 +225,7 @@ export async function importProjectSeoAudit(
     }, "The report import changed. Please retry.");
   const body = await readSeoArtifact(fileUrl, options.fetchImpl ?? fetch);
   const artifactHash = sha256(body);
-  if (input.recoverMarkets && existing?.artifactHash !== artifactHash)
+  if (recover && existing?.artifactHash !== artifactHash)
     throw conflict("The source report changed after it was imported");
   let raw: unknown;
   try {
@@ -216,6 +234,8 @@ export async function importProjectSeoAudit(
     throw badRequest("The SEO report is not valid JSON");
   }
   const payload = parsePublicSeoArtifact(raw);
+  if (input.recoverPageSpeed && payload.kind !== "audit_full")
+    throw conflict("The saved report is not a full audit");
   if (input.recoverMarkets && reportObject(raw)?.kind !== "site")
     throw conflict("The saved report is not a site audit");
   if (
@@ -245,6 +265,23 @@ export async function importProjectSeoAudit(
     if (prior) {
       if (prior.artifactHash !== artifactHash)
         throw conflict("The source report changed after it was imported");
+      if (input.recoverPageSpeed) {
+        const stored = reportObject(prior.payload);
+        if (existing?.id !== prior.id || !stored)
+          throw conflict("The imported observation changed");
+        if (stored.pageSpeed === undefined) {
+          const updated = await tx.projectSeoObservation.update({
+            where: { id: prior.id },
+            data: {
+              payload: jsonInput({
+                ...stored,
+                pageSpeed: payload.pageSpeed ?? [],
+              }),
+            },
+          });
+          return commitSeoMutation(tx, updated, options);
+        }
+      }
       if (input.recoverMarkets) {
         if (prior.id !== existing?.id)
           throw conflict("The imported observation changed");
@@ -267,8 +304,7 @@ export async function importProjectSeoAudit(
       }
       return commitSeoMutation(tx, prior, options);
     }
-    if (input.recoverMarkets)
-      throw conflict("The imported observation changed");
+    if (recover) throw conflict("The imported observation changed");
     const pageIds: string[] = [];
     for (const value of payload.pageUrls) {
       const url = normalizeSeoUrl(value);
