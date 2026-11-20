@@ -175,6 +175,8 @@ Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL` (default: `
 
 `sign-in` / doctor UI paths auto-export `AGENT_BROWSER_ARGS=--ignore-certificate-errors` for HTTPS named URLs when unset (Chromium on Linux often rejects the portless CA). Override with your own `AGENT_BROWSER_ARGS` if needed — the helper appends the flag when missing.
 
+Linux container where Chrome reports No usable sandbox: `export AGENT_BROWSER_ARGS=--no-sandbox` in that machine's shell profile; the harness appends its own flags with a comma.
+
 ## Isolate
 
 Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on the main checkout, `https://<branch>.web.sokosumi.localhost` in a linked worktree). Concurrent stacks on one machine are supported. The helper refuses only if **this** worktree's named URLs already answer. Cloud agents still get an isolated Neon branch per conversation.
