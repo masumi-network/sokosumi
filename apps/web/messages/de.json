@@ -1869,7 +1869,9 @@
         "searchResultsLimited": "Die neuesten {shown, number} von {total, number} archivierten Aufgaben, die zu „{query}“ passen.",
         "noProject": "Kein Projekt",
         "archivedOn": "Archiviert am {date}",
-        "readOnly": "Archivierte Aufgaben sind schreibgeschützt. Stelle diese wieder her, um sie zu bearbeiten oder auszuführen."
+        "readOnly": "Archivierte Aufgaben sind schreibgeschützt. Stelle diese wieder her, um sie zu bearbeiten oder auszuführen.",
+        "loading": "Archivierte Aufgaben werden geladen…",
+        "loadingTask": "Archivierte Aufgabe wird geladen…"
       },
       "NotFound": {
         "title": "Diese Aufgabe ist nicht da",

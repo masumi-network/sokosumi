@@ -1869,7 +1869,9 @@
         "searchResultsLimited": "Se muestran las {shown, number} más recientes de {total, number} tareas archivadas que coinciden con «{query}».",
         "noProject": "Sin proyecto",
         "archivedOn": "Archivada el {date}",
-        "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla."
+        "readOnly": "Las tareas archivadas son de solo lectura. Restaura esta para editarla o ejecutarla.",
+        "loading": "Cargando tareas archivadas…",
+        "loadingTask": "Cargando tarea archivada…"
       },
       "NotFound": {
         "title": "Esta tarea no está aquí",
