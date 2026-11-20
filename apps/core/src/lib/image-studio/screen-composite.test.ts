@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
 
-import { placeScreen, SCREEN_PANEL } from "./screen-composite";
+import { placeScreen } from "./screen-composite";
 
 const solid = (width: number, height: number, colour: string) =>
   sharp({ create: { width, height, channels: 3, background: colour } })
@@ -39,7 +39,7 @@ describe("placeScreen", () => {
     expect(await pixel(placed, 950, 1200)).toEqual([255, 0, 0]);
   });
 
-  it("shows a phone capture's whole first screen, never the panel's cut of it", async () => {
+  it("stands a phone capture in a phone, whole, larger and clear of the logo corner", async () => {
     const picture = await solid(1080, 1350, "#ffffff");
     // A 1080-wide phone capture: its first screen is 2337 high; below is black.
     const page = await sharp({
@@ -51,16 +51,18 @@ describe("placeScreen", () => {
       .png()
       .toBuffer();
     const placed = await placeScreen(picture, page);
-    const top = Math.round(1350 * SCREEN_PANEL.top);
-    const bottom = Math.round(1350 * SCREEN_PANEL.bottom);
-    // The screen's lowest row is still the first screen (green), and it is
-    // phone-shaped: narrower than the panel, the frame shows beside it.
-    expect(await pixel(placed, 540, bottom - 4)).toEqual([0, 255, 0]);
-    expect(await pixel(placed, 540, Math.round((top + bottom) / 2))).toEqual([
+    // The whole first screen shows, taller than the browser panel would
+    // allow: green from the phone's top to well below 76% of the height.
+    expect(await pixel(placed, 540, Math.round(1350 * 0.45))).toEqual([
       0, 255, 0,
     ]);
-    expect(await pixel(placed, 160, Math.round((top + bottom) / 2))).toEqual([
-      243, 243, 243,
+    expect(await pixel(placed, 540, Math.round(1350 * 0.9))).toEqual([
+      0, 255, 0,
     ]);
+    // Beside the phone, and the logo corner, stay as the model made them.
+    expect(await pixel(placed, 160, Math.round(1350 * 0.6))).toEqual([
+      255, 255, 255,
+    ]);
+    expect(await pixel(placed, 1040, 1320)).toEqual([255, 255, 255]);
   });
 });
