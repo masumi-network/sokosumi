@@ -4,6 +4,7 @@ import type {
   SocialPostStatus,
 } from "@sokosumi/database";
 import {
+  LINKEDIN_HOOK_RULE,
   type SocialPostPlanning,
   socialPostPlanningSchema,
 } from "@sokosumi/soko-bot";
@@ -742,11 +743,8 @@ export async function ownMessageProblem(
   return { problem: argued.problem, costUsd: costUsd + argued.costUsd };
 }
 
-/**
- * Below this Jev reads the opening as a miss. Calibrated on 30 hand-labelled
- * cal.com and NMKR first lines: no good one under 0.52, most weak ones under it.
- */
-const OPENING_PASS = 0.45;
+/** Below this Jev reads the opening as a miss (see LINKEDIN_HOOK_RULE's calibration). */
+const OPENING_PASS = 0.35;
 
 /**
  * The line a LinkedIn reader decides on before "see more". Two lines once let
@@ -786,8 +784,7 @@ export async function linkedInOpeningProblem(
       questions: {
         hook: {
           type: "boolean",
-          instructions:
-            "Does the opening line state something specific that happened: a result with its number, a number from the business, a named customer or company and what they did, or a decision that sounds surprising at first? Advice, a tip, a definition, a general truth about the category, a question to the reader, what the reader should do, a founding year or company history, a release note, a listing of what is offered, a rating, or an unnamed reviewer's praise is not.",
+          instructions: `Does this LinkedIn post's opening line follow this rule? ${LINKEDIN_HOOK_RULE}`,
         },
       },
       timeoutMs: 15_000,

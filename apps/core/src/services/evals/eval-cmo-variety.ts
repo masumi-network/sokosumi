@@ -174,7 +174,7 @@ export async function pictureVarietyChecks(
   ];
 }
 
-const HOOK_RULE = /^The first two lines/;
+const HOOK_RULE = /^The first (?:two lines|line) /;
 
 /** Jev's read of each LinkedIn post: its first two lines make people tap "see more". */
 export function linkedInOpeningChecks(

@@ -303,6 +303,7 @@ export {
   writingSkillsBrief,
   writingSkillsForChannels,
 } from "./writing-skills/index.js";
+export { LINKEDIN_HOOK_RULE } from "./writing-skills/social.js";
 export type {
   WritingRule,
   WritingSkill,
