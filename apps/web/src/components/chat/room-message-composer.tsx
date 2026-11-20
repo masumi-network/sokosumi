@@ -8,6 +8,7 @@ import {
   type ReactNode,
   type Ref,
   useRef,
+  useState,
 } from "react";
 
 import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
@@ -220,7 +221,7 @@ function RoomComposerSendButton({
   testId,
   onPrepareSubmit,
 }: RoomComposerSendButtonProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [sendButton, setSendButton] = useState<HTMLButtonElement | null>(null);
   const lastPointerSubmitAtRef = useRef(Number.NEGATIVE_INFINITY);
 
   function requestComposerSubmit(form: HTMLFormElement | null) {
@@ -236,7 +237,7 @@ function RoomComposerSendButton({
   // alone keeps both). React registers `onTouchStart` passively, where
   // preventDefault is a silent no-op, so this has to be a native listener.
   useEventListener(
-    buttonRef,
+    sendButton,
     "touchstart",
     (event) => {
       event.preventDefault();
@@ -270,7 +271,7 @@ function RoomComposerSendButton({
 
   return (
     <Button
-      ref={buttonRef}
+      ref={setSendButton}
       type="button"
       variant="primary"
       size="icon"

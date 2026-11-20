@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useEffect, useEffectEvent } from "react";
+import { useEffect, useEffectEvent } from "react";
 
 export type EventListenerTarget =
   | "window"
@@ -9,21 +9,8 @@ export type EventListenerTarget =
   | Document
   | HTMLElement
   | EventTarget
-  | RefObject<EventTarget | null>
   | null
   | undefined;
-
-function isRefObject(
-  target: EventListenerTarget,
-): target is RefObject<EventTarget | null> {
-  return (
-    typeof target === "object" &&
-    target !== null &&
-    "current" in target &&
-    typeof (target as { addEventListener?: unknown }).addEventListener !==
-      "function"
-  );
-}
 
 function resolveTarget(target: EventListenerTarget): EventTarget | null {
   if (!target) return null;
@@ -32,9 +19,6 @@ function resolveTarget(target: EventListenerTarget): EventTarget | null {
   }
   if (target === "document") {
     return typeof document === "undefined" ? null : document;
-  }
-  if (isRefObject(target)) {
-    return target.current;
   }
   return target;
 }
@@ -55,7 +39,7 @@ export function useEventListener<
   K extends keyof HTMLElementEventMap,
   T extends HTMLElement = HTMLElement,
 >(
-  target: T | RefObject<T | null> | null | undefined,
+  target: T | null | undefined,
   event: K,
   handler: (event: HTMLElementEventMap[K]) => void,
   options?: boolean | AddEventListenerOptions,

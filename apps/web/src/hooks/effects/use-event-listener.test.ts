@@ -1,5 +1,5 @@
-import { renderHook } from "@testing-library/react";
-import { createElement, createRef } from "react";
+import { render, renderHook } from "@testing-library/react";
+import { createElement, useState } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -89,17 +89,54 @@ describe("useEventListener", () => {
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
-  it("supports RefObject targets and forwards listener options without re-subscribing on equal options", () => {
+  it("attaches to an element mounted after initial render and re-attaches when a keyed element is replaced", () => {
+    const handler = vi.fn();
+
+    function Probe({ show, nodeKey }: { show: boolean; nodeKey: string }) {
+      const [button, setButton] = useState<HTMLButtonElement | null>(null);
+      useEventListener(button, "click", handler);
+      return show
+        ? createElement("button", {
+            key: nodeKey,
+            ref: setButton,
+            type: "button",
+            "data-testid": "target",
+          })
+        : null;
+    }
+
+    const { rerender, queryByTestId } = render(
+      createElement(Probe, { show: false, nodeKey: "first" }),
+    );
+    expect(queryByTestId("target")).toBeNull();
+
+    // Late attachment: element mounts after the initial null render.
+    rerender(createElement(Probe, { show: true, nodeKey: "first" }));
+    const firstNode = queryByTestId("target") as HTMLButtonElement;
+    firstNode.dispatchEvent(new MouseEvent("click"));
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    // Keyed replacement: detaches from the old node and attaches to the new one.
+    rerender(createElement(Probe, { show: true, nodeKey: "second" }));
+    const secondNode = queryByTestId("target") as HTMLButtonElement;
+    expect(secondNode).not.toBe(firstNode);
+
+    firstNode.dispatchEvent(new MouseEvent("click"));
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    secondNode.dispatchEvent(new MouseEvent("click"));
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it("forwards listener options without re-subscribing on equal inline options", () => {
     const button = document.createElement("button");
-    const ref = createRef<HTMLButtonElement>();
-    ref.current = button;
     const addSpy = vi.spyOn(button, "addEventListener");
     const removeSpy = vi.spyOn(button, "removeEventListener");
     const handler = vi.fn();
 
     const { rerender, unmount } = renderHook(
       ({ passive }: { passive: boolean }) =>
-        useEventListener(ref, "click", handler, { capture: true, passive }),
+        useEventListener(button, "click", handler, { capture: true, passive }),
       { initialProps: { passive: false } },
     );
 

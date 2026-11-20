@@ -238,6 +238,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
   groupMentions,
 }: ComposerWysiwygEditorProps<TData>) {
   const editorRef = useRef<HTMLDivElement>(null);
+  const [editorElement, setEditorElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const setEditorNode = useCallback((node: HTMLDivElement | null) => {
+    editorRef.current = node;
+    setEditorElement(node);
+  }, []);
   const listRef = useRef<HTMLDivElement>(null);
   const isSelectingRef = useRef(false);
   const isInternalChange = useRef(false);
@@ -1301,7 +1308,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   // Capture-phase listener: contentEditable arrow keys are more reliable
   // here than React's delegated onKeyDown alone.
   useEventListener(
-    editorRef,
+    editorElement,
     "keydown",
     (event) => {
       const currentEditor = editorRef.current;
@@ -1379,7 +1386,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   return (
     <>
       <div
-        ref={editorRef}
+        ref={setEditorNode}
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning

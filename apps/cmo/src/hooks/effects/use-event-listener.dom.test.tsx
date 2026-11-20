@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -81,6 +81,38 @@ describe("useEventListener (CMO)", () => {
 
     await act(async () => root.render(<Probe target={null} />));
     secondTarget.dispatchEvent(new MouseEvent("click"));
+    expect(handler).toHaveBeenCalledTimes(2);
+  });
+
+  it("attaches to a late-mounted element and re-attaches when a keyed element is replaced", async () => {
+    const handler = vi.fn();
+
+    function Probe({ show, nodeKey }: { show: boolean; nodeKey: string }) {
+      const [button, setButton] = useState<HTMLButtonElement | null>(null);
+      useEventListener(button, "click", handler);
+      return show ? (
+        <button key={nodeKey} ref={setButton} type="button">
+          {nodeKey}
+        </button>
+      ) : null;
+    }
+
+    await act(async () => root.render(<Probe show={false} nodeKey="first" />));
+    expect(container.querySelector("button")).toBeNull();
+
+    await act(async () => root.render(<Probe show nodeKey="first" />));
+    const firstNode = container.querySelector("button") as HTMLButtonElement;
+    firstNode.dispatchEvent(new MouseEvent("click"));
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.render(<Probe show nodeKey="second" />));
+    const secondNode = container.querySelector("button") as HTMLButtonElement;
+    expect(secondNode).not.toBe(firstNode);
+
+    firstNode.dispatchEvent(new MouseEvent("click"));
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    secondNode.dispatchEvent(new MouseEvent("click"));
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
