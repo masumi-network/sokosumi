@@ -42,6 +42,7 @@ import {
   findCusoForBot,
   ONBOARDING_TURN_PREFIX,
   requireCuso,
+  startCmoProduction,
   startCmoTurn,
 } from "@/services/cmo-cuso.service";
 import { cmoPictureStyleProblem } from "@/services/cmo-media-maker.service";
@@ -376,13 +377,20 @@ export async function cmoOwnerRequest(turnId: string): Promise<string | null> {
 /**
  * After any foreground turn of Cuso ends: the first plan when the research
  * (or a brand fix that ran before it) is in, otherwise the next brand fix
- * the owner asked for meanwhile. An everyday chat turn costs one read.
+ * the owner asked for meanwhile. An everyday chat turn costs one read. After
+ * a production run, the month's next step.
  */
 export async function afterCmoTurn(input: {
   sokoBotId: string;
   userId: string | null;
   clientTurnId: string | null;
 }): Promise<{ turnId: string } | null> {
+  // A production run that ended moves the month on now, not at the next
+  // ten-minute sync: NMKR's second run waited eight minutes for it.
+  if (input.clientTurnId?.startsWith(CMO_PRODUCTION_TURN_PREFIX)) {
+    await startCmoProduction(input.sokoBotId);
+    return null;
+  }
   const cuso = await findCusoForBot(input.sokoBotId);
   if (!cuso) return null;
   const mayPlan =

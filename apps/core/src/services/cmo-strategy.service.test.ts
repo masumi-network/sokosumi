@@ -35,6 +35,9 @@ import {
   turnFindUnique,
 } from "@/test-fixtures/cmo-service";
 
+const kickCmoProduction = vi.hoisted(() => vi.fn());
+vi.mock("@/services/cmo-production.service", () => ({ kickCmoProduction }));
+
 const libraryAvailable = vi.hoisted(() => vi.fn(() => false));
 vi.mock("@/services/reference-library.service", () => ({
   referenceLibraryAvailable: libraryAvailable,
@@ -397,6 +400,18 @@ describe("the plan starts when the research ends", () => {
     expect(cusoFind).toHaveBeenCalledTimes(1);
     expect(turnFindFirst).not.toHaveBeenCalled();
     expect(isEvalCusoProject).not.toHaveBeenCalled();
+    expect(startTurn).not.toHaveBeenCalled();
+  });
+
+  it("moves the month on when a production run ends, without waiting for the sync", async () => {
+    await expect(
+      afterCmoTurn({
+        sokoBotId: "bot-1",
+        userId: "user-1",
+        clientTurnId: "cmo:production:bot-1:1795131677092:1:2",
+      }),
+    ).resolves.toBeNull();
+    expect(kickCmoProduction).toHaveBeenCalledWith("bot-1");
     expect(startTurn).not.toHaveBeenCalled();
   });
 
