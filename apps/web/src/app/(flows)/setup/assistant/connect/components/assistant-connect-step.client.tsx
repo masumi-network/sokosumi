@@ -3,7 +3,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import {
@@ -41,11 +41,11 @@ export function AssistantConnectStep({
   const tConnect = useTranslations("App.Chat.SokoBot");
   const [busy, setBusy] = useState<string | null>(null);
   const anyConnected = offers.some((offer) => offer.connected);
-  const [heading, setHeading] = useState<HTMLHeadingElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   // The Picture step's Create button held focus and is gone, so start this
   // step at its heading, as the earlier steps do.
-  useFocusWhen(heading, true);
+  useFocusWhen(headingRef, true);
 
   async function handleConnect(provider: string) {
     setBusy(provider);
@@ -64,7 +64,7 @@ export function AssistantConnectStep({
         seed={botOrbSeed}
         title={tConnect("connectTitle", { bot: botName })}
         hint={tConnect("connectBody")}
-        headingRef={setHeading}
+        headingRef={headingRef}
       />
       <div className="flex flex-col gap-3">
         {offers.map(({ provider, name, connected }) => {

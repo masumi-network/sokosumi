@@ -2,7 +2,7 @@
 
 import { SmilePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useCallback, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -181,19 +181,13 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
     : listEmojiCatalogSections({ frequentlyUsed });
   const showFrequentlyUsedNav = frequentlyUsed.length > 0;
 
-  const [searchInput, setSearchInput] = useState<HTMLInputElement | null>(null);
-  const attachSearchInput = useCallback((node: HTMLInputElement | null) => {
-    searchInputRef.current = node;
-    setSearchInput(node);
-  }, []);
-
   function focusSearch() {
     requestAnimationFrame(() => {
       searchInputRef.current?.focus();
     });
   }
 
-  useFocusWhen(searchInput, true, { deferToFrame: true });
+  useFocusWhen(searchInputRef, true, { deferToFrame: true });
 
   function handleScrollToSection(sectionId: NavTargetId) {
     if (sectionId === SEARCH_NAV_ID) {
@@ -246,7 +240,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
 
       <div className="border-border border-b p-2">
         <Input
-          ref={attachSearchInput}
+          ref={searchInputRef}
           type="search"
           value={query}
           onChange={(event) => {

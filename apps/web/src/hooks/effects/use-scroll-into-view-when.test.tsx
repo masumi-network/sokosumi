@@ -1,5 +1,5 @@
 import { render, renderHook } from "@testing-library/react";
-import { Activity, useState } from "react";
+import { Activity, useRef } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -11,14 +11,15 @@ describe("useScrollIntoViewWhen", () => {
     vi.restoreAllMocks();
   });
 
-  it("scrolls a live element into view with options when condition turns true", () => {
+  it("scrolls ref.current into view with options when condition turns true", () => {
     const element = document.createElement("div");
     const scrollSpy = vi.fn();
     element.scrollIntoView = scrollSpy;
+    const ref = { current: element };
 
     const { rerender } = renderHook(
       ({ when }: { when: boolean }) =>
-        useScrollIntoViewWhen(element, when, {
+        useScrollIntoViewWhen(ref, when, {
           block: "center",
           inline: "nearest",
         }),
@@ -39,25 +40,75 @@ describe("useScrollIntoViewWhen", () => {
     expect(scrollSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("re-scrolls when resetKey changes while condition stays true", () => {
-    const element = document.createElement("div");
+  it("does not re-scroll when the element remounts with an unchanged condition", () => {
     const scrollSpy = vi.fn();
-    element.scrollIntoView = scrollSpy;
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollSpy;
 
-    const { rerender } = renderHook(
-      ({ resetKey }: { resetKey: number }) =>
-        useScrollIntoViewWhen(element, true, {
-          block: "nearest",
-          resetKey,
-        }),
-      { initialProps: { resetKey: 0 } },
-    );
+    try {
+      function Probe({ nodeKey }: { nodeKey: string }) {
+        const ref = useRef<HTMLDivElement>(null);
+        useScrollIntoViewWhen(ref, true, { block: "nearest" });
+        return (
+          <div key={nodeKey} ref={ref}>
+            target
+          </div>
+        );
+      }
 
-    expect(scrollSpy).toHaveBeenCalledTimes(1);
+      const { rerender } = render(<Probe nodeKey="a" />);
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
 
-    rerender({ resetKey: 1 });
-    expect(scrollSpy).toHaveBeenCalledTimes(2);
-    expect(scrollSpy).toHaveBeenLastCalledWith({ block: "nearest" });
+      rerender(<Probe nodeKey="b" />);
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
+  });
+
+  it("scrolls only the new target exactly once when the trigger changes", () => {
+    const scrolledIndices: string[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolledIndices.push(this.getAttribute("data-index") ?? "");
+    };
+
+    try {
+      function ListProbe({
+        isOpen,
+        activeIndex,
+      }: {
+        isOpen: boolean;
+        activeIndex: number;
+      }) {
+        const listRef = useRef<HTMLDivElement>(null);
+        useScrollIntoViewWhen(
+          () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
+          isOpen,
+          { block: "nearest", resetKey: activeIndex },
+        );
+        return (
+          <div ref={listRef}>
+            <div data-index="0">first</div>
+            <div data-index="1">second</div>
+            <div data-index="2">third</div>
+          </div>
+        );
+      }
+
+      const { rerender } = render(<ListProbe isOpen activeIndex={0} />);
+      expect(scrolledIndices).toEqual(["0"]);
+
+      scrolledIndices.length = 0;
+      rerender(<ListProbe isOpen activeIndex={1} />);
+      expect(scrolledIndices).toEqual(["1"]);
+
+      scrolledIndices.length = 0;
+      rerender(<ListProbe isOpen activeIndex={2} />);
+      expect(scrolledIndices).toEqual(["2"]);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
   });
 
   it("switches smooth scrolling to auto when respectReducedMotion is set and reduced motion matches", () => {
@@ -74,9 +125,10 @@ describe("useScrollIntoViewWhen", () => {
     const element = document.createElement("li");
     const scrollSpy = vi.fn();
     element.scrollIntoView = scrollSpy;
+    const ref = { current: element };
 
     renderHook(() =>
-      useScrollIntoViewWhen(element, true, {
+      useScrollIntoViewWhen(ref, true, {
         block: "center",
         behavior: "smooth",
         respectReducedMotion: true,
@@ -104,9 +156,10 @@ describe("useScrollIntoViewWhen", () => {
     const element = document.createElement("li");
     const scrollSpy = vi.fn();
     element.scrollIntoView = scrollSpy;
+    const ref = { current: element };
 
     renderHook(() =>
-      useScrollIntoViewWhen(element, true, {
+      useScrollIntoViewWhen(ref, true, {
         block: "center",
         behavior: "smooth",
         respectReducedMotion: true,
@@ -120,40 +173,33 @@ describe("useScrollIntoViewWhen", () => {
     });
   });
 
-  it("scrolls a late-mounted element through a callback ref and re-runs on Activity reveal", () => {
+  it("re-runs on React Activity hide and reveal", () => {
     const scrollSpy = vi.fn();
     const original = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = scrollSpy;
 
     try {
-      function Probe({ show }: { show: boolean }) {
-        const [item, setItem] = useState<HTMLDivElement | null>(null);
-        useScrollIntoViewWhen(item, true, { block: "nearest" });
-        return show ? <div ref={setItem}>target</div> : null;
+      function Probe() {
+        const ref = useRef<HTMLDivElement>(null);
+        useScrollIntoViewWhen(ref, true, { block: "nearest" });
+        return <div ref={ref}>target</div>;
       }
 
       const { rerender } = render(
         <Activity mode="visible">
-          <Probe show={false} />
-        </Activity>,
-      );
-      expect(scrollSpy).not.toHaveBeenCalled();
-
-      rerender(
-        <Activity mode="visible">
-          <Probe show />
+          <Probe />
         </Activity>,
       );
       expect(scrollSpy).toHaveBeenCalledTimes(1);
 
       rerender(
         <Activity mode="hidden">
-          <Probe show />
+          <Probe />
         </Activity>,
       );
       rerender(
         <Activity mode="visible">
-          <Probe show />
+          <Probe />
         </Activity>,
       );
       expect(scrollSpy).toHaveBeenCalledTimes(2);
@@ -164,8 +210,9 @@ describe("useScrollIntoViewWhen", () => {
 
   it("does not throw during SSR", () => {
     function Probe() {
-      useScrollIntoViewWhen(null, true, { block: "center" });
-      return <span>ok</span>;
+      const ref = useRef<HTMLDivElement>(null);
+      useScrollIntoViewWhen(ref, true, { block: "center" });
+      return <span ref={ref}>ok</span>;
     }
 
     expect(renderToString(<Probe />)).toBe("<span>ok</span>");

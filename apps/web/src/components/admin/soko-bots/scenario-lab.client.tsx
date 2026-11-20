@@ -699,7 +699,7 @@ function ScenarioRow({
   const t = useTranslations("App.Admin.SokoBots.Lab");
   const format = useFormatter();
   const [open, setOpen] = useState(false);
-  const [row, setRow] = useState<HTMLLIElement | null>(null);
+  const rowRef = useRef<HTMLLIElement | null>(null);
   const latest = runs[0] ?? null;
   // The row being run opens itself: the steps are the reason to look here, and
   // needing a click to see them is what made a run feel like a frozen page.
@@ -708,13 +708,13 @@ function ScenarioRow({
   // A Run all works through twenty-two scenarios; without this the one being
   // run is usually somewhere off-screen.
   const isLive = live !== null;
-  useScrollIntoViewWhen(row, isLive, {
+  useScrollIntoViewWhen(rowRef, isLive, {
     block: "nearest",
     behavior: "smooth",
   });
 
   return (
-    <li ref={setRow} className="px-4 py-3">
+    <li ref={rowRef} className="px-4 py-3">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <button

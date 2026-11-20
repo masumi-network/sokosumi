@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useLayoutEffect } from "react";
+import {
+  type RefObject,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+} from "react";
 
 export interface FocusableElement {
   focus(options?: FocusOptions): void;
@@ -27,50 +32,55 @@ function applyFocus(
 }
 
 /**
- * Focuses a live element when `when` is true, with optional pre-scroll
- * suppression, animation-frame deferral, and `resetKey` re-triggering.
+ * Focuses `targetRef.current` when `when` is true, reading the ref at effect
+ * time so node remounts never re-trigger focus while the trigger is unchanged.
  */
 export function useFocusWhen(
-  target: FocusableElement | null | undefined,
+  targetRef: RefObject<FocusableElement | null>,
   when: boolean,
   options?: UseFocusWhenOptions,
 ): void {
+  const getTarget = useEffectEvent(() => targetRef.current);
   const preventScroll = options?.preventScroll;
   const deferToFrame = options?.deferToFrame ?? false;
   const resetKey = options?.resetKey;
 
   useEffect(() => {
     void resetKey;
-    if (!when || !target) return;
+    if (!when) return;
 
     if (!deferToFrame) {
-      applyFocus(target, preventScroll);
+      const target = getTarget();
+      if (target) applyFocus(target, preventScroll);
       return;
     }
 
     const frame = requestAnimationFrame(() => {
-      applyFocus(target, preventScroll);
+      const target = getTarget();
+      if (target) applyFocus(target, preventScroll);
     });
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [target, when, preventScroll, deferToFrame, resetKey]);
+  }, [when, preventScroll, deferToFrame, resetKey]);
 }
 
 /**
  * Layout-effect variant of `useFocusWhen` for pre-paint focus.
  */
 export function useLayoutFocusWhen(
-  target: FocusableElement | null | undefined,
+  targetRef: RefObject<FocusableElement | null>,
   when: boolean,
   options?: Omit<UseFocusWhenOptions, "deferToFrame">,
 ): void {
+  const getTarget = useEffectEvent(() => targetRef.current);
   const preventScroll = options?.preventScroll;
   const resetKey = options?.resetKey;
 
   useLayoutEffect(() => {
     void resetKey;
-    if (!when || !target) return;
-    applyFocus(target, preventScroll);
-  }, [target, when, preventScroll, resetKey]);
+    if (!when) return;
+    const target = getTarget();
+    if (target) applyFocus(target, preventScroll);
+  }, [when, preventScroll, resetKey]);
 }

@@ -157,8 +157,8 @@ export function RefusalAlert({
   refusal: Refusal;
 }) {
   const tCampaigns = useTranslations("App.Ads.campaigns");
-  const [alert, setAlert] = useState<HTMLDivElement | null>(null);
-  useFocusWhen(alert, true);
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusWhen(ref, true);
 
   const { title, description } = {
     failed: { title: failedTitle, description: null },
@@ -180,7 +180,7 @@ export function RefusalAlert({
   }[refusal.kind];
 
   return (
-    <Alert ref={setAlert} tabIndex={-1} variant="destructive">
+    <Alert ref={ref} tabIndex={-1} variant="destructive">
       <AlertTitle>{title}</AlertTitle>
       <AlertDescription>{description}</AlertDescription>
     </Alert>

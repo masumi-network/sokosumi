@@ -7,7 +7,7 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { Check, ScrollText } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useDebounce } from "use-debounce";
 
 import { Button } from "@/components/ui/button";
@@ -99,9 +99,9 @@ function SkillPickerPanel({
   const format = useFormatter();
   const [query, setQuery] = useState("");
   const [debouncedQuery] = useDebounce(query.trim(), SEARCH_DEBOUNCE_MS);
-  const [input, setInput] = useState<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  useFocusWhen(input, true, { deferToFrame: true });
+  useFocusWhen(inputRef, true, { deferToFrame: true });
 
   const { data, isPending, isError, isPlaceholderData } = useQuery({
     queryKey: ["chat-skills", debouncedQuery],
@@ -125,7 +125,7 @@ function SkillPickerPanel({
     <div className="flex max-h-96 flex-col overflow-hidden">
       <div className="border-border border-b p-2">
         <Input
-          ref={setInput}
+          ref={inputRef}
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}

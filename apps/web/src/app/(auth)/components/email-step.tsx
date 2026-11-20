@@ -149,7 +149,7 @@ export function EmailStep({
   const detouredSince = useRef(0);
   // What Core said about the address the notice is about.
   const detourAccount = useRef<EmailStepAccount | null>(null);
-  const [detourLink, setDetourLink] = useState<HTMLAnchorElement | null>(null);
+  const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
   const notice = "handOver" in detour ? null : detour;
   const mounted = useRef(false);
@@ -195,7 +195,7 @@ export function EmailStep({
   // The pressed button went inert, so focus moves to the one that took its
   // place. A submitting fieldset cannot receive focus; wait until it is
   // enabled again.
-  useFocusWhen(detourLink, isDetoured && !isSubmitting);
+  useFocusWhen(detourLinkRef, isDetoured && !isSubmitting);
 
   // Following the detour and Continue never overlap: the detour only shows
   // once Continue is done. Each tells the parent from the event that changes it.
@@ -376,7 +376,7 @@ export function EmailStep({
                 )}
               >
                 <Link
-                  ref={setDetourLink}
+                  ref={detourLinkRef}
                   href={notice.href}
                   target={notice.follow ? undefined : "_blank"}
                   rel={notice.follow ? undefined : "noopener"}

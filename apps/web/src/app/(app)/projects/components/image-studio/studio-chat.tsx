@@ -290,7 +290,7 @@ function StudioConversation({
    * it may never run and the text would be lost with it.
    */
   const draftRef = useRef("");
-  const [transcript, setTranscript] = useState<HTMLDivElement | null>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
 
   // Read the current selection inside callbacks without making them depend on
   // it; the hook's options are captured when its store is created.
@@ -455,7 +455,7 @@ function StudioConversation({
   const isResuming = agent.status === "resuming";
 
   // Following a growing transcript is DOM synchronization.
-  useScrollToEnd(transcript, agent.messages);
+  useScrollToEnd(transcriptRef, agent.messages);
 
   function handleDraftChange(value: string) {
     draftRef.current = value;
@@ -574,7 +574,7 @@ function StudioConversation({
       <div
         aria-live="polite"
         className="min-h-48 flex-1 space-y-4 overflow-y-auto px-4 py-4"
-        ref={setTranscript}
+        ref={transcriptRef}
       >
         {agent.messages.length === 0 ? (
           <p className="text-muted-foreground text-sm leading-relaxed">

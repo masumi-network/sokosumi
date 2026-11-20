@@ -290,7 +290,7 @@ export function CmoApp({
   const [sending, startSending] = useTransition();
   const [sendFailed, setSendFailed] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
-  const [end, setEnd] = useState<HTMLDivElement | null>(null);
+  const end = useRef<HTMLDivElement>(null);
 
   // A connection redirect lands on /?step=connect; show the page's own address.
   useEffect(() => {
@@ -474,7 +474,7 @@ export function CmoApp({
                 ) : null}
               </div>
               {/* Outside the thread, so it adds no gap under the last message. */}
-              <div ref={setEnd} />
+              <div ref={end} />
             </div>
             <div className="composer-wrap">
               <div className="suggest">

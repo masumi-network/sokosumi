@@ -3,7 +3,7 @@
 import type { DataRoomQuestion, DataRoomTreeRow } from "@sokosumi/core-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -99,14 +99,12 @@ function QuestionItem({
   const [shared, setShared] = useState(question.sharedAt !== null);
   const [busy, setBusy] = useState(false);
   const shareHintId = useId();
-  const [answerInput, setAnswerInput] = useState<HTMLTextAreaElement | null>(
-    null,
-  );
+  const answerRef = useRef<HTMLTextAreaElement>(null);
 
   // Opened from Needs you: bring the question into view with its answer box
   // ready, once, when it first renders.
-  useScrollIntoViewWhen(answerInput, focused, { block: "center" });
-  useFocusWhen(answerInput, focused, { preventScroll: true });
+  useScrollIntoViewWhen(answerRef, focused, { block: "center" });
+  useFocusWhen(answerRef, focused, { preventScroll: true });
 
   return (
     <li
@@ -148,7 +146,7 @@ function QuestionItem({
         }}
       >
         <Textarea
-          ref={setAnswerInput}
+          ref={answerRef}
           rows={2}
           aria-label={t("answerLabel")}
           placeholder={t("answerPlaceholder")}

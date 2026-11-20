@@ -133,12 +133,10 @@ export function useTaskFormModel(
     isInitialProjectUnavailable ? null : initialProjectId,
   );
   const [isProjectMissing, setIsProjectMissing] = useState(false);
-  const [projectSelect, setProjectSelect] = useState<HTMLButtonElement | null>(
-    null,
-  );
+  const projectSelectRef = useRef<HTMLButtonElement>(null);
   const projectErrorId = useId();
   const privateDescriptionId = useId();
-  useLayoutFocusWhen(projectSelect, isProjectMissing);
+  useLayoutFocusWhen(projectSelectRef, isProjectMissing);
   const [contextSelection, setContextSelection] =
     useState<TaskContextAttachmentsSelection>(
       () =>
@@ -661,7 +659,7 @@ export function useTaskFormModel(
     setIsPrivate,
     projectId,
     isProjectMissing,
-    projectSelectRef: setProjectSelect,
+    projectSelectRef,
     projectErrorId,
     privateDescriptionId,
     contextSelection,

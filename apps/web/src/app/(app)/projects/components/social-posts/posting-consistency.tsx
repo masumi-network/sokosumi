@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useScrollToEnd } from "@/hooks/effects/use-scroll-to-end";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ export function PostingConsistency({
   const t = useTranslations("App.Projects.SocialPosts.statistics");
   const format = useFormatter();
   const [mode, setMode] = useState<ActivityMode>("posts");
-  const [scroller, setScroller] = useState<HTMLDivElement | null>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const filled = fillActivityRange(days);
   const totals = activityTotals(days);
   const streaks = postingStreaks(days);
@@ -131,7 +131,7 @@ export function PostingConsistency({
         ) : null}
       </div>
       {weeks.length > 0 ? (
-        <div className="overflow-x-auto" ref={setScroller}>
+        <div className="overflow-x-auto" ref={scroller}>
           <div
             className="grid w-max gap-1"
             style={{

@@ -7,7 +7,7 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useFormatter, useNow, useTranslations } from "next-intl";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { LoadErrorState } from "@/components/common/load-error-state";
 import { PageListSearchContext } from "@/components/page-list-search";
 import { PageSearchField } from "@/components/page-search-field";
@@ -125,13 +125,13 @@ export function ToolConnectors({
       setPageQuery?.(linkedQuery);
   }, [linkedQuery, readOnly, integrations.configured, setPageQuery]);
   const catalog = useCatalog(query, !readOnly);
-  const [focusedItem, setFocusedItem] = useState<HTMLLIElement | null>(null);
+  const focused = useRef<HTMLLIElement>(null);
   // A connect link never searches on a read-only bot.
   const searching = !readOnly && query.trim().length > 0;
 
-  useScrollIntoViewWhen(focusedItem, Boolean(focusProvider && catalog.data), {
+  useScrollIntoViewWhen(focused, Boolean(focusProvider && catalog.data), {
     block: "center",
-    resetKey: catalog.data,
+    resetKey: `${focusProvider ?? ""}:${catalog.dataUpdatedAt}`,
   });
 
   if (!integrations.configured) {
@@ -202,7 +202,7 @@ export function ToolConnectors({
             return (
               <li
                 key={connector.provider}
-                ref={isFocus ? setFocusedItem : undefined}
+                ref={isFocus ? focused : undefined}
                 className={cn(
                   HOLDER_ITEM_CLASS,
                   "flex items-center gap-3 p-3",

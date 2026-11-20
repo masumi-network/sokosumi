@@ -2,7 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useScrollIntoViewWhen } from "../../hooks/effects/use-scroll-into-view-when";
 import { AGENT_NAME } from "../../lib/agent";
 import {
@@ -154,8 +154,8 @@ export function LaunchStep({
   const shownError = error === undefined ? notice : error;
   // The reason shows below the networks, often off screen from the row the
   // founder pressed: bring it into view when a connection fails.
-  const [alert, setAlert] = useState<HTMLParagraphElement | null>(null);
-  useScrollIntoViewWhen(alert, Boolean(error), {
+  const alertRef = useRef<HTMLParagraphElement>(null);
+  useScrollIntoViewWhen(alertRef, Boolean(error), {
     block: "nearest",
     resetKey: error,
   });
@@ -401,7 +401,7 @@ export function LaunchStep({
       ) : null}
 
       {shownError ? (
-        <p ref={setAlert} className="alert" role="alert">
+        <p ref={alertRef} className="alert" role="alert">
           {/configured|unavailable|set up/i.test(shownError)
             ? "Connecting accounts isn't available here yet."
             : shownError}

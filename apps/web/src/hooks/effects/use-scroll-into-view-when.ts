@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { type RefObject, useEffect, useEffectEvent } from "react";
 
 import {
   matchesMediaQuery,
   REDUCED_MOTION_MEDIA_QUERY,
 } from "./use-media-query";
+
+export type ScrollIntoViewTarget =
+  | RefObject<Element | null>
+  | (() => Element | null | undefined);
 
 export interface UseScrollIntoViewWhenOptions {
   block?: ScrollLogicalPosition;
@@ -18,13 +22,17 @@ export interface UseScrollIntoViewWhenOptions {
 }
 
 /**
- * Scrolls a live element into view when `when` is true.
+ * Scrolls the resolved element into view when `when` is true, reading the ref
+ * or getter at effect time so only trigger changes fire a scroll.
  */
 export function useScrollIntoViewWhen(
-  element: Element | null | undefined,
+  target: ScrollIntoViewTarget,
   when: boolean,
   options?: UseScrollIntoViewWhenOptions,
 ): void {
+  const getTarget = useEffectEvent(() =>
+    typeof target === "function" ? target() : target.current,
+  );
   const block = options?.block;
   const inline = options?.inline;
   const behavior = options?.behavior;
@@ -33,7 +41,10 @@ export function useScrollIntoViewWhen(
 
   useEffect(() => {
     void resetKey;
-    if (!when || !element) return;
+    if (!when) return;
+
+    const element = getTarget();
+    if (!element) return;
 
     const resolvedBehavior =
       respectReducedMotion &&
@@ -61,5 +72,5 @@ export function useScrollIntoViewWhen(
     } else {
       element.scrollIntoView(scrollOptions);
     }
-  }, [element, when, block, inline, behavior, respectReducedMotion, resetKey]);
+  }, [when, block, inline, behavior, respectReducedMotion, resetKey]);
 }

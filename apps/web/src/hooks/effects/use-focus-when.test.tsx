@@ -1,5 +1,5 @@
 import { act, render, renderHook } from "@testing-library/react";
-import { Activity, useEffect, useState } from "react";
+import { Activity, useEffect, useRef } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -11,13 +11,14 @@ describe("useFocusWhen", () => {
     vi.restoreAllMocks();
   });
 
-  it("focuses a live element when condition is true and skips when false", () => {
+  it("focuses ref.current when condition turns true and skips when false", () => {
     const input = document.createElement("input");
     document.body.append(input);
     const focusSpy = vi.spyOn(input, "focus");
+    const ref = { current: input };
 
     const { rerender } = renderHook(
-      ({ when }: { when: boolean }) => useFocusWhen(input, when),
+      ({ when }: { when: boolean }) => useFocusWhen(ref, when),
       { initialProps: { when: false } },
     );
 
@@ -27,7 +28,7 @@ describe("useFocusWhen", () => {
     expect(focusSpy).toHaveBeenCalledTimes(1);
     expect(focusSpy).toHaveBeenLastCalledWith();
 
-    // Unrelated re-render with the same element and condition does not re-focus.
+    // Unrelated re-render with unchanged condition does not re-focus.
     rerender({ when: true });
     expect(focusSpy).toHaveBeenCalledTimes(1);
 
@@ -38,8 +39,9 @@ describe("useFocusWhen", () => {
     const button = document.createElement("button");
     document.body.append(button);
     const focusSpy = vi.spyOn(button, "focus");
+    const ref = { current: button };
 
-    renderHook(() => useFocusWhen(button, true, { preventScroll: true }));
+    renderHook(() => useFocusWhen(ref, true, { preventScroll: true }));
 
     expect(focusSpy).toHaveBeenCalledTimes(1);
     expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
@@ -47,28 +49,32 @@ describe("useFocusWhen", () => {
     button.remove();
   });
 
-  it("focuses a late-mounted element through a callback ref", () => {
-    function Probe({ show }: { show: boolean }) {
-      const [input, setInput] = useState<HTMLInputElement | null>(null);
-      useFocusWhen(input, true);
-      return show ? <input ref={setInput} aria-label="Target" /> : null;
+  it("does not re-focus when the element remounts with an unchanged condition", () => {
+    const focusSpy = vi.spyOn(HTMLElement.prototype, "focus");
+
+    function Probe({ nodeKey }: { nodeKey: string }) {
+      const inputRef = useRef<HTMLInputElement>(null);
+      useFocusWhen(inputRef, true);
+      return <input key={nodeKey} ref={inputRef} aria-label="Target" />;
     }
 
-    const { rerender, getByLabelText } = render(<Probe show={false} />);
-    expect(document.activeElement).toBe(document.body);
+    const { rerender } = render(<Probe nodeKey="first" />);
+    expect(focusSpy).toHaveBeenCalledTimes(1);
 
-    rerender(<Probe show />);
-    expect(document.activeElement).toBe(getByLabelText("Target"));
+    // Replacing the DOM node while `when` stays true does not re-trigger focus.
+    rerender(<Probe nodeKey="second" />);
+    expect(focusSpy).toHaveBeenCalledTimes(1);
   });
 
   it("re-focuses when resetKey changes while condition stays true", () => {
     const input = document.createElement("input");
     document.body.append(input);
     const focusSpy = vi.spyOn(input, "focus");
+    const ref = { current: input };
 
     const { rerender } = renderHook(
       ({ resetKey }: { resetKey: string }) =>
-        useFocusWhen(input, true, { resetKey }),
+        useFocusWhen(ref, true, { resetKey }),
       { initialProps: { resetKey: "a" } },
     );
 
@@ -83,7 +89,7 @@ describe("useFocusWhen", () => {
     input.remove();
   });
 
-  it("defers focus to requestAnimationFrame and cancels on unmount or false condition", () => {
+  it("defers focus to requestAnimationFrame, reads current ref at frame time, and cancels on cleanup", () => {
     const frames = new Map<number, FrameRequestCallback>();
     let nextId = 1;
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
@@ -98,10 +104,11 @@ describe("useFocusWhen", () => {
     const input = document.createElement("input");
     document.body.append(input);
     const focusSpy = vi.spyOn(input, "focus");
+    const ref = { current: input };
 
     const { rerender, unmount } = renderHook(
       ({ when }: { when: boolean }) =>
-        useFocusWhen(input, when, { deferToFrame: true }),
+        useFocusWhen(ref, when, { deferToFrame: true }),
       { initialProps: { when: true } },
     );
 
@@ -137,10 +144,10 @@ describe("useFocusWhen", () => {
     const focusSpy = vi.spyOn(HTMLElement.prototype, "focus");
 
     function Probe() {
-      const [button, setButton] = useState<HTMLButtonElement | null>(null);
-      useFocusWhen(button, true);
+      const buttonRef = useRef<HTMLButtonElement>(null);
+      useFocusWhen(buttonRef, true);
       return (
-        <button ref={setButton} type="button">
+        <button ref={buttonRef} type="button">
           Go
         </button>
       );
@@ -168,9 +175,10 @@ describe("useFocusWhen", () => {
 
   it("does not throw during SSR", () => {
     function Probe() {
-      useFocusWhen(null, true, { deferToFrame: true });
-      useLayoutFocusWhen(null, true);
-      return <span>ok</span>;
+      const ref = useRef<HTMLDivElement>(null);
+      useFocusWhen(ref, true, { deferToFrame: true });
+      useLayoutFocusWhen(ref, true);
+      return <span ref={ref}>ok</span>;
     }
 
     expect(renderToString(<Probe />)).toBe("<span>ok</span>");
@@ -178,26 +186,55 @@ describe("useFocusWhen", () => {
 });
 
 describe("useLayoutFocusWhen", () => {
-  it("focuses during the layout phase before passive effects run", () => {
+  it("focuses before a passive sibling effect on mount, condition change, and Activity reveal", () => {
     const order: string[] = [];
-    const target = {
-      focus: () => {
-        order.push("layout-focus");
-      },
-    };
 
-    function Probe({ when }: { when: boolean }) {
-      useLayoutFocusWhen(target, when);
+    function Sibling({ when }: { when: boolean }) {
       useEffect(() => {
-        if (when) order.push("passive-effect");
+        if (when) order.push("passive-sibling");
       }, [when]);
       return null;
     }
 
-    const { rerender } = render(<Probe when={false} />);
+    function Target({ when }: { when: boolean }) {
+      const ref = useRef<{ focus: () => void }>({
+        focus: () => {
+          order.push("layout-focus");
+        },
+      });
+      useLayoutFocusWhen(ref, when);
+      return null;
+    }
+
+    const { rerender } = render(
+      <Activity mode="visible">
+        <Target when={false} />
+        <Sibling when={false} />
+      </Activity>,
+    );
     expect(order).toEqual([]);
 
-    rerender(<Probe when />);
-    expect(order).toEqual(["layout-focus", "passive-effect"]);
+    rerender(
+      <Activity mode="visible">
+        <Target when />
+        <Sibling when />
+      </Activity>,
+    );
+    expect(order).toEqual(["layout-focus", "passive-sibling"]);
+
+    order.length = 0;
+    rerender(
+      <Activity mode="hidden">
+        <Target when />
+        <Sibling when />
+      </Activity>,
+    );
+    rerender(
+      <Activity mode="visible">
+        <Target when />
+        <Sibling when />
+      </Activity>,
+    );
+    expect(order).toEqual(["layout-focus", "passive-sibling"]);
   });
 });

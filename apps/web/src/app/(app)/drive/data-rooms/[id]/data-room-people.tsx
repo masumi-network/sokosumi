@@ -3,7 +3,7 @@
 import type { DataRoomMember, DataRoomTreeRow } from "@sokosumi/core-client";
 import { UserPlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -62,10 +62,8 @@ export function DataRoomPeople({
   const format = useFormatter();
   const emailsId = useId();
   const expiresId = useId();
-  const [emailsInput, setEmailsInput] = useState<HTMLTextAreaElement | null>(
-    null,
-  );
-  useFocusWhen(emailsInput, focusInvite);
+  const emailsRef = useRef<HTMLTextAreaElement>(null);
+  useFocusWhen(emailsRef, focusInvite);
   const [emails, setEmails] = useState("");
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [folders, setFolders] = useState<string[]>([]);
@@ -134,7 +132,7 @@ export function DataRoomPeople({
         <Label htmlFor={emailsId}>{t("emailsLabel")}</Label>
         <Textarea
           id={emailsId}
-          ref={setEmailsInput}
+          ref={emailsRef}
           rows={2}
           placeholder="anna@fund.com, ben@fund.com"
           value={emails}

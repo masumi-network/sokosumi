@@ -21,6 +21,7 @@ import {
   type ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -129,7 +130,7 @@ function ScheduleRow({
   readOnly: boolean;
   focused: boolean;
 }) {
-  const [row, setRow] = useState<HTMLLIElement | null>(null);
+  const row = useRef<HTMLLIElement>(null);
   useScrollIntoViewWhen(row, focused, {
     block: "center",
     behavior: "smooth",
@@ -156,7 +157,7 @@ function ScheduleRow({
   if (removed) return null;
   return (
     <li
-      ref={setRow}
+      ref={row}
       tabIndex={focused ? -1 : undefined}
       aria-current={focused || undefined}
       className={cn(

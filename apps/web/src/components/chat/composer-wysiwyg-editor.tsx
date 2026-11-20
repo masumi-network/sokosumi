@@ -1298,13 +1298,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
     publishActiveFormats();
   }, [onActiveFormatsChange, publishActiveFormats]);
 
-  const [activeSuggestionItem, setActiveSuggestionItem] =
-    useState<HTMLDivElement | null>(null);
-
-  useScrollIntoViewWhen(activeSuggestionItem, isOpen, {
-    block: "nearest",
-    resetKey: activeIndex,
-  });
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
+    isOpen,
+    { block: "nearest", resetKey: activeIndex },
+  );
 
   // Capture-phase listener: contentEditable arrow keys are more reliable
   // here than React's delegated onKeyDown alone.
@@ -1518,11 +1516,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
                             return (
                               <div
                                 key={mention.key}
-                                ref={
-                                  index === activeIndex
-                                    ? setActiveSuggestionItem
-                                    : undefined
-                                }
                                 data-index={index}
                                 role="option"
                                 aria-selected={index === activeIndex}
@@ -1566,11 +1559,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
                   : selectableMentions.map((mention, index) => (
                       <div
                         key={mention.key}
-                        ref={
-                          index === activeIndex
-                            ? setActiveSuggestionItem
-                            : undefined
-                        }
                         data-index={index}
                         role="option"
                         aria-selected={index === activeIndex}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef } from "react";
 import { useNeedsYouDataRoomQuestions } from "@/components/notifications/notification-data-room-questions";
 import { useNeedsYouTasks } from "@/components/notifications/notification-waiting-tasks";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -69,16 +69,20 @@ export function NotificationCenterViewFilter({
     (waitingTasks?.count ?? 0) +
     (waitingQuestions?.pages[0]?.total ?? 0) +
     (notice !== null ? 1 : 0);
-  const [activeTab, setActiveTab] = useState<HTMLButtonElement | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Four labels do not fit the bell panel in every locale, so the strip
   // scrolls. A view chosen by click or restored on load must not sit past
   // the edge.
-  useScrollIntoViewWhen(activeTab, true, {
-    block: "nearest",
-    inline: "nearest",
-    resetKey: view,
-  });
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector<HTMLElement>('[data-state="active"]'),
+    true,
+    {
+      block: "nearest",
+      inline: "nearest",
+      resetKey: view,
+    },
+  );
 
   function handleValueChange(next: string): void {
     if (isNotificationCenterView(next)) {
@@ -93,41 +97,26 @@ export function NotificationCenterViewFilter({
       className={cn("gap-0", className)}
     >
       <TabsList
+        ref={listRef}
         aria-label={t("filterLabel")}
         className="shadow-border h-auto w-full justify-start gap-4 overflow-x-auto rounded-none bg-transparent p-0 px-4 shadow-[inset_0_-1px_0] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        <TabsTrigger
-          ref={view === "all" ? setActiveTab : undefined}
-          value="all"
-          className={TRIGGER_CLASS_NAME}
-        >
+        <TabsTrigger value="all" className={TRIGGER_CLASS_NAME}>
           {t("filterAll")}
         </TabsTrigger>
-        <TabsTrigger
-          ref={view === "unread" ? setActiveTab : undefined}
-          value="unread"
-          className={TRIGGER_CLASS_NAME}
-        >
+        <TabsTrigger value="unread" className={TRIGGER_CLASS_NAME}>
           {t("filterUnread")}
           {unreadCount > 0 ? (
             <span className={COUNT_CLASS_NAME}>{unreadCount}</span>
           ) : null}
         </TabsTrigger>
-        <TabsTrigger
-          ref={view === "needs-action" ? setActiveTab : undefined}
-          value="needs-action"
-          className={TRIGGER_CLASS_NAME}
-        >
+        <TabsTrigger value="needs-action" className={TRIGGER_CLASS_NAME}>
           {t("filterNeedsYou")}
           {needsYouCount > 0 ? (
             <span className={COUNT_CLASS_NAME}>{needsYouCount}</span>
           ) : null}
         </TabsTrigger>
-        <TabsTrigger
-          ref={view === "mentions" ? setActiveTab : undefined}
-          value="mentions"
-          className={TRIGGER_CLASS_NAME}
-        >
+        <TabsTrigger value="mentions" className={TRIGGER_CLASS_NAME}>
           {t("filterMentions")}
           {mentionsCount > 0 ? (
             <span className={COUNT_CLASS_NAME}>{mentionsCount}</span>

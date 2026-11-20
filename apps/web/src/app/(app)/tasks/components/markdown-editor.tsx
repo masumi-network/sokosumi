@@ -793,13 +793,11 @@ export const MarkdownEditor = forwardRef<
     [insertMention],
   );
 
-  const [activeMentionItem, setActiveMentionItem] =
-    useState<HTMLDivElement | null>(null);
-
-  useScrollIntoViewWhen(activeMentionItem, isOpen, {
-    block: "nearest",
-    resetKey: activeIndex,
-  });
+  useScrollIntoViewWhen(
+    () => listRef.current?.querySelector(`[data-index="${activeIndex}"]`),
+    isOpen,
+    { block: "nearest", resetKey: activeIndex },
+  );
 
   useEffect(() => {
     return () => {
@@ -1017,7 +1015,6 @@ export const MarkdownEditor = forwardRef<
             {filteredMentions.map((mention, index) => (
               <div
                 key={mention.key}
-                ref={index === activeIndex ? setActiveMentionItem : undefined}
                 data-index={index}
                 role="option"
                 aria-selected={index === activeIndex}

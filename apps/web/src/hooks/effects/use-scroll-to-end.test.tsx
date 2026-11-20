@@ -1,5 +1,5 @@
 import { render, renderHook } from "@testing-library/react";
-import { Activity, useCallback, useState } from "react";
+import { Activity, useRef } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -14,9 +14,10 @@ describe("useScrollToEnd", () => {
       get: () => scrollHeight,
     });
     container.scrollTop = 0;
+    const ref = { current: container };
 
     const { rerender } = renderHook(
-      ({ trigger }: { trigger: number }) => useScrollToEnd(container, trigger),
+      ({ trigger }: { trigger: number }) => useScrollToEnd(ref, trigger),
       { initialProps: { trigger: 1 } },
     );
 
@@ -41,10 +42,11 @@ describe("useScrollToEnd", () => {
       get: () => scrollWidth,
     });
     container.scrollLeft = 0;
+    const ref = { current: container };
 
     const { rerender } = renderHook(
       ({ trigger }: { trigger: number }) =>
-        useScrollToEnd(container, trigger, { axis: "horizontal" }),
+        useScrollToEnd(ref, trigger, { axis: "horizontal" }),
       { initialProps: { trigger: 5 } },
     );
 
@@ -62,10 +64,11 @@ describe("useScrollToEnd", () => {
       value: 500,
     });
     container.scrollTop = 0;
+    const ref = { current: container };
 
     const { rerender } = renderHook(
       ({ enabled }: { enabled: boolean }) =>
-        useScrollToEnd(container, 1, { enabled }),
+        useScrollToEnd(ref, 1, { enabled }),
       { initialProps: { enabled: false } },
     );
 
@@ -75,57 +78,63 @@ describe("useScrollToEnd", () => {
     expect(container.scrollTop).toBe(500);
   });
 
-  it("scrolls a late-mounted container and re-runs on Activity reveal", () => {
-    const attached: { current: HTMLDivElement | null } = { current: null };
+  it("does not re-scroll on element remount when trigger is unchanged, and re-runs on Activity reveal", () => {
+    const lastNode: { current: HTMLDivElement | null } = { current: null };
 
-    function Probe({ show, count }: { show: boolean; count: number }) {
-      const [node, setNode] = useState<HTMLDivElement | null>(null);
-      const attach = useCallback((el: HTMLDivElement | null) => {
-        if (el) {
-          Object.defineProperty(el, "scrollHeight", {
-            configurable: true,
-            value: 320,
-          });
-        }
-        attached.current = el;
-        setNode(el);
-      }, []);
-      useScrollToEnd(node, count);
-      return show ? <div ref={attach} /> : null;
+    function Probe({ nodeKey, count }: { nodeKey: string; count: number }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useScrollToEnd(ref, count);
+      return (
+        <div
+          key={nodeKey}
+          ref={(el) => {
+            ref.current = el;
+            if (el) {
+              Object.defineProperty(el, "scrollHeight", {
+                configurable: true,
+                value: 320,
+              });
+              lastNode.current = el;
+            }
+          }}
+        />
+      );
     }
 
     const { rerender } = render(
       <Activity mode="visible">
-        <Probe show={false} count={1} />
+        <Probe nodeKey="a" count={1} />
       </Activity>,
     );
-    expect(attached.current).toBeNull();
+    expect(lastNode.current?.scrollTop).toBe(320);
 
+    // Remounting the node while `count` is unchanged does not re-scroll.
     rerender(
       <Activity mode="visible">
-        <Probe show count={1} />
+        <Probe nodeKey="b" count={1} />
       </Activity>,
     );
-    expect(attached.current?.scrollTop).toBe(320);
+    expect(lastNode.current?.scrollTop).toBe(0);
 
-    if (attached.current) attached.current.scrollTop = 40;
+    // Activity reveal re-runs the effect and scrolls to end.
     rerender(
       <Activity mode="hidden">
-        <Probe show count={1} />
+        <Probe nodeKey="b" count={1} />
       </Activity>,
     );
     rerender(
       <Activity mode="visible">
-        <Probe show count={1} />
+        <Probe nodeKey="b" count={1} />
       </Activity>,
     );
-    expect(attached.current?.scrollTop).toBe(320);
+    expect(lastNode.current?.scrollTop).toBe(320);
   });
 
   it("does not throw during SSR", () => {
     function Probe() {
-      useScrollToEnd(null, 0);
-      return <span>ok</span>;
+      const ref = useRef<HTMLDivElement>(null);
+      useScrollToEnd(ref, 0);
+      return <span ref={ref}>ok</span>;
     }
 
     expect(renderToString(<Probe />)).toBe("<span>ok</span>");
