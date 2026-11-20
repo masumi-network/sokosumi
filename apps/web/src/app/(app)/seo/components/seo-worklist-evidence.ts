@@ -24,6 +24,10 @@ export interface SeoEvidenceAction {
 
 export const GOOD_LAB_LCP_MS = 2500;
 const POOR_LCP_MS = 4000;
+// A generic not_checked status also covers captures with no field record. Only replay
+// a public lab recommendation when the audit explicitly recorded the CrUX skip.
+const PUBLIC_FIELD_SKIP =
+  /Chrome UX Report field data was not collected by this public audit|did not check whether Google has real-user data for this URL|CrUX\) are excluded from this public audit worker|public worker excludes CrUX/i;
 const ACCESS_ROWS = new Set(["AC-01", "AC-03", "AC-05", "AC-06"]);
 
 export function seoWorklistEvidence(
@@ -65,6 +69,22 @@ export function seoWorklistEvidence(
       lab.median.lcp <= GOOD_LAB_LCP_MS
     )
       continue;
+    const skipped = speed?.checklistBreakdown?.gaps.some(
+      (gap) =>
+        gap.pageUrl === pageUrl &&
+        gap.device === device &&
+        ["EX-01", "EX-02", "EX-14"].includes(gap.rowId) &&
+        PUBLIC_FIELD_SKIP.test(gap.reason),
+    );
+    const slowFinding = workspace.findings.some(
+      (f) =>
+        f.observationId === speed?.id &&
+        f.pageUrl === pageUrl &&
+        f.device === device &&
+        f.rowId === "EX-14" &&
+        f.evidence.some((line) => PUBLIC_FIELD_SKIP.test(line)),
+    );
+    if (!skipped && !slowFinding) continue;
     const insight = lab.pageSpeed?.insights.find(
       (i) => i.id === "lcp-breakdown-insight",
     );

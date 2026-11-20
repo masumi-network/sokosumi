@@ -45,6 +45,21 @@ it("prioritizes slow mobile lab paint once, including when a saved device-specif
       ],
     },
   ];
+  expect(seoWorklistEvidence(data, undefined, [], t)).toHaveLength(0);
+  data.observations[0].checklistBreakdown = {
+    passed: 0,
+    flagged: 0,
+    research: [],
+    gaps: [
+      {
+        pageUrl,
+        device: "mobile",
+        rowId: "EX-01",
+        reason:
+          "Chrome UX Report field data was not collected by this public audit.",
+      },
+    ],
+  };
   const [mobile, ...others] = seoWorklistEvidence(data, undefined, [], t);
   expect(others).toHaveLength(0);
   expect(mobile).toMatchObject({ bucket: "high", url: pageUrl });
