@@ -10,6 +10,7 @@ import type {
 import { Copy, FileText, ListTodo, SquarePen } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { GoToSearchGroups } from "@/app/components/go-to-search-groups";
 import {
   HistorySearchItemIcon,
   HistorySearchItemOwner,
@@ -59,6 +60,8 @@ interface HistorySearchDialogLabels {
   tagTasksGroup: (tag: string) => string;
   tagsError: string;
   tagTasksError: string;
+  projectsGroup: string;
+  channelsGroup: string;
 }
 
 interface HistorySearchDialogProps {
@@ -230,6 +233,14 @@ export function HistorySearchDialog({
 
         {nothingFound && !error ? (
           <CommandEmpty>{labels.empty}</CommandEmpty>
+        ) : null}
+
+        {query.trim() ? (
+          <GoToSearchGroups
+            query={query}
+            labels={labels}
+            onSelect={closeAndGo}
+          />
         ) : null}
 
         <TagSearchGroups

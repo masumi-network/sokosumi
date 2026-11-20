@@ -13,6 +13,11 @@ const { getHistoryMock, getTasksMock, fetchLabelsMock, pushMock } = vi.hoisted(
   }),
 );
 
+// Projects and Channels read the session and rooms; covered in go-to tests.
+vi.mock("@/app/components/go-to-search-groups", () => ({
+  GoToSearchGroups: () => null,
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
@@ -54,6 +59,8 @@ const labels = {
   tagTasksGroup: (name: string) => `Tasks tagged ${name}`,
   tagsError: "Couldn't load tags",
   tagTasksError: "Couldn't load these tasks",
+  projectsGroup: "Projects",
+  channelsGroup: "Channels",
 };
 
 function tag(id: string, displayName: string, archived = false) {
