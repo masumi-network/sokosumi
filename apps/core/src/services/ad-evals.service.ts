@@ -7,7 +7,12 @@ import {
   spearmanCorrelation,
 } from "@/helpers/ad-evals-statistics";
 import prisma from "@/lib/db/prisma";
+import { findImageModelForEndpoint } from "@/lib/image-studio/catalog";
 import type { adminAdEvalsDashboardSchema } from "@/schemas/ad-evals.schema";
+import {
+  type ImageStudioRoute,
+  readImageStudioRoute,
+} from "@/schemas/image-studio-route.schema";
 
 export const AD_EVALS_MINIMUM_WORKSPACES = 5;
 const TEMPLATE_IDS = new Set([
@@ -38,6 +43,7 @@ const adEvalAssetSelect = {
   job: {
     select: {
       batchId: true,
+      kind: true,
       promptSnapshot: {
         select: {
           templateId: true,
@@ -112,6 +118,20 @@ export function adAssetAspect(asset: AdEvalAsset): string | null {
     : null;
 }
 
+export function adAssetRoute(asset: AdEvalAsset): {
+  route: ImageStudioRoute | null;
+  routeInferred: boolean;
+} {
+  const recorded = readImageStudioRoute(asset.job.promptSnapshot?.brandLook);
+  if (recorded) return { route: recorded, routeInferred: false };
+  if (asset.job.kind === "EDIT") return { route: "edit", routeInferred: true };
+  const model = findImageModelForEndpoint(asset.model)?.id ?? asset.model;
+  if (model === "gemini-pro") return { route: "photo_ad", routeInferred: true };
+  if (model === "ideogram-v3")
+    return { route: "text_heavy", routeInferred: true };
+  return { route: null, routeInferred: false };
+}
+
 export function adAssetTemplate(asset: AdEvalAsset): string | null {
   const template = asset.job.promptSnapshot?.templateId;
   return template && TEMPLATE_IDS.has(template) ? template : null;
@@ -168,6 +188,8 @@ export function adFeedbackBelongsToAsset(
 }
 
 interface LeaderboardCell {
+  route: ImageStudioRoute | null;
+  routeInferred: boolean;
   model: string;
   template: string | null;
   aspect: string | null;
@@ -249,9 +271,18 @@ export async function getAdminAdEvalsDashboard(): Promise<
       continue;
     const template = adAssetTemplate(asset);
     const aspect = adAssetAspect(asset);
-    const key = JSON.stringify([asset.model, template, aspect]);
+    const { route, routeInferred } = adAssetRoute(asset);
+    const key = JSON.stringify([
+      asset.model,
+      template,
+      aspect,
+      route,
+      routeInferred,
+    ]);
     const cell = cells.get(key) ?? {
       model: asset.model,
+      route,
+      routeInferred,
       template,
       aspect,
       workspaces: new Set<string>(),
@@ -333,6 +364,8 @@ export async function getAdminAdEvalsDashboard(): Promise<
       );
       return {
         model: cell.model,
+        route: cell.route,
+        routeInferred: cell.routeInferred,
         template: cell.template,
         aspect: cell.aspect,
         workspaceCount: cell.workspaces.size,

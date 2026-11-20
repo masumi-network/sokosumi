@@ -61,6 +61,30 @@ describe("admin ad-evals aggregation", () => {
     });
   });
 
+  it("separates agent decisions from inferred labels before counting workspaces", async () => {
+    const assets = ratedAssets(5);
+    assets[0].job.promptSnapshot!.brandLook = { route: "text_heavy" };
+    assets[1].model = "fal-ai/gemini-3-pro-image-preview";
+    assets[2].job.kind = "EDIT";
+    assets[3].model = "unknown";
+    findMany.mockResolvedValue(assets);
+    const { leaderboard } = await getAdminAdEvalsDashboard();
+    expect(
+      leaderboard.map(({ route, routeInferred, n, suppressed }) => [
+        route,
+        routeInferred,
+        n,
+        suppressed,
+      ]),
+    ).toEqual([
+      ["text_heavy", false, 1, true],
+      ["photo_ad", true, 1, true],
+      ["edit", true, 1, true],
+      [null, false, 1, true],
+      ["text_heavy", true, 1, true],
+    ]);
+  });
+
   it("requires both consent flags for training data", async () => {
     await loadAdEvalAssets(true);
     expect(findMany).toHaveBeenCalledWith(

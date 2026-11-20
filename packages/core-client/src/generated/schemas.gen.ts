@@ -7299,6 +7299,19 @@ export const AdEvalsLeaderboardRowSchema = {
         model: {
             type: 'string'
         },
+        route: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ImageStudioRoute'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        routeInferred: {
+            type: 'boolean'
+        },
         template: {
             type: [
                 'string',
@@ -7415,6 +7428,8 @@ export const AdEvalsLeaderboardRowSchema = {
     },
     required: [
         'model',
+        'route',
+        'routeInferred',
         'template',
         'aspect',
         'workspaceCount',
@@ -7429,6 +7444,18 @@ export const AdEvalsLeaderboardRowSchema = {
         'thumbRateCi',
         'pairwiseWinRateCi',
         'judgeMeanCi'
+    ]
+} as const;
+
+export const ImageStudioRouteSchema = {
+    type: 'string',
+    enum: [
+        'photo_ad',
+        'text_heavy',
+        'vector',
+        'svg_diagram',
+        'make_realistic',
+        'edit'
     ]
 } as const;
 

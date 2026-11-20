@@ -1,3 +1,4 @@
+import { ImageStudioRoute } from "@sokosumi/core-client";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
@@ -9,6 +10,7 @@ export default defineTool({
   description:
     "Make a new version from an existing one, using it as a visual reference. The original is never altered: this always produces a new version.",
   inputSchema: z.object({
+    route: z.enum(ImageStudioRoute).optional(),
     catalogProductId: z
       .string()
       .uuid()
@@ -60,6 +62,7 @@ export default defineTool({
     const selection = { ...input, ...pinnedSelectionFrom(ctx) };
     const { job } = await startGeneration(identity, {
       prompt: input.prompt,
+      route: input.route,
       parentAssetId: input.sourceVersionId,
       // The same version is both the lineage parent and the visual reference.
       referenceAssetIds: [input.sourceVersionId],

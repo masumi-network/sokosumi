@@ -154,6 +154,7 @@ describe("image generation tools", () => {
     const input = {
       ...base,
       modelId: "ideogram-v3" as const,
+      route: "text_heavy" as const,
       placementId: "pinterest-pin",
       outputFormat: "jpeg" as const,
       seed: 17,
@@ -164,6 +165,7 @@ describe("image generation tools", () => {
       expect.objectContaining({
         modelId: "ideogram-v3",
         placementId: "pinterest-pin",
+        route: "text_heavy",
         outputFormat: "jpeg",
         seed: 17,
         parentAssetId: null,
@@ -196,6 +198,7 @@ describe("image generation tools", () => {
         sourceVersionId,
         modelId: "gemini-pro",
         placementId: "x-square",
+        route: "edit",
       },
       ctx,
     );
@@ -206,6 +209,7 @@ describe("image generation tools", () => {
         referenceAssetIds: [sourceVersionId],
         modelId: "gemini-pro",
         placementId: "x-square",
+        route: "edit",
       }),
     );
   });

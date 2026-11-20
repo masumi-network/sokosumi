@@ -127,6 +127,10 @@ import {
 } from "@/lib/image-studio/video-model";
 import { messageSafeErrorFields } from "@/lib/safe-error-fields";
 import { speakVoiceover } from "@/lib/soko-bot/voiceover";
+import {
+  type ImageStudioRoute,
+  readImageStudioRoute,
+} from "@/schemas/image-studio-route.schema";
 import type { StudioProductIdentity } from "@/schemas/studio-product.schema";
 import { enqueueAdEval } from "@/services/ad-eval.service";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
@@ -184,6 +188,7 @@ export const DEFAULT_SETTINGS: ImageJobSettings = {
 };
 
 export interface CreateImageJobInput {
+  route?: ImageStudioRoute;
   modelId?: string;
   /**
    * Core's month media (cmo-media-maker): its own limit at a time and no
@@ -598,6 +603,7 @@ async function reserveJobTransaction(input: ReserveImageJobInput) {
           : {}),
         settings: jsonInput({
           ...input.settings,
+          ...(input.route && { route: input.route }),
           ...(input.letteringSettings
             ? {
                 letteringSettings: { ...input.letteringSettings },
@@ -1768,6 +1774,7 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         job.model,
       );
     }
+    const route = readImageStudioRoute(job.settings);
     snapshot = {
       jobId: job.id,
       finalPrompt,
@@ -1775,7 +1782,10 @@ async function sendClaimedJob(jobId: string, organizationId: string | null) {
         .createHash("sha256")
         .update(studioBrandPromptBlock(promptBrand))
         .digest("hex"),
-      brandLook: brand.look ? jsonInput(brand.look) : Prisma.DbNull,
+      brandLook:
+        brand.look || route
+          ? jsonInput({ ...brand.look, ...(route && { route }) })
+          : Prisma.DbNull,
       assemblyVersion: STUDIO_PROMPT_ASSEMBLY_VERSION,
       templateId: job.templateId ?? null,
       creativeDirection: job.creativeDirection ?? null,

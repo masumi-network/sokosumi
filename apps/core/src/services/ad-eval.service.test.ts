@@ -67,7 +67,7 @@ const ASSET = {
     promptSnapshot: {
       finalPrompt:
         "Follow this project's brand.\n\nApproved ad copy (use where relevant):\nMake it count\n\nBrief:\nA red ad with Make it count",
-      brandLook: { colors: ["#ff0000"], fonts: ["Inter"] },
+      brandLook: { colors: ["#ff0000"], fonts: ["Inter"], route: "photo_ad" },
     },
   },
 };
@@ -170,7 +170,7 @@ describe("background ad evaluations", () => {
     expect(mocks.judge).toHaveBeenCalledWith(
       expect.objectContaining({
         finalPrompt: ASSET.job.promptSnapshot.finalPrompt,
-        brandLook: ASSET.job.promptSnapshot.brandLook,
+        brandLook: { colors: ["#ff0000"], fonts: ["Inter"] },
         headline: "Make it count",
         approvedLines: ["Make it count"],
         image: expect.any(Uint8Array),

@@ -1,3 +1,4 @@
+import { ImageStudioRoute } from "@sokosumi/core-client";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
@@ -9,6 +10,7 @@ export default defineTool({
   description:
     "Generate a new image from a description. Use this for a genuinely new idea. To change an image that already exists, use refine_image instead so the original is preserved and the lineage stays intact.",
   inputSchema: z.object({
+    route: z.enum(ImageStudioRoute).optional(),
     catalogProductId: z
       .string()
       .uuid()
@@ -58,6 +60,7 @@ export default defineTool({
     const selection = { ...input, ...pinnedSelectionFrom(ctx) };
     const { job } = await startGeneration(identity, {
       prompt: input.prompt,
+      route: input.route,
       parentAssetId: null,
       referenceAssetIds: [],
       aspectRatio: selection.aspectRatio,

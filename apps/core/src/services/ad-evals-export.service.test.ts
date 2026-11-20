@@ -85,10 +85,12 @@ describe("ad evals JSONL export", () => {
       ],
       job: {
         batchId: "batch-a",
+        kind: "GENERATE",
         promptSnapshot: {
           templateId: "Acme",
           creativeDirection: "jane@acme.example",
           brandLook: {
+            route: "vector",
             colors: ["#23453C", "Acme"],
             fonts: ["Inter", "Jane Smith", "jane@acme.example"],
             headline: "Acme secret",
@@ -104,6 +106,8 @@ describe("ad evals JSONL export", () => {
       type: "rating",
       asset_id: "asset-a",
       model: "flux-2-pro",
+      route: "vector",
+      route_inferred: false,
       label: 1,
       reasons: ["great"],
       prompt: {
@@ -187,8 +191,12 @@ describe("ad evals JSONL export", () => {
     expect(rows[0]).toMatchObject({
       type: "pair",
       pair_id: "feedback-a",
-      chosen: { asset_id: "asset-b" },
-      rejected: { asset_id: "asset-a" },
+      chosen: { asset_id: "asset-b", route: null, route_inferred: false },
+      rejected: {
+        asset_id: "asset-a",
+        route: "text_heavy",
+        route_inferred: true,
+      },
       source: "human_pairwise",
       weight: 1,
     });

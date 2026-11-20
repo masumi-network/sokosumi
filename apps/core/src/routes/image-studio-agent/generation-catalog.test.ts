@@ -85,6 +85,7 @@ describe("agent catalog and generation HTTP contract", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        route: "edit",
         prompt: "Switch the product and keep the layout",
         modelId: "flux-2-pro",
         idempotencyKey: "valid-key",
@@ -127,6 +128,7 @@ describe("agent catalog and generation HTTP contract", () => {
     expect(readCatalog).toHaveBeenCalledWith("project");
     expect(createJob).toHaveBeenCalledWith(
       expect.objectContaining({
+        route: "edit",
         product: { id: productId, name: "Clay mug" },
         parentAssetId: sourceId,
         referenceAssetIds: [sourceId],
@@ -143,6 +145,20 @@ describe("agent catalog and generation HTTP contract", () => {
       }),
     );
     expect(copyPhoto).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unknown route before reserving a job", async () => {
+    const response = await app.request("/generations", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "A product photo",
+        route: "other",
+        idempotencyKey: "valid-key",
+      }),
+    });
+    expect(response.status).toBe(400);
+    expect(createJob).not.toHaveBeenCalled();
   });
 
   it("allows a regular edit to reuse the original product photo", async () => {

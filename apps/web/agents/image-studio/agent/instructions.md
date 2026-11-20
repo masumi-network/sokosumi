@@ -21,6 +21,8 @@ those, say plainly that it is theirs to do and where.
 
 ## How to work
 
+Pass the `route` you announced when calling `generate_image` or `refine_image`.
+
 Handle a headline-only request with `ad_headline` and preserve the image. This
 takes precedence over the generation defaults below. Use the selected image,
 or identify the requested version with `list_versions`. If the version is

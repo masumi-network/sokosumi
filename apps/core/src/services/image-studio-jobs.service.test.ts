@@ -1088,16 +1088,21 @@ describe("image studio job submission", () => {
       variationIndex: 0,
     };
     const look = { colors: ["#123456"], fonts: ["Inter"] };
-    const stored = jobRow({ ...context, exportHeadline: "Approved headline" });
+    const settings = { ...BASE_INPUT.settings, route: "photo_ad" as const };
+    const stored = jobRow({
+      ...context,
+      settings,
+      exportHeadline: "Approved headline",
+    });
     projectFindUniqueMock.mockResolvedValue({ studioBrandLook: look });
     jobCreateMock.mockResolvedValue(stored);
     jobFindUniqueOrThrowMock.mockResolvedValue(stored);
     submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 
-    await createImageJob({ ...BASE_INPUT, ...context });
+    await createImageJob({ ...BASE_INPUT, ...context, route: settings.route });
 
     expect(jobCreateMock).toHaveBeenCalledWith({
-      data: expect.objectContaining(context),
+      data: expect.objectContaining({ ...context, settings }),
     });
     const finalPrompt = submitToQueueMock.mock.calls[0]![0].input.prompt;
     expect(finalPrompt).toContain(
@@ -1108,7 +1113,7 @@ describe("image studio job submission", () => {
       create: expect.objectContaining({
         ...context,
         finalPrompt,
-        brandLook: look,
+        brandLook: { ...look, route: settings.route },
         brandContextHash: createHash("sha256")
           .update(
             [
@@ -1123,7 +1128,7 @@ describe("image studio job submission", () => {
       update: expect.objectContaining({
         ...context,
         finalPrompt,
-        brandLook: look,
+        brandLook: { ...look, route: settings.route },
       }),
     });
   });

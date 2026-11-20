@@ -1,4 +1,5 @@
 import {
+  type ImageStudioRoute,
   type ProjectImageStudioCatalog,
   readStudioAgentAdHeadline,
   type SaveStudioAgentAdHeadline,
@@ -518,6 +519,7 @@ export async function startGeneration(
     aspectRatio: string;
     resolution: string;
     modelId?: string;
+    route?: ImageStudioRoute;
     placementId?: string | null;
     outputFormat?: string;
     seed?: number | null;

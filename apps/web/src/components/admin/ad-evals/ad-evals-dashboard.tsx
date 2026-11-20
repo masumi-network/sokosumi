@@ -1,6 +1,8 @@
 import type { AdminAdEvalsDashboard } from "@sokosumi/core-client";
+import { encodeTableCsv } from "@sokosumi/utils";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   HOLDER_CLASS,
   HOLDER_ITEM_CLASS,
@@ -24,6 +26,23 @@ export async function AdEvalsDashboard({ data }: AdEvalsDashboardProps) {
   const [t, format] = await Promise.all([
     getTranslations("App.Admin.AdEvals"),
     getFormatter(),
+  ]);
+
+  const csvColumns = [
+    "model",
+    "route",
+    "routeInferred",
+    "template",
+    "aspect",
+    "thumbRate",
+    "pairwiseWinRate",
+    "judgeMean",
+    "n",
+    "workspaceCount",
+  ] as const;
+  const csv = encodeTableCsv([
+    [...csvColumns],
+    ...data.leaderboard.map((row) => csvColumns.map((column) => row[column])),
   ]);
 
   function metric(
@@ -62,9 +81,21 @@ export async function AdEvalsDashboard({ data }: AdEvalsDashboardProps) {
         aria-labelledby="ad-leaderboard-title"
       >
         <div className="space-y-1 px-2 py-1">
-          <h2 id="ad-leaderboard-title" className="text-sm font-medium">
-            {t("Leaderboard.title")}
-          </h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 id="ad-leaderboard-title" className="text-sm font-medium">
+              {t("Leaderboard.title")}
+            </h2>
+            {data.leaderboard.length > 0 && (
+              <Button asChild size="sm" variant="outline">
+                <a
+                  href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`}
+                  download="ad-evals-leaderboard.csv"
+                >
+                  {t("Leaderboard.downloadCsv")}
+                </a>
+              </Button>
+            )}
+          </div>
           <p className="text-muted-foreground text-xs">
             {t("Leaderboard.help", { minimum: data.minimumWorkspaces })}
           </p>
@@ -79,6 +110,7 @@ export async function AdEvalsDashboard({ data }: AdEvalsDashboardProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("Leaderboard.model")}</TableHead>
+                  <TableHead>{t("Leaderboard.route")}</TableHead>
                   <TableHead>{t("Leaderboard.adType")}</TableHead>
                   <TableHead>{t("Leaderboard.thumbs")}</TableHead>
                   <TableHead>{t("Leaderboard.pairwise")}</TableHead>
@@ -89,8 +121,18 @@ export async function AdEvalsDashboard({ data }: AdEvalsDashboardProps) {
               </TableHeader>
               <TableBody>
                 {data.leaderboard.map((row) => (
-                  <TableRow key={`${row.model}:${row.template}:${row.aspect}`}>
+                  <TableRow
+                    key={`${row.model}:${row.route}:${row.routeInferred}:${row.template}:${row.aspect}`}
+                  >
                     <TableCell className="font-medium">{row.model}</TableCell>
+                    <TableCell>
+                      {row.route ?? "—"}
+                      {row.routeInferred && (
+                        <span className="text-muted-foreground ml-1 text-xs">
+                          {t("Leaderboard.inferred")}
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       {row.template ?? t("unknownTemplate")} ·{" "}
                       {row.aspect ?? "—"}
