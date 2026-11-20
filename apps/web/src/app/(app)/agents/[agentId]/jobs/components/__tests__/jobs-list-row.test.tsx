@@ -33,6 +33,12 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
 
 vi.mock("../jobs-search", () => ({
   JobsSearch: () => null,
+  filterJobsByQuery: (jobs: JobSummary[]) => jobs,
+  useJobsSearchQuery: () => ({
+    searchValue: "",
+    handleInputChange: vi.fn(),
+    handleClear: vi.fn(),
+  }),
 }));
 
 vi.mock("../jobs-list.utils", () => ({

@@ -10,10 +10,7 @@ import {
   IMAGE_PROMPT_MAX_LENGTH,
 } from "@/lib/image-studio/request-validation";
 
-import {
-  createImageJobRequestSchema,
-  studioModelIdSchema,
-} from "@/schemas/project-image-studio.schema";
+import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
 import { isCmoProject } from "@/services/cmo-cuso.service";
 import {
   getAsset,
@@ -50,10 +47,16 @@ import { authorizeAgentGrant as authorize } from "./authorize";
 
 const app = new Hono();
 const createAgentImageJobSchema = createImageJobRequestSchema
-  .omit({ exportHeadline: true, useProductCutout: true })
+  .omit({
+    exportHeadline: true,
+    useProductCutout: true,
+    letterExistingBackdrop: true,
+  })
   .extend({
-    modelId: studioModelIdSchema("agent"),
     catalogProductId: z.string().uuid().optional(),
+    modelId: z
+      .enum(["gemini-pro", "ideogram-v3", "recraft-v4-1-text-to-vector"])
+      .default("gemini-pro"),
   });
 
 /**

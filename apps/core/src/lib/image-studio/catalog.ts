@@ -134,6 +134,13 @@ export function getImageCatalog(
  * Falls through rather than throwing: if fal ever withdraws the studio's default,
  * the composer should open on the next curated model rather than fail to open.
  */
+export function studioImageModelId(): string {
+  return (
+    resolvedModels.find((model) => model.id === "gemini-pro")?.id ??
+    defaultModelId()
+  );
+}
+
 function defaultModelId(): string {
   const preferred = resolvedModels.find(
     (model) => model.id === DEFAULT_IMAGE_MODEL_ID,

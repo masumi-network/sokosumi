@@ -20,6 +20,12 @@ const state = vi.hoisted(() => {
     closing: false,
     integrationActive: true,
     accountRevision: 0,
+    auditAccess: null as {
+      propertyId: string;
+      connectionVersion: string;
+      includeSitemaps?: true;
+    } | null,
+    auditPageUrls: [] as string[],
     briefGoal: null as string | null,
     locks: new Map<
       string,
@@ -97,6 +103,14 @@ vi.mock("@/lib/db/prisma", () => {
       findMany: async () => [scope],
     },
     projectSeoObservation: {
+      findUnique: async ({
+        where,
+      }: {
+        where: Record<string, { sourceKey: string }>;
+      }) =>
+        state.observations.find(
+          (row) => row.sourceKey === Object.values(where)[0].sourceKey,
+        ) ?? null,
       // The workspace reads public evidence (no owner) and metric snapshots (an owner) apart.
       findMany: async ({
         where,
@@ -182,7 +196,22 @@ vi.mock("@/lib/db/prisma", () => {
           }) ?? null
         );
       },
-      upsert: async ({ create }: { create: Record<string, unknown> }) => {
+      upsert: async ({
+        create,
+        update,
+      }: {
+        create: Record<string, unknown>;
+        update?: Record<string, unknown>;
+      }) => {
+        const existing = state.observations.find(
+          (row) =>
+            row.sourceKey === create.sourceKey &&
+            row.kind === "audit_search_performance",
+        );
+        if (existing) {
+          Object.assign(existing, update);
+          return existing;
+        }
         const saved = {
           id: "44444444-4444-4444-8444-444444444444",
           createdAt: state.at,
@@ -196,7 +225,31 @@ vi.mock("@/lib/db/prisma", () => {
     },
     projectSeoKeyword: { findMany: async () => state.keywords },
     projectSeoCompetitor: { findMany: async () => [] },
-    projectSeoAnalysis: { findMany: async () => [] },
+    projectSeoAnalysis: {
+      findMany: async () => [],
+      findUnique: async () => ({
+        kind: "audit_full",
+        requestedBy: "owner",
+        auditId: null,
+        projectId: state.projectId,
+        pageIds: [state.pageId, ...state.extraPages.map((p) => p.id)],
+        request: {
+          searchConsoleAccess: state.auditAccess,
+          pageUrls: state.auditPageUrls,
+        },
+        createdAt: new Date("2026-01-10T19:00:00Z"),
+      }),
+    },
+    task: {
+      findUnique: async () => ({
+        status: "COMPLETED",
+        ownerId: "owner",
+        workspaceId: "workspace",
+        projectId: state.projectId,
+        organizationId: null,
+      }),
+    },
+    $executeRaw: async () => 1,
     projectSeoActionTask: { findMany: async () => [] },
     taskSchedule: { findMany: async () => [] },
     lock: {
@@ -277,6 +330,11 @@ vi.mock(
         },
       },
       {
+        slug: "GOOGLE_SEARCH_CONSOLE_LIST_SITEMAPS",
+        readOnly: true,
+        inputSchema: { properties: { site_url: {}, sitemap_index: {} } },
+      },
+      {
         slug: "GOOGLE_SEARCH_CONSOLE_LIST_SITES",
         readOnly: true,
         inputSchema: { properties: {} },
@@ -321,11 +379,19 @@ vi.mock(
 );
 
 import { z } from "@hono/zod-openapi";
+import prisma from "@/lib/db/prisma";
+import { prepareAuditSettlement } from "@/lib/seo/audit-settlement";
 import { runSeoTool } from "@/lib/soko-bot/seo-tools";
 import { nativeSeoMetricsSchema } from "@/schemas/project-seo-native-metrics.schema";
 import { getProjectSeoWorkspace } from "./project-seo.service";
 import { syncProjectSeoStatistics } from "./project-seo-statistics.service";
 import { getSeoBrief } from "./seo-audit-brief.service";
+import { collectSeoAuditPerformance } from "./seo-audit-performance";
+import { readAuditPerformanceSummaries } from "./seo-audit-performance-summary";
+import {
+  connectionVersion,
+  resolveSeoStatisticsIntegration,
+} from "./seo-connections.service";
 
 const actor = {
   owner: { kind: "project" as const, id: state.projectId },
@@ -409,6 +475,8 @@ beforeEach(() => {
   state.pageUrl = "https://example.test/a";
   state.integrationActive = true;
   state.accountRevision = 0;
+  state.auditAccess = null;
+  state.auditPageUrls = [];
   state.briefGoal = null;
   state.locks.clear();
   state.extraPages.length = 0;
@@ -961,6 +1029,23 @@ describe("Search Console query rows", () => {
     to: "2026-01-02",
     channel: "organic" as const,
   };
+  it("refuses a replacement audit connection before reading private performance", async () => {
+    state.answer = gsc({ rows: [] });
+    await expect(
+      syncProjectSeoStatistics(
+        actor,
+        gscInput,
+        {},
+        {
+          taskId: "original-task",
+          connectionVersion: "replaced",
+          pageUrls: [state.pageUrl],
+        },
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(state.reads).toHaveLength(0);
+    expect(state.observations).toHaveLength(0);
+  });
   const metric = { clicks: 1, impressions: 9, ctr: 0.11, position: 4.2 };
   function gsc(queryRows: unknown, seriesRows: unknown = { rows: [] }) {
     return (slug: string, args: Record<string, unknown>) => {
@@ -993,6 +1078,579 @@ describe("Search Console query rows", () => {
       };
     };
   }
+
+  it("reads submitted sitemaps only for a bound consenting audit and shows concrete actions privately", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    state.auditPageUrls = [state.pageUrl];
+    const integration = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(integration!),
+      includeSitemaps: true,
+    };
+    const fallback = gsc({ rows: [] });
+    const map = "https://example.test/sitemap.xml";
+    state.answer = (slug, args) =>
+      slug.endsWith("LIST_SITEMAPS")
+        ? { sitemap: [{ path: map, errors: "2", warnings: "0" }] }
+        : slug.endsWith("INSPECT_URL")
+          ? {
+              inspectionResult: {
+                indexStatusResult: {
+                  verdict: "NEUTRAL",
+                  coverageState: "Crawled - currently not indexed",
+                },
+              },
+            }
+          : fallback(slug, args);
+    await collectSeoAuditPerformance("audit-task");
+    const read = state.reads.filter((r) => r.slug.endsWith("LIST_SITEMAPS"));
+    expect(read.map((r) => r.args)).toEqual([
+      { site_url: gscInput.propertyId },
+    ]);
+    const summary = await readAuditPerformanceSummaries(owner, ["audit-task"]);
+    expect(summary.auditSearchConsole[0].discovery).toMatchObject({
+      status: "available",
+      actions: [
+        { url: map, evidence: "Google reported 2 errors." },
+        {
+          url: state.pageUrl,
+          evidence: expect.stringContaining("Crawled - currently not indexed"),
+        },
+      ],
+    });
+    expect(
+      (await readAuditPerformanceSummaries(actor, ["audit-task"]))
+        .auditSearchConsole,
+    ).toEqual([]);
+    expect(state.observations[0]).toMatchObject({
+      ownerId: "owner",
+      visibility: "PRIVATE",
+    });
+    await collectSeoAuditPerformance("audit-task");
+    expect(
+      state.reads.filter((r) => r.slug.endsWith("LIST_SITEMAPS")),
+    ).toHaveLength(1);
+  });
+
+  it("retries a failed sitemap inventory without recollecting performance or dating its evidence again", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    state.auditPageUrls = [state.pageUrl];
+    const account = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(account!),
+      includeSitemaps: true,
+    };
+    const healthy = gsc({ rows: [] });
+    const sitemap = "https://example.test/sitemap.xml";
+    let recovered = false;
+    state.answer = (slug, args) => {
+      if (slug.endsWith("LIST_SITEMAPS"))
+        return recovered
+          ? { sitemap: [{ path: sitemap }] }
+          : { error: "unavailable" };
+      if (slug.endsWith("INSPECT_URL"))
+        return {
+          inspectionResult: {
+            indexStatusResult: { verdict: "PASS", sitemap: [sitemap] },
+          },
+        };
+      return healthy(slug, args);
+    };
+    await collectSeoAuditPerformance("audit-task", owner);
+    const summary = () =>
+      readAuditPerformanceSummaries(owner, ["audit-task"], ["audit-task"]);
+    expect((await summary()).auditSearchConsoleRetryTaskIds).toEqual([
+      "audit-task",
+    ]);
+    const initial = nativeSeoMetricsSchema.parse(state.observations[0].payload);
+    const date = "2026-01-22T12:00:00.000Z";
+    vi.setSystemTime(new Date(date));
+    recovered = true;
+    state.reads.length = 0;
+    await collectSeoAuditPerformance("audit-task", owner);
+    expect(
+      state.reads
+        .filter((r) => !r.slug.endsWith("LIST_SITES"))
+        .map((r) => r.slug),
+    ).toEqual(["GOOGLE_SEARCH_CONSOLE_LIST_SITEMAPS"]);
+    expect(
+      nativeSeoMetricsSchema.parse(state.observations[0].payload),
+    ).toMatchObject({
+      observedAt: initial.observedAt,
+      metrics: initial.metrics,
+      auditDiscovery: {
+        checkedAt: date,
+        status: "available",
+        inspections: [
+          { checkedAt: initial.observedAt, reportedSitemaps: [sitemap] },
+        ],
+      },
+    });
+    expect((await summary()).auditSearchConsoleRetryTaskIds).toEqual([]);
+  });
+
+  it("keeps private inspection sources across a dashboard cache hit and retries only the missing page", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    const other = {
+      id: "77777777-7777-4777-8777-777777777777",
+      url: "https://example.test/b",
+    };
+    const referring = "https://example.test/posts";
+    state.extraPages.push(other);
+    state.auditPageUrls = [state.pageUrl, other.url];
+    const account = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(account!),
+      includeSitemaps: true,
+    };
+    const healthy = gsc({ rows: [] });
+    let available = false;
+    state.answer = (slug, args) => {
+      if (slug.endsWith("LIST_SITEMAPS")) return {};
+      if (slug.endsWith("INSPECT_URL")) {
+        if (args.inspection_url === other.url && !available)
+          throw Error("unavailable");
+        return {
+          inspectionResult: {
+            indexStatusResult: { verdict: "PASS", referringUrls: [referring] },
+          },
+        };
+      }
+      return healthy(slug, args);
+    };
+    await syncProjectSeoStatistics(owner, { ...gscInput, automatic: true });
+    const dashboard = state.observations.find((row) => row.kind === "metrics");
+    expect(JSON.stringify(dashboard)).not.toContain(referring);
+    state.reads.length = 0;
+    await collectSeoAuditPerformance("audit-task", owner);
+    const reads = () =>
+      state.reads
+        .filter((r) => r.slug.endsWith("INSPECT_URL"))
+        .map((r) => r.args.inspection_url);
+    expect(reads().sort()).toEqual([state.pageUrl, other.url].sort());
+    state.reads.length = 0;
+    await collectSeoAuditPerformance("audit-task", owner);
+    expect(reads()).toEqual([]);
+    vi.setSystemTime(new Date("2026-01-20T13:01:00Z"));
+    available = true;
+    await collectSeoAuditPerformance("audit-task", owner);
+    expect(reads()).toEqual([other.url]);
+    expect(state.reads.filter((r) => r.slug.endsWith("LIST_SITEMAPS"))).toEqual(
+      [],
+    );
+    const summary = await readAuditPerformanceSummaries(
+      owner,
+      ["audit-task"],
+      ["audit-task"],
+    );
+    expect(summary.auditSearchConsoleRetryTaskIds).toEqual([]);
+    expect(summary.auditSearchConsole[0].discovery?.inspections).toMatchObject([
+      {
+        page: state.pageUrl,
+        referringPages: [referring],
+        checkedAt: "2026-01-20T12:00:00.000Z",
+      },
+      {
+        page: other.url,
+        referringPages: [referring],
+        checkedAt: "2026-01-20T13:01:00.000Z",
+      },
+    ]);
+  });
+
+  it("collects the original 90 days under Google's www canonical once and keeps the selected URLs in private audit evidence", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    const canonical = "https://www.example.test/a";
+    state.extraPages.push({
+      id: "44444444-4444-4444-8444-444444444445",
+      url: canonical,
+    });
+    state.auditPageUrls = [state.pageUrl, canonical];
+    // A limited audit uses the exact same task lifecycle without accessing Google.
+    await collectSeoAuditPerformance("audit-task");
+    expect(state.reads).toHaveLength(0);
+    await expect(
+      collectSeoAuditPerformance("audit-task", owner),
+    ).rejects.toMatchObject({ status: 404 });
+    const account = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(account!),
+    };
+    const healthy = gsc({
+      rows: [{ keys: ["charging", canonical], ...metric }],
+    });
+    state.answer = (slug, args) =>
+      slug.endsWith("INSPECT_URL")
+        ? {
+            inspectionResult: {
+              indexStatusResult: {
+                verdict: "PASS",
+                googleCanonical: canonical,
+                userCanonical: canonical,
+              },
+            },
+          }
+        : healthy(slug, args);
+    await collectSeoAuditPerformance("audit-task");
+    expect(state.observations).toHaveLength(1);
+    expect(state.observations[0]).toMatchObject({
+      kind: "audit_search_performance",
+      visibility: "PRIVATE",
+      ownerId: "owner",
+      sourceTaskId: "audit-task",
+    });
+    const reports = await readAuditPerformanceSummaries(
+      owner,
+      ["audit-task"],
+      ["audit-task"],
+      new Set([state.pageUrl, canonical]),
+    );
+    const partialScope = await readAuditPerformanceSummaries(
+      owner,
+      ["audit-task"],
+      [],
+      new Set([state.pageUrl]),
+    );
+    expect(partialScope.auditSearchConsole[0]).not.toHaveProperty("countries");
+    expect(reports.auditSearchConsoleRetryTaskIds).toEqual([]);
+    const [report] = reports.auditSearchConsole;
+    expect(report).toMatchObject({
+      from: "2025-10-10",
+      to: "2026-01-07",
+      clicks: 1,
+      impressions: 9,
+      countries: {
+        truncated: false,
+        rows: [{ key: "DE", clicks: 1, impressions: 9 }],
+      },
+      previous: { from: "2025-07-12", to: "2025-10-09" },
+      opportunities: [
+        { title: 'Strengthen the page for "charging"', pageUrl: canonical },
+      ],
+      measuredPages: [
+        {
+          pageUrl: state.pageUrl,
+          measuredUrl: canonical,
+          basis: "google_canonical",
+        },
+        { pageUrl: canonical, measuredUrl: canonical, basis: "selected" },
+      ],
+      queries: { rows: [{ query: "charging", pageUrl: canonical }] },
+    });
+    for (const read of state.reads.filter((r) =>
+      r.slug.endsWith("SEARCH_ANALYTICS_QUERY"),
+    )) {
+      expect(JSON.stringify(read.args.dimension_filter_groups)).toContain(
+        "www",
+      );
+      expect(read.slug).toContain("SEARCH_CONSOLE");
+    }
+    const reads = state.reads.length;
+    await collectSeoAuditPerformance("audit-task");
+    expect(state.observations).toHaveLength(1);
+    expect(state.reads).toHaveLength(reads);
+    expect(
+      (await readAuditPerformanceSummaries(actor, ["audit-task"]))
+        .auditSearchConsole,
+    ).toEqual([]);
+  });
+
+  it.each([
+    {
+      recent: 60,
+      prior: 100,
+      year: 90,
+      days: 90,
+      decision: "investigate_loss",
+    },
+    { recent: 60, prior: 100, year: 58, days: 90, decision: "monitor" },
+    {
+      recent: 110,
+      prior: 60,
+      year: 90,
+      days: 90,
+      decision: "investigate_growth",
+    },
+    {
+      recent: 110,
+      prior: 60,
+      year: 90,
+      days: 89,
+      decision: "insufficient_history",
+    },
+    {
+      recent: 110,
+      prior: 60,
+      year: 0,
+      days: 0,
+      decision: "insufficient_history",
+    },
+    { recent: 60, prior: 59, year: 90, days: 90, decision: undefined },
+  ])(
+    "compares the approved canonical with last year only for a material change ($recent/$prior/$days)",
+    async ({ recent, prior, year, days, decision }) => {
+      const owner = { ...actor, sokoBotId: undefined };
+      const account = await resolveSeoStatisticsIntegration(
+        owner,
+        "search_console",
+      );
+      state.auditPageUrls = [state.pageUrl];
+      state.auditAccess = {
+        propertyId: gscInput.propertyId,
+        connectionVersion: connectionVersion(account!),
+      };
+      const healthy = gsc({ rows: [] });
+      const canonical = "https://www.example.test/a";
+      const historicalReads: Record<string, unknown>[] = [];
+      state.answer = (slug, args) => {
+        if (slug.endsWith("INSPECT_URL"))
+          return {
+            inspectionResult: {
+              indexStatusResult: {
+                verdict: "PASS",
+                googleCanonical: canonical,
+                userCanonical: canonical,
+              },
+            },
+          };
+        if (args.start_date === "2024-10-11") {
+          historicalReads.push(args);
+          return {
+            rows: Array.from({ length: days }, (_, i) => {
+              const day = new Date(Date.UTC(2024, 9, 11 + i))
+                .toISOString()
+                .slice(0, 10);
+              const clicks = Math.floor(year / 90) + (i < year % 90 ? 1 : 0);
+              return {
+                keys: [day],
+                ...metric,
+                clicks,
+                ctr: clicks / metric.impressions,
+              };
+            }),
+          };
+        }
+        if ((args.dimensions as string[] | undefined)?.length === 0)
+          return {
+            rows: [
+              {
+                keys: [],
+                ...metric,
+                clicks: args.start_date === "2025-10-10" ? recent : prior,
+                impressions: 1000,
+              },
+            ],
+          };
+        return healthy(slug, args);
+      };
+      await collectSeoAuditPerformance("audit-task", owner);
+      const { auditSearchConsole } = await readAuditPerformanceSummaries(
+        owner,
+        ["audit-task"],
+      );
+      expect(historicalReads).toHaveLength(decision ? 1 : 0);
+      if (decision) {
+        expect(
+          JSON.stringify(historicalReads[0].dimension_filter_groups),
+        ).toContain("www");
+        expect(auditSearchConsole[0]).toMatchObject({
+          history: {
+            from: "2024-10-11",
+            to: "2025-01-08",
+            reason:
+              recent > prior ? "recent_click_growth" : "recent_click_decline",
+            clicks: days === 90 ? year : null,
+            coverage:
+              days === 90 ? "complete" : days ? "partial" : "unavailable",
+            decision,
+          },
+        });
+      } else expect(auditSearchConsole[0]).not.toHaveProperty("history");
+    },
+  );
+
+  it("refuses an unrelated requester or owner scope and discards reads when access changes in flight", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    const account = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditPageUrls = [state.pageUrl];
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(account!),
+    };
+    for (const unauthorized of [
+      actor,
+      { ...owner, userId: "member" },
+      { ...owner, owner: { kind: "audit" as const, id: actor.owner.id } },
+    ]) {
+      await expect(
+        collectSeoAuditPerformance("audit-task", unauthorized),
+      ).rejects.toMatchObject({ status: 404 });
+    }
+    expect(state.reads).toHaveLength(0);
+    const healthy = gsc({ rows: [] });
+    state.answer = (slug, args) => {
+      if (slug.endsWith("SEARCH_ANALYTICS_QUERY"))
+        state.integrationActive = false;
+      return healthy(slug, args);
+    };
+    await expect(
+      collectSeoAuditPerformance("audit-task", owner),
+    ).rejects.toMatchObject({ status: 422 });
+    expect(state.observations).toHaveLength(0);
+  });
+
+  it("retries approved native audits on ordinary completion without triggering work for a limited one", async () => {
+    const task = {
+      id: "audit-task",
+      ownerId: actor.userId,
+      workspaceId: actor.workspaceId,
+      organizationId: null,
+      projectId: state.projectId,
+      assigneeId: "worker",
+    };
+    let approved = false;
+    await prepareAuditSettlement(
+      prisma,
+      task,
+      { status: "COMPLETED" },
+      false,
+      () => {
+        approved = true;
+      },
+    );
+    expect(approved).toBe(false);
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: "a".repeat(64),
+    };
+    await prepareAuditSettlement(
+      prisma,
+      task,
+      { status: "COMPLETED" },
+      false,
+      () => {
+        approved = true;
+      },
+    );
+    expect(approved).toBe(true);
+    expect(state.reads).toHaveLength(0);
+  });
+
+  it("retains a usable current total across a partial retry and removes the retry action when Google recovers", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    const account = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditPageUrls = [state.pageUrl];
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(account!),
+    };
+    const healthy = gsc({
+      rows: [{ keys: ["charging", state.pageUrl], ...metric }],
+    });
+    state.answer = (slug, args) => {
+      if ((args.dimensions as string[] | undefined)?.includes("query"))
+        throw Error("unavailable");
+      return healthy(slug, args);
+    };
+    await collectSeoAuditPerformance("audit-task", owner);
+    const read = () =>
+      readAuditPerformanceSummaries(owner, ["audit-task"], ["audit-task"]);
+    expect((await read()).auditSearchConsoleRetryTaskIds).toEqual([
+      "audit-task",
+    ]);
+    state.answer = (slug, args) => {
+      if (
+        (args.dimensions as string[] | undefined)?.length === 0 &&
+        args.start_date === "2025-10-10"
+      )
+        throw Error("unavailable");
+      return healthy(slug, args);
+    };
+    await collectSeoAuditPerformance("audit-task", owner);
+    const second = await read();
+    expect(second.auditSearchConsole[0]).toMatchObject({
+      clicks: 1,
+      coverage: "partial",
+      queries: { rows: [{ query: "charging" }] },
+    });
+    expect(second.auditSearchConsoleRetryTaskIds).toEqual(["audit-task"]);
+    state.answer = (slug, args) => {
+      const dimensions = args.dimensions as string[] | undefined;
+      if (dimensions)
+        return {
+          rows: dimensions.length
+            ? []
+            : [{ keys: [], clicks: 0, impressions: 0, ctr: 0, position: 0 }],
+        };
+      return healthy(slug, args);
+    };
+    await collectSeoAuditPerformance("audit-task", owner);
+    const recovered = await read();
+    const zero = {
+      clicks: 0,
+      impressions: 0,
+      ctr: null,
+      averagePosition: null,
+    };
+    expect(recovered.auditSearchConsole[0]).toMatchObject({
+      ...zero,
+      previous: zero,
+    });
+    expect(recovered.auditSearchConsoleRetryTaskIds).toEqual([]);
+    expect(state.observations).toHaveLength(1);
+  });
+
+  it("keeps an answered but missing aggregate unknown after a finished collection", async () => {
+    const owner = { ...actor, sokoBotId: undefined };
+    const account = await resolveSeoStatisticsIntegration(
+      owner,
+      "search_console",
+    );
+    state.auditPageUrls = [state.pageUrl];
+    state.auditAccess = {
+      propertyId: gscInput.propertyId,
+      connectionVersion: connectionVersion(account!),
+    };
+    const healthy = gsc({ rows: [] });
+    state.answer = (slug, args) =>
+      (args.dimensions as string[] | undefined)?.length === 0
+        ? { rows: [] }
+        : healthy(slug, args);
+    await collectSeoAuditPerformance("audit-task", owner);
+    const summary = await readAuditPerformanceSummaries(
+      owner,
+      ["audit-task"],
+      ["audit-task"],
+    );
+    expect(summary.auditSearchConsole[0]).toMatchObject({
+      coverage: "partial",
+      clicks: null,
+      impressions: null,
+    });
+    expect(summary.auditSearchConsoleRetryTaskIds).toEqual([]);
+  });
 
   it("retries only a missing inspection after one hour and reuses it across search types", async () => {
     const healthy = gsc({ rows: [] });

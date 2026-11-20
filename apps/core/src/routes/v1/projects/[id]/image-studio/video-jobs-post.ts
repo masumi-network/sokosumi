@@ -7,6 +7,7 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
+import { studioVideoModelId } from "@/lib/image-studio/video-catalog";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -65,7 +66,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         userId: userContext.userId,
         sessionId: input.sessionId,
         prompt: input.prompt,
-        modelId: input.modelId,
+        modelId: studioVideoModelId(input.sourceAssetId ? "image" : "text"),
         settings: input.settings,
         sourceAssetId: input.sourceAssetId,
         idempotencyKey: input.idempotencyKey,

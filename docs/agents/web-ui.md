@@ -41,3 +41,41 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Data Fetching**: Follow Next.js docs for Data Fetching, Rendering, and Routing
 - **Accessible names in shared components**: an ancestor with `aria-label` replaces its descendants' text, and one with `aria-hidden` removes it. An `sr-only` label inside a shared component therefore reaches only the call sites without either, so check every call site. happy-dom computes a name from `aria-label` on a roleless `<span>`, which browsers ignore, so assert the markup as well as `toHaveAccessibleName`.
 - **`PopoverAnchor` instead of `PopoverTrigger`**: Radix treats the anchor as outside the content and has no trigger to return focus to. Guard `onFocusOutside` and `onPointerDownOutside` against events from the anchor, and pass an `onCloseAutoFocus` that calls `preventDefault()` and focuses the anchor, or a hotkey-opened popover closes at once and focus drops to `<body>` (`apps/web/src/app/(app)/chat/components/room-search-panel.tsx`).
+
+## Effects
+
+Product code in Web and CMO never calls `useEffect`, `useLayoutEffect`, or `useMountEffect` directly (named import or `React.*` form). `biome-plugins/no-direct-effects.grit` warns across product files and `biome-plugins/no-effect-aliases.grit` errors on aliases and indirections ([ADR-0075](../adr/0075-effects-live-only-in-named-hooks.md)); locally `pnpm effects:check` (run in Husky pre-commit) enforces each app's `effect-baseline.json` (sorted, one entry per line — the only file a migration PR updates), and CI's `Biome` job runs the full `scripts/ci/__tests__/no-direct-effects.test.mjs` suite against the base SHA (`EFFECT_BASELINE_BASE_REF`) to reject any baseline growth or `biome-ignore` suppression for the effect rules.
+
+Before reaching for an effect, read React's [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect) and [Separating Events from Effects](https://react.dev/learn/separating-events-from-effects), and prefer:
+
+- **Derived values**: compute during render (or `useMemo` only when expensive) instead of syncing state.
+- **User actions**: run side effects in event handlers rather than watching a state flag.
+- **Resetting state on prop change**: pass a `key` to remount the subtree cleanly.
+- **Data loading**: use `@tanstack/react-query` (or Server Components / loaders) instead of `fetch` + `setState` in an effect.
+- **External store subscriptions**: use `useSyncExternalStore` for browser state (`matchMedia`, `visualViewport`, `localStorage`, hydration checks).
+- **Latest callback or prop inside an effect**: use `useEffectEvent` (allowed everywhere) instead of syncing refs.
+
+When you genuinely need to synchronize with an external system, call an existing named hook from `src/hooks/effects/` (or add one there — one job per hook, covered by a Vitest behaviour test, and never taking a general effect-callback parameter). Tests, test fixtures, and Web's vendored `src/components/ui/**` are exempt.
+
+Named hooks in `apps/web/src/hooks/effects/` (CMO keeps its own under `apps/cmo/src/hooks/effects/`):
+
+- `use-mobile` (`useIsMobile`, `useIsMobileMedia`, `MOBILE_BREAKPOINT`) — mobile viewport media query
+- `use-media-query` (`useMediaQuery`, `usePrefersReducedMotion`, `matchesMediaQuery`, `subscribeMediaQuery`) — generic CSS media query and live `prefers-reduced-motion` subscriptions (CMO has `useMediaQuery` under `apps/cmo/src/hooks/effects/use-media-query.ts`)
+- `use-animation-frame` (`useAnimationFrame`) — `requestAnimationFrame` loop with elapsed seconds per frame
+- `use-event-listener` (`useEventListener`) — typed window, document, or element DOM event listener using the latest handler (CMO has `useEventListener` under `apps/cmo/src/hooks/effects/use-event-listener.ts`)
+- `use-replace-route-on-media` (`useReplaceRouteOnMedia`) — one-shot `router.replace` when a CSS media query matches
+- `use-keyboard-open` (`useKeyboardOpen`) — soft keyboard open state via `visualViewport`
+- `use-clipboard` (`useClipboard`, `copyTextWithToast`) — clipboard write with toast feedback and timed reset
+- `use-load-when-visible` (`useLoadWhenVisible`) — `IntersectionObserver` pagination boundary trigger
+- `use-drag-to-scroll` (`useDragToScroll`) — horizontal pointer drag scrolling
+- `use-page-search-shortcut` (`usePageSearchShortcut`) — Cmd/Ctrl+F search input focus shortcut
+- `use-prevent-enter-submit` (`usePreventEnterSubmit`) — form Enter submission guard
+- `use-intent-prefetch` (`useIntentPrefetch`) — ForesightJS pointer-intent route prefetching
+- `use-chat-unread-document-title` (`useChatUnreadDocumentTitle`) — browser tab unread count prefix
+- `use-self-presence` (`useSelfPresence`) — local online/AFK/offline presence tracking
+- `use-files-archive-download` (`useFilesArchiveDownload`) — zip download aborted on unmount
+- `use-location-replace` (`useLocationReplace`) — `window.location.replace` redirect when a target URL is set
+- `use-format-toolbar-open-preference` (`useFormatToolbarOpenPreference`) — before-paint chat formatting toolbar preference read and persistence
+- `use-normalized-query-tab` (`useNormalizedQueryTab`) — URL query tab validation against enabled tabs with invalid-URL cleanup
+- `use-unauthenticated-error-handler` (`useUnAuthenticatedErrorHandler`) — `/signin` redirect for unauthenticated error boundaries
+- `use-latest-ref` (`useLatestRef`) — ref synced to the latest committed value in a layout effect

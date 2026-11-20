@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -48,14 +48,6 @@ export default function OAuthCallbackPage() {
   const issuerFromParams = searchParams.get("iss");
   const oauthError = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
-
-  useEffect(() => {
-    if (oauthError) {
-      setError(
-        errorDescription || oauthError || t("errors.authorizationFailed"),
-      );
-    }
-  }, [oauthError, errorDescription, t]);
 
   async function handleTokenExchange() {
     if (!code) {

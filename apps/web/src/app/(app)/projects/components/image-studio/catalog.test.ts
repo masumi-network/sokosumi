@@ -4,11 +4,9 @@ import {
   clampToModel,
   defaultModel,
   defaultVideoModel,
-  modelIdForRepeat,
-  modelVariants,
+  imageRepeatRoute,
   resolveModel,
   settingsOf,
-  supportsVariation,
 } from "./catalog";
 import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioAsset, StudioCatalog, StudioJob } from "./types";
@@ -105,20 +103,6 @@ describe("settingsOf", () => {
   });
 });
 
-describe("modelIdForRepeat", () => {
-  it("repeats on the model that actually ran", () => {
-    expect(modelIdForRepeat(TEST_CATALOG, MODEL_B.editEndpoint)).toBe(
-      "model-b",
-    );
-  });
-
-  it("falls back to the default rather than refusing to repeat old work", () => {
-    expect(modelIdForRepeat(TEST_CATALOG, "fal-ai/retired-model")).toBe(
-      "model-a",
-    );
-  });
-});
-
 describe("defaultModel", () => {
   it("honours the catalog's own default", () => {
     expect(defaultModel(TEST_CATALOG)?.id).toBe("model-a");
@@ -133,83 +117,44 @@ describe("defaultModel", () => {
   });
 });
 
-describe("supportsVariation", () => {
-  it("allows the known original model through either endpoint", () => {
-    expect(supportsVariation(TEST_CATALOG, MODEL_A.generateEndpoint)).toBe(
-      true,
-    );
-    expect(supportsVariation(TEST_CATALOG, MODEL_A.editEndpoint)).toBe(true);
-  });
-
-  it("refuses an old endpoint instead of switching it to the default model", () => {
-    expect(supportsVariation(TEST_CATALOG, "vendor/retired")).toBe(false);
-    expect(supportsVariation(TEST_CATALOG, null)).toBe(false);
+describe("imageRepeatRoute", () => {
+  it("can vary an image from a retired endpoint on the automatic model", () => {
+    expect(
+      imageRepeatRoute(TEST_CATALOG, { model: "vendor/retired" }, 1),
+    ).toEqual({
+      model: MODEL_A,
+      letterExistingBackdrop: false,
+    });
   });
 
   it.each([
     { editEndpoint: null, maxReferences: 4 },
     { editEndpoint: "vendor/model-a/edit", maxReferences: 0 },
   ])(
-    "requires both an edit endpoint and room for the image: %o",
+    "requires the automatic model to accept the reference: %o",
     (capabilities) => {
-      const catalog: StudioCatalog = {
+      const catalog = {
         ...TEST_CATALOG,
-        models: [{ ...MODEL_A, ...capabilities }],
+        models: [{ ...MODEL_A, ...capabilities }, MODEL_B],
       };
-      expect(supportsVariation(catalog, MODEL_A.generateEndpoint)).toBe(false);
+      expect(
+        imageRepeatRoute(catalog, { model: MODEL_B.generateEndpoint }, 1),
+      ).toBeNull();
+      expect(
+        imageRepeatRoute(catalog, { model: MODEL_B.generateEndpoint }, 0)?.model
+          .id,
+      ).toBe(MODEL_A.id);
     },
   );
 });
 
-describe("modelVariants", () => {
-  const row = (id: string, label: string, generateEndpoint: string) => ({
-    id,
-    label,
-    generateEndpoint,
-  });
-
-  it("names each same-label model by the part of its endpoint it does not share", () => {
-    const variants = modelVariants([
-      row("wan-5b", "Wan", "fal-ai/wan/v2.2-5b/text-to-image"),
-      row("wan-14b", "Wan", "fal-ai/wan/v2.2-a14b/text-to-image"),
-      row("wan-pro", "Wan", "fal-ai/wan/v2.7/pro/text-to-image"),
-      row("wan-27", "Wan", "fal-ai/wan/v2.7/text-to-image"),
-      row("flux-1", "FLUX.1 [dev]", "fal-ai/flux-1/dev"),
-      row("flux", "FLUX.1 [dev]", "fal-ai/flux/dev"),
-      row(
-        "seedream-flash",
-        "Seedream",
-        "bytedance/seedream/v5/flash/text-to-image",
-      ),
-      row(
-        "seedream-lite",
-        "Seedream",
-        "bytedance/seedream/v5/lite/text-to-image",
-      ),
-      row("hidream", "Hidream O1 Image", "fal-ai/hidream-o1-image"),
-      row("hidream-dev", "Hidream O1 Image", "fal-ai/hidream-o1-image/dev"),
-      row("unique", "FLUX.2 Pro", "fal-ai/flux-2-pro"),
-    ]);
-    expect(Object.fromEntries(variants)).toEqual({
-      "wan-5b": "v2.2-5b",
-      "wan-14b": "v2.2-a14b",
-      "wan-pro": "v2.7 · pro",
-      "wan-27": "v2.7",
-      "flux-1": "flux-1",
-      flux: "flux",
-      "seedream-flash": "flash",
-      "seedream-lite": "lite",
-      "hidream-dev": "dev",
-    });
-  });
-});
-
 describe("automatic model selection", () => {
-  it("uses Gemini Pro even while Core's default is another model", () => {
+  it("uses the Gemini Pro default from Core", () => {
     const gemini = { ...MODEL_A, id: "gemini-pro" };
     expect(
       defaultModel({
         ...TEST_CATALOG,
+        defaultModelId: "gemini-pro",
         models: [...TEST_CATALOG.models, gemini],
       })?.id,
     ).toBe("gemini-pro");
@@ -219,6 +164,8 @@ describe("automatic model selection", () => {
     const [text, image] = TEST_CATALOG.videoModels;
     const catalog = {
       ...TEST_CATALOG,
+      defaultAnimateModelId: "h3-max-animate",
+      defaultVideoModelId: "h3-max",
       videoModels: [
         ...TEST_CATALOG.videoModels,
         { ...text!, id: "h3-max" },

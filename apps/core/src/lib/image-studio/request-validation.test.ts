@@ -64,14 +64,6 @@ describe("describeImageStudioRefusal", () => {
     }
   });
 
-  it("names an unknown model without echoing the catalog", () => {
-    const refusal = refuse({ ...VALID, modelId: "fal-ai/arbitrary" });
-    expect(refusal.kind).toBe(IMAGE_STUDIO_REQUEST_ERROR_KINDS.unknownModel);
-    expect(refusal.message).toBe(
-      "That model is not in the studio catalog. Choose another one.",
-    );
-  });
-
   it("covers a setting the studio does not offer", () => {
     const refusal = refuse({
       ...VALID,
@@ -108,7 +100,6 @@ describe("describeImageStudioRefusal", () => {
     const bodies: unknown[] = [
       { ...VALID, prompt: "x".repeat(26_520) },
       { ...VALID, prompt: "" },
-      { ...VALID, modelId: "nope" },
       { ...VALID, settings: { resolution: "4K" } },
       { ...VALID, settings: { outputFormat: "tiff" } },
       { ...VALID, settings: { seed: -1 } },

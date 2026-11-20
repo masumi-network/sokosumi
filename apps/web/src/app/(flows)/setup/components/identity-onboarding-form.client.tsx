@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
@@ -13,6 +13,7 @@ import { Form } from "@/components/ui/form";
 import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useLocationReplace } from "@/hooks/effects/use-location-replace";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
@@ -73,12 +74,9 @@ export function IdentityOnboardingForm({
     window.location.replace(leaveUrl);
   }, [leaveUrl]);
 
-  useEffect(() => {
-    if (!workspaceReady || wizardOpen || leavingGateRef.current) {
-      return;
-    }
-    leaveToApp();
-  }, [workspaceReady, wizardOpen, leaveToApp]);
+  useLocationReplace(
+    workspaceReady && !wizardOpen && !leavingGateRef.current ? leaveUrl : null,
+  );
 
   async function leaveGateAfterWorkspace(organizationId: string | null) {
     leavingGateRef.current = true;

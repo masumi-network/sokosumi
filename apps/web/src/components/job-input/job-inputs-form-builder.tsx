@@ -7,7 +7,7 @@ import { useEffect, useRef } from "react";
 import { type SubmitHandler, useForm } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
-import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
+import usePreventEnterSubmit from "@/hooks/effects/use-prevent-enter-submit";
 import {
   defaultValues as getDefaultValues,
   type JobInputsFormSchemaType,

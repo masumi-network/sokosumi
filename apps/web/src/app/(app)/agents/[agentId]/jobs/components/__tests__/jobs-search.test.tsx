@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { afterEach, expect, it, vi } from "vitest";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { JobsSearch } from "../jobs-search";
+import { JobsSearch, useJobsSearchQuery } from "../jobs-search";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/agents/agent-id/jobs",
@@ -11,12 +11,25 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+function JobsSearchHarness() {
+  const { searchValue, handleInputChange, handleClear } = useJobsSearchQuery();
+  return (
+    <JobsSearch
+      searchValue={searchValue}
+      onSearchChange={handleInputChange}
+      onClear={handleClear}
+      filteredCount={0}
+      totalCount={0}
+    />
+  );
+}
+
 afterEach(() => vi.useRealTimers());
 
 it("keeps the shortcut hint beside a nonempty search", () => {
   render(
     <NuqsTestingAdapter searchParams="?query=report">
-      <JobsSearch jobs={[]} />
+      <JobsSearchHarness />
     </NuqsTestingAdapter>,
   );
   expect(screen.getByRole("textbox")).toHaveFocus();
@@ -28,7 +41,7 @@ it("clears a pending search before its debounced URL update can restore it", asy
   vi.useFakeTimers();
   render(
     <NuqsTestingAdapter hasMemory>
-      <JobsSearch jobs={[]} />
+      <JobsSearchHarness />
     </NuqsTestingAdapter>,
   );
   const field = screen.getByRole("textbox");

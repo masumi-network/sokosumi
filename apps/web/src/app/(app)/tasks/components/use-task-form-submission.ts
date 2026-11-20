@@ -2,7 +2,7 @@
 
 import { TaskStatus } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 import { toast } from "sonner";
 import {
   isOtherHumanAssignee,
@@ -11,6 +11,7 @@ import {
 import { getPendingTaskName } from "@/app/tasks/utils/pending-created-task";
 import { isAgentAssigneeFields } from "@/app/tasks/utils/task-form-status";
 import { taskHref } from "@/app/tasks/utils/task-href";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { updateTask } from "@/lib/actions/task/action";
 import { toTaskContextSelectionInput } from "./task-context-attachments";
 import { withBoardPreview } from "./use-pending-created-tasks";
@@ -264,22 +265,17 @@ export function useTaskFormSubmission(
     tRunAt,
   ]);
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented) return;
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.key === "Enter" &&
-        canUseSubmitShortcut
-      ) {
-        event.preventDefault();
-        void handleSave();
-      }
+  useEventListener("window", "keydown", (event) => {
+    if (event.defaultPrevented) return;
+    if (
+      (event.metaKey || event.ctrlKey) &&
+      event.key === "Enter" &&
+      canUseSubmitShortcut
+    ) {
+      event.preventDefault();
+      void handleSave();
     }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canUseSubmitShortcut, handleSave, mode]);
+  });
 
   return handleSave;
 }

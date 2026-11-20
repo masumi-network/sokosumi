@@ -42,12 +42,7 @@ import {
 
 interface StartGenerationParameters extends AuthenticatedRequest {
   projectId: string;
-  /**
-   * A catalog id, not an endpoint. Core maps it to the fal endpoint it has
-   * verified and rejects anything else, so the browser never names a provider
-   * URL of its own.
-   */
-  modelId: string | null;
+  letterExistingBackdrop?: boolean;
   prompt: string;
   templateId?: string;
   creativeDirection?: string;
@@ -113,9 +108,7 @@ export const startImageGeneration = withSession<
 >(async (input) => {
   try {
     const job = await imageStudioService.createJob(input.projectId, {
-      ...(input.modelId
-        ? { modelId: input.modelId as CreateProjectImageJobRequest["modelId"] }
-        : {}),
+      ...(input.letterExistingBackdrop ? { letterExistingBackdrop: true } : {}),
       prompt: input.prompt,
       ...(input.templateId ? { templateId: input.templateId } : {}),
       ...(input.creativeDirection
@@ -218,8 +211,6 @@ export const getStudioModelScoreboard = withSession<
 
 interface StartVideoGenerationParameters extends AuthenticatedRequest {
   projectId: string;
-  /** A video catalog id; null takes Core's default for the input. */
-  modelId: string | null;
   prompt: string;
   settings: CreateProjectVideoJobRequest["settings"];
   /** The gallery image to animate, or null for a video from the prompt. */
@@ -234,7 +225,6 @@ export const startVideoGeneration = withSession<
 >(async (input) => {
   try {
     const job = await imageStudioService.createVideoJob(input.projectId, {
-      ...(input.modelId ? { modelId: input.modelId } : {}),
       prompt: input.prompt,
       settings: input.settings,
       sourceAssetId: input.sourceAssetId,

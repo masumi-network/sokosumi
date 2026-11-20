@@ -6,7 +6,7 @@ import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { Button } from "@/components/ui/button";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { useClipboard } from "@/hooks/effects/use-clipboard";
 import { cn } from "@/lib/utils";
 
 export interface CopyableValueProps {

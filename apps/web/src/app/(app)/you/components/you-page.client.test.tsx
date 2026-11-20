@@ -18,7 +18,7 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({ showLogoutModal: showLogoutModalMock }),
 }));
 
-vi.mock("@/hooks/use-self-presence", () => ({
+vi.mock("@/hooks/effects/use-self-presence", () => ({
   useSelfPresence: () => "online",
 }));
 

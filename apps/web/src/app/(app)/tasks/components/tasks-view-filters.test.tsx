@@ -202,6 +202,24 @@ describe("TasksViewFilters", () => {
     window.history.replaceState(null, "", "/");
   });
 
+  it("keeps each chip's whole label: chips never shrink, a long one keeps its title", () => {
+    searchParams = new URLSearchParams("status=DRAFT&stuck=1");
+    renderTasksViewFilters(null);
+
+    const chips = within(
+      screen.getByRole("list", { name: "activeFilters" }),
+    ).getAllByRole("listitem");
+    expect(chips).toHaveLength(2);
+    for (const chip of chips) {
+      expect(chip).toHaveClass("shrink-0");
+      expect(chip).not.toHaveClass("min-w-0");
+      expect(chip.querySelector("[title]")).toHaveAttribute(
+        "title",
+        chip.querySelector("[title]")?.textContent ?? "",
+      );
+    }
+  });
+
   it("names the view, project, search and every chip for the view options menu", () => {
     window.history.replaceState(
       null,

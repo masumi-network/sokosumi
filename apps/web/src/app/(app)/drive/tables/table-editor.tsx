@@ -93,6 +93,7 @@ import {
   TableRow as TableRowShell,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useEventListener } from "@/hooks/effects/use-event-listener";
 import { useSession } from "@/lib/auth/auth.client";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
@@ -362,23 +363,30 @@ function TableWorkspace({
   const [enrichmentRequest, setEnrichmentRequest] =
     useState<Parameters<typeof dataTableService.enrich>[1]>();
   const [taskId, setTaskId] = useState<string | null>(null);
-  useEffect(() => {
-    // Read the pending state when a handler runs, not when the effect does.
-    // `mutate.hasPending()` is not React state, so a request that goes
-    // unresolved after the listeners are installed re-renders nothing, and a
-    // captured boolean would let a link navigate away from a write that may
-    // have committed. `allowNavigation` reads it live for the same reason.
-    const isUnresolved = () =>
-      pending ||
-      !!retryAction ||
-      mutate.hasPending() ||
-      (!!enrichmentRequest && !taskId);
-    if (!hasDrafts && !isUnresolved()) return;
-    function beforeUnload(event: BeforeUnloadEvent) {
+  // Read the pending state when a handler runs, not when the effect does.
+  // `mutate.hasPending()` is not React state, so a request that goes
+  // unresolved after the listeners are installed re-renders nothing, and a
+  // captured boolean would let a link navigate away from a write that may
+  // have committed. `allowNavigation` reads it live for the same reason.
+  const isUnresolved = () =>
+    pending ||
+    !!retryAction ||
+    mutate.hasPending() ||
+    (!!enrichmentRequest && !taskId);
+  const guardNavigation = hasDrafts || isUnresolved();
+
+  useEventListener(
+    guardNavigation ? "window" : null,
+    "beforeunload",
+    (event) => {
       event.preventDefault();
       event.returnValue = "";
-    }
-    function navigate(event: MouseEvent) {
+    },
+  );
+  useEventListener(
+    guardNavigation ? "document" : null,
+    "click",
+    (event) => {
       const anchor =
         event.target instanceof Element
           ? event.target.closest("a[href]")
@@ -392,14 +400,9 @@ function TableWorkspace({
         event.preventDefault();
         event.stopPropagation();
       }
-    }
-    window.addEventListener("beforeunload", beforeUnload);
-    document.addEventListener("click", navigate, true);
-    return () => {
-      window.removeEventListener("beforeunload", beforeUnload);
-      document.removeEventListener("click", navigate, true);
-    };
-  }, [enrichmentRequest, hasDrafts, mutate, pending, retryAction, t, taskId]);
+    },
+    true,
+  );
   const moveInFlight = useRef(false);
   const rowsKey = ["table-rows", table.id, definition, cursor, archivedRows];
   const rows = useQuery({

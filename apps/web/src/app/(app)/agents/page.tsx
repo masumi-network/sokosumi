@@ -9,10 +9,7 @@ import {
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
-import {
-  GALLERY_PAGE_SECTIONS_CLASS,
-  GALLERY_SECTION_HEADLINE_CLASS,
-} from "@/components/agents/gallery-page-classes";
+import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
 import { RefreshPrefetchedPage } from "@/components/refresh-prefetched-page.client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
@@ -98,21 +95,13 @@ async function AllAgentsTier() {
   );
 
   return (
-    <section className="space-y-8">
-      <div className="space-y-2">
-        <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>
-          {t("allAgentsTitle")}
-        </h2>
-        <p className="text-muted-foreground text-sm md:text-base">
-          {t("allAgentsSubtitle")}
-        </p>
-      </div>
-      <FilteredAgents
-        agents={agents}
-        ratingStatsMap={ratingStatsMap}
-        categories={mappedCategories}
-      />
-    </section>
+    <FilteredAgents
+      agents={agents}
+      ratingStatsMap={ratingStatsMap}
+      categories={mappedCategories}
+      title={t("allAgentsTitle")}
+      subtitle={t("allAgentsSubtitle")}
+    />
   );
 }
 
