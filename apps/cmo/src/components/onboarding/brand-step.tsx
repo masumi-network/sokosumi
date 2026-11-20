@@ -608,8 +608,9 @@ export function BrandStep({
                 cta="Send"
                 placeholder="Say what to fix"
                 sentNote={
+                  // The note below already says how long it waits.
                   fixWaitNote(overview).startsWith(`${AGENT_NAME} is writing`)
-                    ? `Sent. ${fixWaitNote(overview)}`
+                    ? "Sent."
                     : undefined
                 }
                 onAsk={(text) => correct(shown.section, text)}
