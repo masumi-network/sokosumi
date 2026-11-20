@@ -72,7 +72,7 @@ export function SeoResearchStatus({
     <section
       lang="en"
       aria-label={t("research.checks")}
-      className="mt-3 min-w-0 space-y-2"
+      className="min-w-0 space-y-3"
     >
       <p className="text-xs text-muted-foreground">
         <SeoDate report day value={observedAt} />
@@ -84,17 +84,21 @@ export function SeoResearchStatus({
               {scope === "site" ? t("summary.wholeSite") : pageUrl}
             </p>
           )}
-          <dl className="space-y-1 text-sm">
+          <dl className="divide-y text-sm">
             {stages.map((stage) => (
               <div
                 key={stage.name}
-                className="flex flex-wrap items-baseline gap-x-2"
+                className="grid items-baseline gap-x-5 gap-y-1 py-3 sm:grid-cols-[minmax(10rem,1fr)_2fr]"
               >
-                <dt>{t(`summary.stage.${stage.name}`)}</dt>
+                <dt className="font-medium">
+                  {t(`summary.stage.${stage.name}`)}
+                </dt>
                 <dd className="text-muted-foreground">
                   {t(`summary.progress.${stage.status}`)}
                   {stage.reason && (
-                    <span className="block text-xs">{stage.reason}</span>
+                    <span className="mt-1 block max-w-prose text-xs leading-relaxed">
+                      {stage.reason}
+                    </span>
                   )}
                 </dd>
               </div>

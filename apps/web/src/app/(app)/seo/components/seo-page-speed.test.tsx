@@ -61,7 +61,10 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
   );
   const panel = within(screen.getByRole("region", { name: "Page speed" }));
   expect(panel.getByText("Mobile · LCP 7.4 s")).toBeVisible();
+  expect(panel.getByText("Over the 2.5 s lab target")).toBeVisible();
   fireEvent.click(panel.getByText("Mobile · LCP 7.4 s"));
+  fireEvent.click(panel.getByText("Unused JavaScript"));
+  fireEvent.click(panel.getByText(messages.App.Seo.pageSpeed.scores));
   expect(panel.getByText("108 KiB could be saved.")).toBeVisible();
   expect(panel.getByText("Check the bundle.")).toBeVisible();
   expect(panel.getByText("72")).toBeVisible();

@@ -62,7 +62,7 @@ it("shows Google processing errors, the scoped inspection sample and its source 
   expect(screen.getByText("https://example.test/guide")).toBeDefined();
 });
 
-it("shows the evidence for a single Search Console action before expanding it", () => {
+it("shows Search Console evidence in its panel and the suggested action on request", () => {
   const url = "https://example.test/sitemap.xml";
   render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
@@ -86,12 +86,19 @@ it("shows the evidence for a single Search Console action before expanding it", 
       />
     </NextIntlClientProvider>,
   );
-  const summary = screen.getByText(
-    "The public sitemap is absent from the submitted list.",
-    { selector: "summary span > span" },
-  );
+  const summary = screen.getByText(messages.App.Seo.discovery.actionsHeading, {
+    selector: "summary span > span",
+  });
   expect(summary).toBeVisible();
   expect(screen.getByText("Submit the existing sitemap.")).not.toBeVisible();
   fireEvent.click(summary);
+  expect(
+    screen.getByText("The public sitemap is absent from the submitted list."),
+  ).toBeVisible();
+  fireEvent.click(
+    screen.getByText(messages.App.Seo.discovery.actions, {
+      selector: "summary",
+    }),
+  );
   expect(screen.getByText("Submit the existing sitemap.")).toBeVisible();
 });

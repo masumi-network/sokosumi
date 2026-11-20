@@ -136,6 +136,13 @@ describe("SEO action worklist", () => {
       <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
         <SeoActionWorklist
           actions={[high, low]}
+          evidence={Array.from({ length: 6 }, (_, index) => ({
+            key: String(index),
+            kind: "evidence",
+            bucket: "high",
+            title: "High priority " + index,
+            facts: [],
+          }))}
           severity={severity}
           model={
             {

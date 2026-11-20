@@ -2,6 +2,8 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoDate, SeoFoldSummary } from "./seo-shared";
 
+import { GOOD_LAB_LCP_MS } from "./seo-worklist-evidence";
+
 type Row = NonNullable<
   ProjectSeoWorkspace["observations"][number]["pageSpeed"]
 >[number];
@@ -55,7 +57,7 @@ function Metrics({
 }) {
   const t = useSeoResultTranslations("App.Seo.pageSpeed");
   return (
-    <dl className="flex flex-wrap gap-x-6 gap-y-2">
+    <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-lg bg-muted/50 p-4 sm:grid-cols-3 lg:grid-cols-5">
       {keys.map((key) => {
         const value = values[key];
         return value == null ? null : (
@@ -63,7 +65,9 @@ function Metrics({
             <dt className="text-xs text-muted-foreground">
               {t(`metricsTitle.${key}`)}
             </dt>
-            <dd className="tabular-nums">{formattedMetric(key, value)}</dd>
+            <dd className="mt-1 text-base font-semibold tabular-nums">
+              {formattedMetric(key, value)}
+            </dd>
           </div>
         );
       })}
@@ -91,30 +95,38 @@ function Lab({ lab }: { lab: Row["lab"] }) {
       </p>
       <Metrics keys={labMetrics} values={lab.median} />
       {report && scores.some((key) => report.scores[key] != null) && (
-        <div>
-          <p className="text-xs text-muted-foreground">{t("scores")}</p>
-          <dl className="flex flex-wrap gap-x-4">
+        <details>
+          <SeoFoldSummary className="min-h-9 font-medium">
+            {t("scores")}
+          </SeoFoldSummary>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-2 py-3 sm:grid-cols-4">
             {scores.map(
               (key) =>
                 report.scores[key] != null && (
-                  <div key={key} className="flex gap-1">
+                  <div key={key} className="grid gap-1">
                     <dt>{t(`score.${key}`)}</dt>
                     <dd className="tabular-nums">{report.scores[key]}</dd>
                   </div>
                 ),
             )}
           </dl>
-        </div>
+        </details>
       )}
       {report && report.insights.length > 0 && (
         <div>
           <h5 className="font-medium">{t("insights")}</h5>
-          <ul className="list-disc space-y-2 ps-5">
+          <ul className="mt-2 divide-y">
             {report.insights.map((insight) => (
               <li key={insight.id}>
-                <p className="font-medium">{insight.title}</p>
-                <p>{insight.detail}</p>
-                <p>{insight.action}</p>
+                <details>
+                  <SeoFoldSummary className="min-h-10 py-2">
+                    {insight.title}
+                  </SeoFoldSummary>
+                  <div className="max-w-prose space-y-2 pb-3 text-muted-foreground">
+                    <p>{insight.detail}</p>
+                    <p>{insight.action}</p>
+                  </div>
+                </details>
               </li>
             ))}
           </ul>
@@ -127,9 +139,11 @@ function Lab({ lab }: { lab: Row["lab"] }) {
 export function SeoPageSpeed({
   rows,
   at,
+  embedded = false,
 }: {
   rows: Row[] | undefined;
   at: Date | string;
+  embedded?: boolean;
 }) {
   const t = useSeoResultTranslations("App.Seo");
   if (!rows?.length) return null;
@@ -137,10 +151,10 @@ export function SeoPageSpeed({
     <section
       lang="en"
       aria-label={t("pageSpeed.title")}
-      className="mt-4 min-w-0 space-y-2 text-sm"
+      className="min-w-0 space-y-4 text-sm"
     >
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="font-semibold">{t("pageSpeed.title")}</h3>
+        {!embedded && <h3 className="font-semibold">{t("pageSpeed.title")}</h3>}
         <span className="text-xs text-muted-foreground">
           {t("pageSpeed.date")} <SeoDate report day value={at} />
         </span>
@@ -149,20 +163,33 @@ export function SeoPageSpeed({
         Map.groupBy(rows, (row) => row.pageUrl),
         ([url, devices]) => (
           <div key={url}>
-            <p className="break-all font-medium">{url}</p>
+            <p className="mb-3 break-all text-sm font-medium">{url}</p>
             {devices.map(({ testedUrl, device, lab, field }) => (
-              <details key={device} className="border-b py-2">
-                <SeoFoldSummary>
-                  {t(`breakdown.devices.${device}`)} ·{" "}
-                  {lab.status === "measured" && lab.median.lcp !== null
-                    ? "LCP " + formattedMetric("lcp", lab.median.lcp)
-                    : lab.status === "measured"
-                      ? t("pageSpeed.lab")
-                      : t(`pageSpeed.${lab.status}`)}
+              <details key={device} className="border-t">
+                <SeoFoldSummary className="min-h-12 gap-3 py-2 font-medium tabular-nums">
+                  <span className="min-w-0 flex-1">
+                    {t(`breakdown.devices.${device}`)} ·{" "}
+                    {lab.status === "measured" && lab.median.lcp !== null
+                      ? "LCP " + formattedMetric("lcp", lab.median.lcp)
+                      : lab.status === "measured"
+                        ? t("pageSpeed.lab")
+                        : t(`pageSpeed.${lab.status}`)}
+                  </span>
+                  {lab.status === "measured" && lab.median.lcp != null && (
+                    <span className="text-xs font-normal text-muted-foreground">
+                      {t(
+                        lab.median.lcp > GOOD_LAB_LCP_MS
+                          ? "pageSpeed.overTarget"
+                          : "pageSpeed.withinTarget",
+                      )}
+                    </span>
+                  )}
                 </SeoFoldSummary>
-                <div className="mt-2 min-w-0 space-y-3 ps-2">
+                <div className="min-w-0 space-y-5 pb-5">
                   {testedUrl !== url && (
-                    <p className="break-all">{testedUrl}</p>
+                    <p className="break-all text-xs text-muted-foreground">
+                      {testedUrl}
+                    </p>
                   )}
                   <div className="space-y-2">
                     <h4 className="font-medium">{t("pageSpeed.lab")}</h4>

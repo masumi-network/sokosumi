@@ -13186,6 +13186,15 @@
         "checkAnchor": "Review the empty text entry in Search Console and check the source links for useful text or image alt text.",
         "checkDomain": "Open this domain in the Links report and review which of your pages it links to."
       },
+      "planning": {
+        "savedActions": "Saved audit actions",
+        "title": "Strategic planning",
+        "paint": "Improve {device} loading speed",
+        "labLcp": "Largest contentful paint took {seconds} s in Lighthouse.",
+        "trace": "Identify the largest visible element in the performance trace and check when it starts loading.",
+        "retest": "Repeat the Lighthouse test on {device} under the same conditions and compare LCP.",
+        "inspectionHistory": "Inspection history"
+      },
       "research": {
         "latest": "Latest",
         "checkCount": "{count, plural, one {# check} other {# checks}}",
@@ -13196,6 +13205,10 @@
         "console": "{actions, plural, one {# action} other {# actions}} · {changes, plural, one {# change} other {# changes}}"
       },
       "siteEvidence": {
+        "eligible": "Eligible URLs",
+        "verified": "Verified",
+        "deferredCount": "Deferred",
+        "otherTargets": "Other sampled targets ({count})",
         "unknownResponse": "Unverified",
         "linkingPages": "{count, plural, one {# sampled linking page} other {# sampled linking pages}}",
         "discovered": "Eligible URLs: {count}. Public responses verified: {checked}. Deferred: {deferred}.",
@@ -14568,6 +14581,8 @@
         }
       },
       "pageSpeed": {
+        "overTarget": "Over the 2.5 s lab target",
+        "withinTarget": "Within the 2.5 s lab target",
         "title": "Page speed",
         "lab": "Lighthouse lab test",
         "field": "Real-user measurements from CrUX",

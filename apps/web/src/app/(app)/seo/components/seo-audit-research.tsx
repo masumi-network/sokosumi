@@ -34,7 +34,7 @@ function ResearchRow({
   return (
     <li>
       <details>
-        <SeoFoldSummary className="min-h-12 gap-3 px-3 py-2 text-sm hover:bg-accent">
+        <SeoFoldSummary className="min-h-14 gap-3 px-4 py-3 sm:px-5 text-sm hover:bg-accent">
           <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
           <span className="flex min-w-0 flex-1 flex-col gap-x-3 sm:flex-row sm:items-baseline sm:justify-between">
             <span className="font-medium">{title}</span>
@@ -43,7 +43,7 @@ function ResearchRow({
             </span>
           </span>
         </SeoFoldSummary>
-        <div className="min-w-0 space-y-2 border-t px-3 py-3 text-sm">
+        <div className="min-w-0 space-y-4 border-t px-4 py-5 text-sm sm:px-6">
           {children}
         </div>
       </details>
@@ -120,7 +120,7 @@ export function SeoAuditResearch({
             title={t("pageSpeed.title")}
             summary={pageSpeedSummary(speed, t)}
           >
-            <SeoPageSpeed rows={speed} at={full.observedAt} />
+            <SeoPageSpeed embedded rows={speed} at={full.observedAt} />
           </ResearchRow>
         ) : null}
         {site && (
@@ -138,25 +138,19 @@ export function SeoAuditResearch({
                 : t("research.targets", { count: site.targets.length })
             }
           >
-            <SeoSiteEvidence evidence={site} />
+            <SeoSiteEvidence embedded evidence={site} />
           </ResearchRow>
         )}
         {discovery && consoleItems > 0 && (
           <ResearchRow
             icon={ListChecks}
             title={t("discovery.actionsHeading")}
-            summary={
-              consoleItems === 1
-                ? discovery.actions[0]?.evidence ||
-                  discovery.changes[0]?.text ||
-                  discovery.actions[0]?.action
-                : t("research.console", {
-                    actions: discovery.actions.length,
-                    changes: discovery.changes.length,
-                  })
-            }
+            summary={t("research.console", {
+              actions: discovery.actions.length,
+              changes: discovery.changes.length,
+            })}
           >
-            <SeoDiscoveryActions evidence={discovery} />
+            <SeoDiscoveryActions embedded evidence={discovery} />
           </ResearchRow>
         )}
       </ul>

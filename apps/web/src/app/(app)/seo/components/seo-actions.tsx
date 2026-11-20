@@ -3,6 +3,7 @@
 import { Play, Plug, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { SeoActionWorklist } from "./seo-action-worklist";
 import { SeoArticleDates } from "./seo-article-dates";
 import {
@@ -10,28 +11,20 @@ import {
   SeoCurrentDiscoveryActions,
 } from "./seo-audit-discovery";
 import { SeoAuditResearch } from "./seo-audit-research";
-import { SeoBriefPagePriority } from "./seo-brief-summary";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoActionsExport } from "./seo-export-model";
 import { seoOverviewModel } from "./seo-overview-model";
 import { SeoPageDetails } from "./seo-page-details";
 import { SeoEmpty, SeoSection } from "./seo-shared";
-import { SeoStrategyActions, SeoStrategyPlaceNotes } from "./seo-strategy";
+import { SeoStrategicPlanning } from "./seo-strategic-planning";
+import { seoWorklistEvidence } from "./seo-worklist-evidence";
+
 import type { SeoWorkspaceModel } from "./use-seo-workspace";
 
 export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
   const t = useTranslations("App.Seo");
   const overview = seoOverviewModel(model.data);
-  const csv = (
-    <SeoExportMenu
-      name="actions"
-      titleKey="actions.title"
-      workspace={model.data}
-      table={(report) => seoActionsExport(overview.actions, report)}
-    />
-  );
-  // The strategy actions are a group with a title of their own: a group over them needs one too.
-  const strategyFollows = Boolean(model.data.strategy?.actions.length);
+  const result = useSeoResultTranslations("App.Seo");
   const searchLoaded = model.data.searchQueries !== null;
   // The recheck rule matters only once a Task exists for an action.
   const tracked = overview.actions.some((action) => Boolean(action.taskId));
@@ -40,35 +33,28 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
     model.data,
     Boolean(model.filters.pageId || model.filters.scopeId),
   );
-  const hasAdditionalActions =
-    strategyFollows ||
-    Boolean(
-      searchResult?.discovery?.actions.length ||
-        searchResult?.pageDiscovery?.pages.some((page) => page.suggestion),
-    );
+  const evidence = seoWorklistEvidence(
+    model.data,
+    searchResult,
+    overview.actions,
+    result,
+  );
+  const hasActions = overview.actions.length > 0 || evidence.length > 0;
+  const csv = (
+    <SeoExportMenu
+      name="actions"
+      showTitle={evidence.length > 0}
+      titleKey={evidence.length ? "planning.savedActions" : "actions.title"}
+      workspace={model.data}
+      table={(report) => seoActionsExport(overview.actions, report)}
+    />
+  );
   const research = (
     <SeoAuditResearch
       workspace={model.data}
       discovery={searchResult?.discovery}
     />
   );
-  const additionalActionsOnly =
-    !overview.actions.length && hasAdditionalActions;
-  if (additionalActionsOnly)
-    return (
-      <div className="space-y-5">
-        <SeoBriefPagePriority model={model} />
-        <SeoCurrentDiscoveryActions
-          workspace={model.data}
-          result={searchResult}
-        />
-        <SeoStrategyActions model={model} />
-        {research}
-        <SeoPageDetails model={model} standalone />
-        <SeoArticleDates workspace={model.data} />
-        <SeoStrategyPlaceNotes model={model} />
-      </div>
-    );
   return (
     <div className="space-y-5">
       <SeoSection
@@ -78,11 +64,12 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         actions={overview.actions.length ? csv : undefined}
         // An empty list says its state in its own title, so the section title would say it twice.
         // An empty list with strategy actions under it returns early above, with the strategy title.
-        titleHidden={!overview.actions.length}
+        titleHidden={!hasActions}
       >
-        {overview.actions.length ? (
+        {hasActions ? (
           <SeoActionWorklist
             actions={overview.actions}
+            evidence={evidence}
             severity={overview.actionSeverity}
             model={model}
           />
@@ -141,17 +128,15 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
           </SeoEmpty>
         )}
         {/* The page details are what the checks measured on the pages: they close the list of what to do. */}
-        <SeoPageDetails model={model} />
       </SeoSection>
       {research}
-      <SeoBriefPagePriority model={model} />
-      <SeoStrategyActions model={model} afterFixes />
+      <SeoStrategicPlanning model={model} />
+      <SeoPageDetails model={model} standalone />
       <SeoCurrentDiscoveryActions
         workspace={model.data}
         result={searchResult}
       />
       <SeoArticleDates workspace={model.data} />
-      <SeoStrategyPlaceNotes model={model} />
     </div>
   );
 }

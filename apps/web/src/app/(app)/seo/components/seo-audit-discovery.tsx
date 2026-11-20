@@ -2,7 +2,7 @@ import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoConsoleExportActions } from "./seo-console-export-actions";
-import { SeoPropertyPageDiscovery } from "./seo-property-page-discovery";
+
 import { SeoFoldSummary } from "./seo-shared";
 
 type Evidence = NonNullable<
@@ -12,19 +12,34 @@ type Evidence = NonNullable<
 const day = (value: Date | string) =>
   new Date(value).toISOString().slice(0, 10);
 
-export function SeoDiscoveryActions({ evidence }: { evidence: Evidence }) {
+export function SeoDiscoveryActions({
+  evidence,
+  embedded = false,
+}: {
+  evidence: Evidence;
+  embedded?: boolean;
+}) {
   const t = useSeoResultTranslations("App.Seo.discovery");
   if (!evidence.actions.length && !evidence.changes.length) return null;
   return (
-    <section lang="en" className="space-y-2">
-      <h4 className="font-medium">{t("actions")}</h4>
+    <section lang="en" className="min-w-0 space-y-4 text-sm">
+      {!embedded && <h4 className="font-medium">{t("actions")}</h4>}
       {evidence.actions.length > 0 && (
         <ul className="space-y-2">
           {evidence.actions.map((a) => (
-            <li key={a.url + a.action}>
-              <p className="break-all text-muted-foreground">{a.url}</p>
-              <p>{a.action}</p>
-              <p className="text-muted-foreground">{a.evidence}</p>
+            <li key={a.url + a.action} className="space-y-2 border-s-2 ps-4">
+              <p className="max-w-prose font-medium">{a.evidence}</p>
+              <p className="break-all text-xs text-muted-foreground">{a.url}</p>
+              {embedded ? (
+                <details>
+                  <SeoFoldSummary className="min-h-9">
+                    {t("actions")}
+                  </SeoFoldSummary>
+                  <p className="max-w-prose py-2">{a.action}</p>
+                </details>
+              ) : (
+                <p>{a.action}</p>
+              )}
             </li>
           ))}
         </ul>
@@ -32,7 +47,7 @@ export function SeoDiscoveryActions({ evidence }: { evidence: Evidence }) {
       {evidence.changes.length > 0 && (
         <ul className="space-y-2">
           {evidence.changes.map((c) => (
-            <li key={c.url + c.text}>
+            <li key={c.url + c.text} className="space-y-2 border-s-2 ps-4">
               <p className="break-all">{c.url}</p>
               <p>
                 {t("change", {
@@ -186,7 +201,6 @@ export function SeoCurrentDiscoveryActions({
 }) {
   return (
     <>
-      {result && <SeoPropertyPageDiscovery report={result} actionsOnly />}
       {result && (
         <SeoConsoleExportActions
           owner={seoWorkspaceOwner(workspace)}

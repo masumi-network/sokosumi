@@ -57,16 +57,18 @@ it("shows dated public link evidence in English without a Google result", () => 
   expect(
     screen.getByText("The audit collected only part of the sample."),
   ).toBeVisible();
-  expect(
-    screen.getByText(
-      "Eligible URLs: 25. Public responses verified: 1. Deferred: 24.",
-    ),
-  ).toBeVisible();
+  for (const [label, value] of [
+    ["Eligible URLs", "25"],
+    ["Verified", "1"],
+    ["Deferred", "24"],
+  ]) {
+    expect(screen.getByText(label).nextElementSibling).toHaveTextContent(value);
+  }
   expect(screen.getByText("Deferred URLs (1 shown)")).toBeVisible();
   expect(
     screen.getByText("The audit reached its public request limit."),
   ).toBeInTheDocument();
-  expect(screen.getByText("Target returned HTTP 404.")).toBeVisible();
+  expect(screen.getByText("HTTP 404")).toBeVisible();
   expect(
     screen.getByText("Replace the broken link on the guide page."),
   ).toBeVisible();

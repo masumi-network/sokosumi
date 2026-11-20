@@ -14,8 +14,8 @@ export function SeoResearchDetails({
   return (
     <>
       {firstScreen && (
-        <details className="mt-2" lang="en">
-          <SeoFoldSummary>
+        <details className="border-t py-1" lang="en">
+          <SeoFoldSummary className="min-h-10 text-sm font-medium">
             {t("summary.researchDetails.visitor")}
           </SeoFoldSummary>
           <p className="mt-2 text-sm">
@@ -33,8 +33,10 @@ export function SeoResearchDetails({
         </details>
       )}
       {trends && trends.keywords.length > 0 && (
-        <details className="mt-2" lang="en">
-          <SeoFoldSummary>{t("summary.researchDetails.trends")}</SeoFoldSummary>
+        <details className="border-t py-1" lang="en">
+          <SeoFoldSummary className="min-h-10 text-sm font-medium">
+            {t("summary.researchDetails.trends")}
+          </SeoFoldSummary>
           <p className="my-2 text-sm text-muted-foreground">{trends.note}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">

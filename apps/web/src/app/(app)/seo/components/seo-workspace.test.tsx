@@ -1543,7 +1543,7 @@ describe("SEO workspace integration", () => {
     const actionsSection = detailsHeading.closest("section");
     expect(actionsSection).not.toBeNull();
     expect(
-      within(actionsSection as HTMLElement).getByRole("heading", {
+      screen.getByRole("heading", {
         level: 2,
         name: "Recommended actions",
       }),
@@ -6874,7 +6874,7 @@ describe("SEO workspace integration", () => {
     await user.click(step);
     expect(
       await screen.findByRole("heading", {
-        name: "Actions from the keyword strategy",
+        name: "Recommended actions",
       }),
     ).toBeVisible();
     // "No recommended actions" above these cards would say two things at once.
@@ -6905,8 +6905,8 @@ describe("SEO workspace integration", () => {
     expect(within(page).queryByText("Limit")).toBeNull();
     // Each page of the listing action is a place of its own, with how easy it is in place of the effort.
     expect(
-      screen.getByRole("heading", { name: "Where to show the product" }),
-    ).toBeVisible();
+      screen.queryByRole("heading", { name: "Where to show the product" }),
+    ).toBeNull();
     // The task and the site lead; the page title stays under them: a list's title reads as another product.
     const card = screen
       .getByRole("heading", {
@@ -7045,7 +7045,7 @@ describe("SEO workspace integration", () => {
     ).toContainElement(screen.getByRole("button", { name: "Export: Actions" }));
     first.unmount();
     const strategy = seoTestStrategy();
-    strategy.actions = Array.from({ length: 5 }, (_, index) => ({
+    strategy.actions = Array.from({ length: 7 }, (_, index) => ({
       ...strategy.actions[1],
       title: `Strategy action ${index + 1}`,
     }));
@@ -7058,23 +7058,27 @@ describe("SEO workspace integration", () => {
     ).toBeNull();
     expect(
       screen.getByRole("heading", {
-        name: "Actions from the keyword strategy",
+        name: "Recommended actions",
       }),
     ).toBeVisible();
     // Under the fixes the strategy list starts with three rows; the button opens the rest.
     const rows = () =>
-      screen
-        .queryAllByText(/^Strategy action \d$/)
-        .map((title) => title.textContent);
+      Array.from(
+        screen
+          .getByRole("list", { name: "Actions" })
+          .querySelectorAll("[data-strategy-row] h3 button span.font-medium"),
+      ).map((title) => title.textContent);
     expect(rows()).toEqual([
       "Strategy action 1",
       "Strategy action 2",
       "Strategy action 3",
+      "Strategy action 4",
+      "Strategy action 5",
     ]);
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "Show 2 more actions" }));
-    expect(rows()).toHaveLength(5);
+    expect(rows()).toHaveLength(7);
     second.unmount();
     // The Agent row names the count of the strategy actions: it lands on their group, with every row in view.
     // With a finished check the Agent tab shows its steps.
@@ -7099,22 +7103,29 @@ describe("SEO workspace integration", () => {
     const third = renderWorkspace(workspace, "?tab=agent");
     await userEvent.setup().click(
       await screen.findByRole("button", {
-        name: "5 actions from the keyword strategy",
+        name: "7 actions from the keyword strategy",
       }),
     );
     const group = await screen.findByRole("heading", {
-      name: "Actions from the keyword strategy",
+      name: "Recommended actions",
     });
-    await waitFor(() => expect(rows()).toHaveLength(5));
-    await waitFor(() => expect(group.closest("[role='group']")).toHaveFocus());
+    await waitFor(() => expect(rows()).toHaveLength(7));
+    await waitFor(() =>
+      expect(
+        group.closest("section")?.querySelector("[data-strategy-row] button"),
+      ).toHaveFocus(),
+    );
     // Five equal rows have no lead: the first action is open on this landing, the others are closed.
-    const head = (title: string) => screen.getByText(title).closest("button");
+    const head = (title: string) =>
+      within(screen.getByRole("list", { name: "Actions" }))
+        .getByText(title)
+        .closest("button");
     expect(head("Strategy action 1")).toHaveAttribute("aria-expanded", "true");
     expect(head("Strategy action 2")).toHaveAttribute("aria-expanded", "false");
     // The landing is for one press: opened by its tab again, the group starts with three rows.
     await userEvent.setup().click(screen.getByRole("tab", { name: "Agent" }));
     await userEvent.setup().click(screen.getByRole("tab", { name: "Actions" }));
-    await waitFor(() => expect(rows()).toHaveLength(3));
+    await waitFor(() => expect(rows()).toHaveLength(5));
     expect(head("Strategy action 1")).toHaveAttribute("aria-expanded", "false");
     // The list of sites in the results has the same way to the group.
     await userEvent
@@ -7125,17 +7136,17 @@ describe("SEO workspace integration", () => {
       .click(screen.getByRole("button", { name: "Competitors" }));
     await userEvent.setup().click(
       screen.getByRole("button", {
-        name: "Next step: 5 actions from the keyword strategy",
+        name: "Next step: 7 actions from the keyword strategy",
       }),
     );
-    await waitFor(() => expect(rows()).toHaveLength(5));
+    await waitFor(() => expect(rows()).toHaveLength(7));
     expect(head("Strategy action 1")).toHaveAttribute("aria-expanded", "true");
     third.unmount();
     // Alone on the tab the list is the page: it shows every row.
     workspace.actions = [];
     renderWorkspace(workspace, "?tab=actions");
-    expect(await screen.findAllByText(/^Strategy action \d$/)).toHaveLength(5);
-    expect(screen.queryByRole("button", { name: /more actions/ })).toBeNull();
+    expect(rows()).toHaveLength(6);
+    expect(screen.getByRole("button", { name: /more action/ })).toBeVisible();
   });
 
   it("does not repeat a type that every thread of a place shares", async () => {
@@ -7243,6 +7254,9 @@ describe("SEO workspace integration", () => {
     );
     renderWorkspace(workspace);
     await user.click(await screen.findByRole("tab", { name: "Actions" }));
+    await user.click(
+      screen.getByText("Promotion places", { selector: "summary" }),
+    );
     const section = await screen.findByTestId("seo-strategy-place-notes");
     expect(
       within(section)
@@ -7250,7 +7264,7 @@ describe("SEO workspace integration", () => {
         .map((item) => item.textContent),
     ).toEqual(strategy.placesNotes);
     expect(
-      screen.getByRole("heading", { name: "Promotion places" }),
+      screen.getByRole("heading", { name: "Strategic planning" }),
     ).toBeVisible();
   });
 

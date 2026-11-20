@@ -13186,6 +13186,15 @@
         "checkAnchor": "Prüfe den leeren Linktext in der Search Console. Kontrolliere an den Quelllinks den Linktext oder den Alternativtext von Bildern.",
         "checkDomain": "Öffne diese Domain im Linkbericht und prüfe, welche deiner Seiten sie verlinkt."
       },
+      "planning": {
+        "savedActions": "Gespeicherte Audit-Maßnahmen",
+        "title": "Strategische Planung",
+        "paint": "Ladezeit verbessern ({device})",
+        "labLcp": "Lighthouse hat für den Largest Contentful Paint {seconds} s gemessen.",
+        "trace": "Das größte sichtbare Element im Leistungsprofil ermitteln und seinen Ladebeginn prüfen.",
+        "retest": "Den Lighthouse-Test für {device} unter gleichen Bedingungen wiederholen und den LCP vergleichen.",
+        "inspectionHistory": "Prüfverlauf"
+      },
       "research": {
         "latest": "Zuletzt",
         "checkCount": "{count, plural, one {# Prüfung} other {# Prüfungen}}",
@@ -13196,6 +13205,10 @@
         "console": "{actions, plural, one {# Aktion} other {# Aktionen}} · {changes, plural, one {# Änderung} other {# Änderungen}}"
       },
       "siteEvidence": {
+        "eligible": "Geeignete URLs",
+        "verified": "Geprüft",
+        "deferredCount": "Zurückgestellt",
+        "otherTargets": "Weitere untersuchte Ziele ({count})",
         "unknownResponse": "Ungeprüft",
         "linkingPages": "{count, plural, one {# verlinkende Seite in der Stichprobe} other {# verlinkende Seiten in der Stichprobe}}",
         "discovered": "Geeignete URLs: {count}. Öffentlich verifizierte Antworten: {checked}. Zurückgestellt: {deferred}.",
@@ -14568,6 +14581,8 @@
         }
       },
       "pageSpeed": {
+        "overTarget": "Über dem Laborziel von 2,5 s",
+        "withinTarget": "Innerhalb des Laborziels von 2,5 s",
         "title": "Page speed",
         "lab": "Lighthouse lab test",
         "field": "Real-user measurements from CrUX",
