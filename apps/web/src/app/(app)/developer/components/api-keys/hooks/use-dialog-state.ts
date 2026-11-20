@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
+
+import { useScheduledTimeout } from "@/hooks/effects/use-scheduled-timeout";
 
 import type { ApiKeyRecord, DialogState } from "../types";
 import { DIALOG_CLEANUP_TIMEOUT } from "../utils";
@@ -12,19 +14,14 @@ export function useDialogState(): DialogState {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [keyToDelete, setKeyToDelete] = useState<ApiKeyRecord | null>(null);
 
-  const dialogTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dialogTimeout = useScheduledTimeout();
+  const deleteTimeout = useScheduledTimeout();
 
   const clearDialogStateWithDelay = useCallback(() => {
-    if (dialogTimeoutRef.current) {
-      clearTimeout(dialogTimeoutRef.current);
-    }
-
-    dialogTimeoutRef.current = setTimeout(() => {
+    dialogTimeout.schedule(() => {
       setCreatedKey(null);
-      dialogTimeoutRef.current = null;
     }, DIALOG_CLEANUP_TIMEOUT);
-  }, []);
+  }, [dialogTimeout]);
 
   const setCreateOpen = useCallback(
     (open: boolean) => {
@@ -36,29 +33,17 @@ export function useDialogState(): DialogState {
     [clearDialogStateWithDelay],
   );
 
-  const setDeleteOpen = useCallback((open: boolean) => {
-    setDeleteDialogOpen(open);
-    if (!open) {
-      if (deleteTimeoutRef.current) {
-        clearTimeout(deleteTimeoutRef.current);
+  const setDeleteOpen = useCallback(
+    (open: boolean) => {
+      setDeleteDialogOpen(open);
+      if (!open) {
+        deleteTimeout.schedule(() => {
+          setKeyToDelete(null);
+        }, DIALOG_CLEANUP_TIMEOUT);
       }
-      deleteTimeoutRef.current = setTimeout(() => {
-        setKeyToDelete(null);
-        deleteTimeoutRef.current = null;
-      }, DIALOG_CLEANUP_TIMEOUT);
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (dialogTimeoutRef.current) {
-        clearTimeout(dialogTimeoutRef.current);
-      }
-      if (deleteTimeoutRef.current) {
-        clearTimeout(deleteTimeoutRef.current);
-      }
-    };
-  }, []);
+    },
+    [deleteTimeout],
+  );
 
   return {
     createDialog: {
