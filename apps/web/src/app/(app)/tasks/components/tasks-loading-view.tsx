@@ -1,12 +1,15 @@
-import { Ellipsis } from "lucide-react";
+import type { ReactNode } from "react";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
-import { TASK_CARD_DENSITY_CLASS } from "@/app/tasks/constants";
+import {
+  TASK_CARD_DENSITY_CLASS,
+  TASKS_BOARD_MIN_HEIGHT_CLASS,
+  TASKS_TOOLBAR_ROW_CLASS,
+} from "@/app/tasks/constants";
 import {
   COLUMN_STATUS_COLORS,
   KANBAN_COLUMNS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { TasksViewMode } from "@/lib/ui-preferences/tasks-view-mode";
 import { cn } from "@/lib/utils";
@@ -19,9 +22,6 @@ const LIST_SKELETON_ROW_COUNT = 6;
 
 export interface TasksLoadingLabels {
   columns: Record<KanbanColumnId, string>;
-  display: {
-    button: string;
-  };
 }
 
 interface TasksLoadingViewProps {
@@ -29,44 +29,15 @@ interface TasksLoadingViewProps {
   /** Matches the `tasks_density` preference, so placeholders take the real size. */
   compact?: boolean;
   labels: TasksLoadingLabels;
-}
-
-/** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
-export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
-  columns: {
-    backlog: "Backlog",
-    todo: "Todo",
-    "in-progress": "In progress",
-    "input-required": "Input required",
-    done: "Done",
-  },
-  display: {
-    button: "View options",
-  },
-};
-
-export function TasksPageSkeleton({
-  viewMode,
-  compact,
-}: {
-  viewMode?: TasksViewMode;
-  compact?: boolean;
-}) {
-  return (
-    <div className="w-full">
-      <TasksLoadingView
-        viewMode={viewMode}
-        compact={compact}
-        labels={TASKS_LOADING_DEFAULT_LABELS}
-      />
-    </div>
-  );
+  /** The board's own toolbar, drawn from the URL, so the columns open where they stay. */
+  toolbar?: ReactNode;
 }
 
 export function TasksLoadingView({
   viewMode,
   compact = false,
   labels,
+  toolbar,
 }: TasksLoadingViewProps) {
   const resolvedViewMode = viewMode ?? "board";
 
@@ -77,19 +48,7 @@ export function TasksLoadingView({
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
-      <div className="flex flex-row items-center justify-end gap-3">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="hit-area"
-            aria-label={labels.display.button}
-            disabled
-          >
-            <Ellipsis className="size-4" aria-hidden />
-          </Button>
-        </div>
-      </div>
+      <div className={TASKS_TOOLBAR_ROW_CLASS}>{toolbar}</div>
 
       <div
         className={cn(
@@ -125,7 +84,12 @@ function TasksBoardLoading({
   compact: boolean;
 }) {
   return (
-    <div className="-mx-2 flex size-full min-h-[calc(100dvh-8.5rem)] min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
+    <div
+      className={cn(
+        "-mx-2 flex size-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar",
+        TASKS_BOARD_MIN_HEIGHT_CLASS,
+      )}
+    >
       {KANBAN_COLUMNS.map((column, index) => {
         const cardCount = BOARD_SKELETON_CARD_COUNTS[index] ?? 1;
 
@@ -215,7 +179,7 @@ function TaskCardSkeleton({ compact }: { compact: boolean }) {
 }
 
 /** One blank text line, so the bar takes the real line height of its type size. */
-function TextLineSkeleton({ className }: { className: string }) {
+export function TextLineSkeleton({ className }: { className: string }) {
   return (
     <Skeleton className={cn("text-transparent select-none", className)}>
       &nbsp;
