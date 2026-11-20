@@ -2,11 +2,11 @@ import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { type ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { Activity, type ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 
@@ -59,6 +59,7 @@ interface FullCalendarProps {
   eventContent?: (info: {
     event: { id: string; title: string; start?: Date | null };
   }) => ReactNode;
+  height?: number | string;
   initialView?: string;
 }
 
@@ -92,6 +93,10 @@ const WEEK_ITEM: WorkspaceCalendarItem = {
 };
 
 describe("WorkspaceCalendar week layout", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
   it.each([
     "QUEUED",
     "RUNNING",
@@ -357,5 +362,109 @@ describe("WorkspaceCalendar week layout", () => {
     expect(toastInfoMock).toHaveBeenCalledWith(
       "Only upcoming runs of your own active schedules can be moved.",
     );
+  });
+
+  it("fills social week height from parent ResizeObserver and window resize and resumes after Activity hide", () => {
+    let calendarTop = 100;
+    const observed: Element[] = [];
+    const disconnect = vi.fn();
+    let triggerResize: (() => void) | null = null;
+
+    vi.stubGlobal("innerHeight", 900);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        return {
+          top:
+            this.getAttribute("data-testid") === "calendar-week"
+              ? calendarTop
+              : 0,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        };
+      },
+    );
+    vi.stubGlobal(
+      "ResizeObserver",
+      class implements ResizeObserver {
+        constructor(private callback: ResizeObserverCallback) {}
+        observe(target: Element) {
+          observed.push(target);
+          triggerResize = () => this.callback([], this);
+        }
+        unobserve() {}
+        disconnect = disconnect;
+      },
+    );
+
+    const tree = (
+      <NuqsTestingAdapter searchParams="?timezone=UTC&view=week">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[]}
+          types={["social"]}
+        />
+      </NuqsTestingAdapter>
+    );
+
+    const { rerender } = renderCalendar(
+      <Activity mode="visible">{tree}</Activity>,
+    );
+
+    const weekEl = screen.getByTestId("calendar-week");
+    expect(observed[0]).toBe(weekEl.parentElement);
+    expect(
+      (fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps | undefined)
+        ?.height,
+    ).toBe(776);
+
+    calendarTop = 200;
+    act(() => triggerResize?.());
+    expect(
+      (fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps | undefined)
+        ?.height,
+    ).toBe(676);
+
+    vi.stubGlobal("innerHeight", 700);
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(
+      (fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps | undefined)
+        ?.height,
+    ).toBe(476);
+
+    rerender(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        messages={messages}
+        formats={createFormats("h12")}
+      >
+        <Activity mode="hidden">{tree}</Activity>
+      </NextIntlClientProvider>,
+    );
+    expect(disconnect).toHaveBeenCalled();
+
+    calendarTop = 120;
+    rerender(
+      <NextIntlClientProvider
+        locale="en"
+        timeZone="UTC"
+        messages={messages}
+        formats={createFormats("h12")}
+      >
+        <Activity mode="visible">{tree}</Activity>
+      </NextIntlClientProvider>,
+    );
+    expect(
+      (fullCalendarMock.mock.lastCall?.[0] as FullCalendarProps | undefined)
+        ?.height,
+    ).toBe(556);
   });
 });
