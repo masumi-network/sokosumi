@@ -20,7 +20,6 @@ import { StatusText } from "./status";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Stage = NonNullable<Strategy["funnel"]>[number];
-type Pace = NonNullable<Strategy["pace"]>["level"];
 type Source = CmoOverview["measurement"][number];
 
 const SOURCE_ICONS = {
@@ -370,16 +369,6 @@ export function BeforeAfter({
     </ul>
   );
 }
-
-export const PACES: { level: Pace; name: string; does: string }[] = [
-  { level: "steady", name: "Steady", does: "One a day on each network" },
-  { level: "active", name: "Active", does: "Two a day on each network" },
-  {
-    level: "all_in",
-    name: "All-in",
-    does: "Up to three a day on each network",
-  },
-];
 
 export function money(amount: number, currency: string): string {
   try {
