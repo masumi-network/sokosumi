@@ -272,7 +272,14 @@ function nmkrHowToPlan(): unknown {
     goals: ["More paid NMKR Studio projects"],
     audience: "Creators and brands launching tokens on Cardano",
     positioning: "The no-code way to mint and sell on Cardano",
-    idea: "Every week, one task in NMKR Studio shown start to finish.",
+    idea: {
+      who: "Creators and brands launching tokens on Cardano",
+      position: "The no-code way to mint and sell on Cardano",
+      attract: "One NMKR Studio task shown start to finish on each network",
+      offer: "NMKR Studio",
+      sentence:
+        "We show creators one NMKR Studio task at a time, start to finish, and invite them to start a project.",
+    },
     pillars: [
       {
         name: "Minting without code",
