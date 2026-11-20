@@ -30,7 +30,7 @@ import {
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import { useAbortControllers } from "@/hooks/effects/use-abort-controller";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -72,7 +72,8 @@ export function TaskActivityComposer({
   const formRef = useRef<HTMLFormElement | null>(null);
   const editorRef = useRef<ComposerWysiwygEditorHandle | null>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
-  const uploadControllers = useAbortControllers();
+  const activeUploadControllersRef = useRef(new Set<AbortController>());
+  const isUnmountingRef = useRef(false);
   const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<
     RoomMessageComposerAttachment[]
@@ -86,6 +87,18 @@ export function TaskActivityComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
+
+  useMountEffect(() => {
+    isUnmountingRef.current = false;
+    const controllers = activeUploadControllersRef.current;
+    return () => {
+      isUnmountingRef.current = true;
+      for (const controller of controllers) {
+        controller.abort();
+      }
+      controllers.clear();
+    };
+  });
 
   const isUploading = uploadingCount > 0;
   const content = buildRoomComposerMessageContent(
@@ -131,7 +144,8 @@ export function TaskActivityComposer({
         ),
       },
     });
-    const controller = uploadControllers.create();
+    const controller = new AbortController();
+    activeUploadControllersRef.current.add(controller);
     setUploadingCount((count) => count + 1);
     try {
       for (const [index, file] of files.entries()) {
@@ -152,13 +166,13 @@ export function TaskActivityComposer({
       router.refresh();
     } catch (error) {
       uploadToast.dismiss();
-      if (!controller.signal.aborted) {
+      if (!(isUnmountingRef.current && controller.signal.aborted)) {
         toast.error(
           getUserFileUploadErrorMessage(error, t("uploadFileErrorRetry")),
         );
       }
     } finally {
-      uploadControllers.release(controller);
+      activeUploadControllersRef.current.delete(controller);
       setPendingUploadFiles([]);
       setUploadingCount((count) => count - 1);
     }
