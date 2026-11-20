@@ -26,6 +26,26 @@ function formattedMetric(key: Metric, value: number) {
   );
 }
 
+export function pageSpeedSummary(
+  rows: Row[],
+  t: ReturnType<typeof useSeoResultTranslations<"App.Seo">>,
+) {
+  const pages = new Set(rows.map((row) => row.pageUrl));
+  if (pages.size === 1) {
+    const timings = rows.flatMap(({ device, lab }) =>
+      lab.status === "measured" && lab.median.lcp != null
+        ? [
+            t(`breakdown.devices.${device}`) +
+              " LCP " +
+              formattedMetric("lcp", lab.median.lcp),
+          ]
+        : [],
+    );
+    if (timings.length) return timings.join(" · ");
+  }
+  return t("pages.count", { count: pages.size });
+}
+
 function Metrics({
   keys,
   values,

@@ -13186,7 +13186,18 @@
         "checkAnchor": "Revisa la entrada vacía en Search Console y comprueba el texto de los enlaces y el texto alternativo de las imágenes de origen.",
         "checkDomain": "Abre este dominio en el informe de enlaces y revisa a qué páginas tuyas enlaza."
       },
+      "research": {
+        "latest": "Última revisión",
+        "checkCount": "{count, plural, one {# comprobación} other {# comprobaciones}}",
+        "checks": "Comprobaciones de investigación",
+        "incomplete": "{stage} sin completar",
+        "coverage": "{verified} de {total} verificadas · {deferred} aplazadas",
+        "targets": "{count, plural, one {# URL de destino} other {# URL de destino}}",
+        "console": "{actions, plural, one {# acción} other {# acciones}} · {changes, plural, one {# cambio} other {# cambios}}"
+      },
       "siteEvidence": {
+        "unknownResponse": "Sin verificar",
+        "linkingPages": "{count, plural, one {# página enlazante en la muestra} other {# páginas enlazantes en la muestra}}",
         "discovered": "URLs aptas: {count}. Respuestas públicas verificadas: {checked}. Pendientes: {deferred}.",
         "deferred": "URLs pendientes ({count} visibles)",
         "reasons": {

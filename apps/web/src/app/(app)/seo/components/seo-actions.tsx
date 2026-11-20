@@ -9,6 +9,7 @@ import {
   currentDiscoveryResult,
   SeoCurrentDiscoveryActions,
 } from "./seo-audit-discovery";
+import { SeoAuditResearch } from "./seo-audit-research";
 import { SeoBriefPagePriority } from "./seo-brief-summary";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoActionsExport } from "./seo-export-model";
@@ -45,6 +46,12 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
       searchResult?.discovery?.actions.length ||
         searchResult?.pageDiscovery?.pages.some((page) => page.suggestion),
     );
+  const research = (
+    <SeoAuditResearch
+      workspace={model.data}
+      discovery={searchResult?.discovery}
+    />
+  );
   const additionalActionsOnly =
     !overview.actions.length && hasAdditionalActions;
   if (additionalActionsOnly)
@@ -56,6 +63,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
           result={searchResult}
         />
         <SeoStrategyActions model={model} />
+        {research}
         <SeoPageDetails model={model} standalone />
         <SeoArticleDates workspace={model.data} />
         <SeoStrategyPlaceNotes model={model} />
@@ -135,6 +143,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         {/* The page details are what the checks measured on the pages: they close the list of what to do. */}
         <SeoPageDetails model={model} />
       </SeoSection>
+      {research}
       <SeoBriefPagePriority model={model} />
       <SeoStrategyActions model={model} afterFixes />
       <SeoCurrentDiscoveryActions

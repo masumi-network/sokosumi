@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { expect, it } from "vitest";
@@ -46,6 +46,10 @@ it("shows dated public link evidence in English without a Google result", () => 
       </SeoResultMessagesProvider>
     </NextIntlClientProvider>,
   );
+  expect(
+    screen.getByText("Replace the broken link on the guide page."),
+  ).not.toBeVisible();
+  fireEvent.click(screen.getByText("/removed"));
   expect(screen.getByRole("link", { name: target })).toHaveAttribute(
     "href",
     target,
@@ -102,6 +106,7 @@ it("labels Google referring URLs and sitemaps separately from sampled internal l
     </NextIntlClientProvider>,
   );
   const user = userEvent.setup();
+  await user.click(screen.getByText("/page"));
   await user.click(screen.getByText(en.App.Seo.discovery.referringPages));
   await user.click(screen.getByText(en.App.Seo.discovery.reportedSitemaps));
   expect(screen.getByRole("link", { name: referrer })).toHaveAttribute(
@@ -156,6 +161,7 @@ it("shows three dated counts and the missing source for a repeated decline", () 
       />
     </NextIntlClientProvider>,
   );
+  fireEvent.click(screen.getByText("/service"));
   expect(
     screen.getByRole("heading", { name: en.App.Seo.siteEvidence.decline }),
   ).toBeVisible();
@@ -203,6 +209,7 @@ it.each([
         />
       </NextIntlClientProvider>,
     );
+    fireEvent.click(screen.getByText("/target"));
     expect(screen.getByText(label)).toBeVisible();
     expect(screen.queryByText(/No comparable earlier sample/)).toBeNull();
   },

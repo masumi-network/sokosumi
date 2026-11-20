@@ -13186,7 +13186,18 @@
         "checkAnchor": "Review the empty text entry in Search Console and check the source links for useful text or image alt text.",
         "checkDomain": "Open this domain in the Links report and review which of your pages it links to."
       },
+      "research": {
+        "latest": "Latest",
+        "checkCount": "{count, plural, one {# check} other {# checks}}",
+        "checks": "Research checks",
+        "incomplete": "{stage} incomplete",
+        "coverage": "{verified} of {total} verified · {deferred} deferred",
+        "targets": "{count, plural, one {# target URL} other {# target URLs}}",
+        "console": "{actions, plural, one {# action} other {# actions}} · {changes, plural, one {# change} other {# changes}}"
+      },
       "siteEvidence": {
+        "unknownResponse": "Unverified",
+        "linkingPages": "{count, plural, one {# sampled linking page} other {# sampled linking pages}}",
         "discovered": "Eligible URLs: {count}. Public responses verified: {checked}. Deferred: {deferred}.",
         "deferred": "Deferred URLs ({count} shown)",
         "reasons": {

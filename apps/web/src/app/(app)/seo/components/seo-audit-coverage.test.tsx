@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { expect, it } from "vitest";
 import messages from "../../../../../messages/en.json";
+import { SeoAuditResearch } from "./seo-audit-research";
 import { SeoSummaryTiles } from "./seo-summary-tiles";
 import { seoTestObservation, seoTestWorkspace } from "./seo-test-fixture";
 
@@ -78,6 +79,7 @@ it("opens the verdict evidence on the SEO page and keeps research outside the ru
   render(
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
       <SeoSummaryTiles workspace={workspace} />
+      <SeoAuditResearch workspace={workspace} />
     </NextIntlClientProvider>,
   );
   const tile = screen.getByTestId("seo-summary-tests");
@@ -93,6 +95,8 @@ it("opens the verdict evidence on the SEO page and keeps research outside the ru
     within(tile).getAllByText("Field measurements were unavailable."),
   ).toHaveLength(1);
   expect(screen.getByText("Audit research")).toBeVisible();
+  expect(screen.getByText("Visitor action check")).not.toBeVisible();
+  fireEvent.click(screen.getByText("Research checks"));
   fireEvent.click(screen.getByText("Visitor action check"));
   expect(screen.getByText("No verified viewport.")).toBeVisible();
   fireEvent.click(screen.getByText("Google Trends"));
@@ -105,7 +109,7 @@ it("opens the verdict evidence on the SEO page and keeps research outside the ru
     screen.queryByText(
       "The regular keyword list had already filled all 20 places.",
     ),
-  ).not.toBeInTheDocument();
+  ).toBeVisible();
 });
 
 it("keeps the last full audit's research visible after a focused check and with zero checklist rows", () => {
@@ -135,10 +139,11 @@ it("keeps the last full audit's research visible after a focused check and with 
   workspace.observations = [focused, audit];
   const view = (w: typeof workspace) => (
     <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
-      <SeoSummaryTiles workspace={w} />
+      <SeoAuditResearch workspace={w} />
     </NextIntlClientProvider>
   );
   const mounted = render(view(workspace));
+  fireEvent.click(screen.getByText("Research checks"));
   expect(screen.getByText("No new finding")).toBeVisible();
   mounted.rerender(view({ ...workspace, observations: [audit] }));
   expect(screen.getByText("Audit research")).toBeVisible();

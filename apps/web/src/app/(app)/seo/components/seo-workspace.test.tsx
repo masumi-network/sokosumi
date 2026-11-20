@@ -6996,6 +6996,14 @@ describe("SEO workspace integration", () => {
       vi.fn(async () => Response.json(workspace)),
     );
     workspace.observations = [seoTestObservation(workspace)];
+    workspace.siteEvidence = {
+      auditPageUrl: workspace.pages[0].url,
+      taskId: "audit",
+      complete: true,
+      observedAt: new Date("2026-11-20T12:00:00Z"),
+      sampledPages: [workspace.pages[0].url],
+      targets: [],
+    };
     const first = renderWorkspace(workspace, "?tab=actions");
     const tab = screen.getByRole("tabpanel", { name: "Actions" });
     const details = within(tab)
@@ -7006,6 +7014,14 @@ describe("SEO workspace integration", () => {
       within(tab).getByTestId("seo-summary-tiles"),
     );
     const row = within(tab).getByRole("button", { name: "Fix the page title" });
+    const research = within(tab)
+      .getByRole("heading", { name: "Audit research" })
+      .closest("section");
+    expect(row.closest("section")?.nextElementSibling).toBe(research);
+    const links = within(research!).getByText("Internal links and indexing", {
+      selector: "summary *",
+    });
+    expect(links.closest("details")).not.toHaveAttribute("open");
     expect(row.compareDocumentPosition(details!)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );

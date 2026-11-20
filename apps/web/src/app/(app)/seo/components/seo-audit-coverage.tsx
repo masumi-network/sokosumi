@@ -71,15 +71,12 @@ export function SeoResearchStatus({
   return (
     <section
       lang="en"
-      aria-label={t("summary.researchTitle")}
+      aria-label={t("research.checks")}
       className="mt-3 min-w-0 space-y-2"
     >
-      <div className="flex flex-wrap items-baseline gap-x-2">
-        <h3 className="text-sm font-semibold">{t("summary.researchTitle")}</h3>
-        <span className="text-xs text-muted-foreground">
-          <SeoDate report day value={observedAt} />
-        </span>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        <SeoDate report day value={observedAt} />
+      </p>
       {data.map(({ scope, pageUrl, stages, firstScreen, trends }) => (
         <div key={scope + pageUrl}>
           {showScope && (
@@ -96,6 +93,9 @@ export function SeoResearchStatus({
                 <dt>{t(`summary.stage.${stage.name}`)}</dt>
                 <dd className="text-muted-foreground">
                   {t(`summary.progress.${stage.status}`)}
+                  {stage.reason && (
+                    <span className="block text-xs">{stage.reason}</span>
+                  )}
                 </dd>
               </div>
             ))}

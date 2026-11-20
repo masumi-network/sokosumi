@@ -1,6 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
-import { SeoFoldSummary, SeoPageLink } from "./seo-shared";
+import { SeoFoldSummary, SeoPageLink, seoPagePath } from "./seo-shared";
 
 import { sitemapDraftXml } from "./seo-sitemap-model";
 
@@ -75,99 +75,125 @@ export function SeoSiteEvidence({ evidence }: { evidence: SiteEvidence }) {
       )}
       <ul className="divide-y">
         {evidence.targets.map((target) => (
-          <li key={target.targetUrl} className="space-y-1 py-2">
-            <SeoPageLink url={target.targetUrl} />
-            <p className="font-medium">{target.action}</p>
-            <p>
-              {target.httpStatus != null
-                ? t("response", { status: target.httpStatus })
-                : t("unverified")}
-            </p>
-            {target.finalUrl && target.finalUrl !== target.targetUrl && (
-              <p>
-                {t("destination")} <SeoPageLink url={target.finalUrl} />
-              </p>
-            )}
-            {target.googleReason && (
-              <p>
-                {t("google", { reason: target.googleReason })}{" "}
-                {target.googleCheckedAt && day(target.googleCheckedAt)}
-              </p>
-            )}
-            {target.trend?.decline ? (
-              <div className="space-y-1">
-                <h4 className="font-medium">{t("decline")}</h4>
-                <ol>
-                  {target.trend.decline.points.map((point) => (
-                    <li key={day(point.at)}>
-                      {t("linkCount", {
-                        date: day(point.at),
-                        count: point.count,
-                      })}
-                    </li>
-                  ))}
-                </ol>
-                {target.trend.decline.missingDonorUrls.length > 0 && (
-                  <>
-                    <p>{t("lostDonors")}</p>
-                    <ul aria-label={t("lostDonors")}>
-                      {target.trend.decline.missingDonorUrls.map((url) => (
+          <li key={target.targetUrl}>
+            <details>
+              <SeoFoldSummary className="min-h-11 gap-3 py-2">
+                <span
+                  className="min-w-0 flex-1 break-all font-medium"
+                  dir="auto"
+                >
+                  {seoPagePath(target.targetUrl, evidence.auditPageUrl) ??
+                    target.targetUrl}
+                </span>
+                <span className="flex shrink-0 flex-col items-end text-xs text-muted-foreground">
+                  <span>
+                    {target.httpStatus == null
+                      ? t("unknownResponse")
+                      : `HTTP ${target.httpStatus}`}
+                  </span>
+                  {evidence.sampledPages.length > 0 && (
+                    <span>
+                      {t("linkingPages", { count: target.donorUrls.length })}
+                    </span>
+                  )}
+                </span>
+              </SeoFoldSummary>
+              <div className="space-y-1 pb-3">
+                <SeoPageLink url={target.targetUrl} />
+                <p className="font-medium">{target.action}</p>
+                <p>
+                  {target.httpStatus != null
+                    ? t("response", { status: target.httpStatus })
+                    : t("unverified")}
+                </p>
+                {target.finalUrl && target.finalUrl !== target.targetUrl && (
+                  <p>
+                    {t("destination")} <SeoPageLink url={target.finalUrl} />
+                  </p>
+                )}
+                {target.googleReason && (
+                  <p>
+                    {t("google", { reason: target.googleReason })}{" "}
+                    {target.googleCheckedAt && day(target.googleCheckedAt)}
+                  </p>
+                )}
+                {target.trend?.decline ? (
+                  <div className="space-y-1">
+                    <h4 className="font-medium">{t("decline")}</h4>
+                    <ol>
+                      {target.trend.decline.points.map((point) => (
+                        <li key={day(point.at)}>
+                          {t("linkCount", {
+                            date: day(point.at),
+                            count: point.count,
+                          })}
+                        </li>
+                      ))}
+                    </ol>
+                    {target.trend.decline.missingDonorUrls.length > 0 && (
+                      <>
+                        <p>{t("lostDonors")}</p>
+                        <ul aria-label={t("lostDonors")}>
+                          {target.trend.decline.missingDonorUrls.map((url) => (
+                            <li key={url}>
+                              <SeoPageLink url={url} />
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <p>
+                    {target.trend
+                      ? t("trend", {
+                          previous: target.trend.previousCount,
+                          date: day(target.trend.previousAt),
+                          current: target.trend.currentCount,
+                        })
+                      : !evidence.sampledPages.length
+                        ? t("unknownDonors")
+                        : t(evidence.complete ? "baseline" : "partialDonors", {
+                            count: target.donorUrls.length,
+                          })}
+                  </p>
+                )}
+                {target.donorUrls.length > 0 && (
+                  <details>
+                    <SeoFoldSummary>{t("donors")}</SeoFoldSummary>
+                    <ul>
+                      {target.donorUrls.map((url) => (
                         <li key={url}>
-                          <SeoPageLink url={url} />
+                          <SeoPageLink url={url} />{" "}
+                          {target.contentDonorUrls.includes(url) &&
+                            t("content")}
                         </li>
                       ))}
                     </ul>
-                  </>
+                  </details>
+                )}
+                {(
+                  [
+                    [t("sitemaps"), target.sitemapUrls],
+                    [google("referringPages"), target.googleReferringPages],
+                    [google("reportedSitemaps"), target.googleSitemapUrls],
+                  ] as const
+                ).map(([heading, urls]) =>
+                  urls?.length ? (
+                    <details key={heading}>
+                      <SeoFoldSummary>{heading}</SeoFoldSummary>
+                      <ul>
+                        {urls.map((url) => (
+                          <li key={url}>
+                            <SeoPageLink url={url} />
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  ) : null,
                 )}
               </div>
-            ) : (
-              <p>
-                {target.trend
-                  ? t("trend", {
-                      previous: target.trend.previousCount,
-                      date: day(target.trend.previousAt),
-                      current: target.trend.currentCount,
-                    })
-                  : !evidence.sampledPages.length
-                    ? t("unknownDonors")
-                    : t(evidence.complete ? "baseline" : "partialDonors", {
-                        count: target.donorUrls.length,
-                      })}
-              </p>
-            )}
-            {target.donorUrls.length > 0 && (
-              <details>
-                <SeoFoldSummary>{t("donors")}</SeoFoldSummary>
-                <ul>
-                  {target.donorUrls.map((url) => (
-                    <li key={url}>
-                      <SeoPageLink url={url} />{" "}
-                      {target.contentDonorUrls.includes(url) && t("content")}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-            {(
-              [
-                [t("sitemaps"), target.sitemapUrls],
-                [google("referringPages"), target.googleReferringPages],
-                [google("reportedSitemaps"), target.googleSitemapUrls],
-              ] as const
-            ).map(([heading, urls]) =>
-              urls?.length ? (
-                <details key={heading}>
-                  <SeoFoldSummary>{heading}</SeoFoldSummary>
-                  <ul>
-                    {urls.map((url) => (
-                      <li key={url}>
-                        <SeoPageLink url={url} />
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              ) : null,
-            )}
+            </details>
           </li>
         ))}
       </ul>

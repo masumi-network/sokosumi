@@ -3,7 +3,7 @@ import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 import { seoWorkspaceOwner } from "@/lib/seo/owner";
 import { SeoConsoleExportActions } from "./seo-console-export-actions";
 import { SeoPropertyPageDiscovery } from "./seo-property-page-discovery";
-import { SEO_ROW_LIST_CLASS, SeoFoldSummary, SeoSection } from "./seo-shared";
+import { SeoFoldSummary } from "./seo-shared";
 
 type Evidence = NonNullable<
   NonNullable<ProjectSeoWorkspace["auditSearchConsole"]>[number]["discovery"]
@@ -184,39 +184,9 @@ export function SeoCurrentDiscoveryActions({
   workspace: ProjectSeoWorkspace;
   result: ReturnType<typeof currentDiscoveryResult>;
 }) {
-  const t = useSeoResultTranslations("App.Seo.discovery");
-  const actions = result?.discovery?.actions ?? [];
   return (
     <>
       {result && <SeoPropertyPageDiscovery report={result} actionsOnly />}
-      {actions.length > 0 && (
-        <SeoSection lang="en" title={t("actionsHeading")}>
-          <ul className={SEO_ROW_LIST_CLASS}>
-            {actions.map((item) => (
-              <li key={item.url + item.action} className="p-3">
-                <details>
-                  <SeoFoldSummary className="min-h-10 justify-between gap-3">
-                    <span className="min-w-0 space-y-1">
-                      <span className="block text-sm font-medium">
-                        {item.action}
-                      </span>
-                      <span
-                        className="block break-all text-xs text-muted-foreground"
-                        dir="auto"
-                      >
-                        {item.url}
-                      </span>
-                    </span>
-                  </SeoFoldSummary>
-                  <p className="pt-2 text-sm text-muted-foreground">
-                    {item.evidence}
-                  </p>
-                </details>
-              </li>
-            ))}
-          </ul>
-        </SeoSection>
-      )}
       {result && (
         <SeoConsoleExportActions
           owner={seoWorkspaceOwner(workspace)}

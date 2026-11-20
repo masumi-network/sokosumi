@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { expect, it } from "vitest";
 import { SeoResultMessagesProvider } from "@/i18n/use-seo-result-translations";
 import messages from "../../../../../messages/en.json";
-import { SeoSummaryTiles } from "./seo-summary-tiles";
+import { SeoAuditResearch } from "./seo-audit-research";
 import { seoTestObservation, seoTestWorkspace } from "./seo-test-fixture";
 
 it("displays lab timings and checks beside a separate real-user gap on the Actions tab", () => {
@@ -51,9 +51,13 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
   render(
     <NextIntlClientProvider locale="de" messages={messages}>
       <SeoResultMessagesProvider messages={messages.App.Seo}>
-        <SeoSummaryTiles workspace={workspace} />
+        <SeoAuditResearch workspace={workspace} />
       </SeoResultMessagesProvider>
     </NextIntlClientProvider>,
+  );
+  expect(screen.getByText("Mobile LCP 7.4 s")).toBeVisible();
+  fireEvent.click(
+    screen.getByText("Page speed", { selector: "summary span > span" }),
   );
   const panel = within(screen.getByRole("region", { name: "Page speed" }));
   expect(panel.getByText("Mobile · LCP 7.4 s")).toBeVisible();
@@ -66,5 +70,33 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
   ).toBeVisible();
   expect(
     panel.getByText("Desktop · Google’s PageSpeed quota was exhausted."),
+  ).toBeVisible();
+});
+
+it("counts pages without calling an unmeasured URL tested", () => {
+  const workspace = seoTestWorkspace();
+  const pageUrl = workspace.pages[0].url;
+  workspace.observations = [
+    {
+      ...seoTestObservation(workspace),
+      kind: "audit_full",
+      pageSpeed: [
+        {
+          pageUrl,
+          testedUrl: pageUrl,
+          device: "mobile",
+          field: { status: "not_checked" },
+          lab: { status: "not_checked" },
+        },
+      ],
+    },
+  ];
+  render(
+    <NextIntlClientProvider locale="en" messages={messages} timeZone="UTC">
+      <SeoAuditResearch workspace={workspace} />
+    </NextIntlClientProvider>,
+  );
+  expect(
+    screen.getByText("1 page", { selector: "summary span" }),
   ).toBeVisible();
 });

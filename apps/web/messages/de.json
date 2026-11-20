@@ -13186,7 +13186,18 @@
         "checkAnchor": "Prüfe den leeren Linktext in der Search Console. Kontrolliere an den Quelllinks den Linktext oder den Alternativtext von Bildern.",
         "checkDomain": "Öffne diese Domain im Linkbericht und prüfe, welche deiner Seiten sie verlinkt."
       },
+      "research": {
+        "latest": "Zuletzt",
+        "checkCount": "{count, plural, one {# Prüfung} other {# Prüfungen}}",
+        "checks": "Rechercheprüfungen",
+        "incomplete": "{stage} unvollständig",
+        "coverage": "{verified} von {total} verifiziert · {deferred} zurückgestellt",
+        "targets": "{count, plural, one {# Ziel-URL} other {# Ziel-URLs}}",
+        "console": "{actions, plural, one {# Aktion} other {# Aktionen}} · {changes, plural, one {# Änderung} other {# Änderungen}}"
+      },
       "siteEvidence": {
+        "unknownResponse": "Ungeprüft",
+        "linkingPages": "{count, plural, one {# verlinkende Seite in der Stichprobe} other {# verlinkende Seiten in der Stichprobe}}",
         "discovered": "Geeignete URLs: {count}. Öffentlich verifizierte Antworten: {checked}. Zurückgestellt: {deferred}.",
         "deferred": "Zurückgestellte URLs ({count} angezeigt)",
         "reasons": {
