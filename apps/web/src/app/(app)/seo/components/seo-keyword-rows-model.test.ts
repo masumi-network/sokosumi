@@ -1,5 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
+import { contentPlanningIdeas } from "./seo-content-planning-model";
 import {
   keywordGroups,
   keywordPage,
@@ -616,4 +617,37 @@ it("caps the selected broad view at fifty distinct ideas across pages and audits
   ];
   expect(workspaceKeywordGroups(workspace).ideas).toHaveLength(50);
   expect(workspaceKeywordGroups(workspace, [legacy[50]]).ideas).toHaveLength(1);
+});
+
+it("groups content ideas by audited offer and intent and requires a same-audit competitor observation for a gap", () => {
+  const source = row({
+    source: "opportunity",
+    observationId: "current",
+    keyword: "battery health",
+    feature: "Battery condition",
+    volume: 1000,
+    conversion: "high",
+    intent: "informational",
+  });
+  const rawGap = row({
+    ...source,
+    source: "gap",
+    feature: null,
+    conversion: null,
+  });
+  const related = row({ ...source, keyword: "battery condition" });
+  const groups = keywordGroups([
+    source,
+    rawGap,
+    related,
+    { ...rawGap, keyword: related.keyword },
+    { ...source, keyword: "battery capacity" },
+    { ...rawGap, keyword: "battery capacity", observationId: "older" },
+    { ...rawGap, keyword: "unrelated product" },
+  ]).ideas;
+  const plans = contentPlanningIdeas(groups);
+  expect(plans.filter((p) => p.gap)).toHaveLength(1);
+  expect(plans.find((p) => p.gap)?.related).toHaveLength(1);
+  expect(plans.find((p) => !p.gap)?.idea.keyword).toBe("battery capacity");
+  expect(plans.some((p) => p.idea.keyword === "unrelated product")).toBe(false);
 });

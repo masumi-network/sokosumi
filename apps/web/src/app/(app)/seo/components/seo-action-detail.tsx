@@ -63,7 +63,8 @@ export function SeoActionDetail({
   );
   if (references.includes(rankedKeywordsRef))
     observations.push(report("actions.rankingEvidence"));
-  const problem = seoOverviewModel(model.data).actionProblem(action);
+  const overview = seoOverviewModel(model.data);
+  const problem = overview.actionProblem(action);
   const page = model.data.pages.find((item) => item.url === action.pageUrl);
   const followUp = model.brief?.data?.followUps?.find(
     (item) => item.pageId === page?.id,
@@ -145,6 +146,11 @@ export function SeoActionDetail({
       {/* The body gives up its room first, down to a floor: on a very short screen the whole dialog scrolls, so
           the buttons at the foot stay in reach. */}
       <div className="min-h-32 space-y-6 overflow-y-auto px-6 py-5 text-sm">
+        {action.decision && (
+          <h3 className="font-semibold" lang="en">
+            {report("actions.why")}
+          </h3>
+        )}
         <p
           lang="en"
           className={cn(
@@ -158,6 +164,16 @@ export function SeoActionDetail({
         </p>
         {/* The change comes first after the finding: it is what the owner acts on. Before and after stack, so a
             long title reads on whole lines and the two boxes start at the same edge. */}
+        {overview.hasMeasuredGoal(action) && model.data.landingPages && (
+          <DetailPart title={report("actions.priorityReason")}>
+            <p>
+              {report("actions.measuredGoal", {
+                from: model.data.landingPages.from,
+                to: model.data.landingPages.to,
+              })}
+            </p>
+          </DetailPart>
+        )}
         {action.followUpReview && (
           <DetailPart title={report("actions.reviewAgain")}>
             <p lang="en">{seoFollowUpText(action.followUpReview, report)}</p>

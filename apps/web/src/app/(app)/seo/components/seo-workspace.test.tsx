@@ -969,14 +969,16 @@ describe("SEO workspace integration", () => {
     expect(
       within(filters).getByRole("button", { name: "All 4" }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(screen.queryByText(/They are not errors/)).toBeNull();
+    expect(
+      screen.queryByText(messages.App.Seo.actions.opportunitiesHelp),
+    ).toBeNull();
     // In the mixed list a suggestion says what it is in its dialog.
     await user.click(
       screen.getByRole("button", { name: "Write about chargers" }),
     );
     expect(
       within(await screen.findByRole("dialog")).getByText(
-        /They are not errors/,
+        messages.App.Seo.actions.opportunitiesHelp,
       ),
     ).toBeVisible();
     await user.keyboard("{Escape}");
@@ -994,7 +996,9 @@ describe("SEO workspace integration", () => {
       within(filters).getByRole("button", { name: "Suggestions 1" }),
     );
     expect(titles()).toEqual(["Write about chargers"]);
-    expect(screen.getByText(/They are not errors/)).toBeVisible();
+    expect(
+      screen.getByText(messages.App.Seo.actions.opportunitiesHelp),
+    ).toBeVisible();
   });
 
   it("puts the first step before the numbers, offers the agent only with an Audit, and names a page of the site by its path", async () => {
@@ -7993,7 +7997,9 @@ describe("SEO workspace integration", () => {
     expect(within(list).getAllByRole("button")).toHaveLength(4);
     // One level of impact splits nothing: no filter over the rows. Fixes with no rated issue are no suggestions.
     expect(screen.queryByRole("group", { name: "Filter actions" })).toBeNull();
-    expect(screen.queryByText(/They are not errors/)).toBeNull();
+    expect(
+      screen.queryByText(messages.App.Seo.actions.opportunitiesHelp),
+    ).toBeNull();
     const listed = within(list).getByRole("button", {
       name: /^Write a description/,
     });
@@ -9037,4 +9043,70 @@ describe("SEO workspace integration", () => {
     expect(await screen.findByRole("list", { name: "Actions" })).toBeVisible();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+});
+
+it("opens a report plan on the Agent tab and switches its recommendation and reasoning together", async () => {
+  const user = userEvent.setup(),
+    workspace = seoTestCheckedAudit();
+  const first = workspace.observations[0]!;
+  const pageUrl = workspace.pages[0]!.url;
+  const candidate = {
+    kind: "content" as const,
+    pageUrl,
+    title: "Test a battery replacement comparison.",
+    reason: "The current report found repair queries.",
+    evidence: ["battery replacement or upgrade"],
+  };
+  first.planCandidates = [candidate];
+  const earlier = {
+    ...first,
+    id: "f1111111-1111-4111-8111-111111111111",
+    artifactHash: "earlier-report",
+    observedAt: new Date("2025-12-03T12:00:00Z"),
+    planCandidates: [
+      {
+        ...candidate,
+        title: "Explain battery condition in Settings.",
+        reason: "The earlier report found setup questions.",
+        evidence: ["battery condition in Settings"],
+      },
+    ],
+  };
+  workspace.observations.push(earlier);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) =>
+      url.endsWith("/brief")
+        ? Response.json({
+            revision: 1,
+            updatedAt: null,
+            objective: "traffic",
+            audience: null,
+            outcome: null,
+            constraints: null,
+            pages: [],
+            priorities: [],
+            followUps: [],
+          })
+        : connectedSeoResponse(workspace, url),
+    ),
+  );
+  renderWorkspace(workspace);
+  const card = within(
+    await screen.findByRole("region", { name: "Recommended plan" }),
+  );
+  expect(
+    await card.findByText("Current objective: Search traffic"),
+  ).toBeVisible();
+  expect(card.getByText(candidate.title)).toBeVisible();
+  expect(card.getByText(/Since the previous report/)).toBeVisible();
+  expect(card.getByText(candidate.reason)).not.toBeVisible();
+  await user.click(card.getByText("Why this plan?"));
+  expect(card.getByText(candidate.reason)).toBeVisible();
+  await user.click(card.getByRole("combobox"));
+  await user.click(await screen.findByRole("option", { name: /2025/ }));
+  expect(card.getByText(earlier.planCandidates[0]!.title)).toBeVisible();
+  expect(card.queryByText(candidate.reason)).toBeNull();
+  await user.click(card.getByText("Why this plan?"));
+  expect(card.getByText(earlier.planCandidates[0]!.reason)).toBeVisible();
 });

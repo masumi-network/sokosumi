@@ -94,7 +94,7 @@ function Lab({ lab }: { lab: Row["lab"] }) {
               <li key={insight.id}>
                 <p className="font-medium">{insight.title}</p>
                 <p>{insight.detail}</p>
-                <p>{insight.action}</p>
+                {insight !== report.insights[0] && <p>{insight.action}</p>}
               </li>
             ))}
           </ul>
@@ -134,11 +134,13 @@ export function SeoPageSpeed({
               <details key={device} className="border-b py-2">
                 <SeoFoldSummary>
                   {t(`breakdown.devices.${device}`)} ·{" "}
-                  {lab.status === "measured" && lab.median.lcp !== null
-                    ? "LCP " + formattedMetric("lcp", lab.median.lcp)
-                    : lab.status === "measured"
-                      ? t("pageSpeed.lab")
-                      : t(`pageSpeed.${lab.status}`)}
+                  {lab.status === "measured" && lab.pageSpeed?.insights[0]
+                    ? lab.pageSpeed.insights[0].action
+                    : lab.status === "measured" && lab.median.lcp !== null
+                      ? "LCP " + formattedMetric("lcp", lab.median.lcp)
+                      : lab.status === "measured"
+                        ? t("pageSpeed.lab")
+                        : t(`pageSpeed.${lab.status}`)}
                 </SeoFoldSummary>
                 <div className="mt-2 min-w-0 space-y-3 ps-2">
                   {testedUrl !== url && (

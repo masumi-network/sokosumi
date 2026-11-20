@@ -33,6 +33,7 @@ import { SeoAutomation } from "./seo-monitors";
 import { seoOverviewModel } from "./seo-overview-model";
 import { seoRarelyShown } from "./seo-performance-model";
 import { SeoPropertyPerformance } from "./seo-property-performance";
+import { SeoReportPlan } from "./seo-report-plan";
 import { seoRunsDateCheck } from "./seo-runs-model";
 import { SeoCheckRunning, SeoSetupCard } from "./seo-setup";
 import { seoCheckRunning } from "./seo-setup-model";
@@ -283,6 +284,15 @@ function SeoAgentPanel({
             : ""}
       </p>
       {/* First on the tab, in one place on every width: a move would remount the control and drop an approval in flight. */}
+      {!setup && (
+        <SeoReportPlan
+          model={model}
+          onOpen={(action, button) => {
+            dialogRow.current = button;
+            setDialogKey(seoActionKey(action));
+          }}
+        />
+      )}
       {banner}
       {analyticsStep && !setup ? (
         <SeoAgentStatistics model={model} line={analyticsLine} />

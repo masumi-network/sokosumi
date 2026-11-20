@@ -159,7 +159,10 @@ function landingFilters(
 const OUTCOME_DIMENSION = "eventName";
 const OUTCOME_METRIC = "eventCount";
 /** Count event occurrences in sessions that started on an exact selected organic landing URL. */
-export function ga4LandingOutcomeArguments(query: NativeStatisticsQuery) {
+export function ga4LandingOutcomeArguments(
+  query: NativeStatisticsQuery,
+  events: readonly string[] = seoLandingEvents,
+) {
   const paths = [...new Set(query.pageUrls.map(landingPath))];
   return {
     property: query.propertyId,
@@ -174,7 +177,7 @@ export function ga4LandingOutcomeArguments(query: NativeStatisticsQuery) {
             filter: {
               fieldName: OUTCOME_DIMENSION,
               inListFilter: {
-                values: [...seoLandingEvents],
+                values: [...events],
                 caseSensitive: true,
               },
             },
@@ -182,7 +185,7 @@ export function ga4LandingOutcomeArguments(query: NativeStatisticsQuery) {
         ],
       },
     },
-    limit: paths.length * seoLandingEvents.length,
+    limit: paths.length * events.length,
     returnPropertyQuota: true,
   };
 }
@@ -190,6 +193,7 @@ export function ga4LandingOutcomeArguments(query: NativeStatisticsQuery) {
 export function normalizeGa4LandingOutcomes(
   query: NativeStatisticsQuery,
   raw: unknown,
+  events: readonly string[] = seoLandingEvents,
 ) {
   const report = ga4ReportSchema.parse(raw);
   if (
@@ -214,6 +218,7 @@ export function normalizeGa4LandingOutcomes(
     const count = row.metricValues[0]?.value;
     const key = JSON.stringify([pageUrl, event]);
     if (
+      !events.includes(event) ||
       row.dimensionValues.length !== 2 ||
       row.metricValues.length !== 1 ||
       !pageUrl ||

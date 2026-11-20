@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { SEO_RESULT_LOCALE } from "@/i18n/seo-result-messages";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
+import { SeoContentPlanning } from "./seo-content-planning";
 import { SeoExportMenu } from "./seo-export-menu";
 import { seoKeywordsTableExport } from "./seo-export-model";
 import { SeoConversionCell, SeoConversionNote } from "./seo-keyword-conversion";
@@ -101,6 +102,7 @@ export function SeoKeywordIdeas({
         </>
       }
     >
+      <SeoContentPlanning groups={ideas} model={model} />
       <div className={HOLDER_ITEM_CLASS}>
         <Table className={SEO_COMPACT_ROWS_CLASS}>
           <TableHeader>

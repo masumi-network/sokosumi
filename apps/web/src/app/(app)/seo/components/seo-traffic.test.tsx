@@ -328,6 +328,10 @@ describe("SEO Traffic search type", () => {
         /distribution of visits across landing pages accounted for the change/,
       ),
     ).toBeVisible();
+    expect(
+      screen.getByText(/Compare which entry pages gained visits/),
+    ).toBeVisible();
+    await userEvent.setup().click(screen.getByText("Why this recommendation"));
     const row = screen.getByRole("row", {
       name: /Engagement seconds per session/,
     });

@@ -75,6 +75,14 @@ export function SeoKeywordDraftDetails({
 
   return (
     <div className="grid min-w-0 gap-3 text-sm [overflow-wrap:anywhere]">
+      {editorial?.angle && (
+        <div lang="en" className="space-y-1">
+          <p className="font-medium">{editorial.angle.nextStep}</p>
+          <blockquote dir="auto" lang="" className="border-s-2 ps-3">
+            {editorial.angle.quote}
+          </blockquote>
+        </div>
+      )}
       {reason && (
         <div lang="en" className="space-y-1">
           <p className="font-medium">

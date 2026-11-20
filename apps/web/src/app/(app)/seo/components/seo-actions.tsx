@@ -75,6 +75,7 @@ export function SeoActions({ model }: { model: SeoWorkspaceModel }) {
         {overview.actions.length ? (
           <SeoActionWorklist
             actions={overview.actions}
+            isExperiment={overview.isExperiment}
             severity={overview.actionSeverity}
             model={model}
           />

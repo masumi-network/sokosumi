@@ -56,10 +56,10 @@ it("displays lab timings and checks beside a separate real-user gap on the Actio
     </NextIntlClientProvider>,
   );
   const panel = within(screen.getByRole("region", { name: "Page speed" }));
-  expect(panel.getByText("Mobile · LCP 7.4 s")).toBeVisible();
-  fireEvent.click(panel.getByText("Mobile · LCP 7.4 s"));
+  expect(panel.getByText("Mobile · Check the bundle.")).toBeVisible();
+  fireEvent.click(panel.getByText("Mobile · Check the bundle."));
   expect(panel.getByText("108 KiB could be saved.")).toBeVisible();
-  expect(panel.getByText("Check the bundle.")).toBeVisible();
+  expect(panel.getByText("7.4 s")).toBeVisible();
   expect(panel.getByText("72")).toBeVisible();
   expect(
     panel.getByText("Google reported no real-user data for this URL."),

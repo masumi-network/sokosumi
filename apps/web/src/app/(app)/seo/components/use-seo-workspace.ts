@@ -40,42 +40,14 @@ import { type SeoAnalysisKind, seoKeywordTargetPageId } from "./seo-form-model";
 import { seoCheckBlocking, seoSetup } from "./seo-setup-model";
 import { type SeoStatisticsProvider } from "./seo-statistics-model";
 import { SEO_SEARCH_TYPES, SEO_TRAFFIC_CHANNELS } from "./seo-traffic-model";
+import { seoFilterDayValid, seoSameSelection } from "./seo-workspace-selection";
 import { useSeoAutopilot } from "./use-seo-autopilot";
 import { useSeoBrief, useSeoGoalSuggestion } from "./use-seo-brief";
 import { useSeoConnectionStatus } from "./use-seo-connection";
 
-/** The form of a day in the period filter, as Core reads it. */
-const SEO_DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-/** A real day of the calendar in the form of the filter: "2026-02-30" has the form and is no day. */
-function seoFilterDayValid(day: string) {
-  const date = new Date(`${day}T00:00:00Z`);
-  return (
-    SEO_DAY.test(day) &&
-    !Number.isNaN(date.getTime()) &&
-    date.toISOString().slice(0, 10) === day
-  );
-}
+export { seoSameSelection } from "./seo-workspace-selection";
 
 const SEO_RUNNING_REFRESH_MS = 15_000;
-/** The filters that choose the time the page shows, not what it shows. */
-const DATE_PARAMS = ["from", "to"];
-
-/**
- * Two workspace reads of one selection: the same viewer, owner, page, scope and channel. Only their dates differ.
- * The last part of a key is the read's query string.
- */
-export function seoSameSelection(
-  left: readonly unknown[],
-  right: readonly unknown[],
-) {
-  const selection = (key: readonly unknown[]) => {
-    const query = new URLSearchParams(String(key.at(-1) ?? ""));
-    for (const name of DATE_PARAMS) query.delete(name);
-    return JSON.stringify([...key.slice(0, -1), query.toString()]);
-  };
-  return selection(left) === selection(right);
-}
 
 // Old tab names in saved links open the tab that now holds their content.
 const parseAsSeoTab = createParser<SeoTab>({
@@ -659,7 +631,9 @@ export function useSeoWorkspace(initialData: ProjectSeoWorkspace) {
       dialog === "brief" ||
       dialog === "analysis" ||
       filters.tab === "actions" ||
-      (filters.tab === "agent" && data.actions.length > 0),
+      (filters.tab === "agent" &&
+        (data.actions.length > 0 ||
+          data.observations.some((row) => row.planCandidates != null))),
   );
   const setupGoalSuggestion = useSeoGoalSuggestion(
     owner,

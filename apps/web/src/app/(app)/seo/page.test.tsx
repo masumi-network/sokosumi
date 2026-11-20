@@ -270,7 +270,9 @@ describe("native SEO audit entry", () => {
       screen.getByRole("heading", { name: "Pièces détachées" }),
     ).toBeVisible();
     expect(
-      screen.getByText("Check this search for repair shops."),
+      screen.getByText(
+        /Outline the reader’s question behind “Pièces détachées”/,
+      ),
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: german.App.Seo.keywords.ideas.short }),
