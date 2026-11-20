@@ -1091,8 +1091,14 @@ function cadenceProblems(
         : count <= Math.ceil(high * 1.4)
     )
       return [];
+    const key = channel.channel.toLowerCase();
+    // A video network's pieces are the month's talking videos, capped.
+    const fix =
+      side === "under" && VIDEO_ONLY_NETWORKS.includes(key)
+        ? `List ${key} in the alsoOn of more of the month's talking videos (at most ${CMO_MAX_VIDEOS_PER_MONTH} videos a month), or set its cadence to what they hold.`
+        : "Save part calendar so they match.";
     return [
-      `${channel.channel} has ${count} calendar pieces, but its cadence "${channel.cadence}" means about ${low === high ? low : `${low} to ${high}`} over four weeks. Save part calendar so they match.`,
+      `${channel.channel} has ${count} calendar pieces, but its cadence "${channel.cadence}" means about ${low === high ? low : `${low} to ${high}`} over four weeks. ${fix}`,
     ];
   });
 }

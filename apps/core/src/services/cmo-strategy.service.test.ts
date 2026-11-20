@@ -510,7 +510,9 @@ describe("the plan starts when the research ends", () => {
     expect(message).toContain(
       'linkedin has 4 calendar pieces, but its cadence "3 a week" means about 12',
     );
-    expect(message).toContain("Never lower the pace or a cadence");
+    expect(message).toContain(
+      "Never lower the pace or a posting network's cadence",
+    );
   });
 
   it("finishes a month whose funnel promises video the calendar does not hold", async () => {
@@ -552,7 +554,9 @@ describe("the plan starts when the research ends", () => {
     expect(message).toContain(
       "the funnel's interest play on linkedin promises video",
     );
-    expect(message).toContain("may instead drop the video in its words");
+    expect(message).toContain(
+      "first add the network to the alsoOn of talking videos already planned",
+    );
   });
 
   it("finishes nothing for a whole month, an approved one, or a Cuso who saves in two calls", async () => {

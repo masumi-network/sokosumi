@@ -47,6 +47,7 @@ import {
 } from "@/services/cmo-cuso.service";
 import { cmoPictureStyleProblem } from "@/services/cmo-media-maker.service";
 import {
+  CMO_MAX_VIDEOS_PER_MONTH,
   cmoCalendarWeeks,
   cmoMonthShortfall,
   cmoPlanRulesBrokenSince,
@@ -498,7 +499,7 @@ async function startCmoMonthFinish(
       : [
           `Finish ${cuso.businessName}'s marketing strategy: its calendar does not hold what the strategy promises.`,
           ...gaps.map((gap) => `- ${gap}`),
-          "Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a cadence to match: the plan the owner buys decides how much of the month is made. A play that promises video may instead drop the video in its words (part plan). Change nothing else already saved.",
+          `Add the missing pieces with save_strategy part patch, one week a call (only that week's new entries, new ids), until every week holds the pace's perWeek pieces and each channel its cadence, in the mix and pillar shares, and each video the funnel promises goes out where it says. Never lower the pace or a posting network's cadence to match: the plan the owner buys decides how much of the month is made. The month keeps at most ${CMO_MAX_VIDEOS_PER_MONTH} videos: for a video network or a play that promises video, first add the network to the alsoOn of talking videos already planned (part patch, same id); YouTube or TikTok may take a cadence that matches those videos, and a play may drop the video in its words (part plan). Change nothing else already saved.`,
         ]
     )
       .concat([

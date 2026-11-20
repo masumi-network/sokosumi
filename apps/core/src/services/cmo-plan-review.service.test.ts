@@ -1595,6 +1595,21 @@ describe("a cmo-v5 month at the top volume, whose funnel says what it plans", ()
     expect(cmoPromiseGaps(withVideo, options)).toEqual([]);
   });
 
+  it("fills a video network through the talking videos' alsoOn, within the video cap", () => {
+    // A finish turn once added a fifth video for YouTube's "1 a week".
+    const month = plan({
+      pace: { level: "all_in", why: "Top volume", perWeek: 1 },
+      channels: [{ ...channel("youtube", "1 a week", "main") }],
+      calendar: [0, 1, 2, 3].map((n) => ({
+        ...video(n),
+        alsoOn: n === 0 ? ["youtube"] : [],
+      })),
+    });
+    expect(cmoPromiseGaps(month, { weekly: true })).toEqual([
+      'youtube has 1 calendar pieces, but its cadence "1 a week" means about 4 over four weeks. List youtube in the alsoOn of more of the month\'s talking videos (at most 4 videos a month), or set its cadence to what they hold.',
+    ]);
+  });
+
   it("passes the same month at the top volume, on every network, with talking videos", () => {
     const fixed = plan({
       ...nmkr,
