@@ -559,7 +559,9 @@ describe("pages", () => {
         onChange={() => {}}
       />,
     );
-    expect(html).toContain("Drafts");
+    expect(html).toContain("Published");
+    // The fixture's one written post waits for LinkedIn, so it is no draft.
+    expect(html).toContain("Waiting");
     expect(html).toContain("Shopify");
     expect(html).toContain("once you connect an account");
     expect(html).not.toContain("Sokosumi");
