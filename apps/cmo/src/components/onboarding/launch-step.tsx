@@ -2,7 +2,7 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import {
   channelLabel,
@@ -151,6 +151,12 @@ export function LaunchStep({
   // Undefined until the founder acts: then the return notice no longer shows.
   const [error, setError] = useState<string | null | undefined>(undefined);
   const shownError = error === undefined ? notice : error;
+  // The reason shows below the networks, often off screen from the row the
+  // founder pressed: bring it into view when a connection fails.
+  const alertRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) alertRef.current?.scrollIntoView({ block: "nearest" });
+  }, [error]);
   const [celebrating, setCelebrating] = useState(false);
   const [, startTransition] = useTransition();
   // One of the plan's networks is enough to start; the rest can follow.
@@ -393,7 +399,7 @@ export function LaunchStep({
       ) : null}
 
       {shownError ? (
-        <p className="alert" role="alert">
+        <p ref={alertRef} className="alert" role="alert">
           {/configured|unavailable|set up/i.test(shownError)
             ? "Connecting accounts isn't available here yet."
             : shownError}
