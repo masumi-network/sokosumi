@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import { CHAT_WELCOME_PATH } from "@/app/chat/utils/chat-route-base";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 
 /**
  * Desktop has no chats-list page (sidebar owns DMs/channels). Bare `/chat`

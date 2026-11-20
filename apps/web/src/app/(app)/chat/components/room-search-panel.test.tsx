@@ -24,7 +24,7 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => platform.isApple,
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({
+vi.mock("@/hooks/effects/use-mobile", () => ({
   useIsMobile: () => platform.isMobile,
 }));
 

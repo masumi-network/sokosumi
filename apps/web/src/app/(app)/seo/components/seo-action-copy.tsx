@@ -4,7 +4,7 @@ import type { ProjectSeoAction } from "@sokosumi/core-client";
 import { Check, Copy } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { useClipboard } from "@/hooks/effects/use-clipboard";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
 
 /** A button that copies one text, and says so for a moment. */

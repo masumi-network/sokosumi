@@ -6,8 +6,8 @@ import { type ComponentProps, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
+import { usePageSearchShortcut } from "@/hooks/effects/use-page-search-shortcut";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { usePageSearchShortcut } from "@/hooks/use-page-search-shortcut";
 import { cn } from "@/lib/utils";
 
 export function PageSearchHint({ className }: { className?: string }) {

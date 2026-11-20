@@ -25,7 +25,7 @@ import {
   reconcileRoomAttention,
 } from "@/components/chat/room-read-overlay";
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";

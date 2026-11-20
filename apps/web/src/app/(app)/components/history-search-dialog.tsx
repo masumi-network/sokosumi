@@ -35,7 +35,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { copyTextWithToast } from "@/hooks/use-clipboard";
+import { copyTextWithToast } from "@/hooks/effects/use-clipboard";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { escapeMarkdownDisplayText } from "@/lib/utils/mention-parser";
 

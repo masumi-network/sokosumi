@@ -7,7 +7,7 @@ import { useRef, useState } from "react";
 
 import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { Button } from "@/components/ui/button";
-import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
+import { useUnAuthenticatedErrorHandler } from "@/hooks/effects/use-unauthenticated-error-handler";
 import { getGoogleCampaignSetup } from "@/lib/actions/ads/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { UnAuthenticatedError } from "@/lib/auth/errors";

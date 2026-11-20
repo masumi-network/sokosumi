@@ -1,0 +1,16 @@
+language js
+
+// Direct effect calls belong in named hooks under `src/hooks/effects/` (ADR-0075).
+or {
+  `useEffect($args)`,
+  `useLayoutEffect($args)`,
+  `useMountEffect($args)`,
+  `useEffect?.($args)`,
+  `useLayoutEffect?.($args)`,
+  `useMountEffect?.($args)`,
+  `React.useEffect($args)`,
+  `React.useLayoutEffect($args)`,
+  `React.useMountEffect($args)`
+} as $call where {
+  register_diagnostic(span=$call, message="Effects live only in src/hooks/effects/. Compute during render, use an event handler, reset with key, or call a named hook from that folder. See docs/agents/web-ui.md#effects.", severity="error")
+}

@@ -11,8 +11,8 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/components/ui/popover";
+import { useIsMobile } from "@/hooks/effects/use-mobile";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";

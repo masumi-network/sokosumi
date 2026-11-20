@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageSearchHint } from "@/components/page-search-field";
-import { usePageSearchShortcut } from "@/hooks/use-page-search-shortcut";
+import { usePageSearchShortcut } from "@/hooks/effects/use-page-search-shortcut";
 
 export function CoworkerGallerySearch({
   query,

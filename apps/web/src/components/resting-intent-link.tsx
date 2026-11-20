@@ -18,7 +18,7 @@ import {
 import {
   msUntilIntentSettled,
   useIntentPrefetch,
-} from "@/hooks/use-intent-prefetch";
+} from "@/hooks/effects/use-intent-prefetch";
 import { prefetchRouteContent } from "@/lib/navigation/prefetch-route-content";
 
 /**

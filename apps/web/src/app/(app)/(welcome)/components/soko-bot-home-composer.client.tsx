@@ -32,7 +32,7 @@ import {
   isRoomComposerEmpty,
 } from "@/app/chat/components/room-helpers";
 import { GradientBackground } from "@/components/gradient-background";
-import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
+import { MOBILE_BREAKPOINT } from "@/hooks/effects/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 const NO_MENTIONS = {};
