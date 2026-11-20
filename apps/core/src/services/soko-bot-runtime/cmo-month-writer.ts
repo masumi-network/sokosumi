@@ -31,7 +31,7 @@ import {
 import {
   type CmoKindedPiece,
   cmoAllowedKinds,
-  cmoKeepsPicturesVaried,
+  cmoMakesVariedMonth,
   cmoPieceIsTalking,
   cmoPieceNeedsMedia,
   cmoPieceTakesStyle,
@@ -336,7 +336,7 @@ export async function writeCmoMonthPieces(
   const brain = parseBrandBrain((await getBrandBrain(cuso.projectId))?.body);
   const proof = cmoProofPoints(brain);
   const styles = referenceLibraryAvailable();
-  const varied = cmoKeepsPicturesVaried(authorized.turn.versionId);
+  const varied = cmoMakesVariedMonth(authorized.turn.versionId);
   const system = cmoWriterSystem({
     businessName: cuso.businessName,
     strategy,

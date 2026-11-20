@@ -12,7 +12,7 @@ import {
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
 import { findCusoForBot } from "@/services/cmo-cuso.service";
-import { cmoKeepsPicturesVaried } from "@/services/cmo-media-maker.service";
+import { cmoMakesVariedMonth } from "@/services/cmo-media-maker.service";
 import {
   findStyleReferences,
   infographicSuits,
@@ -138,7 +138,7 @@ export async function dispatchSocialTools(
           ...query,
           exclude,
           infographics:
-            !cmoKeepsPicturesVaried(authorized.turn.versionId) ||
+            !cmoMakesVariedMonth(authorized.turn.versionId) ||
             infographicSuits(query.purpose),
         }),
       };

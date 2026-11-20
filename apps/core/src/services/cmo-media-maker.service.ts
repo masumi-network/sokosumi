@@ -188,8 +188,11 @@ type StyledEntry = Pick<
 type OtherStyledEntry = Pick<StyledEntry, "id" | "styleReferenceId"> &
   Partial<Pick<StyledEntry, "channel" | "date" | "time">>;
 
-/** Whether a Cuso version keeps the month's pictures varied in kind (cmo-v8). */
-export function cmoKeepsPicturesVaried(
+/**
+ * Whether a Cuso version makes a varied month (cmo-v8): pictures in varied
+ * kinds of print, and LinkedIn openings Core reads before a save.
+ */
+export function cmoMakesVariedMonth(
   versionId: string | null | undefined,
 ): boolean {
   return getSokoBotVersion(versionId).skills.includes(

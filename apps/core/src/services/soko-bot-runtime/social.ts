@@ -28,7 +28,7 @@ import { projectPostingInstructionsSchema } from "@/schemas/project.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
 import { cmoExecutionRefusal } from "@/services/cmo-billing.service";
-import { cmoKeepsPicturesVaried } from "@/services/cmo-media-maker.service";
+import { cmoMakesVariedMonth } from "@/services/cmo-media-maker.service";
 import {
   listProjectSocialConnections,
   requireScopedProject,
@@ -321,7 +321,7 @@ export async function executeSocialTool(
           });
           await chargeCheck(input, EMBEDDING_MODEL, own.costUsd);
           if (own.problem) throw badRequest(own.problem);
-          if (cmoKeepsPicturesVaried(authorized.turn.versionId)) {
+          if (cmoMakesVariedMonth(authorized.turn.versionId)) {
             const opening = await linkedInOpeningProblem({
               postId: params.postId,
               workspaceId,

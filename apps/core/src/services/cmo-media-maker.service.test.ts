@@ -104,7 +104,7 @@ import {
   cmoAllowedKinds,
   cmoImagePrompt,
   cmoInfographicCap,
-  cmoKeepsPicturesVaried,
+  cmoMakesVariedMonth,
   cmoMediaState,
   cmoPictureOutdated,
   cmoPictureStyleProblem,
@@ -1085,9 +1085,9 @@ describe("a cmo-v8 month's kinds of print", () => {
   });
 
   it("are kept only by a cmo-v8 Cuso", () => {
-    expect(cmoKeepsPicturesVaried("cmo-v8")).toBe(true);
-    expect(cmoKeepsPicturesVaried("cmo-v7")).toBe(false);
-    expect(cmoKeepsPicturesVaried(null)).toBe(false);
+    expect(cmoMakesVariedMonth("cmo-v8")).toBe(true);
+    expect(cmoMakesVariedMonth("cmo-v7")).toBe(false);
+    expect(cmoMakesVariedMonth(null)).toBe(false);
   });
 
   it("hold at most one infographic in four pictures", () => {

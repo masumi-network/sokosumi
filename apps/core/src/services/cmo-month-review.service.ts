@@ -347,22 +347,32 @@ async function claimProblems(
     ),
   );
   const claims = [...claimOf.values()];
+  const claimed = made.filter((piece) => claimOf.has(piece.id));
   let flagged = 0;
   let costUsd = 0;
-  for (const piece of made) {
-    const own = claimOf.get(piece.id);
-    if (!own) continue;
-    const argued = await otherClaimArgued(piece.text, own, claims);
-    costUsd += argued.costUsd;
-    if (!argued.problem) continue;
-    flagged += 1;
-    piece.problems = [
-      ...piece.problems,
-      argued.problem.replace(/^Rewrite the post: it /, ""),
-    ];
+  // A few at a time: a month of 171 pieces would otherwise wait on each.
+  for (let start = 0; start < claimed.length; start += CLAIM_BATCH) {
+    const batch = claimed.slice(start, start + CLAIM_BATCH);
+    const results = await Promise.all(
+      batch.map((piece) =>
+        otherClaimArgued(piece.text, claimOf.get(piece.id) ?? null, claims),
+      ),
+    );
+    batch.forEach((piece, index) => {
+      const argued = results[index];
+      costUsd += argued?.costUsd ?? 0;
+      if (!argued?.problem) return;
+      flagged += 1;
+      piece.problems = [
+        ...piece.problems,
+        argued.problem.replace(/^Rewrite the post: it /, ""),
+      ];
+    });
   }
   return { flagged, costUsd };
 }
+
+const CLAIM_BATCH = 10;
 
 /** How many styled pictures of the month took each kind of print. */
 export async function cmoPictureKindMix(
