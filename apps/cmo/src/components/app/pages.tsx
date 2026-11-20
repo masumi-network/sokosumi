@@ -2,7 +2,7 @@
 
 import type { CmoOverview, CmoSubscriptionPlan } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { AGENT_NAME } from "../../lib/agent";
 import type { BrandBrain } from "../../lib/brand-sections";
 import {
@@ -44,6 +44,9 @@ import {
 } from "./subscription-card";
 import { type SetTimeZone, TimeZoneSetting } from "./time-zone";
 import { MonthBar, NetworkBars } from "./today-page";
+
+const subscribeNoop = () => () => {};
+const getServerAdsReturnError = () => null;
 
 interface PageProps {
   overview: CmoOverview;
@@ -387,16 +390,21 @@ export function ChannelsPage({
   }>;
 }) {
   const [pending, setPending] = useState<Provider | null>(null);
-  const [error, setError] = useState<string | null>(connectError);
-  useEffect(() => {
-    const adsError = adsReturnError();
-    if (adsError) setError(adsError);
-  }, []);
+  const adsError = useSyncExternalStore(
+    subscribeNoop,
+    adsReturnError,
+    getServerAdsReturnError,
+  );
+  const [errorOverride, setErrorOverride] = useState<string | null | undefined>(
+    undefined,
+  );
+  const error =
+    errorOverride === undefined ? (adsError ?? connectError) : errorOverride;
   const [, startTransition] = useTransition();
 
   function start(provider: Provider, replaceId?: string) {
     setPending(provider);
-    setError(null);
+    setErrorOverride(null);
     startTransition(async () => {
       const result =
         replaceId && change ? await change(replaceId) : await connect(provider);
@@ -405,7 +413,7 @@ export function ChannelsPage({
         return;
       }
       setPending(null);
-      setError(
+      setErrorOverride(
         result.error && /configured|unavailable|set up/i.test(result.error)
           ? "Connecting accounts isn't available here yet."
           : (result.error ?? "Could not start connecting. Try again."),
@@ -558,7 +566,10 @@ export function ChannelsPage({
                 onClick={async () => {
                   const result = await connectSearchConsole();
                   if (result.url) window.location.assign(result.url);
-                  else setError(result.error ?? "Could not start connecting.");
+                  else
+                    setErrorOverride(
+                      result.error ?? "Could not start connecting.",
+                    );
                 }}
               >
                 Connect

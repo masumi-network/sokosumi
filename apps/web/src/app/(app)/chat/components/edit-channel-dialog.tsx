@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import {
   type FormEvent,
   type ReactElement,
-  useEffect,
   useState,
   useTransition,
 } from "react";
@@ -96,12 +95,15 @@ export function EditChannelDialog({
     channel.discoverability === "external" &&
     channel.userMembers.some((member) => member.access === "guest");
 
-  useEffect(() => {
-    if (!open) return;
+  const [synced, setSynced] = useState({ open, channel });
+  if (open && (!synced.open || synced.channel !== channel)) {
+    setSynced({ open, channel });
     setName(channel.name);
     setTopic(channel.topic ?? "");
     setDiscoverability(channelDiscoverability(channel.discoverability));
-  }, [channel, open]);
+  } else if (!open && synced.open) {
+    setSynced({ open, channel });
+  }
 
   const trimmedTopic = topic.trim();
   const hasChanges =

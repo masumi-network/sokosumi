@@ -1,7 +1,7 @@
 "use client";
 
 import { ALargeSmall, AtSign, Paperclip, SmilePlus } from "lucide-react";
-import { useLayoutEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
 import { RoomShellLayout } from "@/app/chat/components/room-shell-layout";
@@ -17,6 +17,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+const subscribeNoop = () => () => {};
+const getFormatToolbarOpenSnapshot = () =>
+  getFormatToolbarOpenPreference() ?? false;
+const getFormatToolbarOpenServerSnapshot = () => false;
+
 /**
  * Instant / Suspense fallback: same shell tree as progressive RoomsClient +
  * real composer chrome + left-aligned message-list skeleton.
@@ -26,10 +31,11 @@ import { cn } from "@/lib/utils";
  * empty:before cannot steal mobile LCP from real chrome.
  */
 export function RoomOpenLoadingView(): React.ReactElement {
-  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
-  useLayoutEffect(() => {
-    setFormatToolbarOpen(getFormatToolbarOpenPreference() ?? false);
-  }, []);
+  const formatToolbarOpen = useSyncExternalStore(
+    subscribeNoop,
+    getFormatToolbarOpenSnapshot,
+    getFormatToolbarOpenServerSnapshot,
+  );
 
   return (
     <RoomShellLayout

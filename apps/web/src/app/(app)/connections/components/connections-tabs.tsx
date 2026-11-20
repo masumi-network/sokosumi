@@ -1,8 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useQueryState } from "nuqs";
-import { type ReactNode, useEffect } from "react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import type { ReactNode } from "react";
 
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -14,39 +14,31 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-type ConnectionsTabValue = "connected-apps" | "mcp";
+const ENABLED_TABS = ["connected-apps", "mcp"] as const;
+type ConnectionsTabValue = (typeof ENABLED_TABS)[number];
 
 interface ConnectionsTabsProps {
   connectedAppsContent: ReactNode;
   mcpContent: ReactNode;
 }
 
-const ENABLED_TABS: ConnectionsTabValue[] = ["connected-apps", "mcp"];
-
 export function ConnectionsTabs({
   connectedAppsContent,
   mcpContent,
 }: ConnectionsTabsProps) {
   const t = useTranslations("App.Connections");
-  const [tab, setTab] = useQueryState("tab", {
-    defaultValue: "connected-apps",
-  });
-
-  const activeTab = ENABLED_TABS.includes(tab as ConnectionsTabValue)
-    ? (tab as ConnectionsTabValue)
-    : "connected-apps";
-
-  useEffect(() => {
-    if (!ENABLED_TABS.includes(tab as ConnectionsTabValue)) {
-      void setTab("connected-apps");
-    }
-  }, [setTab, tab]);
+  const [activeTab, setTab] = useQueryState(
+    "tab",
+    parseAsStringLiteral(ENABLED_TABS).withDefault("connected-apps"),
+  );
 
   return (
     <Tabs
       value={activeTab}
       onValueChange={(value: string) => {
-        void setTab(value);
+        if (ENABLED_TABS.includes(value as ConnectionsTabValue)) {
+          void setTab(value as ConnectionsTabValue);
+        }
       }}
       className="flex flex-col gap-5"
     >

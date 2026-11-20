@@ -178,6 +178,7 @@ export function EntrySheet({
         <h3 className="sheet-title">{entry.title}</h3>
         {overview && draft && isSocialProvider(entry.channel.toLowerCase()) ? (
           <PostPreview
+            key={`${entry.id}:${draft}`}
             entry={entry}
             media={media}
             text={draft}
@@ -323,12 +324,6 @@ function PostPreview({
   const [words, setWords] = useState(text);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [saving, startSaving] = useTransition();
-  // Stepping to another post, or a save, shows that post's own words.
-  useEffect(() => {
-    setWords(text);
-    setEditing(false);
-    setRefusal(null);
-  }, [text]);
   const pictureFirst = channel === "instagram";
   const picture = <PieceMedia entry={entry} media={media} />;
   return (

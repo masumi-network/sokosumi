@@ -29,10 +29,10 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { toast } from "sonner";
 import {
@@ -98,6 +98,30 @@ import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
+}
+
+const subscribeNoop = () => () => {};
+const getFormatToolbarOpenSnapshot = () =>
+  getFormatToolbarOpenPreference() ?? false;
+const getFormatToolbarOpenServerSnapshot = () => false;
+
+/**
+ * Slack Aa toggle: formatting strip above the editor.
+ * SSR + first paint start closed (hydration-safe). Preference persisted via localStorage on Aa.
+ */
+function useFormatToolbarOpenPreference(): [boolean, (next: boolean) => void] {
+  const stored = useSyncExternalStore(
+    subscribeNoop,
+    getFormatToolbarOpenSnapshot,
+    getFormatToolbarOpenServerSnapshot,
+  );
+  const [override, setOverride] = useState<boolean | null>(null);
+  const open = override ?? stored;
+  const setOpen = useCallback((next: boolean) => {
+    setOverride(next);
+    setFormatToolbarOpenPreference(next);
+  }, []);
+  return [open, setOpen];
 }
 
 /** Shell drop zones + Quote/Thread callers reuse this surface. */
@@ -371,11 +395,8 @@ export function RoomComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
-  /**
-   * Slack Aa toggle: formatting strip above the editor.
-   * SSR + first paint start closed (hydration-safe). Preference persisted via localStorage on Aa.
-   */
-  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
+  const [formatToolbarOpen, setFormatToolbarOpen] =
+    useFormatToolbarOpenPreference();
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
     EMPTY_COMPOSER_ACTIVE_FORMATS,
   );
@@ -412,13 +433,6 @@ export function RoomComposer({
       usersBySlug,
     ],
   );
-
-  // Stored pref wins; else closed until the reader opens it with Aa.
-  // useLayoutEffect: apply before paint so Instant → real composer does not
-  // grow a second time when the format strip opens after first paint.
-  useLayoutEffect(() => {
-    setFormatToolbarOpen(getFormatToolbarOpenPreference() ?? false);
-  }, []);
 
   // Keep toasts just above the composer (incl. mobile keyboard).
   useEffect(() => {
@@ -457,12 +471,6 @@ export function RoomComposer({
     });
     return () => cancelAnimationFrame(frame);
   }, [focusOnMount]);
-
-  useEffect(() => {
-    if (!formatToolbarOpen) {
-      setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
-    }
-  }, [formatToolbarOpen]);
 
   const handleActiveFormatsChange = useCallback(
     (formats: ComposerActiveFormats) => {
@@ -819,11 +827,11 @@ export function RoomComposer({
               }
               aria-pressed={formatToolbarOpen}
               onClick={() => {
-                setFormatToolbarOpen((open) => {
-                  const next = !open;
-                  setFormatToolbarOpenPreference(next);
-                  return next;
-                });
+                const next = !formatToolbarOpen;
+                setFormatToolbarOpen(next);
+                if (!next) {
+                  setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
+                }
               }}
             >
               <ALargeSmall className="size-4" aria-hidden />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,11 +36,19 @@ export function ComposerAddLinkDialog({
   const [text, setText] = useState(initialText);
   const [url, setUrl] = useState(initialUrl);
 
-  useEffect(() => {
-    if (!open) return;
+  const [synced, setSynced] = useState({ open, initialText, initialUrl });
+  if (
+    open &&
+    (!synced.open ||
+      synced.initialText !== initialText ||
+      synced.initialUrl !== initialUrl)
+  ) {
+    setSynced({ open, initialText, initialUrl });
     setText(initialText);
     setUrl(initialUrl);
-  }, [initialText, initialUrl, open]);
+  } else if (!open && synced.open) {
+    setSynced({ open, initialText, initialUrl });
+  }
 
   const normalizedUrl = normalizeUrl(url);
   const canSave = normalizedUrl !== null;

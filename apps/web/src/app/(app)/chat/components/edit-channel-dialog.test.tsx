@@ -179,4 +179,28 @@ describe("EditChannelDialog", () => {
     expect(screen.getByLabelText("Visibility.public")).toBeEnabled();
     expect(screen.queryByText("Visibility.externalLocked")).toBeNull();
   });
+
+  it("resets unsaved edits when closed and reopened or when switching channels", async () => {
+    const first = channel({ id: "room-1", name: "general", topic: "Original" });
+    const second = channel({ id: "room-2", name: "design", topic: "Specs" });
+
+    const { rerender } = render(
+      <ShellOwnedEditChannelDialog channel={first} />,
+    );
+    const user = await openDialog();
+
+    const nameInput = screen.getByLabelText("Dialog.name");
+    await user.clear(nameInput);
+    await user.type(nameInput, "unsaved-name");
+    expect(nameInput).toHaveValue("unsaved-name");
+
+    await user.keyboard("{Escape}");
+    await openDialog();
+    expect(screen.getByLabelText("Dialog.name")).toHaveValue("general");
+    expect(screen.getByLabelText("Dialog.topic")).toHaveValue("Original");
+
+    rerender(<ShellOwnedEditChannelDialog channel={second} />);
+    expect(screen.getByLabelText("Dialog.name")).toHaveValue("design");
+    expect(screen.getByLabelText("Dialog.topic")).toHaveValue("Specs");
+  });
 });

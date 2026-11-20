@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -120,14 +120,10 @@ export function ProjectDetailActions({
   const [closeReason, setCloseReason] = useState("");
   const [isClosing, startCloseTransition] = useTransition();
 
-  useEffect(() => {
-    if (!isClosingOrClosed) {
-      return;
-    }
-    closeAttemptRef.current = null;
+  if (isClosingOrClosed && (isCloseDialogOpen || closeReason !== "")) {
     setCloseReason("");
     setIsCloseDialogOpen(false);
-  }, [isClosingOrClosed]);
+  }
 
   function handleCloseProject() {
     if (projectRevision === undefined) {
@@ -222,7 +218,10 @@ export function ProjectDetailActions({
               variant="destructive"
               // Let the menu close: kept open, it sat under the dialog and was
               // still open once the dialog closed.
-              onSelect={() => setIsCloseDialogOpen(true)}
+              onSelect={() => {
+                closeAttemptRef.current = null;
+                setIsCloseDialogOpen(true);
+              }}
             >
               <CircleStop className="size-4" aria-hidden />
               {labels.close}

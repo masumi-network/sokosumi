@@ -1,9 +1,26 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { THEME_COOKIE, type Theme } from "../lib/theme";
+
+const themeListeners = new Set<() => void>();
+
+function subscribeTheme(onStoreChange: () => void): () => void {
+  themeListeners.add(onStoreChange);
+  return () => {
+    themeListeners.delete(onStoreChange);
+  };
+}
+
+function notifyThemeChange(): void {
+  for (const listener of themeListeners) listener();
+}
+
+function getServerTheme(): Theme | null {
+  return null;
+}
 
 function currentTheme(): Theme {
   const chosen = document.documentElement.dataset.theme;
@@ -26,8 +43,11 @@ export function ThemeToggle({
   withLabel?: boolean;
   role?: "menuitem";
 }) {
-  const [theme, setTheme] = useState<Theme | null>(null);
-  useEffect(() => setTheme(currentTheme()), []);
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    currentTheme,
+    getServerTheme,
+  );
   const next: Theme = theme === "dark" ? "light" : "dark";
   const label = `${next === "dark" ? "Dark" : "Light"} mode`;
 
@@ -41,7 +61,7 @@ export function ThemeToggle({
       onClick={() => {
         document.documentElement.dataset.theme = next;
         document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
-        setTheme(next);
+        notifyThemeChange();
       }}
     >
       {next === "dark" ? (

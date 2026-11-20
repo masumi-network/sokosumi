@@ -1,7 +1,7 @@
 "use client";
 
-import { useQueryState } from "nuqs";
-import { type ReactNode, useEffect, useMemo } from "react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import type { ReactNode } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -10,7 +10,9 @@ import {
 } from "@/components/ui/tabs-classes";
 import { cn } from "@/lib/utils";
 
-type BillingTabValue = "subscription" | "credits" | "coupon";
+const ALL_BILLING_TABS = ["subscription", "credits", "coupon"] as const;
+const BILLING_TABS_WITHOUT_CREDITS = ["subscription", "coupon"] as const;
+type BillingTabValue = (typeof ALL_BILLING_TABS)[number];
 
 interface BillingTabsProps {
   couponContent: ReactNode;
@@ -31,33 +33,22 @@ export function BillingTabs({
   subscriptionContent,
   tabLabels,
 }: BillingTabsProps) {
-  const [tab, setTab] = useQueryState("tab", {
-    defaultValue: "subscription",
-  });
+  const enabledTabs = showCreditsTab
+    ? ALL_BILLING_TABS
+    : BILLING_TABS_WITHOUT_CREDITS;
 
-  const enabledTabs = useMemo<BillingTabValue[]>(
-    () =>
-      showCreditsTab
-        ? ["subscription", "credits", "coupon"]
-        : ["subscription", "coupon"],
-    [showCreditsTab],
+  const [activeTab, setTab] = useQueryState(
+    "tab",
+    parseAsStringLiteral(enabledTabs).withDefault("subscription"),
   );
-
-  const activeTab = enabledTabs.includes(tab as BillingTabValue)
-    ? (tab as BillingTabValue)
-    : "subscription";
-
-  useEffect(() => {
-    if (!enabledTabs.includes(tab as BillingTabValue)) {
-      void setTab("subscription");
-    }
-  }, [enabledTabs, setTab, tab]);
 
   return (
     <Tabs
       value={activeTab}
       onValueChange={(value: string) => {
-        void setTab(value);
+        if ((enabledTabs as readonly string[]).includes(value)) {
+          void setTab(value as BillingTabValue);
+        }
       }}
       className="flex flex-col gap-5"
     >

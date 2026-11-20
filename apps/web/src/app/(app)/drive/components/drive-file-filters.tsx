@@ -3,7 +3,7 @@
 import type { WorkspaceLabel } from "@sokosumi/core-client";
 import { BookmarkPlus, ListFilter } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -112,9 +112,14 @@ export function DriveFileFilters({
   const [draft, setDraft] = useState<FileSearchFilterState>(filters);
 
   // Reopening shows what is actually applied, not an abandoned draft.
-  useEffect(() => {
-    if (open || sheetOpen) setDraft(filters);
-  }, [open, sheetOpen, filters]);
+  const isOpen = open || Boolean(sheetOpen);
+  const [synced, setSynced] = useState({ isOpen, filters });
+  if (isOpen && (!synced.isOpen || synced.filters !== filters)) {
+    setSynced({ isOpen, filters });
+    setDraft(filters);
+  } else if (!isOpen && synced.isOpen) {
+    setSynced({ isOpen, filters });
+  }
 
   // The folder is the trail's, not a filter.
   const activeCount = countActiveFileFilters({ ...filters, folder: "" });

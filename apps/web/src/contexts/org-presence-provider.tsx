@@ -14,6 +14,8 @@ import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useOrgPresenceMap } from "@/lib/ably/use-org-presence-map";
 import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
 
+const EMPTY_PRESENCE_MAP = new Map<string, ChatPresenceState>();
+
 const OrgPresenceMapContext = createContext<Map<
   string,
   ChatPresenceState
@@ -85,14 +87,14 @@ export function OrgPresenceProvider({
     });
   }, []);
 
-  useEffect(() => {
-    if (organizationId == null) {
-      setPresenceByUserId(new Map());
-    }
-  }, [organizationId]);
+  if (organizationId == null && presenceByUserId.size > 0) {
+    setPresenceByUserId(EMPTY_PRESENCE_MAP);
+  }
 
   return (
-    <OrgPresenceMapContext value={presenceByUserId}>
+    <OrgPresenceMapContext
+      value={organizationId == null ? EMPTY_PRESENCE_MAP : presenceByUserId}
+    >
       {children}
       <LazyAblyProvider>
         <OrgPresencePublisherBridge organizationId={organizationId} />
