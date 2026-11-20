@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { brandBrainSchema as brandBrainShapeSchema } from "@sokosumi/soko-bot";
+import { storedBrandBrainSchema as brandBrainShapeSchema } from "@sokosumi/soko-bot";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 

@@ -140,7 +140,9 @@ export {
   REFERENCE_KINDS,
   REFERENCE_PURPOSES,
   type SocialPostPlanning,
+  type StoredBrandBrainBody,
   socialPostPlanningSchema,
+  storedBrandBrainSchema,
 } from "./project-marketing.js";
 export {
   CHAT_RESULT_PREVIEW_LIMIT,

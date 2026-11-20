@@ -384,6 +384,7 @@ export async function saveCmoRecord(
           });
           return saveBrandBrain(bot.projectId, save, tx, {
             briefedAt: turn?.createdAt,
+            by: "cuso",
           });
         });
         if (save.brandBrain) scheduleCmoBrandMedia(authorized.turn.sokoBotId);

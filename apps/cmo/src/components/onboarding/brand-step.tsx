@@ -842,7 +842,10 @@ function PromiseCard({ overview, brain, site, onSave }: PromiseCardProps) {
       ) : (
         <p className="ob-statement">{statement}</p>
       )}
-      <p className="ob-tile-source">Source: {site}</p>
+      {/* Once the owner rewrote it, the line is theirs, not the site's. */}
+      {brain.promiseByOwner ? null : (
+        <p className="ob-tile-source">Source: {site}</p>
+      )}
     </div>
   );
 }
