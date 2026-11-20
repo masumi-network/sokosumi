@@ -12,53 +12,30 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative, sep } from "node:path";
 import { describe, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import {
+  ALIAS_PLUGIN_REL_FROM_APP,
+  COMMON_BASE_INCLUDES,
+  DIRECT_PLUGIN_REL_FROM_APP,
+  EFFECT_APPS,
+  formatEffectBaseline,
+  GENERATED_BIOME_EXTEND_PATH,
+  GENERATED_BIOME_FILENAME,
+  ROOT,
+  ROOT_BIOME_EXTEND_PATH,
+  sortBaselineKeys,
+  syncAppEffectBaseline,
+} from "../sync-effect-baseline.mjs";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
-const DIRECT_PLUGIN_REL_FROM_APP = "../../biome-plugins/no-direct-effects.grit";
-const ALIAS_PLUGIN_REL_FROM_APP = "../../biome-plugins/no-effect-aliases.grit";
 const DIRECT_PLUGIN_PATH = join(ROOT, "biome-plugins/no-direct-effects.grit");
 const ALIAS_PLUGIN_PATH = join(ROOT, "biome-plugins/no-effect-aliases.grit");
 
 const EXPECTED_MESSAGE =
   "Effects live only in src/hooks/effects/. Compute during render, use an event handler, reset with key, or call a named hook from that folder. See docs/agents/web-ui.md#effects.";
 
-const COMMON_BASE_INCLUDES = [
-  "src/**",
-  "!src/hooks/effects/**",
-  "!**/*.test.*",
-  "!**/*.spec.*",
-  "!**/__tests__/**",
-  "!src/test/**",
-  "!src/test-fixtures/**",
-  "!**/fixtures/**",
-  "!**/*-fixture.*",
-  "!**/*-fixtures.*",
-  "!**/*.fixture.*",
-  "!**/*.fixtures.*",
-  "!**/fixtures.*",
-  "!**/fixture-*.*",
-];
-
-const APPS = [
-  {
-    name: "web",
-    dir: join(ROOT, "apps/web"),
-    baseIncludes: [
-      COMMON_BASE_INCLUDES[0],
-      COMMON_BASE_INCLUDES[1],
-      "!src/components/ui/**",
-      ...COMMON_BASE_INCLUDES.slice(2),
-    ],
-    exemptUi: true,
-  },
-  {
-    name: "cmo",
-    dir: join(ROOT, "apps/cmo"),
-    baseIncludes: [...COMMON_BASE_INCLUDES],
-    exemptUi: false,
-  },
-];
+const APPS = EFFECT_APPS.map((app) => ({
+  ...app,
+  dir: join(ROOT, app.relDir),
+}));
 
 // Captures the category list of any Biome suppression directive up to `:`,
 // `<`, or end-of-line so multi-category headers (e.g.
@@ -75,10 +52,6 @@ const SCRIPT_FILE_RE = /\.(?:[cm]?[jt]sx?)$/;
 function resolveBiomeBin() {
   const local = join(ROOT, "node_modules/.bin/biome");
   return existsSync(local) ? local : "biome";
-}
-
-function escapeBiomeGlob(relPath) {
-  return relPath.replace(/[\\[\]]/g, "\\$&");
 }
 
 function toPosixPath(p) {
@@ -332,14 +305,38 @@ function findEffectSuppressions(app) {
   return findEffectSuppressionsInFiles(files);
 }
 
+function findBaselineFormatViolations(rawBaselineText, baseline) {
+  const errors = [];
+  const keys = Object.keys(baseline);
+  const sortedKeys = sortBaselineKeys(keys);
+  if (JSON.stringify(keys) !== JSON.stringify(sortedKeys)) {
+    errors.push(
+      "effect-baseline.json keys must be sorted in ascending code-point order so parallel migration PRs merge cleanly.",
+    );
+  }
+  const canonical = formatEffectBaseline(baseline);
+  if (rawBaselineText !== canonical) {
+    errors.push(
+      "effect-baseline.json must use canonical conflict-friendly JSON formatting (sorted keys, one entry per line, 2-space indent, trailing newline).",
+    );
+  }
+  return errors;
+}
+
 function findBaselineViolations({
   actualCounts,
   baseline,
-  overrideIncludes,
+  rawBaselineText,
+  biomeExtends = [ROOT_BIOME_EXTEND_PATH, GENERATED_BIOME_EXTEND_PATH],
+  hasDirectPluginInBiome = false,
   aliasOverrideIncludes,
   baseIncludes,
 }) {
   const errors = [];
+
+  if (rawBaselineText !== undefined) {
+    errors.push(...findBaselineFormatViolations(rawBaselineText, baseline));
+  }
 
   for (const [file, limit] of Object.entries(baseline)) {
     if (!Number.isInteger(limit) || limit <= 0) {
@@ -351,7 +348,7 @@ function findBaselineViolations({
     const actual = actualCounts.get(file) ?? 0;
     if (actual === 0) {
       errors.push(
-        `${file}: has 0 direct effects; remove it from effect-baseline.json and biome.json.`,
+        `${file}: has 0 direct effects; remove it from effect-baseline.json.`,
       );
     } else if (actual > limit) {
       errors.push(
@@ -372,15 +369,21 @@ function findBaselineViolations({
     }
   }
 
-  const expectedIncludes = [
-    ...baseIncludes,
-    ...Object.keys(baseline)
-      .sort()
-      .map((file) => `!${escapeBiomeGlob(file)}`),
-  ];
-  if (JSON.stringify(overrideIncludes) !== JSON.stringify(expectedIncludes)) {
+  if (
+    !Array.isArray(biomeExtends) ||
+    biomeExtends.indexOf(ROOT_BIOME_EXTEND_PATH) === -1 ||
+    biomeExtends.indexOf(GENERATED_BIOME_EXTEND_PATH) === -1 ||
+    biomeExtends.indexOf(ROOT_BIOME_EXTEND_PATH) >
+      biomeExtends.indexOf(GENERATED_BIOME_EXTEND_PATH)
+  ) {
     errors.push(
-      "biome.json effect-rule override includes do not match effect-baseline.json.",
+      `biome.json must extend ["${ROOT_BIOME_EXTEND_PATH}", "${GENERATED_BIOME_EXTEND_PATH}"] so effect exemptions derive from effect-baseline.json.`,
+    );
+  }
+
+  if (hasDirectPluginInBiome) {
+    errors.push(
+      `biome.json must not inline ${DIRECT_PLUGIN_REL_FROM_APP}; keep effect-baseline.json as the single source of truth via ${GENERATED_BIOME_FILENAME}.`,
     );
   }
 
@@ -460,16 +463,13 @@ function checkAppDir(app) {
   const biomePath = join(app.dir, "biome.json");
   assert.ok(existsSync(baselinePath), `missing ${baselinePath}`);
 
-  const baseline = JSON.parse(readFileSync(baselinePath, "utf8"));
+  const rawBaselineText = readFileSync(baselinePath, "utf8");
+  const baseline = JSON.parse(rawBaselineText);
   const biomeConfig = JSON.parse(readFileSync(biomePath, "utf8"));
-  const effectOverride = (biomeConfig.overrides ?? []).find(
+  const directOverride = (biomeConfig.overrides ?? []).find(
     (override) =>
       Array.isArray(override.plugins) &&
       override.plugins.includes(DIRECT_PLUGIN_REL_FROM_APP),
-  );
-  assert.ok(
-    effectOverride,
-    `apps/${app.name}/biome.json must attach ${DIRECT_PLUGIN_REL_FROM_APP} via an override`,
   );
 
   const aliasOverride = (biomeConfig.overrides ?? []).find(
@@ -488,7 +488,9 @@ function checkAppDir(app) {
   const violations = findBaselineViolations({
     actualCounts,
     baseline,
-    overrideIncludes: effectOverride.includes ?? [],
+    rawBaselineText,
+    biomeExtends: biomeConfig.extends,
+    hasDirectPluginInBiome: Boolean(directOverride),
     aliasOverrideIncludes: aliasOverride.includes ?? [],
     baseIncludes: app.baseIncludes,
   });
@@ -509,6 +511,9 @@ function writeTempPlugins(fixture) {
   writeFileSync(
     join(fixture, "biome.jsonc"),
     JSON.stringify({
+      files: {
+        includes: ["**", `!**/${GENERATED_BIOME_FILENAME}`],
+      },
       linter: { enabled: true, rules: { preset: "none" } },
     }),
   );
@@ -639,17 +644,16 @@ describe("no-direct-effects Grit plugins", () => {
           writeFileSync(full, content);
         }
 
+        writeFileSync(join(appRoot, "effect-baseline.json"), "{}\n");
+        syncAppEffectBaseline(app, { rootDir: fixture });
+
         const appBiome = {
           root: false,
-          extends: "//",
+          extends: [ROOT_BIOME_EXTEND_PATH, GENERATED_BIOME_EXTEND_PATH],
           ...(app.exemptUi
             ? { files: { includes: ["**", "!src/components/ui/**"] } }
             : {}),
           overrides: [
-            {
-              includes: app.baseIncludes,
-              plugins: [DIRECT_PLUGIN_REL_FROM_APP],
-            },
             {
               includes: app.baseIncludes,
               plugins: [ALIAS_PLUGIN_REL_FROM_APP],
@@ -711,18 +715,23 @@ describe("no-direct-effects Grit plugins", () => {
       );
       writeFileSync(
         join(appDir, "effect-baseline.json"),
-        JSON.stringify({ "src/legacy.tsx": 1 }, null, 2) + "\n",
+        formatEffectBaseline({ "src/legacy.tsx": 1 }),
+      );
+      syncAppEffectBaseline(
+        {
+          name: "web",
+          relDir: "apps/web",
+          baseIncludes: COMMON_BASE_INCLUDES,
+          exemptUi: false,
+        },
+        { rootDir: fixture },
       );
       writeFileSync(
         join(appDir, "biome.json"),
         JSON.stringify({
           root: false,
-          extends: "//",
+          extends: [ROOT_BIOME_EXTEND_PATH, GENERATED_BIOME_EXTEND_PATH],
           overrides: [
-            {
-              includes: [...COMMON_BASE_INCLUDES, "!src/legacy.tsx"],
-              plugins: [DIRECT_PLUGIN_REL_FROM_APP],
-            },
             {
               includes: COMMON_BASE_INCLUDES,
               plugins: [ALIAS_PLUGIN_REL_FROM_APP],
@@ -829,16 +838,21 @@ describe("no-direct-effects Grit plugins", () => {
         mkdirSync(join(appDir, "src"), { recursive: true });
         writeFileSync(join(appDir, "src/bypass.tsx"), source);
         writeFileSync(join(appDir, "effect-baseline.json"), "{}\n");
+        syncAppEffectBaseline(
+          {
+            name,
+            relDir: `apps/${name}`,
+            baseIncludes: COMMON_BASE_INCLUDES,
+            exemptUi: false,
+          },
+          { rootDir: fixture },
+        );
         writeFileSync(
           join(appDir, "biome.json"),
           JSON.stringify({
             root: false,
-            extends: "//",
+            extends: [ROOT_BIOME_EXTEND_PATH, GENERATED_BIOME_EXTEND_PATH],
             overrides: [
-              {
-                includes: COMMON_BASE_INCLUDES,
-                plugins: [DIRECT_PLUGIN_REL_FROM_APP],
-              },
               {
                 includes: COMMON_BASE_INCLUDES,
                 plugins: [ALIAS_PLUGIN_REL_FROM_APP],
@@ -891,16 +905,21 @@ describe("no-direct-effects Grit plugins", () => {
         ].join("\n"),
       );
       writeFileSync(join(stringAppDir, "effect-baseline.json"), "{}\n");
+      syncAppEffectBaseline(
+        {
+          name: "string-literal",
+          relDir: "apps/string-literal",
+          baseIncludes: COMMON_BASE_INCLUDES,
+          exemptUi: false,
+        },
+        { rootDir: fixture },
+      );
       writeFileSync(
         join(stringAppDir, "biome.json"),
         JSON.stringify({
           root: false,
-          extends: "//",
+          extends: [ROOT_BIOME_EXTEND_PATH, GENERATED_BIOME_EXTEND_PATH],
           overrides: [
-            {
-              includes: COMMON_BASE_INCLUDES,
-              plugins: [DIRECT_PLUGIN_REL_FROM_APP],
-            },
             {
               includes: COMMON_BASE_INCLUDES,
               plugins: [ALIAS_PLUGIN_REL_FROM_APP],
@@ -921,6 +940,122 @@ describe("no-direct-effects Grit plugins", () => {
       rmSync(fixture, { recursive: true, force: true });
     }
   });
+
+  test("derives .effect-baseline.biome.json from effect-baseline.json, escapes bracketed paths, preserves app plugins and root rules, and immediately flags newly cleaned files", () => {
+    const fixture = mkdtempSync(join(tmpdir(), "effect-sync-e2e-"));
+    try {
+      execFileSync("git", ["init", "-q"], { cwd: fixture });
+      writeFileSync(
+        join(fixture, ".gitignore"),
+        `apps/*/${GENERATED_BIOME_FILENAME}\n`,
+      );
+      writeTempPlugins(fixture);
+      writeFileSync(
+        join(fixture, "biome.jsonc"),
+        readFileSync(join(ROOT, "biome.jsonc"), "utf8"),
+      );
+      const appDir = join(fixture, "apps/web");
+      const bracketedRel = "src/app/(app)/agents/[agentId]/page.tsx";
+      const cleanRel = "src/clean.tsx";
+      const zeroEntryRel = "src/zero.tsx";
+      const effectSource =
+        'import { useEffect } from "react";\n\nexport function Demo() {\n  useEffect(() => {}, []);\n  return null;\n}\n';
+
+      mkdirSync(join(appDir, "biome-plugins"), { recursive: true });
+      writeFileSync(
+        join(appDir, "biome-plugins/named-clock-formats.grit"),
+        readFileSync(
+          join(ROOT, "apps/web/biome-plugins/named-clock-formats.grit"),
+          "utf8",
+        ),
+      );
+      mkdirSync(dirname(join(appDir, bracketedRel)), { recursive: true });
+      writeFileSync(join(appDir, bracketedRel), effectSource);
+      writeFileSync(join(appDir, cleanRel), effectSource);
+      writeFileSync(join(appDir, zeroEntryRel), effectSource);
+      writeFileSync(
+        join(appDir, "src/clock-and-unused.ts"),
+        'export function formatClock(formatter: { dateTime: (v: Date, o: object) => string }) {\n  const unused = 1;\n  return formatter.dateTime(new Date(), { hour: "numeric" });\n}\n',
+      );
+      writeFileSync(
+        join(appDir, "biome.json"),
+        readFileSync(join(ROOT, "apps/web/biome.json"), "utf8"),
+      );
+
+      // Bracketed path is baselined (count 1); zeroEntryRel has count 0 and
+      // must NOT be exempted even before the baseline invariant check runs.
+      const app = { ...EFFECT_APPS[0] };
+      writeFileSync(
+        join(appDir, "effect-baseline.json"),
+        formatEffectBaseline({
+          [bracketedRel]: 1,
+          [zeroEntryRel]: 0,
+        }),
+      );
+      const firstSync = syncAppEffectBaseline(app, { rootDir: fixture });
+      assert.equal(firstSync.changed, true);
+      const secondSync = syncAppEffectBaseline(app, { rootDir: fixture });
+      assert.equal(secondSync.changed, false);
+
+      const initialReport = runBiomeJson(
+        ["lint", "--reporter=json", "--max-diagnostics=none", "."],
+        fixture,
+      );
+      const initialEffectPaths = initialReport.diagnostics
+        .filter(
+          (d) => d.category === "plugin" && d.message === EXPECTED_MESSAGE,
+        )
+        .map((d) => toPosixPath(d.location.path))
+        .sort();
+      assert.deepEqual(initialEffectPaths, [
+        `apps/web/${cleanRel}`,
+        `apps/web/${zeroEntryRel}`,
+      ]);
+      // App plugin (`named-clock-formats`) and root rule (`noUnusedVariables`)
+      // stay active alongside the extended generated baseline override.
+      assert.ok(
+        initialReport.diagnostics.some(
+          (d) =>
+            d.category === "plugin" &&
+            d.message.includes("named dateTime format") &&
+            toPosixPath(d.location.path) === "apps/web/src/clock-and-unused.ts",
+        ),
+        "expected named-clock-formats.grit to stay active",
+      );
+      assert.ok(
+        initialReport.diagnostics.some(
+          (d) =>
+            d.category === "lint/correctness/noUnusedVariables" &&
+            toPosixPath(d.location.path) === "apps/web/src/clock-and-unused.ts",
+        ),
+        "expected root noUnusedVariables to stay active",
+      );
+
+      // Removing the bracketed path from effect-baseline.json and re-syncing
+      // makes Biome immediately flag it with no biome.json edits.
+      writeFileSync(join(appDir, "effect-baseline.json"), "{}\n");
+      const thirdSync = syncAppEffectBaseline(app, { rootDir: fixture });
+      assert.equal(thirdSync.changed, true);
+
+      const afterDropReport = runBiomeJson(
+        ["lint", "--reporter=json", "--max-diagnostics=none", "."],
+        fixture,
+      );
+      const afterDropPaths = afterDropReport.diagnostics
+        .filter(
+          (d) => d.category === "plugin" && d.message === EXPECTED_MESSAGE,
+        )
+        .map((d) => toPosixPath(d.location.path))
+        .sort();
+      assert.deepEqual(afterDropPaths, [
+        `apps/web/${bracketedRel}`,
+        `apps/web/${cleanRel}`,
+        `apps/web/${zeroEntryRel}`,
+      ]);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("effect baseline invariants", () => {
@@ -930,7 +1065,6 @@ describe("effect baseline invariants", () => {
     const errors = findBaselineViolations({
       actualCounts: new Map([["src/new-component.tsx", 1]]),
       baseline: {},
-      overrideIncludes: [...baseIncludes],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
@@ -942,7 +1076,6 @@ describe("effect baseline invariants", () => {
     const errors = findBaselineViolations({
       actualCounts: new Map([["src/existing.tsx", 3]]),
       baseline: { "src/existing.tsx": 2 },
-      overrideIncludes: [...baseIncludes, "!src/existing.tsx"],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
@@ -954,7 +1087,6 @@ describe("effect baseline invariants", () => {
     const explicitZero = findBaselineViolations({
       actualCounts: new Map(),
       baseline: { "src/migrated.tsx": 0 },
-      overrideIncludes: [...baseIncludes, "!src/migrated.tsx"],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
@@ -964,7 +1096,6 @@ describe("effect baseline invariants", () => {
     const staleEntry = findBaselineViolations({
       actualCounts: new Map(),
       baseline: { "src/migrated.tsx": 1 },
-      overrideIncludes: [...baseIncludes, "!src/migrated.tsx"],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
@@ -976,7 +1107,6 @@ describe("effect baseline invariants", () => {
     const errors = findBaselineViolations({
       actualCounts: new Map([["src/existing.tsx", 1]]),
       baseline: { "src/existing.tsx": 2 },
-      overrideIncludes: [...baseIncludes, "!src/existing.tsx"],
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
@@ -984,26 +1114,62 @@ describe("effect baseline invariants", () => {
     assert.match(errors[0], /dropped from 2 to 1/);
   });
 
-  test("fails when biome.json overrides drift from effect-baseline.json or grandfather aliases", () => {
-    const directDrift = findBaselineViolations({
+  test("fails when biome.json drops the generated extend, inlines direct-effects, or grandfathers aliases", () => {
+    const missingExtend = findBaselineViolations({
       actualCounts: new Map([["src/existing.tsx", 1]]),
       baseline: { "src/existing.tsx": 1 },
-      overrideIncludes: [...baseIncludes],
+      biomeExtends: "//",
       aliasOverrideIncludes: [...baseIncludes],
       baseIncludes,
     });
-    assert.equal(directDrift.length, 1);
-    assert.match(directDrift[0], /override includes do not match/);
+    assert.equal(missingExtend.length, 1);
+    assert.match(missingExtend[0], /must extend/);
+
+    const inlineDirect = findBaselineViolations({
+      actualCounts: new Map([["src/existing.tsx", 1]]),
+      baseline: { "src/existing.tsx": 1 },
+      hasDirectPluginInBiome: true,
+      aliasOverrideIncludes: [...baseIncludes],
+      baseIncludes,
+    });
+    assert.equal(inlineDirect.length, 1);
+    assert.match(inlineDirect[0], /must not inline/);
 
     const aliasDrift = findBaselineViolations({
       actualCounts: new Map([["src/existing.tsx", 1]]),
       baseline: { "src/existing.tsx": 1 },
-      overrideIncludes: [...baseIncludes, "!src/existing.tsx"],
       aliasOverrideIncludes: [...baseIncludes, "!src/existing.tsx"],
       baseIncludes,
     });
     assert.equal(aliasDrift.length, 1);
     assert.match(aliasDrift[0], /no baselined exemptions/);
+  });
+
+  test("fails when effect-baseline.json is unsorted or not formatted one entry per line", () => {
+    const unsortedRaw = '{\n  "src/b.tsx": 1,\n  "src/a.tsx": 1\n}\n';
+    const unsorted = findBaselineFormatViolations(
+      unsortedRaw,
+      JSON.parse(unsortedRaw),
+    );
+    assert.ok(unsorted.some((e) => /sorted/.test(e)));
+
+    const singleLineRaw = '{"src/a.tsx": 1, "src/b.tsx": 1}\n';
+    const singleLine = findBaselineFormatViolations(
+      singleLineRaw,
+      JSON.parse(singleLineRaw),
+    );
+    assert.equal(singleLine.length, 1);
+    assert.match(singleLine[0], /one entry per line/);
+
+    const canonicalRaw = formatEffectBaseline({
+      "src/b.tsx": 2,
+      "src/a.tsx": 1,
+    });
+    assert.equal(canonicalRaw, '{\n  "src/a.tsx": 1,\n  "src/b.tsx": 2\n}\n');
+    assert.deepEqual(
+      findBaselineFormatViolations(canonicalRaw, JSON.parse(canonicalRaw)),
+      [],
+    );
   });
 
   test("fails on any baseline increase relative to the base branch", () => {
@@ -1150,4 +1316,66 @@ describe("live repo effect baseline", () => {
       }
     });
   }
+
+  test("repo scripts, CI, gitignore, and hooks keep the generated Biome baseline synced automatically", () => {
+    const gitignore = readFileSync(join(ROOT, ".gitignore"), "utf8");
+    assert.match(
+      gitignore,
+      /^apps\/\*\/\.effect-baseline\.biome\.json$/m,
+      ".gitignore must ignore generated apps/*/.effect-baseline.biome.json",
+    );
+
+    const postMerge = readFileSync(join(ROOT, ".husky/post-merge"), "utf8");
+    assert.match(
+      postMerge,
+      /sync-effect-baseline\.mjs/,
+      ".husky/post-merge must re-sync when effect-baseline.json changes",
+    );
+
+    const rootPkg = JSON.parse(
+      readFileSync(join(ROOT, "package.json"), "utf8"),
+    );
+    for (const script of [
+      "prepare",
+      "check",
+      "check:write",
+      "lint",
+      "lint:write",
+      "format",
+      "format:check",
+    ]) {
+      assert.match(
+        rootPkg.scripts[script] ?? "",
+        /sync-effect-baseline\.mjs/,
+        `root package.json script "${script}" must run sync-effect-baseline.mjs`,
+      );
+    }
+
+    for (const app of EFFECT_APPS) {
+      const appPkg = JSON.parse(
+        readFileSync(join(ROOT, app.relDir, "package.json"), "utf8"),
+      );
+      for (const [name, cmd] of Object.entries(appPkg.scripts ?? {})) {
+        if (/\bbiome\b/.test(cmd)) {
+          assert.match(
+            cmd,
+            /sync-effect-baseline\.mjs/,
+            `${app.relDir}/package.json script "${name}" must run sync-effect-baseline.mjs before biome`,
+          );
+        }
+      }
+    }
+
+    const ciYml = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
+    const syncIdx = ciYml.indexOf("node scripts/ci/sync-effect-baseline.mjs");
+    const biomeIdx = ciYml.indexOf("run: biome check .");
+    assert.ok(
+      syncIdx !== -1,
+      ".github/workflows/ci.yml must run sync-effect-baseline.mjs",
+    );
+    assert.ok(
+      syncIdx < biomeIdx,
+      ".github/workflows/ci.yml must sync the effect baseline before running biome check .",
+    );
+  });
 });

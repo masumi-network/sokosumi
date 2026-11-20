@@ -9,3 +9,7 @@ if changed packages/database/prisma; then
   echo "post-merge: Prisma schema changed, running pnpm prisma:generate"
   pnpm prisma:generate
 fi
+if changed apps/web/effect-baseline.json apps/cmo/effect-baseline.json; then
+  echo "post-merge: effect-baseline.json changed, syncing Biome baseline"
+  node scripts/ci/sync-effect-baseline.mjs
+fi

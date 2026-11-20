@@ -12,7 +12,7 @@
     "dev": "next dev --port ${PORT:-3100}",
     "build": "next build",
     "start": "next start",
-    "check": "biome check .",
+    "check": "node ../../scripts/ci/sync-effect-baseline.mjs && biome check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:ci": "vitest run"

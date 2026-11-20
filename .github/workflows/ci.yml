@@ -471,6 +471,9 @@ jobs:
       - name: Install Biome
         run: npm install --global --no-fund --no-audit "@biomejs/biome@$(node -p "require('./package.json').devDependencies['@biomejs/biome']")"
 
+      - name: Sync effect baseline for Biome
+        run: node scripts/ci/sync-effect-baseline.mjs
+
       - name: Run Biome checks
         run: biome check .
 
