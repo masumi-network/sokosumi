@@ -21,6 +21,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   useTransition,
@@ -28,8 +29,10 @@ import {
 import { toast } from "sonner";
 import {
   type FailedProjectBrandGeneration,
+  hasProjectBrandAttemptInFlight,
   hasProjectBrandAutoStartAttempted,
   markProjectBrandAutoStartAttempted,
+  onProjectBrandStorageChange,
   projectBrandJobCallbacks,
   projectBrandWebsite,
   readFailedProjectBrandGeneration,
@@ -147,13 +150,30 @@ export function ProjectBrandProvider({
     owner,
   });
 
+  // Bumped when another surface in this tab writes the project's brand
+  // state, such as a wizard that closed before its job or failure came back.
+  const [storageVersion, bumpStorageVersion] = useReducer(
+    (version: number) => version + 1,
+    0,
+  );
+  useEffect(
+    () => onProjectBrandStorageChange(projectId, bumpStorageVersion),
+    [projectId],
+  );
+
   // Browser storage exists only after hydration and the viewer once the
   // session loads, so a remembered failure comes in after the first render.
+  // The failure this page just saw keeps its `live` flag.
   useEffect(() => {
-    setFailure(
-      viewerId ? readFailedProjectBrandGeneration(projectId, viewerId) : null,
+    const stored = viewerId
+      ? readFailedProjectBrandGeneration(projectId, viewerId)
+      : null;
+    setFailure((current) =>
+      current && stored && current.failedAt === stored.failedAt
+        ? current
+        : stored,
     );
-  }, [projectId, viewerId]);
+  }, [projectId, storageVersion, viewerId]);
 
   // Background brand setup: the wizard may have closed mid-generation, so pick
   // up its pending job here; if there is none but the project has a website
@@ -168,6 +188,8 @@ export function ProjectBrandProvider({
       return;
     }
     if (isRunning) return;
+    // Wait for the viewer, so a failure this attempt meets is kept.
+    if (!viewerId) return;
     const pending = readPendingProjectBrandJob(projectId);
     if (pending) {
       if (backgroundGenerationAttempted.current) return;
@@ -175,11 +197,19 @@ export function ProjectBrandProvider({
       resume(pending);
       return;
     }
-    if (!autoStart || !websiteUrl || !viewerId) return;
+    if (!autoStart || !websiteUrl) return;
     if (backgroundGenerationAttempted.current) return;
     if (hasProjectBrandAutoStartAttempted(projectId)) return;
-    // A failure (the wizard's too) waits for the owner, not a silent retry.
-    if (readFailedProjectBrandGeneration(projectId, viewerId)) return;
+    // A start elsewhere (the wizard's) hands its job over when it answers.
+    if (hasProjectBrandAttemptInFlight(projectId)) return;
+    // A failure on this website (the wizard's too) waits for the owner, not
+    // a silent retry. One on an older website does not count.
+    if (
+      readFailedProjectBrandGeneration(projectId, viewerId)?.website ===
+      projectBrandWebsite(websiteUrl)
+    ) {
+      return;
+    }
     backgroundGenerationAttempted.current = true;
     markProjectBrandAutoStartAttempted(projectId);
     void generate({ url: websiteUrl });
@@ -190,6 +220,7 @@ export function ProjectBrandProvider({
     isRunning,
     projectId,
     resume,
+    storageVersion,
     viewerId,
     websiteUrl,
   ]);

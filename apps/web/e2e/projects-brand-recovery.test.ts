@@ -98,15 +98,18 @@ for (const { name: size, isMobile, ...viewport } of SIZES) {
 
       // Back later, the failure and the website to fix are both still there.
       await page.reload();
+      // Restored, so shown and described but not announced again.
       await brand.getByText("Failed", { exact: true }).waitFor();
-      assert.ok(
-        (await brand.getByRole("alert").innerText()).includes(
-          `from ${BAD_WEBSITE}.`,
-        ),
-      );
+      await brand.getByText(`from ${BAD_WEBSITE}.`, { exact: false }).waitFor();
       await brand.getByText(/^Last tried /).waitFor();
+      assert.equal(await brand.getByRole("alert").count(), 0);
       assert.equal(await website.inputValue(), `https://${BAD_WEBSITE}/`);
       assert.equal(await website.getAttribute("aria-invalid"), "true");
+      assert.ok(
+        (await website.getAttribute("aria-describedby"))?.includes(
+          "project-brand-failure",
+        ),
+      );
 
       await website.fill(GOOD_WEBSITE);
       await website.press("Enter");

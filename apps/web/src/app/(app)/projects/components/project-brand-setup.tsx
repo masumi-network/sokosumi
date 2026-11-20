@@ -2,7 +2,7 @@
 
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
@@ -102,11 +102,18 @@ export function ProjectBrandSetup({
         setIsResolvingLogo(false);
       }
     })();
-
-    void brand.generate({ url: websiteUrl });
   });
 
-  const isBusy = isResolvingLogo || brand.isRunning;
+  // Start once the viewer is known, so a failure is kept for the project page.
+  const brandStarted = useRef(false);
+  const { generate } = brand;
+  useEffect(() => {
+    if (!viewerId || brandStarted.current) return;
+    brandStarted.current = true;
+    void generate({ url: websiteUrl });
+  }, [generate, viewerId, websiteUrl]);
+
+  const isBusy = isResolvingLogo || brand.isRunning || brand.status === "idle";
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center text-center">

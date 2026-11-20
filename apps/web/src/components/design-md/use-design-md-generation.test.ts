@@ -17,8 +17,9 @@ const URL = "https://bad.invalid/";
 
 function renderGeneration() {
   const onFailed = vi.fn();
+  const onJobStarted = vi.fn();
   const onStarted = vi.fn();
-  const { result } = renderHook(() =>
+  const { result, unmount } = renderHook(() =>
     useDesignMdGeneration({
       messages: {
         generationFailed: "generation failed",
@@ -26,12 +27,13 @@ function renderGeneration() {
         startFailed: "start failed",
       },
       onFailed,
+      onJobStarted,
       onStarted,
       owner: { type: "project", projectId: "project-1" },
       pollIntervalMs: 0,
     }),
   );
-  return { onFailed, onStarted, result };
+  return { onFailed, onJobStarted, onStarted, result, unmount };
 }
 
 describe("useDesignMdGeneration", () => {
@@ -46,8 +48,9 @@ describe("useDesignMdGeneration", () => {
 
     await act(() => result.current.generate({ url: URL }));
 
-    expect(onStarted).toHaveBeenCalledWith({ url: URL });
-    expect(onFailed).toHaveBeenCalledWith({ url: URL });
+    const attempt = { attemptId: expect.any(String), url: URL };
+    expect(onStarted).toHaveBeenCalledWith(attempt);
+    expect(onFailed).toHaveBeenCalledWith(attempt);
     expect(result.current.status).toBe("failed");
   });
 
@@ -63,7 +66,38 @@ describe("useDesignMdGeneration", () => {
       await vi.waitFor(() => expect(onFailed).toHaveBeenCalled());
     });
 
-    expect(onFailed).toHaveBeenCalledWith({ url: URL });
-    expect(onStarted).not.toHaveBeenCalled();
+    // Resuming takes the job over: the same attempt starts and fails.
+    const [[started]] = onStarted.mock.calls;
+    expect(started).toEqual({ attemptId: expect.any(String), url: URL });
+    expect(onFailed).toHaveBeenCalledWith(started);
+  });
+
+  it("hands over a job whose start answers after unmount, without polling", async () => {
+    let answer!: (
+      value: Awaited<ReturnType<typeof startDesignMdGeneration>>,
+    ) => void;
+    vi.mocked(startDesignMdGeneration).mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      }),
+    );
+    const { onJobStarted, onStarted, result, unmount } = renderGeneration();
+
+    const started = result.current.generate({ url: URL });
+    unmount();
+    answer({
+      ok: true,
+      value: { kind: "queued", jobId: "job-1", jobToken: "token-1" },
+    } as Awaited<ReturnType<typeof startDesignMdGeneration>>);
+    await started;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(onJobStarted).toHaveBeenCalledWith({
+      attemptId: onStarted.mock.calls[0]?.[0].attemptId,
+      jobId: "job-1",
+      jobToken: "token-1",
+      url: URL,
+    });
+    expect(pollDesignMdGeneration).not.toHaveBeenCalled();
   });
 });

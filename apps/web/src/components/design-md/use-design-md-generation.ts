@@ -35,19 +35,29 @@ interface UseDesignMdGenerationOptions {
   };
   onCompleted?: (designMd: PersistedDesignMd) => void;
   /** Called when an attempt fails, with the website it tried. */
-  onFailed?: (attempt: { url: string }) => void;
+  onFailed?: (attempt: DesignMdAttempt) => void;
   /** Called once a background job exists — lets callers persist it so another
-   * surface (e.g. the project page) can `resume` polling after navigation. */
-  onJobStarted?: (job: {
-    jobId: string;
-    jobToken: string;
-    url: string;
-  }) => void;
-  onSettled?: () => void;
-  /** Called when `generate` starts a new attempt, before any job exists. */
-  onStarted?: (attempt: { url: string }) => void;
+   * surface (e.g. the project page) can `resume` polling after navigation.
+   * Also called after unmount, when the start answers late: nobody else
+   * knows the job yet. */
+  onJobStarted?: (
+    job: DesignMdAttempt & {
+      jobId: string;
+      jobToken: string;
+    },
+  ) => void;
+  onSettled?: (attempt: Pick<DesignMdAttempt, "attemptId">) => void;
+  /** Called when `generate` or `resume` starts an attempt. */
+  onStarted?: (attempt: DesignMdAttempt) => void;
   owner: DesignMdOwner;
   pollIntervalMs?: number;
+}
+
+/** One generate or resume. `attemptId` is unique across mounts, so storage
+ * shared by several surfaces can tell whose attempt is the latest. */
+interface DesignMdAttempt {
+  attemptId: string;
+  url: string;
 }
 
 interface DesignMdGenerationState {
@@ -78,15 +88,15 @@ export function useDesignMdGeneration({
   const inFlightRef = useRef(false);
   const mountedRef = useRef(true);
   // Each generate, resume or reset is a new attempt. A late response from an
-  // older attempt, or from after unmount (a provider remount or the wizard
-  // closing), must not call back: another owner may have taken the project's
-  // job over and its stored state is no longer this attempt's to write.
-  const attemptRef = useRef(0);
+  // older attempt here must not call back. After unmount (a provider remount
+  // or the wizard closing) the attempt still reports, so a job only it knows
+  // is handed over; callers fence shared state by `attemptId`.
+  const attemptRef = useRef("");
   // The website of the attempt in flight, for `onFailed`.
   const urlRef = useRef("");
 
   const owns = useCallback(
-    (attempt: number) => mountedRef.current && attemptRef.current === attempt,
+    (attempt: string) => attemptRef.current === attempt,
     [],
   );
 
@@ -101,30 +111,32 @@ export function useDesignMdGeneration({
   }, []);
 
   const completeGeneration = useCallback(
-    (designMd: PersistedDesignMd, attempt: number) => {
+    (designMd: PersistedDesignMd, attempt: string) => {
       if (!owns(attempt)) return;
       onCompleted?.(designMd);
       safeSetState({ errorMessage: null, status: "completed" });
       inFlightRef.current = false;
-      onSettled?.();
+      onSettled?.({ attemptId: attempt });
     },
     [onCompleted, onSettled, owns, safeSetState],
   );
 
   const failGeneration = useCallback(
-    (message: string, attempt: number) => {
+    (message: string, attempt: string) => {
       if (!owns(attempt)) return;
       clearPollTimeout();
       safeSetState({ errorMessage: message, status: "failed" });
       inFlightRef.current = false;
-      onFailed?.({ url: urlRef.current });
-      onSettled?.();
+      onFailed?.({ attemptId: attempt, url: urlRef.current });
+      onSettled?.({ attemptId: attempt });
     },
     [clearPollTimeout, onFailed, onSettled, owns, safeSetState],
   );
 
   const pollUntilDone = useCallback(
-    (jobId: string, jobToken: string, attempt: number) => {
+    (jobId: string, jobToken: string, attempt: string) => {
+      // Unmounted: the surface that resumes the pending job polls it.
+      if (!mountedRef.current) return;
       clearPollTimeout();
       timeoutRef.current = setTimeout(async () => {
         if (!owns(attempt)) return;
@@ -203,9 +215,10 @@ export function useDesignMdGeneration({
 
       clearPollTimeout();
       inFlightRef.current = true;
-      const attempt = ++attemptRef.current;
+      const attempt = crypto.randomUUID();
+      attemptRef.current = attempt;
       urlRef.current = url;
-      onStarted?.({ url });
+      onStarted?.({ attemptId: attempt, url });
       safeSetState({ errorMessage: null, status: "starting" });
 
       try {
@@ -231,6 +244,7 @@ export function useDesignMdGeneration({
         if (!owns(attempt)) return;
         safeSetState({ errorMessage: null, status: "polling" });
         onJobStarted?.({
+          attemptId: attempt,
           jobId: startResult.value.jobId,
           jobToken: startResult.value.jobToken,
           url,
@@ -266,18 +280,20 @@ export function useDesignMdGeneration({
     (job: { jobId: string; jobToken: string; url: string }) => {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
-      const attempt = ++attemptRef.current;
+      const attempt = crypto.randomUUID();
+      attemptRef.current = attempt;
       urlRef.current = job.url;
+      onStarted?.({ attemptId: attempt, url: job.url });
       safeSetState({ errorMessage: null, status: "polling" });
       pollUntilDone(job.jobId, job.jobToken, attempt);
     },
-    [pollUntilDone, safeSetState],
+    [onStarted, pollUntilDone, safeSetState],
   );
 
   const reset = useCallback(() => {
     clearPollTimeout();
     inFlightRef.current = false;
-    attemptRef.current += 1;
+    attemptRef.current = "";
     safeSetState({ errorMessage: null, status: "idle" });
   }, [clearPollTimeout, safeSetState]);
 

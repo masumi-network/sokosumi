@@ -642,11 +642,11 @@ describe("ProjectBrandCard", () => {
       websiteUrl: "https://bad.invalid/",
     });
 
-    act(() =>
-      generationCallback<{ url: string }>("onFailed")({
-        url: "https://bad.invalid/",
-      }),
-    );
+    const attempt = { attemptId: "attempt-1", url: "https://bad.invalid/" };
+    act(() => {
+      generationCallback<typeof attempt>("onStarted")(attempt);
+      generationCallback<typeof attempt>("onFailed")(attempt);
+    });
 
     expect(screen.getByText("Failed")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(
@@ -675,7 +675,8 @@ describe("ProjectBrandCard", () => {
     });
 
     act(() =>
-      generationCallback<{ url: string }>("onStarted")({
+      generationCallback<{ attemptId: string; url: string }>("onStarted")({
+        attemptId: "attempt-1",
         url: "https://bad.invalid/",
       }),
     );
@@ -709,6 +710,43 @@ describe("ProjectBrandCard", () => {
     expect(field).not.toHaveAttribute("aria-invalid", "true");
     await user.type(field, "{Backspace}");
     expect(field).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("auto-starts a changed website despite an older website's failure", async () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: "https://example.com/",
+    });
+
+    await waitFor(() =>
+      expect(generateMock).toHaveBeenCalledWith({
+        url: "https://example.com/",
+      }),
+    );
+  });
+
+  it("does not auto-start a website whose generation failed", async () => {
+    window.sessionStorage.setItem(
+      FAILURE_KEY,
+      JSON.stringify({
+        failedAt: "2026-11-20T23:56:00.000Z",
+        website: "https://bad.invalid/",
+      }),
+    );
+    renderBrandDashboard({
+      designMd: null,
+      websiteUrl: "https://bad.invalid/",
+    });
+
+    expect(await screen.findByText("Failed")).toBeInTheDocument();
+    expect(generateMock).not.toHaveBeenCalled();
   });
 
   it("ignores a failure for a website the project no longer has", () => {

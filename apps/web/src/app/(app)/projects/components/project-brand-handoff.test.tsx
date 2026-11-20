@@ -31,8 +31,17 @@ vi.mock("@/lib/actions/project/action", () => ({
   updateProject: vi.fn(),
 }));
 
+const { session } = vi.hoisted(() => ({
+  // The client session; `data` is null while it loads.
+  session: {
+    current: { data: { user: { id: "viewer-1" } } } as {
+      data: { user: { id: string } } | null;
+    },
+  },
+}));
+
 vi.mock("@/lib/auth/auth.client", () => ({
-  useSession: () => ({ data: { user: { id: "viewer-1" } } }),
+  useSession: () => session.current,
 }));
 
 vi.mock("next-intl", () => ({
@@ -54,6 +63,16 @@ const failedPoll = {
   ok: true,
   value: { status: "failed", error: "Could not resolve bad.invalid." },
 } as PollResult;
+
+function wizard() {
+  return (
+    <ProjectBrandSetup
+      projectId={PROJECT_ID}
+      projectName="Launch"
+      websiteUrl={WEBSITE}
+    />
+  );
+}
 
 function overview() {
   return (
@@ -79,6 +98,7 @@ describe("project brand generation across surfaces", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
+    session.current = { data: { user: { id: "viewer-1" } } };
   });
   afterEach(() => vi.useRealTimers());
 
@@ -150,5 +170,67 @@ describe("project brand generation across surfaces", () => {
     expect(window.sessionStorage.getItem(FAILURE_KEY)).toBeNull();
     expect(window.sessionStorage.getItem(PENDING_KEY)).toContain("job-2");
     expect(screen.getByText("brandCard.generating")).toBeInTheDocument();
+  });
+
+  it("hands the project page a job the wizard's start returns after it closed", async () => {
+    const start = deferred<StartResult>();
+    vi.mocked(startDesignMdGeneration).mockReturnValue(start.promise);
+    vi.mocked(pollDesignMdGeneration).mockReturnValue(new Promise(() => {}));
+
+    const closed = render(wizard());
+    await waitFor(() => expect(startDesignMdGeneration).toHaveBeenCalledOnce());
+    closed.unmount();
+
+    // The project page opens while the wizard's start is still out: it waits
+    // for that job instead of starting its own.
+    render(overview());
+    expect(await screen.findByText("brandCard.notSet")).toBeInTheDocument();
+
+    await act(async () =>
+      start.resolve({
+        ok: true,
+        value: { kind: "queued", jobId: "job-1", jobToken: "token-1" },
+      } as StartResult),
+    );
+
+    expect(await screen.findByText("brandCard.generating")).toBeInTheDocument();
+    expect(window.sessionStorage.getItem(PENDING_KEY)).toContain("job-1");
+    expect(startDesignMdGeneration).toHaveBeenCalledOnce();
+  });
+
+  it("starts and resumes only once the viewer is known, so a failure is kept", async () => {
+    session.current = { data: null };
+    vi.mocked(startDesignMdGeneration).mockResolvedValue({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Could not resolve bad.invalid." },
+    } as StartResult);
+
+    const setup = render(wizard());
+    await act(async () => {});
+    expect(startDesignMdGeneration).not.toHaveBeenCalled();
+
+    session.current = { data: { user: { id: "viewer-1" } } };
+    setup.rerender(wizard());
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(FAILURE_KEY)).toContain(
+        "bad.invalid",
+      ),
+    );
+    setup.unmount();
+
+    // The project page resumes a pending job only with a viewer too.
+    window.sessionStorage.setItem(
+      PENDING_KEY,
+      JSON.stringify({ jobId: "job-2", jobToken: "token-2", url: WEBSITE }),
+    );
+    vi.mocked(pollDesignMdGeneration).mockReturnValue(new Promise(() => {}));
+    session.current = { data: null };
+    const page = render(overview());
+    await act(async () => {});
+    expect(screen.queryByText("brandCard.generating")).toBeNull();
+
+    session.current = { data: { user: { id: "viewer-1" } } };
+    page.rerender(overview());
+    expect(await screen.findByText("brandCard.generating")).toBeInTheDocument();
   });
 });
