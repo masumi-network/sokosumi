@@ -11635,7 +11635,7 @@ export type SaveStudioBrandLook = {
 };
 
 export type CreateProjectImageJobRequest = {
-    modelId?: string;
+    letterExistingBackdrop?: boolean;
     prompt: string;
     templateId?: string;
     creativeDirection?: string;
@@ -11663,7 +11663,6 @@ export type StudioProductImport = {
 };
 
 export type CreateProjectVideoJobRequest = {
-    modelId?: string;
     prompt: string;
     settings?: {
         aspectRatio?: '9:16' | '16:9' | '1:1' | '4:3' | '3:4';
