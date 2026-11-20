@@ -141,17 +141,22 @@ describe("RootLayout", () => {
     expect(googleAnalyticsMock).toHaveBeenCalledWith({ gaId: "G-TEST" });
   });
 
-  it("omits ConsentModeInit and GoogleTags on blocked telemetry routes", () => {
-    const view = hydrateRootLayout("/reset-password");
-    unmount = view.unmount;
+  it.each(["/reset-password", "/n/weekly/embed"])(
+    "renders ConsentModeInit and omits GoogleTags on blocked telemetry route %s",
+    (pathname) => {
+      const view = hydrateRootLayout(pathname);
+      unmount = view.unmount;
 
-    const scripts = Array.from(view.doc.querySelectorAll("script"));
-    expect(
-      scripts.some((script) =>
-        script.textContent?.includes("sokosumi-consent-default"),
-      ),
-    ).toBe(false);
-    expect(googleTagManagerMock).not.toHaveBeenCalled();
-    expect(googleAnalyticsMock).not.toHaveBeenCalled();
-  });
+      const scriptsInBody = Array.from(
+        view.doc.body.querySelectorAll("script"),
+      );
+      expect(
+        scriptsInBody.some((script) =>
+          script.textContent?.includes("sokosumi-consent-default"),
+        ),
+      ).toBe(true);
+      expect(googleTagManagerMock).not.toHaveBeenCalled();
+      expect(googleAnalyticsMock).not.toHaveBeenCalled();
+    },
+  );
 });

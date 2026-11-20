@@ -72,10 +72,12 @@ export default function RootLayout({
         <ApplePwaHead />
       </head>
       <body className="bg-background min-h-dvh max-w-dvw antialiased">
+        {/* Consent Mode (denied by default) MUST be set before GTM loads. Kept
+            outside TelemetryBoundary so documents booting on blocked routes
+            still seed the denied default without making network requests. */}
+        {analyticsEnabled && <ConsentModeInit />}
         <Suspense fallback={null}>
           <TelemetryBoundary>
-            {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
-            {analyticsEnabled && <ConsentModeInit />}
             <GoogleTags gtmId={gtmId} gaId={gaId} />
           </TelemetryBoundary>
         </Suspense>
