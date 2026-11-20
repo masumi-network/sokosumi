@@ -8,7 +8,7 @@ import {
 import { InputType } from "@sokosumi/masumi/types";
 import { isUrlArray, isUrlString } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
@@ -19,6 +19,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
+import { useResizeObserver } from "@/hooks/effects/use-resize-observer";
 import { flattenInputs } from "@/lib/schemas/job";
 import type { JobType } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
@@ -187,7 +188,7 @@ function JobDetailsInputsInner({
   const tMeta = useTranslations("Components.Jobs.JobDetails.Meta");
   const [open, setOpen] = useState(false);
   const [isExpandable, setIsExpandable] = useState(false);
-  const inputContentRef = useRef<HTMLDivElement | null>(null);
+  const [inputContent, setInputContent] = useState<HTMLDivElement | null>(null);
 
   const input = useMemo<Record<string, unknown>>(() => {
     if (!rawInput) {
@@ -267,26 +268,21 @@ function JobDetailsInputsInner({
     return [...schemaEntries, ...extraEntries];
   }, [input, inputsMap]);
 
-  useEffect(() => {
-    const element = inputContentRef.current;
-    if (!element || open || displayInputEntries.length === 0) {
-      return;
-    }
-
-    const measureOverflow = () => {
-      const hasOverflow = element.scrollHeight > element.clientHeight + 1;
+  useResizeObserver(
+    !open && displayInputEntries.length > 0 ? inputContent : null,
+    () => {
+      if (!inputContent) {
+        return;
+      }
+      const hasOverflow =
+        inputContent.scrollHeight > inputContent.clientHeight + 1;
       setIsExpandable(hasOverflow);
-    };
-
-    measureOverflow();
-
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [displayInputEntries.length, open, rawInput]);
+    },
+    {
+      immediate: true,
+      resetKey: `${displayInputEntries.length}\0${rawInput ?? ""}`,
+    },
+  );
 
   const hasInputs = displayInputEntries.length > 0;
 
@@ -299,7 +295,7 @@ function JobDetailsInputsInner({
           <div className="relative">
             <CollapsibleContent forceMount>
               <div
-                ref={inputContentRef}
+                ref={setInputContent}
                 className={cn(
                   "space-y-4",
                   !open && "max-h-48 overflow-hidden",

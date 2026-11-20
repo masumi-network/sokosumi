@@ -22,7 +22,6 @@ import { useTranslations } from "next-intl";
 import {
   type RefObject,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useMemo,
   useOptimistic,
@@ -35,6 +34,7 @@ import { toast } from "sonner";
 import { switchScopeHref } from "@/app/components/project-scope/project-scope-href";
 import { openProjectScope } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { Button } from "@/components/ui/button";
+import { useIntersectionObserver } from "@/hooks/effects/use-intersection-observer";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
@@ -1206,24 +1206,17 @@ export function ImageStudio({
   // Chat-style feed: the scroller is `flex-col-reverse`, so scrollTop 0 is the
   // newest image and prepending older pages never moves what is on screen. The
   // top sentinel asks for the next older page as it nears the viewport.
-  const topRef = useRef<HTMLDivElement>(null);
-  const loadOlderRef = useRef(loadOlder);
-  loadOlderRef.current = loadOlder;
-  useEffect(() => {
-    const node = topRef.current;
-    if (!node || !hasOlder) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          void loadOlderRef.current();
-        }
-      },
-      { rootMargin: "400px 0px 0px 0px" },
-    );
-    observer.observe(node);
-    return () => observer.disconnect();
-    // Re-armed per page: a page that does not fill the viewport must fire again.
-  }, [hasOlder, state.assets.length]);
+  const [topSentinel, setTopSentinel] = useState<HTMLDivElement | null>(null);
+  // Re-armed per page: a page that does not fill the viewport must fire again.
+  useIntersectionObserver(
+    hasOlder ? topSentinel : null,
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        void loadOlder();
+      }
+    },
+    { rootMargin: "400px 0px 0px 0px", resetKey: state.assets.length },
+  );
 
   const dock = useSteadyDock(promptRef, showsNothing);
   const assistantOpen = assistant?.open === true;
@@ -1392,7 +1385,7 @@ export function ImageStudio({
               : cn("justify-end", STUDIO_COMPOSER_GUTTER_CLASS),
           )}
         >
-          {studio.sort !== "best" ? <div ref={topRef} /> : null}
+          {studio.sort !== "best" ? <div ref={setTopSentinel} /> : null}
           {hasOlder ? (
             <p className="text-muted-foreground text-center text-xs">
               {labels.loadOlder}
@@ -1466,7 +1459,7 @@ export function ImageStudio({
             />
           )}
 
-          {studio.sort === "best" ? <div ref={topRef} /> : null}
+          {studio.sort === "best" ? <div ref={setTopSentinel} /> : null}
 
           {queue.failed.map((failure) => (
             <StudioFailedSubmission
