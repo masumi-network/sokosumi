@@ -4,7 +4,7 @@ import { Table2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ComponentProps, useMemo, useRef, useState } from "react";
+import { type ComponentProps, use, useMemo, useRef, useState } from "react";
 import type { Components } from "react-markdown";
 import { toast } from "sonner";
 import {
@@ -13,8 +13,12 @@ import {
   tableCopyRows,
 } from "@/app/drive/tables/table-copy";
 import { MarkdownTable } from "@/components/markdown";
+import { MarkdownClippedContext } from "@/components/markdown-clipped-context";
 import { Button } from "@/components/ui/button";
-import { taskResultTablePlan } from "./task-result-table";
+import {
+  TaskResultTableTooLarge,
+  taskResultTablePlan,
+} from "./task-result-table";
 
 /** The Task a saved Table comes from: its name titles the Table, and the Table joins its project. */
 type Source = { title: string; projectId: string | null };
@@ -33,6 +37,7 @@ function SaveableTable({
   const copy = useRef<TableCopy | null>(null);
   const [pending, setPending] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const clipped = use(MarkdownClippedContext);
 
   async function save() {
     if (!table.current) return;
@@ -71,7 +76,11 @@ function SaveableTable({
           onClick: () => router.push(`/drive/tables/${id}`),
         },
       });
-    } catch {
+    } catch (error) {
+      if (error instanceof TaskResultTableTooLarge) {
+        toast.error(t("tooLarge"), STAY);
+        return;
+      }
       const rows = copy.current && tableCopyRows(copy.current);
       toast.error(rows?.saved ? t("partial", rows) : t("failed"), STAY);
     } finally {
@@ -79,6 +88,8 @@ function SaveableTable({
     }
   }
 
+  // Below the clamp the action would take focus and clicks while nobody can see it.
+  if (clipped) return <MarkdownTable ref={table} {...props} />;
   return (
     <>
       <MarkdownTable ref={table} {...props} />

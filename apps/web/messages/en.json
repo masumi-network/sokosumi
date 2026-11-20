@@ -2278,7 +2278,8 @@
           "untitledColumn": "Column {position}",
           "saved": "{count, plural, one {Saved # row to a new table.} other {Saved # rows to a new table.}}",
           "partial": "Saved {saved} of {total} rows. Press Save as table again to finish.",
-          "failed": "Couldn't save the table. Try again."
+          "failed": "Couldn't save the table. Try again.",
+          "tooLarge": "This table is too big to save. A table holds up to 100 columns, column names up to 100 characters and up to 20,000 characters in a cell."
         }
       },
       "NewTask": {

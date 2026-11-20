@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, expect, it, vi } from "vitest";
+import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import Markdown from "@/components/markdown";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
@@ -96,4 +97,78 @@ it("says how far a failed save got and finishes it on the next press", async () 
   expect(m.create).toHaveBeenCalledTimes(1);
   expect(m.batch).toHaveBeenCalledTimes(2);
   expect(screen.getByRole("link", { name: "Open table" })).toBeInTheDocument();
+});
+
+it("refuses a table too large to save whole, before creating anything", async () => {
+  const user = userEvent.setup();
+  render(
+    <NextIntlClientProvider
+      locale="en"
+      messages={messages}
+      timeZone="UTC"
+      formats={createFormats()}
+    >
+      <WideResult />
+    </NextIntlClientProvider>,
+  );
+  await user.click(screen.getByRole("button", { name: "Save as table" }));
+  expect(m.create).not.toHaveBeenCalled();
+  expect(m.error).toHaveBeenCalledWith(
+    messages.App.Tasks.Detail.saveTable.tooLarge,
+    expect.anything(),
+  );
+});
+
+function WideResult() {
+  const components = useTaskResultTableComponents({
+    title: "Wide",
+    projectId: null,
+  });
+  const columns = Array.from({ length: 101 }, (_, i) => `c${i}`);
+  return (
+    <Markdown components={components}>
+      {`| ${columns.join(" | ")} |\n|${columns.map(() => " --- ").join("|")}|\n| ${columns.join(" | ")} |\n`}
+    </Markdown>
+  );
+}
+
+function Collapsible() {
+  const components = useTaskResultTableComponents({
+    title: "Find leads",
+    projectId: null,
+  });
+  return (
+    <ExpandableMarkdown
+      content={RESULT}
+      expandLabel="Expand"
+      collapseLabel="Show less"
+      components={components}
+    />
+  );
+}
+
+it("keeps the action out of reach while the table is clipped, and offers it once expanded", async () => {
+  // happy-dom lays nothing out: report content taller than the clamp.
+  vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(1000);
+  const user = userEvent.setup();
+  render(
+    <NextIntlClientProvider
+      locale="en"
+      messages={messages}
+      timeZone="UTC"
+      formats={createFormats()}
+    >
+      <Collapsible />
+    </NextIntlClientProvider>,
+  );
+  const expand = await screen.findByRole("button", { name: "Expand" });
+  expect(
+    screen.queryByRole("button", { name: "Save as table" }),
+  ).not.toBeInTheDocument();
+  await user.tab();
+  expect(expand).toHaveFocus();
+
+  await user.click(expand);
+  await user.click(screen.getByRole("button", { name: "Save as table" }));
+  expect(m.create).toHaveBeenCalledTimes(1);
 });

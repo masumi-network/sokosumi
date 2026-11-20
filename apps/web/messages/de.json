@@ -2278,7 +2278,8 @@
           "untitledColumn": "Spalte {position}",
           "saved": "{count, plural, one {# Zeile in einer neuen Tabelle gespeichert.} other {# Zeilen in einer neuen Tabelle gespeichert.}}",
           "partial": "{saved} von {total} Zeilen gespeichert. Tippe erneut auf „Als Tabelle speichern“, um den Rest zu speichern.",
-          "failed": "Die Tabelle konnte nicht gespeichert werden. Versuch es noch einmal."
+          "failed": "Die Tabelle konnte nicht gespeichert werden. Versuch es noch einmal.",
+          "tooLarge": "Diese Tabelle ist zu groß zum Speichern. Eine Tabelle fasst bis zu 100 Spalten, Spaltennamen mit bis zu 100 Zeichen und bis zu 20.000 Zeichen pro Zelle."
         }
       },
       "NewTask": {

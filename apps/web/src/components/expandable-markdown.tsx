@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Components } from "react-markdown";
 import { COLLAPSED_FADE_CLASS } from "@/components/collapsed-fade-class";
 import Markdown from "@/components/markdown";
+import { MarkdownClippedContext } from "@/components/markdown-clipped-context";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -101,13 +102,15 @@ export function ExpandableMarkdown({
               shouldFade && COLLAPSED_FADE_CLASS,
             )}
           >
-            <Markdown
-              className={className}
-              highlightTerm={highlightTerm}
-              components={components}
-            >
-              {content}
-            </Markdown>
+            <MarkdownClippedContext value={shouldFade}>
+              <Markdown
+                className={className}
+                highlightTerm={highlightTerm}
+                components={components}
+              >
+                {content}
+              </Markdown>
+            </MarkdownClippedContext>
           </div>
         </CollapsibleContent>
 

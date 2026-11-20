@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { taskResultTablePlan } from "./task-result-table";
+import {
+  TaskResultTableTooLarge,
+  taskResultTablePlan,
+  taskTableSource,
+} from "./task-result-table";
 
 const source = { title: "Leads", description: "", projectId: null };
 const untitled = (n: number) => `Column ${n}`;
@@ -55,19 +59,49 @@ describe("taskResultTablePlan", () => {
     expect(rows[0].values).toEqual({ [String(table.columns[0].id)]: "Ada" });
   });
 
-  it("keeps within Table limits", () => {
-    const header = Array.from({ length: 120 }, (_, i) => `h${i}`.repeat(60));
-    const { table, batches } = taskResultTablePlan(
-      [header, ["x".repeat(25000)]],
+  it("refuses a table a Files Table cannot hold whole, before anything is created", () => {
+    const plan = (cells: string[][]) => () =>
+      taskResultTablePlan(cells, source, untitled, "key");
+    const columns = Array.from({ length: 101 }, (_, i) => `c${i}`);
+    expect(plan([columns, columns])).toThrow(TaskResultTableTooLarge);
+    expect(plan([["n".repeat(101)], ["a"]])).toThrow(TaskResultTableTooLarge);
+    expect(plan([["Notes"], ["x".repeat(20001)]])).toThrow(
+      TaskResultTableTooLarge,
+    );
+    const wide = Array.from({ length: 60 }, (_, i) => `c${i}`);
+    expect(plan([wide, wide.map(() => "x".repeat(20000))])).toThrow(
+      TaskResultTableTooLarge,
+    );
+  });
+
+  it("cuts only the Table title it writes itself", () => {
+    const { table } = taskResultTablePlan(
+      [["Name"], ["Ada"]],
       { ...source, title: "t".repeat(300) },
       untitled,
       "key",
     );
-    expect(table.columns).toHaveLength(100);
-    expect(table.columns[0].name).toHaveLength(100);
     expect(table.title).toHaveLength(160);
+  });
+});
+
+describe("taskTableSource", () => {
+  const task = {
+    name: "Find leads",
+    projectId: null,
+    visibility: "PUBLIC" as const,
+    organizationId: "org-1",
+  };
+  it("offers Save as table where the Table's readers can already read the Task", () => {
+    expect(taskTableSource(task)).toEqual({
+      title: "Find leads",
+      projectId: null,
+    });
     expect(
-      batches[0].insert[0].values[String(table.columns[0].id)] as string,
-    ).toHaveLength(20000);
+      taskTableSource({ ...task, visibility: "PRIVATE", organizationId: null }),
+    ).toEqual({ title: "Find leads", projectId: null });
+  });
+  it("offers nothing for a private Task in an organization, whose Tables every member reads", () => {
+    expect(taskTableSource({ ...task, visibility: "PRIVATE" })).toBeUndefined();
   });
 });
