@@ -28,7 +28,6 @@ import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { getRealtimeChannelEnvironment } from "@/lib/ably/realtime-channel-environment";
 import { type TaskEventData, taskEventDataSchema } from "@/lib/ably/schema";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -46,7 +45,6 @@ import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskTagCatalogProvider } from "./task-tag-catalog";
 import { TasksMobileCreateFabSlot } from "./tasks-mobile-create-fab-slot";
 import { replaceTasksQuery } from "./tasks-search-params";
-import { rememberTasksToolbarHeight } from "./tasks-toolbar-height";
 import { focusToolbarControl } from "./tasks-view-filters";
 import { TasksViewToolbarActions } from "./tasks-view-toolbar-actions";
 import { TasksKeyboard } from "./use-board-keyboard";
@@ -271,16 +269,6 @@ export function TasksView(props: TasksViewProps) {
   };
 
   const toolbarRef = useRef<HTMLDivElement>(null);
-  // The loading skeleton reserves this height on the next cold load.
-  useMountEffect(() => {
-    const toolbar = toolbarRef.current;
-    if (!toolbar || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() =>
-      rememberTasksToolbarHeight(Math.round(toolbar.offsetHeight)),
-    );
-    observer.observe(toolbar);
-    return () => observer.disconnect();
-  });
   const handleClearFilters = () => {
     replaceTasksQuery(
       router,

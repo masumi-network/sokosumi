@@ -39,7 +39,6 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { useWorkspaceTags } from "@/queries/workspace-tags";
 import { TaskTagDot } from "./task-tag-colors";
 import { replaceTasksQuery, useTasksSearchParams } from "./tasks-search-params";
-import { TasksToolbarRow } from "./tasks-toolbar-row";
 import {
   getTasksView,
   getTasksViewPatch,
@@ -433,7 +432,7 @@ export function TasksViewFilters({
     // is active, because those are what a reader changes most. Chips wrap
     // under them. The Filters menu holds the rest and sits at the right
     // edge, with the view options menu after it.
-    <TasksToolbarRow>
+    <div className="@container/page-toolbar flex min-w-0 flex-1 flex-wrap items-center gap-2">
       {userId ? (
         <TasksViewSwitcher
           value={currentView}
@@ -508,6 +507,6 @@ export function TasksViewFilters({
         </span>
         {typeof display === "function" ? display(activeFilters) : display}
       </PageSearchActions>
-    </TasksToolbarRow>
+    </div>
   );
 }

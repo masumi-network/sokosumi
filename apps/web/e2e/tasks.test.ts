@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { after, before, describe, test } from "node:test";
 
-import { type Browser, chromium, type Page, type Route } from "playwright";
+import { type Browser, chromium, type Page } from "playwright";
 
 import { resolveBaseUrl } from "./base-url.ts";
 
@@ -69,75 +69,6 @@ async function shot(page: Page, size: string, step: string) {
   await page.screenshot({ path: `${RESULTS_DIR}tasks-${size}-${step}.png` });
 }
 
-/**
- * Opens the board through the app while the server holds its content back,
- * so the loading skeleton shows for a while (the app's shell segments still
- * load). Measures where the first column starts in the skeleton, then on the
- * loaded board: the board must not move when it arrives.
- */
-async function assertBoardLoadsInPlace(
-  page: Page,
-  navigate: () => Promise<unknown>,
-) {
-  const holdBoardContent = async (route: Route) => {
-    if (!route.request().headers()["next-router-segment-prefetch"]) {
-      await new Promise((resolve) => setTimeout(resolve, 4000));
-    }
-    await route.fallback();
-  };
-  const isBoardRequest = (url: URL) =>
-    url.pathname === "/tasks" && url.searchParams.has("_rsc");
-  await page.route(isBoardRequest, holdBoardContent);
-  await page.evaluate(() => {
-    const record = window as unknown as { __skeletonTop?: number };
-    delete record.__skeletonTop;
-    const started = performance.now();
-    const tick = () => {
-      const column = document.querySelector("main section");
-      if (column?.querySelector('[data-testid="task-card-skeleton"]')) {
-        record.__skeletonTop = Math.round(column.getBoundingClientRect().top);
-        return;
-      }
-      if (performance.now() - started < 30_000) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  });
-  await navigate();
-  await page.waitForFunction(
-    () =>
-      document.querySelector("main section") &&
-      !document.querySelector('[data-testid="task-card-skeleton"]'),
-    undefined,
-    { timeout: 60_000 },
-  );
-  await page.unroute(isBoardRequest, holdBoardContent);
-  const { skeletonTop, loadedTop } = await page.evaluate(() => ({
-    skeletonTop: (window as unknown as { __skeletonTop?: number })
-      .__skeletonTop,
-    loadedTop: Math.round(
-      document.querySelector("main section")?.getBoundingClientRect().top ?? 0,
-    ),
-  }));
-  assert.ok(skeletonTop, "the loading skeleton never painted a column");
-  assert.ok(loadedTop > 0, "the loaded board has no column");
-  assert.equal(
-    loadedTop,
-    skeletonTop,
-    `the board's columns move while it loads (top ${skeletonTop} -> ${loadedTop}px)`,
-  );
-}
-
-/** Tasks in the sidebar, or the phone tab bar; the tablet opens the sidebar. */
-async function openTasksFromNavigation(page: Page) {
-  const tasksLink = page
-    .getByRole("link", { name: "Tasks", exact: true })
-    .filter({ visible: true });
-  if ((await tasksLink.count()) === 0) {
-    await page.getByRole("button", { name: "Show sidebar" }).click();
-  }
-  await tasksLink.first().click();
-}
-
 let browser: Browser;
 before(async () => {
   mkdirSync(RESULTS_DIR, { recursive: true });
@@ -169,15 +100,20 @@ for (const { name: size, ...viewport } of PROJECTS) {
       await page.getByRole("link", { name: "Later" }).click();
       await page.waitForURL(`${BASE_URL}/`);
 
-      // Let the app load the shell of the pages it links to, as a reader's
-      // browser does while they look at Home.
-      await page.waitForTimeout(3000);
-      await assertBoardLoadsInPlace(page, () => openTasksFromNavigation(page));
-      // From md up the board fits the screen: the page itself does not scroll.
+      await page.goto(`${BASE_URL}/tasks`);
+      await page.getByRole("heading", { name: "Backlog" }).waitFor();
+      // From md up the loaded board fits the screen: the page itself does not
+      // scroll. Measured once the board, not its skeleton, is on screen.
       if (viewport.width >= 768) {
+        await page.waitForFunction(
+          () =>
+            location.pathname === "/tasks" &&
+            document.querySelector('[role="radiogroup"]') &&
+            !document.querySelector('[data-testid="task-card-skeleton"]'),
+        );
         const pageScroll = await page.evaluate(() => {
           const main = document.querySelector("main");
-          return main ? main.scrollHeight - main.clientHeight : 0;
+          return main ? main.scrollHeight - main.clientHeight : -1;
         });
         assert.equal(pageScroll, 0, `the board page scrolls ${pageScroll}px`);
       }
@@ -358,28 +294,6 @@ for (const { name: size, ...viewport } of PROJECTS) {
 
       await page.getByRole("button", { name: `Restore ${LONG_NAME}` }).click();
       await page.getByText("is back on the board").waitFor();
-
-      // A filtered board draws active filter chips in the toolbar, which can
-      // wrap it to another row. Back from a task returns to that filtered
-      // board; its skeleton keeps the toolbar's height, so columns stay put.
-      await page.goto(`${BASE_URL}/tasks?status=DRAFT`);
-      await page
-        .getByRole("list", { name: "Active filters" })
-        .filter({ visible: true })
-        .waitFor();
-      await page.getByRole("link", { name: LONG_NAME }).click();
-      await page.getByRole("heading", { level: 1, name: LONG_NAME }).waitFor();
-      await assertBoardLoadsInPlace(page, () =>
-        page
-          .getByRole("link", { name: "Back to tasks" })
-          .or(page.getByRole("link", { name: "Back", exact: true }))
-          .filter({ visible: true })
-          .click(),
-      );
-      assert.ok(
-        page.url().includes("status=DRAFT"),
-        `Back returned to ${page.url()}, not the filtered board`,
-      );
 
       const overflow = await page.evaluate(
         () =>
