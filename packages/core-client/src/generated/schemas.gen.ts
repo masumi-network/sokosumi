@@ -44419,6 +44419,285 @@ export const ProjectImageStudioCaptionSchema = {
     ]
 } as const;
 
+export const SeoConsoleExportSummarySchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'linked_pages',
+                'internal_pages',
+                'linking_sites',
+                'anchor_text',
+                'indexing_examples'
+            ]
+        },
+        reason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'discovered_not_indexed',
+                'crawled_not_indexed',
+                'blocked_robots',
+                'excluded_noindex',
+                'not_found',
+                'redirect',
+                'alternate_canonical',
+                null
+            ]
+        },
+        date: {
+            type: 'string',
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        sampleSize: {
+            type: 'integer'
+        },
+        actions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    title: {
+                        type: 'string'
+                    },
+                    why: {
+                        type: 'string'
+                    },
+                    nextCheck: {
+                        type: 'string'
+                    },
+                    subject: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'title',
+                    'why',
+                    'nextCheck'
+                ]
+            },
+            maxItems: 3
+        },
+        previousDate: {
+            type: [
+                'string',
+                'null'
+            ],
+            pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+        },
+        newInSample: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        absentFromSample: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        entries: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    key: {
+                        type: 'string'
+                    },
+                    counts: {
+                        type: 'object',
+                        properties: {
+                            incomingLinks: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            internalLinks: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            linkingSites: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            linkingPages: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            targetPages: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            anchorLinks: {
+                                type: 'integer',
+                                minimum: 0
+                            }
+                        }
+                    },
+                    auditedUrl: {
+                        type: 'boolean'
+                    },
+                    inspection: {
+                        type: 'object',
+                        properties: {
+                            status: {
+                                type: 'string',
+                                enum: [
+                                    'observed',
+                                    'unavailable'
+                                ]
+                            },
+                            checkedAt: {
+                                type: 'string'
+                            },
+                            verdict: {
+                                type: 'string',
+                                maxLength: 100
+                            }
+                        },
+                        required: [
+                            'status',
+                            'checkedAt'
+                        ]
+                    },
+                    previousCounts: {
+                        type: [
+                            'object',
+                            'null'
+                        ],
+                        properties: {
+                            incomingLinks: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            internalLinks: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            linkingSites: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            linkingPages: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            targetPages: {
+                                type: 'integer',
+                                minimum: 0
+                            },
+                            anchorLinks: {
+                                type: 'integer',
+                                minimum: 0
+                            }
+                        }
+                    }
+                },
+                required: [
+                    'key',
+                    'counts',
+                    'auditedUrl',
+                    'previousCounts'
+                ]
+            }
+        }
+    },
+    required: [
+        'kind',
+        'reason',
+        'date',
+        'sampleSize',
+        'previousDate',
+        'newInSample',
+        'absentFromSample',
+        'entries'
+    ]
+} as const;
+
+export const SeoConsoleExportInputSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'linked_pages',
+                        'internal_pages',
+                        'linking_sites',
+                        'anchor_text'
+                    ]
+                },
+                date: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                csv: {
+                    type: 'string',
+                    maxLength: 262144
+                }
+            },
+            required: [
+                'kind',
+                'date',
+                'csv'
+            ],
+            additionalProperties: false
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'indexing_examples'
+                    ]
+                },
+                reason: {
+                    type: 'string',
+                    enum: [
+                        'discovered_not_indexed',
+                        'crawled_not_indexed',
+                        'blocked_robots',
+                        'excluded_noindex',
+                        'not_found',
+                        'redirect',
+                        'alternate_canonical'
+                    ]
+                },
+                inspectExamples: {
+                    type: 'boolean',
+                    enum: [
+                        true
+                    ]
+                },
+                date: {
+                    type: 'string',
+                    pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                },
+                csv: {
+                    type: 'string',
+                    maxLength: 262144
+                }
+            },
+            required: [
+                'kind',
+                'reason',
+                'date',
+                'csv'
+            ],
+            additionalProperties: false
+        }
+    ]
+} as const;
+
 export const ProjectSeoWorkspaceSchema = {
     type: 'object',
     properties: {
@@ -44644,6 +44923,23 @@ export const ProjectSeoWorkspaceSchema = {
                     type: 'null'
                 }
             ]
+        },
+        siteEvidence: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectSeoSiteEvidence'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        auditSiteEvidence: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectSeoSiteEvidence'
+            },
+            maxItems: 20
         },
         strategy: {
             anyOf: [
@@ -45582,6 +45878,246 @@ export const ProjectSeoWorkspaceSchema = {
                             'decision'
                         ]
                     },
+                    discovery: {
+                        type: 'object',
+                        properties: {
+                            checkedAt: {
+                                type: 'string',
+                                format: 'date-time'
+                            },
+                            status: {
+                                type: 'string',
+                                enum: [
+                                    'available',
+                                    'partial',
+                                    'unavailable'
+                                ]
+                            },
+                            sitemaps: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        path: {
+                                            type: 'string',
+                                            maxLength: 2048,
+                                            format: 'uri'
+                                        },
+                                        type: {
+                                            type: [
+                                                'string',
+                                                'null'
+                                            ],
+                                            maxLength: 64
+                                        },
+                                        index: {
+                                            type: 'boolean'
+                                        },
+                                        pending: {
+                                            type: [
+                                                'boolean',
+                                                'null'
+                                            ]
+                                        },
+                                        submittedAt: {
+                                            type: [
+                                                'string',
+                                                'null'
+                                            ],
+                                            format: 'date-time'
+                                        },
+                                        downloadedAt: {
+                                            type: [
+                                                'string',
+                                                'null'
+                                            ],
+                                            format: 'date-time'
+                                        },
+                                        errors: {
+                                            type: [
+                                                'integer',
+                                                'null'
+                                            ],
+                                            minimum: 0,
+                                            maximum: 9007199254740991
+                                        },
+                                        warnings: {
+                                            type: [
+                                                'integer',
+                                                'null'
+                                            ],
+                                            minimum: 0,
+                                            maximum: 9007199254740991
+                                        },
+                                        webUrls: {
+                                            type: [
+                                                'integer',
+                                                'null'
+                                            ],
+                                            minimum: 0,
+                                            maximum: 9007199254740991
+                                        }
+                                    },
+                                    required: [
+                                        'path',
+                                        'type',
+                                        'index',
+                                        'pending',
+                                        'submittedAt',
+                                        'downloadedAt',
+                                        'errors',
+                                        'warnings',
+                                        'webUrls'
+                                    ]
+                                },
+                                maxItems: 50
+                            },
+                            inspections: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        page: {
+                                            type: 'string',
+                                            maxLength: 2048,
+                                            format: 'uri'
+                                        },
+                                        reason: {
+                                            type: [
+                                                'string',
+                                                'null'
+                                            ],
+                                            maxLength: 500
+                                        },
+                                        verdict: {
+                                            type: 'string',
+                                            maxLength: 64
+                                        },
+                                        canonical: {
+                                            type: [
+                                                'string',
+                                                'null'
+                                            ],
+                                            maxLength: 2048,
+                                            format: 'uri'
+                                        },
+                                        crawledAt: {
+                                            type: [
+                                                'string',
+                                                'null'
+                                            ],
+                                            maxLength: 64
+                                        },
+                                        checkedAt: {
+                                            type: 'string',
+                                            format: 'date-time'
+                                        },
+                                        reportedSitemaps: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            maxItems: 8
+                                        },
+                                        referringPages: {
+                                            type: 'array',
+                                            items: {
+                                                type: 'string',
+                                                maxLength: 2048,
+                                                format: 'uri'
+                                            },
+                                            maxItems: 8
+                                        }
+                                    },
+                                    required: [
+                                        'page',
+                                        'reason',
+                                        'verdict',
+                                        'canonical',
+                                        'crawledAt',
+                                        'checkedAt'
+                                    ]
+                                },
+                                maxItems: 10
+                            },
+                            changes: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        url: {
+                                            type: 'string',
+                                            maxLength: 2048,
+                                            format: 'uri'
+                                        },
+                                        previousDay: {
+                                            type: 'string',
+                                            format: 'date'
+                                        },
+                                        currentDay: {
+                                            type: 'string',
+                                            format: 'date'
+                                        },
+                                        text: {
+                                            type: 'string',
+                                            maxLength: 700
+                                        }
+                                    },
+                                    required: [
+                                        'url',
+                                        'previousDay',
+                                        'text'
+                                    ]
+                                },
+                                maxItems: 60
+                            },
+                            publicSitemaps: {
+                                type: 'array',
+                                items: {
+                                    type: 'string',
+                                    maxLength: 2048,
+                                    format: 'uri'
+                                },
+                                maxItems: 3
+                            },
+                            actions: {
+                                type: 'array',
+                                items: {
+                                    type: 'object',
+                                    properties: {
+                                        url: {
+                                            type: 'string',
+                                            maxLength: 2048,
+                                            format: 'uri'
+                                        },
+                                        action: {
+                                            type: 'string'
+                                        },
+                                        evidence: {
+                                            type: 'string'
+                                        }
+                                    },
+                                    required: [
+                                        'url',
+                                        'action',
+                                        'evidence'
+                                    ]
+                                },
+                                maxItems: 63
+                            }
+                        },
+                        required: [
+                            'checkedAt',
+                            'status',
+                            'sitemaps',
+                            'inspections',
+                            'changes',
+                            'publicSitemaps',
+                            'actions'
+                        ]
+                    },
                     countries: {
                         type: 'object',
                         properties: {
@@ -45989,6 +46525,141 @@ export const ProjectSeoObservationSchema = {
                                 enum: [
                                     'page',
                                     'site'
+                                ]
+                            },
+                            firstScreen: {
+                                type: 'object',
+                                properties: {
+                                    probe: {
+                                        type: 'string',
+                                        enum: [
+                                            'mobile_first_screen',
+                                            'desktop_first_screen'
+                                        ]
+                                    },
+                                    label: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 80
+                                    },
+                                    state: {
+                                        type: 'string',
+                                        enum: [
+                                            'visible',
+                                            'outside_first_screen',
+                                            'unknown'
+                                        ]
+                                    },
+                                    record: {
+                                        type: 'string'
+                                    },
+                                    reason: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 1200
+                                    }
+                                },
+                                required: [
+                                    'probe',
+                                    'label',
+                                    'state',
+                                    'record',
+                                    'reason'
+                                ]
+                            },
+                            trends: {
+                                type: 'object',
+                                properties: {
+                                    keywords: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                keyword: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 512
+                                                },
+                                                status: {
+                                                    type: 'string',
+                                                    enum: [
+                                                        'read',
+                                                        'not read',
+                                                        'failed',
+                                                        'not determined'
+                                                    ]
+                                                },
+                                                peakMonths: {
+                                                    type: 'array',
+                                                    items: {
+                                                        type: 'string',
+                                                        enum: [
+                                                            'January',
+                                                            'February',
+                                                            'March',
+                                                            'April',
+                                                            'May',
+                                                            'June',
+                                                            'July',
+                                                            'August',
+                                                            'September',
+                                                            'October',
+                                                            'November',
+                                                            'December'
+                                                        ]
+                                                    },
+                                                    maxItems: 12
+                                                },
+                                                seasonal: {
+                                                    type: [
+                                                        'boolean',
+                                                        'null'
+                                                    ]
+                                                },
+                                                trend: {
+                                                    type: 'string',
+                                                    enum: [
+                                                        'rising',
+                                                        'falling',
+                                                        'flat',
+                                                        'not determined'
+                                                    ]
+                                                },
+                                                change: {
+                                                    type: [
+                                                        'number',
+                                                        'null'
+                                                    ],
+                                                    minimum: 0
+                                                },
+                                                note: {
+                                                    type: 'string',
+                                                    minLength: 1,
+                                                    maxLength: 1200
+                                                }
+                                            },
+                                            required: [
+                                                'keyword',
+                                                'status',
+                                                'peakMonths',
+                                                'seasonal',
+                                                'trend',
+                                                'change',
+                                                'note'
+                                            ]
+                                        },
+                                        minItems: 1,
+                                        maxItems: 50
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 1200
+                                    }
+                                },
+                                required: [
+                                    'keywords',
+                                    'note'
                                 ]
                             },
                             rankedKeywordIdeas: {
@@ -48049,6 +48720,275 @@ export const ProjectSeoIndexAssessedPageSchema = {
     additionalProperties: false
 } as const;
 
+export const ProjectSeoSiteEvidenceSchema = {
+    type: 'object',
+    properties: {
+        taskId: {
+            type: 'string'
+        },
+        auditPageUrl: {
+            type: 'string',
+            maxLength: 4096,
+            format: 'uri'
+        },
+        observedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sampledPages: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 4096,
+                format: 'uri'
+            },
+            maxItems: 10
+        },
+        complete: {
+            type: 'boolean'
+        },
+        suppliedSitemap: {
+            type: 'string',
+            enum: [
+                'read',
+                'blocked',
+                'unavailable'
+            ]
+        },
+        coverage: {
+            type: 'object',
+            properties: {
+                discovered: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                deferredCount: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                deferred: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            url: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            reason: {
+                                type: 'string',
+                                enum: [
+                                    'page_limit',
+                                    'read_limit',
+                                    'deadline',
+                                    'robots',
+                                    'access_limit',
+                                    'unavailable'
+                                ]
+                            }
+                        },
+                        required: [
+                            'url',
+                            'reason'
+                        ],
+                        additionalProperties: false
+                    },
+                    maxItems: 20
+                }
+            },
+            required: [
+                'discovered',
+                'deferredCount',
+                'deferred'
+            ],
+            additionalProperties: false
+        },
+        targets: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    targetUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    donorUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    contentDonorUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    sitemapUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 100
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'fix_link',
+                            'review_redirect',
+                            'strengthen_links',
+                            'review',
+                            'observed'
+                        ]
+                    },
+                    action: {
+                        type: 'string'
+                    },
+                    httpStatus: {
+                        type: 'integer'
+                    },
+                    sitemapEligible: {
+                        type: 'boolean',
+                        enum: [
+                            true
+                        ]
+                    },
+                    finalUrl: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    declaredCanonical: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    googleReferringPages: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    googleSitemapUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 4096,
+                            format: 'uri'
+                        },
+                        maxItems: 10
+                    },
+                    googleReason: {
+                        type: 'string'
+                    },
+                    googleCheckedAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    },
+                    trend: {
+                        type: 'object',
+                        properties: {
+                            previousAt: {
+                                type: 'string',
+                                format: 'date-time',
+                                example: '2021-01-01T00:00:00.000Z'
+                            },
+                            previousCount: {
+                                type: 'integer'
+                            },
+                            currentCount: {
+                                type: 'integer'
+                            },
+                            decline: {
+                                type: 'object',
+                                properties: {
+                                    points: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                at: {
+                                                    type: 'string',
+                                                    format: 'date-time',
+                                                    example: '2021-01-01T00:00:00.000Z'
+                                                },
+                                                count: {
+                                                    type: 'integer',
+                                                    minimum: 0
+                                                }
+                                            },
+                                            required: [
+                                                'at',
+                                                'count'
+                                            ],
+                                            additionalProperties: false
+                                        }
+                                    },
+                                    missingDonorUrls: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 4096,
+                                            format: 'uri'
+                                        },
+                                        minItems: 1,
+                                        maxItems: 3
+                                    }
+                                },
+                                required: [
+                                    'points',
+                                    'missingDonorUrls'
+                                ],
+                                additionalProperties: false
+                            }
+                        },
+                        required: [
+                            'previousAt',
+                            'previousCount',
+                            'currentCount'
+                        ],
+                        additionalProperties: false
+                    }
+                },
+                required: [
+                    'targetUrl',
+                    'donorUrls',
+                    'contentDonorUrls',
+                    'sitemapUrls',
+                    'status',
+                    'action'
+                ],
+                additionalProperties: false
+            },
+            maxItems: 10
+        }
+    },
+    required: [
+        'taskId',
+        'auditPageUrl',
+        'observedAt',
+        'sampledPages',
+        'complete',
+        'targets'
+    ],
+    additionalProperties: false
+} as const;
+
 export const ProjectSeoStrategySchema = {
     type: 'object',
     properties: {
@@ -49822,6 +50762,27 @@ export const RequestProjectSeoAnalysisRequestSchema = {
             enum: [
                 true
             ]
+        },
+        includeSitemaps: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        },
+        publicSitemapUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        sitemapPageHints: {
+            type: 'array',
+            items: {
+                type: 'string',
+                maxLength: 2048,
+                format: 'uri'
+            },
+            minItems: 1,
+            maxItems: 10
         },
         setupGoal: {
             type: 'object',
@@ -66297,6 +67258,175 @@ export const SeoTaskRelatedPagesReceiptSchema = {
 export const SeoTaskRelatedPagesRequestSchema = {
     type: 'object',
     properties: {
+        siteEvidence: {
+            type: 'object',
+            properties: {
+                version: {
+                    type: 'number',
+                    enum: [
+                        1
+                    ]
+                },
+                complete: {
+                    type: 'boolean'
+                },
+                suppliedSitemap: {
+                    type: 'string',
+                    enum: [
+                        'read',
+                        'blocked',
+                        'unavailable'
+                    ]
+                },
+                coverage: {
+                    type: 'object',
+                    properties: {
+                        discovered: {
+                            type: 'integer',
+                            minimum: 0
+                        },
+                        deferredCount: {
+                            type: 'integer',
+                            minimum: 0
+                        },
+                        deferred: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 4096,
+                                        format: 'uri'
+                                    },
+                                    reason: {
+                                        type: 'string',
+                                        enum: [
+                                            'page_limit',
+                                            'read_limit',
+                                            'deadline',
+                                            'robots',
+                                            'access_limit',
+                                            'unavailable'
+                                        ]
+                                    }
+                                },
+                                required: [
+                                    'url',
+                                    'reason'
+                                ],
+                                additionalProperties: false
+                            },
+                            maxItems: 20
+                        }
+                    },
+                    required: [
+                        'discovered',
+                        'deferredCount',
+                        'deferred'
+                    ],
+                    additionalProperties: false
+                },
+                sampledPages: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        maxLength: 4096,
+                        format: 'uri'
+                    },
+                    maxItems: 10
+                },
+                observations: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            sourceUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            targetUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            sourceKind: {
+                                type: 'string',
+                                enum: [
+                                    'link',
+                                    'sitemap'
+                                ]
+                            },
+                            location: {
+                                type: 'string',
+                                enum: [
+                                    'content',
+                                    'template',
+                                    'body',
+                                    'sitemap'
+                                ]
+                            }
+                        },
+                        required: [
+                            'sourceUrl',
+                            'targetUrl',
+                            'sourceKind',
+                            'location'
+                        ],
+                        additionalProperties: false
+                    },
+                    maxItems: 100
+                },
+                responses: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            pageUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            status: {
+                                type: 'integer',
+                                minimum: 100,
+                                maximum: 599
+                            },
+                            finalUrl: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            declaredCanonical: {
+                                type: 'string',
+                                maxLength: 4096,
+                                format: 'uri'
+                            },
+                            sitemapEligible: {
+                                type: 'boolean',
+                                enum: [
+                                    true
+                                ]
+                            }
+                        },
+                        required: [
+                            'pageUrl',
+                            'status'
+                        ],
+                        additionalProperties: false
+                    },
+                    maxItems: 10
+                }
+            },
+            required: [
+                'version',
+                'complete',
+                'sampledPages',
+                'observations'
+            ],
+            additionalProperties: false
+        },
         expectedContext: {
             $ref: '#/components/schemas/TaskWorkerContext'
         },

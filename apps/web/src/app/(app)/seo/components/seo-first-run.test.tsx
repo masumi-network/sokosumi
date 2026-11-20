@@ -1117,6 +1117,9 @@ describe("SEO audit first run", () => {
       { name: copy.analysis.submit },
     );
     await user.click(submit);
+    expect(vi.mocked(mutateSeo).mock.calls[0][0]).toMatchObject({
+      command: { kind: "request_analysis", body: { includeSitemaps: true } },
+    });
     expect(submit).toHaveAttribute("aria-busy", "true");
     workspace.analyses = [
       {

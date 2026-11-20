@@ -133,9 +133,6 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
   const recommendedActions = actions.filter(
     (action) => action.status === "recommended",
   );
-  const recentChecks = workspace.analyses.filter(
-    (analysis) => analysis.status !== "completed",
-  );
   const hasCheckedEvidence = workspace.observations.some(
     (observation) => observation.coverage.checked > 0,
   );
@@ -162,7 +159,6 @@ export function seoOverviewModel(workspace: ProjectSeoWorkspace) {
     actionProblem,
     unplanned,
     recommendedActions,
-    recentChecks,
     hasFailedChecks,
     emptyState,
   };

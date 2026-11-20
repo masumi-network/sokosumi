@@ -32,6 +32,7 @@ import { syncLockService } from "./sync-lock.service";
 interface AutomaticStatistics<T> {
   actor: SeoActor;
   auditTaskId?: string;
+  includeSitemaps?: boolean;
   input: SyncProjectSeoStatistics;
   integration: SeoStatisticsIntegration;
   pageIds: string[];
@@ -105,7 +106,10 @@ export async function withAutomaticSeoStatistics<T>(
     if (!result.success || result.data.collectionFingerprint !== fingerprint)
       return null;
     const data = result.data;
-    if (auditTaskId) return data.auditPerformanceComplete ? data : null;
+    if (auditTaskId)
+      return data.auditPerformanceComplete || context.includeSitemaps
+        ? data
+        : null;
     const age =
       Date.now() - new Date(data.collectedAt ?? data.observedAt).getTime();
     const retryQueries =
@@ -149,9 +153,17 @@ export async function withAutomaticSeoStatistics<T>(
     if (hooks.authorize) await prisma.$transaction(hooks.authorize);
     return context.readWorkspace();
   }
+  function auditComplete(data: NativeSeoMetrics) {
+    return (
+      data.auditPerformanceComplete &&
+      (!context.includeSitemaps ||
+        (data.auditDiscovery && data.auditDiscovery.status !== "unavailable"))
+    );
+  }
   const saved = input.automatic ? await fresh() : null;
-  if (auditTaskId && saved) return readCachedWorkspace();
-  if (saved && !inspectionsDue(saved) && (await isActive()))
+  if (auditTaskId && saved && auditComplete(saved))
+    return readCachedWorkspace();
+  if (!auditTaskId && saved && !inspectionsDue(saved) && (await isActive()))
     return readCachedWorkspace();
   // Reports that share URL Inspection data must not both spend the same page quota.
   const lockScope =
@@ -188,7 +200,10 @@ export async function withAutomaticSeoStatistics<T>(
           throw conflict("Statistics collection expired. Please retry.");
       },
     };
-    if (auditTaskId && current) return await readCachedWorkspace();
+    if (auditTaskId && current) {
+      if (auditComplete(current)) return await readCachedWorkspace();
+      return await context.collect(fingerprint, leasedHooks, current);
+    }
     if (current && !inspectionsDue(current)) {
       if (await isActive()) return readCachedWorkspace();
       return await context.activate(

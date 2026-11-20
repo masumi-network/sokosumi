@@ -60,6 +60,7 @@ import {
 } from "./seo-content-history";
 import { readPageMarketEvidence } from "./seo-page-market-evidence";
 import { readPageSpeed } from "./seo-page-speed";
+import { publicSitemapList, workerSitemaps } from "./seo-public-sitemaps";
 import {
   readReviewSources,
   seoReviewSource,
@@ -130,6 +131,7 @@ const publicSeoPayload = z.object({
   rulebookVersion: text,
   researchCoverage: z.array(seoResearchCoverage).max(11).optional(),
   pageMarketEvidence: seoPageMarketEvidence.optional(),
+  publicSitemaps: publicSitemapList.optional().catch(undefined),
   pageSpeed: seoPageSpeed.optional(),
   checks: storedSeoChecklist,
   keywords: z.array(keyword).max(5000),
@@ -689,6 +691,7 @@ export function parsePublicSeoArtifact(raw: unknown): PublicSeoPayload {
     kind: "audit_full",
     requestId: null,
     pageUrls: [pageUrl],
+    publicSitemaps: workerSitemaps(raw, result),
     pageSpeed: readPageSpeed(
       object(raw)?.speed,
       pageUrl,

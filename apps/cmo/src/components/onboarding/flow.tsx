@@ -76,6 +76,9 @@ export function OnboardingFlow({
   );
   // Why a connection came back without an account, read before the query goes.
   const [returnNotice, setReturnNotice] = useState<string | null>(null);
+  // One-shot measurement return error: consumed when leaving Results or Plan so
+  // revisiting Brand and returning to Strategy never replays it.
+  const [pendingMeasureError, setPendingMeasureError] = useState(measureError);
 
   // The connection redirect's query has been read; a reload routes from Core.
   useEffect(() => {
@@ -148,6 +151,13 @@ export function OnboardingFlow({
     stepIndex(viewing) < reached;
   const step: OnboardingStep =
     revisiting && viewing ? viewing : heldSite ? "site" : derived;
+  const [prevStep, setPrevStep] = useState(step);
+  if (prevStep !== step) {
+    setPrevStep(step);
+    if (prevStep === "plan" && pendingMeasureError !== null) {
+      setPendingMeasureError(null);
+    }
+  }
   const current = stepIndex(step);
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -317,7 +327,8 @@ export function OnboardingFlow({
             phase={planPhase}
             starting={starting}
             initialTab={initialStep === "results" ? "results" : undefined}
-            measureError={measureError}
+            measureError={pendingMeasureError}
+            onConsumeMeasureError={() => setPendingMeasureError(null)}
             ahead={ahead}
             onRequest={request}
             onSetAds={async (monthly, currency) =>

@@ -1,5 +1,6 @@
 import type { ProjectSeoWorkspace } from "@sokosumi/core-client";
 import { useSeoResultTranslations } from "@/i18n/use-seo-result-translations";
+import { SeoResearchDetails } from "./seo-research-details";
 import { SeoDate, SeoFoldSummary } from "./seo-shared";
 
 type Breakdown = NonNullable<
@@ -79,7 +80,7 @@ export function SeoResearchStatus({
           <SeoDate report day value={observedAt} />
         </span>
       </div>
-      {data.map(({ scope, pageUrl, stages }) => (
+      {data.map(({ scope, pageUrl, stages, firstScreen, trends }) => (
         <div key={scope + pageUrl}>
           {showScope && (
             <p className="break-all text-xs text-muted-foreground">
@@ -102,6 +103,7 @@ export function SeoResearchStatus({
               </div>
             ))}
           </dl>
+          <SeoResearchDetails firstScreen={firstScreen} trends={trends} />
         </div>
       ))}
     </section>
