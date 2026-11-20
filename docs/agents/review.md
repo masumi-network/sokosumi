@@ -15,6 +15,8 @@ Give every finding a severity (Critical, Important, Minor) and an origin:
 - **Introduced by this PR**: the diff adds or changes the code at fault.
 - **Pre-existing**: the same fault is on the base branch.
 
+For a coding-convention check (a lint rule or CI test that enforces how code is written, such as the effect rule), judge a bypass by whether an agent copying what it finds would plausibly write it: a pattern our code or a dependency ships counts and keeps its severity; an exotic syntax variant is Minor. Severities set under "Always check" stay as written, and security or data-integrity bypasses are judged by reachability and impact, never by plausibility. A false positive is Minor only when it fails safe, appears only on contrived code, and a rename fixes it; one that blocks ordinary code is Important. Report a class of bypass that shares one fix as one finding and ask for the general fix, not one finding per syntax shape.
+
 Only introduced Critical and Important findings block a merge. Record each pre-existing finding in the review as a follow-up, and link a Task when one already exists or filing is authorized ([issue tracker](./issue-tracker.md)); it does not hold the PR.
 
 ## Always check
